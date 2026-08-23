@@ -1,10 +1,10 @@
-"use client";
-
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis } from "recharts";
+import { useState, useEffect } from "react";
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 interface MissionsStatsProps {
     categories: { category: string; count: number; validated: number }[];
     topValidators: { name: string; value: number }[];
+    topDonors: { name: string; value: number }[];
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -12,110 +12,180 @@ const CATEGORY_LABELS: Record<string, string> = {
     REGULATION: "Régulation",
     ANOMALIE: "Anomalie",
     SONGES: "Songes",
-    EXPEDITION: "Expédition",
+    EXPEDITION: "Expedition",
     EVENT: "Événement",
 };
 
 const COLORS = ["#8b5cf6", "#14b8a6", "#f59e0b", "#ef4444", "#06b6d4", "#ec4899"];
 
-export default function MissionsStats({ categories, topValidators }: MissionsStatsProps) {
+export default function MissionsStats({ categories, topValidators, topDonors }: MissionsStatsProps) {
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => { setMounted(true); }, []);
     const pieData = categories.map(c => ({
         name: CATEGORY_LABELS[c.category] || c.category,
         value: c.count,
     }));
 
-    const barData = topValidators.map(v => ({
-        name: v.name.length > 12 ? v.name.slice(0, 12) + "…" : v.name,
+    const barDataValidators = topValidators.map(v => ({
+        name: v.name.length > 15 ? v.name.slice(0, 15) + "…" : v.name,
         missions: v.value,
     }));
 
-    return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Donut */}
-            <div>
-                <h4 className="text-sm font-semibold text-zinc-400 mb-3 uppercase tracking-wider">Par catégorie</h4>
-                {pieData.length === 0 ? (
-                    <div className="flex items-center justify-center h-48 text-zinc-600 text-sm">Aucune mission</div>
-                ) : (
-                    <div className="h-52">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart style={{ background: "transparent" }}>
-                                <Pie
-                                    data={pieData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={50}
-                                    outerRadius={80}
-                                    paddingAngle={3}
-                                    dataKey="value"
-                                    stroke="none"
-                                >
-                                    {pieData.map((_, i) => (
-                                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip
-                                    contentStyle={{
-                                        backgroundColor: "rgba(24,24,27,0.95)",
-                                        border: "1px solid rgba(255,255,255,0.1)",
-                                        borderRadius: "8px",
-                                        color: "#fff",
-                                        fontSize: "13px",
-                                    }}
-                                />
-                            </PieChart>
-                        </ResponsiveContainer>
-                        {/* Legend */}
-                        <div className="flex flex-wrap gap-3 justify-center mt-2">
-                            {pieData.map((entry, i) => (
-                                <div key={entry.name} className="flex items-center gap-1.5 text-xs text-zinc-400">
-                                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                                    {entry.name}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </div>
+    const barDataDonors = topDonors.map(v => ({
+        name: v.name.length > 15 ? v.name.slice(0, 15) + "…" : v.name,
+        kamas: v.value,
+    }));
 
-            {/* Top Validators */}
-            <div>
-                <h4 className="text-sm font-semibold text-zinc-400 mb-3 uppercase tracking-wider">Top validateurs</h4>
-                {barData.length === 0 ? (
-                    <div className="flex items-center justify-center h-48 text-zinc-600 text-sm">Aucune validation</div>
-                ) : (
-                    <div className="h-52">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={barData} layout="vertical" margin={{ left: 10, right: 20 }}>
+    const CustomTooltip = ({ active, payload, label, unit }: any) => {
+        if (active && payload && payload.length) {
+            return (
+                <div className="bg-surface/95 border border-border p-3 rounded-lg shadow-2xl backdrop-blur-md">
+                    <p className="text-caption font-bold text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
+                    <p className="text-sm font-bold text-foreground">
+                        {unit === "kamas" 
+                            ? `${(payload[0].value / 1000000).toFixed(1)}M kamas` 
+                            : `${payload[0].value} missions`}
+                    </p>
+                </div>
+            );
+        }
+        return null;
+    };
+
+    return (
+        <div className="space-y-12">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                {/* Répartition */}
+                <div className="flex flex-col">
+                    <h4 className="text-caption font-bold text-muted-foreground mb-6 uppercase tracking-widest flex items-center gap-2">
+                        <span className="w-1 h-1 rounded-full bg-success" />
+                        Répartition par catégorie
+                    </h4>
+                    {!mounted || pieData.length === 0 ? (
+                        <div className="flex-1 flex items-center justify-center text-muted-foreground text-xs italic bg-surface rounded-2xl border border-dashed border-border min-h-[200px]">
+                            {!mounted ? "Chargement..." : "Aucune donnée"}
+                        </div>
+                    ) : (
+                        <div className="h-[220px] relative">
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                                <PieChart>
+                                    <Pie
+                                        data={pieData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={85}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                        stroke="none"
+                                        animationDuration={1500}
+                                    >
+                                        {pieData.map((_, i) => (
+                                            <Cell key={i} fill={COLORS[i % COLORS.length]} className="focus:outline-none" />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip content={<CustomTooltip />} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+                                <span className="text-2xl font-black text-foreground leading-none">
+                                    {pieData.reduce((acc, curr) => acc + curr.value, 0)}
+                                </span>
+                                <span className="text-caption text-muted-foreground uppercase font-bold tracking-tighter">Total</span>
+                            </div>
+                        </div>
+                    )}
+                    <div className="flex flex-wrap gap-x-4 gap-y-2 justify-center mt-6">
+                        {pieData.map((entry, i) => (
+                            <div key={entry.name} className="flex items-center gap-1.5 no-wrap">
+                                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                                <span className="text-caption font-medium text-muted-foreground">{entry.name}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Top Validations */}
+                <div className="flex flex-col">
+                    <h4 className="text-caption font-bold text-muted-foreground mb-6 uppercase tracking-widest flex items-center gap-2">
+                        <span className="w-1 h-1 rounded-full bg-violet-500" />
+                        Efficacité du Staff
+                    </h4>
+                    <div className="h-[220px]">
+                        {!mounted ? (
+                            <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs italic">Chargement...</div>
+                        ) : (
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                                <BarChart data={barDataValidators} layout="vertical" margin={{ left: -10, right: 30, top: 0, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="barGradient" x1="0" y1="0" x2="1" y2="0">
+                                        <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.8} />
+                                        <stop offset="100%" stopColor="#a78bfa" stopOpacity={1} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.03)" />
                                 <XAxis type="number" hide />
                                 <YAxis
                                     type="category"
                                     dataKey="name"
-                                    tick={{ fill: "#a1a1aa", fontSize: 12 }}
+                                    tick={{ fill: "#71717a", fontSize: 11, fontVariant: "small-caps" }}
                                     axisLine={false}
                                     tickLine={false}
                                     width={100}
                                 />
-                                <Tooltip
-                                    contentStyle={{
-                                        backgroundColor: "rgba(24,24,27,0.95)",
-                                        border: "1px solid rgba(255,255,255,0.1)",
-                                        borderRadius: "8px",
-                                        color: "#fff",
-                                        fontSize: "13px",
-                                    }}
-                                />
+                                <Tooltip cursor={{ fill: 'rgba(255,255,255,0.03)' }} content={<CustomTooltip />} />
                                 <Bar
                                     dataKey="missions"
-                                    name="Validées"
-                                    fill="#8b5cf6"
-                                    radius={[0, 6, 6, 0]}
-                                    barSize={20}
+                                    fill="url(#barGradient)"
+                                    radius={[0, 4, 4, 0]}
+                                    barSize={16}
                                 />
                             </BarChart>
                         </ResponsiveContainer>
-                    </div>
+                    )}
+                </div>
+            </div>
+        </div>
+
+            {/* Top Donors */}
+            <div className="pt-8 border-t border-border">
+                <h4 className="text-caption font-bold text-muted-foreground mb-8 uppercase tracking-widest flex items-center gap-2">
+                    <span className="w-1 h-1 rounded-full bg-warning" />
+                    Grands Philanthropes (Kamas)
+                </h4>
+                <div className="h-[180px]">
+                    {!mounted ? (
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs italic">Chargement...</div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                            <BarChart data={barDataDonors} layout="vertical" margin={{ left: -10, right: 40, top: 0, bottom: 0 }}>
+                            <defs>
+                                <linearGradient id="kamaGradient" x1="0" y1="0" x2="1" y2="0">
+                                    <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.8} />
+                                    <stop offset="100%" stopColor="#fbbf24" stopOpacity={1} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.03)" />
+                            <XAxis type="number" hide />
+                            <YAxis
+                                type="category"
+                                dataKey="name"
+                                tick={{ fill: "#71717a", fontSize: 11, fontVariant: "small-caps" }}
+                                axisLine={false}
+                                tickLine={false}
+                                width={100}
+                            />
+                            <Tooltip cursor={{ fill: 'rgba(255,255,255,0.03)' }} content={<CustomTooltip unit="kamas" />} />
+                            <Bar
+                                dataKey="kamas"
+                                fill="url(#kamaGradient)"
+                                radius={[0, 4, 4, 0]}
+                                barSize={16}
+                            />
+                        </BarChart>
+                    </ResponsiveContainer>
                 )}
+            </div>
             </div>
         </div>
     );

@@ -1,8 +1,11 @@
 "use server";
 
 import { db } from "@/lib/prisma";
+import { resolveDofusServerName } from "@/lib/presentation-constants";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { getUserContext } from "./user-actions";
+import { getUserContext, checkGuildPermission } from "./user-actions";
+import { PERMISSIONS } from "@/lib/permissions";
 import { logger } from "@/lib/logger";
 import { join } from "path";
 import sharp from "sharp";
@@ -10,7 +13,27 @@ import { analyzeImage, hashImage, shouldAutoValidate } from "@/lib/llm-ocr";
 import { writeFile, mkdir } from "fs/promises";
 import { auth } from "@/auth";
 import { rateLimit } from "@/lib/ratelimit";
+import { buildProfileSlug } from "@/lib/profile-slug";
 import { z } from "zod";
+import { formatDofusPseudo } from "@/lib/utils";
+import { getDiscordPublicUrl } from "@/lib/storage-utils";
+import { getDisplayName } from "@/lib/display-name";
+import { resolveDofusImageUrl } from "@/lib/dofus-image-url";
+import { PREFERRED_ACTIVITY_IDS } from "@/lib/profile-activities";
+import { postChannelMessage } from "@/server/discord";
+
+const rankingCache = new Map<string, { data: any[], expiresAt: number }>();
+const RANKING_CACHE_TTL = 300_000; // 5 minutes
+
+/**
+ * Pre-warm the Redis cache for Dofusbook builds.
+ * Called non-blocking (setTimeout) after a user saves their links.
+ * Extracts the build ID from the URL and hits our own proxy to populate Redis.
+ */
+// warmDofusbookCache is disabled — Dofusbook API blocked by Cloudflare for all server IPs.
+// Cache is warmed via getDofusbookPreview during the bake step in updateDofusBookLinks.
+function warmDofusbookCache(_urls: string[]): void { /* no-op */ }
+
 
 export type ActionResponse<T = null> = {
     success: boolean;
@@ -26,16 +49,22 @@ const UpdateProfileSchema = z.object({
     guildId: z.string(),
     pseudoDofus: z.string()
         .max(50, "Le pseudo ne peut pas dépasser 50 caractères")
-        .regex(/^[a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\-\s]+$/, "Le pseudo ne doit contenir que des lettres et tirets (pas de chiffres ni de caractères spéciaux)")
+        .regex(/^[a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\-\s\[\]]*$/, "Le pseudo ne doit contenir que des lettres, espaces, tirets et crochets (pas de chiffres ni d'autres caractères spéciaux)")
         .optional(),
     classe: z.string().optional(),
-    classeSecondaires: z.array(z.string()).max(10, "Maximum 10 classes secondaires").optional(),
     metiers: z.array(z.string()).optional(),
     forgemagieStatus: z.enum(["FREE", "PAID", "UNAVAILABLE"]).optional(),
     fmPriceClassic: z.number().min(0, "Prix invalide").nullable().optional(),
     fmPriceTrans: z.number().min(0, "Prix invalide").nullable().optional(),
     fmPriceExo: z.number().min(0, "Prix invalide").nullable().optional(),
     showPresence: z.boolean().optional(),
+    alignment: z.string().nullable().optional(),
+    alignmentOrder: z.string().nullable().optional(),
+    alignmentLevel: z.number().min(0).max(100).optional(),
+    introduction: z.string().max(2000, "Présentation trop longue").nullable().optional(),
+    objectifs: z.string().max(1000, "Objectifs trop longs").nullable().optional(),
+    preferredActivities: z.array(z.enum(PREFERRED_ACTIVITY_IDS)).optional(),
+    discordContact: z.string().max(200, "Contact trop long").nullable().optional(),
     targetUserId: z.string().optional(),
 });
 
@@ -53,6 +82,7 @@ const UpdateVacationSchema = z.object({
     vacationStart: z.string().datetime().nullable().optional(),
     vacationEnd: z.string().datetime().nullable().optional(),
     vacationNotify: z.boolean().optional(),
+    vacationReason: z.string().max(100, "Motif trop long").nullable().optional(),
     targetUserId: z.string().optional(),
 });
 
@@ -68,6 +98,7 @@ const SendVacationNotificationSchema = z.object({
     profileId: z.string(),
     startDate: z.string().nullable(),
     endDate: z.string().nullable(),
+    reason: z.string().nullable().optional(),
 });
 
 const UpdateNotificationPrefsSchema = z.object({
@@ -91,16 +122,173 @@ const SyncSuccessPointsSchema = z.object({
     targetUserId: z.string().optional(),
 });
 
+const TogglePinnedNavItemSchema = z.object({
+    guildId: z.string(),
+    href: z.string(),
+});
+
+const ToggleHiddenNavItemSchema = z.object({
+    guildId: z.string(),
+    href: z.string(),
+});
+
 // ============================================================================
 // PROFILE CRUD
 // ============================================================================
+
+/**
+ * Internal helper: check if a pseudo exists on the Dofus ladder.
+ * Not rate-limited — only called server-side during save operations.
+ * Returns true if found, false if not found, null if service unavailable (fail-open).
+ */
+async function checkPseudoExistsOnLadder(pseudo: string, serverId: string): Promise<boolean | null> {
+    const WORKER_URL = process.env.DOFUS_LADDER_WORKER_URL;
+    const WORKER_SECRET = process.env.DOFUS_LADDER_WORKER_KEY || process.env.DOFUS_LADDER_WORKER_SECRET;
+
+    if (!WORKER_URL) return null; // Service unavailable → fail-open (don't block)
+
+    try {
+        const headers: Record<string, string> = { "Accept": "application/json" };
+        if (WORKER_SECRET) headers["X-SigilOS-Key"] = WORKER_SECRET;
+
+        const url = `${WORKER_URL}?server_id=${encodeURIComponent(serverId)}&name=${encodeURIComponent(pseudo)}&type=general`;
+        const res = await fetch(url, {
+            headers,
+            signal: AbortSignal.timeout(5000),
+            cache: "no-store",
+        });
+
+        if (!res.ok) return null; // Network error → fail-open
+        const data = await res.json().catch(() => null);
+        return !!(data?.success || data?.found);
+    } catch {
+        return null; // Timeout/crash → fail-open
+    }
+}
+
+/**
+ * Indique si le toggle God « Fallback Pseudo Manuel » est actif.
+ * Utilisé côté client pour autoriser la saisie d'un pseudo SANS vérification
+ * ladder Ankama (identité de combat / pseudo principal) quand la liaison est KO.
+ */
+export async function isLadderManualFallbackEnabled(): Promise<boolean> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return false;
+        const platform = await db.platformConfig.findUnique({
+            where: { id: "singleton" },
+            select: { ladderManualFallback: true }
+        });
+        return platform?.ladderManualFallback ?? false;
+    } catch {
+        return false; // fail-closed : sans l'info, on garde la vérification
+    }
+}
+
+/**
+ * Verify a Dofus pseudo using the ladder API.
+ * Accessible to all members for profile setup.
+ */
+export async function verifyDofusPseudo(pseudo: string, guildId: string) {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    const viewer = await getUserContext(guildId);
+    if (!viewer.isMember) return { success: false, error: "Accès refusé" };
+
+    if (!pseudo || pseudo.length < 2) return { success: false, error: "Pseudo trop court" };
+
+    // ── FALLBACK MANUEL (toggle God) ─────────────────────────────────────────
+    // Si le super-admin a activé `PlatformConfig.ladderManualFallback` (le worker
+    // Ankama est KO, ou on veut assouplir l'entrée), on autorise la saisie du pseudo
+    // SANS vérification ladder. Sécurité : la sanitisation est déléguée au schéma Zod
+    // (lettres, espaces, tirets, crochets — pas de chiffres), validé côté serveur.
+    try {
+        const platform = await db.platformConfig.findUnique({
+            where: { id: "singleton" },
+            select: { ladderManualFallback: true, ladderManualFallbackUpdatedAt: true }
+        });
+        if (platform?.ladderManualFallback) {
+            return {
+                success: true,
+                data: {
+                    found: true,
+                    level: null,
+                    xp: null,
+                    character_name: pseudo,
+                    manualFallback: true
+                }
+            };
+        }
+    } catch (fallbackErr) {
+        logger.warn("[verifyDofusPseudo] Fallback check failed, continuing to worker", { error: fallbackErr });
+    }
+    // ── FIN FALLBACK MANUEL ──────────────────────────────────────────────────
+
+    // Use a strict rate limit for this potentially expensive worker call
+    const rateLimitKey = `rate-limit:verify-pseudo:${session.user.id}`;
+    const isRateLimited = await rateLimit(rateLimitKey, 10, 60); // 10 checks per minute
+    if (!isRateLimited) return { success: false, error: "Trop de tentatives. Veuillez patienter." };
+
+    const WORKER_URL = process.env.DOFUS_LADDER_WORKER_URL;
+    const WORKER_SECRET = process.env.DOFUS_LADDER_WORKER_KEY || process.env.DOFUS_LADDER_WORKER_SECRET;
+    
+    if (!WORKER_URL) {
+        logger.error("DOFUS_LADDER_WORKER_URL is missing in environment");
+        return { success: false, error: "Service de vérification indisponible." };
+    }
+
+    // Get guild's server ID + name (nom du serveur Dofus configuré côté admin)
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { dofusServerId: true, dofusServerName: true }
+    });
+    
+    const serverId = guildConfig?.dofusServerId || "295"; // Default to Imagiro
+    const serverName = resolveDofusServerName(guildConfig?.dofusServerName, guildConfig?.dofusServerId);
+
+    try {
+        const headers: Record<string, string> = { "Accept": "application/json" };
+        if (WORKER_SECRET) headers["X-SigilOS-Key"] = WORKER_SECRET;
+
+        // We check 'general' as it's the most reliable for existence
+        const url = `${WORKER_URL}?server_id=${encodeURIComponent(serverId)}&name=${encodeURIComponent(pseudo)}&type=general`;
+        const res = await fetch(url, { 
+            headers,
+            next: { revalidate: 3600 } // Cache verification for 1h
+        });
+        
+        const data = await res.json().catch(() => null);
+        const found = data?.success || data?.found;
+
+        if (res.status === 200 && found) {
+            return { 
+                success: true, 
+                data: { 
+                    found: true, 
+                    level: data?.level || data?.data?.level, 
+                    xp: data?.xp || data?.data?.xp,
+                    character_name: data?.character_name || data?.data?.character_name
+                } 
+            };
+        }
+
+        return { success: false, error: `Pseudo "${pseudo}" introuvable sur ${serverName}. Vérifiez l'orthographe exacte.` };
+    } catch (err: any) {
+        logger.error("Verify Pseudo Error", { error: err });
+        return { success: false, error: "Erreur de communication avec le service de vérification." };
+    }
+}
 
 export async function getUserProfile(guildId: string): Promise<ActionResponse<any>> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         const profile = await db.userProfile.findUnique({
@@ -112,6 +300,9 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
             },
             include: {
                 user: true,
+                skins: {
+                    orderBy: { createdAt: "desc" }
+                },
                 roleGrants: {
                     where: {
                         revokedAt: null,
@@ -126,6 +317,16 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
         });
 
         if (!profile) return { success: false, error: "Profil introuvable" };
+
+        // Attach active services if exists
+        const activeServices = await db.serviceListing.findMany({
+            where: {
+                profileId: profile.id,
+                guildId: guildConfig.id,
+                status: "ACTIVE"
+            },
+            orderBy: { createdAt: "desc" }
+        });
 
         // Attach pending submission if exists
         const pendingSubmission = await (db as any).achievementSubmission.findFirst({
@@ -145,9 +346,37 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
                 lastActivityAt: profile.lastActivityAt?.toISOString() || null,
                 vacationStart: profile.vacationStart?.toISOString() || null,
                 vacationEnd: profile.vacationEnd?.toISOString() || null,
+                vacationReason: profile.vacationReason || null,
                 hasSeenWelcome: profile.hasSeenWelcome,
                 introduction: profile.introduction,
+                objectifs: profile.objectifs || null,
+                preferredActivities: (profile.preferredActivities as string[]) || [],
+                discordContact: profile.discordContact || null,
                 showPresence: profile.showPresence,
+                pinnedNavItems: profile.pinnedNavItems,
+                hiddenNavItems: profile.hiddenNavItems,
+                alignment: profile.alignment,
+                alignmentOrder: profile.alignmentOrder,
+                alignmentLevel: profile.alignmentLevel,
+                altPseudos: profile.altPseudos,
+                metamobPseudo: profile.metamobPseudo,
+                metamobVerified: profile.metamobVerified,
+                metamobLastSync: profile.metamobLastSync,
+                dofusBookLinks: profile.dofusBookLinks,
+                activeServices: activeServices.map(s => ({
+                    id: s.id,
+                    title: s.title,
+                    category: s.category,
+                    price: s.price,
+                    description: s.description,
+                    imageUrl: s.dofusItemIconUrl || s.dungeonImageUrl || null,
+                    professions: s.professions,
+                    dungeonName: s.dungeonName || null,
+                    dungeonImageUrl: s.dungeonImageUrl || null,
+                    dofusItemIconUrl: s.dofusItemIconUrl || null,
+                    dofusItemName: s.dofusItemName || null,
+                    createdAt: s.createdAt.toISOString()
+                })),
                 sigilRoles: profile.roleGrants.map(rg => ({
                     id: rg.role.id,
                     slug: rg.role.slug,
@@ -165,7 +394,99 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
             }
         };
     } catch (error) {
-        console.error("Get Profile Error:", error);
+        logger.error("Get Profile Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function togglePinnedNavItem(rawData: z.infer<typeof TogglePinnedNavItemSchema>) {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const validation = TogglePinnedNavItemSchema.safeParse(rawData);
+    if (!validation.success) return { success: false, error: "Données invalides" };
+    const { guildId, href } = validation.data;
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const profile = await db.userProfile.findUnique({
+            where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
+            select: { pinnedNavItems: true }
+        });
+
+        if (!profile) return { success: false, error: "Profil introuvable" };
+
+        let pinned = profile.pinnedNavItems || [];
+        if (pinned.includes(href)) {
+            pinned = pinned.filter(h => h !== href);
+        } else {
+            pinned = [...pinned, href];
+        }
+
+        await db.userProfile.update({
+            where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
+            data: { pinnedNavItems: pinned }
+        });
+
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(session.user.id, guildConfig.id, guildId);
+
+        revalidatePath(`/dashboard/${guildId}`, 'layout');
+        return { success: true, pinned };
+    } catch (error) {
+        logger.error("Toggle Pinned Nav Item Error", { error });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function toggleHiddenNavItem(rawData: z.infer<typeof ToggleHiddenNavItemSchema>) {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const validation = ToggleHiddenNavItemSchema.safeParse(rawData);
+    if (!validation.success) return { success: false, error: "Données invalides" };
+    const { guildId, href } = validation.data;
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const profile = await db.userProfile.findUnique({
+            where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
+            select: { hiddenNavItems: true }
+        });
+
+        if (!profile) return { success: false, error: "Profil introuvable" };
+
+        let hidden = profile.hiddenNavItems || [];
+        if (hidden.includes(href)) {
+            hidden = hidden.filter(h => h !== href);
+        } else {
+            hidden = [...hidden, href];
+        }
+
+        await db.userProfile.update({
+            where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
+            data: { hiddenNavItems: hidden }
+        });
+
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(session.user.id, guildConfig.id, guildId);
+
+        revalidatePath(`/dashboard/${guildId}`, 'layout');
+        return { success: true, hidden };
+    } catch (error) {
+        logger.error("Toggle Hidden Nav Item Error", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -175,7 +496,10 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         // Verify caller is member of guild
@@ -194,6 +518,7 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
                 status: "ACTIVE"  // Prevent access to archived/banned profiles
             },
             include: {
+                legendaryCrafts: true,
                 user: {
                     include: {
                         accounts: {
@@ -242,7 +567,10 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
                         }
 
                         // Admin Check
-                        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+                        const guildConfig = await db.guildConfig.findUnique({ 
+                            where: { discordGuildId: guildId },
+                            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+                        });
                         const rolesMapping = (guildConfig?.rolesMapping as Record<string, string[]>) || {};
                         const isAdmin = member.roles.some(rid => {
                             const hasSigilAdmin = rolesMapping[rid]?.includes("admin:access");
@@ -257,7 +585,7 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
                     }
                 }
             } catch (e) {
-                console.warn("Failed to fetch Discord info:", e);
+                logger.warn("Failed to fetch Discord info", { error: e });
             }
         }
 
@@ -288,17 +616,54 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
         // Count validated missions (Total)
         const validatedMissionsCount = allValidatedSubmissions.length;
 
+        // Fetch active services for member
+        const activeServices = await db.serviceListing.findMany({
+            where: {
+                profileId: profile.id,
+                guildId: guildConfig.id,
+                status: "ACTIVE"
+            },
+            orderBy: { createdAt: "desc" }
+        });
+
         return {
             success: true,
             data: {
                 ...profile,
                 createdAt: profile.createdAt.toISOString(),
                 updatedAt: profile.updatedAt.toISOString(),
+                userUpdatedAt: profile.userUpdatedAt ? profile.userUpdatedAt.toISOString() : profile.createdAt.toISOString(),
                 lastActivityAt: profile.lastActivityAt?.toISOString() || null,
                 vacationStart: profile.vacationStart?.toISOString() || null,
                 vacationEnd: profile.vacationEnd?.toISOString() || null,
-                user: { id: profile.user.id, name: profile.user.name, image: profile.user.image },
+                vacationReason: profile.vacationReason || null,
+                user: { id: profile.user.id, name: getDisplayName(profile), image: profile.user.image },
                 introduction: profile.introduction,
+                objectifs: profile.objectifs || null,
+                preferredActivities: (profile.preferredActivities as string[]) || [],
+                discordContact: profile.discordContact || null,
+                alignment: profile.alignment,
+                alignmentOrder: profile.alignmentOrder,
+                alignmentLevel: profile.alignmentLevel,
+                altPseudos: profile.altPseudos,
+                metamobPseudo: profile.metamobPseudo,
+                metamobVerified: profile.metamobVerified,
+                metamobLastSync: profile.metamobLastSync,
+                dofusBookLinks: profile.dofusBookLinks,
+                activeServices: activeServices.map(s => ({
+                    id: s.id,
+                    title: s.title,
+                    category: s.category,
+                    price: s.price,
+                    description: s.description,
+                    imageUrl: s.dofusItemIconUrl || s.dungeonImageUrl || null,
+                    professions: s.professions,
+                    dungeonName: s.dungeonName || null,
+                    dungeonImageUrl: s.dungeonImageUrl || null,
+                    dofusItemIconUrl: s.dofusItemIconUrl || null,
+                    dofusItemName: s.dofusItemName || null,
+                    createdAt: s.createdAt.toISOString()
+                })),
                 discordInfo,
                 sigilRoles: profile.roleGrants.map(rg => ({
                     id: rg.role.id,
@@ -314,7 +679,57 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
             }
         };
     } catch (error) {
-        console.error("Get Member Profile Error:", error);
+        logger.error("Get Member Profile Error", { error });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+/**
+ * Résout un profil membre à partir d'un "slug" human-readable.
+ * Priorité : pseudoDofus (insensible à la casse) → id (cuid, backward-compat).
+ * Cela permet des URLs propres : /members/Darkaine au lieu de /members/cmofl232x...
+ */
+export async function getMemberProfileBySlug(guildId: string, slug: string): Promise<ActionResponse<any>> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        // Security: caller must be member of the guild
+        const callerProfile = await db.userProfile.findUnique({
+            where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } }
+        });
+        if (!callerProfile) return { success: false, error: "Accès refusé" };
+
+        // Decode the slug (handles URL-encoded characters)
+        const decoded = decodeURIComponent(slug);
+
+        // Try pseudoDofus, then discordNickname, then user.name, then fall back to id
+        const profile = await db.userProfile.findFirst({
+            where: {
+                guildId: guildConfig.id,
+                status: "ACTIVE",
+                OR: [
+                    { pseudoDofus: { equals: decoded, mode: "insensitive" } },
+                    { discordNickname: { equals: decoded, mode: "insensitive" } },
+                    { user: { name: { equals: decoded, mode: "insensitive" } } },
+                    { id: decoded },
+                ]
+            },
+            select: { id: true }
+        });
+
+        if (!profile) return { success: false, error: "Profil introuvable" };
+
+        // Delegate to the canonical getMemberProfile with the resolved id
+        return getMemberProfile(guildId, profile.id);
+    } catch (error) {
+        logger.error("Get Member Profile By Slug Error", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -325,10 +740,19 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
 
     const validation = UpdateProfileSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, pseudoDofus, classe, classeSecondaires, metiers, forgemagieStatus, fmPriceClassic, fmPriceTrans, fmPriceExo, showPresence, targetUserId } = validation.data;
+    const { guildId, classe, metiers, forgemagieStatus, fmPriceClassic, fmPriceTrans, fmPriceExo, showPresence, alignment, alignmentOrder, alignmentLevel, introduction, objectifs, preferredActivities, discordContact, targetUserId } = validation.data;
+    let { pseudoDofus } = validation.data;
+
+    // Formater le pseudo Dofus
+    if (pseudoDofus) {
+        pseudoDofus = formatDofusPseudo(pseudoDofus);
+    }
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true, dofusServerId: true, dofusServerName: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         // --- SECURITY: RBAC / OWNERSHIP CHECK ---
@@ -358,8 +782,21 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
             if (existing) {
                 return { success: false, error: `Le pseudo "${pseudoDofus}" est déjà utilisé par un autre membre.` };
             }
+
+            // 🛡️ ANKAMA LADDER CHECK: Le pseudo doit exister sur les pages officielles Ankama
+            // SuperAdmins sont exemptés (bypass pour les overrides admin)
+            if (!isGod) {
+                const serverId = (guildConfig as any).dofusServerId || "295";
+                const serverName = resolveDofusServerName((guildConfig as any).dofusServerName, (guildConfig as any).dofusServerId);
+                const existsOnLadder = await checkPseudoExistsOnLadder(pseudoDofus, serverId);
+                if (existsOnLadder === false) {
+                    return { success: false, error: `Pseudo "${pseudoDofus}" introuvable sur ${serverName}. Vérifiez l'orthographe exacte.` };
+                }
+                // null = service indisponible → on laisse passer (fail-open)
+            }
         }
 
+        const now = new Date();
         await db.userProfile.upsert({
             where: {
                 userId_guildId: {
@@ -370,35 +807,53 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
             update: {
                 pseudoDofus: pseudoDofus !== undefined ? (pseudoDofus || null) : undefined,
                 classe,
-                classeSecondaires: classeSecondaires ? (classeSecondaires as any) : undefined,
                 metiers: metiers ? (metiers as any) : undefined,
                 forgemagieStatus,
                 fmPriceClassic: fmPriceClassic !== undefined ? fmPriceClassic : undefined,
                 fmPriceTrans: fmPriceTrans !== undefined ? fmPriceTrans : undefined,
                 fmPriceExo: fmPriceExo !== undefined ? fmPriceExo : undefined,
                 showPresence: showPresence !== undefined ? showPresence : undefined,
+                alignment: alignment !== undefined ? alignment : undefined,
+                alignmentOrder: alignmentOrder !== undefined ? alignmentOrder : undefined,
+                alignmentLevel: alignmentLevel !== undefined ? alignmentLevel : undefined,
+                introduction: introduction !== undefined ? (introduction || null) : undefined,
+                objectifs: objectifs !== undefined ? (objectifs || null) : undefined,
+                preferredActivities: preferredActivities !== undefined ? (preferredActivities as any) : undefined,
+                discordContact: discordContact !== undefined ? (discordContact || null) : undefined,
+                userUpdatedAt: now,
             },
             create: {
                 userId: effectiveUserId,
                 guildId: guildConfig.id,
                 pseudoDofus: pseudoDofus || null,
                 classe,
-                classeSecondaires: classeSecondaires ? (classeSecondaires as any) : undefined,
                 metiers: metiers ? (metiers as any) : undefined,
                 forgemagieStatus,
                 fmPriceClassic: fmPriceClassic || null,
                 fmPriceTrans: fmPriceTrans || null,
                 fmPriceExo: fmPriceExo || null,
                 showPresence: showPresence ?? true,
-                status: "ACTIVE"
+                alignment: alignment || null,
+                alignmentOrder: alignmentOrder || null,
+                alignmentLevel: alignmentLevel || 0,
+                introduction: introduction || null,
+                objectifs: objectifs || null,
+                preferredActivities: preferredActivities ? (preferredActivities as any) : undefined,
+                discordContact: discordContact || null,
+                status: "ACTIVE",
+                userUpdatedAt: now,
             }
         });
+
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(effectiveUserId, guildConfig.id, guildId);
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         revalidatePath(`/dashboard/${guildId}/members`);
         return { success: true };
     } catch (error) {
-        console.error("Update Profile Error:", error);
+        logger.error("Update Profile Error", { error });
         return { success: false, error: "Erreur lors de la sauvegarde" };
     }
 }
@@ -416,7 +871,10 @@ export async function updateAvailability(rawData: z.infer<typeof UpdateAvailabil
     const { guildId, availability, targetUserId } = validation.data;
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         // --- SECURITY: RBAC / OWNERSHIP CHECK ---
@@ -436,12 +894,57 @@ export async function updateAvailability(rawData: z.infer<typeof UpdateAvailabil
             where: {
                 userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id }
             },
-            data: { availability: availability as any }
+            data: { 
+                availability: availability as any,
+                userUpdatedAt: new Date()
+            }
+        });
+
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(effectiveUserId, guildConfig.id, guildId);
+
+        return { success: true };
+    } catch (error) {
+        logger.error("Update Availability Error", { error });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function dismissAvailabilityReminder(guildId: string): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const currentProfile = await db.userProfile.findUnique({
+            where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
+            select: { availability: true }
+        });
+        if (!currentProfile) return { success: false, error: "Profil introuvable" };
+
+        const now = new Date();
+        const weekKey = `${now.getFullYear()}-W${String(getISOWeek(now)).padStart(2, "0")}`;
+        const existing = (currentProfile.availability as Record<string, any>) || {};
+
+        await db.userProfile.update({
+            where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
+            data: {
+                availability: {
+                    ...existing,
+                    dismissedWeek: weekKey,
+                    dismissedAt: new Date().toISOString()
+                }
+            }
         });
 
         return { success: true };
     } catch (error) {
-        console.error("Update Availability Error:", error);
+        logger.error("Dismiss Availability Reminder Error", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -452,22 +955,25 @@ export async function updateVacationMode(rawData: z.infer<typeof UpdateVacationS
 
     const validation = UpdateVacationSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, vacationStart, vacationEnd, vacationNotify, targetUserId } = validation.data;
+    const { guildId, vacationStart, vacationEnd, vacationNotify, vacationReason, targetUserId } = validation.data;
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         // --- SECURITY: RBAC / OWNERSHIP CHECK ---
         const user = await getUserContext(guildId);
         if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
 
-        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
+        const canEditOthers = user.canEditVacation || user.isSuperAdmin;
+        const effectiveUserId = (canEditOthers && targetUserId) ? targetUserId : session.user.id;
         const isOwner = effectiveUserId === session.user.id;
-        const isGod = user.isSuperAdmin;
 
-        if (!isOwner && !isGod) {
-            logger.warn(`[Security] Unauthorized vacation update attempt by ${session.user.id} on ${effectiveUserId} (God: ${isGod})`);
+        if (!isOwner && !canEditOthers) {
+            logger.warn(`[Security] Unauthorized vacation update attempt by ${session.user.id} on ${effectiveUserId} (CanEditOthers: ${canEditOthers})`);
             return { success: false, error: "Vous n'avez pas la permission de modifier ce mode absence." };
         }
 
@@ -479,13 +985,19 @@ export async function updateVacationMode(rawData: z.infer<typeof UpdateVacationS
                 vacationStart: vacationStart ? new Date(vacationStart) : null,
                 vacationEnd: vacationEnd ? new Date(vacationEnd) : null,
                 vacationNotify: vacationNotify ?? false,
+                vacationReason: vacationReason ?? null,
+                userUpdatedAt: new Date()
             }
         });
+
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(effectiveUserId, guildConfig.id, guildId);
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };
     } catch (error) {
-        console.error("Update Vacation Error:", error);
+        logger.error("Update Vacation Error", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -499,7 +1011,7 @@ export async function updateNotificationPrefs(rawData: z.infer<typeof UpdateNoti
     const { guildId, prefs, targetUserId } = validation.data;
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true } });
+        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         // --- SECURITY: RBAC / OWNERSHIP CHECK ---
@@ -530,10 +1042,14 @@ export async function updateNotificationPrefs(rawData: z.infer<typeof UpdateNoti
             data: { notificationPrefs: newPrefs }
         });
 
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(effectiveUserId, guildConfig.id, guildId);
+
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };
     } catch (error) {
-        console.error("Update Notification Prefs Error:", error);
+        logger.error("Update Notification Prefs Error", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -547,7 +1063,10 @@ export async function updateForgemagieStatus(rawData: z.infer<typeof UpdateForge
     const { guildId, status, targetUserId } = validation.data;
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         // --- SECURITY: RBAC / OWNERSHIP CHECK ---
@@ -570,21 +1089,33 @@ export async function updateForgemagieStatus(rawData: z.infer<typeof UpdateForge
             data: { forgemagieStatus: status }
         });
 
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(effectiveUserId, guildConfig.id, guildId);
+
         return { success: true };
     } catch (error) {
-        console.error("Update Forgemagie Error:", error);
+        logger.error("Update Forgemagie Error", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
 
+const AltPseudoObjectSchema = z.object({
+    id: z.string().optional(),
+    pseudo: z.string()
+        .min(2, "Pseudo trop court")
+        .max(20, "Pseudo trop long")
+        .regex(/^[A-Z\u00C0-\u017F][a-zA-Z\u00C0-\u017F]*(-[a-zA-Z\u00C0-\u017F]+)*$/, "Format invalide (Ex: Pseudo, Pseudo-mule - Pas de chiffres ni caractères spéciaux)"),
+    classe: z.string().optional(),
+    level: z.number().min(0).max(200).optional(),
+    alignment: z.string().nullable().optional(),
+    alignmentOrder: z.string().nullable().optional(),
+    alignmentLevel: z.number().min(0).max(100).optional(),
+});
+
 const UpdateAltPseudosSchema = z.object({
     guildId: z.string(),
-    altPseudos: z.array(
-        z.string()
-            .min(2, "Pseudo trop court")
-            .max(20, "Pseudo trop long")
-            .regex(/^[A-Z][a-zA-Z0-9]*(-[a-zA-Z0-9]+)*$/, "Format invalide (Ex: Pseudo, Pseudo-mule, Pseudo-1)")
-    ).max(5, "Maximum 5 personnages"),
+    altPseudos: z.array(AltPseudoObjectSchema).max(10, "Maximum 10 personnages"),
     targetUserId: z.string().optional(),
 });
 
@@ -594,24 +1125,22 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
 
     const validation = UpdateAltPseudosSchema.safeParse(rawData);
     if (!validation.success) {
-        console.error("[Dofusbook] Validation error:", validation.error.format());
+        logger.error("[Alt Pseudos] Validation error", { error: validation.error.format() });
         return { success: false, error: "Données invalides" };
     }
     const { guildId, altPseudos, targetUserId } = validation.data;
 
-    console.log(`[Dofusbook] Updating alt pseudos for guild ${guildId}:`, altPseudos);
+    logger.info(`[Alt Pseudos] Updating alt pseudos for guild ${guildId}`, { altPseudos });
 
     const user = await getUserContext(guildId);
     if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true, dofusServerId: true, dofusServerName: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
-
-        const cleanedPseudos = altPseudos
-            .map((p: string) => p.trim())
-            .filter((p: string) => p.length > 0)
-            .slice(0, 5);
 
         // --- SECURITY: RBAC / OWNERSHIP CHECK ---
         const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
@@ -623,7 +1152,27 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
             return { success: false, error: "Vous n'avez pas la permission de modifier ces pseudos secondaires." };
         }
 
-        console.log(`[Dofusbook] Profile ${effectiveUserId} in guild ${guildConfig.id} -> Saving:`, cleanedPseudos);
+        const cleanedPseudos = altPseudos.slice(0, 10).map(p => ({
+            ...p,
+            pseudo: formatDofusPseudo(p.pseudo)
+        }));
+
+        // 🛡️ ANKAMA LADDER CHECK: Chaque mule doit exister sur le ladder officiel Ankama
+        // SuperAdmins sont exemptés
+        if (!isGod) {
+            const serverId = (guildConfig as any).dofusServerId || "295";
+            const serverName = resolveDofusServerName((guildConfig as any).dofusServerName, (guildConfig as any).dofusServerId);
+            const ladderChecks = await Promise.all(
+                cleanedPseudos.map(p => checkPseudoExistsOnLadder(p.pseudo, serverId))
+            );
+            for (let i = 0; i < cleanedPseudos.length; i++) {
+                if (ladderChecks[i] === false) {
+                    return { success: false, error: `La mule "${cleanedPseudos[i].pseudo}" introuvable sur ${serverName}. Vérifiez l'orthographe exacte.` };
+                }
+            }
+        }
+
+        logger.info(`[Dofusbook] Profile ${effectiveUserId} in guild ${guildConfig.id} -> Saving`, { cleanedPseudos });
 
         await db.userProfile.update({
             where: {
@@ -632,13 +1181,87 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
             data: { altPseudos: cleanedPseudos }
         });
 
-        console.log(`[Dofusbook] Successfully updated database for ${user.id}`);
+        logger.info(`[Dofusbook] Successfully updated database for ${user.id}`);
+
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(effectiveUserId, guildConfig.id, guildId);
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };
     } catch (error: unknown) {
-        console.error("[Dofusbook] Update Alt Pseudos DATABASE ERROR:", error);
+        logger.error("[Dofusbook] Update Alt Pseudos DATABASE ERROR", { error });
         return { success: false, error: "Erreur serveur critique" };
+    }
+}
+
+const UpdateMuleAlignmentSchema = z.object({
+    guildId: z.string(),
+    pseudo: z.string()
+        .min(2, "Pseudo trop court")
+        .max(20, "Pseudo trop long"),
+    alignment: z.string().nullable(),
+    alignmentOrder: z.string().nullable(),
+    alignmentLevel: z.number().min(0).max(100),
+});
+
+/**
+ * Met à jour l'alignement d'UNE mule (altPseudos du profil).
+ * Utilisé par les modules guide (Ganymède / Rush Sylvestre) quand on édite
+ * l'alignement d'une mule : la donnée vit dans le MÊME tableau `altPseudos`
+ * que le profil perso → la synchro est parfaite dans les deux sens.
+ */
+export async function updateMuleAlignment(rawData: z.infer<typeof UpdateMuleAlignmentSchema>): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const validation = UpdateMuleAlignmentSchema.safeParse(rawData);
+    if (!validation.success) return { success: false, error: "Données invalides" };
+    const { guildId, pseudo, alignment, alignmentOrder, alignmentLevel } = validation.data;
+
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const profile = await db.userProfile.findUnique({
+            where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
+            select: { id: true, altPseudos: true }
+        });
+        if (!profile) return { success: false, error: "Profil introuvable" };
+
+        const alts = Array.isArray(profile.altPseudos) ? (profile.altPseudos as any[]) : [];
+        const idx = alts.findIndex((m: any) => m.pseudo === pseudo);
+        if (idx === -1) return { success: false, error: `La mule "${pseudo}" est introuvable sur votre profil.` };
+
+        const isNeutre = !alignment || alignment === "neutre";
+        alts[idx] = {
+            ...alts[idx],
+            alignment: alignment || "neutre",
+            alignmentOrder: isNeutre ? null : alignmentOrder,
+            alignmentLevel: isNeutre ? 0 : alignmentLevel,
+        };
+
+        await db.userProfile.update({
+            where: { id: profile.id },
+            data: { altPseudos: alts as any, userUpdatedAt: new Date() }
+        });
+
+        // 🛡️ Invalider le cache pour que le guide et le profil lisent la nouvelle valeur
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(session.user.id, guildConfig.id, guildId);
+
+        revalidatePath(`/dashboard/${guildId}/profile`);
+        revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
+        return { success: true };
+    } catch (error) {
+        logger.error("Update Mule Alignment Error", { error });
+        return { success: false, error: "Erreur lors de la sauvegarde" };
     }
 }
 
@@ -653,11 +1276,22 @@ const UpdateDofusBookLinksSchema = z.object({
         name: z.string()
             .min(1, "Nom requis")
             .max(30, "Nom trop long (max 30)"),
-        url: z.string().regex(
-            /^https:\/\/(www\.)?(d-bk\.net|dofusbook\.net)\/(fr|en|es|pt|de)\/[a-zA-Z0-9-_\/]+$/,
-            "Format invalide (Ex: https://d-bk.net/fr/d/xyz)"
-        )
-    })).max(10, "Maximum 10 builds"),
+        url: z.string().refine(
+            (url) => {
+                const dofusbookPattern = /^https:\/\/(www\.)?(d-bk\.net|dofusbook\.net)\/(fr|en|es|pt|de)\/(?:private\/)?[a-zA-Z0-9-_\/]+$/;
+                const dofusroomPattern = /^https:\/\/(www\.)?dofusroom\.com\/(buildroom\/build\/show\/\d+|b-\d+)\/?$/;
+                return dofusbookPattern.test(url) || dofusroomPattern.test(url);
+            },
+            { message: "Format de lien invalide (DofusBook: d-bk.net/dofusbook.net ou DofusRoom: dofusroom.com)" }
+        ),
+        tags: z.array(z.string()).optional(),
+        classId: z.number().nullable().optional(),
+        source: z.enum(["dofusbook", "dofusroom"]).nullable().optional(),
+        previewData: z.any().nullable().optional(),
+        discordMessageId: z.string().nullable().optional(),
+        createdAt: z.string().nullable().optional(),
+        updatedAt: z.string().nullable().optional(),
+    }).passthrough()).max(20, "Maximum 20 builds"),
     targetUserId: z.string().optional(),
 });
 
@@ -666,7 +1300,10 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
     const validation = UpdateDofusBookLinksSchema.safeParse(rawData);
-    if (!validation.success) return { success: false, error: "Données invalides" };
+    if (!validation.success) {
+        logger.error("[DofusBook Validation Error]", JSON.stringify(validation.error.format(), null, 2));
+        return { success: false, error: "Données invalides" };
+    }
     const { guildId, links, targetUserId } = validation.data;
 
     const user = await getUserContext(guildId);
@@ -674,7 +1311,10 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
     if (!user.isMember) return { success: false, error: "Not a member" };
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         // --- SECURITY: RBAC / OWNERSHIP CHECK ---
@@ -687,14 +1327,95 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
             return { success: false, error: "Vous n'avez pas la permission de modifier ces builds." };
         }
 
+        // --- PREVIEW BAKING (Server-side) ---
+        // Fetch metadata for any link missing it (new ones or changed ones)
+        const { getDofusbookPreview } = await import("./dofusbook-actions");
+        
+        // Optimization: fetch existing links once
+        const existingProfile = await db.userProfile.findUnique({
+            where: { userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id } },
+            select: { dofusBookLinks: true }
+        });
+        const existingLinks = (existingProfile?.dofusBookLinks as any[]) || [];
+
+        const now = new Date().toISOString();
+        const bakedLinks = await Promise.all(links.map(async (link) => {
+            // Find if we already have this build in our DB
+            const matchingOld = existingLinks.find(l => l.id === link.id);
+            
+            const isUnchanged = matchingOld && 
+                matchingOld.url === link.url && 
+                matchingOld.name === link.name && 
+                JSON.stringify(matchingOld.tags || []) === JSON.stringify(link.tags || []) &&
+                matchingOld.classId === link.classId;
+
+            const initialCreatedAt = link.createdAt || matchingOld?.createdAt || now;
+
+            if (isUnchanged && matchingOld.previewData) {
+                // Existing unchanged build — preserve original createdAt and updatedAt
+                return { 
+                    ...link, 
+                    previewData: matchingOld.previewData,
+                    createdAt: initialCreatedAt,
+                    updatedAt: matchingOld.updatedAt || initialCreatedAt 
+                };
+            }
+
+            if (matchingOld && matchingOld.url === link.url && matchingOld.previewData) {
+                // Modified name/tags/classId on same URL — keep preview, update updatedAt
+                return {
+                    ...link,
+                    previewData: matchingOld.previewData,
+                    createdAt: initialCreatedAt,
+                    updatedAt: now
+                };
+            }
+
+            // NEW build or changed URL — fetch/bake preview and set timestamps
+            try {
+                const res = await getDofusbookPreview(link.url, true);
+                if (res.success && res.data) {
+                    return { 
+                        ...link, 
+                        previewData: res.data, 
+                        source: "dofusbook" as const,
+                        createdAt: initialCreatedAt,
+                        updatedAt: now
+                    };
+                }
+            } catch (e) {
+                logger.error(`[Server Baking] Failed for ${link.url}:`, e);
+            }
+            return { 
+                ...link, 
+                source: "dofusbook" as const,
+                createdAt: initialCreatedAt,
+                updatedAt: now
+            };
+        }));
+
+        const filteredLinks = bakedLinks.filter((link) => {
+            const isDofusRoom = /dofusroom\.com/.test(link.url);
+            return !isDofusRoom;
+        });
+
         await db.userProfile.update({
             where: {
                 userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id }
             },
-            data: { dofusBookLinks: links as any }
+            data: { 
+                dofusBookLinks: filteredLinks as any,
+                userUpdatedAt: new Date()
+            }
         });
 
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(effectiveUserId, guildConfig.id, guildId);
+
         revalidatePath(`/dashboard/${guildId}/profile`);
+        revalidatePath(`/dashboard/${guildId}/galerie-stuff`);
+
         return { success: true };
     } catch (error: unknown) {
         logger.error("Update Builds Error", { error, guildId });
@@ -719,6 +1440,14 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
     isTopContributor: boolean;
     contributorTier: ContributorTier;
     rank?: number;
+    weeklyActivity: { week: string; submissions: number; validated: number }[];
+    missionsByCategory: { category: string; count: number; validated: number }[];
+    totalGuildMissions: number;
+    discordStats?: {
+        weekly: { messages: number; voice: number };
+        monthly: { messages: number; voice: number };
+        total: { messages: number; voice: number };
+    };
 }>> {
     const user = await getUserContext(guildId);
     if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
@@ -726,22 +1455,28 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
     const targetUserId = userId || user.id!;
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         const profile = await db.userProfile.findUnique({
             where: {
                 userId_guildId: { userId: targetUserId, guildId: guildConfig.id }
             },
-            include: {
-                user: {
-                    include: {
-                        accounts: {
-                            where: { provider: "discord" },
-                            select: { providerAccountId: true }
-                        }
-                    }
-                }
+            select: {
+                id: true,
+                xp: true,
+                guildatons: true,
+                lastActivityAt: true,
+                userId: true,
+                discordMessageCountWeekly: true,
+                discordMessageCountMonthly: true,
+                discordMessageCountTotal: true,
+                discordVoiceTimeWeekly: true,
+                discordVoiceTimeMonthly: true,
+                discordVoiceTimeTotal: true,
             }
         });
 
@@ -749,86 +1484,152 @@ export async function getProfileStats(guildId: string, userId?: string): Promise
 
         // Get Start of Week (Monday)
         const now = new Date();
-        const day = now.getDay(); // 0 (Sun) - 6 (Sat)
-        const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-        const startOfWeek = new Date(now.setDate(diff));
+        const startOfWeek = new Date(now);
+        const day = now.getDay();
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+        startOfWeek.setDate(diff);
         startOfWeek.setHours(0, 0, 0, 0);
 
-        // Fetch validated submissions with mission data for XP calculation
-        const allValidatedSubmissions = await db.submission.findMany({
-            where: {
-                profileId: profile.id,
-                status: "VALIDATED"
-            },
-            include: {
-                mission: {
-                    select: { xpReward: true }
+        // Fetch weekly stats and total mission count in parallel
+        const [weeklySubmissions, totalMissionsCount, memberSubmissions, totalGuildMissions] = await Promise.all([
+            db.submission.findMany({
+                where: {
+                    profileId: profile.id,
+                    status: "VALIDATED",
+                    updatedAt: { gte: startOfWeek }
+                },
+                select: {
+                    mission: {
+                        select: { xpReward: true }
+                    }
+                }
+            }),
+            db.submission.count({
+                where: {
+                    profileId: profile.id,
+                    status: "VALIDATED"
+                }
+            }),
+            db.submission.findMany({
+                where: { profileId: profile.id },
+                include: { mission: { select: { category: true } } }
+            }),
+            db.mission.count({
+                where: { guildId: guildConfig.id }
+            })
+        ]);
+
+        const weeklyMissionsCount = weeklySubmissions.length;
+        const weeklyXp = weeklySubmissions.reduce((acc, curr) => acc + (curr.mission?.xpReward || 0), 0);
+
+        // Calculate Weekly Activity (Last 12 weeks)
+        const twelveWeeksAgo = new Date();
+        twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 84);
+        
+        const weeks: Record<string, { submissions: number; validated: number }> = {};
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i * 7);
+            const key = `S${getISOWeek(d)}`;
+            weeks[key] = { submissions: 0, validated: 0 };
+        }
+
+        memberSubmissions.forEach(s => {
+            if (s.createdAt >= twelveWeeksAgo) {
+                const key = `S${getISOWeek(s.createdAt)}`;
+                if (weeks[key]) {
+                    weeks[key].submissions++;
+                    if (s.status === "VALIDATED") weeks[key].validated++;
                 }
             }
         });
 
-        const weeklySubmissions = allValidatedSubmissions.filter((s: { updatedAt: Date }) => s.updatedAt >= startOfWeek);
+        const weeklyActivity = Object.entries(weeks).map(([week, data]) => ({ week, ...data }));
 
-        const weeklyMissions = weeklySubmissions.length;
-        const weeklyXp = weeklySubmissions.reduce((acc: number, curr: { mission: { xpReward: number | null } }) => acc + (curr.mission.xpReward || 0), 0);
+        // Category Breakdown
+        const categoryMap: Record<string, { total: number; validated: number }> = {};
+        memberSubmissions.forEach(s => {
+            const cat = s.mission.category;
+            if (!categoryMap[cat]) categoryMap[cat] = { total: 0, validated: 0 };
+            categoryMap[cat].total++;
+            if (s.status === "VALIDATED") categoryMap[cat].validated++;
+        });
 
-        // Calculate contributor tier based on monthly XP ranking
-        // Tier thresholds:
-        // - Top 1: Légende (gold)
-        // - Top 2-3: Champion (silver) 
-        // - Top 4-10: Pilier (bronze)
+        const missionsByCategory = Object.entries(categoryMap).map(([category, data]) => ({
+            category,
+            count: data.total,
+            validated: data.validated,
+        }));
+
+        // Calculate contributor tier based on XP ranking
         let contributorTier: ContributorTier = null;
         let rank: number | undefined;
 
-        // Get all guild members sorted by XP (descending)
-        const guildRanking = await db.userProfile.findMany({
-            where: {
-                guildId: guildConfig.id,
-                status: "ACTIVE"
-            },
-            orderBy: { xp: "desc" },
-            select: { userId: true, xp: true }
-        });
+        // Ranking Cache Management
+        const cacheKey = `ranking:${guildConfig.id}`;
+        const cachedRanking = rankingCache.get(cacheKey);
+        let guildRanking: { userId: string, xp: number }[];
 
-        // Find user's rank
-        const userRankIndex = guildRanking.findIndex((p: { userId: string }) => p.userId === targetUserId);
-        if (userRankIndex !== -1) {
-            rank = userRankIndex + 1; // 1-indexed rank
-
-            if (rank! === 1) {
-                contributorTier = "LEGENDE";
-            } else if (rank! <= 3) {
-                contributorTier = "CHAMPION";
-            } else if (rank! <= 10) {
-                contributorTier = "PILIER";
-            }
+        if (cachedRanking && Date.now() < cachedRanking.expiresAt) {
+            guildRanking = cachedRanking.data;
+        } else {
+            guildRanking = await db.userProfile.findMany({
+                where: {
+                    guildId: guildConfig.id,
+                    status: "ACTIVE"
+                },
+                orderBy: { xp: "desc" },
+                select: { userId: true, xp: true }
+            });
+            rankingCache.set(cacheKey, { data: guildRanking, expiresAt: Date.now() + RANKING_CACHE_TTL });
         }
 
-        // Legacy isTopContributor for backwards compatibility
-        const isTopContributor = contributorTier !== null;
-
-        const joinedAt = null; // Default to null for now, handled by UserContext in UI
+        // Find user's rank
+        const userRankIndex = guildRanking.findIndex(p => p.userId === targetUserId);
+        if (userRankIndex !== -1) {
+            rank = userRankIndex + 1;
+            if (rank === 1) contributorTier = "LEGENDE";
+            else if (rank <= 3) contributorTier = "CHAMPION";
+            else if (rank <= 10) contributorTier = "PILIER";
+        }
 
         return {
             success: true,
             data: {
                 xp: profile.xp,
                 guildatons: profile.guildatons,
-                missionsValidated: allValidatedSubmissions.length,
+                missionsValidated: totalMissionsCount,
                 weeklyXp,
-                weeklyMissions,
+                weeklyMissions: weeklyMissionsCount,
                 lastActivity: profile.lastActivityAt
                     ? { description: "Dernière activité", date: profile.lastActivityAt.toISOString() }
                     : null,
                 joinedAt: null,
-                isTopContributor,
+                isTopContributor: contributorTier !== null,
                 contributorTier,
-                rank
+                rank,
+                weeklyActivity,
+                missionsByCategory,
+                totalGuildMissions,
+                discordStats: {
+                    weekly: { 
+                        messages: profile.discordMessageCountWeekly, 
+                        voice: profile.discordVoiceTimeWeekly 
+                    },
+                    monthly: { 
+                        messages: profile.discordMessageCountMonthly, 
+                        voice: profile.discordVoiceTimeMonthly 
+                    },
+                    total: { 
+                        messages: profile.discordMessageCountTotal, 
+                        voice: profile.discordVoiceTimeTotal 
+                    },
+                }
             }
         };
     } catch (error: unknown) {
-        logger.error("Get Stats Error", { error, guildId });
-        return { success: false, error: "Erreur serveur" };
+        logger.error("Get Profile Stats Error", { error, guildId, targetUserId });
+        return { success: false, error: "Erreur lors du calcul des statistiques." };
     }
 }
 
@@ -844,7 +1645,10 @@ export async function getGuildMembers(
     if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await (db.guildConfig as any).findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true, rolesMapping: true, usersMapping: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         const whereClause: any = {
@@ -858,7 +1662,10 @@ export async function getGuildMembers(
 
         const profiles = await db.userProfile.findMany({
             where: whereClause,
-            include: { user: true },
+            include: { 
+                user: true,
+                legendaryCrafts: true
+            },
             orderBy: { pseudoDofus: 'asc' }
         });
 
@@ -888,7 +1695,8 @@ export async function getGuildMembers(
 
         // Identify roles that grant admin rights (Discord bit 0x8 or SigilOS mapping)
         const adminRoleIds = new Set<string>();
-        const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+        const rolesMapping = (guildConfig?.rolesMapping as Record<string, string[]>) || {};
+        const usersMapping = (guildConfig?.usersMapping as Record<string, string[]>) || {};
 
         for (const role of allRoles) {
             const hasDiscordAdmin = (BigInt(role.permissions) & 0x8n) === 0x8n;
@@ -913,9 +1721,9 @@ export async function getGuildMembers(
             const discordMember = discordId ? discordMemberMap.get(discordId as string) : null;
 
             // Real-time admin check if we found the member
-            const isAdmin = discordMember
+            const isAdmin = (discordMember
                 ? (discordMember as any).roles.some((rid: string) => adminRoleIds.has(rid))
-                : false;
+                : false) || (discordId && usersMapping[discordId]?.includes("admin:access"));
 
             return {
                 ...p,
@@ -924,11 +1732,21 @@ export async function getGuildMembers(
                 lastActivityAt: p.lastActivityAt?.toISOString() || null,
                 vacationStart: p.vacationStart?.toISOString() || null,
                 vacationEnd: p.vacationEnd?.toISOString() || null,
-                user: { id: p.user.id, name: p.user.name, image: p.user.image },
-                displayName: p.discordNickname || p.pseudoDofus || p.user.name,
+                vacationReason: p.vacationReason || null,
+                // SECURITY/CORRECTNESS: totalXp is BigInt (non-sérialisable par JSON).
+                // Le spread ...p le propageait tel quel → crash rendu serveur (#441) quand
+                // un membre avait une valeur non-null (JSON.stringify throw sur BigInt).
+                // Converti explicitement en string pour être sérialisable.
+                totalXp: p.totalXp != null ? p.totalXp.toString() : null,
+                user: { id: p.user.id, name: getDisplayName(p), image: p.user.image },
+                displayName: getDisplayName(p),
                 roleColor: p.discordRoleColor || 0,
                 roleName: p.discordRoleName || "Membre",
-                isAdmin
+                isAdmin,
+                alignment: p.alignment,
+                alignmentOrder: p.alignmentOrder,
+                alignmentLevel: p.alignmentLevel,
+                altPseudos: p.altPseudos
             };
         });
 
@@ -995,45 +1813,50 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
 
 
         // Use the SECURED pseudo from the database profile, not the provided one
-        const securedPseudo = profile.discordNickname || profile.pseudoDofus || profile.user.name || "Un membre";
+        const securedPseudo = getDisplayName(profile);
 
         const channelId = guildConfig.absenceChannelId;
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-        const profileUrl = `${appUrl}/dashboard/${guildId}/members/${profileId}`;
+        // 🔗 #126 : slug lisible pour le lien Discord (pseudoDofus → discordNickname → id)
+        const profileSlug = encodeURIComponent(buildProfileSlug({
+            pseudoDofus: profile.pseudoDofus,
+            discordNickname: profile.discordNickname,
+            id: profileId,
+        }));
+        const profileUrl = `${appUrl}/dashboard/${guildId}/members/${profileSlug}`;
 
-        // Format dates
-        const formatDate = (dateStr: string | null) => {
-            if (!dateStr) return "Pas de date prévue";
+        // Format dates — Discord dynamic timestamps <t:...> (each viewer sees their own timezone)
+        const dateTs = (dateStr: string | null): string | null => {
+            if (!dateStr) return null;
             const date = new Date(dateStr);
-            return date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+            return isNaN(date.getTime()) ? null : String(Math.floor(date.getTime() / 1000));
         };
+        const startTs = dateTs(startDate);
+        const endTs = dateTs(endDate);
 
-        const embed = {
+        const embed: any = {
             title: "🏝️ Notification d'absence",
-            description: `[${pseudo}](${profileUrl}) sera absent(e).`,
+            description: `[${securedPseudo}](${profileUrl}) sera absent(e).`,
             color: 0x06b6d4, // Cyan
             fields: [
-                { name: "📅 Début", value: formatDate(startDate), inline: true },
-                { name: "📅 Retour", value: formatDate(endDate), inline: true },
+                { name: "📅 Début", value: startTs ? `<t:${startTs}:F>` : "Pas de date prévue", inline: true },
+                { name: "📅 Retour", value: endTs ? `<t:${endTs}:F>` : "Pas de date prévue", inline: true },
             ],
             footer: { text: "SigilOS • Anti-Spam (1min) • Tout abus sera sanctionné" },
             timestamp: new Date().toISOString(),
         };
 
-        const response = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
-            method: "POST",
-            headers: {
-                Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ embeds: [embed] }),
-        });
+        if (validation.data.reason) {
+            embed.fields.push({ name: "📝 Motif", value: validation.data.reason, inline: false });
+        }
 
-        if (!response.ok) {
-            // Remove rate limit if it was a system error? No, keep it to prevent attack.
-            const errorData = await response.json().catch(() => ({}));
-            logger.error("Discord API Error", { status: response.status, errorData, guildId });
-            if (response.status === 403) {
+        try {
+            await postChannelMessage(channelId, { embeds: [embed] });
+        } catch (err: any) {
+            // F-15 : message d'erreur sûr, jamais le corps brut de Discord.
+            const errMsg = String(err?.message ?? err);
+            logger.error("Discord API Error", { error: errMsg, guildId });
+            if (errMsg.includes("Permission bloquée")) {
                 return { success: false, error: "Bot n'a pas accès au salon. Vérifiez les permissions." };
             }
             return { success: false, error: "Erreur Discord API" };
@@ -1081,14 +1904,18 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
         const base64Data = imageData.split(',')[1];
         if (!base64Data) return { success: false, error: "Données d'image corrompues." };
 
-        // --- ANTI-DUPLICATE CHECK ---
-        const imageHash = hashImage(base64Data);
+        const buffer = Buffer.from(base64Data, 'base64');
 
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const imageHash = await hashImage(buffer);
+
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
-        const existingHash = await db.imageHash.findUnique({
-            where: { guildId_hash: { guildId: guildConfig.id, hash: imageHash } }
+        const existingHash = await db.imageHash.findFirst({
+            where: { hash: imageHash }
         });
 
 
@@ -1195,16 +2022,14 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
             // Save preview image for staff (light resizing is handled by client or we can do it here)
             // For now we use the raw imageData as it's already limited to 4MB
 
-            const uploadRelativeDir = `uploads/proofs/${guildConfig.discordGuildId}`;
-            const uploadDir = join(process.cwd(), "public", uploadRelativeDir);
+            const uploadRelativeDir = `proofs/${guildConfig.discordGuildId}`;
+            const uploadDir = join(process.cwd(), "private_uploads", uploadRelativeDir);
             await mkdir(uploadDir, { recursive: true });
-
-            const fileName = `${session.user.id}-${Date.now()}.webp`;
+            const { randomUUID: genProofUUID } = await import("crypto");
+            const fileName = `${genProofUUID()}.webp`;
             const filePath = join(uploadDir, fileName);
 
-            const buffer = Buffer.from(base64Data, 'base64');
-
-            // 3. Optimize Image using Sharp (before saving for manual validation)
+            // Buffer already created at line 1183
             const optimizedBuffer = await sharp(buffer)
                 .resize(1920, null, {
                     withoutEnlargement: true,
@@ -1214,7 +2039,7 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
                 .toBuffer();
 
             await writeFile(filePath, optimizedBuffer);
-            const proofUrl = `/${uploadRelativeDir}/${fileName}`;
+            const proofUrl = `/api/storage/${uploadRelativeDir}/${fileName}`;
 
             const submission = await (db as any).achievementSubmission.create({
                 data: {
@@ -1238,19 +2063,43 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
                 }
             });
 
-            // Notify validators via Discord (Using the same channel as missions for now)
+            // Notify validators via Discord
             try {
-                if (guildConfig.missionNotifyChannelId) {
+                const achievementChannel = (guildConfig as any).achievementNotifyChannelId || guildConfig.missionNotifyChannelId;
+                if (achievementChannel) {
                     const { sendChannelMessage } = await import("@/server/discord");
                     const userName = currentProfile.discordNickname || currentProfile.pseudoDofus || "Un membre";
                     const absoluteLink = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/${guildConfig.discordGuildId}/admin/validation`;
+                    const absoluteImageUrl = getDiscordPublicUrl(proofUrl);
+                    
+                    const mentionRole = (guildConfig as any).achievementNotifyRoleId || guildConfig.missionValidationNotifyRoleId;
+                    const content = mentionRole ? (mentionRole === "everyone" ? "Bonjour @everyone !" : `Bonjour <@&${mentionRole}> !`) : "Bonjour le Staff !";
 
-                    await sendChannelMessage(guildConfig.missionNotifyChannelId, "", {
-                        embedTitle: `[Validation] ${userName} - Succès`,
-                        embedDescription: `${userName} a posté une preuve pour confirmation manuelle de ${points} points de succès.`,
-                        embedColor: 0x0ea5e9, // Sky blue for achievements
+                    const discordMsgId = await sendChannelMessage(achievementChannel, content, {
+                        embedTitle: `🏆 [Validation] ${userName} - Succès`,
+                        embedDescription: `**${userName}** a posté une preuve pour confirmation manuelle de **${points} points** de succès.`,
+                        embedColor: 0x0ea5e9,
                         embedUrl: absoluteLink,
+                        embedImage: absoluteImageUrl,
+                        embedFooter: "SigilOS \u2022 Points de Succès",
+                        components: submission?.id ? [
+                            {
+                                type: 1,
+                                components: [
+                                    { type: 2, style: 3, label: "\u2705 Valider", custom_id: `validate:achievement:${submission.id}:${guildConfig.discordGuildId}` },
+                                    { type: 2, style: 4, label: "\u274c Rejeter", custom_id: `validate:achievement_reject:${submission.id}:${guildConfig.discordGuildId}` },
+                                ],
+                            },
+                        ] : undefined,
                     });
+
+                    // Save discordMessageId for later embed deletion
+                    if (discordMsgId && submission?.id) {
+                        await (db as any).achievementSubmission.update({
+                            where: { id: submission.id },
+                            data: { discordMessageId: `${achievementChannel}:${discordMsgId}` },
+                        });
+                    }
                 }
             } catch (discordError) {
                 logger.error("[SyncSuccess] Discord Notification Error", { error: discordError });
@@ -1273,5 +2122,424 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
             success: false,
             error: "Erreur lors du traitement de l'image (OLLAMA/OCR)"
         };
+    }
+}
+
+// ============================================================================
+// ACHIEVEMENT VALIDATION
+// ============================================================================
+
+export type AchievementSubmissionEntry = {
+    id: string;
+    guildId: string;
+    profileId: string;
+    points: number;
+    proofUrl: string;
+    ocrScore: number | null;
+    ocrRawText: string | null;
+    status: "PENDING" | "VALIDATED" | "REJECTED";
+    createdAt: Date;
+    profile: {
+        id: string;
+        pseudoDofus: string | null;
+        discordNickname: string | null;
+        discordRoleColor: number | null;
+        user: { name: string | null; image: string | null };
+    };
+};
+
+export async function getPendingAchievementSubmissions(guildId: string): Promise<ActionResponse<AchievementSubmissionEntry[]>> {
+    const session = await auth();
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_OFFICER);
+    if (!guard.allowed) return { success: false, error: guard.error };
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+
+        const entries = await (db as any).achievementSubmission.findMany({
+            where: { guildId: guild.id, status: "PENDING" },
+            include: {
+                profile: {
+                    select: {
+                        id: true,
+                        pseudoDofus: true,
+                        discordNickname: true,
+                        discordRoleColor: true,
+                        user: { select: { name: true, image: true } }
+                    }
+                }
+            },
+            orderBy: { createdAt: "desc" }
+        });
+
+        return { success: true, data: entries };
+    } catch (error) {
+        logger.error("getPendingAchievementSubmissions error", { error, guildId });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+const reviewAchievementSchema = z.object({
+    guildId: z.string().min(1),
+    submissionId: z.string().min(1),
+    action: z.enum(["VALIDATE", "REJECT"]),
+    rejectedReason: z.string().max(200).optional().nullable(),
+});
+
+export async function reviewAchievementSubmission(input: z.infer<typeof reviewAchievementSchema>): Promise<ActionResponse> {
+    const session = await auth();
+    const guard = await checkGuildPermission(session, input.guildId, PERMISSIONS.MISSIONS_OFFICER);
+    if (!guard.allowed) return { success: false, error: guard.error };
+
+    const parsed = reviewAchievementSchema.safeParse(input);
+    if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message };
+
+    try {
+        const submission = await (db as any).achievementSubmission.findUnique({
+            where: { id: input.submissionId },
+            include: { profile: true }
+        });
+
+        if (!submission) return { success: false, error: "Soumission introuvable" };
+        if (submission.status !== "PENDING") return { success: false, error: "Déjà traitée" };
+
+        const newStatus = input.action === "VALIDATE" ? "VALIDATED" : "REJECTED";
+
+        await (db as any).achievementSubmission.update({
+            where: { id: submission.id },
+            data: {
+                status: newStatus,
+                validatedAt: new Date(),
+                rejectedReason: input.action === "REJECT" ? (input.rejectedReason || "Refusé par le staff") : null
+            }
+        });
+
+        if (newStatus === "VALIDATED") {
+            await db.userProfile.update({
+                where: { id: submission.profileId },
+                data: { successPoints: submission.points }
+            });
+        }
+
+        // Cleanup Discord embed
+        if (submission.discordMessageId?.includes(":")) {
+            const [channelId, msgId] = submission.discordMessageId.split(":");
+            if (channelId && msgId) {
+                try {
+                    const { deleteChannelMessage } = await import("@/server/discord");
+                    await deleteChannelMessage(channelId, msgId);
+                } catch (e) {
+                    logger.error("Failed to delete achievement Discord embed", { error: e });
+                }
+            }
+        }
+
+        // Cleanup proof file + image hash
+        if (submission.proofUrl) {
+            const { deleteProofFile } = await import("@/lib/storage-utils");
+            await deleteProofFile(submission.proofUrl);
+            await (db as any).imageHash.deleteMany({
+                where: { sourceType: "ACHIEVEMENT", sourceId: submission.id }
+            });
+        }
+
+        revalidatePath(`/dashboard/${input.guildId}/admin/validation`);
+        revalidatePath(`/dashboard/${input.guildId}/ladder`);
+        revalidatePath(`/dashboard/${input.guildId}/profile`);
+
+        return { success: true };
+    } catch (error) {
+        logger.error("reviewAchievementSubmission error", { error, guildId: input.guildId });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+/**
+ * Refresh user success points via official Dofus ladder proxy (Cloudflare Worker)
+ * Strategies: CF Worker (Scraping) -> Database Update
+ */
+export async function refreshUserSuccessPoints(guildId: string): Promise<ActionResponse<{ points: number, level: number }>> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!user.canSyncLadder) return { success: false, error: "Ce module est désactivé sur ce serveur." };
+
+    try {
+        // 1. Get profile and server config
+        const profile = await db.userProfile.findFirst({
+            where: {
+                userId: session.user.id,
+                guild: { discordGuildId: guildId }
+            },
+            include: { guild: true }
+        });
+
+        if (!profile) return { success: false, error: "Profil introuvable" };
+        if (!profile.pseudoDofus) return { success: false, error: "Veuillez renseigner votre pseudo Dofus dans l'onglet Général." };
+
+        // 2. Rate limiting (once every 30 minutes per user)
+        const limiter = await rateLimit(`ladder_sync:${session.user.id}`, 1, 30 * 60 * 1000);
+        if (!limiter.success) {
+            return { success: false, error: "Veuillez patienter 30 minutes entre deux synchronisations ladder." };
+        }
+
+        // 3. Call CF Worker Scraper
+        const workerUrl = process.env.DOFUS_LADDER_WORKER_URL;
+        const workerSecret = process.env.DOFUS_LADDER_WORKER_KEY || process.env.DOFUS_LADDER_WORKER_SECRET;
+
+        if (!workerUrl) {
+            return { success: false, error: "Service de synchronisation non configuré." };
+        }
+
+        const serverId = profile.guild.dofusServerId || "295"; // Draconiros by default
+        const serverName = resolveDofusServerName(profile.guild.dofusServerName, profile.guild.dofusServerId);
+        const targetUrl = `${workerUrl}?server_id=${serverId}&name=${encodeURIComponent(profile.pseudoDofus)}`;
+
+        const response = await fetch(targetUrl, {
+            headers: {
+                "Accept": "application/json",
+                ...(workerSecret ? { "X-SigilOS-Key": workerSecret } : {}),
+            },
+            cache: "no-store",
+            signal: AbortSignal.timeout(15000),
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            logger.error("[LadderSync] Worker error", { status: response.status, error });
+            return { success: false, error: "Le ladder de Dofus est actuellement inaccessible." };
+        }
+
+        const result = await response.json();
+
+        if (!result.success || !result.found) {
+            return { success: false, error: `Personnage "${profile.pseudoDofus}" introuvable sur ${serverName}. Vérifiez l'orthographe.` };
+        }
+
+        // 4. Update Database
+        const updatedPoints = result.points;
+        const updatedLevel = result.level;
+
+        await db.userProfile.update({
+            where: { id: profile.id },
+            data: {
+                successPoints: updatedPoints,
+                lastLadderUpdate: new Date(),
+                // Optionally update level if we have a field for it, SigilOS usually focuses on pseudo/points
+            }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/ladder`);
+        revalidatePath(`/dashboard/${guildId}/profile`);
+
+        return {
+            success: true,
+            data: {
+                points: updatedPoints,
+                level: updatedLevel
+            }
+        };
+
+    } catch (error) {
+        logger.error("[LadderSync] Server Error", { error, guildId, userId: session.user.id });
+        return { success: false, error: "Erreur lors de la synchronisation (Serveur)." };
+    }
+}
+
+/**
+ * Fetch a preview of the external ladder data without saving to DB.
+ */
+export async function getLadderPreview(guildId: string): Promise<ActionResponse<{ points: number, level: number, className?: string, rank?: number, guildRank?: number }>> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
+
+    try {
+        const profile = await db.userProfile.findFirst({
+            where: {
+                userId: session.user.id,
+                guild: { discordGuildId: guildId }
+            },
+            include: { guild: true }
+        });
+
+        if (!profile || !profile.pseudoDofus) return { success: false, error: "Pseudo manquant." };
+
+        const workerUrl = process.env.DOFUS_LADDER_WORKER_URL;
+        const workerSecret = process.env.DOFUS_LADDER_WORKER_KEY || process.env.DOFUS_LADDER_WORKER_SECRET;
+
+        if (!workerUrl) return { success: false, error: "Service indisponible." };
+
+        const serverId = profile.guild.dofusServerId || "295";
+        const targetUrl = `${workerUrl}?server_id=${serverId}&name=${encodeURIComponent(profile.pseudoDofus)}`;
+
+        const response = await fetch(targetUrl, {
+            headers: {
+                "Accept": "application/json",
+                ...(workerSecret ? { "X-SigilOS-Key": workerSecret } : {}),
+            },
+            cache: "no-store",
+            signal: AbortSignal.timeout(5000),
+        });
+
+        if (!response.ok) return { success: false, error: "Ankama injoignable." };
+
+        const result = await response.json();
+        if (!result.success || !result.found) return { success: false, error: "Inconnu au bataillon." };
+
+        // 🛡️ FUZZY MAPPING HELPER
+        // Some Workers return character info at the root, others nested in .data or .character
+        const raw = result.character || result.data || result.results?.[0] || result;
+
+        // Helper to find a value regardless of case or common variations
+        const findValue = (obj: any, keys: string[]) => {
+            const lowerKeys = keys.map(k => k.toLowerCase());
+            for (const [key, value] of Object.entries(obj)) {
+                if (lowerKeys.includes(key.toLowerCase())) return value;
+            }
+            return undefined;
+        };
+
+        // Cleaning numbers (removing spaces like "7 682" or thousand separators)
+        const parseNumber = (val: any) => {
+            if (typeof val === "number") return val;
+            if (typeof val !== "string") return 0;
+            return parseInt(val.replace(/\s/g, '').replace(/,/g, ''), 10) || 0;
+        };
+
+        // Determine Points and Level
+        const points = parseNumber(findValue(raw, ["points", "success_points", "points_succès"])) || 0;
+        const level = parseNumber(findValue(raw, ["level", "character_level", "niveau", "niv"])) || 0;
+        
+        // Determine Rank
+        const rankValue = findValue(raw, ["rank", "rank_world", "world_rank", "pos", "position", "rang", "#"]);
+        const rank = parseNumber(rankValue) || undefined;
+        
+        // Determine Class (Fallback to DB if Worker doesn't provide it)
+        const workerClass = findValue(raw, ["className", "class", "character_class", "classe", "class_id"]);
+        const className = workerClass ? workerClass.toString() : (profile.classe || undefined);
+
+        // Calculate Guild Rank (comparing fresh Ankama points with last known guild points)
+        const guildRank = await db.userProfile.count({
+            where: {
+                guildId: profile.guildId,
+                status: "ACTIVE",
+                successPoints: {
+                    gt: points
+                }
+            }
+        }) + 1;
+
+        return {
+            success: true,
+            data: {
+                points,
+                level,
+                className,
+                rank,
+                guildRank
+            }
+        };
+    } catch {
+        return { success: false, error: "Erreur réseau." };
+    }
+}
+
+function getISOWeek(date: Date): number {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+    const week1 = new Date(d.getFullYear(), 0, 4);
+    return 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+}
+
+export async function getMemberDofusSummaryForProfile(guildId: string, profileId: string): Promise<ActionResponse<{
+    mainCharacter: { pseudo: string; dofusList: { slug: string; name: string; color: string | null; imageUrl: string | null; isObtained: boolean; progressPercent: number }[] };
+    mules: { pseudo: string; dofusList: { slug: string; name: string; color: string | null; imageUrl: string | null; isObtained: boolean; progressPercent: number }[] }[];
+}>> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        const profile = await db.userProfile.findUnique({
+            where: { id: profileId },
+            select: { id: true, pseudoDofus: true, altPseudos: true, ocreProgressSnapshot: true }
+        });
+        if (!profile) return { success: false, error: "Profil introuvable" };
+
+        const dofusItems = await (db as any).dofusItem.findMany({
+            orderBy: { displayOrder: "asc" },
+            select: { id: true, slug: true, nameShort: true, color: true, imageUrl: true }
+        });
+
+        const allProgress = await (db as any).playerDofusProgress.findMany({
+            where: { profileId: profile.id },
+            select: { dofusId: true, characterName: true, isObtained: true, completionPercent: true }
+        });
+
+        const progressByChar = new Map<string, Map<string, { isObtained: boolean; percent: number }>>();
+        allProgress.forEach((p: any) => {
+            const char = p.characterName || "PRINCIPAL";
+            if (!progressByChar.has(char)) progressByChar.set(char, new Map());
+            progressByChar.get(char)!.set(p.dofusId, { isObtained: p.isObtained, percent: p.completionPercent });
+        });
+
+        const mainName = profile.pseudoDofus || "Principal";
+        const mainMap = progressByChar.get("PRINCIPAL") || new Map();
+
+        // #206 — le Dofoobz utilise l'asset LOCAL (comme les autres Dofus sur les
+        // pages profil/membres) ; l'imageUrl en base (dofusdb) pointait sur le mauvais
+        // icône et restait KO. Normalisation lue à la volée via resolveDofusImageUrl
+        // (src/lib/dofus-image-url.ts) → couvre les bases existantes + le hub Quêtes Dofus.
+        const mainDofusList = dofusItems.map((d: any) => {
+            const prog = mainMap.get(d.id);
+            return {
+                slug: d.slug,
+                name: d.nameShort,
+                color: d.color,
+                imageUrl: resolveDofusImageUrl(d.slug, d.imageUrl),
+                isObtained: prog?.isObtained ?? false,
+                progressPercent: prog?.isObtained ? 100 : (prog?.percent ?? 0)
+            };
+        });
+
+        const mulesList: any[] = [];
+        const alts = Array.isArray(profile.altPseudos) ? profile.altPseudos : [];
+        for (const alt of alts) {
+            const charName = typeof alt === "string" ? alt : (alt && typeof alt === "object" && "pseudo" in (alt as any) ? String((alt as any).pseudo) : null);
+            if (!charName) continue;
+            const charMap = progressByChar.get(charName) || new Map();
+            const dofusList = dofusItems.map((d: any) => {
+                const prog = charMap.get(d.id);
+                return {
+                    slug: d.slug,
+                    name: d.nameShort,
+                    color: d.color,
+                    imageUrl: resolveDofusImageUrl(d.slug, d.imageUrl),
+                    isObtained: prog?.isObtained ?? false,
+                    progressPercent: prog?.isObtained ? 100 : (prog?.percent ?? 0)
+                };
+            });
+            mulesList.push({ pseudo: charName, dofusList });
+        }
+
+        return {
+            success: true,
+            data: {
+                mainCharacter: { pseudo: mainName, dofusList: mainDofusList },
+                mules: mulesList
+            }
+        };
+    } catch (e: any) {
+        logger.error("getMemberDofusSummaryForProfile error:", e);
+        return { success: false, error: "Erreur lors de la récupération des Dofus" };
     }
 }

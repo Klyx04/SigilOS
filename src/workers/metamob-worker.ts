@@ -5,6 +5,12 @@ import { db } from "../lib/prisma";
 import { getQuestDetails, normalizeQuestMonster, MetamobApiError, type QuestMonster } from "../lib/metamob-client";
 import { decrypt } from "../lib/encryption";
 import { logger } from "../lib/logger";
+import { sendGlobalStatusPing } from "../server/actions/status-actions";
+import { sendDailySummaryReport } from "../server/actions/daily-report-actions";
+// ── Ladder Sync ──────────────────────────────────────────────────────────────
+import { ladderSyncWorker, ladderQueue } from "./ladder-sync-worker";
+// ── Discord Outbox (P3.1) : flush des écritures Discord en mode dégradé ───────
+import { discordOutboxWorker } from "./discord-outbox-worker";
 
 interface ExchangeJobData {
     guildId: string;
@@ -28,7 +34,7 @@ async function processExchangeJob(job: Job<ExchangeJobData>) {
     // 1. Get current user's profile
     const currentUserProfile = await db.userProfile.findFirst({
         where: { userId, guild: { discordGuildId: guildId }, status: "ACTIVE" },
-        select: { metamobPseudo: true, metamobQuestSlug: true, metamobVerified: true, metamobApiKey: true, guild: { select: { metamobApiKey: true } } },
+        select: { metamobPseudo: true, metamobQuestSlug: true, metamobVerified: true, metamobApiKey: true },
     });
 
     if (!currentUserProfile?.metamobQuestSlug || !currentUserProfile?.metamobPseudo || !currentUserProfile.metamobVerified) {
@@ -36,7 +42,7 @@ async function processExchangeJob(job: Job<ExchangeJobData>) {
         return;
     }
 
-    const effectiveApiKey = decrypt(currentUserProfile.metamobApiKey) || decrypt(currentUserProfile.guild?.metamobApiKey) || undefined;
+    const effectiveApiKey = currentUserProfile.metamobApiKey || undefined;
 
     await job.updateProgress(20);
 
@@ -184,12 +190,34 @@ const worker = new Worker(METAMOB_QUEUE_NAME, processExchangeJob, {
     concurrency: 2, // Process up to 2 syncs at the exact same time
 });
 
-worker.on("completed", (job) => {
+worker.on("completed", async (job) => {
     logger.info(`[Worker] ✅ Job ${job.id} complété avec succès.`);
+    
+    // Notify God Dashboard for manual/critical syncs
+    if (job.name === "manual-metamob-sync") {
+        const { notifyGod } = await import("../server/actions/god-notif-actions");
+        await notifyGod({
+            title: "Sync Metamob (Dofusbook) Réussie",
+            message: `La synchronisation manuelle pour l'utilisateur ${job.data.userId} s'est terminée avec succès.`,
+            type: "WORKER_SYNC",
+            success: true,
+            metadata: { jobId: job.id, userId: job.data.userId, guildId: job.data.guildId }
+        });
+    }
 });
 
-worker.on("failed", (job, err) => {
+worker.on("failed", async (job, err) => {
     logger.error(`[Worker] ❌ Job ${job?.id} a échoué: ${err.message}`);
+    
+    const { notifyGod } = await import("../server/actions/god-notif-actions");
+    await notifyGod({
+        title: "Sync Metamob (Dofusbook) ÉCHOUÉE",
+        message: `Le job ${job?.id} a échoué : ${err.message}`,
+        type: "WORKER_SYNC",
+        success: false,
+        ping: true,
+        metadata: { jobId: job?.id, error: err.message, data: job?.data }
+    });
 });
 
 // =============================================================================
@@ -270,10 +298,17 @@ const cleanupWorker = new Worker(
                         data: { status: "REJECTED", respondedAt: new Date() },
                     });
 
+                    // Resolve internal guild ID (req.run.guildId est un discordGuildId)
+                    const guild = await db.guildConfig.findUnique({
+                        where: { discordGuildId: req.run.guildId },
+                        select: { id: true },
+                    });
+
                     // Notify user directly via DB
                     await db.notification.create({
                         data: {
                             userId: req.userId,
+                            guildId: guild?.id || null,
                             type: "SYSTEM_INFO",
                             title: "Candidature expirée",
                             message: `Votre candidature pour la run ${req.run.difficulty} a expiré (aucune réponse du leader sous 24 heures).`,
@@ -333,12 +368,112 @@ cleanupWorker.on("failed", (job, err) => {
     logger.error(`[Cleanup] ❌ Job ${job?.id} a échoué: ${err.message}`);
 });
 
+// =============================================================================
+// 🛰️ CRON WORKER: Status Ping & Daily Summary
+// =============================================================================
+
+const CRON_QUEUE_NAME = "sigilos-cron-tasks";
+const cronQueue = new Queue(CRON_QUEUE_NAME, defaultQueueOptions);
+
+// 1. Status Ping (Every 15 minutes)
+cronQueue.add(
+    "status-ping",
+    {},
+    {
+        repeat: { pattern: "*/15 * * * *" }, // Every 15 mins
+        jobId: "status-ping-repeat",
+        removeOnComplete: 10,
+        removeOnFail: 5,
+    }
+);
+
+// 2. Daily Summary (Every morning at 08:30)
+cronQueue.add(
+    "daily-summary",
+    {},
+    {
+        repeat: { pattern: "30 8 * * *" }, // Daily at 08:30
+        jobId: "daily-summary-repeat",
+        removeOnComplete: 5,
+        removeOnFail: 3,
+    }
+);
+
+// 3. Discord Veille (mensuelle — 1er du mois à 09:00) : gardien automatique #223 D.
+// Personne n'a besoin de s'en souvenir : le système surveille le changelog / docs Discord
+// et alerte God si un changement inquiétant est détecté (détail : src/lib/discord-veille.ts).
+cronQueue.add(
+    "discord-watch",
+    {},
+    {
+        repeat: { pattern: "0 9 1 * *" }, // 1st day of month at 09:00
+        jobId: "discord-watch-repeat",
+        removeOnComplete: 10,
+        removeOnFail: 5,
+    }
+);
+
+const cronWorker = new Worker(
+    CRON_QUEUE_NAME,
+    async (job) => {
+        if (job.name === "status-ping") {
+            logger.info("[Cron] Execution du Status Ping GLOBAL...");
+            const res = await sendGlobalStatusPing(false);
+            if (!res.success) logger.error(`[Cron] Status Ping échoué: ${res.error}`);
+        }
+
+        if (job.name === "daily-summary") {
+            logger.info("[Cron] Execution du Daily Summary pour toutes les guildes...");
+            
+            const guilds = await db.guildConfig.findMany({
+                where: { systemNotifyChannelId: { not: null } },
+                select: { discordGuildId: true, name: true }
+            });
+
+            logger.info(`[Cron] Envoi du rapport à ${guilds.length} guildes...`);
+            
+            for (const guild of guilds) {
+                try {
+                    const res = await sendDailySummaryReport(guild.discordGuildId, false);
+                    if (res.success) {
+                        logger.info(`[Cron] ✅ Rapport envoyé pour ${guild.name}`);
+                    } else {
+                        logger.error(`[Cron] ❌ Échec rapport pour ${guild.name}: ${res.error}`);
+                    }
+                } catch (e) {
+                    logger.error(`[Cron] ❌ Échec rapport pour ${guild.name}`, { error: String(e) });
+                }
+            }
+        }
+
+        if (job.name === "discord-watch") {
+            logger.info("[Cron] Exécution de la VEILLE Discord mensuelle...");
+            try {
+                const { runDiscordVeille } = await import("../lib/discord-veille");
+                const report = await runDiscordVeille();
+                logger.info(`[Cron] Veille Discord terminée (anomalies: ${report.anomalies.length}, gateway: ${report.gatewayOk})`);
+            } catch (e) {
+                logger.error(`[Cron] Veille Discord échouée: ${String(e)}`);
+            }
+        }
+    },
+    {
+        ...defaultQueueOptions,
+        concurrency: 1,
+    }
+);
+
 // Graceful shutdown
 const shutdown = async () => {
     logger.info("[Worker] Extinction du Background Worker...");
     await worker.close();
     await cleanupWorker.close();
     await cleanupQueue.close();
+    await cronWorker.close();
+    await cronQueue.close();
+    await ladderSyncWorker.close();
+    await ladderQueue.close();
+    await discordOutboxWorker.close();
     process.exit(0);
 };
 

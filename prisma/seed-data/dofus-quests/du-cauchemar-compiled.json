@@ -1,0 +1,891 @@
+{
+  "dofus": "du-cauchemar",
+  "displayName": "Dofus du Cauchemar",
+  "color": "#303030",
+  "successName": "Eliocalypse... Une rêvélation",
+  "recommendedLevel": 200,
+  "description": "Terminer l'arc narratif complet de l'Eliocalypse et obtenir le Dofus du Cauchemar.",
+  "dofusItemId": 26066,
+  "iconId": null,
+  "imageUrl": "/module-dofus/Dofus_Du_Cauchemar.png",
+  "compiledAt": "2026-04-09T19:05:42.426Z",
+  "compilerVersion": "3.0",
+  "chains": [
+    {
+      "sectionName": "Eliocalypse : Réminiscence",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Eliocalypse",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "La danse de la dissonance",
+          "dofusdbId": 2421,
+          "level": 200,
+          "zone": "Temple Huppermage",
+          "npcName": "Rimanda",
+          "npcSubArea": "Temple Huppermage",
+          "coords": {
+            "x": 38,
+            "y": -21,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 136,
+              "name": "Bataille de l'Aurore Pourpre",
+              "level": null,
+              "bossName": "L'Éternel Conflit",
+              "img": "https://api.dofusdb.fr/img/monsters/2236.png",
+              "idoleName": null
+            },
+            {
+              "id": 135,
+              "name": "Rituel de Kabahal",
+              "level": null,
+              "bossName": "Kabahal",
+              "img": "https://api.dofusdb.fr/img/monsters/2192.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": "https://www.dofuspourlesnoobs.com/la-danse-de-la-dissonance.html",
+          "objectives": [
+            "Aller voir Rimanda",
+            "Découvrir la carte : Rituel de la Dissonance",
+            "Entrer dans le cauchemar",
+            "Parler aux Huppermages envoyés par Rimanda",
+            "Réveiller des Douziens pris dans le conflit entre les deux cités",
+            "Combattre les Ravageurs qui hantent les lieux",
+            "Se confronter à des esprits cauchemardesques",
+            "Permettre aux défunts de reposer en paix",
+            "Examiner le tracé incomplet de la rune",
+            "Aller voir Horreur de l'Aurore",
+            "Survivre à l'Éternel Conflit",
+            "Aller voir Cauchemar des Ravageurs",
+            "Trouver l'accès menant à la source de pouvoir du cauchemar",
+            "Voler des offrandes aux démons nourriciers",
+            "Nourrir le cauchemar",
+            "Tenter de contrôler la source de pouvoir",
+            "Aller voir Kabahal"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Descendre aux cendres",
+          "dofusdbId": 2422,
+          "level": 200,
+          "zone": "Temple de Bakujikera",
+          "npcName": "Esprit de Bakujikera",
+          "npcSubArea": "Temple de Bakujikera",
+          "coords": {
+            "x": 43,
+            "y": -55,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": "https://www.dofuspourlesnoobs.com/descendre-aux-cendres.html",
+          "objectives": [
+            "Retourner dans le sanctuaire de la baleine de Grobe",
+            "Aller voir Esprit de Bakujikera",
+            "Traverser l'Océan Gris jusqu'à l'archipel des Ravageurs",
+            "Monter à bord du navire démoniaque",
+            "Pousser la Mère à se manifester",
+            "Aller voir Helzbeth la Mère des Ravageurs",
+            "Vaincre les peurs venues du passé",
+            "Aller voir Helzbeth la Mère des Ravageurs",
+            "Endurer le froid du Long Descendre",
+            "Écouter l'offre de la Mère des Ravageurs",
+            "Aller voir Draconiros"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2421
+            }
+          ]
+        },
+        {
+          "name": "Un héritage tourmenté",
+          "dofusdbId": 2423,
+          "level": 200,
+          "zone": "Temple Huppermage",
+          "npcName": "Rimanda",
+          "npcSubArea": "Temple Huppermage",
+          "coords": {
+            "x": 38,
+            "y": -21,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 1536,
+              "name": "Métaria Mage bleue",
+              "amount": 8,
+              "img": "https://api.dofusdb.fr/img/items/66246.png"
+            },
+            {
+              "id": 1538,
+              "name": "Métaria Mage jaune",
+              "amount": 8,
+              "img": "https://api.dofusdb.fr/img/items/66249.png"
+            },
+            {
+              "id": 1535,
+              "name": "Métaria Mage rouge",
+              "amount": 8,
+              "img": "https://api.dofusdb.fr/img/items/66243.png"
+            },
+            {
+              "id": 1537,
+              "name": "Métaria Mage verte",
+              "amount": 8,
+              "img": "https://api.dofusdb.fr/img/items/66252.png"
+            },
+            {
+              "id": 14635,
+              "name": "Pépite",
+              "amount": 400,
+              "img": "https://api.dofusdb.fr/img/items/50718.png"
+            },
+            {
+              "id": 21966,
+              "name": "Rune astrale majeure",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/78262.png"
+            },
+            {
+              "id": 1478,
+              "name": "Harmonie",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/1122.png"
+            },
+            {
+              "id": 26159,
+              "name": "Vertu d'harmonie suprême",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/164711.png"
+            },
+            {
+              "id": 25809,
+              "name": "Rune d'harmonie",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/165001.png"
+            },
+            {
+              "id": 25818,
+              "name": "Page du grimoire de Rewona",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/165002.png"
+            },
+            {
+              "id": 25819,
+              "name": "Emprise exaltante",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/165003.png"
+            },
+            {
+              "id": 25820,
+              "name": "Emprise destructrice",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/165004.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": "https://www.dofuspourlesnoobs.com/un-heritage-tourmente.html",
+          "objectives": [
+            "Retourner voir Rimanda",
+            "Parler au premier Huppermage",
+            "Fabriquer 1 Rune d'harmonie et fermer l'interface",
+            "Utiliser la rune d'harmonie sur les pyramides prismatiques de Bonta",
+            "Retrouver Kro'Li le démonologiste",
+            "Obtenir la formule du sortilège transcrit dans le grimoire de Rewona",
+            "Ramener à Ilaster Kro'Li : x1 Page du grimoire de Rewona",
+            "Ramener à Ilaster Kro'Li : x5 Emprise exaltante",
+            "Ramener à Ilaster Kro'Li : x5 Emprise destructrice",
+            "Prononcer le sortilège dans la gueule du cauchemar",
+            "Parler aux Cavaliers",
+            "Neutraliser les Cavaliers avec l'aide d'Entropix et d'un allié providentiel",
+            "Terminer le rituel pour prendre le contrôle du Dofus",
+            "Parler à la Mère des Ravageurs et briser la barrière",
+            "Écouter la sentence de Draconiros",
+            "Rendre Entropix au temps du rêve",
+            "Aller voir Draconiros"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2422
+            }
+          ]
+        },
+        {
+          "name": "Les totems de Maïmane",
+          "dofusdbId": 2425,
+          "level": 200,
+          "zone": "Eliocalypse",
+          "npcName": "Maïmane",
+          "npcSubArea": null,
+          "coords": {
+            "x": 2,
+            "y": 4,
+            "worldId": 30
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 26076,
+              "name": "Totem de la joie",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/165014.png"
+            },
+            {
+              "id": 26077,
+              "name": "Totem de la tristesse",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/165015.png"
+            },
+            {
+              "id": 26078,
+              "name": "Totem de la peur",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/165016.png"
+            },
+            {
+              "id": 26079,
+              "name": "Totem de la colère",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/165017.png"
+            },
+            {
+              "id": 26080,
+              "name": "Totem du dégoût",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/165018.png"
+            },
+            {
+              "id": 26081,
+              "name": "Totem de la surprise",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/165019.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 133,
+              "name": "Joie (Klime, Merkator, Imagami, Nidas ou Servitude)",
+              "level": null,
+              "bossName": "Roi Imagami",
+              "img": "https://api.dofusdb.fr/img/monsters/2121.png",
+              "idoleName": null
+            },
+            {
+              "id": 134,
+              "name": "Tristesse (Meno, Amirukam, Sylargh, Torkélonia ou Vortex)",
+              "level": null,
+              "bossName": "Reine Amirukam",
+              "img": "https://api.dofusdb.fr/img/monsters/2127.png",
+              "idoleName": null
+            },
+            {
+              "id": 98,
+              "name": "Peur (Anerice, Ilyzaelle, Koutoulou ou Misère)",
+              "level": null,
+              "bossName": "Tryde",
+              "img": "https://api.dofusdb.fr/img/monsters/1412.png",
+              "idoleName": null
+            },
+            {
+              "id": 109,
+              "name": "Colère (Dazak, Guerre, Frizz, Solar ou Tal Kasha)",
+              "level": null,
+              "bossName": "Solar",
+              "img": "https://api.dofusdb.fr/img/monsters/1661.png",
+              "idoleName": null
+            },
+            {
+              "id": 108,
+              "name": "Dégoût (Bethel, Corruption, Dantinéa, Nileza ou Protozorreur)",
+              "level": null,
+              "bossName": "Bethel Akarna",
+              "img": "https://api.dofusdb.fr/img/monsters/1670.png",
+              "idoleName": null
+            },
+            {
+              "id": 135,
+              "name": "Surprise (Chalœil, Harebourg, Kabahal, Kao ou Reine des Voleurs)",
+              "level": null,
+              "bossName": "Kabahal",
+              "img": "https://api.dofusdb.fr/img/monsters/2192.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": "https://www.dofuspourlesnoobs.com/les-totems-de-maimane.html",
+          "objectives": [
+            "Ramener à Maïmane : x1 Totem de la joie",
+            "Ramener à Maïmane : x1 Totem de la tristesse",
+            "Ramener à Maïmane : x1 Totem de la peur",
+            "Ramener à Maïmane : x1 Totem de la colère",
+            "Ramener à Maïmane : x1 Totem du dégoût",
+            "Ramener à Maïmane : x1 Totem de la surprise"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2423
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Le Chant du Pandamonium",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Pandamonium",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 1,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Toute possession dépossède",
+          "dofusdbId": 2411,
+          "level": 200,
+          "zone": "Pandamonium",
+          "npcName": "Prêtresse des Douze",
+          "npcSubArea": null,
+          "coords": {
+            "x": 6,
+            "y": 3,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 135,
+              "name": "Rituel de Kabahal",
+              "level": null,
+              "bossName": "Kabahal",
+              "img": "https://api.dofusdb.fr/img/monsters/2192.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": "https://www.dofuspourlesnoobs.com/toute-possession-depossede.html",
+          "objectives": [
+            "Aller voir Prêtresse des Douze",
+            "Enquêter sur les disparitions du côté des Bworks",
+            "Enquêter sur les disparitions du côté des Gobelins",
+            "Enquêter sur les disparitions du côté des Porkass",
+            "Retourner voir Prêtresse des Douze",
+            "Se rendre sur Grobe pour rejoindre le port des Ravageurs",
+            "Trouver des traces des trois Porkass",
+            "Vaincre x1 {monster,6658} en un seul combat",
+            "Découvrir ce qu'est devenue la Bworkette",
+            "Tenter de raisonner Ver'Trüd et ses alliées",
+            "Mettre la main sur le Gobelin",
+            "Aller voir Gob'Li'Terr le Ravagé"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Le chant du Pandamonium",
+          "dofusdbId": 2412,
+          "level": 200,
+          "zone": "Taverne du Pandamonium",
+          "npcName": "Kabahal",
+          "npcSubArea": "Taverne du Pandamonium",
+          "coords": {
+            "x": 43,
+            "y": -58,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 135,
+              "name": "Rituel de Kabahal",
+              "level": null,
+              "bossName": "Kabahal",
+              "img": "https://api.dofusdb.fr/img/monsters/2192.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": "https://www.dofuspourlesnoobs.com/le-chant-du-pandamonium.html",
+          "objectives": [
+            "Parler au gardien du Pandamonium",
+            "Explorer le Pandamonium",
+            "Enivrer la tavernière à coups de boissons pandawas",
+            "Entrer dans la carcasse de la baleine",
+            "Affronter les Possédés et leur chaman démoniaque",
+            "Aller voir Kabahal",
+            "Répondre à l'appel de la baleine",
+            "Communiquer avec l'esprit de Bakujikera",
+            "Retourner voir Draconiros près du réceptacle des Dofus"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2411
+            }
+          ]
+        },
+        {
+          "name": "Le début de la fin",
+          "dofusdbId": 2413,
+          "level": 200,
+          "zone": "Temple Eliotrope",
+          "npcName": "Djaul",
+          "npcSubArea": "Temple Eliotrope",
+          "coords": {
+            "x": 17,
+            "y": 32,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 136,
+              "name": "Bataille de l'Aurore Pourpre",
+              "level": null,
+              "bossName": "L'Éternel Conflit",
+              "img": "https://api.dofusdb.fr/img/monsters/2236.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": "https://www.dofuspourlesnoobs.com/le-debut-de-la-fin-quete.html",
+          "objectives": [
+            "Décrypter une autre page translucide dans le temple des Eliotropes",
+            "Interroger le Protecteur de descendre du côté de Brâkmar",
+            "Se débarrasser des gardes du Cœur Saignant",
+            "Aller voir Djaul",
+            "Lire l'Abecedarius à la bibliothèque de Brâkmar",
+            "Aller voir Jean-Sol Patre",
+            "Trouver le démonologiste",
+            "Neutraliser les chasseurs de démons",
+            "Aller voir Ilaster Kro'Li",
+            "Révéler le nom du démon à Draconiros"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2412
+            }
+          ]
+        },
+        {
+          "name": "Quand l'éveil n'est qu'un songe",
+          "dofusdbId": 2406,
+          "level": 200,
+          "zone": "Caverne du réceptacle",
+          "npcName": "Draconiros",
+          "npcSubArea": "Caverne du réceptacle",
+          "coords": {
+            "x": 21,
+            "y": -33,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": "https://www.dofuspourlesnoobs.com/quand-l-eveil-n-est-qu-un-songe.html",
+          "objectives": [
+            "Sceller la promesse des esprits élémentaires de protéger Pandala",
+            "Faire comprendre aux Pandaliens que la division mène à la ruine",
+            "Donner aux Pandawas le moyen de se prémunir contre certains événements funestes",
+            "Retourner voir Draconiros"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2413
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "globalSummary": {
+    "totalQuests": 8,
+    "totalItems": 18,
+    "totalDungeons": 30,
+    "items": [
+      {
+        "id": 14635,
+        "name": "Pépite",
+        "totalAmount": 400,
+        "img": "https://api.dofusdb.fr/img/items/50718.png"
+      },
+      {
+        "id": 1536,
+        "name": "Métaria Mage bleue",
+        "totalAmount": 8,
+        "img": "https://api.dofusdb.fr/img/items/66246.png"
+      },
+      {
+        "id": 1538,
+        "name": "Métaria Mage jaune",
+        "totalAmount": 8,
+        "img": "https://api.dofusdb.fr/img/items/66249.png"
+      },
+      {
+        "id": 1535,
+        "name": "Métaria Mage rouge",
+        "totalAmount": 8,
+        "img": "https://api.dofusdb.fr/img/items/66243.png"
+      },
+      {
+        "id": 1537,
+        "name": "Métaria Mage verte",
+        "totalAmount": 8,
+        "img": "https://api.dofusdb.fr/img/items/66252.png"
+      },
+      {
+        "id": 25819,
+        "name": "Emprise exaltante",
+        "totalAmount": 5,
+        "img": "https://api.dofusdb.fr/img/items/165003.png"
+      },
+      {
+        "id": 25820,
+        "name": "Emprise destructrice",
+        "totalAmount": 5,
+        "img": "https://api.dofusdb.fr/img/items/165004.png"
+      },
+      {
+        "id": 21966,
+        "name": "Rune astrale majeure",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/78262.png"
+      },
+      {
+        "id": 1478,
+        "name": "Harmonie",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/1122.png"
+      },
+      {
+        "id": 26159,
+        "name": "Vertu d'harmonie suprême",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/164711.png"
+      },
+      {
+        "id": 25809,
+        "name": "Rune d'harmonie",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/165001.png"
+      },
+      {
+        "id": 25818,
+        "name": "Page du grimoire de Rewona",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/165002.png"
+      },
+      {
+        "id": 26076,
+        "name": "Totem de la joie",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/165014.png"
+      },
+      {
+        "id": 26077,
+        "name": "Totem de la tristesse",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/165015.png"
+      },
+      {
+        "id": 26078,
+        "name": "Totem de la peur",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/165016.png"
+      },
+      {
+        "id": 26079,
+        "name": "Totem de la colère",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/165017.png"
+      },
+      {
+        "id": 26080,
+        "name": "Totem du dégoût",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/165018.png"
+      },
+      {
+        "id": 26081,
+        "name": "Totem de la surprise",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/165019.png"
+      }
+    ],
+    "dungeons": [
+      {
+        "id": 136,
+        "name": "Bataille de l'Aurore Pourpre",
+        "level": null,
+        "bossName": "L'Éternel Conflit",
+        "img": "https://api.dofusdb.fr/img/monsters/2236.png",
+        "idoleName": null
+      },
+      {
+        "id": 135,
+        "name": "Rituel de Kabahal",
+        "level": null,
+        "bossName": "Kabahal",
+        "img": "https://api.dofusdb.fr/img/monsters/2192.png",
+        "idoleName": null
+      },
+      {
+        "id": 68,
+        "name": "Salons privés de Klime",
+        "level": null,
+        "bossName": "Klime",
+        "img": "https://api.dofusdb.fr/img/monsters/964.png",
+        "idoleName": null
+      },
+      {
+        "id": 73,
+        "name": "Aquadôme de Merkator",
+        "level": null,
+        "bossName": "Cyclophandre",
+        "img": "https://api.dofusdb.fr/img/monsters/1062.png",
+        "idoleName": null
+      },
+      {
+        "id": 76,
+        "name": "Palais du roi Nidas",
+        "level": null,
+        "bossName": "Piloztère",
+        "img": "https://api.dofusdb.fr/img/monsters/1114.png",
+        "idoleName": null
+      },
+      {
+        "id": 118,
+        "name": "Fers de la Tyrannie",
+        "level": null,
+        "bossName": "Ecaptif",
+        "img": "https://api.dofusdb.fr/img/monsters/1965.png",
+        "idoleName": null
+      },
+      {
+        "id": 133,
+        "name": "Joie (Klime, Merkator, Imagami, Nidas ou Servitude)",
+        "level": null,
+        "bossName": "Roi Imagami",
+        "img": "https://api.dofusdb.fr/img/monsters/2121.png",
+        "idoleName": null
+      },
+      {
+        "id": 67,
+        "name": "Transporteur de Sylargh",
+        "level": null,
+        "bossName": "Sylargh",
+        "img": "https://api.dofusdb.fr/img/monsters/986.png",
+        "idoleName": null
+      },
+      {
+        "id": 87,
+        "name": "Œil de Vortex",
+        "level": null,
+        "bossName": "Brabuzar",
+        "img": "https://api.dofusdb.fr/img/monsters/1212.png",
+        "idoleName": null
+      },
+      {
+        "id": 97,
+        "name": "Vaisseau du Capitaine Meno",
+        "level": null,
+        "bossName": "Capitaine Meno",
+        "img": "https://api.dofusdb.fr/img/monsters/1430.png",
+        "idoleName": null
+      },
+      {
+        "id": 114,
+        "name": "Sanctuaire de Torkélonia",
+        "level": null,
+        "bossName": "Cronnibal",
+        "img": "https://api.dofusdb.fr/img/monsters/1908.png",
+        "idoleName": null
+      },
+      {
+        "id": 134,
+        "name": "Tristesse (Meno, Amirukam, Sylargh, Torkélonia ou Vortex)",
+        "level": null,
+        "bossName": "Reine Amirukam",
+        "img": "https://api.dofusdb.fr/img/monsters/2127.png",
+        "idoleName": null
+      },
+      {
+        "id": 98,
+        "name": "Peur (Anerice, Ilyzaelle, Koutoulou ou Misère)",
+        "level": null,
+        "bossName": "Tryde",
+        "img": "https://api.dofusdb.fr/img/monsters/1412.png",
+        "idoleName": null
+      },
+      {
+        "id": 106,
+        "name": "Manoir des Katrepat",
+        "level": null,
+        "bossName": "Anerice la Shushess",
+        "img": "https://api.dofusdb.fr/img/monsters/1600.png",
+        "idoleName": null
+      },
+      {
+        "id": 107,
+        "name": "Belvédère d'Ilyzaelle",
+        "level": null,
+        "bossName": "Crâme",
+        "img": "https://api.dofusdb.fr/img/monsters/1633.png",
+        "idoleName": null
+      },
+      {
+        "id": 119,
+        "name": "Sentence de la Balance",
+        "level": null,
+        "bossName": "Dawaj",
+        "img": "https://api.dofusdb.fr/img/monsters/1971.png",
+        "idoleName": null
+      },
+      {
+        "id": 69,
+        "name": "Forgefroide de Missiz Frizz",
+        "level": null,
+        "bossName": "Missiz Frizz",
+        "img": "https://api.dofusdb.fr/img/monsters/970.png",
+        "idoleName": null
+      },
+      {
+        "id": 103,
+        "name": "Chambre de Tal Kasha",
+        "level": null,
+        "bossName": "Tal Kasha",
+        "img": "https://api.dofusdb.fr/img/monsters/1547.png",
+        "idoleName": null
+      },
+      {
+        "id": 109,
+        "name": "Colère (Dazak, Guerre, Frizz, Solar ou Tal Kasha)",
+        "level": null,
+        "bossName": "Solar",
+        "img": "https://api.dofusdb.fr/img/monsters/1661.png",
+        "idoleName": null
+      },
+      {
+        "id": 110,
+        "name": "Brasserie du roi Dazak",
+        "level": null,
+        "bossName": "Dazak Martegel",
+        "img": "https://api.dofusdb.fr/img/monsters/1771.png",
+        "idoleName": null
+      },
+      {
+        "id": 120,
+        "name": "Trône de Sang",
+        "level": null,
+        "bossName": "Trancharnier",
+        "img": "https://api.dofusdb.fr/img/monsters/1995.png",
+        "idoleName": null
+      },
+      {
+        "id": 70,
+        "name": "Laboratoire de Nileza",
+        "level": null,
+        "bossName": "Nileza",
+        "img": "https://api.dofusdb.fr/img/monsters/976.png",
+        "idoleName": null
+      },
+      {
+        "id": 84,
+        "name": "Ventre de la Baleine",
+        "level": null,
+        "bossName": "Protozorreur",
+        "img": "https://api.dofusdb.fr/img/monsters/1204.png",
+        "idoleName": null
+      },
+      {
+        "id": 99,
+        "name": "Palais de Dantinéa",
+        "level": null,
+        "bossName": "Dantinéa",
+        "img": "https://api.dofusdb.fr/img/monsters/1321.png",
+        "idoleName": null
+      },
+      {
+        "id": 108,
+        "name": "Dégoût (Bethel, Corruption, Dantinéa, Nileza ou Protozorreur)",
+        "level": null,
+        "bossName": "Bethel Akarna",
+        "img": "https://api.dofusdb.fr/img/monsters/1670.png",
+        "idoleName": null
+      },
+      {
+        "id": 117,
+        "name": "Arbre de Mort",
+        "level": null,
+        "bossName": "Gangredogue",
+        "img": "https://api.dofusdb.fr/img/monsters/2001.png",
+        "idoleName": null
+      },
+      {
+        "id": 71,
+        "name": "Donjon du Comte Harebourg",
+        "level": null,
+        "bossName": "Comte Harebourg",
+        "img": "https://api.dofusdb.fr/img/monsters/993.png",
+        "idoleName": null
+      },
+      {
+        "id": 83,
+        "name": "Trône de la Cour Sombre",
+        "level": null,
+        "bossName": "Magouille",
+        "img": "https://api.dofusdb.fr/img/monsters/1165.png",
+        "idoleName": null
+      },
+      {
+        "id": 95,
+        "name": "Défi du Chalœil",
+        "level": null,
+        "bossName": "Roi Joueur",
+        "img": "https://api.dofusdb.fr/img/monsters/1360.png",
+        "idoleName": null
+      },
+      {
+        "id": 111,
+        "name": "Temple du dieu Kao",
+        "level": null,
+        "bossName": "Cabosseur",
+        "img": "https://api.dofusdb.fr/img/monsters/1852.png",
+        "idoleName": null
+      }
+    ]
+  }
+}

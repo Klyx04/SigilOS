@@ -1,0 +1,19 @@
+# Custom Caddy with rate-limit module (F-14)
+# The official caddy:alpine image does NOT include the ratelimit plugin.
+# Build: docker build -f Dockerfile.caddy -t sigilos-caddy:latest .
+FROM caddy:2.9.1-builder-alpine AS builder
+
+RUN xcaddy build --with github.com/mholt/caddy-ratelimit@latest
+
+FROM caddy:2.9.1-alpine
+
+COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+
+# DS-0002 : exécuter en non-root (uid 1000). On utilise l'UID NUMÉRIQUE (1000:1000)
+# et non le nom "caddy" : le user par nom n'est pas toujours résolu dans l'image
+# runtime → évite l'erreur "unable to find user caddy: no matching entries in passwd".
+USER 1000:1000
+
+EXPOSE 80 443 443/udp
+ENTRYPOINT ["caddy"]
+CMD ["run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]

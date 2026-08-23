@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Playfair_Display, Inter } from "next/font/google";
+import { Geist_Mono, Space_Grotesk, Inter, Cinzel } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
@@ -7,8 +7,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import { getAppBaseUrl } from "@/lib/utils";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
 });
 
@@ -17,14 +17,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const playfair = Playfair_Display({
-  variable: "--font-playfair",
-  subsets: ["latin"],
-});
-
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
+});
+
+const cinzel = Cinzel({
+  variable: "--font-cinzel",
+  subsets: ["latin"],
+  weight: ["400", "700", "900"],
 });
 
 export const metadata: Metadata = {
@@ -34,18 +35,17 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.webmanifest", // Next.js generates this from manifest.ts
   title: {
-    default: "SigilOS — Le système d'exploitation pour guildes Dofus",
+    default: "SigilOS — Organisez votre guilde Dofus",
     template: "%s | SigilOS",
   },
-  description: "SigilOS est la plateforme de gestion de guilde Dofus la plus complète en 2026. Bot Discord, suivi de quêtes (Ocre, Almanax, Songes Infinis), annuaire de guildes, ladder XP, Dungeon Finder et outils communautaires. Gratuit et open-source.",
-  keywords: ["dofus", "guilde", "gestion guilde dofus", "bot discord dofus", "sigilos", "quête ocre", "songes infinis", "almanax", "dungeon finder", "dofus 2026", "guilde dofus 3"],
+  description: "SigilOS réunit quêtes, sorties, membres et progression Dofus dans un espace partagé, relié à Discord. Gratuit pour les guildes.",
   openGraph: {
     type: "website",
     locale: "fr_FR",
     url: getAppBaseUrl(),
     siteName: "SigilOS",
-    title: "SigilOS — Gestion de Guilde Dofus",
-    description: "La plateforme tout-en-un pour les guildes Dofus : quêtes, Songes Infinis, Dungeon Finder, ladder XP et outils communautaires.",
+    title: "SigilOS — Gestion de guilde Dofus",
+    description: "Quêtes, sorties, membres et progression Dofus dans un espace partagé, relié à Discord.",
     images: [
       {
         url: new URL('/api/og?title=SigilOS&subtitle=Le%20syst%C3%A8me%20d%27exploitation%20pour%20guildes%20Dofus', getAppBaseUrl()).toString(),
@@ -58,8 +58,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "SigilOS — Gestion de Guilde Dofus",
-    description: "La plateforme tout-en-un pour les guildes Dofus. Quêtes, Songes, Dungeon Finder, Ladder XP.",
+    title: "SigilOS — Gestion de guilde Dofus",
+    description: "Quêtes, sorties, membres et progression Dofus dans un espace partagé, relié à Discord.",
     images: [new URL('/api/og?title=SigilOS&subtitle=Le%20syst%C3%A8me%20d%27exploitation%20pour%20guildes%20Dofus', getAppBaseUrl()).toString()],
   },
   robots: {
@@ -85,6 +85,10 @@ export const viewport: Viewport = {
 };
 
 import { auth } from "@/auth";
+import { SupportOrb } from "@/components/shared/support-orb";
+import { db } from "@/lib/prisma";
+import { headers } from "next/headers";
+import { GodBypassCookie } from "@/components/god-bypass-cookie";
 
 export default async function RootLayout({
   children,
@@ -92,34 +96,39 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await auth();
+  // #16 — kill-switch God « Forcer le mode sombre » : verrouille le thème en dark
+  // pour TOUT le monde (fail-closed, bascule auto si un user était resté en clair).
+  const platformConfig = await db.platformConfig.findFirst({ select: { donationsEnabled: true, forceDarkMode: true } }).catch(() => null);
+  const donationsEnabled = platformConfig?.donationsEnabled ?? true; // default true si pas de config
+  const forcedTheme = platformConfig?.forceDarkMode ? "dark" : undefined;
+
+  // [AUDIT 2026] Retrieve nonce from middleware for CSP-compliant script injection
+  const headersList = await headers();
+  const nonce = headersList.get('x-nonce') ?? '';
 
   return (
     <html lang="fr" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${inter.variable} antialiased`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem
-          disableTransitionOnChange
-        >
+      <body suppressHydrationWarning className={`${spaceGrotesk.variable} ${geistMono.variable} ${inter.variable} ${cinzel.variable} antialiased`}>
+        <ThemeProvider forcedTheme={forcedTheme} nonce={nonce}>
           <AuthProvider session={session}>
             <TooltipProvider>
+              <GodBypassCookie />
               {children}
+              {donationsEnabled && <SupportOrb />}
               <Toaster
                 position="bottom-right"
                 richColors
                 expand={false}
                 closeButton
-                theme="dark"
                 toastOptions={{
-                  className: "group font-sans border-white/5 bg-[#0d0f11]/90 backdrop-blur-2xl text-white shadow-[0_20px_50px_rgba(0,0,0,0.5)] rounded-2xl p-4 border border-zinc-500/10",
-                  descriptionClassName: "text-zinc-400 font-medium text-[13px]",
+                  className: "group font-sans border border-border/50 bg-card/90 backdrop-blur-xl text-card-foreground rounded-2xl p-4 shadow-lg",
+                  descriptionClassName: "text-muted-foreground font-medium text-body-sm",
                   style: {
-                    borderLeft: '3px solid rgba(255,255,255,0.1)',
+                    borderLeft: '3px solid var(--border-strong, rgba(255,255,255,0.1))',
                   },
                   actionButtonStyle: {
-                    background: "white",
-                    color: "black",
+                    background: "var(--foreground)",
+                    color: "var(--background)",
                     fontWeight: "bold",
                     borderRadius: "0.5rem",
                   },

@@ -20,12 +20,9 @@ function getEncryptionKey(): Buffer {
     const keyStr = process.env.ENCRYPTION_KEY;
 
     if (!keyStr) {
-        if (process.env.NODE_ENV === "production") {
-            throw new Error("CRITICAL: ENCRYPTION_KEY is missing in production environment.");
-        }
-        // Fallback for development only - log warning
-        console.warn("[Encryption] ⚠️ Using fallback dev key - DO NOT USE IN PRODUCTION");
-        return scryptSync("dev-fallback-sigilos-key-2026", "salt", KEY_LENGTH);
+        // F-09: fail-closed in ALL environments — never use a hardcoded fallback key.
+        // A missing ENCRYPTION_KEY means we cannot safely encrypt/decrypt sensitive data.
+        throw new Error("CRITICAL: ENCRYPTION_KEY is missing — set a 64-hex-char value in the environment.");
     }
 
     // Support both raw string (shrunk to 32 bytes) or hex string (64 chars)

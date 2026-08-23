@@ -1,6 +1,7 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
+import { cn } from "@/lib/utils";
 
 import { useState, useTransition } from "react";
 import {
@@ -47,7 +48,7 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
     const [activeAnnouncement, setActiveAnnouncement] = useState(currentAnnouncement);
 
     // Stellium Specific
-    const [stelliumChannels, setStelliumChannels] = useState<{ id: string; name: string }[]>([]);
+    const [stelliumChannels, setStelliumChannels] = useState<{ id: string; name: string | null }[]>([]);
     const [stelliumChannelId, setStelliumChannelId] = useState<string>("");
 
     useEffect(() => {
@@ -120,41 +121,44 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
 
     return (
         <div className="space-y-8">
-            {/* Header */}
-            <div className="flex items-center gap-3">
-                <Megaphone className="w-6 h-6 text-amber-400" />
-                <h2 className="text-2xl font-black text-white uppercase tracking-tight">
-                    Communication
-                </h2>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* ============================================================ */}
-                {/* BANNER SECTION */}
-                {/* ============================================================ */}
-                <div className="bg-zinc-900/40 border border-white/5 rounded-2xl p-6 space-y-5">
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-black text-zinc-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                            <Radio className="w-4 h-4 text-teal-400" />
-                            Bandeau Dashboard
-                        </h3>
+                {/* 1. DASHBOARD BANNER SECTION */}
+                <div className="bg-zinc-900/40 border border-white/5 rounded-[2.5rem] p-6 md:p-10 space-y-8 overflow-hidden relative group">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/5 blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                    
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center">
+                                <Radio className="w-5 h-5 text-teal-400" />
+                            </div>
+                            <h3 className="text-lg font-black text-white uppercase tracking-widest">
+                                Bandeau Dashboard
+                            </h3>
+                        </div>
                         {activeAnnouncement && (
-                            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">
-                                Actif
-                            </span>
+                            <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                <span className="text-caption font-black text-emerald-400 uppercase tracking-widest">
+                                    Diffusion en cours
+                                </span>
+                            </div>
                         )}
                     </div>
 
-                    {/* Current active announcement */}
+                    {/* Active banner preview/control */}
                     {activeAnnouncement && (
-                        <div className={`p-4 rounded-xl border ${typeColors[activeAnnouncement.type]} flex items-start justify-between gap-3`}>
-                            <div className="flex items-start gap-3 flex-1">
-                                {typeIcons[activeAnnouncement.type]}
+                        <div className={cn(
+                            "p-6 rounded-3xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-all shadow-xl",
+                            typeColors[activeAnnouncement.type]
+                        )}>
+                            <div className="flex items-start gap-4 flex-1">
+                                <div className="p-2 rounded-lg bg-white/10">
+                                    {typeIcons[activeAnnouncement.type]}
+                                </div>
                                 <div className="space-y-1">
-                                    <p className="text-sm font-medium">{activeAnnouncement.message}</p>
+                                    <p className="text-sm md:text-base font-bold leading-tight">{activeAnnouncement.message}</p>
                                     {activeAnnouncement.expiresAt && (
-                                        <p className="text-[10px] opacity-60">
-                                            Expire : {new Date(activeAnnouncement.expiresAt).toLocaleString("fr-FR")}
+                                        <p className="text-caption font-black uppercase tracking-widest opacity-60">
+                                            Expiration : {new Date(activeAnnouncement.expiresAt).toLocaleString("fr-FR")}
                                         </p>
                                     )}
                                 </div>
@@ -162,216 +166,219 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
                             <button
                                 onClick={handleClearBanner}
                                 disabled={bannerPending}
-                                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-zinc-500 hover:text-red-400"
+                                className="w-full md:w-auto px-6 py-3 bg-white/10 hover:bg-rose-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 group/btn"
                             >
-                                <X className="w-4 h-4" />
+                                <X className="w-4 h-4 group-hover/btn:rotate-90 transition-transform" />
+                                Couper la diffusion
                             </button>
                         </div>
                     )}
 
-                    {/* New announcement form */}
-                    <textarea
-                        value={bannerMessage}
-                        onChange={(e) => setBannerMessage(e.target.value)}
-                        placeholder="🛠️ Maintenance prévue à 21h. Sauvegardez vos actions en cours !"
-                        className="w-full bg-zinc-950/60 border border-white/5 rounded-xl p-4 text-sm text-white placeholder:text-zinc-600 resize-none h-20 focus:outline-none focus:border-amber-500/30 transition-colors"
-                        maxLength={200}
-                    />
+                    <div className="grid grid-cols-1 lg:grid-cols-1 gap-8 mt-4">
+                        <div className="space-y-6">
+                            <textarea
+                                value={bannerMessage}
+                                onChange={(e) => setBannerMessage(e.target.value)}
+                                placeholder="Écrivez le message qui apparaîtra sur tous les dashboards..."
+                                className="w-full bg-black/40 border border-white/5 rounded-3xl p-6 text-base text-white placeholder:text-zinc-700 resize-none h-32 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500/30 transition-all font-medium"
+                                maxLength={200}
+                            />
+                            
+                            <div className="flex flex-wrap items-center gap-4">
+                                <div className="flex flex-wrap gap-2 p-1.5 bg-black/40 rounded-2xl border border-white/5">
+                                    {(["info", "warning", "maintenance"] as const).map((t) => (
+                                        <button
+                                            key={t}
+                                            onClick={() => setBannerType(t)}
+                                            className={cn(
+                                                "px-5 py-2.5 rounded-xl text-caption font-black uppercase tracking-widest border transition-all",
+                                                bannerType === t
+                                                    ? typeColors[t]
+                                                    : "border-transparent text-zinc-500 hover:text-white"
+                                            )}
+                                        >
+                                            {t}
+                                        </button>
+                                    ))}
+                                </div>
 
-                    <div className="flex items-center gap-3">
-                        {/* Type selector */}
-                        <div className="flex gap-1.5">
-                            {(["info", "warning", "maintenance"] as const).map((t) => (
-                                <button
-                                    key={t}
-                                    onClick={() => setBannerType(t)}
-                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all ${bannerType === t
-                                        ? typeColors[t]
-                                        : "border-white/5 text-zinc-600 hover:text-zinc-400"
-                                        }`}
-                                >
-                                    {t}
-                                </button>
-                            ))}
+                                <div className="flex items-center gap-3 ml-auto">
+                                    <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Durée :</span>
+                                    <select
+                                        value={bannerExpiry}
+                                        onChange={(e) => setBannerExpiry(Number(e.target.value))}
+                                        className="bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                                    >
+                                        <option value={30}>30 min</option>
+                                        <option value={60}>1h</option>
+                                        <option value={120}>2h</option>
+                                        <option value={360}>6h</option>
+                                        <option value={720}>12h</option>
+                                        <option value={0}>Permanent</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={handleSetBanner}
+                                disabled={bannerPending || !bannerMessage.trim()}
+                                className="w-full py-5 bg-teal-500 hover:bg-teal-400 text-white rounded-3xl text-sm font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-teal-500/20 flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-20 disabled:grayscale"
+                            >
+                                {bannerPending ? (
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : (
+                                    <Radio className="w-5 h-5" />
+                                )}
+                                <span>Activer le bandeau</span>
+                            </button>
                         </div>
-
-                        {/* Expiry */}
-                        <select
-                            value={bannerExpiry}
-                            onChange={(e) => setBannerExpiry(Number(e.target.value))}
-                            className="bg-zinc-950/60 border border-white/5 rounded-lg px-3 py-1.5 text-xs text-zinc-400 focus:outline-none"
-                        >
-                            <option value={30}>30 min</option>
-                            <option value={60}>1h</option>
-                            <option value={120}>2h</option>
-                            <option value={360}>6h</option>
-                            <option value={720}>12h</option>
-                            <option value={0}>Permanent</option>
-                        </select>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={handleSetBanner}
-                            disabled={bannerPending || !bannerMessage.trim()}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-xl text-sm font-bold text-amber-300 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                            {bannerPending ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                                <Radio className="w-4 h-4" />
-                            )}
-                            Activer le bandeau
-                        </button>
-
-                        {bannerResult && (
-                            <span className="text-xs font-medium text-emerald-400 animate-in fade-in">
-                                {bannerResult}
-                            </span>
-                        )}
+                        
+                        <div className="bg-black/20 rounded-3xl p-6 border border-white/5 space-y-4">
+                            <h4 className="text-caption font-black text-zinc-600 uppercase tracking-widest text-center">Aperçu Dashboard</h4>
+                            <div className="flex items-center justify-center min-h-[100px]">
+                                {bannerMessage ? (
+                                    <div className={cn("w-full p-4 rounded-xl border-l-4 shadow-lg", typeColors[bannerType])}>
+                                        <div className="flex items-center gap-3">
+                                            {typeIcons[bannerType]}
+                                            <p className="text-xs font-bold line-clamp-3">{bannerMessage}</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-zinc-600 font-medium italic text-center px-8">Tapez un message pour voir l'aperçu...</p>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                {/* ============================================================ */}
-                {/* DISCORD BROADCAST SECTION */}
-                {/* ============================================================ */}
-                <div className="bg-zinc-900/40 border border-white/5 rounded-2xl p-6 space-y-5">
-                    <h3 className="text-sm font-black text-zinc-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                        <Send className="w-4 h-4 text-indigo-400" />
-                        Broadcast Discord
-                    </h3>
+                {/* 2. DISCORD BROADCAST SECTION */}
+                <div className="bg-zinc-900/40 border border-white/5 rounded-[2.5rem] p-6 md:p-10 space-y-8 overflow-hidden relative group">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
-                    <textarea
-                        value={discordMessage}
-                        onChange={(e) => setDiscordMessage(e.target.value)}
-                        placeholder="🛠️ SigilOS va être mis à jour dans 15 minutes. Quelques minutes d'indisponibilité sont à prévoir."
-                        className="w-full bg-zinc-950/60 border border-white/5 rounded-xl p-4 text-sm text-white placeholder:text-zinc-600 resize-none h-20 focus:outline-none focus:border-indigo-500/30 transition-colors"
-                        maxLength={500}
-                    />
-
-                    {/* Embed preview */}
-                    {discordMessage.trim() && (
-                        <div className="rounded-xl overflow-hidden border border-white/5">
-                            <div className="flex">
-                                <div
-                                    className="w-1"
-                                    style={{
-                                        background:
-                                            discordType === "maintenance"
-                                                ? "#f59e0b"
-                                                : discordType === "update"
-                                                    ? "#14b8a6"
-                                                    : "#6366f1",
-                                    }}
-                                />
-                                <div className="bg-zinc-950/80 p-4 flex-1 space-y-2">
-                                    <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
-                                        SigilOS Platform
-                                    </div>
-                                    <div className="text-sm font-bold text-white">
-                                        {discordType === "maintenance"
-                                            ? "🛠️ Maintenance Programmée"
-                                            : discordType === "update"
-                                                ? "🚀 Mise à Jour SigilOS"
-                                                : "📢 Annonce SigilOS"}
-                                    </div>
-                                    <div className="text-sm text-zinc-400 prose prose-invert prose-p:my-1 prose-a:text-blue-400 prose-strong:text-white max-w-none">
-                                        <ReactMarkdown>{discordMessage}</ReactMarkdown>
-                                    </div>
-                                    {mentionEveryone && (
-                                        <div className="text-xs text-blue-400 font-mono">@everyone</div>
-                                    )}
-                                </div>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                                <Send className="w-5 h-5 text-indigo-400" />
                             </div>
+                            <h3 className="text-lg font-black text-white uppercase tracking-widest">
+                                Broadcast Discord
+                            </h3>
                         </div>
-                    )}
-
-                    <div className="flex items-center gap-3">
-                        {/* Type selector */}
-                        <div className="flex gap-1.5">
-                            {([
-                                { value: "maintenance" as const, icon: <Wrench className="w-3 h-3" />, label: "Maintenance" },
-                                { value: "update" as const, icon: <Rocket className="w-3 h-3" />, label: "Update" },
-                                { value: "info" as const, icon: <Info className="w-3 h-3" />, label: "Info" },
-                            ]).map((t) => (
-                                <button
-                                    key={t.value}
-                                    onClick={() => setDiscordType(t.value)}
-                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all flex items-center gap-1.5 ${discordType === t.value
-                                        ? "border-indigo-500/30 text-indigo-400 bg-indigo-500/10"
-                                        : "border-white/5 text-zinc-600 hover:text-zinc-400"
-                                        }`}
-                                >
-                                    {t.icon}
-                                    {t.label}
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* @everyone toggle */}
-                        <label className="flex items-center gap-2 cursor-pointer ml-auto">
-                            <input
-                                type="checkbox"
-                                checked={mentionEveryone}
-                                onChange={() => setMentionEveryone(!mentionEveryone)}
-                                className="w-4 h-4 rounded border-white/10 bg-zinc-900 text-amber-500 focus:ring-amber-500/30"
-                            />
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
-                                @everyone
-                            </span>
-                        </label>
                     </div>
 
-                    {/* Stellium Channel Selector (Hidden if no channels found) */}
-                    {stelliumChannels.length > 0 && (
-                        <div className="p-4 rounded-xl bg-violet-500/5 border border-violet-500/10 space-y-3">
-                            <div className="flex items-center gap-2">
-                                <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
-                                <span className="text-[10px] font-black text-violet-400 uppercase tracking-widest">
-                                    Option Stellium Exclusive
-                                </span>
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider ml-1">
-                                    Salon de destination pour Stellium
-                                </label>
-                                <select
-                                    value={stelliumChannelId}
-                                    onChange={(e) => setStelliumChannelId(e.target.value)}
-                                    className="w-full bg-zinc-950/60 border border-white/5 rounded-lg px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-violet-500/30"
-                                >
-                                    <option value="">Par défaut (Config Guilde)</option>
-                                    {stelliumChannels.map(c => (
-                                        <option key={c.id} value={c.id}># {c.name}</option>
+                    <div className="grid grid-cols-1 gap-8">
+                        <div className="space-y-6">
+                            <textarea
+                                value={discordMessage}
+                                onChange={(e) => setDiscordMessage(e.target.value)}
+                                placeholder="Le message sera envoyé sur tous les salons d'annonces des guildes..."
+                                className="w-full bg-black/40 border border-white/5 rounded-3xl p-6 text-base text-white placeholder:text-zinc-700 resize-none h-48 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/30 transition-all font-medium"
+                                maxLength={500}
+                            />
+
+                            <div className="flex flex-wrap items-center gap-4">
+                                <div className="flex flex-wrap gap-2 p-1.5 bg-black/40 rounded-2xl border border-white/5">
+                                    {(["maintenance", "update", "info"] as const).map((t) => (
+                                        <button
+                                            key={t}
+                                            onClick={() => setDiscordType(t)}
+                                            className={cn(
+                                                "px-5 py-2.5 rounded-xl text-caption font-black uppercase tracking-widest border transition-all flex items-center gap-2",
+                                                discordType === t
+                                                    ? "border-indigo-500/30 text-indigo-400 bg-indigo-500/10"
+                                                    : "border-transparent text-zinc-500 hover:text-white"
+                                            )}
+                                        >
+                                            <div className={cn("w-1.5 h-1.5 rounded-full", 
+                                                t === "maintenance" ? "bg-amber-500" : t === "update" ? "bg-emerald-500" : "bg-indigo-500"
+                                            )} />
+                                            {t}
+                                        </button>
                                     ))}
-                                </select>
+                                </div>
+
+                                <label className="flex items-center gap-3 p-3 bg-black/40 rounded-2xl border border-white/5 cursor-pointer hover:bg-white/5 transition-all ml-auto">
+                                    <input
+                                        type="checkbox"
+                                        checked={mentionEveryone}
+                                        onChange={() => setMentionEveryone(!mentionEveryone)}
+                                        className="w-5 h-5 rounded-lg border-white/10 bg-zinc-900 text-indigo-500 focus:ring-indigo-500/30"
+                                    />
+                                    <span className="text-xs font-black text-zinc-500 uppercase tracking-widest">
+                                        @everyone
+                                    </span>
+                                </label>
                             </div>
-                        </div>
-                    )}
 
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={handleBroadcast}
-                            disabled={discordPending || !discordMessage.trim()}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/30 rounded-xl text-sm font-bold text-indigo-300 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                            {discordPending ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                                <Send className="w-4 h-4" />
+                            {stelliumChannels && stelliumChannels.length > 0 && (
+                                <div className="p-4 rounded-2xl bg-zinc-950/80 border border-white/10 space-y-2 backdrop-blur-md">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
+                                        <span className="text-caption font-black text-violet-300 uppercase tracking-widest">
+                                            Cibleur de Salon Spécifique (Guilde Dev)
+                                        </span>
+                                    </div>
+                                    <select
+                                        value={stelliumChannelId}
+                                        onChange={(e) => setStelliumChannelId(e.target.value)}
+                                        className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-violet-500/50 cursor-pointer"
+                                    >
+                                        <option value="" className="bg-zinc-900 text-zinc-300">Toutes les guildes (Salons d'annonces configurés)</option>
+                                        {stelliumChannels.map(c => (
+                                            <option key={c.id} value={c.id} className="bg-zinc-900 text-white"># {c.name ?? "Salon masqué"}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             )}
-                            Envoyer à toutes les guildes
-                        </button>
 
-                        {discordResult && (
-                            <span className="text-xs font-medium animate-in fade-in flex items-center gap-1.5">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                                <span className="text-emerald-400">{discordResult}</span>
-                            </span>
-                        )}
+                            <button
+                                onClick={handleBroadcast}
+                                disabled={discordPending || !discordMessage.trim()}
+                                className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-3xl text-sm font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-20 disabled:grayscale"
+                            >
+                                {discordPending ? (
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : (
+                                    <Send className="w-5 h-5" />
+                                )}
+                                <span>Envoyer globalement</span>
+                            </button>
+                        </div>
+
+                        <div className="bg-[#313338] rounded-3xl p-6 md:p-10 border border-black/50 shadow-2xl relative">
+                             <div className="absolute top-4 left-6 text-caption font-black text-white/20 uppercase tracking-widest">Aperçu Discord</div>
+                             <div className="mt-8 flex gap-4">
+                                <div className="w-10 h-10 rounded-full bg-[#5865f2] flex-shrink-0 flex items-center justify-center font-bold text-white text-lg">S</div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-white font-bold text-sm">SigilBot</span>
+                                        <span className="bg-[#5865f2] text-white text-caption font-bold px-1 rounded uppercase">Bot</span>
+                                        <span className="text-white/20 text-caption font-medium">Aujourd'hui à {new Date().getHours()}:{new Date().getMinutes().toString().padStart(2, '0')}</span>
+                                    </div>
+                                    <div className={cn(
+                                        "rounded-lg overflow-hidden border-l-4 mt-2",
+                                        discordType === "maintenance" ? "border-amber-500 bg-[#2b2d31]" : 
+                                        discordType === "update" ? "border-emerald-500 bg-[#2b2d31]" : 
+                                        "border-indigo-500 bg-[#2b2d31]"
+                                    )}>
+                                        <div className="p-4 space-y-2">
+                                            <div className="text-xs text-white/40 font-bold uppercase tracking-wider">SigilOS Platform</div>
+                                            <div className="text-sm font-bold text-white">
+                                                {discordType === "maintenance" ? "🛠️ Maintenance Programmée" : 
+                                                 discordType === "update" ? "🚀 Mise à Jour SigilOS" : 
+                                                 "📢 Annonce SigilOS"}
+                                            </div>
+                                            <div className="text-sm text-zinc-300 break-words">
+                                                {discordMessage ? <ReactMarkdown>{discordMessage}</ReactMarkdown> : "Le contenu de votre message apparaîtra ici avec le formatage Markdown..."}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {mentionEveryone && <div className="text-xs text-[#00a8fc] mt-1 font-medium">@everyone</div>}
+                                </div>
+                             </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
     );
 }

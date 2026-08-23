@@ -41,10 +41,20 @@ export const redis = redisInstance;
 
 // LOGGING (errors only — Sentry captures console.error)
 redis.on("error", (err) => {
-    console.error("[Redis] Error:", err.message);
+    console.error("[Redis] ❌ Error:", err.message);
 });
 
-if (process.env.NODE_ENV !== "production") globalForRedis.redis = redis;
+redis.on("connect", () => {
+    console.log("[Redis] ✅ Connected to Redis server");
+});
+
+redis.on("ready", () => {
+    console.log("[Redis] 🚀 Redis is ready");
+});
+
+// Always persist the connection on globalThis to survive hot-reloads in Turbopack
+// Without this, every module re-execution (dev or serverless) creates a new connection
+globalForRedis.redis = redis;
 
 // GRACEFUL SHUTDOWN
 if (process.env.NODE_ENV === "production") {

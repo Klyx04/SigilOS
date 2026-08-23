@@ -1,35 +1,20 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext, type ActionResponse } from "./user-actions";
 import { logServiceActivity } from "./activity-log-actions";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { LoanType, LoanStatus } from "@prisma/client";
+import { LoanType, LoanStatus, NotificationType, NotificationCategory } from "@prisma/client";
 import { sendChannelMessage, validateChannelBelongsToGuild } from "@/server/discord";
 import { unlink } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 
 // ---------------------------------------------------------------------------
-// HELPER — suppression sécurisée d'un fichier proof local
+// HELPERS
 // ---------------------------------------------------------------------------
-
-const UPLOAD_BASE_DIR = path.join(process.cwd(), "public", "uploads", "guilds");
-
-async function deleteLocalProof(proofUrl: string, internalGuildId: string): Promise<void> {
-    try {
-        const prefix = `/uploads/guilds/${internalGuildId}/proofs/`;
-        if (!proofUrl.startsWith(prefix)) return;
-        const filename = proofUrl.slice(prefix.length);
-        if (!/^[a-f0-9-]{36}\.webp$/.test(filename)) return;
-        const filePath = path.join(UPLOAD_BASE_DIR, internalGuildId, "proofs", filename);
-        if (!path.normalize(filePath).startsWith(path.normalize(path.join(UPLOAD_BASE_DIR, internalGuildId, "proofs")))) return;
-        if (existsSync(filePath)) await unlink(filePath);
-    } catch (err) {
-        console.error("[deleteLocalProof]", err);
-    }
-}
 
 async function getDiscordId(userId: string): Promise<string | null> {
     const account = await db.account.findFirst({
@@ -38,6 +23,20 @@ async function getDiscordId(userId: string): Promise<string | null> {
     });
     return account?.providerAccountId ?? null;
 }
+
+import { LOAN_TYPE_LABELS, LOAN_STATUS_LABELS } from "./services-constants";
+import { hashImage } from "@/lib/llm-ocr";
+import { getDiscordPublicUrl } from "@/lib/storage-utils";
+import { createNotification } from "./notification-actions";
+import { rateLimit } from "@/lib/ratelimit";
+
+const profileSelect = {
+    id: true,
+    pseudoDofus: true,
+    discordNickname: true,
+    userId: true,
+    user: { select: { name: true, image: true } },
+};
 
 // ---------------------------------------------------------------------------
 // TYPES
@@ -91,20 +90,6 @@ const createLoanSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// HELPERS
-// ---------------------------------------------------------------------------
-
-import { LOAN_TYPE_LABELS, LOAN_STATUS_LABELS } from "./services-constants";
-
-const profileSelect = {
-    id: true,
-    pseudoDofus: true,
-    discordNickname: true,
-    userId: true,
-    user: { select: { name: true, image: true } },
-};
-
-// ---------------------------------------------------------------------------
 // CRUD
 // ---------------------------------------------------------------------------
 
@@ -147,7 +132,7 @@ export async function getLoans(
 
         return { success: true, data: loans as unknown as LoanWithProfiles[] };
     } catch (error) {
-        console.error("[getLoans]", error);
+        logger.error("[getLoans]", error);
         return { success: false, error: "Erreur interne" };
     }
 }
@@ -159,10 +144,16 @@ export async function createLoan(
 ): Promise<ActionResponse<{ id: string }>> {
     try {
         const user = await getUserContext(guildId);
-        if (!user.isAuthenticated || !user.isMember || !user.canCreateServices) {
+        if (!user.isAuthenticated || !user.isMember || !user.canViewServices) {
             return { success: false, error: "Accès refusé" };
         }
         if (!user.profileId) return { success: false, error: "Profil introuvable" };
+
+        // #55 — rate-limit création de prêt (spam Discord embed / uploads / hash CPU).
+        const loanCreateLimit = await rateLimit(`loan:create:${user.id || "anon"}:${guildId}`, 5, 10 * 60 * 1000);
+        if (!loanCreateLimit.success) {
+            return { success: false, error: "Trop de prêts créés. Veuillez patienter avant de réessayer." };
+        }
 
         const parsed = createLoanSchema.safeParse(input);
         if (!parsed.success) {
@@ -175,9 +166,13 @@ export async function createLoan(
 
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true },
+            select: { id: true, serviceLoansEnabled: true },
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        if (!guildConfig.serviceLoansEnabled && !user.isAdmin) {
+            return { success: false, error: "Le service de prêts est actuellement en maintenance." };
+        }
 
         // Verify borrower belongs to same guild
         const borrower = await db.userProfile.findUnique({
@@ -188,13 +183,53 @@ export async function createLoan(
             return { success: false, error: "L'emprunteur ne fait pas partie de cette guilde." };
         }
 
+        // #71 — limite de sécurité : maximum 5 prêts ACTIFS par emprunteur.
+        // Évite l'accumulation de prêts ouverts (posts Discord illimités).
+        const activeLoans = await db.guildLoan.count({
+            where: {
+                guildId: guildConfig.id,
+                borrowerId: parsed.data.borrowerProfileId,
+                status: "ACTIVE",
+            },
+        });
+        if (activeLoans >= 5) {
+            return { success: false, error: "Cet emprunteur a déjà 5 prêts actifs. Clôturez un prêt avant d'en créer un nouveau." };
+        }
+
         // Handle proof upload
         let proofUrl: string | null = null;
+        let finalImageHash: string | null = null;
+
         if (proofFormData) {
-            const { uploadProofImage } = await import("./upload-actions");
-            const uploadResult = await uploadProofImage(guildConfig.id, proofFormData);
-            if (uploadResult.success && uploadResult.url) {
-                proofUrl = uploadResult.url;
+            const file = proofFormData.get("file") as File | null;
+            if (file) {
+                const buffer = Buffer.from(await file.arrayBuffer());
+                finalImageHash = await hashImage(buffer);
+
+                const existingHash = await db.imageHash.findFirst({
+                    where: { hash: finalImageHash }
+                });
+
+                if (existingHash) {
+                    return { success: false, error: "Cette image a déjà été utilisée pour une preuve dans l'application." };
+                }
+
+                const { uploadProofImage } = await import("./upload-actions");
+                const uploadResult = await uploadProofImage(guildConfig.id, proofFormData);
+                if (uploadResult.success && uploadResult.url) {
+                    proofUrl = uploadResult.url;
+
+                    // Store hash
+                    await (db as any).imageHash.create({
+                        data: {
+                            guildId: guildConfig.id,
+                            hash: finalImageHash,
+                            sourceType: "LOAN",
+                            sourceId: "PENDING", // Temporary
+                            uploaderId: user.id!
+                        }
+                    });
+                }
             }
         }
 
@@ -213,6 +248,14 @@ export async function createLoan(
                 linkedItemIconUrl: parsed.data.linkedItemIconUrl || null,
             },
         });
+
+        // Update image hash with the real sourceId
+        if (proofUrl && finalImageHash) {
+            await (db as any).imageHash.update({
+                where: { hash: finalImageHash },
+                data: { sourceId: loan.id }
+            });
+        }
 
         // Immutable activity log
         const borrowerProfile = await db.userProfile.findUnique({
@@ -237,6 +280,23 @@ export async function createLoan(
             metadata: proofUrl ? JSON.stringify({ proofUrl }) : undefined,
         });
 
+        // ── Notification dashboard à l'emprunteur (toujours, même sans toggle Discord) ──
+        try {
+            if (borrowerProfile?.userId) {
+                await createNotification(
+                    borrowerProfile.userId,
+                    NotificationType.SYSTEM_INFO,
+                    "💳 Nouveau prêt à rembourser",
+                    `${lenderName} t'a accordé un prêt : ${parsed.data.description}${parsed.data.dueDate ? ` (à rendre avant le ${new Date(parsed.data.dueDate).toLocaleDateString("fr-FR")})` : ""}`,
+                    `/dashboard/${guildId}/services?tab=prets`,
+                    guildId,
+                    NotificationCategory.SYSTEM
+                );
+            }
+        } catch (notifErr) {
+            logger.error("[createLoan] Dashboard notification failed:", notifErr);
+        }
+
         // ── Discord Embed ──────────────────────────────────────────────────────
         if (parsed.data.notifyDiscord) {
             try {
@@ -251,7 +311,9 @@ export async function createLoan(
                     const valid = await validateChannelBelongsToGuild(channelId, guildId);
                     if (valid) {
                         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
-                        const dashboardUrl = `${appUrl}/dashboard/${guildId}/passages`;
+                        const dashboardUrl = `${appUrl}/dashboard/${guildId}/services`;
+                        // Discord needs an absolute URL with access token
+                        const publicProofUrl = getDiscordPublicUrl(proofUrl);
 
                         // Discord mentions
                         const lenderDiscordId = await getDiscordId(lenderProfile?.userId || "").catch(() => null);
@@ -273,7 +335,9 @@ export async function createLoan(
                         }
                         fields.push({ name: "🔗 Voir sur le dashboard", value: `[Ouvrir SigilOS](${dashboardUrl})`, inline: false });
 
-                        await sendChannelMessage(
+                        // #201 — on stocke l'ID du message Discord pour pouvoir supprimer
+                        // l'embed à la clôture (évite l'image noire quand le fichier est purgé).
+                        const discordMessageId = await sendChannelMessage(
                             channelId,
                             "",
                             {
@@ -281,24 +345,30 @@ export async function createLoan(
                                 embedColor: 0xf59e0b,
                                 embedFooter: "SigilOS • Coffre & Prêts",
                                 embedThumbnail: parsed.data.linkedItemIconUrl || undefined,
-                                embedImage: proofUrl || undefined,
+                                embedImage: publicProofUrl,
                                 fields,
                             }
                         );
+                        if (discordMessageId) {
+                            await db.guildLoan.update({
+                                where: { id: loan.id },
+                                data: { discordChannelId: channelId, discordMessageId },
+                            });
+                        }
                     } else {
-                        console.warn(`[createLoan] Channel ${channelId} invalid for guild ${guildId}, skipping Discord notify`);
+                        logger.warn(`[createLoan] Channel ${channelId} invalid for guild ${guildId}, skipping Discord notify`);
                     }
                 }
             } catch (discordErr) {
                 // Non-blocking: Discord failure must not break the loan creation
-                console.error("[createLoan] Discord notify failed:", discordErr);
+                logger.error("[createLoan] Discord notify failed:", discordErr);
             }
         }
 
-        revalidatePath(`/dashboard/${guildId}/passages`);
+        revalidatePath(`/dashboard/${guildId}/services`);
         return { success: true, data: { id: loan.id } };
     } catch (error) {
-        console.error("[createLoan]", error);
+        logger.error("[createLoan]", error);
         return { success: false, error: "Erreur interne" };
     }
 }
@@ -315,6 +385,12 @@ export async function markLoanReturned(
             return { success: false, error: "Accès refusé" };
         }
 
+        // #55 — rate-limit retour de prêt (embeds Discord / notifications).
+        const loanReturnLimit = await rateLimit(`loan:return:${user.id || "anon"}:${guildId}`, 10, 60_000);
+        if (!loanReturnLimit.success) {
+            return { success: false, error: "Trop d'actions. Veuillez patienter avant de réessayer." };
+        }
+
         const loan = await db.guildLoan.findUnique({
             where: { id: loanId },
             select: { lenderId: true, borrowerId: true, status: true, guildId: true },
@@ -329,10 +405,35 @@ export async function markLoanReturned(
 
         let returnProofUrl: string | null = null;
         if (returnProofFormData) {
-            const { uploadProofImage } = await import("./upload-actions");
-            const uploadResult = await uploadProofImage(loan.guildId, returnProofFormData);
-            if (uploadResult.success && uploadResult.url) {
-                returnProofUrl = uploadResult.url;
+            const file = returnProofFormData.get("file") as File | null;
+            if (file) {
+                const buffer = Buffer.from(await file.arrayBuffer());
+                const imageHash = await hashImage(buffer);
+
+                const existingHash = await db.imageHash.findFirst({
+                    where: { hash: imageHash }
+                });
+
+                if (existingHash) {
+                    return { success: false, error: "Cette image a déjà été utilisée pour une preuve dans l'application." };
+                }
+
+                const { uploadProofImage } = await import("./upload-actions");
+                const uploadResult = await uploadProofImage(loan.guildId, returnProofFormData);
+                if (uploadResult.success && uploadResult.url) {
+                    returnProofUrl = uploadResult.url;
+
+                    // Store hash
+                    await (db as any).imageHash.create({
+                        data: {
+                            guildId: loan.guildId,
+                            hash: imageHash,
+                            sourceType: "LOAN_RETURN",
+                            sourceId: loanId,
+                            uploaderId: user.id!
+                        }
+                    });
+                }
             }
         }
 
@@ -349,12 +450,22 @@ export async function markLoanReturned(
         if (!partial) {
             const loanForCleanup = await db.guildLoan.findUnique({
                 where: { id: loanId },
-                select: { proofUrl: true, returnProofUrl: true, guildId: true },
+                select: { proofUrl: true, returnProofUrl: true, guildId: true, discordChannelId: true, discordMessageId: true },
             });
             if (loanForCleanup) {
+                // #201 — supprimer l'embed Discord AVANT les fichiers (sinon image noire)
+                if (loanForCleanup.discordChannelId && loanForCleanup.discordMessageId) {
+                    try {
+                        const { deleteChannelMessage } = await import("@/server/discord");
+                        await deleteChannelMessage(loanForCleanup.discordChannelId, loanForCleanup.discordMessageId);
+                    } catch (discordErr) {
+                        logger.error("[markLoanReturned] Discord embed delete failed:", discordErr);
+                    }
+                }
                 const urlsToDelete = [loanForCleanup.proofUrl, returnProofUrl || loanForCleanup.returnProofUrl].filter(Boolean) as string[];
+                const { deleteProofFile } = await import("@/lib/storage-utils");
                 for (const url of urlsToDelete) {
-                    await deleteLocalProof(url, loanForCleanup.guildId);
+                    await deleteProofFile(url);
                 }
                 // Effacer les URLs en DB immédiatement
                 await db.guildLoan.update({
@@ -377,10 +488,10 @@ export async function markLoanReturned(
             });
         }
 
-        revalidatePath(`/dashboard/${guildId}/passages`);
+        revalidatePath(`/dashboard/${guildId}/services`);
         return { success: true };
     } catch (error) {
-        console.error("[markLoanReturned]", error);
+        logger.error("[markLoanReturned]", error);
         return { success: false, error: "Erreur interne" };
     }
 }
@@ -395,6 +506,12 @@ export async function cancelLoan(
             return { success: false, error: "Accès refusé" };
         }
 
+        // #55 — rate-limit annulation de prêt.
+        const loanCancelLimit = await rateLimit(`loan:cancel:${user.id || "anon"}:${guildId}`, 10, 60_000);
+        if (!loanCancelLimit.success) {
+            return { success: false, error: "Trop d'actions. Veuillez patienter avant de réessayer." };
+        }
+
         const loan = await db.guildLoan.findUnique({
             where: { id: loanId },
             select: { lenderId: true, status: true, guildId: true },
@@ -407,7 +524,7 @@ export async function cancelLoan(
         // Auto-cleanup: supprimer les screenshots lors de l'annulation
         const loanForCleanup = await db.guildLoan.findUnique({
             where: { id: loanId },
-            select: { proofUrl: true, returnProofUrl: true, guildId: true },
+            select: { proofUrl: true, returnProofUrl: true, guildId: true, discordChannelId: true, discordMessageId: true },
         });
 
         await db.guildLoan.update({
@@ -416,9 +533,19 @@ export async function cancelLoan(
         });
 
         if (loanForCleanup) {
+            // #201 — supprimer l'embed Discord AVANT les fichiers (sinon image noire)
+            if (loanForCleanup.discordChannelId && loanForCleanup.discordMessageId) {
+                try {
+                    const { deleteChannelMessage } = await import("@/server/discord");
+                    await deleteChannelMessage(loanForCleanup.discordChannelId, loanForCleanup.discordMessageId);
+                } catch (discordErr) {
+                    logger.error("[cancelLoan] Discord embed delete failed:", discordErr);
+                }
+            }
             const urlsToDelete = [loanForCleanup.proofUrl, loanForCleanup.returnProofUrl].filter(Boolean) as string[];
+            const { deleteProofFile } = await import("@/lib/storage-utils");
             for (const url of urlsToDelete) {
-                await deleteLocalProof(url, loanForCleanup.guildId);
+                await deleteProofFile(url);
             }
             await db.guildLoan.update({
                 where: { id: loanId },
@@ -438,10 +565,10 @@ export async function cancelLoan(
             });
         }
 
-        revalidatePath(`/dashboard/${guildId}/passages`);
+        revalidatePath(`/dashboard/${guildId}/services`);
         return { success: true };
     } catch (error) {
-        console.error("[cancelLoan]", error);
+        logger.error("[cancelLoan]", error);
         return { success: false, error: "Erreur interne" };
     }
 }

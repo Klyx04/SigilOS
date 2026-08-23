@@ -23,7 +23,7 @@ export default async function ArchimonstresPage({
 
     // RBAC: Check permission to view Archis
     const user = await getUserContext(guildId);
-    if (!user.canViewArchis) {
+    if (!user.canViewOcre) {
         return <AccessDenied />;
     }
 
@@ -47,7 +47,7 @@ export default async function ArchimonstresPage({
 
                 {/* Content */}
                 {archiResponse.success && archiResponse.data ? (
-                    <ArchiHub data={archiResponse.data} guildId={guildId} />
+                    <ArchiHub data={JSON.parse(JSON.stringify(archiResponse.data))} guildId={guildId} />
                 ) : (
                     <NotLinkedState guildId={guildId} error={archiResponse.error} />
                 )}
@@ -65,8 +65,8 @@ function NotLinkedState({ guildId, error }: { guildId: string; error?: string })
             <CardContent className="p-8 flex flex-col items-center text-center space-y-6">
                 {isNotLinked ? (
                     <>
-                        <div className="w-20 h-20 rounded-full bg-amber-500/10 flex items-center justify-center">
-                            <Bug className="h-10 w-10 text-amber-500" />
+                        <div className="w-20 h-20 rounded-full bg-warning/10 flex items-center justify-center">
+                            <Bug className="h-10 w-10 text-warning" />
                         </div>
                         <div className="space-y-2">
                             <h2 className="text-xl font-semibold">Liez votre compte Metamob</h2>
@@ -84,7 +84,7 @@ function NotLinkedState({ guildId, error }: { guildId: string; error?: string })
                             </p>
                         </div>
                         <Link href={`/dashboard/${guildId}/profile`}>
-                            <Button className="gap-2 bg-amber-500 hover:bg-amber-600 text-black">
+                            <Button className="gap-2 bg-warning hover:bg-warning text-warning-foreground">
                                 <Link2 className="h-4 w-4" />
                                 Aller à mon profil
                             </Button>

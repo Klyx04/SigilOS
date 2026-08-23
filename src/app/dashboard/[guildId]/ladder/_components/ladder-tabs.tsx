@@ -10,6 +10,7 @@ import {
     getSeniorityLadder,
     getSuccessLadder,
     getContributionLadder,
+    getGeneralLadder,
     type LadderEntry,
     type ActivityView
 } from "@/server/actions/ladder-actions";
@@ -20,7 +21,7 @@ type Props = {
 };
 
 export function LadderTabs({ guildId }: Props) {
-    const [activeTab, setActiveTab] = useState<"activity" | "contribution" | "seniority" | "success">("activity");
+    const [activeTab, setActiveTab] = useState<"activity" | "contribution" | "seniority" | "success" | "general">("activity");
     const [activityView, setActivityView] = useState<ActivityView>("weekly");
     const [ladder, setLadder] = useState<LadderEntry[]>([]);
     const [loading, setLoading] = useState(true);
@@ -43,10 +44,13 @@ export function LadderTabs({ guildId }: Props) {
                 case "success":
                     result = await getSuccessLadder(guildId);
                     break;
+                case "general":
+                    result = await getGeneralLadder(guildId);
+                    break;
             }
 
             if (result.success && result.data) {
-                setLadder(result.data);
+                setLadder(result.data.entries);
             } else {
                 setLadder([]);
             }
@@ -66,60 +70,63 @@ export function LadderTabs({ guildId }: Props) {
                 return formatSeniority(entry.value);
             case "success":
                 return `${entry.value.toLocaleString()} pts`;
+            case "general":
+                return `${Number(entry.totalXpBigInt || 0).toLocaleString()} XP`;
             default:
                 return entry.value.toString();
         }
     };
 
-    return (
-        <div className="space-y-4">
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <TabsList className="bg-muted/30 border border-white/20 p-1">
-                        {/* Ladder Categories */}
-                        <TabsTrigger
-                            value="activity"
-                            className="gap-2 text-foreground data-[state=active]:bg-purple-500/30 data-[state=active]:text-purple-200 data-[state=active]:shadow-sm"
-                        >
-                            <TrendingUp className="h-4 w-4" />
-                            Activité
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="contribution"
-                            className="gap-2 text-foreground data-[state=active]:bg-emerald-500/30 data-[state=active]:text-emerald-200 data-[state=active]:shadow-sm"
-                        >
-                            <HandHeart className="h-4 w-4" />
-                            Contribution
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="seniority"
-                            className="gap-2 text-foreground data-[state=active]:bg-cyan-500/30 data-[state=active]:text-cyan-200 data-[state=active]:shadow-sm"
-                        >
-                            <Clock className="h-4 w-4" />
-                            Ancienneté
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="success"
-                            className="gap-2 text-foreground data-[state=active]:bg-amber-500/30 data-[state=active]:text-amber-200 data-[state=active]:shadow-sm"
-                        >
-                            <Trophy className="h-4 w-4" />
-                            Succès
-                        </TabsTrigger>
-                    </TabsList>
+    const categories = [
+        { id: "activity", label: "Activité", icon: TrendingUp, color: "purple" },
+        { id: "contribution", label: "Contribution", icon: HandHeart, color: "emerald" },
+        { id: "seniority", label: "Ancienneté", icon: Clock, color: "cyan" },
+        { id: "success", label: "Succès", icon: Trophy, color: "amber" },
+        { id: "general", label: "Général", icon: TrendingUp, color: "blue" },
+    ] as const;
 
-                    {/* View Toggle for Activity */}
-                    {activeTab === "activity" && (
-                        <Select value={activityView} onValueChange={(v) => setActivityView(v as ActivityView)}>
-                            <SelectTrigger className="w-[200px] bg-muted/30 border-white/20 text-foreground">
-                                <SelectValue placeholder="Période" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="weekly">📅 Cette semaine</SelectItem>
-                                <SelectItem value="monthly">📅 Ce mois-ci</SelectItem>
-                                <SelectItem value="alltime">🏆 Global (All-Time)</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    )}
+    return (
+        <div className="space-y-6">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+                <div className="flex flex-col gap-6">
+                    {/* Responsive Tabs Header */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        {/* Scrollable container for tabs */}
+                        <div className="relative w-full overflow-hidden border-b border-border">
+                            <TabsList className="flex w-full h-auto bg-transparent p-0 justify-start overflow-x-auto overflow-y-hidden no-scrollbar scroll-smooth rounded-none">
+                                {categories.map((cat) => (
+                                    <TabsTrigger
+                                        key={cat.id}
+                                        value={cat.id}
+                                        className={`flex-shrink-0 gap-2 px-6 py-4 text-sm font-bold uppercase tracking-wider transition-all duration-300 rounded-none border-b-2 border-transparent shadow-none
+                                            data-[state=active]:border-${cat.color}-500 data-[state=active]:text-${cat.color}-400 data-[state=active]:bg-transparent
+                                            text-muted-foreground hover:text-foreground hover:bg-surface bg-transparent`}
+                                    >
+                                        <cat.icon className="h-4 w-4" />
+                                        {cat.label}
+                                    </TabsTrigger>
+                                ))}
+                            </TabsList>
+                            {/* Mobile visual hint for scrolling */}
+                            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none lg:hidden" />
+                        </div>
+
+                        {/* View Toggle for Activity */}
+                        {activeTab === "activity" && (
+                            <div className="flex justify-end">
+                                <Select value={activityView} onValueChange={(v) => setActivityView(v as ActivityView)}>
+                                    <SelectTrigger className="w-full sm:w-[220px] bg-muted/40 border-border text-foreground rounded-xl backdrop-blur-md">
+                                        <SelectValue placeholder="Période" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-surface border-border text-foreground">
+                                        <SelectItem value="weekly">📅 Hebdomadaire (RESET MARDI)</SelectItem>
+                                        <SelectItem value="monthly">📅 Mensuel</SelectItem>
+                                        <SelectItem value="alltime">🏆 Historique Global</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <TabsContent value="activity" className="mt-6">
@@ -161,6 +168,16 @@ export function LadderTabs({ guildId }: Props) {
                         accentColor="amber"
                     />
                 </TabsContent>
+
+                <TabsContent value="general" className="mt-6">
+                    <LeaderboardList
+                        ladder={ladder}
+                        loading={loading}
+                        getValueLabel={getValueLabel}
+                        emptyMessage="Aucune donnée d'EXP Ankama synchronisée."
+                        accentColor="blue"
+                    />
+                </TabsContent>
             </Tabs>
         </div>
     );
@@ -178,7 +195,7 @@ function LeaderboardList({
     loading: boolean;
     getValueLabel: (entry: LadderEntry) => string;
     emptyMessage: string;
-    accentColor: "purple" | "cyan" | "amber" | "emerald";
+    accentColor: "purple" | "cyan" | "amber" | "emerald" | "blue";
 }) {
     if (loading) {
         return (

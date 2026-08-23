@@ -32,6 +32,68 @@ Logs: /home/sigiladmin/SigilOS/logs/maintenance.log
 4. Rotation logs application (>10MB)
 5. Alerte Discord si disque >85%
 
+### Crons HTTP (endpoints protégés `x-cron-secret`)
+Appelés depuis le crontab VPS (`crontab -l`) via
+`curl -s -H "x-cron-secret: $CRON_SECRET" https://beta.sigilos.fr/api/cron/<name>` :
+
+- `/api/cron/sync-members` — rattrapage départs/bans Discord (toutes les 30 min / 1h)
+- `/api/cron/avatar-resync` — **resync des hashs d'avatars Discord (#134)** : `GET /guilds/{id}/members`, mise à jour de `User.image` uniquement si le hash a changé ; `null` → avatar par défaut côté UI. Fréquence recommandée : quotidien (`0 5 * * *`).
+- `/api/cron/cleanup-proofs` · `/api/cron/cleanup-logs` · `/api/cron/cleanup-inactive-posts` — purges
+- `/api/cron/daily-summary` · `/api/cron/status-ping` · `/api/cron/mission-reset-notify` · `/api/cron/loan-reminders` — notifications
+- `/api/cron/ladder-sync` · `/api/cron/discord-status` — synchronisations
+- `/api/cron/account-retention` — **#168 rétention/purge comptes orphelins** (RGPD) : purge `User`+`Account` sans profil ACTIVE après 90 j et grâce `scheduledDeletion` écoulée, 50 max/exécution. Fréquence recommandée : quotidien (`0 6 * * *`).
+- `/api/cron/sync-dofensive-maps` — **siphon local Dofensive (fiches boss)** : `/dungeons/preview` + `/maps/{id}` → tables `DofensiveDungeon` + `DofensiveMap` (grille `Cells` 40×14, ally/enemyCells, coords). `versionHash` → update auto si changement, salles fraîches (< 24 h) sautées. Fréquence recommandée : quotidien (`30 3 * * *`).
+- `/api/cron/sync-monster-stats` — **siphon local fiches monstres (DofusDB + Dofensive)** : pour chaque boss de donjon, fiche DofusDB (grades/drops/sorts) fusionnée avec les sorts de combat Dofensive (AP/portée/zone/cooldown/maxCast) → table `MonsterStat`. ⚠️ 1er run lourd (10-30 min, ~tous les boss × 6-8 requêtes) — runs suivants rapides (tout déjà frais). Fréquence recommandée : quotidien (`45 3 * * *`).
+- `/api/cron/check-links` — **vérificateur de liens multi-sources (HEAD)** : flague les slugs cassés DofusDB/Dofensive/DPLN (résultat en audit God, rien stocké). Fréquence recommandée : hebdomadaire (`15 4 * * 0`).
+
+## ✅ Checklist Déploiement — Sync intelligente fiches boss (chantier 06/10, branche `feat/chantier-2026-09-07`)
+
+1. **Migration Prisma** (beta **et** prod) : `npx prisma migrate deploy` → `20261005010000_add_dofensive_sync_tables` (tables `DofensiveDungeon`, `DofensiveMap`, `MonsterStat`).
+2. **Crontab VPS** (3 lignes) :
+   ```
+   30 3 * * * curl -s -H "x-cron-secret: $CRON_SECRET" https://sigilos.fr/api/cron/sync-dofensive-maps > /dev/null
+   45 3 * * * curl -s -H "x-cron-secret: $CRON_SECRET" https://sigilos.fr/api/cron/sync-monster-stats > /dev/null
+   15 4 * * 0 curl -s -H "x-cron-secret: $CRON_SECRET" https://sigilos.fr/api/cron/check-links > /dev/null
+   ```
+3. **Pré-chauffage optionnel (recommandé)** — lance manuellement les 2 syncs une fois (le 1er run de `sync-monster-stats` est lourd : 10-30 min, à faire de nuit) :
+   ```
+   curl -s -H "x-cron-secret: $CRON_SECRET" https://sigilos.fr/api/cron/sync-dofensive-maps
+   curl -s -H "x-cron-secret: $CRON_SECRET" https://sigilos.fr/api/cron/sync-monster-stats
+   ```
+4. **Sans pré-chauffage, pas de panne** : les actions sont « local-first » — données absentes/périmées (> 24 h) → fetch live Dofensive/DofusDB depuis le VPS + auto-persistance (self-healing). Les joueurs ne contactent jamais les API externes directement.
+5. **Audit** : chaque run écrit un log God (`createSystemAuditLog`, `actorName: "Système (Cron)"`) visible dans `/god` → Audit Logs.
+
+> ⚠️ **INCIDENT beta 05/10 — P3018 sur `20261005010000_add_dofensive_sync_tables` (COLONNE interGuild absente)** : la 1re version de la migration incluait par erreur des `DROP COLUMN` inter-guild (drift DB locale — migration `20260819000000_add_inter_guild` appliquée en local mais absente du dossier). Migration **corrigée** (suppression des 2 blocs `ALTER TABLE`). **Récupération beta** (les tables existent déjà via le `db push` du déploiement) :
+> ```
+> cd ~/SigilOS && git pull   # récupérer la migration corrigée
+> sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-beta npx --yes prisma migrate resolve --applied 20261005010000_add_dofensive_sync_tables
+> sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-beta npx --yes prisma migrate status
+> ```
+> Puis relancer `./scripts/deploy-cd.sh beta`. Ne JAMAIS générer de migration via `prisma migrate diff --from-config-datasource` (drift local) : utiliser `--from-migrations`.
+
+---
+
+
+
+## ✅ Checklist Déploiement — chantier session 05/09 (à faire au prochain deploy beta + prod)
+
+
+> Tout le code est sur `feat/chantier-2026-09-04` (PR #505) — merger sur `dev` puis déployer.
+
+1. **Migration Prisma** (beta **et** prod) : `npx prisma migrate deploy` → `20260905000000_add_landing_screen` (table `LandingScreen`).
+2. **Crontab VPS** : ajouter le cron `account-retention` (`0 6 * * *`) et **synchroniser `CRON_SECRET`** en haut du crontab avec la valeur des `.env` :
+   - `source` la valeur : `NEW=$(grep '^CRON_SECRET=' .env.beta | sed "s/^CRON_SECRET=//; s/^'//; s/'$//")`
+   - `(crontab -l | sed "s|^CRON_SECRET=.*|CRON_SECRET='${NEW}'|") | crontab -`
+3. **Secrets à vérifier/renseigner** :
+   - `CRON_SECRET` (beta : `.env.beta` · prod : `.env.prod`) — même valeur que le crontab.
+   - `REDIS_PASSWORD_BETA` (beta) et `REDIS_PASSWORD` (prod) : **⚠️ non définis → `sigilos-redis-beta` boucle de restart (NOAUTH)** → mettre le même mot de passe dans `.env.beta` que celui attendu par l'app/worker, puis `docker compose -f docker-compose.prod.yml up -d --force-recreate redis-beta app-beta worker-beta`.
+4. **Vérifications post-deploy (beta)** :
+   - `curl ... /api/cron/cleanup-logs` → **200** (le gate `isSuperAdmin` a été retiré — bug cron 500 « Unauthorized » corrigé).
+   - `curl ... /api/cron/daily-summary` → `{"success":true,...}` (ou `skipped:true` si déjà envoyé le jour même).
+   - `curl ... /api/cron/account-retention` → `{"success":true,"summary":{...}}`.
+   - `/god/landing` : upload d'un screen OK · `/uploads/landing/<fichier>.webp` → **200 `image/webp`** (segment public) · landing : onglets + galerie/carrousel OK.
+5. **Rappel règle d'écriture d'images** : `processAndSaveImage` refuse tout chemin hors `process.cwd()` (CodeQL js/path-injection #75/#76, fail-closed).
+
 ---
 
 ## 🔍 Monitoring
@@ -83,14 +145,18 @@ sudo docker exec -i sigilos-db-prod psql -U sigilos -d sigilos < restore.sql
 
 ### Rollback Déploiement
 ```bash
-# Revenir au commit précédent
+# ⏪ Méthode rapide (version "Ctrl+Z") — images taggées par SHA
+./scripts/rollback.sh list beta        # trouver le SHA disponible
+./scripts/rollback.sh beta <sha>       # revenir en beta
+
+# 🐢 Méthode lente (ancienne) — re-build depuis un ancien commit
 cd ~/SigilOS
 git log --oneline -5  # Trouver le commit précédent
 git reset --hard <commit-hash>
-
-# Redéployer
 ./scripts/deploy.sh beta  # ou prod
 ```
+> ⚠️ NB : si la BDD a été migrée, un rollback de **code** ne restaure **pas** la BDD.
+> Voir « Restauration Backup » pour revenir sur les données.
 
 ### Saturation Disque
 ```bash
@@ -124,7 +190,7 @@ df -h
 
 ---
 
-## 🔄 Mise à Jour Code
+## 🔄 Mise à Jour Code (deploy.sh v2 — 2026-08)
 
 ### Beta
 ```bash
@@ -148,6 +214,36 @@ git pull origin main
 ./scripts/deploy.sh prod
 ```
 
+> ✅ **Rien ne change** dans la façon de déployer — les commandes sont identiques.
+> La sortie est désormais **beaucoup plus claire** : build silencieux (fini les 263s de logs), résumé par étape, vérif de santé auto.
+
+### Comportement du script v2 (changements 2026-08)
+
+| Avant | Après | Bénéfice |
+|-------|-------|----------|
+| Build Docker verboose (84/84 étapes) | Build silencieux (`build -q`), erreurs seulement | Sortie lisible |
+| `prisma db push` en PROD | `migrate deploy` **seul** en prod (db push reste beta) | Sécurité BDD |
+| Seed `game-data.json` à chaque déploiement | Seed **conditionnel** (hash) | Moins d'indisponibilité |
+| Page maintenance pouvait disparaître trop tôt | Caddy recréé qu'à la fin | Maintenance servie pendant tout |
+| `up` sans attendre la santé | `up --wait` (healthchecks) | Fini les 502 |
+| Rien après déploiement | Vérif santé auto `/api/health` | Contrôle immédiat |
+
+### Seeding conditionnel (détail)
+- Le seed ne tourne **que si** `prisma/seed-data/game-data.json` a changé depuis le dernier déploiement.
+- Le hash est stocké dans `.deploy-seed-hash.<beta|prod>`.
+- **Forcer** le seed : `SEED_ALWAYS=1 ./scripts/deploy.sh beta`
+- **Première exécution** après ce changement : le seed tournera une fois (pas de hash en mémoire) — normal.
+
+### Healthchecks ajoutés
+`docker-compose.prod.yml` définit des healthchecks (ancres `x-healthchecks`) sur tous les services applicatifs :
+- `app-prod/beta` → `curl http://localhost:3000/api/health`
+- `worker-prod/beta` → `pgrep worker.js`
+- `ws-prod/beta` → `pgrep ws-server.js`
+- `db-prod/beta` → `pg_isready`
+- `discord-bot-prod/beta` → `pgrep discord`
+
+⚠️ **Premier déploiement après ce changement** : Caddy sera recréé (nouveau compose). Vérifier que la beta est saine avec le script automatique en fin de déploiement, ou `curl https://beta.sigilos.fr/api/health`.
+
 ---
 
 ## 📞 Contacts & Alertes
@@ -155,6 +251,15 @@ git pull origin main
 **Discord Webhook**: Configuré dans `.env.prod`  
 **Variable**: `DISCORD_ADMIN_WEBHOOK`  
 **Alertes**: Saturation disque >85%
+
+---
+
+## 🔐 Rapports d'audit (bonne pratique)
+
+- Les rapports d'audit de sécurité (`AUDIT_SECURITE_SIGILOS.md`, `AUDIT_INFRA_SIGILOS.md`, briefs `retour-kimik3.md` et `src/audit-*`) sont **générés en local et JAMAIS commités** (ils décrivent des vulnérabilités précises → ne pas les exposer).
+- Ils sont centralisés dans `docs/audits/` et ignorés via le `.gitignore` (`docs/audits/`, `AUDIT_*.md`, `src/audit-cyber`, `src/audit-infra`).
+- Après un audit : mettre à jour `docs/SECURITY_HARDENING_PLAN.md` (état + chantiers) et lancer `npm run test:run` en local pour vérifier.
+- Les secrets (`.env`, `.env.prod`, `.env.beta`) ne doivent jamais être commités ni partagés dans un canal non sécurisé.
 
 ---
 
@@ -167,3 +272,112 @@ git pull origin main
 - [ ] Vérifier mises à jour système (`apt list --upgradable`)
 - [ ] Review Grafana dashboards
 - [ ] Vérifier certificats SSL Caddy
+- [ ] ⏰ Vérifier expiration GHCR_TOKEN (renouveler si < 2 semaines) — voir section 3b CI/CD
+
+---
+
+## 🗺️ Plan d'Industrialisation (phases 2 & 3 — à faire plus tard)
+
+> **État actuel** : phase 1 ✅ fait (2026-08) — déploiement plus clair, plus sûr (voir section « Mise à Jour Code »).
+> Les phases 2 et 3 sont des **améliorations de confort/vitesse/sécurité**, **pas des corrections de bugs**. À implémenter quand on aura le temps.
+
+### 📐 Phase 2 — Accélérer les builds (~3-4 min gagnées par déploiement)
+
+**Problème** : le build `npm run build` (194s) tourne **3× en parallèle** (app-beta, worker-beta, ws-beta partagent le même Dockerfile) → gaspillage de CPU/RAM/temps.
+
+**Solution prévue** :
+- Créer une **image de base partagée** (`Dockerfile.base` : `npm ci` + `prisma generate`, taggée `sigilos-base:latest`).
+- Les 3 services partent de cette base → le build n'est fait **qu'une seule fois**.
+- Déplacer `build:seeds`, `build:siphon`, etc. **avant** le `COPY . .` pour profiter du cache Docker.
+- (Optionnel) Docker build cache distant (BuildKit `cache-to` S3/GCS).
+
+**Impact pour l'utilisateur** : aucun — toujours `./scripts/deploy.sh beta` / `prod`, juste plus rapide.
+
+---
+
+### 🏭 Phase 3 — Industrialisation complète
+
+#### 3a. Rollback en 1 commande ✅ fait (2026-08)
+- **Problème** : pas de bouton "annuler" si un déploiement casse la prod (il fallait retaper l'ancien code, rebuild).
+- **Solution implémentée** :
+  - `deploy.sh` v2 **tagge automatiquement** les images avec le SHA git court (`sigilos-app-beta:<sha>`, etc.) après chaque build, et **garde les 5 dernières** versions.
+  - Nouveau script **`scripts/rollback.sh`** pour revenir en arrière.
+- **Utilisation** :
+  ```bash
+  # Voir les versions disponibles
+  ./scripts/rollback.sh list beta   # ou prod
+
+  # Revenir à une version précise (le "Ctrl+Z" du déploiement)
+  ./scripts/rollback.sh beta <sha>  # ou prod
+
+  # Note : si la BDD a été migrée, un rollback de code ne restaure PAS la BDD
+  # (voir procédure Restauration Backup + migrations en double).
+  ```
+- ⚠️ **Prérequis** : le premier `./scripts/deploy.sh` post-refactor doit tourner pour que les images soient taggées.
+
+#### 3b. CI/CD GitHub Actions ✅ fait (2026-08)
+- **Problème** : le build lourd tournait sur le VPS (~4 min à CPU/RAM à fond).
+- **Solution implémentée** :
+  - **`.github/workflows/deploy.yml`** : sur `push` vers `dev` (beta) ou `main` (prod), GitHub **build** les 4 images (app, worker, ws, discord-bot) et les **pousse vers GHCR** (GitHub Container Registry), taggées par SHA + `latest`.
+  - **`scripts/deploy-cd.sh`** : sur le VPS, fait `pull` + `up -d --no-build` depuis GHCR → **aucun build local**, déploiement ~30s.
+- **Utilisation** (sur le VPS, une fois GHCR_TOKEN défini) :
+  ```bash
+  export GHCR_TOKEN=<token read:packages>   # à définir une fois
+  ./scripts/deploy-cd.sh beta <sha>          # déployer la version <sha> en beta
+  ./scripts/deploy-cd.sh beta                # déployer latest
+  ```
+- ⚠️ **`deploy-cd.sh` ne recrée PAS le conteneur Caddy** : après toute modification du `Caddyfile` (ex : rate-limit/429, ajout de site), recréer Caddy manuellement :
+  ```bash
+  sudo docker compose -f docker-compose.prod.yml --env-file .env.beta up -d --force-recreate --no-deps caddy   # beta
+  sudo docker compose -f docker-compose.prod.yml --env-file .env.prod  up -d --force-recreate --no-deps caddy   # prod
+  ```
+- **Note** : le workflow GHCR ne remplace PAS `verify.yml` (qui reste le garde-fou lint/test/audit). Les deux coexistent : `verify` valide, `deploy.yml` build/push.
+- ⚠️ **Prérequis secrets GitHub** : `BETA_PASSWORD` (settings > secrets). `NEXT_PUBLIC_APP_URL` est défini automatiquement selon la branche.
+- ⚠️ **GHCR Token sur le VPS** : générer un PAT GitHub avec scope `read:packages`, et l'exporter (ou le mettre dans le `.bashrc`/cron).
+- ⏰ **⚠️ EXPIRATION DU GHCR_TOKEN (IMPORTANT)** : le PAT GitHub créé avec « Expiration: 90 days » **expire ≈ 90 jours après sa création** (créé le 03/08/2026 → **expire ≈ début novembre 2026**). Quand il expire, `deploy-cd.sh` échoue sur le `docker pull` → déploiement CD bloqué.
+  
+  **Renouvellement (LE minimum, ~2 min)** :
+  1. GitHub → avatar → Settings → Developer settings → Personal access tokens → **Tokens (classic)**
+     → **Generate new token (classic)** → Note `sigilos-vps`, expiration 90 jours, cocher **uniquement `read:packages`** → Generate.
+     📝 **Note la date « Expires on »** affichée (ex: `Sun, Nov 1 2026`).
+  2. Sur le VPS, coller 2 lignes (remplacer par le nouveau token + la date notée) :
+     ```bash
+     echo 'export GHCR_TOKEN=<NOUVEAU_TOKEN>' >> ~/.bashrc && source ~/.bashrc
+     echo 'export GHCR_TOKEN_EXPIRY=<AAAA-MM-JJ>' >> ~/.bashrc && source ~/.bashrc
+     # exemple : export GHCR_TOKEN_EXPIRY=2026-11-01
+     ```
+  → C'est tout. Le script affichera le nouveau compte à rebours.
+  ⚠️ Alternative **zéro renouvellement** : à la prochaine création, choisir un **fine-grained token sans expiration** (Repository access > SigilOS, permission **Packages: Read**) → plus jamais besoin de renouveler.
+
+#### 3c. Séparer le Redis beta/prod (chantier I-07) — ✅ FAIT + DÉPLOYÉ (09/08)
+- **Problème** : la beta et la prod partageaient le **même Redis** → risque de collision de jobs BullMQ/queues.
+- **Solution** : un Redis dédié par environnement (`redis-beta` sur beta-net, `redis` prod restreint à prod-net).
+- **Impact** : aucun pour l'utilisateur, plus sûr. Déployé beta (containers redis-beta + beta relancés).
+
+#### 3d. Assets monde (tuiles/maps) — servis en STATIQUE par Caddy (10/08)
+- **Problème** : Next.js en mode `standalone` ne sert pas de façon fiable le dossier `public/game-data` bind-mounté → les tuiles renvoyaient **404** (alors qu'elles étaient bien sur le VPS, visibles dans le conteneur).
+- **Solution** : servir `/game-data/*` **directement par Caddy**, avant le proxy vers Next :
+  - `Caddyfile` → `handle /game-data/*` (root `/srv/game-data` + `uri strip_prefix /game-data` + `file_server`) dans le bloc `beta.sigilos.fr`.
+  - `docker-compose.prod.yml` → volume `./public/game-data:/srv/game-data:ro` sur le service `caddy`.
+- **Procédure de mise à jour des tuiles d'un monde** :
+  ```bash
+  # 1. Générer/convertir les tuiles localement (ex : scripts/sync-world38-tiles.js)
+  # 2. Envoyer sur le VPS (tuiles hors git → rsync OBLIGATOIRE) :
+  ./scripts/sync-assets.sh beta          # ou prod
+  # 3. PAS de rebuild app nécessaire (volume ro suit le host). Recréer Caddy SEULEMENT si le Caddyfile/compose a changé :
+  sudo docker compose -f docker-compose.prod.yml --env-file .env.beta up -d --force-recreate --no-deps caddy
+  # 4. Vérif :
+  curl -s -o /dev/null -w "%{http_code}\n" https://beta.sigilos.fr/game-data/tiles/w38/1/204.webp   # → 200
+  ```
+- ⚠️ Les tuiles (`public/game-data/tiles/...`) sont **ignorées par git** → un `git pull`/`deploy-cd.sh` ne les mettra **jamais** à jour. C'est `sync-assets.sh` qui les synchronise (volume bind-mount `ro`, lu directement par Caddy).
+- ⏳ **Prod (main)** : ajouter le même `handle /game-data/*` dans le bloc `sigilos.fr` quand le site sera lancé.
+
+---
+
+### 📌 Priorité recommandée (mise à jour 2026-08)
+**Fait** : phase 1, 3a (rollback), 3b (CI/CD GHCR), **3c (Redis séparé — déployé beta 09/08)**.
+**Reste** :
+1. **Phase 2** (image de base partagée) — optionnel, le CI/CD règle déjà le build redondant sur le VPS.
+2. **Renouveler GHCR_TOKEN** (expire ≈ début nov 2026) — cf. section 3b.
+
+

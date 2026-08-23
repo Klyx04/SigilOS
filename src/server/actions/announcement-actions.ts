@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
@@ -80,7 +81,7 @@ export async function setSystemAnnouncement(
 
         return { success: true };
     } catch (error) {
-        console.error("[Announcement] Set failed:", error);
+        logger.error("[Announcement] Set failed:", error);
         return { success: false, error: "Redis error" };
     }
 }
@@ -100,7 +101,7 @@ export async function clearSystemAnnouncement(): Promise<{ success: boolean; err
         await redis.del(ANNOUNCEMENT_KEY);
         return { success: true };
     } catch (error) {
-        console.error("[Announcement] Clear failed:", error);
+        logger.error("[Announcement] Clear failed:", error);
         return { success: false, error: "Redis error" };
     }
 }
@@ -124,7 +125,7 @@ export async function getStelliumChannels() {
         // Only text channels (type 0 or 5 for announcement)
         return channels.filter(c => c.type === 0 || c.type === 5);
     } catch (e) {
-        console.error("[Stellium Channels] Failed:", e);
+        logger.error("[Stellium Channels] Failed:", e);
         return [];
     }
 }
@@ -208,7 +209,7 @@ export async function broadcastDiscordAnnouncement(
             }
 
             if (!channelId) {
-                console.warn(`[Broadcast] Guild ${guild.name} has no notification channel configured, skipping`);
+                logger.warn(`[Broadcast] Guild ${guild.name} has no notification channel configured, skipping`);
                 failed++;
                 continue;
             }
@@ -225,14 +226,14 @@ export async function broadcastDiscordAnnouncement(
                 });
                 sent++;
             } catch (error) {
-                console.error(`[Broadcast] Failed for guild ${guild.name}:`, error);
+                logger.error(`[Broadcast] Failed for guild ${guild.name}:`, error);
                 failed++;
             }
         }
 
         return { success: true, sent, failed };
     } catch (error) {
-        console.error("[Broadcast] Error:", error);
+        logger.error("[Broadcast] Error:", error);
         return { success: false, sent: 0, failed: 0, error: "Database error" };
     }
 }
@@ -248,9 +249,9 @@ export async function saveSystemAnnouncementSettings(
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
     try {
-        const { getUserContext } = await import("@/server/actions/user-actions");
-        const user = await getUserContext(guildId);
-        if (!user.isAdmin) return { success: false, error: "Admin required" };
+        const { requireGuildConfigAccess } = await import("./guards");
+        const guard = await requireGuildConfigAccess(guildId);
+        if (!guard.isAuthorized) return { success: false, error: guard.error || "Admin required" };
 
         if (channelId) {
             const { validateChannelBelongsToGuild } = await import("@/server/discord");
@@ -268,7 +269,7 @@ export async function saveSystemAnnouncementSettings(
 
         return { success: true };
     } catch (error) {
-        console.error("[Announcement Settings] Save failed:", error);
+        logger.error("[Announcement Settings] Save failed:", error);
         return { success: false, error: "Database error" };
     }
 }

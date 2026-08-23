@@ -58,12 +58,12 @@ export function RegistrationModal({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent draggable className="max-w-lg bg-zinc-900/95 backdrop-blur-xl border-zinc-800">
+            <DialogContent draggable className="max-w-lg bg-surface/95 backdrop-blur-xl border-border">
                 <DialogHeader>
-                    <DialogTitle className="text-xl font-bold text-zinc-100">
+                    <DialogTitle className="text-xl font-bold text-foreground">
                         {isFull ? "Rejoindre la file d'attente" : "S'inscrire à l'événement"}
                     </DialogTitle>
-                    <DialogDescription className="text-zinc-400">
+                    <DialogDescription className="text-muted-foreground">
                         {eventTitle}
                     </DialogDescription>
                 </DialogHeader>
@@ -71,7 +71,7 @@ export function RegistrationModal({
                 <div className="space-y-6 py-4 max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
                     {/* Class Selection */}
                     <div className="space-y-3">
-                        <Label className="text-sm font-medium text-zinc-300 flex items-center gap-2">
+                        <Label className="text-sm font-medium text-foreground flex items-center gap-2">
                             <User className="h-4 w-4" />
                             Classe Dofus (optionnel)
                         </Label>
@@ -87,10 +87,10 @@ export function RegistrationModal({
                                         type="button"
                                         onClick={() => setSelectedClass(isSelected ? null : classe.id)}
                                         className={cn(
-                                            "flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all hover:bg-zinc-800/50",
+                                            "flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all hover:bg-elevated/50",
                                             isSelected
                                                 ? "ring-2 ring-offset-2 ring-offset-zinc-900"
-                                                : "bg-zinc-900/50 border-zinc-800 hover:border-zinc-700"
+                                                : "bg-surface/50 border-border hover:border-border"
                                         )}
                                         style={{
                                             borderColor: isSelected ? classe.color : undefined,
@@ -100,8 +100,8 @@ export function RegistrationModal({
                                     >
                                         <ClassIcon classId={classe.id} size={28} />
                                         <span className={cn(
-                                            "text-[10px] font-medium leading-tight",
-                                            isSelected ? "text-white" : "text-zinc-500"
+                                            "text-caption font-medium leading-tight",
+                                            isSelected ? "text-foreground" : "text-muted-foreground"
                                         )}>
                                             {classe.name}
                                         </span>
@@ -111,7 +111,7 @@ export function RegistrationModal({
                         </div>
 
                         {selectedClass && (
-                            <p className="text-xs text-zinc-500">
+                            <p className="text-xs text-muted-foreground">
                                 Sélection :{" "}
                                 <span style={{ color: getClassColor(selectedClass) }}>
                                     {DOFUS_CLASSES.find(c => c.id === selectedClass)?.name}
@@ -122,7 +122,7 @@ export function RegistrationModal({
 
                     {/* Comment */}
                     <div className="space-y-2">
-                        <Label className="text-sm font-medium text-zinc-300 flex items-center gap-2">
+                        <Label className="text-sm font-medium text-foreground flex items-center gap-2">
                             <MessageSquare className="h-4 w-4" />
                             Note (optionnel)
                         </Label>
@@ -130,15 +130,15 @@ export function RegistrationModal({
                             placeholder="Ex: Perso principal, Multi possible..."
                             value={comment}
                             onChange={(e) => setComment(e.target.value)}
-                            className="bg-zinc-900/50 border-zinc-800 text-zinc-100"
+                            className="bg-surface/50 border-border text-foreground"
                             maxLength={100}
                         />
                     </div>
 
                     {/* Warning if full */}
                     {isFull && (
-                        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                            <p className="text-sm text-amber-400">
+                        <div className="p-3 rounded-lg bg-warning/10 border border-warning/30">
+                            <p className="text-sm text-warning">
                                 ⚠️ L'événement est complet. Vous serez ajouté à la file d'attente et promu automatiquement en cas de désistement.
                             </p>
                         </div>
@@ -150,7 +150,7 @@ export function RegistrationModal({
                         variant="ghost"
                         onClick={() => onOpenChange(false)}
                         disabled={submitting}
-                        className="text-zinc-400"
+                        className="text-muted-foreground"
                     >
                         Annuler
                     </Button>
@@ -160,8 +160,8 @@ export function RegistrationModal({
                         className={cn(
                             "font-bold",
                             isFull
-                                ? "bg-amber-500 hover:bg-amber-400 text-zinc-950"
-                                : "bg-green-600 hover:bg-green-500 text-white"
+                                ? "bg-warning hover:bg-warning text-warning-foreground"
+                                : "bg-green-600 hover:bg-green-500 text-foreground"
                         )}
                     >
                         {submitting ? (

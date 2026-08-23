@@ -12,32 +12,38 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
 import { sendVacationNotification } from "@/server/actions/profile-actions";
 
 interface VacationModeProps {
     vacationStart?: Date | null;
     vacationEnd?: Date | null;
     vacationNotify?: boolean;
-    onSave?: (data: { start: Date | null; end: Date | null; notify: boolean; noEndDate: boolean }) => void;
+    vacationReason?: string | null;
+    onSave?: (data: { start: Date | null; end: Date | null; notify: boolean; noEndDate: boolean; reason: string | null }) => void;
     readOnly?: boolean;
     guildId?: string;
     pseudo?: string;
     profileId?: string;
+    hasAbsenceChannel?: boolean;
 }
 
 export function VacationMode({
     vacationStart,
     vacationEnd,
     vacationNotify = false,
+    vacationReason,
     onSave,
     readOnly = false,
     guildId,
     pseudo,
     profileId,
+    hasAbsenceChannel = false,
 }: VacationModeProps) {
     const [startDate, setStartDate] = useState<Date | undefined>(vacationStart ?? undefined);
     const [endDate, setEndDate] = useState<Date | undefined>(vacationEnd ?? undefined);
     const [notify, setNotify] = useState(vacationNotify);
+    const [reason, setReason] = useState(vacationReason || "");
     const [noEndDate, setNoEndDate] = useState(!vacationEnd && !!vacationStart);
     const [isSending, setIsSending] = useState(false);
 
@@ -50,6 +56,7 @@ export function VacationMode({
             end: noEndDate ? null : (endDate ?? null),
             notify,
             noEndDate,
+            reason: reason || null,
         });
     };
 
@@ -58,7 +65,17 @@ export function VacationMode({
         setEndDate(undefined);
         setNotify(false);
         setNoEndDate(false);
-        onSave?.({ start: null, end: null, notify: false, noEndDate: false });
+        setReason("");
+        onSave?.({ start: null, end: null, notify: false, noEndDate: false, reason: null });
+    };
+
+    const handleQuickPreset = (days: number) => {
+        const start = new Date();
+        const end = new Date();
+        end.setDate(end.getDate() + days);
+        setStartDate(start);
+        setEndDate(end);
+        setNoEndDate(false);
     };
 
     const handleSendNotification = async () => {
@@ -72,6 +89,7 @@ export function VacationMode({
                 profileId,
                 startDate: startDate?.toISOString() ?? null,
                 endDate: noEndDate ? null : (endDate?.toISOString() ?? null),
+                reason: reason || null,
             });
 
             if (result.success) {
@@ -87,14 +105,14 @@ export function VacationMode({
     };
 
     return (
-        <div className="p-4 bg-black/20 backdrop-blur-md rounded-xl border border-white/10">
+        <div className="p-4 bg-black/20 backdrop-blur-md rounded-xl border border-border">
             <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                    <Palmtree className="w-4 h-4 text-cyan-400" />
-                    <h3 className="text-sm font-medium text-zinc-400">Mode Vacances</h3>
+                    <Palmtree className="w-4 h-4 text-info" />
+                    <h3 className="text-sm font-medium text-muted-foreground">Mode Vacances</h3>
                 </div>
                 {isOnVacation && (
-                    <Badge variant="outline" className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 px-1.5 py-0 h-5 text-[10px]">
+                    <Badge variant="outline" className="bg-info/10 text-info border-info/30 px-1.5 py-0 h-5 text-caption">
                         Actif
                     </Badge>
                 )}
@@ -105,25 +123,28 @@ export function VacationMode({
                 <div className="space-y-1">
                     {isOnVacation ? (
                         <>
-                            <p className="text-sm text-zinc-300 flex items-center gap-2">
-                                <span className="text-zinc-500 text-xs w-16">Départ :</span>
+                            <p className="text-sm text-foreground flex items-center gap-2">
+                                <span className="text-muted-foreground text-xs w-16">Départ :</span>
                                 <span className="font-medium">
                                     {format(vacationStart!, "d MMM yyyy", { locale: fr })}
                                 </span>
                             </p>
                             {vacationEnd ? (
-                                <p className="text-sm text-zinc-300 flex items-center gap-2">
-                                    <span className="text-zinc-500 text-xs w-16">Retour :</span>
+                                <p className="text-sm text-foreground flex items-center gap-2">
+                                    <span className="text-muted-foreground text-xs w-16">Retour :</span>
                                     <span className="font-medium">
                                         {format(vacationEnd, "d MMM yyyy", { locale: fr })}
                                     </span>
                                 </p>
                             ) : (
-                                <p className="text-xs text-zinc-500 italic">Pas de date de retour prévue</p>
+                                <p className="text-xs text-muted-foreground italic">Pas de date de retour prévue</p>
+                            )}
+                            {vacationReason && (
+                                <p className="text-xs text-muted-foreground italic mt-1 break-words bg-muted/20 p-2 rounded border border-border">Motif: {vacationReason}</p>
                             )}
                         </>
                     ) : (
-                        <p className="text-xs text-zinc-500 italic">Pas de vacances prévues</p>
+                        <p className="text-xs text-muted-foreground italic">Pas de vacances prévues</p>
                     )}
                 </div>
             ) : (
@@ -132,7 +153,7 @@ export function VacationMode({
                     <div className="grid grid-cols-2 gap-3">
                         {/* Start Date */}
                         <div className="space-y-1">
-                            <Label className="text-xs text-zinc-500">Début</Label>
+                            <Label className="text-xs text-muted-foreground">Début</Label>
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button
@@ -165,9 +186,9 @@ export function VacationMode({
 
                         {/* End Date */}
                         <div className="space-y-1">
-                            <Label className="text-xs text-zinc-500">Retour</Label>
+                            <Label className="text-xs text-muted-foreground">Retour</Label>
                             {noEndDate ? (
-                                <div className="h-8 flex items-center text-xs text-zinc-600 italic border border-transparent px-3">
+                                <div className="h-8 flex items-center text-xs text-muted-foreground italic border border-transparent px-3">
                                     Indéterminé
                                 </div>
                             ) : (
@@ -213,14 +234,40 @@ export function VacationMode({
                             onCheckedChange={setNoEndDate}
                             className="scale-75 origin-left"
                         />
-                        <Label htmlFor="no-end-date" className="text-xs text-zinc-400">
+                        <Label htmlFor="no-end-date" className="text-xs text-muted-foreground">
                             Durée indéterminée
                         </Label>
                     </div>
 
+                    {/* Quick Presets */}
+                    <div className="flex items-center gap-1.5 pt-1">
+                        <Button variant="outline" size="sm" onClick={() => handleQuickPreset(2)} className="h-6 text-caption px-2 border-border hover:bg-surface">Weekend</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleQuickPreset(7)} className="h-6 text-caption px-2 border-border hover:bg-surface">1 Semaine</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleQuickPreset(30)} className="h-6 text-caption px-2 border-border hover:bg-surface">1 Mois</Button>
+                    </div>
+
+                    {/* Reason */}
+                    <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Motif (Optionnel)</Label>
+                        <Input 
+                            value={reason} 
+                            onChange={(e) => setReason(e.target.value)} 
+                            placeholder="Ex: Déplacement pro, Vacances d'été..." 
+                            className="h-8 text-xs bg-surface border-border"
+                        />
+                    </div>
+
+                    {isOnVacation && (
+                        <div className="pt-2">
+                            <Button onClick={handleClear} size="sm" className="w-full h-8 text-xs bg-success/20 hover:bg-success/40 text-success border border-success/30">
+                                Je suis de retour !
+                            </Button>
+                        </div>
+                    )}
+
                     {/* Actions */}
-                    <div className="flex gap-2 border-t border-white/5 pt-2">
-                        <Button onClick={handleSave} size="sm" className="flex-1 h-7 text-xs">
+                    <div className="flex gap-2 border-t border-border pt-2">
+                        <Button onClick={handleSave} size="sm" className="flex-1 h-7 text-xs bg-info hover:bg-info text-info-foreground font-semibold">
                             Enregistrer
                         </Button>
                         {(startDate || endDate) && (
@@ -232,20 +279,26 @@ export function VacationMode({
 
                     {/* Discord Notification Button */}
                     {startDate && guildId && profileId && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleSendNotification}
-                            disabled={isSending}
-                            className="w-full h-7 text-xs border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/10 hover:text-cyan-300"
-                        >
-                            {isSending ? (
-                                <Loader2 className="w-3 h-3 mr-2 animate-spin" />
-                            ) : (
-                                <Bell className="w-3 h-3 mr-2" />
-                            )}
-                            Notifier sur Discord
-                        </Button>
+                        hasAbsenceChannel ? (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleSendNotification}
+                                disabled={isSending}
+                                className="w-full h-7 text-xs border border-info/20 text-info hover:bg-info/10 hover:text-info"
+                            >
+                                {isSending ? (
+                                    <Loader2 className="w-3 h-3 mr-2 animate-spin" />
+                                ) : (
+                                    <Bell className="w-3 h-3 mr-2" />
+                                )}
+                                Notifier sur Discord
+                            </Button>
+                        ) : (
+                            <div className="w-full h-7 flex items-center justify-center text-caption text-muted-foreground italic bg-muted/20 rounded border border-border">
+                                Salon Discord non configuré
+                            </div>
+                        )
                     )}
                 </div>
             )}

@@ -14,8 +14,14 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     AlertTriangle, RefreshCw, Trash2, Clock, Building2, User,
-    ShieldBan, Filter, Archive, Ban
+    ShieldBan, Filter, Archive, Ban, UserX, Info, Search, Copy, Calendar, MousePointer2, CalendarCheck, Loader2
 } from 'lucide-react';
+import { getDisplayName } from "@/lib/display-name";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { cleanupGhostUsers, deleteGhostUser } from "@/server/actions/super-admin-actions";
+import { JanitorButton } from '../janitor-button';
 import { formatDistanceToNow, differenceInDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -47,6 +53,7 @@ interface ArchivedProfile {
     id: string;
     archivedAt: Date | null;
     archiveReason: string | null;
+    scheduledDeletion: Date | null;
     guild: { name: string };
     user: { name: string | null };
 }
@@ -65,7 +72,19 @@ interface ActiveGuild {
     name: string;
 }
 
-type TabId = 'guilds' | 'profiles' | 'orphans' | 'bans';
+interface GhostUser {
+    id: string;
+    name: string | null;
+    image: string | null;
+    createdAt: Date;
+    _count: {
+        sessions: number;
+        guildEvents: number;
+    };
+    memberInWhitelists?: string[];
+}
+
+type TabId = 'guilds' | 'profiles' | 'orphans' | 'bans' | 'ghosts' | 'unauthorized';
 
 interface LifecyclePanelProps {
     guilds: SoftDeletedGuild[];
@@ -73,6 +92,8 @@ interface LifecyclePanelProps {
     archivedProfiles: ArchivedProfile[];
     bans: PlatformBanItem[];
     activeGuilds: ActiveGuild[];
+    ghostUsers: GhostUser[];
+    unauthorizedConnections: Array<{ id: string; name: string; icon: string | null }>;
 }
 
 // ====================
@@ -85,16 +106,20 @@ export function LifecyclePanel({
     archivedProfiles,
     bans,
     activeGuilds,
+    ghostUsers,
+    unauthorizedConnections = []
 }: LifecyclePanelProps) {
     const [activeTab, setActiveTab] = useState<TabId>('guilds');
 
-    const totalPending = guilds.length + profiles.length;
+    const totalPending = guilds.length + profiles.length + unauthorizedConnections.length;
 
-    const tabs: { id: TabId; label: string; icon: React.ReactNode; count: number }[] = [
-        { id: 'guilds', label: 'Guildes', icon: <Building2 className="w-4 h-4" />, count: guilds.length },
-        { id: 'profiles', label: 'Profils', icon: <User className="w-4 h-4" />, count: profiles.length },
-        { id: 'orphans', label: 'Orphelins', icon: <Archive className="w-4 h-4" />, count: archivedProfiles.length },
-        { id: 'bans', label: 'Bannis', icon: <ShieldBan className="w-4 h-4" />, count: bans.length },
+    const tabs: { id: TabId; label: string; icon: React.ReactNode; count: number; color: string }[] = [
+        { id: 'guilds', label: 'Guildes', icon: <Building2 className="w-4 h-4" />, count: guilds.length, color: 'text-amber-400' },
+        { id: 'profiles', label: 'Profils', icon: <User className="w-4 h-4" />, count: profiles.length, color: 'text-rose-400' },
+        { id: 'unauthorized', label: 'Suspects', icon: <ShieldBan className="w-4 h-4" />, count: unauthorizedConnections.length, color: 'text-orange-500' },
+        { id: 'ghosts', label: 'Fantômes', icon: <UserX className="w-4 h-4" />, count: ghostUsers.length, color: 'text-purple-400' },
+        { id: 'orphans', label: 'Orphelins', icon: <Archive className="w-4 h-4" />, count: archivedProfiles.length, color: 'text-zinc-400' },
+        { id: 'bans', label: 'Bannis', icon: <ShieldBan className="w-4 h-4" />, count: bans.length, color: 'text-red-500' },
     ];
 
     return (
@@ -105,19 +130,22 @@ export function LifecyclePanel({
                     <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-200 to-amber-500 bg-clip-text text-transparent uppercase tracking-tighter">
                         🛠️ State & Maintenance
                     </h2>
-                    <p className="text-sm text-zinc-500 mt-1 uppercase text-[10px] font-bold tracking-widest">
-                        Gestion des suppressions souples et bannissements plateforme.
+                    <p className="text-sm text-zinc-500 mt-1 uppercase text-caption font-bold tracking-widest leading-relaxed">
+                        Gestion centralisée du cycle de vie des données, des fantômes et de la sécurité plateforme.
                     </p>
                 </div>
 
-                {totalPending > 0 && (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                        <AlertTriangle className="w-4 h-4 text-amber-400" />
-                        <span className="text-sm text-amber-400 font-medium">
-                            Action requise
-                        </span>
-                    </div>
-                )}
+                <div className="flex items-center gap-3">
+                    {totalPending > 0 && (
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-500/10 border border-rose-500/30 rounded-lg animate-pulse">
+                            <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                            <span className="text-caption font-black uppercase tracking-widest text-rose-400">
+                                Attention ({totalPending} Anomalies)
+                            </span>
+                        </div>
+                    )}
+                    {/* The sidebar is now part of the content flow or available via tabs */}
+                </div>
             </div>
 
             {/* Tabs */}
@@ -141,8 +169,17 @@ export function LifecyclePanel({
 
             {/* Content */}
             <AnimatePresence mode="wait">
-                {activeTab === 'guilds' && (
                     <TabContent key="guilds">
+                        <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-xl mb-4 flex items-start gap-4">
+                            <Info className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                                <h4 className="text-caption font-black uppercase tracking-widest text-amber-500">Hygiène des Guildes</h4>
+                                <p className="text-caption text-zinc-500 leading-relaxed font-medium">
+                                    <strong>Réactiver :</strong> Restaure l'accès immédiat et annule le compte à rebours. <br/>
+                                    <strong>Supprimer :</strong> Efface PHYSIQUEMENT toutes les données (Missions, Stocks, Roster) de la base. Action IRRÉVERSIBLE.
+                                </p>
+                            </div>
+                        </div>
                         {guilds.length === 0 ? (
                             <EmptyState>✅ Aucune guilde en attente de suppression</EmptyState>
                         ) : (
@@ -151,7 +188,6 @@ export function LifecyclePanel({
                             ))
                         )}
                     </TabContent>
-                )}
 
                 {activeTab === 'profiles' && (
                     <TabContent key="profiles">
@@ -165,14 +201,103 @@ export function LifecyclePanel({
                     </TabContent>
                 )}
 
+                {activeTab === 'unauthorized' && (
+                    <TabContent key="unauthorized">
+                         <div className="p-4 bg-orange-500/5 border border-orange-500/10 rounded-xl mb-4 flex items-start gap-4">
+                            <ShieldBan className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                                <h4 className="text-caption font-black uppercase tracking-widest text-orange-500">Connexions non autorisées</h4>
+                                <p className="text-caption text-zinc-500 leading-relaxed font-medium">
+                                    Ces serveurs Discord ont ajouté le bot mais ne sont PAS dans la liste blanche (Whitelist). 
+                                    Le bot est inactif sur ces serveurs mais consomme des ressources de gateway.
+                                </p>
+                            </div>
+                        </div>
+                        {unauthorizedConnections.length === 0 ? (
+                            <EmptyState>✅ Aucune connexion parasite détectée</EmptyState>
+                        ) : (
+                            <div className="space-y-2">
+                                {unauthorizedConnections.map(g => (
+                                    <div key={g.id} className="flex items-center justify-between p-4 bg-orange-500/5 border border-orange-500/10 rounded-xl">
+                                        <div className="flex items-center gap-3">
+                                            {g.icon ? (
+                                                <img src={`https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png`} className="w-10 h-10 rounded-lg" alt="" />
+                                            ) : (
+                                                <div className="w-10 h-10 bg-zinc-800 rounded-lg flex items-center justify-center text-xs font-bold text-zinc-600">?</div>
+                                            )}
+                                            <div>
+                                                <div className="font-bold text-sm text-zinc-200">{g.name}</div>
+                                                <div className="text-caption font-mono text-zinc-500">{g.id}</div>
+                                            </div>
+                                        </div>
+                                        <button 
+                                            onClick={async () => {
+                                                if(!confirm(`Bannir cette guilde (${g.name}) de la plateforme ?`)) return;
+                                                const { banEntity } = await import('@/server/actions/god-lifecycle-actions');
+                                                await banEntity('GUILD', g.id, "Connexion non autorisée détectée");
+                                                window.location.reload();
+                                            }}
+                                            className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg text-xs font-black uppercase tracking-widest"
+                                        >
+                                            Bannir
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </TabContent>
+                )}
+
+                {activeTab === 'ghosts' && (
+                    <TabContent key="ghosts">
+                         <div className="p-4 bg-purple-500/5 border border-purple-500/10 rounded-xl mb-4 flex items-start gap-4">
+                            <Info className="w-5 h-5 text-purple-500 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                                <h4 className="text-caption font-black uppercase tracking-widest text-purple-400">Nettoyage des Fantômes</h4>
+                                <p className="text-caption text-zinc-500 leading-relaxed font-medium">
+                                    Comptes Discord sans profil de guilde (vieux de <strong>&gt;24h</strong> - GDPR). 
+                                    La purge supprime l'entrée "User" et les sessions de connexion. 
+                                    Aucune perte de progression métier/xp possible ici.
+                                </p>
+                            </div>
+                            <div className="ml-auto">
+                                <JanitorButton />
+                            </div>
+                        </div>
+                        <GhostPurgeTab users={ghostUsers} />
+                    </TabContent>
+                )}
+
                 {activeTab === 'orphans' && (
                     <TabContent key="orphans">
+                         <div className="p-4 bg-zinc-500/5 border border-zinc-500/10 rounded-xl mb-4 flex items-start gap-4">
+                            <Archive className="w-5 h-5 text-zinc-500 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                                <h4 className="text-caption font-black uppercase tracking-widest text-zinc-400">Nettoyage technique</h4>
+                                <p className="text-caption text-zinc-500 leading-relaxed font-medium">
+                                    Profils existants sans compte Discord lié (suite à une désynchronisation ou suppression manuelle brute).
+                                </p>
+                            </div>
+                            <div className="ml-auto">
+                                <JanitorButton />
+                            </div>
+                        </div>
                         <OrphanPanel profiles={archivedProfiles} activeGuilds={activeGuilds} />
                     </TabContent>
                 )}
 
                 {activeTab === 'bans' && (
                     <TabContent key="bans">
+                        <section className="p-4 bg-red-500/5 border border-red-500/10 rounded-xl mb-4 flex items-start gap-4">
+                            <ShieldBan className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                                <h4 className="text-caption font-black uppercase tracking-widest text-red-500">Zone de Bannissement</h4>
+                                <p className="text-caption text-zinc-500 leading-relaxed font-medium">
+                                   Le ban plateforme bloque l'accès au BOT sur TOUTES les guildes pour l'ID spécifié. 
+                                   Pour une guilde bannie, le bot ne répondra plus à aucune commande sur ce serveur.
+                                </p>
+                            </div>
+                        </section>
                         <BanPanel bans={bans} />
                     </TabContent>
                 )}
@@ -366,7 +491,7 @@ function ProfileLifecycleCard({ profile }: { profile: SoftDeletedProfile }) {
         >
             <div className="flex-1 grid grid-cols-4 gap-4 text-sm">
                 <div>
-                    <div className="font-medium text-zinc-200">{profile.user.name || 'Inconnu'}</div>
+                    <div className="font-medium text-zinc-200">{getDisplayName(profile)}</div>
                     <div className="text-xs text-zinc-500">{profile.guild.name}</div>
                 </div>
                 <div>
@@ -412,7 +537,7 @@ function ProfileLifecycleCard({ profile }: { profile: SoftDeletedProfile }) {
 
                 <button
                     onClick={async () => {
-                        if (!confirm(`Supprimer définitivement le profil de ${profile.user.name || 'cet utilisateur'} ?\n\n⚠️ CETTE ACTION EST IRRÉVERSIBLE`)) return;
+                        if (!confirm(`Supprimer définitivement le profil de ${getDisplayName(profile)} ?\n\n⚠️ CETTE ACTION EST IRRÉVERSIBLE`)) return;
                         setLoading(true);
                         try {
                             const { hardDeleteProfile } = await import('@/server/actions/god-lifecycle-actions');
@@ -521,7 +646,7 @@ function OrphanPanel({
                                     <Archive className="w-4 h-4" />
                                 </div>
                                 <div>
-                                    <div className="font-medium text-zinc-200">{profile.user.name || 'Inconnu'}</div>
+                                    <div className="font-medium text-zinc-200">{getDisplayName(profile)}</div>
                                     <div className="text-xs text-zinc-500">{profile.guild.name}</div>
                                 </div>
                             </div>
@@ -535,10 +660,22 @@ function OrphanPanel({
                                         'GUILD_DELETED': '🏰 Guilde',
                                     }[profile.archiveReason || ''] || profile.archiveReason}
                                 </div>
-                                <div className="text-zinc-600 text-xs">
-                                    {profile.archivedAt
-                                        ? formatDistanceToNow(new Date(profile.archivedAt), { addSuffix: true, locale: fr })
-                                        : '—'}
+                                <div className="flex flex-col items-end gap-1">
+                                    <div className="text-zinc-600 text-caption font-medium">
+                                        {profile.archivedAt
+                                            ? formatDistanceToNow(new Date(profile.archivedAt), { addSuffix: true, locale: fr })
+                                            : '—'}
+                                    </div>
+                                    {profile.scheduledDeletion && (
+                                        <div className={`flex items-center gap-1 text-caption font-black uppercase tracking-tighter px-1.5 py-0.5 rounded ${
+                                            differenceInDays(new Date(profile.scheduledDeletion), new Date()) <= 3
+                                                ? 'bg-red-500/10 text-red-500 animate-pulse'
+                                                : 'bg-amber-500/10 text-amber-500'
+                                        }`}>
+                                            <Clock className="w-2.5 h-2.5" />
+                                            J-{differenceInDays(new Date(profile.scheduledDeletion), new Date())}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -702,6 +839,81 @@ function BanPanel({ bans }: { bans: PlatformBanItem[] }) {
                     ))}
                 </div>
             )}
+        </div>
+    );
+}
+
+// ====================
+// Ghost Purge Sub-Panel (Integrated)
+// ====================
+
+function GhostPurgeTab({ users }: { users: GhostUser[] }) {
+    const [isPurgingAll, setIsPurgingAll] = useState(false);
+    const [purgingId, setPurgingId] = useState<string | null>(null);
+    const [search, setSearch] = useState("");
+
+    const filtered = users.filter(u => 
+        !search || u.name?.toLowerCase().includes(search.toLowerCase()) || u.id.toLowerCase().includes(search.toLowerCase())
+    );
+
+    const handlePurgeAll = async () => {
+        if (!confirm("Voulez-vous purger TOUS les fantômes (comptes sans profil) vieux de plus de 24h ?")) return;
+        setIsPurgingAll(true);
+        try {
+            const res = await cleanupGhostUsers();
+            if (res.success) toast.success(`${res.count} fantômes purgés.`);
+            else toast.error("Erreur.");
+        } finally { setIsPurgingAll(false); }
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+                <div className="relative group flex-1 max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
+                    <Input 
+                        placeholder="Rechercher Fantôme..." 
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="pl-10 bg-zinc-900/50 border-zinc-800"
+                    />
+                </div>
+                <Button variant="destructive" size="sm" onClick={handlePurgeAll} disabled={isPurgingAll || users.length === 0}>
+                    <Trash2 className="w-4 h-4 mr-2" /> Tout Purger
+                </Button>
+            </div>
+
+            <div className="space-y-2">
+                {filtered.map(user => (
+                    <div key={user.id} className="flex items-center justify-between p-3 bg-zinc-900/30 border border-zinc-800/60 rounded-lg">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center">
+                                <UserX className="w-4 h-4 text-zinc-500" />
+                            </div>
+                            <div>
+                                <div className="text-sm font-bold text-zinc-300">{user.name || 'Fantôme Inconnu'}</div>
+                                <div className="text-caption text-zinc-600 font-mono tracking-tighter">{user.id}</div>
+                            </div>
+                        </div>
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={async () => {
+                                if(!confirm('Supprimer ce compte Discord ?')) return;
+                                setPurgingId(user.id);
+                                try {
+                                    await deleteGhostUser(user.id);
+                                } finally {
+                                    setPurgingId(null);
+                                }
+                            }}
+                            disabled={purgingId === user.id}
+                        >
+                            {purgingId === user.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 text-zinc-600 hover:text-red-500" />}
+                        </Button>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }

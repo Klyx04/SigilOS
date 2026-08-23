@@ -82,10 +82,10 @@ export default function DevGuidePage() {
             <DocContent content={DEV_GUIDE_CONTENT} />
 
             <div className="not-prose flex gap-4 mt-8">
-                <button className="px-6 py-3 bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 rounded-2xl font-bold hover:bg-indigo-600/30 transition-all hover:scale-105">
+                <button className="px-6 py-3 bg-info/20 border border-info/30 text-info rounded-2xl font-bold hover:bg-info/30 transition-all ">
                     Bouton Exemple
                 </button>
-                <div className="px-6 py-3 bg-white/5 text-zinc-400 rounded-2xl border border-white/10 font-bold">
+                <div className="px-6 py-3 bg-surface text-muted-foreground rounded-2xl border border-border font-bold">
                     Badge Elite
                 </div>
             </div>

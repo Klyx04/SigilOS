@@ -1,5 +1,6 @@
+import { logger } from "@/lib/logger";
 import { db } from "@/lib/prisma";
-import { getMyOcreProgress } from "./ocre-actions";
+import { getMyOcreProgress, OcreProgressData } from "./ocre-actions";
 import { getDreamRuns } from "./songes/dream-run-actions";
 import { UserContext } from "./user-actions";
 
@@ -19,15 +20,25 @@ export interface FocusCardData {
  * The Brain of SigilOS Dashboard.
  * Analyzes user state and returns the most relevant "Focus" action.
  */
-export async function getDashboardFocus(guildId: string, user: UserContext): Promise<FocusCardData> {
+export async function getDashboardFocus(
+    guildId: string, 
+    user: UserContext,
+    prefetchedOcre?: OcreProgressData
+): Promise<FocusCardData> {
     const cards: FocusCardData[] = [];
 
     try {
-        // 1. Check Ocre Progress
-        if (user.canViewArchis) {
-            const ocre = await getMyOcreProgress(guildId);
-            if (ocre.success && ocre.data) {
-                const stats = ocre.data.stats;
+        // 1. Check Ocre Progress (Use prefetched data if available to save DB connections)
+        if (user.canViewOcre) {
+            let ocreData = prefetchedOcre;
+            
+            if (!ocreData) {
+                const ocre = await getMyOcreProgress(guildId);
+                if (ocre.success) ocreData = ocre.data;
+            }
+
+            if (ocreData) {
+                const stats = ocreData.stats;
                 if (stats.progressPercent > 80 && stats.progressPercent < 100) {
                     cards.push({
                         type: "OCRE_STEP",
@@ -74,7 +85,40 @@ export async function getDashboardFocus(guildId: string, user: UserContext): Pro
             }
         }
 
-        // 3. Fallback: Welcome / Activities
+        // 3. Check for Active / Upcoming Official Raids or Guild Events
+        if (user.canViewCalendar) {
+            const now = new Date();
+            const upcomingEvents = await db.guildEvent.findMany({
+                where: {
+                    guild: { discordGuildId: guildId },
+                    startDate: { lte: new Date(now.getTime() + 24 * 60 * 60 * 1000) }, // In next 24 hours
+                    endDate: { gte: now }, // Not ended yet
+                    status: "PUBLISHED",
+                    type: { in: ["RAID_OFFICIAL", "EVENT_GUILD"] }
+                },
+                orderBy: { startDate: "asc" },
+                take: 1
+            });
+
+            if (upcomingEvents.length > 0) {
+                const event = upcomingEvents[0];
+                const isRaid = event.type === "RAID_OFFICIAL";
+                // Use relative time (locale-independent) — never format absolute dates server-side
+                const { formatDistanceToNow } = await import("date-fns");
+                const { fr } = await import("date-fns/locale");
+                const rel = formatDistanceToNow(new Date(event.startDate), { locale: fr, addSuffix: false });
+                cards.push({
+                    type: isRaid ? "SONGES_RECRUIT" : "WELCOME", // Reuses styling indicators
+                    title: isRaid ? "🔥 RAID EN COURS / IMMINENT" : "🎉 ÉVÉNEMENT MAJEUR",
+                    description: `Rejoignez "${event.title}" prévu dans ${rel} .`,
+                    actionLabel: "S'inscrire / Rejoindre",
+                    actionHref: `/dashboard/${guildId}/calendar?event=${event.id}`,
+                    priority: 95 // Highest priority to put it at the very top of the Dashboard Focus Hero
+                });
+            }
+        }
+
+        // 4. Fallback: Welcome / Activities
         if (user.canViewMissions) {
             cards.push({
                 type: "WELCOME",
@@ -97,7 +141,7 @@ export async function getDashboardFocus(guildId: string, user: UserContext): Pro
         }
 
     } catch (e) {
-        console.error("[Intelligence] Focus generation failed:", e);
+        logger.error("[Intelligence] Focus generation failed:", e);
     }
 
     // Return highest priority card

@@ -16,6 +16,67 @@
 | **No secrets client-side** | Only `NEXT_PUBLIC_*` in browser code |
 | **No raw SQL** | Use Prisma ORM only |
 | **No eval/exec** | Never use dynamic code execution |
+| **Fail-closed (jamais fail-open)** | Si une API tierce (Discord, Redis) échoue → REFUSER, jamais accorder l'accès par défaut |
+| **Comparaison temps constant** | `timingSafeEqual` / `timingSafeEqualStr` pour comparer secrets & tokens |
+| **Bornes validation** | Toujours borner les valeurs issues d'API externes (longueur, plage) |
+| **Pas de secret codé en dur** | Toujours `process.env.*`, jamais de fallback en dur dans le code |
+
+---
+
+## ⚠️ Règles fail-closed (issues de l'audit 2026 — CRITICAL)
+
+> Ces règles corrigent les trous critiques trouvés lors de l'audit de sécurité. Elles sont **non-négociables**.
+
+### 1. Ne jamais fail-open sur erreur réseau
+```typescript
+// ❌ INTERDIT : accorder l'accès si l'API Discord échoue
+const isAuthorizedMember = hasAuthorizedRole || memberFetchFailed;
+
+// ✅ OBLIGATOIRE (fail-closed) : refuser si on n'a pas pu vérifier
+const isAuthorizedMember = (hasAuthorizedRole || isAdminFinal) && !memberFetchFailed;
+```
+
+### 2. Pas de secret/fallback en dur dans le code
+```typescript
+// ❌ INTERDIT : fallback de secret lisible dans le code source
+const secret = process.env.AUTH_SECRET || "default_internal_secret...";
+
+// ✅ OBLIGATOIRE : fail-closed si le secret manque
+const secret = process.env.AUTH_SECRET;
+if (!secret) { /* refuser / logger */ }
+```
+
+### 3. Comparaison de secrets en temps constant
+```typescript
+// ❌ INTERDIT : comparaison naive (timing attack)
+if (provided === secret) { ... }
+
+// ✅ OBLIGATOIRE : temps constant
+function timingSafeEqualStr(a, b) {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return result === 0;
+}
+```
+
+### 4. Toute donnée issue d'API externe doit être bornée
+```typescript
+// ✅ OBLIGATOIRE
+const cleanXp = rawXp.replace(/\D/g, "").slice(0, 15);
+const classe = rawClasse.slice(0, 50);
+```
+
+### 5. Vérifier l'appartenance à la guilde AVANT toute écriture
+```typescript
+// ✅ OBLIGATOIRE : la cible doit appartenir à la guilde du contexte
+const targetBelongsToGuild = await db.userProfile.findFirst({
+  where: { userId: targetUserId, guild: { discordGuildId: guildId } }
+});
+if (!user.isSuperAdmin && !targetBelongsToGuild) {
+  return { success: false, error: "Cible invalide pour cette guilde" };
+}
+```
 
 ---
 
@@ -100,6 +161,9 @@ logger.info('User authenticated', {
 - [ ] All new actions have auth checks
 - [ ] Sensitive routes have permission guards
 - [ ] No `console.log` in production code (use `logger` from `@/lib/logger`)
+- [ ] ⚠️ Drafts publics : `noindex`/`nofollow` ≠ contrôle d'accès. Le `noindex` empêche l'indexation mais **ne rend pas une URL privée** (toute personne connaissant l'URL peut lire le contenu). Ne jamais utiliser de draft `noindex` seul pour du contenu sensible, non annoncé, des données de guilde/utilisateurs, de la roadmap, des fonctionnalités non publiques ou de l'administratif. Pour ces contenus : auth de preview, Basic Auth Caddy, ou test strictement local.
+  - ✅ Acceptable : drafts de guides de contenu public non sensible, pour relecture temporaire.
+  - ❌ Interdit : tout autre usage de draft `noindex` comme protection d'accès.
 
 ---
 
@@ -256,3 +320,41 @@ Le script `maintenance.sh` tourne chaque nuit à 4h00 pour purger les caches Doc
 - [.antigravity](./.antigravity) - Full project context
 - [SECURITY.md](./SECURITY.md) - Security policy
 - [README.md](./README.md) - Project overview
+
+## 🌐 Convention Proxy (Next 16) — Non-Négociable
+
+Sur Next 16, le proxy de routage doit être **`src/proxy.ts`** (pas `src/middleware.ts`). La convention `middleware.ts` force le runtime Edge qui **inline `process.env.*` au build** → en prod les variables d'env du serveur (ex: `GOD_ROUTE`, `AUTH_SECRET`) sont invisibles au runtime. `proxy.ts` tourne toujours en Node.js et lit `process.env` au runtime.
+
+```bash
+# ❌ INTERDIT : src/middleware.ts (Edge runtime, env inlinés au build)
+# ✅ OBLIGATOIRE : src/proxy.ts (Node runtime, process.env lu au runtime)
+```
+
+---
+
+## ⏱️ Rate Limiting
+
+| Rule | Implementation |
+|------|----------------|
+| **Server Actions publiques** | Limiter les appels par `userId` + `guildId` (ex: 1 requête / 500ms) |
+| **Actions d'écriture (mutations)** | Rate limit plus strict que les lectures (ex: 10 mutations/min par user) |
+| **Endpoints exposés aux membres** | Toujours throttle avant d'atteindre la DB, jamais après |
+| **Stockage des compteurs** | Utiliser un store léger (Redis/Upstash ou table `RateLimit` en DB) — pas de variable en mémoire process (perdue au redeploy) |
+| **Réponse en cas de dépassement** | Retourner `429` avec un message clair, jamais un crash silencieux |
+
+### Pattern recommandé (Server Action)
+
+```typescript
+import { checkRateLimit } from "@/lib/rate-limit";
+
+const allowed = await checkRateLimit(userId, "quest:toggle", { max: 10, windowMs: 60_000 });
+if (!allowed) {
+  return { success: false, error: "Trop de requêtes, réessaie dans quelques secondes" };
+}
+```
+
+### Cas d'usage prioritaires dans SigilOS
+
+- **Module Rush Sylvestre** : cochage/décochage de quêtes par un membre (évite le spam de clics qui surcharge la sync temps réel de `GuildStatusPanel`)
+- **Discord Bot Actions** : toute action déclenchée depuis Discord doit être throttle côté serveur, pas seulement côté bot
+- **GOD Dashboard** : rate limit strict sur les actions super-admin, même si rares, pour tracer toute anomalie de comportement

@@ -39,6 +39,7 @@ import { type MissionCategory, type MissionPayload } from "@/types/missions";
 
 import { analyzeImageSafety } from "@/lib/safety-client";
 import { MemberSelector } from "./member-selector"; // Import MemberSelector
+import { Honeypot } from "@/components/shared/honeypot";
 
 interface ProofUploadDialogProps {
     open: boolean;
@@ -107,11 +108,18 @@ export function ProofUploadDialog({
 
         if (preview) URL.revokeObjectURL(preview);
 
-        // --- Added: NSFW/Safety Check ---
+        // 1. Aperçu IMMÉDIAT — pas d'attente invisible (le filtre tourne en arrière-plan)
+        setFile(selectedFile);
+        setPreview(URL.createObjectURL(selectedFile));
+        setError(null);
         setIsCheckingSafety(true);
+
+        // 2. NSFW/Safety Check (borné 6s côté client, non bloquant pour l'UX)
         try {
             const safety = await analyzeImageSafety(selectedFile);
             if (!safety.isSafe) {
+                setFile(null);
+                setPreview(null);
                 toast.error("INFRACTION DÉTECTÉE : Contenu inapproprié.", {
                     description: "Ce type de contenu est strictement interdit sur la plateforme. L'incident a été enregistré.",
                     duration: 8000,
@@ -122,7 +130,7 @@ export function ProofUploadDialog({
                     }
                 });
 
-                // Logging the incident
+                // Logging the incident (côté guilde)
                 reportSecurityIncident(
                     guildId,
                     "NSFW_ATTEMPT",
@@ -137,17 +145,27 @@ export function ProofUploadDialog({
                     }
                 ).catch((err: Error) => console.error("Failed to log incident", err));
 
+                // 🔐 Alerte God (côté plateforme)
+                try {
+                    const { notifyGod } = await import("@/server/actions/god-notif-actions");
+                    await notifyGod({
+                        title: "🚫 Upload NSFW bloqué",
+                        message: `Tentative NSFW sur la mission « ${missionTitle} » (fichier: ${selectedFile.name}).`,
+                        type: "SECURITY_ALERT",
+                        success: false,
+                        metadata: { guildId, missionTitle },
+                    });
+                } catch { /* best-effort */ }
+
                 resetState();
                 onOpenChange(false);
                 return;
             }
+            if (safety.warning) toast.warning(safety.warning);
         } finally {
             setIsCheckingSafety(false);
         }
 
-        setFile(selectedFile);
-        setPreview(URL.createObjectURL(selectedFile));
-        setError(null);
         setOcrResult(null);
     };
 
@@ -180,6 +198,12 @@ export function ProofUploadDialog({
         return () => window.removeEventListener("paste", handlePaste);
     }, [open]);
 
+    // Pré-charge le modèle NSFWJS dès l'ouverture → le 1er collage est instantané
+    useEffect(() => {
+        if (!open) return;
+        import("@/lib/safety-client").then(({ warmUpSafetyModel }) => warmUpSafetyModel()).catch(() => {});
+    }, [open]);
+
 
     const handleUpload = async () => {
         if (!file) return;
@@ -203,7 +227,11 @@ export function ProofUploadDialog({
 
             // 1. Submit to server action (which handles OCR + Storage)
             setState("uploading");
-            const result = await submitMissionProof(missionId, compressedDataUrl, helperIds); // Pass helperIds
+            
+            // 🍯 Honeypot check
+            const hpValue = (document.getElementById("hp_ignore_field") as HTMLInputElement)?.value;
+            
+            const result = await submitMissionProof(missionId, compressedDataUrl, helperIds, hpValue); // Pass helperIds + Honeypot
 
             if (!result.success) {
                 throw new Error(result.error || "Échec de la soumission");
@@ -246,81 +274,97 @@ export function ProofUploadDialog({
 
     return (
         <Dialog open={open} onOpenChange={handleClose}>
-            <DialogContent className="sm:max-w-lg bg-slate-950 border-slate-800">
+            <DialogContent className="sm:max-w-lg bg-background border-border">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                        <Upload className="w-5 h-5 text-indigo-400" />
+                        <Upload className="w-5 h-5 text-info" />
                         Soumettre une preuve
                     </DialogTitle>
-                    <DialogDescription className="text-slate-400">
+                    <DialogDescription className="text-muted-foreground">
                         {missionTitle}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4">
-                    {/* Drop Zone */}
-                    {!preview && state === "idle" && (
-                        <div className="space-y-4">
-                            {/* HELPER SELECTION (Only visible before upload) */}
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
-                                    <Users className="w-4 h-4 text-indigo-400" />
-                                    Contributeurs (Optionnel)
-                                </label>
-                                <MemberSelector
-                                    guildId={guildId}
-                                    selectedIds={helperIds}
-                                    onSelect={setHelperIds}
-                                    maxSelection={7}
-                                />
-                                <p className="text-[10px] text-slate-500">
-                                    Sélectionnez les membres qui vous ont aidé. Ils recevront des points de contribution à la validation.
-                                </p>
+                    <Honeypot />
+                    {/* ═══════════════════════════════════════ */}
+                    {/* CONTRIBUTOR SECTION — Always visible in idle/preview */}
+                    {/* ═══════════════════════════════════════ */}
+                    {(state === "idle") && (
+                        <div className="relative rounded-xl border border-warning/40 bg-gradient-to-br from-warning/40 via-warning/20 to-surface/60 p-4 space-y-3 ">
+                            {/* Glow accent */}
+                            <div className="absolute -top-px left-6 right-6 h-px bg-gradient-to-r from-transparent via-warning/60 to-transparent" />
+
+                            <div className="flex items-start gap-3">
+                                <div className="mt-0.5 p-2 rounded-lg bg-warning/20 border border-warning/30 shrink-0">
+                                    <Users className="w-5 h-5 text-warning" />
+                                </div>
+                                <div className="flex-1 min-w-0 space-y-1">
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-sm font-black text-warning uppercase tracking-wider">Contributeurs</h3>
+                                        <span className="text-caption font-bold px-2 py-0.5 rounded-full bg-warning/20 text-warning border border-warning/30">OPTIONNEL</span>
+                                    </div>
+                                    <p className="text-xs text-warning/80 leading-relaxed">
+                                        Ils vous ont aidé ? Sélectionnez-les — ils recevront{" "}
+                                        <span className="font-black text-warning">des points de contribution</span>{" "}
+                                        dès validation de votre preuve !
+                                    </p>
+                                </div>
                             </div>
 
-                            <div
-                                className={cn(
-                                    "relative border-2 border-dashed border-slate-700 rounded-lg p-8 text-center transition-colors",
-                                    isCheckingSafety ? "opacity-50 cursor-wait" : "hover:border-indigo-500/50 hover:bg-indigo-500/5"
-                                )}
-                                onDrop={handleDrop}
-                                onDragOver={(e) => e.preventDefault()}
-                            >
-                                <ImageIcon className="w-12 h-12 mx-auto text-slate-600 mb-4" />
-                                <p className="text-sm text-slate-400 mb-2">
-                                    Glissez votre screenshot ici, coller (CTRL+V) ou{" "}
-                                    <button
-                                        type="button"
-                                        onClick={() => !isCheckingSafety && fileInputRef.current?.click()}
-                                        className="text-indigo-400 hover:text-indigo-300 font-medium hover:underline focus:outline-none"
-                                    >
-                                        cliquez pour sélectionner
-                                    </button>
-                                </p>
-                                <p className="text-xs text-slate-500">
-                                    PNG, JPEG, WebP ou GIF • Max 10MB
-                                </p>
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept="image/png,image/jpeg,image/webp,image/gif"
-                                    className="hidden"
-                                    onChange={handleFileSelect}
-                                    disabled={isCheckingSafety}
-                                />
-                                {isCheckingSafety && (
-                                    <div className="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center gap-3 z-10 rounded-lg">
-                                        <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
-                                        <p className="text-sm text-slate-300">Vérification de sécurité...</p>
-                                    </div>
-                                )}
-                            </div>
+                            <MemberSelector
+                                guildId={guildId}
+                                selectedIds={helperIds}
+                                onSelect={setHelperIds}
+                                maxSelection={7}
+                            />
+                        </div>
+                    )}
+
+                    {/* Drop Zone */}
+                    {!preview && state === "idle" && (
+                        <div
+                            className={cn(
+                                "relative border-2 border-dashed border-border rounded-lg p-8 text-center transition-colors",
+                                isCheckingSafety ? "opacity-50 cursor-wait" : "hover:border-info/50 hover:bg-info/5"
+                            )}
+                            onDrop={handleDrop}
+                            onDragOver={(e) => e.preventDefault()}
+                        >
+                            <ImageIcon className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                            <p className="text-sm text-muted-foreground mb-2">
+                                Glissez votre screenshot ici, coller (CTRL+V) ou{" "}
+                                <button
+                                    type="button"
+                                    onClick={() => !isCheckingSafety && fileInputRef.current?.click()}
+                                    className="text-info hover:text-info font-medium hover:underline focus:outline-none"
+                                >
+                                    cliquez pour sélectionner
+                                </button>
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                PNG, JPEG, WebP ou GIF • Max 10MB
+                            </p>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp,image/gif"
+                                className="hidden"
+                                onChange={handleFileSelect}
+                                disabled={isCheckingSafety}
+                            />
+                            {isCheckingSafety && (
+                                <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center gap-3 z-10 rounded-lg">
+                                    <Loader2 className="w-8 h-8 animate-spin text-info" />
+                                    <p className="text-sm text-foreground">Vérification de sécurité...</p>
+                                </div>
+                            )}
                         </div>
                     )}
 
                     {/* Preview */}
                     {preview && (
-                        <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-black">
+                        <div className="relative rounded-lg overflow-hidden border border-border bg-background">
                             <Image
                                 src={preview}
                                 alt="Preview"
@@ -332,17 +376,17 @@ export function ProofUploadDialog({
                             {state === "idle" && (
                                 <button
                                     onClick={resetState}
-                                    className="absolute top-2 right-2 p-1.5 bg-red-500/80 rounded-full hover:bg-red-500 transition-colors"
+                                    className="absolute top-2 right-2 p-1.5 bg-danger/80 rounded-full hover:bg-danger transition-colors"
                                 >
-                                    <X className="w-4 h-4 text-white" />
+                                    <X className="w-4 h-4 text-foreground" />
                                 </button>
                             )}
 
                             {/* Analyzing overlay with progress */}
                             {state === "analyzing" && (
                                 <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-3">
-                                    <Eye className="w-8 h-8 text-indigo-400 animate-pulse" />
-                                    <p className="text-xs text-slate-500">Processing...</p>
+                                    <Eye className="w-8 h-8 text-info animate-pulse" />
+                                    <p className="text-xs text-muted-foreground">Processing...</p>
 
                                 </div>
                             )}
@@ -351,8 +395,8 @@ export function ProofUploadDialog({
                             {state === "uploading" && (
                                 <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
                                     <div className="text-center">
-                                        <Loader2 className="w-8 h-8 animate-spin text-indigo-400 mx-auto mb-2" />
-                                        <p className="text-sm text-slate-300">Upload en cours...</p>
+                                        <Loader2 className="w-8 h-8 animate-spin text-info mx-auto mb-2" />
+                                        <p className="text-sm text-foreground">Upload en cours...</p>
                                     </div>
                                 </div>
                             )}
@@ -361,8 +405,8 @@ export function ProofUploadDialog({
                             {state === "success" && (
                                 <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
                                     <div className="text-center">
-                                        <Clock className="w-12 h-12 text-amber-400 mx-auto mb-2" />
-                                        <p className="text-sm text-amber-300 font-medium">Envoyée à la modération</p>
+                                        <Clock className="w-12 h-12 text-warning mx-auto mb-2" />
+                                        <p className="text-sm text-warning font-medium">Envoyée à la modération</p>
                                     </div>
                                 </div>
                             )}
@@ -372,7 +416,7 @@ export function ProofUploadDialog({
 
                     {/* Error State */}
                     {error && (
-                        <div className="bg-red-500/10 text-red-400 text-sm p-3 rounded-lg border border-red-500/20 flex items-center gap-2">
+                        <div className="bg-danger/10 text-danger text-sm p-3 rounded-lg border border-danger/20 flex items-center gap-2">
                             <XCircle className="w-4 h-4 shrink-0" />
                             {error}
                         </div>
@@ -387,7 +431,7 @@ export function ProofUploadDialog({
                             </Button>
                             {/* Allow cancelling for simple UX even if validated - user might have made mistake */}
                             <Button
-                                variant="destructive"
+                                variant="sigil-destructive"
                                 disabled={isPending}
                                 onClick={() => {
                                     startTransition(async () => {
@@ -418,7 +462,8 @@ export function ProofUploadDialog({
                             <Button
                                 onClick={handleUpload}
                                 disabled={!file || isProcessing}
-                                className="bg-indigo-600 hover:bg-indigo-500"
+                                variant="sigil-emerald"
+                                className="h-10 px-6"
                             >
                                 {state === "analyzing" ? (
                                     <>

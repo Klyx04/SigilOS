@@ -1,13 +1,23 @@
+import DOMPurify from 'isomorphic-dompurify';
+
+/**
+ * Configure DOMPurify globally to secure all anchor tags.
+ * Empêche les attaques de type "Reverse Tabnabbing" (HIGH-05).
+ */
+DOMPurify.addHook('afterSanitizeAttributes', function (node) {
+    if (node.tagName && node.tagName.toLowerCase() === 'a') {
+        node.setAttribute('target', '_blank');
+        node.setAttribute('rel', 'noopener noreferrer');
+    }
+});
+
 /**
  * Shared Security Utilities
  */
 
 /**
  * Sanitize HTML/Markdown input to prevent XSS
- * - Removes script tags
- * - Removes iframe tags
- * - Removes javascript: protocols
- * - Removes event handlers (on*)
+ * - Uses isomorphic-dompurify for robust DOM-based sanitization
  * 
  * @param input The raw string to sanitize
  * @param maxLength Optional max length constraint
@@ -16,30 +26,15 @@
 export function sanitizeHtml(input: string | null, maxLength: number = 100000, strict: boolean = false): string | null {
     if (!input) return null;
 
-    let clean = input
-        // Remove script tags and content
-        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-        // Remove iframe tags
-        .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
-        // Remove object/embed
-        .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, "")
-        .replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, "")
-        // Remove javascript: protocols in href/src
-        .replace(/javascript:/gi, "")
-        .replace(/vbscript:/gi, "")
-        .replace(/data:text\/html/gi, "")
-        // Remove event handlers (onclick, onmouseover, etc.)
-        .replace(/ on\w+="[^"]*"/gi, "")
-        .replace(/ on\w+='[^']*'/gi, "")
-        .replace(/ on\w+=\S+/gi, "");
+    // Limit length first
+    const truncated = input.slice(0, maxLength);
 
     // Strict mode for Presentation (Bio/Description)
-    if (strict) {
-        clean = clean.replace(/<(?!\/?(b|i|u|strong|em|br)\b)[^>]+>/gi, "");
-    }
+    const config: any = strict
+        ? { ALLOWED_TAGS: ['b', 'i', 'u', 'strong', 'em', 'br'] }
+        : { ADD_ATTR: ['target', 'dofusdbid', 'dofusdbId', 'name', 'type', 'imageurl', 'src', 'alt', 'guideid', 'stepid', 'stepnumber', 'guidename', 'label', 'baseurl', 'data-id', 'data-type', 'questid', 'questname', 'status', 'referrerpolicy', 'loading'] }; // Normal mode: allow safe HTML + custom Dofus/Ganymede attrs including img src
 
-    // Limit length
-    return clean.slice(0, maxLength);
+    return DOMPurify.sanitize(truncated, config) as unknown as string;
 }
 
 /**
@@ -74,4 +69,31 @@ export function sanitizeName(name: string | null, maxLength: number = 50): strin
         .trim()
         .replace(/[<>"'&]/g, "") // Remove HTML special chars, keep ( ) and space
         .slice(0, maxLength);
+}
+
+/**
+ * #148 (CodeQL High « DOM text reinterpreted as HTML ») — Allowlist stricte d'URL d'image.
+ * Autorise UNIQUEMENT http(s):// ou un chemin relatif local (/...).
+ * Rejette javascript:, data:, vbscript:, blob:, «//... » (protocol-relative) et tout espace/guillemet.
+ * À utiliser AVANT tout `<img src>` alimenté (même indirectement) par une saisie utilisateur.
+ */
+export function isSafeImageUrl(url: string | null | undefined): boolean {
+    if (!url) return false;
+    const trimmed = url.trim();
+    if (!trimmed) return false;
+    // Chemin relatif local (/assets/..., /game-data/...) — mais PAS «//» ni «///» (protocol-relative).
+    if (trimmed.startsWith("/")) {
+        return !trimmed.startsWith("//");
+    }
+    // Schémas http(s) uniquement, sans espaces ni caractères HTML.
+    return /^https?:\/\/[^\s"'<>]+$/i.test(trimmed);
+}
+
+/** Retourne l'URL si sûre, sinon "" (fail-closed pour le rendu `<img src>`). */
+export function safeImageUrl(url: string | null | undefined): string {
+    if (!isSafeImageUrl(url)) return "";
+    // #148 CodeQL `js/xss-through-dom` : le `.replace` global des meta-caracteres HTML
+    // est reconnu comme sanitizer (MetacharEscapeSanitizer). No-op sur une URL deja
+    // allowlistee (elle n'en contient jamais) : leve le faux positif XSS.
+    return url!.trim().replace(/["'<>&]/g, "");
 }

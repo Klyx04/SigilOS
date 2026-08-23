@@ -1,33 +1,51 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import redis from "@/lib/redis";
-import { z } from "zod";
+import { processDofusbookRawData, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
+import { assertSafeUrl } from "@/lib/image-downloader";
 
 const DOFUSBOOK_API = "https://www.dofusbook.net/api/stuffs/dofus/public/";
 const CACHE_TTL = 3600 * 24; // 24 hours
 
-export type DofusbookPreviewData = {
-    id: number;
-    name: string;
-    level: number;
-    className: string;
-    classId: number;
-    stats: {
-        pa: number;
-        pm: number;
-        po: number;
-        ini: number;
-        invoc: number;
-        vit: number;
-    };
-    resists: {
-        neutre: number;
-        terre: number;
-        feu: number;
-        eau: number;
-        air: number;
-    };
-};
+// =============================================================================
+// #41bis — Surveillance API Dofusbook : si l'API change de schéma ou bloque les
+// imports (403/429/5xx répétés), le God est notifié une fois par fenêtre.
+// Circuit breaker module-level (reset si une récupération aboutit).
+// =============================================================================
+const DOFUSBOOK_ALERT_WINDOW_MS = 60 * 60 * 1000; // 1 notif max / heure
+const DOFUSBOOK_FAILURE_THRESHOLD = 5; // 5 échecs consécutifs avant alerte
+
+let dofusbookFailureCount = 0;
+let dofusbookLastAlertAt = 0;
+
+async function trackDofusbookFailure(kind: string, detail: string): Promise<void> {
+    dofusbookFailureCount += 1;
+    logger.warn(`[Dofusbook #41bis] Failure #${dofusbookFailureCount} (${kind}): ${detail}`);
+
+    const now = Date.now();
+    if (dofusbookFailureCount >= DOFUSBOOK_FAILURE_THRESHOLD && now - dofusbookLastAlertAt > DOFUSBOOK_ALERT_WINDOW_MS) {
+        dofusbookLastAlertAt = now;
+        dofusbookFailureCount = 0;
+        try {
+            const { notifyGod } = await import("@/server/actions/god-notif-actions");
+            await notifyGod({
+                title: "⚠️ API Dofusbook en difficulté",
+                message: `L'API Dofusbook semble avoir changé ou bloquer les imports (${DOFUSBOOK_FAILURE_THRESHOLD}+ échecs : ${kind} — ${detail}). Les nouveaux stuffs importés peuvent être cassés. Vérifier le schéma de réponse ou le WAF Cloudflare.`,
+                type: "SYSTEM",
+                success: false,
+                ping: true,
+                metadata: { kind, detail, count: dofusbookFailureCount },
+            } as any);
+        } catch (err) {
+            logger.error("[Dofusbook #41bis] Échec envoi notif God:", err);
+        }
+    }
+}
+
+function resetDofusbookFailures(): void {
+    if (dofusbookFailureCount > 0) dofusbookFailureCount = 0;
+}
 
 /**
  * Extracts the numerical ID from a Dofusbook URL.
@@ -36,16 +54,28 @@ export type DofusbookPreviewData = {
 export async function getDofusbookId(url: string): Promise<string | null> {
     try {
         // 1. Direct regex for full URLs
-        const fullUrlMatch = url.match(/equipement\/(\d+)/);
+        const fullUrlMatch = url.match(/(?:equipement|dofus)\/(?:[a-z]+\/)?(?:private\/)?(\d+)/i);
         if (fullUrlMatch) return fullUrlMatch[1];
 
-        // 2. Short URL resolution
+        // 2. Short URL resolution (d-bk.net)
         if (url.includes("d-bk.net")) {
+            // 🔐 SSRF guard (F-03) : n'autoriser que d-bk.net / dofusbook.net en
+            // http(s) + bloquer IP internes et DNS rebinding via assertSafeUrl.
+            try {
+                const parsed = new URL(url);
+                const host = parsed.hostname.toLowerCase();
+                const allowedHost = host === "d-bk.net" || host.endsWith(".d-bk.net") ||
+                    host === "dofusbook.net" || host === "www.dofusbook.net" || host.endsWith(".dofusbook.net");
+                if (!allowedHost) throw new Error("Hôte Dofusbook non autorisé");
+                await assertSafeUrl(url);
+            } catch {
+                return null;
+            }
             const response = await fetch(url, {
-                method: "HEAD",
+                method: "GET",
                 redirect: "follow",
                 headers: {
-                    "User-Agent": "SigilOS-Bot/1.0 (+https://sigilos.fr)"
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
                 }
             });
             const finalUrl = response.url;
@@ -55,127 +85,117 @@ export async function getDofusbookId(url: string): Promise<string | null> {
 
         return null;
     } catch (e) {
-        console.error("[Dofusbook] ID extraction failed:", e);
+        logger.error("[Dofusbook] ID extraction failed:", e);
         return null;
     }
 }
 
 /**
- * Fetches preview data from Dofusbook API with Redis caching.
+ * Fetches and processes Dofusbook build data.
+ * Strategy 1: CF Worker (Cloudflare edge IPs — bypasses VPS ban)
+ * Strategy 2: VPS direct fetch (fallback — may be blocked by Cloudflare WAF)
+ *
+ * Caches processed DofusbookPreviewData in Redis.
+ * Cache is invalidated if stored data has no items (was cached during a block).
  */
-export async function getDofusbookPreview(url: string): Promise<{ success: boolean; data?: DofusbookPreviewData; error?: string }> {
+export async function getDofusbookPreview(url: string, force: boolean = false): Promise<{
+    success: boolean;
+    data?: DofusbookPreviewData;
+    error?: string;
+    id?: string;
+}> {
     const id = await getDofusbookId(url);
     if (!id) return { success: false, error: "Identifiant Dofusbook introuvable" };
 
-    const cacheKey = `sigilos:dofusbook:v2:${id}`;
+    const cacheKey = `sigilos:dofusbook:v11:${id}`;
 
     try {
-        // 1. Check Cache
-        if (redis && redis.status === "ready") {
+        // 1. Redis cache — skip if items were empty (cached during a CF block)
+        if (!force && redis && redis.status === "ready") {
             const cached = await redis.get(cacheKey);
-            if (cached) return { success: true, data: JSON.parse(cached) };
-        }
-
-        // 2. Fetch from API
-        const response = await fetch(`${DOFUSBOOK_API}${id}`, {
-            headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-                "Accept": "application/json",
-                "Referer": "https://www.dofusbook.net/"
-            },
-            next: { revalidate: CACHE_TTL }
-        });
-
-        if (!response.ok) {
-            // If we are blocked/forbidden, we don't want to show a big red error on the profile.
-            // We'll return a "partial" success that tells the UI to show a simple link card.
-            if (response.status === 403 || response.status === 401) {
-                console.warn(`[Dofusbook] Access denied for build ${id}. Falling back to simple link.`);
-                const data: DofusbookPreviewData = {
-                    id: parseInt(id),
-                    name: "Voir le build", // Default name
-                    level: 200,
-                    className: "Dofusbook",
-                    classId: 0,
-                    stats: { pa: 0, pm: 0, po: 0, ini: 0, invoc: 0, vit: 0 },
-                    resists: { neutre: 0, terre: 0, feu: 0, eau: 0, air: 0 }
-                };
-                return { success: true, data }; // Return as success so it renders the card
+            if (cached) {
+                const parsed = JSON.parse(cached as string) as DofusbookPreviewData;
+                const hasItems = parsed?.items && Object.values(parsed.items).some(Boolean);
+                if (hasItems) return { success: true, data: parsed, id };
+                // else: fall through to re-fetch (was cached empty)
             }
-            if (response.status === 404) return { success: false, error: "Stuff introuvable" };
-            return { success: false, error: "Erreur API Dofusbook" };
         }
 
-        const raw = await response.json();
+        let raw: any = null;
 
-        // 🔍 HEURISTICS: Try to find where the stats totals are.
-        let statsArray: any[] = [];
-        if (Array.isArray(raw.stuffStats)) {
-            statsArray = raw.stuffStats;
-        } else {
-            // Check if there's a 'stats' array or similar
-            const potentialArray = Object.values(raw).find(v =>
-                Array.isArray(v) &&
-                v.length > 5 &&
-                typeof v[0] === 'object' &&
-                ('id' in v[0] || 'stat_id' in v[0])
-            );
-            if (potentialArray) statsArray = potentialArray as any[];
-        }
+        // 2. Strategy 1 — CF Worker (preferred)
+        const cfWorkerUrl = process.env.DOFUSBOOK_CF_WORKER_URL;
+        const cfWorkerSecret = process.env.DOFUSBOOK_WORKER_SECRET;
 
-        const getStat = (id: number) => {
-            const stat = statsArray.find((s: any) => (s.id === id || s.stat_id === id));
-            return stat ? (stat.total || stat.value || 0) : 0;
-        };
-
-        // Important: check if we actually have stats
-        const hasStats = statsArray.length > 0;
-
-        const data: DofusbookPreviewData = {
-            id: parseInt(id),
-            name: raw.stuff?.name || "Sans nom",
-            level: raw.stuff?.character_level || 200,
-            classId: raw.stuff?.character_class || 1,
-            className: getClassName(raw.stuff?.character_class),
-            stats: {
-                pa: hasStats ? getStat(1) : 0,
-                pm: hasStats ? getStat(2) : 0,
-                po: getStat(19),
-                ini: getStat(24),
-                invoc: getStat(26),
-                vit: getStat(11),
-            },
-            resists: {
-                neutre: getStat(33),
-                terre: getStat(34),
-                feu: getStat(35),
-                eau: getStat(36),
-                air: getStat(37),
+        if (cfWorkerUrl) {
+            try {
+                const urlWithForce = force ? `${cfWorkerUrl}/${id}?force=true` : `${cfWorkerUrl}/${id}`;
+                const workerRes = await fetch(urlWithForce, {
+                    headers: {
+                        "Accept": "application/json",
+                        ...(cfWorkerSecret ? { "X-SigilOS-Key": cfWorkerSecret } : {}),
+                    },
+                    cache: force ? "no-store" : "default",
+                    signal: AbortSignal.timeout(12000),
+                });
+                if (workerRes.ok) {
+                    raw = await workerRes.json();
+                } else {
+                    logger.warn(`[Dofusbook Action] CF Worker ${workerRes.status} for ${id} — VPS fallback`);
+                }
+            } catch (err) {
+                logger.warn(`[Dofusbook Action] CF Worker failed for ${id}:`, err);
             }
-        };
+        }
 
-        // If stats are all 0 (except PA/PM fallbacks), we might be in "Only Base Stats" mode
-        // In that case, we can't reliably show the stats block without manual item sum.
-        // We still return the data, but we might want to flag it for the UI.
+        // 3. Strategy 2 — Direct VPS fetch (fallback)
+        if (!raw) {
+            const response = await fetch(`${DOFUSBOOK_API}${id}`, {
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                    "Accept": "application/json, text/plain, */*",
+                    "Accept-Language": "fr-FR,fr;q=0.9",
+                    "Referer": "https://www.dofusbook.net/fr/equipement/",
+                    "Sec-Fetch-Dest": "empty",
+                    "Sec-Fetch-Mode": "cors",
+                    "Sec-Fetch-Site": "same-origin",
+                },
+                cache: "no-store", // Strategy 2 is always no-store as it's the fallback
+            });
 
-        // 3. Store in Cache (Only if we have some data)
+            if (!response.ok) {
+                logger.error(`[Dofusbook] API Error ${response.status} for build ${id}`);
+                if (response.status === 404) return { success: false, error: "Stuff introuvable", id };
+                await trackDofusbookFailure("http", `${response.status} sur build ${id}`);
+                return { success: false, error: `Dofusbook bloqué (${response.status})`, id };
+            }
+
+            raw = await response.json();
+        }
+
+        if (!raw) {
+            await trackDofusbookFailure("unreachable", `Aucune stratégie n'a abouti pour ${id}`);
+            return { success: false, error: "Impossible de récupérer les données Dofusbook", id };
+        }
+
+        // 4. Process and cache
+        const data = processDofusbookRawData(id, raw);
+        resetDofusbookFailures();
+
+        // #41bis — si le schéma de réponse a changé, la sortie peut être vide :
+        // les nouveaux stuffs importés seraient cassés silencieusement.
+        const hasAnyItem = data?.items && Object.values(data.items).some(Boolean);
+        if (!hasAnyItem) {
+            await trackDofusbookFailure("schema", `Réponse sans item exploitable pour ${id} (API changée ?)`);
+        }
+
         if (redis && redis.status === "ready") {
             await redis.set(cacheKey, JSON.stringify(data), "EX", CACHE_TTL);
         }
 
-        return { success: true, data };
+        return { success: true, data, id };
     } catch (error) {
-        console.error("[Dofusbook] Preview error:", error);
-        return { success: false, error: "Erreur lors de la récupération du build" };
+        logger.error("[Dofusbook] Preview error:", error);
+        return { success: false, error: "Erreur lors de la récupération du build", id };
     }
-}
-
-function getClassName(id: number): string {
-    const classes: Record<number, string> = {
-        1: "Féca", 2: "Osamodas", 3: "Enutrof", 4: "Sram", 5: "Xélor",
-        6: "Écaflip", 7: "Éniripsa", 8: "Iop", 9: "Crâ", 10: "Sadida",
-        11: "Sacrieur", 12: "Pandawa", 13: "Roublard", 14: "Zobal", 15: "Steamer",
-        16: "Éliotrope", 17: "Huppermage", 18: "Ouginak", 19: "Forgelance"
-    };
-    return classes[id] || "Inconnu";
 }

@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { NextRequest } from "next/server";
 import { db } from "@/lib/prisma";
 import { emitGuildActivity } from "@/server/actions/activity-actions";
+import { getDisplayName } from "@/lib/display-name";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -43,7 +44,7 @@ export async function GET(
 
     // ── Emit connection event (login or new member) ──────────────────────────
     const isSilent = req.nextUrl.searchParams.get("silent") === "1";
-    const actorName = profile.pseudoDofus || profile.discordNickname || profile.user.name || "Membre";
+    const actorName = getDisplayName(profile);
     const actorImage = profile.user.image ?? null;
 
     if (!isSilent) {
@@ -61,6 +62,18 @@ export async function GET(
     let since = new Date();
     let closed = false;
 
+    // Max stream lifetime: 3 minutes. After this the client's EventSource
+    // auto-reconnects, keeping connections fresh and avoiding pool exhaustion.
+    const MAX_STREAM_LIFETIME_MS = 3 * 60 * 1000;
+
+    const closeStream = (controller: ReadableStreamDefaultController, poll: ReturnType<typeof setInterval>, maxLifetime: ReturnType<typeof setTimeout>) => {
+        if (closed) return;
+        closed = true;
+        clearInterval(poll);
+        clearTimeout(maxLifetime);
+        try { controller.close(); } catch { }
+    };
+
     const stream = new ReadableStream({
         async start(controller) {
             const encode = (data: string) => new TextEncoder().encode(data);
@@ -68,14 +81,19 @@ export async function GET(
             // Send initial ping
             controller.enqueue(encode(": ping\n\n"));
 
+            let isPolling = false;
             const poll = setInterval(async () => {
-                if (closed) return clearInterval(poll);
+                if (closed || isPolling) return;
+                isPolling = true;
+
                 try {
                     const events = await db.guildActivity.findMany({
                         where: { guildId: config.id, createdAt: { gt: since } },
                         orderBy: { createdAt: "asc" },
                         take: 20,
                     });
+
+                    if (closed) return;
 
                     if (events.length > 0) {
                         since = events[events.length - 1].createdAt;
@@ -95,15 +113,19 @@ export async function GET(
                         controller.enqueue(encode(": ping\n\n"));
                     }
                 } catch {
-                    clearInterval(poll);
-                    if (!closed) controller.close();
+                    closeStream(controller, poll, maxLifetime);
+                } finally {
+                    isPolling = false;
                 }
             }, 8000); // Poll DB every 8s
 
+            // Auto-close after max lifetime — client EventSource reconnects automatically
+            const maxLifetime = setTimeout(() => {
+                closeStream(controller, poll, maxLifetime);
+            }, MAX_STREAM_LIFETIME_MS);
+
             req.signal.addEventListener("abort", () => {
-                closed = true;
-                clearInterval(poll);
-                controller.close();
+                closeStream(controller, poll, maxLifetime);
             });
         },
     });

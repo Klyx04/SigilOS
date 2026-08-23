@@ -16,7 +16,11 @@ import { deleteProofFile } from "@/lib/storage-utils";
 import { rateLimit } from "@/lib/ratelimit";
 import { withCache, invalidateCache } from "@/lib/cache";
 import { hashImage } from "@/lib/llm-ocr";
-import { createAuditLog } from "@/server/actions/audit-actions";
+import { logAction } from "@/server/actions/audit-actions";
+import { getDiscordPublicUrl } from "@/lib/storage-utils";
+import { getDofusWeek } from "@/lib/date-utils";
+import { getKamaStats } from "./kama-actions";
+import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
 
 
 // --- Types & Schemas ---
@@ -29,26 +33,26 @@ export type ActionResponse<T = any> = {
 
 
 const MissionSchema = z.object({
-    slotIndex: z.number().min(0).max(11),
+    slotIndex: z.number().min(0).max(19), // 0-11 classiques, 12-19 spéciales
     category: z.enum(["DONJON", "REGULATION", "ANOMALIE", "SONGES", "EXPEDITION", "EVENT"]),
     tier: z.number().min(1).max(5),
-    rank: z.number().min(1).max(4).default(1),
+    rank: z.number().min(1).max(5).default(1),
     xpReward: z.number().min(0).default(0),
     guildatonsReward: z.number().min(0).default(0),
     title: z.string().optional(),
     payload: z.record(z.any()),
-}).strict(); // Enforce NO extra fields (2026 Security)
+}); // No .strict() — extra fields from DB are ignored safely
 
 const CreateWeekSchema = z.object({
     guildId: z.string(),
     weekNumber: z.number().min(1).max(53),
     year: z.number().min(2025),
-    missions: z.array(MissionSchema).min(1).max(12),
+    missions: z.array(MissionSchema).min(1).max(20), // up to 12 classiques + 8 spéciales
     updateGuildTier: z.number().min(1).max(5).optional(),
     notifyMembers: z.boolean().optional(),
 }).strict();
 
-async function notifyValidators(guildId: string, title: string, message: string, link?: string): Promise<string | undefined> {
+async function notifyValidators(guildId: string, title: string, message: string, link?: string, proofUrl?: string, submissionId?: string): Promise<string | undefined> {
     try {
         const guild = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
@@ -66,21 +70,41 @@ async function notifyValidators(guildId: string, title: string, message: string,
         // Priority: validation channel > notification channel
         const discordChannelId = guild.missionValidationChannelId || guild.missionNotifyChannelId;
         const mentionRole = guild.missionValidationNotifyRoleId;
-        const content = mentionRole ? (mentionRole === "everyone" ? "@everyone" : `<@&${mentionRole}>`) : "";
+        const content = mentionRole ? (mentionRole === "everyone" ? "Bonjour @everyone !" : `Bonjour <@&${mentionRole}> !`) : "Bonjour le Staff !";
 
         let resultDiscordId: string | undefined = undefined;
         if (discordChannelId) {
             try {
                 const { sendChannelMessage } = await import("@/server/discord");
                 const absoluteLink = link ? `${process.env.NEXT_PUBLIC_APP_URL}${link}` : undefined;
+                const absoluteImageUrl = getDiscordPublicUrl(proofUrl);
 
-                // Compact validation alert
-                const messageId = await sendChannelMessage(discordChannelId, content, {
+                // Compact validation alert with proof screenshot + action buttons
+                const messageId = await sendChannelMessage(discordChannelId, "", {
+                    mentionContent: content,
                     embedTitle: "🎯 Nouvelle Mission à Valider",
                     embedDescription: message,
                     embedColor: 0x9333ea, // Purple
                     embedUrl: absoluteLink,
-                    embedFooter: "Système de Validation SigilOS",
+                    embedImage: absoluteImageUrl,
+                    embedFooter: "SigilOS • Système de Validation",
+                    components: submissionId ? [
+                        {
+                            type: 1, // Action Row
+                            components: [
+                                {
+                                    type: 2, style: 3,
+                                    label: "✅ Valider",
+                                    custom_id: `validate:mission:${submissionId}:${guildId}`,
+                                },
+                                {
+                                    type: 2, style: 4,
+                                    label: "❌ Rejeter",
+                                    custom_id: `validate:mission_reject:${submissionId}:${guildId}`,
+                                },
+                            ],
+                        },
+                    ] : undefined,
                 });
 
                 if (messageId) {
@@ -94,7 +118,7 @@ async function notifyValidators(guildId: string, title: string, message: string,
         // 1. Find all users in this guild with "MISSIONS_VALIDATE" permission
         // We first get the guild's roles mapping to see which roles have this perm
         const { getGuildAdminsWithPermission } = await import("@/server/actions/admin-actions");
-        const validators = await getGuildAdminsWithPermission(guildId, PERMISSIONS.MISSIONS_VALIDATE);
+        const validators = await getGuildAdminsWithPermission(guildId, PERMISSIONS.MISSIONS_OFFICER);
 
         if (validators.length === 0) {
             logger.warn(`[Notification] No validators found for guild ${guildId}`);
@@ -135,11 +159,14 @@ export async function createWeekMissions(
 
     // 1. Validation
     const validation = CreateWeekSchema.safeParse(rawData);
-    if (!validation.success) return { success: false, error: "Invalid Data" };
+    if (!validation.success) {
+        logger.error("createWeekMissions - Zod validation failed", { errors: validation.error.flatten() });
+        return { success: false, error: "Invalid Data: " + JSON.stringify(validation.error.flatten().fieldErrors) };
+    }
     const data = validation.data;
 
     // 2. Auth & Permission
-    const guard = await checkGuildPermission(session, data.guildId, PERMISSIONS.MISSIONS_CREATE);
+    const guard = await checkGuildPermission(session, data.guildId, PERMISSIONS.MISSIONS_OFFICER);
     if (!guard.allowed) {
         logger.error("createWeekMissions - Permission denied", { error: guard.error, guildId: data.guildId, userId: session?.user?.id });
         return { success: false, error: guard.error };
@@ -151,12 +178,51 @@ export async function createWeekMissions(
     const limiter = await rateLimit(`create_missions:${session.user.id}:${data.guildId}`, 5, 60 * 1000);
     if (!limiter.success) return { success: false, error: "Trop d'actions. Veuillez patienter un instant." };
 
+    // 4. UNIQUENESS CHECK: Ensure no two missions are strictly identical
+    const seen = new Set<string>();
+    for (const m of data.missions) {
+        // Create a signature based on key fields. We use JSON.stringify for the payload to be precise.
+        const signature = `${m.category}-${m.tier}-${m.rank}-${m.title || ''}-${JSON.stringify(m.payload)}`;
+        if (seen.has(signature)) {
+            return { 
+                success: false, 
+                error: `Doublon détecté : La mission "${m.title || m.category}" est présente plusieurs fois. Chaque mission de la semaine doit être unique.` 
+            };
+        }
+        seen.add(signature);
+    }
+
     try {
         await db.$transaction(async (tx) => {
             // DEEP ISOLATION: Ensure we only touch the specific discordGuildId provided
             const guild = await tx.guildConfig.findUniqueOrThrow({
                 where: { discordGuildId: data.guildId }
             });
+
+            // 5. DATABASE UNIQUENESS CHECK: Check against existing missions in DB
+            const existingMissions = await tx.mission.findMany({
+                where: {
+                    guildId: guild.id,
+                    weekNumber: data.weekNumber,
+                    year: data.year,
+                }
+            });
+
+            for (const m of data.missions) {
+                const currentSig = `${m.category}-${m.tier}-${m.rank}-${m.title || ''}-${JSON.stringify(m.payload)}`;
+                
+                const duplicate = existingMissions.find(em => {
+                    // Ignore the exact same slot we are currently updating
+                    if (em.slotIndex === m.slotIndex) return false;
+                    
+                    const emSig = `${em.category}-${em.tier}-${em.rank}-${em.title || ''}-${JSON.stringify(em.payload)}`;
+                    return emSig === currentSig;
+                });
+
+                if (duplicate) {
+                    throw new Error(`La mission "${m.title || m.category}" existe déjà dans un autre slot de cette semaine.`);
+                }
+            }
 
             // Double check that this guild is actually the one intended (Secondary check)
             if (guild.discordGuildId !== data.guildId) {
@@ -242,18 +308,17 @@ export async function createWeekMissions(
         // Invalidate Cache
         await invalidateCache(`missions:${data.guildId}:${data.year}:${data.weekNumber}`);
 
-        // Audit log
-        await createAuditLog({
+        // Audit log (Verbose)
+        await logAction({
             guildId: data.guildId,
-            actorUserId: session!.user!.id,
-            actorName: session!.user!.name || "Admin",
-            action: "MISSION_CREATED" as any,
-            targetType: "MISSION" as any,
+            action: "MISSION_CREATED",
+            targetType: "MISSION",
             metadata: {
                 weekNumber: data.weekNumber,
                 year: data.year,
                 slotsCount: data.missions.length,
-                tier: data.updateGuildTier
+                tier: data.updateGuildTier,
+                operation: "PUBLISH_WEEKLY_MISSIONS"
             }
         });
 
@@ -264,6 +329,66 @@ export async function createWeekMissions(
     }
 }
 
+export async function updateWeekTier(
+    guildId: string,
+    weekNumber: number,
+    year: number,
+    tier: number
+): Promise<ActionResponse> {
+    const session = await auth();
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_OFFICER);
+    if (!guard.allowed) return { success: false, error: guard.error };
+
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUniqueOrThrow({
+            where: { discordGuildId: guildId }
+        });
+
+        await db.$transaction(async (tx) => {
+            // Update guild default if requested
+            await tx.guildConfig.update({
+                where: { id: guildConfig.id },
+                data: { missionTier: tier } as any // Use as any to bypass Prisma type lags
+            });
+
+            // Update all existing missions for that week
+            await tx.mission.updateMany({
+                where: {
+                    guildId: guildConfig.id,
+                    weekNumber,
+                    year
+                },
+                data: { tier }
+            });
+        });
+
+        revalidatePath(`/dashboard/${guildId}/missions/manage`);
+        revalidatePath(`/dashboard/${guildId}/missions`);
+
+        await invalidateCache(`missions:${guildId}:${year}:${weekNumber}`);
+
+        await logAction({
+            guildId,
+            action: "CONFIG_UPDATED",
+            targetType: "GUILD",
+            metadata: { 
+                operation: "UPDATE_WEEK_TIER",
+                weekNumber, 
+                year, 
+                newTier: tier 
+            }
+        });
+
+        return { success: true };
+    } catch (error) {
+        logger.error("Update Week Tier Error", { error, guildId, weekNumber, year, tier });
+        return { success: false, error: "Database transaction failed" };
+    }
+}
+
+
 export async function resetMission(
     guildId: string,
     weekNumber: number,
@@ -271,7 +396,7 @@ export async function resetMission(
     slotIndex: number
 ): Promise<ActionResponse> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_CREATE);
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_OFFICER);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     try {
@@ -295,13 +420,16 @@ export async function resetMission(
         await invalidateCache(`missions:${guildId}:${year}:${weekNumber}`);
 
         // Audit log
-        await createAuditLog({
+        await logAction({
             guildId,
-            actorUserId: session?.user?.id ?? "unknown",
-            actorName: session?.user?.name || "Admin",
             action: "MISSION_DELETED",
             targetType: "MISSION",
-            metadata: { weekNumber, year, slotIndex }
+            metadata: { 
+                operation: "RESET_SINGLE_MISSION",
+                weekNumber, 
+                year, 
+                slotIndex 
+            }
         });
 
         return { success: true };
@@ -318,7 +446,7 @@ export async function resetWeek(
 ): Promise<ActionResponse> {
     const session = await auth();
 
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_CREATE);
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_OFFICER);
     if (!guard.allowed) {
         logger.error("ResetWeek - Permission denied", { error: guard.error, guildId });
         return { success: false, error: guard.error };
@@ -326,41 +454,82 @@ export async function resetWeek(
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId }
+            where: { discordGuildId: guildId },
+            select: { id: true }
         });
 
-        if (!guildConfig) {
-            return { success: false, error: "Guilde non configurée" };
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const { deleteProofFile } = await import("@/lib/storage-utils");
+
+        // 1. Calculate week boundaries for non-weekly models (approximate)
+        const startOfWeek = new Date(year, 0, 1 + (weekNumber - 1) * 7);
+        const endOfWeek = new Date(year, 0, 1 + weekNumber * 7);
+
+        // 2. Fetch all items to be deleted to cleanup physical files
+        const [missions, kamas] = await Promise.all([
+            db.mission.findMany({
+                where: { guildId: guildConfig.id, weekNumber, year },
+                include: { submissions: { select: { id: true, proofUrl: true } } }
+            }),
+            (db as any).kamaDonation.findMany({
+                where: { guildId: guildConfig.id, weekNumber, yearNumber: year },
+                select: { id: true, proofUrl: true }
+            })
+        ]);
+
+        // 3. Extract and delete physical proofs + ImageHashes
+        const submissionProofs = missions.flatMap(m => m.submissions.map(s => ({ id: s.id, url: s.proofUrl, type: "MISSION" })));
+        const kamaProofs = kamas.map((k: any) => ({ id: k.id, url: k.proofUrl, type: "KAMA_DONATION" }));
+        
+        const allProofs = [...submissionProofs, ...kamaProofs];
+
+        for (const proof of allProofs) {
+            if (proof.url) {
+                await deleteProofFile(proof.url);
+                // Clean image hashes to allow re-upload if needed
+                await (db as any).imageHash.deleteMany({
+                    where: { 
+                        guildId: guildConfig.id, 
+                        sourceId: proof.id 
+                    }
+                });
+            }
         }
 
-        await db.mission.deleteMany({
-            where: {
-                guildId: guildConfig.id,
-                weekNumber,
-                year
-            }
-        });
+        // 4. Final DB Reset
+        await db.$transaction([
+            db.mission.deleteMany({
+                where: { guildId: guildConfig.id, weekNumber, year }
+            }),
+            (db as any).kamaDonation.deleteMany({
+                where: { guildId: guildConfig.id, weekNumber, yearNumber: year }
+            })
+        ]);
 
         revalidatePath(`/dashboard/${guildId}/missions`);
         revalidatePath(`/dashboard/${guildId}/missions/manage`);
+        revalidatePath(`/dashboard/${guildId}/ladder`);
 
-        // Invalidate Cache
         await invalidateCache(`missions:${guildId}:${year}:${weekNumber}`);
 
-        // Audit log
-        await createAuditLog({
+        await logAction({
             guildId,
-            actorUserId: session?.user?.id ?? "unknown",
-            actorName: session?.user?.name || "Admin",
             action: "MISSION_DELETED",
             targetType: "MISSION",
-            metadata: { weekNumber, year, scope: "FULL_WEEK" }
+            metadata: { 
+                operation: "RESET_FULL_WEEK",
+                weekNumber, 
+                year, 
+                scope: "FULL_WEEK_CLEANUP", 
+                proofsDeleted: allProofs.length 
+            }
         });
 
         return { success: true };
     } catch (error) {
         logger.error("ResetWeek Critical Error", { error, guildId, weekNumber, year });
-        return { success: false, error: "Failed to reset week" };
+        return { success: false, error: "Expansion de la purge échouée" };
     }
 }
 
@@ -370,7 +539,7 @@ export async function getWeekMissions(
     year: number
 ): Promise<ActionResponse<any>> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_VIEW);
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
     if (!guard.allowed) {
         return { success: false, error: guard.error };
     }
@@ -430,23 +599,52 @@ export async function getWeekMissions(
             });
         }
 
-        // Merge submissions into cached missions and ensure plain objects
-        const enrichedMissions = missions.map(m => ({
-            ...m,
-            // Spread relations to break Prisma prototype chain (which causes "not a plain object" error)
-            interests: m.interests.map(i => ({
-                ...i,
-                profile: {
-                    ...i.profile,
-                    user: i.profile.user ? { ...i.profile.user } : null
-                }
-            })),
-            submissions: userSubmissions.filter(s => s.missionId === m.id).slice(0, 1).map(s => ({ ...s }))
-        }));
+        // Fetch linked events for these missions
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
 
-        // FINAL SAFEGUARD: Force pure JSON object to strip any remaining hidden properties/symbols
-        // This is necessary because Prisma JSON fields or hidden symbols can cause "Not a plain object" errors in Client Components
-        return { success: true, data: JSON.parse(JSON.stringify(enrichedMissions)) };
+        const linkedEvents = guildConfig ? await db.guildEvent.findMany({
+            where: {
+                guildId: guildConfig.id,
+                type: "SESSION_MISSIONS",
+                status: { in: ["DRAFT", "PUBLISHED"] },
+                startDate: {
+                    gte: new Date(year, 0, 1 + (weekNumber - 1) * 7),
+                    lte: new Date(year, 0, 1 + weekNumber * 7 + 7)
+                }
+            },
+            select: { id: true, title: true, startDate: true, metadata: true }
+        }) : [];
+
+        // Merge submissions and events into cached missions and ensure plain objects
+        const enrichedMissions = missions.map(m => {
+            const event = linkedEvents.find(e => {
+                const meta = e.metadata as any;
+                return meta?.missionIds?.includes(m.id);
+            });
+
+            return {
+                ...m,
+                linkedEvent: event ? { id: event.id, title: event.title, startDate: event.startDate } : null,
+                // Spread relations to break Prisma prototype chain
+                interests: m.interests.map(i => ({
+                    ...i,
+                    profile: {
+                        ...i.profile,
+                        user: i.profile.user ? { ...i.profile.user } : null
+                    }
+                })),
+                submissions: userSubmissions.filter(s => s.missionId === m.id).slice(0, 1).map(s => ({ ...s }))
+            };
+        });
+
+        // FINAL SAFEGUARD
+        const safeData = JSON.parse(JSON.stringify(enrichedMissions, (key, value) =>
+            typeof value === 'bigint' ? value.toString() : value
+        ));
+        return { success: true, data: safeData };
     } catch (error) {
         logger.error("Fetch Missions Error", { error, guildId, weekNumber, year });
         return { success: false, error: "Failed to fetch missions: " + (error instanceof Error ? error.message : String(error)) };
@@ -472,7 +670,7 @@ export async function toggleMissionInterest(
         });
         if (!mission) return { success: false, error: "Mission not found" };
 
-        const guard = await checkGuildPermission(session, mission.guild.discordGuildId, PERMISSIONS.MISSIONS_VIEW);
+        const guard = await checkGuildPermission(session, mission.guild.discordGuildId, PERMISSIONS.COMMUNITY_ACCESS);
         if (!guard.allowed) return { success: false, error: guard.error };
 
         // 2. Get User Profile linked to this Guild
@@ -523,13 +721,64 @@ export async function toggleMissionInterest(
     }
 }
 
+/**
+ * Récupère les missions de la semaine pour le sélecteur du calendrier.
+ */
+export async function getMissionsForCalendar(guildId: string): Promise<ActionResponse<any[]>> {
+    const session = await auth();
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
+    if (!guard.allowed) return { success: false, error: guard.error };
+
+    try {
+        const { week, year } = getDofusWeek();
+        
+        const guildConfig = await db.guildConfig.findUniqueOrThrow({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+
+        const missions = await db.mission.findMany({
+            where: {
+                guildId: guildConfig.id,
+                weekNumber: week,
+                year: year,
+                status: "ACTIVE"
+            },
+            select: {
+                id: true,
+                title: true,
+                category: true,
+                payload: true,
+                slotIndex: true,
+                rank: true
+            },
+            orderBy: { slotIndex: "asc" }
+        });
+
+        // Ensure safe JSON serialization
+        const safeData = JSON.parse(JSON.stringify(missions));
+        return { success: true, data: safeData };
+    } catch (error) {
+        logger.error("getMissionsForCalendar Error", { error, guildId });
+        return { success: false, error: "Erreur lors de la récupération des missions de la semaine." };
+    }
+}
+
 export async function submitMissionProof(
     missionId: string,
     imageData: string, // Base64 image data from client
-    helperIds: string[] = [] // IDs of UserProfile
+    helperIds: string[] = [], // IDs of UserProfile,
+    honeypot?: string // 🍯 Honeypot value
 ): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    // 🍯 HONEYPOT CHECK
+    const { validateHoneypot } = await import("@/lib/honeypot");
+    if (!validateHoneypot({ hp_ignore_field: honeypot })) {
+        logger.warn(`[Security] Honeypot triggered by user ${session.user.id}`);
+        return { success: false, error: "Action interdite : Protection anti-bot activée." };
+    }
 
     // RATE LIMIT: 10 submissions per minute
     const limiter = await rateLimit(`submit_proof:${session.user.id}`, 10, 60 * 1000);
@@ -543,7 +792,7 @@ export async function submitMissionProof(
         if (!mission) return { success: false, error: "Mission introuvable" };
         if (mission.status !== "ACTIVE") return { success: false, error: "Mission non active" };
 
-        const guard = await checkGuildPermission(session, mission.guild.discordGuildId, PERMISSIONS.MISSIONS_VIEW);
+        const guard = await checkGuildPermission(session, mission.guild.discordGuildId, PERMISSIONS.COMMUNITY_ACCESS);
         if (!guard.allowed) return { success: false, error: guard.error };
 
         const profile = await db.userProfile.findUnique({
@@ -552,11 +801,46 @@ export async function submitMissionProof(
         });
         if (!profile) return { success: false, error: "Profil introuvable" };
 
+        // 24h Restriction Check
+        const HOURS_RESIDENCY = 24;
+        const createdAt = profile.createdAt;
+        const diffMs = Date.now() - createdAt.getTime();
+        const diffHours = diffMs / (1000 * 60 * 60);
+
+        const userCtx = await getUserContext(mission.guild.discordGuildId);
+        if (diffHours < HOURS_RESIDENCY && !userCtx.isAdmin) {
+            const remainingMs = (HOURS_RESIDENCY * 60 * 60 * 1000) - diffMs;
+            const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
+            const remainingMins = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+            return { 
+                success: false, 
+                error: `Accès restreint. Vous devez avoir rejoint le Dashboard depuis au moins 24h pour participer aux missions. Disponible dans ${remainingHours}h ${remainingMins}m.` 
+            };
+        }
+
         // 1. Double check for existing submission
         const existing = await db.submission.findFirst({
             where: { missionId, profileId: profile.id, status: { in: ["PENDING", "VALIDATED"] } }
         });
         if (existing) return { success: false, error: "Vous avez déjà une soumission pour cette mission." };
+
+        // 1.2 If a REJECTED submission exists, clean it up to allow retry
+        const rejectedSubmission = await db.submission.findFirst({
+            where: { missionId, profileId: profile.id, status: "REJECTED" }
+        });
+        if (rejectedSubmission) {
+            // Delete old image hash if any (normally already deleted at rejection time, but belt-and-suspenders)
+            await (db as any).imageHash.deleteMany({
+                where: { guildId: mission.guildId, sourceType: "MISSION", sourceId: rejectedSubmission.id }
+            });
+            // Delete the physical rejected proof to prevent orphan files on VPS
+            if (rejectedSubmission.proofUrl) {
+                const { deletePhysicalProof } = await import("@/server/actions/upload-actions");
+                await deletePhysicalProof(rejectedSubmission.proofUrl);
+            }
+            // Delete the stale REJECTED submission row to allow new submission
+            await db.submission.delete({ where: { id: rejectedSubmission.id } });
+        }
 
         // 1.5 Validate Helpers
         if (helperIds.length > 7) return { success: false, error: "Maximum 7 aidants autorisés." };
@@ -600,9 +884,9 @@ export async function submitMissionProof(
         }
 
         // Image Hashing (Anti-Duplicate)
-        const imageHash = hashImage(base64Data);
-        const existingHash = await (db as any).imageHash.findUnique({
-            where: { guildId_hash: { guildId: mission.guildId, hash: imageHash } }
+        const imageHash = await hashImage(buffer);
+        const existingHash = await db.imageHash.findFirst({
+            where: { hash: imageHash }
         });
 
         if (existingHash) {
@@ -624,15 +908,16 @@ export async function submitMissionProof(
             .toBuffer();
 
         // 4. Save proof image (Always .webp now)
-        const uploadRelativeDir = `uploads/proofs/${mission.guild.discordGuildId}`;
-        const uploadDir = join(process.cwd(), "public", uploadRelativeDir);
+        const storageSubDir = `proofs/${mission.guild.discordGuildId}`;
+        const uploadDir = join(process.cwd(), "private_uploads", storageSubDir);
         await mkdir(uploadDir, { recursive: true });
 
-        const fileName = `${session.user.id}-${Date.now()}.webp`;
+        const { randomUUID } = await import("crypto");
+        const fileName = `${randomUUID()}.webp`;
         const filePath = join(uploadDir, fileName);
 
         await writeFile(filePath, optimizedBuffer);
-        const proofUrl = `/${uploadRelativeDir}/${fileName}`;
+        const proofUrl = `/api/storage/${storageSubDir}/${fileName}`;
 
         const submission = await db.submission.create({
             data: {
@@ -661,13 +946,15 @@ export async function submitMissionProof(
         });
 
         // Notify Validators
-        const userName = profile.discordNickname || profile.pseudoDofus || profile.user.name || "Un membre";
+        const userName = getDisplayName(profile);
         const missionTitle = mission.title || "Mission Inconnue";
         const discordMessageId = await notifyValidators(
             mission.guild.discordGuildId,
             `[Validation] ${userName} - ${missionTitle}`,
-            `${userName} a posté une preuve pour : ${missionTitle}`,
-            `/dashboard/${mission.guild.discordGuildId}/admin/validation`
+            `**${userName}** a posté une preuve pour : **${missionTitle}**`,
+            `/dashboard/${mission.guild.discordGuildId}/admin/validation`,
+            proofUrl,
+            submission.id  // ← pour les custom_id des boutons Discord
         );
 
         if (discordMessageId) {
@@ -720,7 +1007,7 @@ export async function validateSubmission(
         });
         if (!submission) return { success: false, error: "Submission not found" };
 
-        const guard = await checkGuildPermission(session, submission.mission.guild.discordGuildId, PERMISSIONS.MISSIONS_VALIDATE);
+        const guard = await checkGuildPermission(session, submission.mission.guild.discordGuildId, PERMISSIONS.MISSIONS_OFFICER);
         if (!guard.allowed) return { success: false, error: guard.error };
 
         // 1. Delete the temp file (if it exists)
@@ -763,10 +1050,11 @@ export async function validateSubmission(
             }
         });
 
-        // 3. If validated, add XP to user profile
+        // 3. If validated, award rewards (XP & Guildatons)
         if (status === "VALIDATED") {
             const xpReward = submission.mission.xpReward || 0;
-            await addProfileXp(updatedSubmission.profileId, xpReward);
+            const guildatonsReward = (submission.mission as any).guildatonsReward || 0;
+            await grantRewards(updatedSubmission.profileId, xpReward, guildatonsReward);
 
             // AWARD CONTRIBUTION POINTS TO HELPERS
             if (updatedSubmission.helpers && updatedSubmission.helpers.length > 0) {
@@ -798,21 +1086,6 @@ export async function validateSubmission(
             );
         }
 
-        // 5. Guild Feed Message (if validated)
-        if (status === "VALIDATED") {
-            try {
-                const { pushSystemChatMessage } = await import("@/server/actions/chat-actions");
-                const userName = updatedSubmission.profile.discordNickname || updatedSubmission.profile.pseudoDofus || updatedSubmission.profile.user.name || "Un membre";
-                const missionTitle = submission.mission.title || "Mission Inconnue";
-                await pushSystemChatMessage(
-                    discordGuildId,
-                    `🎯 **${userName}** a accompli la mission **${missionTitle}** !`,
-                    { type: "mission_validated", submissionId, missionId: submission.mission.id }
-                );
-            } catch (chatErr) {
-                logger.error("Failed to push system chat message for mission", { error: chatErr });
-            }
-        }
 
         revalidatePath(`/dashboard/${discordGuildId}/missions`);
         revalidatePath(`/dashboard/${discordGuildId}/ladder`);
@@ -820,47 +1093,117 @@ export async function validateSubmission(
         // Invalidate Cache
         await invalidateCache(`missions:${discordGuildId}:${submission.mission.year}:${submission.mission.weekNumber}`);
 
-        // Audit log
-        await createAuditLog({
+        // Audit log (Verbose)
+        await logAction({
             guildId: discordGuildId,
-            actorUserId: session.user.id,
-            actorName: session.user.name || "Admin",
-            action: (status === "VALIDATED" ? "MISSION_VALIDATED" : "MISSION_REJECTED") as any,
-            targetType: "MISSION" as any,
+            action: status === "VALIDATED" ? "MISSION_VALIDATED" : "MISSION_REJECTED",
+            targetType: "MISSION",
             targetId: submissionId,
             metadata: {
+                operation: status === "VALIDATED" ? "VALIDATE_SUBMISSION" : "REJECT_SUBMISSION",
                 missionTitle: submission.mission.title,
                 submitterId: updatedSubmission.profileId,
-                status
+                submitterName: getGameDisplayName(updatedSubmission.profile),
+                status,
+                source: "dashboard",
+                xpReward: status === "VALIDATED" ? (submission.mission.xpReward || 0) : 0,
+                guildatonsReward: status === "VALIDATED" ? ((submission.mission as any).guildatonsReward || 0) : 0,
+                helpersCount: updatedSubmission.helpers?.length || 0
             }
         });
 
+        // 🔥 Real-time Discord Update
+        await refreshMissionDiscordEmbed(discordGuildId);
+
         return { success: true };
     } catch (error) {
-        console.error("Validation Error:", error);
+        logger.error("Validation Error:", error);
         return { success: false, error: "Database error" };
     }
 }
 
 // --- Helpers ---
 
-async function addProfileXp(profileId: string, amount: number) {
-    if (amount <= 0) return;
+
+/**
+ * Calculate the sum of guildatons earned this week by a profile (missions + kamas)
+ */
+export async function getWeeklyGuildatons(profileId: string, week: number, year: number): Promise<number> {
+    const { KAMA_TRANCHE, REWARDS_PER_TRANCHE } = await import("@/lib/kama-constants");
+
+    const [missions, kamas] = await Promise.all([
+        db.submission.findMany({
+            where: {
+                profileId,
+                status: "VALIDATED",
+                mission: { weekNumber: week, year: year }
+            },
+            include: { mission: { select: { guildatonsReward: true } } }
+        }),
+        db.kamaDonation.findMany({
+            where: {
+                profileId,
+                status: "VALIDATED",
+                weekNumber: week,
+                yearNumber: year
+            },
+            select: { amount: true }
+        })
+    ]);
+
+    const fromMissions = missions.reduce((acc, sub) => acc + (sub.mission.guildatonsReward || 0), 0);
+    const fromKamas = kamas.reduce((acc, don) => {
+        const tranches = Math.floor(don.amount / KAMA_TRANCHE);
+        return acc + (tranches * REWARDS_PER_TRANCHE.guildatons);
+    }, 0);
+
+    return fromMissions + fromKamas;
+}
+
+export async function grantRewards(profileId: string, xp: number, guildatons: number = 0, week?: number, year?: number) {
+    if (xp <= 0 && guildatons <= 0) return;
 
     try {
-        const profile = await db.userProfile.findUnique({
-            where: { id: profileId },
-            select: { xp: true }
-        });
+        let finalGuildatons = guildatons;
+        if (guildatons > 0) {
+            const { week: currentWeek, year: currentYear } = getDofusWeek();
+            const w = week ?? currentWeek;
+            const y = year ?? currentYear;
 
-        if (!profile) return;
+            const currentWeekly = await getWeeklyGuildatons(profileId, w, y);
+            const { GUILDATONS_MAX_PER_WEEK } = await import("@/lib/kama-constants");
 
+            if (currentWeekly >= GUILDATONS_MAX_PER_WEEK) {
+                finalGuildatons = 0;
+            } else if (currentWeekly + guildatons > GUILDATONS_MAX_PER_WEEK) {
+                finalGuildatons = GUILDATONS_MAX_PER_WEEK - currentWeekly;
+            }
+        }
+        // 🛡️ CRITICAL UPDATE: Apply the rewards to the database profile
+        // Without this, the ladder and profile stats remain stale.
         await db.userProfile.update({
             where: { id: profileId },
-            data: { xp: (profile.xp || 0) + amount }
+            data: {
+                xp: { increment: xp },
+                guildatons: { increment: finalGuildatons }
+            }
         });
+
+        // Invalidate Ladder Cache (since XP/Guildatons changed)
+        const profile = await db.userProfile.findUnique({
+            where: { id: profileId },
+            select: { guild: { select: { discordGuildId: true } } }
+        });
+
+        if (profile?.guild?.discordGuildId) {
+            const { clearCachePattern } = await import("@/lib/cache");
+            await clearCachePattern(`ladder:activity:${profile.guild.discordGuildId}:*`);
+            await clearCachePattern(`ladder:guildatons:${profile.guild.discordGuildId}:*`);
+            revalidatePath(`/dashboard/${profile.guild.discordGuildId}/ladder`);
+            revalidatePath(`/dashboard/${profile.guild.discordGuildId}/stats`); // Recalculate stats too
+        }
     } catch (e) {
-        console.error(`[XP] Failed to add XP to profile ${profileId}:`, e);
+        logger.error(`[Rewards] grantRewards failed for ${profileId}:`, e);
     }
 }
 
@@ -929,55 +1272,61 @@ export async function cancelMySubmission(
 
         return { success: true };
     } catch (error) {
-        console.error("Cancel Submission Error:", error);
+        logger.error("Cancel Submission Error:", error);
         return { success: false, error: "Database error" };
     }
 }
 
 
-export async function cleanupExpiredSubmissions(guildId: string) {
-    // 24 hours expiration
-    const EXPIRATION_MS = 24 * 60 * 60 * 1000;
+/**
+ * Cleanup pending mission submissions older than 48h
+ */
+export async function cleanupExpiredSubmissions(discordGuildId: string) {
+    const EXPIRATION_MS = 48 * 60 * 60 * 1000; // 48 hours
     const thresholdDate = new Date(Date.now() - EXPIRATION_MS);
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId }
-        });
-        if (!guildConfig) return;
+        const guild = await db.guildConfig.findUnique({ where: { discordGuildId } });
+        if (!guild) return;
 
-        const expiredSubmissions = await db.submission.findMany({
+        const expired = await db.submission.findMany({
             where: {
-                mission: { guildId: guildConfig.id },
+                mission: { guildId: guild.id },
                 status: "PENDING",
                 createdAt: { lt: thresholdDate }
             }
         });
 
-        if (expiredSubmissions.length > 0) {
-            for (const sub of expiredSubmissions) {
-                // Delete file
-                await deleteProofFile(sub.proofUrl);
-                // Delete submission to reset state for user
+        if (expired.length > 0) {
+            for (const sub of expired) {
+                if (sub.proofUrl) {
+                    await deleteProofFile(sub.proofUrl);
+                }
                 await db.submission.delete({ where: { id: sub.id } });
             }
+            logger.info(`[Cleanup] Deleted ${expired.length} expired mission submissions`, { discordGuildId });
         }
     } catch (error) {
-        console.error("[Cleanup] Error:", error);
+        logger.error("[Cleanup] Mission cleanup error:", { error });
     }
 }
 
-export async function getPendingSubmissions(guildId: string): Promise<ActionResponse<any>> {
+/**
+ * Get pending submissions for validation
+ */
+export async function getPendingSubmissions(discordGuildId: string): Promise<ActionResponse<any>> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_VALIDATE);
+    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.MISSIONS_OFFICER);
     if (!guard.allowed) return { success: false, error: guard.error };
 
-    // Lazy Cleanup
-    await cleanupExpiredSubmissions(guildId);
+    // 🧹 LAZY CLEANUP
+    await cleanupExpiredSubmissions(discordGuildId).catch(err => {
+        logger.error("[Cleanup] Lazy cleanup failed", { err, discordGuildId });
+    });
 
     try {
         const guildConfig = await db.guildConfig.findUniqueOrThrow({
-            where: { discordGuildId: guildId },
+            where: { discordGuildId },
             select: { id: true, rolesMapping: true }
         });
 
@@ -1016,7 +1365,6 @@ export async function getPendingSubmissions(guildId: string): Promise<ActionResp
 
         const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
 
-        // Enrich submissions with isAdmin flag
         const enrichedSubmissions = submissions.map(sub => {
             const isAdmin = sub.profile.discordRoleName === "Administrateur" ||
                 Object.values(rolesMapping).some(perms => perms.includes("admin:access")) && sub.profile.discordRoleName;
@@ -1033,8 +1381,8 @@ export async function getPendingSubmissions(guildId: string): Promise<ActionResp
         return { success: true, data: enrichedSubmissions };
 
     } catch (error) {
-        console.error("Fetch Pending Error:", error);
-        return { success: false, error: "Database error" };
+        logger.error("Fetch Pending Error:", { error, discordGuildId });
+        return { success: false, error: "Erreur serveur" };
     }
 }
 
@@ -1084,7 +1432,7 @@ export async function getMissionValidators(guildId: string, missionId: string): 
             if (sub.profile && !validatorMap.has(sub.profile.id)) {
                 validatorMap.set(sub.profile.id, {
                     id: sub.profile.id,
-                    pseudo: sub.profile.pseudoDofus || sub.profile.discordNickname || sub.profile.user.name,
+                    pseudo: getGameDisplayName(sub.profile),
                     image: sub.profile.user.image,
                     date: sub.updatedAt
                 });
@@ -1094,7 +1442,7 @@ export async function getMissionValidators(guildId: string, missionId: string): 
                 if (!validatorMap.has(helper.id)) {
                     validatorMap.set(helper.id, {
                         id: helper.id,
-                        pseudo: helper.pseudoDofus || helper.discordNickname || helper.user.name,
+                        pseudo: getGameDisplayName(helper),
                         image: helper.user.image,
                         date: sub.updatedAt
                     });
@@ -1107,7 +1455,7 @@ export async function getMissionValidators(guildId: string, missionId: string): 
         return { success: true, data: validators };
 
     } catch (error) {
-        console.error("Fetch Validators Error:", error);
+        logger.error("Fetch Validators Error:", error);
         return { success: false, error: "Erreur BDD" };
     }
 }
@@ -1180,7 +1528,7 @@ export async function cancelMissionSubmission(
         return { success: true };
 
     } catch (error) {
-        console.error("Cancel Submission Error:", error);
+        logger.error("Cancel Submission Error:", error);
         return { success: false, error: "Database error" };
     }
 }
@@ -1191,11 +1539,10 @@ export async function cancelMissionSubmission(
 export async function publishMissionsToDiscord(
     guildId: string,
     pingType: "EVERYONE" | "ROLE" | "NONE",
-    specificRoleId?: string | null
+    specificRoleIds?: string[] | null
 ): Promise<ActionResponse> {
     const session = await auth();
-    // Security check: Must have permission to manage missions
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_CREATE);
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_OFFICER);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     try {
@@ -1205,6 +1552,8 @@ export async function publishMissionsToDiscord(
                 id: true,
                 missionNotifyChannelId: true,
                 missionNotifyRoleId: true,
+                missionTier: true,
+                missionVitrineMode: true,
                 name: true
             }
         });
@@ -1216,58 +1565,348 @@ export async function publishMissionsToDiscord(
             };
         }
 
-        // Build mention content
-        let mention = "";
-        if (pingType === "EVERYONE") mention = "@everyone";
-        else if (pingType === "ROLE") {
-            const idToMention = specificRoleId || guild.missionNotifyRoleId;
-            if (idToMention) mention = `<@&${idToMention}>`;
+        const { week, year } = getDofusWeek();
+        const missions = await db.mission.findMany({
+            where: { guildId: guild.id, weekNumber: week, year }
+        });
+
+        if (missions.length === 0) {
+            return { success: false, error: "Aucune mission n'est publiée pour cette semaine." };
         }
 
-        const dashboardUrl = `${process.env.NEXTAUTH_URL}/dashboard/${guildId}/missions`;
+        // Special missions are strictly those in slots 12-19 (Pool SPECIALES)
+        const specialMissionsList = missions.filter(m => m.slotIndex >= 12);
 
-        // We use lazy import to avoid circular dependencies if any, 
-        // though server-to-server usually is fine.
+        // Pick a thematic thumbnail for the embed
+        const thumbnailUrl = getMissionThumbnailUrl(missions);
+
+        // Vitrine — lecture seule pour les membres (pas d'upload de preuves)
+        const vitrineMode = guild.missionVitrineMode === true;
+
+        // Build mention content (multi-rôles whitelistés)
+        let mentionContent = "Bonjour à tous !";
+        if (pingType === "EVERYONE") mentionContent = "Bonjour @everyone !";
+        else if (pingType === "ROLE") {
+            const roleIds = specificRoleIds && specificRoleIds.length > 0
+                ? specificRoleIds
+                : (guild.missionNotifyRoleId ? [guild.missionNotifyRoleId] : []);
+            if (roleIds.length > 0) {
+                mentionContent = `Bonjour ${roleIds.map(id => `<@&${id}>`).join(" ")} !`;
+            }
+        }
+
+        const { getAppBaseUrl } = await import("@/lib/utils");
+        const dashboardUrl = `${getAppBaseUrl()}/dashboard/${guildId}/missions`;
+        const { formatDofusRange } = await import("@/lib/date-utils");
         const { sendChannelMessage } = await import("@/server/discord");
 
-        const messageId = await sendChannelMessage(guild.missionNotifyChannelId, mention, {
-            embedTitle: "🎯 Nouvel objectif hebdomadaire",
-            embedColor: 0x9333ea, // Purple
+        // Wording — simple & pro
+        const baseAnnounce = vitrineMode
+            ? "Les missions de la semaine sont disponibles sur le dashboard !"
+            : "Les missions de la semaine sont disponibles sur le dashboard — envoyez vos preuves de missions !";
+
+        const embedTitle = `📅 Objectifs Hebdomadaires — ${formatDofusRange()}`;
+
+        const fields: any[] = [];
+
+        if (specialMissionsList.length > 0) {
+            fields.push({
+                name: "🎯 Missions Spéciales",
+                value: `${specialMissionsList.map(m => {
+                    const label = m.title || m.category;
+                    const icon = m.category === "EVENT" ? "🔥" : m.category === "SONGES" ? "🌙" : m.category === "ANOMALIE" ? "⚡" : "✨";
+                    return `${icon} **${label}**`;
+                }).join("\n")}\n\u200B`,
+                inline: false
+            });
+        }
+
+        fields.push({
+            name: "🔗 Liens Rapides",
+            value: `[Accéder au Dashboard](${dashboardUrl})`,
+            inline: true
+        });
+
+        const messageId = await sendChannelMessage(guild.missionNotifyChannelId, "", {
+            mentionContent,
+            embedTitle,
+            embedDescription: `${baseAnnounce}\n\u200B`,
+            embedColor: 0x00f2ff, // Neon Cyan
             embedUrl: dashboardUrl,
-            embedFooter: "SigilOS • Système de Missions",
-            embedThumbnail: "https://i.imgur.com/8N4pWvW.png", // Typical mission icon
-            fields: [
-                {
-                    name: "Statut",
-                    value: "✅ Les **12 missions** de la semaine sont disponibles !",
-                    inline: false
-                },
-                {
-                    name: "Action",
-                    value: `[Consulter les missions sur le Dashboard](${dashboardUrl})`,
-                    inline: false
-                }
-            ]
+            embedThumbnail: thumbnailUrl,
+            embedFooter: `SigilOS • Système de Gestion de Guilde`,
+            fields
         });
 
         if (!messageId) {
             return { success: false, error: "L'API Discord n'a pas pu envoyer le message." };
         }
 
+        // Store the message ID for real-time updates
+        await db.guildConfig.update({
+            where: { id: guild.id },
+            data: { missionDiscordMessageId: `${guild.missionNotifyChannelId}:${messageId}` }
+        });
+
         // Audit log
-        await createAuditLog({
+        await logAction({
             guildId,
-            actorUserId: session!.user!.id!,
-            actorName: session!.user!.name || "Admin",
             action: "MISSION_PUBLISH_DISCORD",
             targetType: "MISSION",
-            metadata: { pingType, messageId, channelId: guild.missionNotifyChannelId }
+            metadata: { 
+                pingType, 
+                messageId, 
+                channelId: guild.missionNotifyChannelId,
+                actorId: session?.user?.id || "system"
+            }
         });
 
         return { success: true };
-
     } catch (error) {
-        console.error("Publish to Discord error:", error);
+        logger.error("Publish to Discord error:", error);
         return { success: false, error: "Erreur serveur lors de la publication." };
+    }
+}
+
+// =============================================================================
+// EMBED THUMBNAIL HELPER
+// =============================================================================
+
+/**
+ * Returns a publicly-accessible thumbnail URL for the weekly mission embed.
+ * Priority: Event missions → Songes → Dungeon boss → Regulation (default Dofus Ébène)
+ */
+function getMissionThumbnailUrl(missions: { category: string; payload: any }[]): string {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+
+    // Prefer event missions (most visual)
+    const eventMission = missions.find(m => m.category === "EVENT");
+    if (eventMission) {
+        return `${appUrl}/assets/ui/dofus-event.png`;
+    }
+
+    // Songes missions
+    const songesMission = missions.find(m => m.category === "SONGES");
+    if (songesMission) {
+        return `${appUrl}/assets/ui/dofus-songes.png`;
+    }
+
+    // Default — Dofus Ébène (classic guild progression image)
+    return `${appUrl}/assets/ui/dofus-missions-thumb.png`;
+}
+
+// =============================================================================
+// [MIS-1] XP PROGRESS BAR OVERRIDE (Admin Manual Adjustment)  
+// =============================================================================
+
+
+/**
+ * Shared utility to update the active mission announcement embed on Discord.
+ * Called whenever XP changes (validation, kama donation, manual adjustment).
+ */
+export async function refreshMissionDiscordEmbed(discordGuildId: string) {
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId },
+            select: { 
+                id: true, 
+                missionDiscordMessageId: true,
+                missionTier: true,
+                missionNotifyChannelId: true,
+                missionVitrineMode: true
+            }
+        });
+
+        if (!guild?.missionDiscordMessageId) return;
+
+        const [channelId, messageId] = guild.missionDiscordMessageId.split(":");
+        if (!channelId || !messageId) return;
+
+        const { week, year } = getDofusWeek();
+        
+        // Fetch missions to determine labels
+        const missions = await db.mission.findMany({
+            where: { guildId: guild.id, weekNumber: week, year }
+        });
+        
+        // Special missions are strictly those in slots 12-19 (Pool SPECIALES)
+        const specialMissionsList = missions.filter(m => m.slotIndex >= 12);
+
+        // Vitrine — lecture seule pour les membres (pas d'upload de preuves)
+        const vitrineMode = guild.missionVitrineMode === true;
+
+        // Pick a thematic thumbnail for the embed
+        const thumbnailUrl = getMissionThumbnailUrl(missions);
+
+        const { getAppBaseUrl } = await import("@/lib/utils");
+        const dashboardUrl = `${getAppBaseUrl()}/dashboard/${discordGuildId}/missions`;
+        const { updateChannelMessage } = await import("@/server/discord");
+        const { formatDofusRange } = await import("@/lib/date-utils");
+
+        // Wording — simple & pro
+        const baseAnnounce = vitrineMode
+            ? "Les missions de la semaine sont disponibles sur le dashboard !"
+            : "Les missions de la semaine sont disponibles sur le dashboard — envoyez vos preuves de missions !";
+
+        const fields: any[] = [];
+
+        if (specialMissionsList.length > 0) {
+            fields.push({
+                name: "🎯 Missions Spéciales",
+                value: `${specialMissionsList.map(m => {
+                    const label = m.title || m.category;
+                    const icon = m.category === "EVENT" ? "🔥" : m.category === "SONGES" ? "🌙" : m.category === "ANOMALIE" ? "⚡" : "✨";
+                    return `${icon} **${label}**`;
+                }).join("\n")}\n\u200B`,
+                inline: false
+            });
+        }
+
+        fields.push({
+            name: "🔗 Liens Rapides",
+            value: `[Accéder au Dashboard](${dashboardUrl})`,
+            inline: true
+        });
+
+        await updateChannelMessage(channelId, messageId, "", {
+            embedTitle: `📅 Objectifs Hebdomadaires — ${formatDofusRange()}`,
+            embedDescription: `${baseAnnounce}\n\u200B`,
+            embedColor: 0x00f2ff, // Neon Cyan
+            embedUrl: dashboardUrl,
+            embedThumbnail: thumbnailUrl,
+            embedFooter: `SigilOS • Système de Gestion de Guilde`,
+            fields
+        });
+    } catch (e) {
+        logger.error("[Discord] refreshMissionDiscordEmbed failed:", e);
+    }
+}
+
+export async function calculateDynamicXP(guildInternalId: string, discordGuildId: string): Promise<number> {
+    const { week, year } = getDofusWeek();
+    
+    // 1. Mission XP
+    const missions = await db.mission.findMany({
+        where: { guildId: guildInternalId, weekNumber: week, year },
+        include: { _count: { select: { submissions: { where: { status: 'VALIDATED' } } } } }
+    });
+    const missionXP = missions.reduce((acc, m) => acc + (m.xpReward || 0) * m._count.submissions, 0);
+
+    // 2. Kama XP
+    let kamaXP = 0;
+    const kamaStatsRes = await getKamaStats(discordGuildId);
+    if (kamaStatsRes.success && kamaStatsRes.data) {
+        const { KAMA_TRANCHE, REWARDS_PER_TRANCHE } = await import("@/lib/kama-constants");
+        const validatedWeeklyKamas = kamaStatsRes.data.weeklyTotal || 0;
+        const validatedTranches = Math.floor(validatedWeeklyKamas / KAMA_TRANCHE);
+        kamaXP = validatedTranches * REWARDS_PER_TRANCHE.xp;
+    }
+
+    return missionXP + kamaXP;
+}
+
+const XpOverrideSchema = z.object({
+    guildId: z.string().min(1),
+    xpOverride: z.number().int().min(0).max(1_000_000).nullable(),
+}).strict();
+
+export async function setGuildMissionXpOverride(
+    rawData: z.infer<typeof XpOverrideSchema>
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifie" };
+
+    const parsed = XpOverrideSchema.safeParse(rawData);
+    if (!parsed.success) return { success: false, error: "Donnees invalides" };
+    const { guildId, xpOverride } = parsed.data;
+
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_OFFICER);
+    if (!guard.allowed) return { success: false, error: guard.error };
+
+    const limiter = await rateLimit(`xp_override:${session.user.id}:${guildId}`, 10, 60 * 1000);
+    if (!limiter.success) return { success: false, error: "Trop d actions. Veuillez patienter." };
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+
+        let finalBaseOverride: number | null = null;
+        if (xpOverride !== null) {
+            const dynamicXP = await calculateDynamicXP(guild.id, guildId);
+            finalBaseOverride = xpOverride - dynamicXP; // Deduct auto points to act as base
+        }
+
+        await db.guildConfig.update({
+            where: { id: guild.id },
+            data: { missionWeekXpOverride: finalBaseOverride } as any
+        });
+
+        await logAction({
+            guildId,
+            action: "MISSION_XP_OVERRIDE",
+            targetType: "CONFIG",
+            metadata: { operation: "SET_MISSION_XP_OVERRIDE", targetTotalXp: xpOverride, baseOverrideComputed: finalBaseOverride, cleared: xpOverride === null }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/missions/manage`);
+
+        // 🔥 Real-time Discord Update
+        await refreshMissionDiscordEmbed(guildId);
+
+        return {
+            success: true,
+            data: { message: xpOverride === null ? "Override supprime" : `XP fixe a ${xpOverride.toLocaleString()}` }
+        };
+    } catch (error) {
+        logger.error("setGuildMissionXpOverride Error", { error, guildId });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function getGuildMissionXpOverride(
+    guildId: string
+): Promise<ActionResponse<{ xpOverride: number | null, realXp: number }>> {
+    const session = await auth();
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
+    if (!guard.allowed) return { success: false, error: guard.error };
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true, missionWeekXpOverride: true } as any
+        }) as unknown as { id: string, missionWeekXpOverride: number | null } | null;
+        
+        if (!guild) {
+             return { success: false, error: "Guilde introuvable" };
+        }
+
+        const dynamicXP = await calculateDynamicXP(guild.id, guildId);
+
+        if (guild.missionWeekXpOverride === null) {
+            return { success: true, data: { xpOverride: null, realXp: dynamicXP } };
+        }
+
+        const totalXP = guild.missionWeekXpOverride + dynamicXP; // Base + Generated
+        
+        return { success: true, data: { xpOverride: totalXP, realXp: dynamicXP } };
+    } catch (error) {
+        logger.error("getGuildMissionXpOverride Error", { error, guildId });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function getMissionsByIds(ids: string[]) {
+    try {
+        const missions = await db.mission.findMany({
+            where: { id: { in: ids } }
+        });
+        // Ensure safe JSON serialization
+        return JSON.parse(JSON.stringify(missions));
+    } catch (error) {
+        logger.error("getMissionsByIds Error:", error);
+        return [];
     }
 }

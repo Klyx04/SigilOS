@@ -1,0 +1,407 @@
+{
+  "dofus": "cacao",
+  "displayName": "Dofus Cacao",
+  "color": "#4B250E",
+  "successName": "Un Dofus qui a du goût",
+  "recommendedLevel": 120,
+  "successDescription": null,
+  "dofusItemId": 21101,
+  "compiledAt": "2026-04-09T09:39:40.639Z",
+  "compilerVersion": "3.0",
+  "chains": [
+    {
+      "sectionName": "Un Dofus qui a du goût",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Monde des Douze",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "L'île flottante au chocolat",
+          "dofusdbId": 2066,
+          "level": 20,
+          "zone": "Embarcadère",
+          "npcName": "Lilivonne Kah",
+          "npcSubArea": "Embarcadère",
+          "coords": {
+            "x": -4,
+            "y": -5,
+            "worldId": 21
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Découvrir la carte : Embarcadère de l'île de Pwâk",
+            "Prendre la petite cloche ailée pour retrouver Lilivonne Kah",
+            "Aller voir Lilivonne Kah"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "La crise de foi",
+          "dofusdbId": 2056,
+          "level": 60,
+          "zone": "Chocolaterie Bonnawa",
+          "npcName": "Dame de la Cour",
+          "npcSubArea": "Chocolaterie Bonnawa",
+          "coords": {
+            "x": 4,
+            "y": -6,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir Dame de la Cour",
+            "Aller voir Gusta Lavôtre",
+            "Aller voir Djonz",
+            "Vaincre x1 {monster,5693} en un seul combat",
+            "Aller voir Djonz",
+            "Aller voir Aga Dou",
+            "Aller voir Prêtresse des Douze",
+            "Aller voir Stayfun Bonnawa",
+            "Découvrir la carte : Embarcadère de l'île de Pwâk",
+            "Aller voir Lilivonne Kah",
+            "Tester l'activité conseillée par Lilivonne Kah",
+            "Aller voir Lilivonne Kah"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2066
+            }
+          ]
+        },
+        {
+          "name": "Un œuf à part",
+          "dofusdbId": 2057,
+          "level": 60,
+          "zone": "Porte du Village des Brigandins",
+          "npcName": "Brig Hendain",
+          "npcSubArea": "Porte du Village des Brigandins",
+          "coords": {
+            "x": -2,
+            "y": -4,
+            "worldId": 21
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Découvrir la carte : Accès à la salle du Dofus Cacao",
+            "Aller voir Brig Hendain",
+            "Aller voir Kadillak",
+            "Vaincre x1 {monster,5694} en un seul combat",
+            "Aller voir Brig Hendain",
+            "Escorter Brig Hendain jusqu'à Mama Ayuto",
+            "Aller voir Brig Hendain"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2056
+            }
+          ]
+        },
+        {
+          "name": "Chocomagie contre chocomancie",
+          "dofusdbId": 2058,
+          "level": 20,
+          "zone": "Pyramide de chocolat",
+          "npcName": "Marmotte",
+          "npcSubArea": "Pyramide de chocolat",
+          "coords": {
+            "x": -2,
+            "y": -5,
+            "worldId": 21
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 20847,
+              "name": "Œuf suwpwise",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/59671.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 113,
+              "name": "Fonderie des Waddicts",
+              "level": null,
+              "bossName": "Wadulant",
+              "img": "https://api.dofusdb.fr/img/monsters/1870.png",
+              "idoleName": null
+            },
+            {
+              "id": 112,
+              "name": "Croquanterie",
+              "level": null,
+              "bossName": "Kwakao",
+              "img": "https://api.dofusdb.fr/img/monsters/1859.png",
+              "idoleName": null
+            },
+            {
+              "id": 111,
+              "name": "Temple du dieu Kao",
+              "level": null,
+              "bossName": "Cabosseur",
+              "img": "https://api.dofusdb.fr/img/monsters/1852.png",
+              "idoleName": null
+            }
+          ],
+          "objectives": [
+            "Ramener à Marmotte : x10 Œuf suwpwise",
+            "Endormir la créature qui surveille le Dofus Cacao",
+            "Interroger les employés de la chocolaterie pour retrouver Kadillak",
+            "Retrouver l'intendante de Pwâk",
+            "Aller voir Intendante de Pwâk",
+            "Lire la liste de l'Intendante de Pwâk",
+            "Amener les ressources demandées par l'Intendante de Pwâk",
+            "Découvrir la carte : Lieu de la réunion secrète des Chocomanciens",
+            "Accéder à la réunion secrète en se faisant passer pour un Chocomancien"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2057
+            }
+          ]
+        },
+        {
+          "name": "Mystère et œuf au chocolat",
+          "dofusdbId": 2059,
+          "level": 20,
+          "zone": "Salle de réunion secrète des chocomanciens",
+          "npcName": "Chuchar",
+          "npcSubArea": "Salle de réunion secrète des chocomanciens",
+          "coords": {
+            "x": -3,
+            "y": -9,
+            "worldId": 21
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 394,
+              "name": "Noisette",
+              "amount": 40,
+              "img": "https://api.dofusdb.fr/img/items/58066.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Découvrir le plan des Chocomanciens",
+            "Trouver une cachette appropriée pour attendre le départ des Chocomanciens",
+            "Aller voir Chuchar",
+            "Aller voir Chuchar",
+            "Trouver un moyen d'accéder à Émile Kah",
+            "Aller voir Émile Kah",
+            "Ramener à Dadi : x20 Noisette",
+            "Aller voir Émile Kah",
+            "Ouvrir la voie pour Dadi l'écureuil",
+            "Aller voir Émile Kah",
+            "Aller voir Émile Kah",
+            "Aller voir Émile Kah",
+            "Affronter les gardes Chocomanciens pour permettre à Émile Kah de s'évader",
+            "Aller voir Émile Kah"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2058
+            }
+          ]
+        },
+        {
+          "name": "Le cas Kao",
+          "dofusdbId": 2060,
+          "level": 20,
+          "zone": "Atelier du Docteur Kaboss",
+          "npcName": "Émile Kah",
+          "npcSubArea": "Atelier du Docteur Kaboss",
+          "coords": {
+            "x": -1,
+            "y": -7,
+            "worldId": 21
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 2607,
+              "name": "Trukikol Mort",
+              "amount": 12,
+              "img": "https://api.dofusdb.fr/img/items/15600.png"
+            },
+            {
+              "id": 421,
+              "name": "Ortie",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/36642.png"
+            },
+            {
+              "id": 1782,
+              "name": "Goujon",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/41294.png"
+            },
+            {
+              "id": 16495,
+              "name": "Planche à Pâtisserie",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/95009.png"
+            },
+            {
+              "id": 424,
+              "name": "Fibre criminelle",
+              "amount": 16,
+              "img": "https://api.dofusdb.fr/img/items/55120.png"
+            },
+            {
+              "id": 20827,
+              "name": "Poil mystérieux",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/55661.png"
+            },
+            {
+              "id": 20957,
+              "name": "Kole à tout faire",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15171.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Interroger les chocomanciens à propos du Mystère au chocolat",
+            "Aller voir Émile Kah",
+            "Découvrir la carte : Atelier du Docteur Kaboss",
+            "Chercher un nouvel indice",
+            "Ramener à Émile Kah : x1 Poil mystérieux",
+            "Fabriquer 1 Kole à tout faire et fermer l'interface",
+            "Ramener à Émile Kah : x1 Kole à tout faire",
+            "Ramener à Émile Kah : x5 Planche à Pâtisserie",
+            "Ramener à Émile Kah : x8 Fibre criminelle",
+            "Découvrir la carte : Cachette de Dadi",
+            "Récupérer le morceau de rapport déchiré auprès de Dadi",
+            "Lire le rapport du Docteur Kaboss",
+            "Suivre les instructions du Docteur Kaboss pour percer le Mystère en chocolat dans son atelier",
+            "Aller voir Docteur Kaboss",
+            "Aller voir Kao",
+            "Aller voir Kao",
+            "Aller voir Prêtresse des Douze"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2059
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "globalSummary": {
+    "totalQuests": 6,
+    "totalItems": 9,
+    "totalDungeons": 3,
+    "items": [
+      {
+        "id": 421,
+        "name": "Ortie",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/36642.png"
+      },
+      {
+        "id": 1782,
+        "name": "Goujon",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/41294.png"
+      },
+      {
+        "id": 394,
+        "name": "Noisette",
+        "totalAmount": 40,
+        "img": "https://api.dofusdb.fr/img/items/58066.png"
+      },
+      {
+        "id": 424,
+        "name": "Fibre criminelle",
+        "totalAmount": 16,
+        "img": "https://api.dofusdb.fr/img/items/55120.png"
+      },
+      {
+        "id": 2607,
+        "name": "Trukikol Mort",
+        "totalAmount": 12,
+        "img": "https://api.dofusdb.fr/img/items/15600.png"
+      },
+      {
+        "id": 20847,
+        "name": "Œuf suwpwise",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/59671.png"
+      },
+      {
+        "id": 16495,
+        "name": "Planche à Pâtisserie",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/95009.png"
+      },
+      {
+        "id": 20827,
+        "name": "Poil mystérieux",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/55661.png"
+      },
+      {
+        "id": 20957,
+        "name": "Kole à tout faire",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15171.png"
+      }
+    ],
+    "dungeons": [
+      {
+        "id": 113,
+        "name": "Fonderie des Waddicts",
+        "level": null,
+        "bossName": "Wadulant",
+        "img": "https://api.dofusdb.fr/img/monsters/1870.png",
+        "idoleName": null
+      },
+      {
+        "id": 112,
+        "name": "Croquanterie",
+        "level": null,
+        "bossName": "Kwakao",
+        "img": "https://api.dofusdb.fr/img/monsters/1859.png",
+        "idoleName": null
+      },
+      {
+        "id": 111,
+        "name": "Temple du dieu Kao",
+        "level": null,
+        "bossName": "Cabosseur",
+        "img": "https://api.dofusdb.fr/img/monsters/1852.png",
+        "idoleName": null
+      }
+    ]
+  }
+}

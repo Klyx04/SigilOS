@@ -144,7 +144,7 @@ export function BonusManagerClient({ guildId }: BonusManagerClientProps) {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                <Loader2 className="w-8 h-8 animate-spin text-info" />
             </div>
         );
     }
@@ -156,14 +156,14 @@ export function BonusManagerClient({ guildId }: BonusManagerClientProps) {
         <div className="space-y-8">
             {/* Active Bonus Warning */}
             {isAnyBonusActive && (
-                <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4 flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
+                <div className="bg-warning/10 border border-warning/30 rounded-lg p-4 flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                        <h3 className="font-bold text-orange-400 mb-1">Bonus actuellement disponible</h3>
-                        <p className="text-sm text-orange-300/80">
+                        <h3 className="font-bold text-warning mb-1">Bonus actuellement disponible</h3>
+                        <p className="text-sm text-warning/80">
                             Vous ne pouvez acheter qu'un seul bonus à la fois. N'importe quel membre de la guilde peut activer le bonus **en jeu** pendant ce délai de 24h.
                         </p>
-                        <div className="mt-2 text-xs text-orange-400">
+                        <div className="mt-2 text-xs text-warning">
                             <strong>Bonus actuel :</strong> {activeBonus?.config?.name || "Inconnu"}
                             <br />
                             <strong>Statut :</strong> {activeBonus?.status === "PURCHASED" ? "Disponible en jeu (24h)" : "Actif (en cours)"}
@@ -176,7 +176,7 @@ export function BonusManagerClient({ guildId }: BonusManagerClientProps) {
                                 disabled={cancelling}
                                 variant="outline"
                                 size="sm"
-                                className="border-red-500/50 text-red-400 hover:bg-red-500/10"
+                                className="border-danger/50 text-danger hover:bg-danger/10"
                             >
                                 {cancelling ? (
                                     <>
@@ -215,28 +215,28 @@ export function BonusManagerClient({ guildId }: BonusManagerClientProps) {
             {/* Purchase Modal */}
             {selectedBonus && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                    <div className="bg-slate-900 border border-slate-700 rounded-lg max-w-md w-full p-6">
-                        <h2 className="text-2xl font-bold text-white mb-4">
+                    <div className="bg-surface border border-border rounded-lg max-w-md w-full p-6">
+                        <h2 className="text-2xl font-bold text-foreground mb-4">
                             Acheter {ALL_BONUSES.find(b => b.type === selectedBonus)?.name}
                         </h2>
 
                         <div className="space-y-4">
                             {/* Channel ID */}
                             <div>
-                                <Label className="text-white">Canal Discord (ID)</Label>
+                                <Label className="text-foreground">Canal Discord (ID)</Label>
                                 <input
                                     type="text"
                                     value={channelId}
                                     onChange={(e) => setChannelId(e.target.value)}
                                     placeholder="1234567890"
-                                    className="w-full mt-2 px-4 py-2 bg-slate-800 border border-slate-700 rounded-md text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    className="w-full mt-2 px-4 py-2 bg-elevated border border-border rounded-md text-foreground focus:ring-2 focus:ring-ring outline-none"
                                 />
-                                <p className="text-xs text-slate-500 mt-1">Optionnel - Canal où envoyer la notification</p>
+                                <p className="text-xs text-muted-foreground mt-1">Optionnel - Canal où envoyer la notification</p>
                             </div>
 
                             {/* Mention Type */}
                             <div>
-                                <Label className="text-white">Mentionner</Label>
+                                <Label className="text-foreground">Mentionner</Label>
                                 <div className="mt-2 space-y-2">
                                     <label className="flex items-center gap-2 cursor-pointer">
                                         <input
@@ -247,9 +247,9 @@ export function BonusManagerClient({ guildId }: BonusManagerClientProps) {
                                                 setMentionType(MentionType.NONE);
                                                 setRoleId("");
                                             }}
-                                            className="text-indigo-500"
+                                            className="text-info"
                                         />
-                                        <span className="text-white">Personne</span>
+                                        <span className="text-foreground">Personne</span>
                                     </label>
                                     <label className="flex items-center gap-2 cursor-pointer">
                                         <input
@@ -260,9 +260,9 @@ export function BonusManagerClient({ guildId }: BonusManagerClientProps) {
                                                 setMentionType(MentionType.EVERYONE);
                                                 setRoleId("");
                                             }}
-                                            className="text-indigo-500"
+                                            className="text-info"
                                         />
-                                        <span className="text-white">@everyone</span>
+                                        <span className="text-foreground">@everyone</span>
                                     </label>
                                     <label className="flex items-center gap-2 cursor-pointer">
                                         <input
@@ -270,9 +270,9 @@ export function BonusManagerClient({ guildId }: BonusManagerClientProps) {
                                             name="mention"
                                             checked={mentionType === MentionType.ROLE}
                                             onChange={() => setMentionType(MentionType.ROLE)}
-                                            className="text-indigo-500"
+                                            className="text-info"
                                         />
-                                        <span className="text-white">Un rôle spécifique</span>
+                                        <span className="text-foreground">Un rôle spécifique</span>
                                     </label>
                                 </div>
                             </div>
@@ -280,26 +280,26 @@ export function BonusManagerClient({ guildId }: BonusManagerClientProps) {
                             {/* Role ID (conditional) */}
                             {mentionType === MentionType.ROLE && (
                                 <div>
-                                    <Label className="text-white">Rôle Discord (ID)</Label>
+                                    <Label className="text-foreground">Rôle Discord (ID)</Label>
                                     <input
                                         type="text"
                                         value={roleId}
                                         onChange={(e) => setRoleId(e.target.value)}
                                         placeholder="1234567890"
-                                        className="w-full mt-2 px-4 py-2 bg-slate-800 border border-slate-700 rounded-md text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        className="w-full mt-2 px-4 py-2 bg-elevated border border-border rounded-md text-foreground focus:ring-2 focus:ring-ring outline-none"
                                     />
                                 </div>
                             )}
 
                             {/* Cost */}
-                            <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+                            <div className="bg-elevated/50 border border-border rounded-lg p-4">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-slate-400">Coût total</span>
+                                    <span className="text-muted-foreground">Coût total</span>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-3xl font-bold text-yellow-400">
+                                        <span className="text-3xl font-bold text-warning">
                                             {ALL_BONUSES.find(b => b.type === selectedBonus)?.cost}
                                         </span>
-                                        <span className="text-sm text-slate-400">kamas</span>
+                                        <span className="text-sm text-muted-foreground">kamas</span>
                                     </div>
                                 </div>
                             </div>
@@ -317,7 +317,7 @@ export function BonusManagerClient({ guildId }: BonusManagerClientProps) {
                                 <Button
                                     onClick={handlePurchaseSubmit}
                                     disabled={purchasing}
-                                    className="flex-1 bg-indigo-600 hover:bg-indigo-700"
+                                    className="flex-1 bg-info hover:bg-info"
                                 >
                                     {purchasing ? (
                                         <>

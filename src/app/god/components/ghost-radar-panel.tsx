@@ -106,13 +106,13 @@ export function GhostRadarPanel() {
                                         )}
                                         <div>
                                             <h4 className="font-bold text-white">{guild.name}</h4>
-                                            <code className="text-[10px] text-zinc-500">{guild.id}</code>
+                                            <code className="text-caption text-zinc-500">{guild.id}</code>
                                         </div>
                                     </div>
                                     <Button
                                         variant="destructive"
                                         size="sm"
-                                        className="font-bold uppercase tracking-widest text-[10px]"
+                                        className="font-bold uppercase tracking-widest text-caption"
                                         onClick={() => handleKick(guild.id, guild.name)}
                                         disabled={kickingIds.has(guild.id)}
                                     >

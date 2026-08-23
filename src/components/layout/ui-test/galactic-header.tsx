@@ -31,7 +31,7 @@ export function GalacticHeader({ guildId, user }: { guildId: string, user: any }
             <div className="max-w-7xl mx-auto h-full flex items-center justify-between">
                 {/* Brand */}
                 <div className="flex items-center gap-8">
-                    <span className="text-xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-400 to-secondary hover:scale-105 transition-transform cursor-pointer">
+                    <span className="text-xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-400 to-secondary  transition-transform cursor-pointer">
                         SIGILOS
                     </span>
 
@@ -61,12 +61,12 @@ export function GalacticHeader({ guildId, user }: { guildId: string, user: any }
                 <div className="flex items-center gap-4">
                     <div className="hidden lg:flex items-center gap-6 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold tracking-wider text-muted-foreground italic">
                         <div className="flex flex-col">
-                            <span className="text-[10px] text-zinc-500 not-italic">XP HEBDO</span>
+                            <span className="text-caption text-zinc-500 not-italic">XP HEBDO</span>
                             <span className="text-primary">+12,450</span>
                         </div>
                         <div className="h-4 w-px bg-white/10" />
                         <div className="flex flex-col">
-                            <span className="text-[10px] text-zinc-500 not-italic">MISSIONS</span>
+                            <span className="text-caption text-zinc-500 not-italic">MISSIONS</span>
                             <span className="text-amber-500">8/12</span>
                         </div>
                     </div>
@@ -78,9 +78,9 @@ export function GalacticHeader({ guildId, user }: { guildId: string, user: any }
                         </button>
 
                         <div className="flex items-center gap-2 pl-2 border-l border-white/10 cursor-pointer group">
-                            <Avatar className="h-8 w-8 border border-white/20 transition-transform group-hover:scale-110">
+                            <Avatar className="h-8 w-8 border border-white/20 transition-transform group-">
                                 <AvatarImage src={user?.image} />
-                                <AvatarFallback className="bg-zinc-800 text-[10px]">USER</AvatarFallback>
+                                <AvatarFallback className="bg-zinc-800 text-caption">USER</AvatarFallback>
                             </Avatar>
                             <ChevronDown className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                         </div>

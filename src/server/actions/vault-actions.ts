@@ -1,5 +1,7 @@
 "use server";
+import { logger } from "@/lib/logger";
 
+import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { getUserContext, type ActionResponse } from "./user-actions";
 import { logServiceActivity } from "./activity-log-actions";
@@ -7,6 +9,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { VaultAction } from "@prisma/client";
 import { sendChannelMessage, validateChannelBelongsToGuild } from "@/server/discord";
+import { hashImage } from "@/lib/llm-ocr";
+import { getDiscordPublicUrl } from "@/lib/storage-utils";
 
 // ---------------------------------------------------------------------------
 // TYPES
@@ -100,7 +104,7 @@ export async function getVaultEntries(
 
         return { success: true, data: entries as VaultEntryWithProfile[] };
     } catch (error) {
-        console.error("[getVaultEntries]", error);
+        logger.error("[getVaultEntries]", error);
         return { success: false, error: "Erreur interne" };
     }
 }
@@ -112,7 +116,7 @@ export async function createVaultEntry(
 ): Promise<ActionResponse<{ id: string }>> {
     try {
         const user = await getUserContext(guildId);
-        if (!user.isAuthenticated || !user.isMember || !user.canCreateServices) {
+        if (!user.isAuthenticated || !user.isMember || !user.canViewServices) {
             return { success: false, error: "Accès refusé" };
         }
         if (!user.profileId) return { success: false, error: "Profil introuvable" };
@@ -124,17 +128,50 @@ export async function createVaultEntry(
 
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true },
+            select: { id: true, serviceVaultEnabled: true },
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
+        if (!guildConfig.serviceVaultEnabled && !user.isAdmin) {
+            return { success: false, error: "Le coffre de guilde est actuellement en maintenance." };
+        }
+
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
         // Handle proof upload
         let proofUrl: string | null = null;
+        let finalImageHash: string | null = null;
         if (proofFormData) {
-            const { uploadProofImage } = await import("./upload-actions");
-            const uploadResult = await uploadProofImage(guildConfig.id, proofFormData);
-            if (uploadResult.success && uploadResult.url) {
-                proofUrl = uploadResult.url;
+            const file = proofFormData.get("file") as File | null;
+            if (file) {
+                const buffer = Buffer.from(await file.arrayBuffer());
+                finalImageHash = await hashImage(buffer);
+
+                const existingHash = await db.imageHash.findFirst({
+                    where: { hash: finalImageHash }
+                });
+
+                if (existingHash) {
+                    return { success: false, error: "Cette image a déjà été utilisée pour une preuve dans l'application." };
+                }
+
+                const { uploadProofImage } = await import("./upload-actions");
+                const uploadResult = await uploadProofImage(guildConfig.id, proofFormData);
+                if (uploadResult.success && uploadResult.url) {
+                    proofUrl = uploadResult.url;
+
+                    // Store hash
+                    await (db as any).imageHash.create({
+                        data: {
+                            guildId: guildConfig.id,
+                            hash: finalImageHash,
+                            sourceType: "VAULT",
+                            sourceId: "PENDING", // Temporary
+                            uploaderId: session.user.id
+                        }
+                    });
+                }
             }
         }
 
@@ -150,6 +187,14 @@ export async function createVaultEntry(
                 linkedItemIconUrl: parsed.data.linkedItemIconUrl || null,
             },
         });
+
+        // Update image hash with the real sourceId
+        if (proofUrl && finalImageHash) {
+            await (db as any).imageHash.update({
+                where: { hash: finalImageHash },
+                data: { sourceId: entry.id }
+            });
+        }
 
         // Immutable activity log
         await logServiceActivity({
@@ -167,9 +212,9 @@ export async function createVaultEntry(
             try {
                 const guildFull = await db.guildConfig.findUnique({
                     where: { id: guildConfig.id },
-                    select: { discordGuildId: true, loansNotifyChannelId: true },
+                    select: { discordGuildId: true, vaultNotifyChannelId: true },
                 });
-                const channelId = guildFull?.loansNotifyChannelId;
+                const channelId = guildFull?.vaultNotifyChannelId;
 
                 if (channelId) {
                     // SECURITY: Validate channel belongs to this guild
@@ -180,7 +225,9 @@ export async function createVaultEntry(
                         const emoji = isDeposit ? "📥" : "📤";
                         const actionLabel = isDeposit ? "Dépôt" : "Retrait";
                         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
-                        const dashboardUrl = `${appUrl}/dashboard/${guildId}/passages`;
+                        const dashboardUrl = `${appUrl}/dashboard/${guildId}/services`;
+                        // Discord needs an absolute URL with access token
+                        const publicProofUrl = getDiscordPublicUrl(proofUrl);
 
                         // Get actor profile + Discord mention
                         const actorProfile = await db.userProfile.findUnique({
@@ -204,7 +251,9 @@ export async function createVaultEntry(
                         }
                         fields.push({ name: "🔗 Voir sur le dashboard", value: `[Ouvrir SigilOS](${dashboardUrl})`, inline: false });
 
-                        await sendChannelMessage(
+                        // #201 — on stocke l'ID du message Discord pour pouvoir supprimer
+                        // l'embed à la suppression (évite l'image noire quand le fichier est purgé).
+                        const discordMessageId = await sendChannelMessage(
                             channelId,
                             "",
                             {
@@ -212,24 +261,30 @@ export async function createVaultEntry(
                                 embedColor: color,
                                 embedFooter: "SigilOS • Coffre de Guilde",
                                 embedThumbnail: parsed.data.linkedItemIconUrl || undefined,
-                                embedImage: proofUrl || undefined,
+                                embedImage: publicProofUrl,
                                 fields,
                             }
                         );
+                        if (discordMessageId) {
+                            await db.vaultEntry.update({
+                                where: { id: entry.id },
+                                data: { discordChannelId: channelId, discordMessageId },
+                            });
+                        }
                     } else {
-                        console.warn(`[createVaultEntry] Channel ${channelId} invalid for guild ${guildId}`);
+                        logger.warn(`[createVaultEntry] Channel ${channelId} invalid for guild ${guildId}`);
                     }
                 }
             } catch (discordErr) {
                 // Non-blocking
-                console.error("[createVaultEntry] Discord notify failed:", discordErr);
+                logger.error("[createVaultEntry] Discord notify failed:", discordErr);
             }
         }
 
-        revalidatePath(`/dashboard/${guildId}/passages`);
+        revalidatePath(`/dashboard/${guildId}/services`);
         return { success: true, data: { id: entry.id } };
     } catch (error) {
-        console.error("[createVaultEntry]", error);
+        logger.error("[createVaultEntry]", error);
         return { success: false, error: "Erreur interne" };
     }
 }
@@ -246,7 +301,7 @@ export async function deleteVaultEntry(
 
         const entryFull = await db.vaultEntry.findUnique({
             where: { id: entryId },
-            select: { profileId: true, proofUrl: true, guildId: true },
+            select: { profileId: true, proofUrl: true, guildId: true, discordChannelId: true, discordMessageId: true },
         });
         if (!entryFull) return { success: false, error: "Entrée introuvable" };
 
@@ -255,26 +310,20 @@ export async function deleteVaultEntry(
             return { success: false, error: "Seul l'auteur ou un admin peut supprimer cette entrée." };
         }
 
+        // #201 — supprimer l'embed Discord AVANT le fichier (sinon image noire)
+        if (entryFull.discordChannelId && entryFull.discordMessageId) {
+            try {
+                const { deleteChannelMessage } = await import("@/server/discord");
+                await deleteChannelMessage(entryFull.discordChannelId, entryFull.discordMessageId);
+            } catch (discordErr) {
+                logger.error("[deleteVaultEntry] Discord embed delete failed:", discordErr);
+            }
+        }
+
         // Auto-cleanup screenshot avant le delete DB
         if (entryFull.proofUrl) {
-            const { unlink } = await import("fs/promises");
-            const { existsSync } = await import("fs");
-            const path = await import("path");
-            try {
-                const prefix = `/uploads/guilds/${entryFull.guildId}/proofs/`;
-                if (entryFull.proofUrl.startsWith(prefix)) {
-                    const filename = entryFull.proofUrl.slice(prefix.length);
-                    if (/^[a-f0-9-]{36}\.webp$/.test(filename)) {
-                        const base = path.join(process.cwd(), "public", "uploads", "guilds");
-                        const filePath = path.join(base, entryFull.guildId, "proofs", filename);
-                        if (path.normalize(filePath).startsWith(path.normalize(path.join(base, entryFull.guildId, "proofs")))) {
-                            if (existsSync(filePath)) await unlink(filePath);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.error("[deleteVaultEntry] proof cleanup error:", e);
-            }
+            const { deleteProofFile } = await import("@/lib/storage-utils");
+            await deleteProofFile(entryFull.proofUrl);
         }
 
         await db.vaultEntry.delete({ where: { id: entryId } });
@@ -292,10 +341,10 @@ export async function deleteVaultEntry(
             });
         }
 
-        revalidatePath(`/dashboard/${guildId}/passages`);
+        revalidatePath(`/dashboard/${guildId}/services`);
         return { success: true };
     } catch (error) {
-        console.error("[deleteVaultEntry]", error);
+        logger.error("[deleteVaultEntry]", error);
         return { success: false, error: "Erreur interne" };
     }
 }
@@ -351,7 +400,7 @@ export async function getVaultBalance(
 
         return { success: true, data: summary };
     } catch (error) {
-        console.error("[getVaultBalance]", error);
+        logger.error("[getVaultBalance]", error);
         return { success: false, error: "Erreur interne" };
     }
 }

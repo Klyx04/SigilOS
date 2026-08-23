@@ -1,0 +1,886 @@
+{
+  "dofus": "domakuro",
+  "displayName": "Domakuro",
+  "color": "#2F4F4F",
+  "successName": "Les grands esprits se rencontrent",
+  "recommendedLevel": 180,
+  "successDescription": "Obtenir le Domakuro après avoir réconcilié les esprits de Pandala.",
+  "dofusItemId": 23237,
+  "compiledAt": "2026-04-09T12:14:39.428Z",
+  "compilerVersion": "3.0",
+  "chains": [
+    {
+      "sectionName": "Prerequisites Pandala",
+      "sectionType": "PREREQUISITE",
+      "zone": "Pandala",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Le réveil de Pandala",
+          "dofusdbId": 2149,
+          "level": 30,
+          "zone": "Taverne du Pandazaap",
+          "npcName": "Moktwa",
+          "npcSubArea": "Taverne du Pandazaap",
+          "coords": {
+            "x": 12,
+            "y": -21,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 421,
+              "name": "Ortie",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/36642.png"
+            },
+            {
+              "id": 885,
+              "name": "Laine de Boufton Noir",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/57210.png"
+            },
+            {
+              "id": 23038,
+              "name": "Échantillon sanguin de Sel Dawa",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/24031.png"
+            },
+            {
+              "id": 23039,
+              "name": "Sérum contre la Pandrista",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24031.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Vaincre x5 {monster,5228}",
+            "Vaincre x5 {monster,5229}",
+            "Vaincre x5 {monster,5230}",
+            "Vaincre x5 {monster,5231}",
+            "Retourner voir Moktwa",
+            "Trouver quelqu'un capable de vous prémunir de la Pandrista",
+            "Demander conseil à Nibé Lulle pour élaborer un sérum",
+            "Fabriquer 1 Sérum contre la Pandrista et fermer l'interface",
+            "Se faire administrer le sérum en retournant voir Nepra Lido",
+            "Traverser le pont de Pandala",
+            "Aller voir Garde Chopynju",
+            "Boire la bière pour ouvrir votre conscience aux esprits alentours",
+            "Parler à l'esprit présent dans la pièce",
+            "Sortir de la chambre"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "À la croisée des mondes",
+          "dofusdbId": 2150,
+          "level": 100,
+          "zone": "Taverne du Pandazaap",
+          "npcName": "Hintikou",
+          "npcSubArea": "Taverne du Pandazaap",
+          "coords": {
+            "x": 20,
+            "y": -29,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 7013,
+              "name": "Bois de Bambou",
+              "amount": 40,
+              "img": "https://api.dofusdb.fr/img/items/38673.png"
+            },
+            {
+              "id": 7223,
+              "name": "Artefact Pandawushu Vent",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/164661.png"
+            },
+            {
+              "id": 23311,
+              "name": "Artefact Pandawushu Bois",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/164660.png"
+            },
+            {
+              "id": 7222,
+              "name": "Artefact Pandawushu Eau",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/164659.png"
+            },
+            {
+              "id": 7225,
+              "name": "Artefact Pandawushu Feu",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/164663.png"
+            },
+            {
+              "id": 7224,
+              "name": "Artefact Pandawushu Roc",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/164662.png"
+            },
+            {
+              "id": 7045,
+              "name": "Pandaburg",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/79179.png"
+            },
+            {
+              "id": 23094,
+              "name": "Pandaclier",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/82276.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Boire le remède d'Hintikou",
+            "Parler au Grandapan là où se rencontrent les contraires",
+            "Aller voir Hintikou",
+            "Rencontrer le chaman du Village de Pandala",
+            "Entrer dans le Palais de bambou",
+            "Demander à être reçu par la Daimya",
+            "Imposer le silence aux Yokai de la bibliothèque",
+            "Obtenir une recommandation du bibliothécaire",
+            "Calmer l'appétit des Yokai qui dévorent les provisions de l'hôtel des ventes",
+            "Obtenir une recommandation du cellerier",
+            "Déjouer les plans des Pandissidans",
+            "Obtenir une recommandation du banquier",
+            "Montrer les recommandations au Pandarin Sudopong",
+            "Aller voir Daimya Hikomi",
+            "Aller voir Maître Kwatimbe",
+            "Fabriquer 1 Pandaclier et fermer l'interface",
+            "Passer l'épreuve du maître Kwatimbe",
+            "Rejoindre la Daimya dans la salle de la Pandassemblée",
+            "Aller voir Le Grandapan",
+            "Boire une chope de Pandazahi ou de Pandaporo et se laisser guider par le Grandapan",
+            "Parler aux dragons Imagiro et Orukam",
+            "Retourner voir Daimya Hikomi"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2149
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Les grands esprits se rencontrent",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Pandala",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 1,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Sous le bois de sa colère",
+          "dofusdbId": 2151,
+          "level": 110,
+          "zone": "Bibliothèque de Pandala",
+          "npcName": "Kykori",
+          "npcSubArea": "Bibliothèque de Pandala",
+          "coords": {
+            "x": 24,
+            "y": -29,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 23096,
+              "name": "Pousse de bambou sacrée",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164698.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 125,
+              "name": "Bambusaie de Damadrya",
+              "level": null,
+              "bossName": "Damadrya",
+              "img": "https://api.dofusdb.fr/img/monsters/2088.png",
+              "idoleName": null
+            }
+          ],
+          "objectives": [
+            "Aller voir Kykori",
+            "Se rendre à la bibliothèque pour lire le registre d'exploitation du bambou",
+            "Sortir de la bibliothèque pour parler au scribe",
+            "Retourner à l'atelier des bûcherons afin de discuter avec Kykori",
+            "Découvrir le site de l‘exploitation du bambou",
+            "Se débarrasser des bamboutos belliqueux",
+            "Parler au surveillant de l'exploitation",
+            "Explorer l'exploitation pour trouver des traces de Kykori",
+            "Lire la page du registre",
+            "Continuer l'exploration de la bambusaie",
+            "Affronter la gardienne de la bambusaie",
+            "Aller voir Damadrya",
+            "Retourner au village et trouver Kykori",
+            "Vaincre Kykori et son complice",
+            "Montrer le registre à la Daimya",
+            "Récupérer la pousse de bambou sacrée",
+            "Ramener à Damadrya : x1 Pousse de bambou sacrée",
+            "Se rendre devant l'arbre Goroku et parler à l'un de ses fruits",
+            "Réduire en pulpe les fruits pourris",
+            "Planter les pépins du fruit tombé pour qu'il renaisse",
+            "Manger un quartier de fruit et entrer dans l'arbre Goroku",
+            "Parler à l'esprit de la forêt",
+            "Retourner voir Daimya Hikomi"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Au nom de l'Art",
+          "dofusdbId": 2152,
+          "level": 130,
+          "zone": "Atelier du Tanukouï San - Cinquième salle",
+          "npcName": "Anatakwa",
+          "npcSubArea": "Atelier du Tanukouï San - Cinquième salle",
+          "coords": {
+            "x": 24,
+            "y": -22,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 23481,
+              "name": "Poussière de Roche",
+              "amount": 8,
+              "img": "https://api.dofusdb.fr/img/items/48691.png"
+            },
+            {
+              "id": 23480,
+              "name": "Huile de Riz",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/60069.png"
+            },
+            {
+              "id": 23482,
+              "name": "Alcool à 99%",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/174001.png"
+            },
+            {
+              "id": 7305,
+              "name": "Poils magiques de Tanuki",
+              "amount": 12,
+              "img": "https://api.dofusdb.fr/img/items/164678.png"
+            },
+            {
+              "id": 23098,
+              "name": "Baume Hakouï",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/173004.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 126,
+              "name": "Atelier du Tanukouï San",
+              "level": null,
+              "bossName": "Lolojiki",
+              "img": "https://api.dofusdb.fr/img/monsters/672.png",
+              "idoleName": null
+            }
+          ],
+          "objectives": [
+            "Aller voir Anatakwa",
+            "Aller voir Mira Hagata",
+            "Interroger les Tanuki",
+            "Aller voir Tanukas Noazeth",
+            "Entrer dans l'Atelier du Tanukouï San",
+            "Vaincre x1 {monster,6218} en un seul combat",
+            "Aller voir Tanukouï San",
+            "Trouver un Tanuki qui acceptera de parler de code géoglyphique",
+            "Fabriquer 1 Baume Hakouï et fermer l'interface",
+            "Ramener à Tanukaï Aïhaye : x1 Baume Hakouï",
+            "Aller voir Narber Rihen Levihawa",
+            "Déchiffrer le code grâce au livre « Les géoglyphes pour les nuls »",
+            "Se rendre sur le premier lieu de rendez-vous",
+            "Récupérer le minerai volé par les Tanuki",
+            "Se rendre sur le deuxième lieu de rendez-vous",
+            "Se rendre sur le dernier lieu de rendez-vous",
+            "Observer Tanuwang Yuanzhong et Whaska avant d'intervenir",
+            "Convaincre Tanuki Durtouki de laisser Whaska travailler dans l'atelier des sculpteurs",
+            "Aller voir Tanuwang Yuanzhong",
+            "Réserver l'emplacement idéal de l'œuvre sur la Place de la Bourse",
+            "Aider les apprentis à finaliser l'œuvre",
+            "Attendre la venue de l'esprit du Roc lors de l'exposition artistique de la Place de la Bourse",
+            "Aller voir Esprit du Roc",
+            "Retourner voir Mira Hagata",
+            "Retourner voir Daimya Hikomi"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2151
+            }
+          ]
+        },
+        {
+          "name": "La jetée des enfants perdus",
+          "dofusdbId": 2153,
+          "level": 130,
+          "zone": "Taverne d'Osakwa",
+          "npcName": "Yuminh",
+          "npcSubArea": "Taverne d'Osakwa",
+          "coords": {
+            "x": 18,
+            "y": -25,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 23097,
+              "name": "Concombre sauvage",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/164699.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 123,
+              "name": "Vallée de la Dame des eaux",
+              "level": null,
+              "bossName": "Nagate",
+              "img": "https://api.dofusdb.fr/img/monsters/2055.png",
+              "idoleName": null
+            }
+          ],
+          "objectives": [
+            "Interroger une travailleuse des rizières à propos des Kwapa",
+            "Interroger un pêcheur en bord de mer à propos des Kwapa",
+            "Aider le pêcheur aux prises avec un groupe de Kwapa",
+            "Aller voir Yuminh",
+            "Interroger la patronne de la taverne d'Osakwa à propos des Kwapa",
+            "Explorer Akwadala à la recherche d'un Kwapa esseulé",
+            "Vaincre les chasseurs de prime qui veulent la peau du Kwapa",
+            "Engager la conversation avec le Kwapa esseulé",
+            "Ramener à Kwatalo : x6 Concombre sauvage",
+            "Se rendre avec Kwatalo devant l'escalier menant à la Vallée de la Dame des eaux",
+            "Tenter de libérer le petit Pandawa avec l'aide de Kwatalo",
+            "Entrer dans la Vallée de la Dame des eaux",
+            "Vaincre Nagate la Dame des eaux",
+            "Aller voir Nagate la Dame des eaux",
+            "Aller voir Kwatalo",
+            "Accompagner Kwatalo au pont des granouilles",
+            "Faire le vœu de rencontrer l'esprit de l'eau",
+            "Aller voir Kwatalo",
+            "Parler à l'esprit de l'eau",
+            "Ramener le jeune Lenald à sa mère",
+            "Retourner voir la Daimya avec le petit Pandawa"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2152
+            }
+          ]
+        },
+        {
+          "name": "Le festival de la lanterne",
+          "dofusdbId": 2154,
+          "level": 140,
+          "zone": "Temple de la Lanterne",
+          "npcName": "Garde de Feudala",
+          "npcSubArea": "Temple de la Lanterne",
+          "coords": {
+            "x": 18,
+            "y": -30,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 7018,
+              "name": "Riz",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/34010.png"
+            },
+            {
+              "id": 311,
+              "name": "Eau Potable",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/15026.png"
+            },
+            {
+              "id": 287,
+              "name": "Graine de Sésame",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/58003.png"
+            },
+            {
+              "id": 6671,
+              "name": "Haricot",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/58471.png"
+            },
+            {
+              "id": 23166,
+              "name": "Énigme du festival des lanternes",
+              "amount": 8,
+              "img": "https://api.dofusdb.fr/img/items/164720.png"
+            },
+            {
+              "id": 23167,
+              "name": "Wanchiao au sésame",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/164721.png"
+            },
+            {
+              "id": 23175,
+              "name": "Wanchiao aux haricots",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/164722.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 124,
+              "name": "Fabrique de foux d'artifice",
+              "level": null,
+              "bossName": "Founamboul",
+              "img": "https://api.dofusdb.fr/img/monsters/2054.png",
+              "idoleName": null
+            }
+          ],
+          "objectives": [
+            "Demander un rapport de la situation au garde de Feudala",
+            "Confectionner une Lanterne cérémonielle",
+            "Retourner voir Garde de Feudala",
+            "Rendre hommage à l'esprit du feu devant la lanterne primordiale",
+            "Aller voir Feu follet",
+            "Calmer les feux follets",
+            "Rapporter votre conversation au moine de la lanterne Ozulan",
+            "Aller voir Pandako Shazaki",
+            "Montrer à Pandako Shazaki : 8 Énigme du festival des lanternes",
+            "Attacher les énigmes sur les arbres-lanternes",
+            "Aller voir Stayfun Bonnawa",
+            "Fabriquer 10 Wanchiao au sésame et fermer l'interface",
+            "Fabriquer 10 Wanchiao aux haricots et fermer l'interface",
+            "Apporter les wanchiao à Ozulan au temple de la lanterne",
+            "Retourner à l'atelier de papier",
+            "Protéger le Qilin en papier des firefoux",
+            "Retourner voir Pandako Shazaki",
+            "Aller voir Hinaba",
+            "Entrer dans le donjon de Feudala",
+            "Vaincre x1 {monster,6249} en un seul combat",
+            "Aller voir Founoroshi",
+            "Décider de rencontrer l'esprit du feu avec Ozulan ou Founoroshi",
+            "Utiliser le mortier enchanté devant le sanctuaire",
+            "Se rendre au sanctuaire du feu pour rencontrer l'esprit",
+            "Aller voir Esprit du Feu",
+            "Faire le point avec Ozulan",
+            "Retourner voir Daimya Hikomi"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2153
+            }
+          ]
+        },
+        {
+          "name": "L'équilibre des forces",
+          "dofusdbId": 2155,
+          "level": 140,
+          "zone": "Palais de bambou",
+          "npcName": "Esprit du Vent",
+          "npcSubArea": "Palais de bambou",
+          "coords": {
+            "x": 21,
+            "y": -39,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 10831,
+              "name": "Bananagrume",
+              "amount": 16,
+              "img": "https://api.dofusdb.fr/img/items/46001.png"
+            },
+            {
+              "id": 2294,
+              "name": "Viscères de Scarafeuille",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/15445.png"
+            },
+            {
+              "id": 381,
+              "name": "Fraise",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/46053.png"
+            },
+            {
+              "id": 23118,
+              "name": "Offrande à l'esprit du Vent",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/69780.png"
+            },
+            {
+              "id": 23120,
+              "name": "Permission de circuler",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24065.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 122,
+              "name": "Dojo du Vent",
+              "level": null,
+              "bossName": "Lichangoro",
+              "img": "https://api.dofusdb.fr/img/monsters/669.png",
+              "idoleName": null
+            }
+          ],
+          "objectives": [
+            "Fabriquer 1 Offrande à l'esprit du Vent et fermer l'interface",
+            "Déposer l'offrande à l'esprit du Vent au sommet de la montagne",
+            "Aller voir Esprit du Vent",
+            "Aller voir Yokaïkido",
+            "Découvrir la carte : Camps des Pandissidans",
+            "Aller voir Jun Pandawane",
+            "Intercepter les poseurs de bombe près des maisons Pandawas",
+            "Neutraliser d'autres poseurs de bombe près des habitations Pandawas",
+            "Aller voir Jun Pandawane",
+            "Découvrir la carte : Tour de guet",
+            "Protéger Ten Rowa de l'attaque de la Garde Kozaru",
+            "Aller voir Ten Rowa",
+            "Aller voir Yokaïkido",
+            "Aller voir Capitaine de la garde Kozaru",
+            "Entrer dans le Dojo du Vent",
+            "Vaincre x1 {monster,6212} en un seul combat",
+            "Aller voir Hanshi",
+            "Suivre l'échange entre Ten Rowa et les Maîtres Kozaru",
+            "Ramener à Capitaine de la garde Kozaru : x1 Permission de circuler",
+            "Retrouver Jun Pandawane et Ten Rowa au Sommet d'Aerdala",
+            "Aller voir Yokaïkido",
+            "Aller voir Esprit du Vent",
+            "Retourner voir Daimya Hikomi"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2154
+            }
+          ]
+        },
+        {
+          "name": "Sang d'encre",
+          "dofusdbId": 2197,
+          "level": 140,
+          "zone": "Palais de bambou",
+          "npcName": "Ikunochi",
+          "npcSubArea": "Palais de bambou",
+          "coords": {
+            "x": 19,
+            "y": -32,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 23240,
+              "name": "Dofus d'encre diaphane",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164705.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Rencontrer quelqu'un aux environs des escaliers montant en Aerdala",
+            "Suivre les instructions du message",
+            "Explorer les lieux",
+            "Se débarrasser des assassins pandikazes",
+            "Aller voir Ikunochi",
+            "Entrer dans la demeure fortifiée du Maître Pandore sans éveiller les soupçons",
+            "Vaincre le Maître Pandore pour s'emparer du Dofus d'encre",
+            "Retourner voir Daimya Hikomi",
+            "Faire apparaître le Grandapan et boire une chope de Pandazahi ou de Pandaporo pour retourner dans l'Éther",
+            "Montrer à Orukam : 1 Dofus d'encre diaphane"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2155
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "globalSummary": {
+    "totalQuests": 8,
+    "totalItems": 32,
+    "totalDungeons": 5,
+    "items": [
+      {
+        "id": 421,
+        "name": "Ortie",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/36642.png"
+      },
+      {
+        "id": 7013,
+        "name": "Bois de Bambou",
+        "totalAmount": 40,
+        "img": "https://api.dofusdb.fr/img/items/38673.png"
+      },
+      {
+        "id": 7018,
+        "name": "Riz",
+        "totalAmount": 20,
+        "img": "https://api.dofusdb.fr/img/items/34010.png"
+      },
+      {
+        "id": 287,
+        "name": "Graine de Sésame",
+        "totalAmount": 20,
+        "img": "https://api.dofusdb.fr/img/items/58003.png"
+      },
+      {
+        "id": 10831,
+        "name": "Bananagrume",
+        "totalAmount": 16,
+        "img": "https://api.dofusdb.fr/img/items/46001.png"
+      },
+      {
+        "id": 7305,
+        "name": "Poils magiques de Tanuki",
+        "totalAmount": 12,
+        "img": "https://api.dofusdb.fr/img/items/164678.png"
+      },
+      {
+        "id": 885,
+        "name": "Laine de Boufton Noir",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/57210.png"
+      },
+      {
+        "id": 6671,
+        "name": "Haricot",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/58471.png"
+      },
+      {
+        "id": 23167,
+        "name": "Wanchiao au sésame",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/164721.png"
+      },
+      {
+        "id": 23175,
+        "name": "Wanchiao aux haricots",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/164722.png"
+      },
+      {
+        "id": 23481,
+        "name": "Poussière de Roche",
+        "totalAmount": 8,
+        "img": "https://api.dofusdb.fr/img/items/48691.png"
+      },
+      {
+        "id": 23166,
+        "name": "Énigme du festival des lanternes",
+        "totalAmount": 8,
+        "img": "https://api.dofusdb.fr/img/items/164720.png"
+      },
+      {
+        "id": 23097,
+        "name": "Concombre sauvage",
+        "totalAmount": 6,
+        "img": "https://api.dofusdb.fr/img/items/164699.png"
+      },
+      {
+        "id": 2294,
+        "name": "Viscères de Scarafeuille",
+        "totalAmount": 6,
+        "img": "https://api.dofusdb.fr/img/items/15445.png"
+      },
+      {
+        "id": 381,
+        "name": "Fraise",
+        "totalAmount": 6,
+        "img": "https://api.dofusdb.fr/img/items/46053.png"
+      },
+      {
+        "id": 7223,
+        "name": "Artefact Pandawushu Vent",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/164661.png"
+      },
+      {
+        "id": 23311,
+        "name": "Artefact Pandawushu Bois",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/164660.png"
+      },
+      {
+        "id": 7222,
+        "name": "Artefact Pandawushu Eau",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/164659.png"
+      },
+      {
+        "id": 7225,
+        "name": "Artefact Pandawushu Feu",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/164663.png"
+      },
+      {
+        "id": 7224,
+        "name": "Artefact Pandawushu Roc",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/164662.png"
+      },
+      {
+        "id": 23480,
+        "name": "Huile de Riz",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/60069.png"
+      },
+      {
+        "id": 23482,
+        "name": "Alcool à 99%",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/174001.png"
+      },
+      {
+        "id": 311,
+        "name": "Eau Potable",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/15026.png"
+      },
+      {
+        "id": 23038,
+        "name": "Échantillon sanguin de Sel Dawa",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/24031.png"
+      },
+      {
+        "id": 7045,
+        "name": "Pandaburg",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/79179.png"
+      },
+      {
+        "id": 23039,
+        "name": "Sérum contre la Pandrista",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24031.png"
+      },
+      {
+        "id": 23094,
+        "name": "Pandaclier",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/82276.png"
+      },
+      {
+        "id": 23096,
+        "name": "Pousse de bambou sacrée",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164698.png"
+      },
+      {
+        "id": 23098,
+        "name": "Baume Hakouï",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/173004.png"
+      },
+      {
+        "id": 23118,
+        "name": "Offrande à l'esprit du Vent",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/69780.png"
+      },
+      {
+        "id": 23120,
+        "name": "Permission de circuler",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24065.png"
+      },
+      {
+        "id": 23240,
+        "name": "Dofus d'encre diaphane",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164705.png"
+      }
+    ],
+    "dungeons": [
+      {
+        "id": 125,
+        "name": "Bambusaie de Damadrya",
+        "level": null,
+        "bossName": "Damadrya",
+        "img": "https://api.dofusdb.fr/img/monsters/2088.png",
+        "idoleName": null
+      },
+      {
+        "id": 126,
+        "name": "Atelier du Tanukouï San",
+        "level": null,
+        "bossName": "Lolojiki",
+        "img": "https://api.dofusdb.fr/img/monsters/672.png",
+        "idoleName": null
+      },
+      {
+        "id": 123,
+        "name": "Vallée de la Dame des eaux",
+        "level": null,
+        "bossName": "Nagate",
+        "img": "https://api.dofusdb.fr/img/monsters/2055.png",
+        "idoleName": null
+      },
+      {
+        "id": 124,
+        "name": "Fabrique de foux d'artifice",
+        "level": null,
+        "bossName": "Founamboul",
+        "img": "https://api.dofusdb.fr/img/monsters/2054.png",
+        "idoleName": null
+      },
+      {
+        "id": 122,
+        "name": "Dojo du Vent",
+        "level": null,
+        "bossName": "Lichangoro",
+        "img": "https://api.dofusdb.fr/img/monsters/669.png",
+        "idoleName": null
+      }
+    ]
+  }
+}

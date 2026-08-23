@@ -2,127 +2,109 @@
 
 import { signOut } from "next-auth/react";
 import Image from "next/image";
-import Link from "next/link";
-import { LogOut, Home, RefreshCw, Crown, MessageSquare, ShieldAlert, Lock, ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useEffect } from "react";
-import { AuroraBackground } from "@/components/ui/aurora-background";
-import { PublicHeader } from "@/components/layout/public-header";
-import { useSession } from "next-auth/react";
+import { LogOut, RefreshCw, Crown } from "lucide-react";
+import { useState, useEffect } from "react";
+import { AccessRequestModal } from "@/components/landing/AccessRequestModal";
 
 interface NoGuildMessageProps {
     rateLimited?: boolean;
 }
 
 export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
-    const { data: session } = useSession();
+    const [showModal, setShowModal] = useState(false);
 
-    // Auto-reload every 3 seconds when rate limited (Discord sync in progress)
+    // Auto-reload when rate limited (paused while the request modal is open)
+    // so the user never stays blocked on a stale state.
     useEffect(() => {
-        if (rateLimited) {
+        if (rateLimited && !showModal) {
             const interval = setInterval(() => {
                 window.location.reload();
-            }, 3000); // Reload every 3 seconds
-
+            }, 15000);
             return () => clearInterval(interval);
         }
-    }, [rateLimited]);
+    }, [rateLimited, showModal]);
 
     return (
-        <div className="relative w-full flex flex-col items-center justify-center p-4 min-h-screen">
-            <PublicHeader user={session?.user} />
-            <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
-            {/* Ambient Noise Overlay */}
-            <div className="absolute inset-0 noise-overlay opacity-[0.03] pointer-events-none" />
+        <div className="relative w-full flex-1 flex flex-col items-center justify-center p-4">
 
-            <div className="relative z-10 max-w-lg w-full text-center space-y-12 animate-in fade-in slide-in-from-bottom-5 duration-1000">
+            <div className="relative z-10 max-w-md w-full text-center space-y-6 animate-in fade-in slide-in-from-bottom-5 duration-200">
 
-                {/* Main Content Card */}
-                <div className="glass-premium p-10 rounded-3xl border border-white/5 bg-zinc-900/20 backdrop-blur-2xl relative overflow-hidden group">
-                    <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-3xl blur opacity-25 group-hover:opacity-40 transition duration-1000" />
+                {/* Logo */}
+                <div className="mx-auto w-20 h-20 relative">
+                    <Image
+                        src="/assets/ui/logo-v2.png"
+                        alt="SigilOS"
+                        fill
+                        className="object-contain"
+                        priority
+                    />
+                </div>
 
-                    <div className="relative z-10 space-y-8">
-                        {/* Logo Animation */}
-                        <div className="mx-auto w-24 h-24 relative">
-                            <div className="absolute inset-0 bg-purple-500/30 blur-[40px] rounded-full animate-pulse" />
-                            <Image
-                                src="/assets/ui/logo-v2.png"
-                                alt="SigilOS"
-                                fill
-                                className="object-contain drop-shadow-[0_0_30px_rgba(168,85,247,0.5)] brightness-125"
-                                priority
-                            />
-                        </div>
+                {/* Main card */}
+                <div className="relative bg-background/80 border border-white/8 rounded-3xl p-8 backdrop-blur-xl overflow-hidden shadow-2xl shadow-black/50">
+                    {/* Top accent line */}
+                    <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-success/60 to-transparent" />
 
-                        <div className="space-y-4">
-                            <h1 className="text-4xl font-black text-white tracking-tighter uppercase font-heading drop-shadow-lg">
-                                {rateLimited ? "Exploration..." : "Portail Restreint"}
+                    <div className="space-y-5">
+                        <div className="space-y-2">
+                            <h1 className="text-display-xl font-bold text-foreground font-heading tracking-tight">
+                                Accès Restreint
                             </h1>
-                            <div className="h-1 w-20 bg-gradient-to-r from-transparent via-indigo-500 to-transparent mx-auto rounded-full opacity-50"></div>
-
-                            <p className="text-zinc-400 text-base max-w-sm mx-auto leading-relaxed">
-                                {rateLimited
-                                    ? "Synchronisation des protocoles d'accès en cours. Nous scannons la galaxie..."
-                                    : "Aucune guilde active n'est associée à votre compte Discord."}
+                            <p className="text-muted-foreground text-sm leading-relaxed">
+                                Votre compte Discord n'est associé à aucune guilde active sur SigilOS.
                             </p>
                         </div>
 
-                        {/* Action Buttons */}
-                        <div className="flex flex-col gap-4 w-full max-w-[240px] mx-auto pt-4">
-                            {rateLimited ? (
-                                <Button
-                                    onClick={() => window.location.reload()}
-                                    className="h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-xs hover:bg-zinc-200 transition-all hover:scale-105"
-                                >
-                                    <RefreshCw className="h-4 w-4 mr-2 animate-spin-slow" />
-                                    Relancer la synchro
-                                </Button>
-                            ) : (
-                                <Button
-                                    onClick={() => signOut({ callbackUrl: "/" })}
-                                    variant="outline"
-                                    className="h-12 rounded-xl border-white/10 text-white hover:bg-white/5 transition-all uppercase font-bold tracking-widest text-[10px]"
-                                >
-                                    <LogOut className="h-4 w-4 mr-2" />
-                                    Changer de Compte
-                                </Button>
-                            )}
+                        {/* Rate-limit notice — non bloquant, le CTA d'inscription reste l'essentiel */}
+                        {rateLimited && (
+                            <div className="flex items-start gap-2.5 rounded-xl border border-warning/20 bg-warning/5 px-3.5 py-3 text-left">
+                                <RefreshCw className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-caption text-warning/90 font-semibold leading-relaxed">
+                                        Vérification des accès en cours — l'API Discord répond avec un léger délai.
+                                    </p>
+                                    <button
+                                        onClick={() => window.location.reload()}
+                                        className="text-caption font-bold text-warning underline underline-offset-2 hover:text-foreground transition-colors mt-1"
+                                    >
+                                        Relancer la vérification
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* CTAs */}
+                        <div className="flex flex-col gap-3 pt-2">
+                            {/* PRIMARY — Demander l'accès */}
+                            <button
+                                onClick={() => setShowModal(true)}
+                                className="group relative w-full h-14 rounded-xl bg-success hover:bg-success text-success-foreground font-bold text-sm transition-colors active:scale-[0.99] overflow-hidden flex flex-col items-center justify-center"
+                            >
+                                <span className="text-caption opacity-80 mb-0.5">Chef de Guilde ?</span>
+                                <div className="flex items-center gap-2">
+                                    <Crown className="w-4 h-4" />
+                                    <span>Inscrire ma Guilde</span>
+                                </div>
+                            </button>
+
+                            {/* SECONDARY — Changer de compte */}
+                            <button
+                                onClick={() => signOut({ callbackUrl: "/" })}
+                                className="h-10 rounded-xl border border-white/8 text-muted-foreground hover:text-foreground hover:border-border-strong transition-colors text-xs font-medium flex items-center justify-center gap-2"
+                            >
+                                <LogOut className="h-3.5 w-3.5" />
+                                Changer de compte
+                            </button>
                         </div>
                     </div>
                 </div>
 
-                {/* Conversion Section with improved visuals */}
-                {!rateLimited && (
-                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
-                        <div className="relative group/beta">
-                            <div className="absolute -inset-1 bg-gradient-to-r from-amber-500/50 to-orange-500/50 rounded-2xl blur opacity-0 group-hover/beta:opacity-10 transition duration-500" />
-                            <div className="relative bg-zinc-900/40 p-6 rounded-2xl border border-white/5 backdrop-blur-sm overflow-hidden text-center">
-                                <div className="flex flex-col items-center gap-4">
-                                    <div className="p-3 rounded-full bg-amber-500/10 border border-amber-500/20 group-hover/beta:scale-110 transition-transform">
-                                        <Crown className="w-5 h-5 text-amber-500" />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <h3 className="text-white font-black uppercase tracking-widest text-sm">Responsable de Guilde ?</h3>
-                                        <p className="text-zinc-500 text-[10px] font-bold">Propulsez votre serveur dans une nouvelle dimension.</p>
-                                    </div>
-
-                                    <Button asChild className="w-full max-w-xs h-11 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-[#5865F2]/20 transition-all hover:scale-[1.02]">
-                                        <Link href="https://discord.gg/uX7G6SUDgN" target="_blank">
-                                            <MessageSquare className="w-4 h-4 mr-2" />
-                                            Rejoindre le Discord Support
-                                        </Link>
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center justify-center gap-2 text-[9px] text-zinc-700 uppercase tracking-[0.4em] font-black">
-                            <span className="w-1 h-1 rounded-full bg-emerald-500/30"></span>
-                            <span>SigilOS • Réseau Sécurisé</span>
-                        </div>
-                    </div>
-                )}
+                <p className="text-caption text-muted-foreground uppercase tracking-wider font-medium">
+                    SigilOS · Réseau Sécurisé
+                </p>
             </div>
+
+            <AccessRequestModal open={showModal} onClose={() => setShowModal(false)} />
         </div>
     );
 }

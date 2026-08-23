@@ -10,7 +10,6 @@ import { useState, useEffect } from "react";
 import {
     Calendar as CalendarIcon,
     Plus,
-    List,
     LayoutGrid,
     Loader2,
     Sparkles,
@@ -18,12 +17,16 @@ import {
     PartyPopper,
     Target,
     Wheat,
-    Eye,
+    Filter,
+    ChevronLeft,
+    ChevronRight,
 } from "lucide-react";
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMonths, subMonths, addWeeks, subWeeks, isBefore, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import {
     getCalendarEvents,
@@ -35,26 +38,41 @@ import {
     unregisterFromEvent,
     publishEvent,
     completeEvent,
+    completeRaidEvent,
+    cancelCalendarEvent,
+    undoCompleteRaidEvent,
     sendEventReminder,
     autoCloseExpiredEvents,
     sendCalendarDiscordNotification,
     getDiscordRolesForCalendar,
     type GuildEventInput
 } from "@/server/actions/calendar-actions";
+import { getUserRaidEligibility } from "@/server/actions/kama-actions";
 import { CalendarGrid } from "./calendar-grid";
 import { EventDetailModal } from "./event-detail-modal";
 import { EventCard } from "./event-card";
 import { EventForm } from "./event-form";
+import { RaidHubModal } from "./raid-hub-modal";
 import { cn } from "@/lib/utils";
+
+export interface DiscordChannels {
+    calendarNotifyChannelId?: string | null;
+    raidNotifyChannelId?: string | null;
+    raidGigalodonNotifyChannelId?: string | null;
+    raidSanctuaireNotifyChannelId?: string | null;
+}
 
 interface CalendarDashboardProps {
     guildId: string;
     currentUserId: string;
     canManage: boolean;
-    isDiscordConfigured?: boolean;
+    canManageRaid?: boolean;
+    userPseudo?: string;
+    discordChannels?: DiscordChannels;
+    isAdmin?: boolean;
 }
 
-type ViewMode = "grid" | "list";
+type ViewMode = "grid";
 
 interface DiscordRole {
     id: string;
@@ -66,65 +84,73 @@ const FILTER_TYPES: Record<string, { label: string; icon: any; color: string; bg
     RAID_OFFICIAL: {
         label: "Raid 3.6",
         icon: Swords,
-        color: "text-red-400",
-        bg: "bg-red-500/15",
-        border: "border-red-500/40",
+        color: "text-danger",
+        bg: "bg-danger/15",
+        border: "border-danger/40",
     },
     EVENT_GUILD: {
         label: "Event Guilde",
         icon: PartyPopper,
-        color: "text-purple-400",
-        bg: "bg-purple-500/15",
-        border: "border-purple-500/40",
+        color: "text-info",
+        bg: "bg-info/15",
+        border: "border-info/40",
     },
     SESSION_MISSIONS: {
-        label: "Missions Guilde",
+        label: "Missions",
         icon: Target,
-        color: "text-amber-400",
-        bg: "bg-amber-500/15",
-        border: "border-amber-500/40",
+        color: "text-warning",
+        bg: "bg-warning/15",
+        border: "border-warning/40",
     },
     SORTIE_FARM: {
-        label: "Sortie Farm",
+        label: "Farm",
         icon: Wheat,
-        color: "text-emerald-400",
-        bg: "bg-emerald-500/15",
-        border: "border-emerald-500/40",
-    },
-    KRALAMOURE: {
-        label: "Kralamoure",
-        icon: Eye,
-        color: "text-pink-400",
-        bg: "bg-pink-500/15",
-        border: "border-pink-500/40",
-    },
-    OTHERS: {
-        label: "Autres",
-        icon: List,
-        color: "text-zinc-400",
-        bg: "bg-zinc-500/15",
-        border: "border-zinc-500/40",
+        color: "text-success",
+        bg: "bg-success/15",
+        border: "border-success/40",
     },
 };
 
-export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscordConfigured }: CalendarDashboardProps) {
-    const [viewMode, setViewMode] = useState<ViewMode>("grid");
-    const [currentDate, setCurrentDate] = useState(new Date());
+export function CalendarDashboard({ guildId, currentUserId, canManage, canManageRaid, userPseudo, discordChannels, isAdmin = false }: CalendarDashboardProps) {
+    const [displayMode] = useState<ViewMode>("grid");
+    const [gridType, setGridType] = useState<"week" | "month">("week");
+    // Chantier #87/#88 : `new Date()` en SSR (serveur UTC) vs client (Europe/Paris) peut
+    // changer le jour affiché → on initialise null et on ne calcule « aujourd'hui » qu'après
+    // montage (hydratation déterministe, plus d'erreur React #418 sur /calendar).
+    const [currentDate, setCurrentDate] = useState<Date | null>(null);
+
+    useEffect(() => {
+        setCurrentDate(new Date());
+    }, []);
+
     const [events, setEvents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [prefilledDate, setPrefilledDate] = useState<Date | null>(null);
     const [editingEvent, setEditingEvent] = useState<any>(null);
 
     // Event detail modal
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
     const [selectedEvent, setSelectedEvent] = useState<any>(null);
     const [loadingDetail, setLoadingDetail] = useState(false);
+    const [hasMetamobKey, setHasMetamobKey] = useState(false);
 
     // Discord roles for notifications
     const [discordRoles, setDiscordRoles] = useState<DiscordRole[]>([]);
+    const [everyoneAllowed, setEveryoneAllowed] = useState<boolean>(false);
 
     // Filter state
     const [selectedFilter, setSelectedFilter] = useState<string | "ALL">("ALL");
+    const [showFilters, setShowFilters] = useState(false);
+
+    // Hub Raid modal
+    const [isRaidHubOpen, setIsRaidHubOpen] = useState(false);
+
+    // Day events modal (click on "+N" badge)
+    const [selectedDayEvents, setSelectedDayEvents] = useState<{ date: Date; events: any[] } | null>(null);
+
+    // Raid eligibility (kamas gate)
+    const [raidEligibility, setRaidEligibility] = useState<{ isEligible: boolean; totalDonated: number } | null>(null);
 
     // Dynamic counts for filters
     const typeCounts = events.reduce((acc, e) => {
@@ -138,7 +164,10 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
 
     // Group by date for List View
     const groupedEvents = filteredEvents.reduce((groups, event) => {
-        const dateKey = format(new Date(event.startDate), "yyyy-MM-dd");
+        const start = event.startDate ? new Date(event.startDate) : null;
+        if (!start || isNaN(start.getTime())) return groups;
+        
+        const dateKey = format(start, "yyyy-MM-dd");
         if (!groups[dateKey]) groups[dateKey] = [];
         groups[dateKey].push(event);
         return groups;
@@ -147,10 +176,8 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
     const sortedDates = Object.keys(groupedEvents).sort();
 
     const fetchEvents = async () => {
+        if (!currentDate) return;
         setLoading(true);
-
-        // Auto-close expired events first
-        await autoCloseExpiredEvents(guildId);
 
         // Fetch events for the entire month (works for both week and month views)
         const monthStart = startOfMonth(currentDate);
@@ -173,6 +200,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
         const result = await getCalendarEventDetails(guildId, eventId);
         if (result.success && result.event) {
             setSelectedEvent(result.event);
+            setHasMetamobKey(!!(result as any).hasMetamobKey);
         } else {
             toast.error(result.error || "Impossible de charger l'événement");
         }
@@ -183,9 +211,28 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
         fetchEvents();
         // Fetch Discord roles if user can manage
         if (canManage) {
-            getDiscordRolesForCalendar(guildId).then(setDiscordRoles);
+            getDiscordRolesForCalendar(guildId).then(res => {
+                setDiscordRoles(res.roles || []);
+                setEveryoneAllowed(res.everyoneAllowed || false);
+            });
         }
+        // Fetch raid kamas eligibility for the current user
+        getUserRaidEligibility(guildId).then(res => {
+            if (res.success) {
+                setRaidEligibility({ isEligible: res.isEligible ?? false, totalDonated: res.totalDonated ?? 0 });
+            }
+        });
     }, [currentDate, guildId, canManage]);
+
+    const searchParams = useSearchParams();
+
+    // Auto-open event detail modal if ?event= ID parameter is present in URL
+    useEffect(() => {
+        const eventIdFromUrl = searchParams.get("event");
+        if (eventIdFromUrl) {
+            setSelectedEventId(eventIdFromUrl);
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         if (selectedEventId) {
@@ -198,7 +245,11 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
     const handleCreate = async (data: GuildEventInput) => {
         const result = await createCalendarEvent(guildId, data);
         if (result.success) {
-            toast.success("Événement créé !");
+            if ((result as any).discordError) {
+                toast.warning(`Événement créé, mais la publication Discord a échoué : ${(result as any).discordError}`);
+            } else {
+                toast.success("Événement créé !");
+            }
             setIsCreateOpen(false);
             fetchEvents();
         } else {
@@ -239,8 +290,12 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
         if (!selectedEventId) return;
         const result = await registerForEvent(guildId, selectedEventId, data);
         if (result.success) {
-            // @ts-ignore - isReserve is present on success
-            toast.success(result.isReserve ? "Ajouté à la file d'attente" : "Inscription réussie !");
+            if ((result as any).isReserve) {
+                const msg = (result as any).reserveMessage || "Tes Kamas Violets ne seront pas déduits si tu ne participes pas.";
+                toast.success(`Ajouté à la file d'attente — ${msg}`);
+            } else {
+                toast.success("Inscription réussie !");
+            }
             fetchEventDetails(selectedEventId);
             fetchEvents();
         } else {
@@ -306,13 +361,30 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
 
     const handleComplete = async () => {
         if (!selectedEventId) return;
-        const result = await completeEvent(guildId, selectedEventId);
-        if (result.success) {
-            toast.success("Événement terminé !");
-            fetchEventDetails(selectedEventId);
-            fetchEvents();
+
+        // Check if this is a raid with completion data from the modal
+        const isRaid = selectedEvent?.type === "RAID_OFFICIAL";
+        const raidData = (window as any).__raidCompletionData;
+
+        if (isRaid && raidData) {
+            delete (window as any).__raidCompletionData;
+            const result = await completeRaidEvent(guildId, selectedEventId, raidData);
+            if (result.success) {
+                toast.success(`Raid clôturé ! ${result.rewarded} joueur(s) récompensé(s)${result.score ? ` — Score : ${result.score}` : ""}`);
+                fetchEventDetails(selectedEventId);
+                fetchEvents();
+            } else {
+                toast.error(result.error);
+            }
         } else {
-            toast.error(result.error);
+            const result = await completeEvent(guildId, selectedEventId);
+            if (result.success) {
+                toast.success("Événement terminé !");
+                fetchEventDetails(selectedEventId);
+                fetchEvents();
+            } else {
+                toast.error(result.error);
+            }
         }
     };
 
@@ -326,231 +398,295 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
         return await sendCalendarDiscordNotification(guildId, selectedEventId, roleId);
     };
 
+    const handleCancel = async () => {
+        if (!selectedEventId) return;
+        const result = await cancelCalendarEvent(guildId, selectedEventId);
+        if (result.success) {
+            toast.success("Événement annulé");
+            setSelectedEvent(null);
+            setSelectedEventId(null);
+            fetchEvents();
+        } else {
+            toast.error(result.error);
+        }
+    };
+
+    const handleUndoComplete = async () => {
+        if (!selectedEventId) return;
+        const result = await undoCompleteRaidEvent(guildId, selectedEventId);
+        if (result.success) {
+            toast.success(`Clôture annulée ! ${result.refunded} joueur(s) remboursé(s).`);
+            fetchEventDetails(selectedEventId);
+            fetchEvents();
+        } else {
+            toast.error(result.error);
+        }
+    };
+
     const handleEventClick = (eventId: string) => {
         setSelectedEventId(eventId);
     };
 
-    const handleDayClick = (date: Date) => {
-        // Future: ouvrir le formulaire pré-rempli avec cette date
+    const handleDayEventsClick = (date: Date, events: any[]) => {
+        setSelectedDayEvents({ date, events });
     };
+
+    const handleDayClick = (date: Date) => {
+        if (!canManage) return;
+        if (isBefore(startOfDay(date), startOfDay(new Date()))) {
+            toast.error("Impossible de créer un événement sur un jour passé.");
+            return;
+        }
+        setPrefilledDate(date);
+        setIsCreateOpen(true);
+    };
+
+    // Hydratation déterministe (#87/#88) : le calendrier ne se monte qu'après
+    // initialisation de « aujourd'hui » côté client.
+    if (currentDate === null) {
+        return (
+            <div className="p-12 text-center text-muted-foreground font-medium">
+                Chargement du calendrier...
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
-            {/* ============ VIEW TOGGLE (visible only when not loading) ============ */}
-            {!loading && (
-                <div className="flex items-center justify-end">
-                    <div className="flex items-center gap-1 p-1 bg-zinc-900/60 border border-zinc-800/50 rounded-full backdrop-blur-sm">
+            {/* ============ STABLE HEADER ============ */}
+            <div className="space-y-6 mb-8">
+                <div className="relative overflow-hidden rounded-2xl border border-border bg-background/50 p-6">
+                    <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                        <div className="flex items-center gap-5">
+                            <div className="relative h-12 w-12 md:h-14 md:w-14 rounded-xl bg-surface flex items-center justify-center border border-border shrink-0">
+                                <CalendarIcon className="h-6 w-6 md:h-7 md:w-7 text-warning" />
+                            </div>
+                            <div className="min-w-0">
+                                <h2 className="text-2xl md:text-3xl font-bold text-foreground truncate">Agenda</h2>
+                                <p className="text-muted-foreground text-xs md:text-sm mt-1">
+                                    {filteredEvents.length} événements programmés
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setShowFilters(!showFilters)}
+                                className="h-9 px-3 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-surface transition-all"
+                            >
+                                <Filter className={cn("h-4 w-4 mr-1.5", selectedFilter !== "ALL" && "text-warning")} />
+                                Filtres
+                                {selectedFilter !== "ALL" && (
+                                    <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-warning" />
+                                )}
+                            </Button>
+
+                            {/* Raid Hub (ghost) */}
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setIsRaidHubOpen(true)}
+                                            className="h-9 px-3 rounded-lg text-xs font-semibold text-muted-foreground hover:text-danger hover:bg-danger/10 transition-all"
+                                        >
+                                            <Swords className="h-4 w-4 mr-1.5 text-danger/70" />
+                                            Raids
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="bg-background border-border text-xs">
+                                        Guides et conseils raid
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+
+                            {canManage && (
+                                <Button
+                                    data-tour="calendar-create"
+                                    onClick={() => setIsCreateOpen(true)}
+                                    className="h-9 px-4 rounded-lg bg-warning/15 text-warning hover:bg-warning/25 border border-warning/30 font-bold text-xs transition-colors"
+                                >
+                                    <Plus className="h-4 w-4 mr-1.5" />
+                                    Nouvel évent
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Filters Bar (Improved Aesthetics) */}
+                {showFilters && (
+                    <div className="flex items-center gap-3 overflow-x-auto pb-4 scrollbar-hide animate-in slide-in-from-top-2 duration-300" data-tour="calendar-events">
                         <button
-                            onClick={() => setViewMode("grid")}
+                            onClick={() => setSelectedFilter("ALL")}
                             className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all",
-                                viewMode === "grid"
-                                    ? "bg-zinc-800 text-amber-400 shadow-inner"
-                                    : "text-zinc-400 hover:text-zinc-300"
+                                "flex items-center gap-2 h-8 px-3.5 rounded-full text-xs font-medium transition-all shrink-0",
+                                selectedFilter === "ALL"
+                                    ? "bg-surface text-foreground border border-border"
+                                    : "bg-surface/60 text-muted-foreground border border-border hover:border-border hover:text-foreground"
                             )}
                         >
-                            <LayoutGrid className="h-4 w-4" />
-                            <span className="hidden sm:inline">Grille</span>
+                            Tous
+                            <span className={cn(
+                                "px-1.5 py-0.5 rounded-full text-caption font-bold",
+                                selectedFilter === "ALL" ? "bg-elevated text-foreground" : "bg-elevated text-muted-foreground"
+                            )}>
+                                {events.length}
+                            </span>
+                        </button>
+
+                        {Object.entries(FILTER_TYPES).map(([type, config]) => {
+                            const count = typeCounts[type] || 0;
+                            const Icon = config.icon;
+                            const isActive = selectedFilter === type;
+
+                            return (
+                                <button
+                                    key={type}
+                                    onClick={() => setSelectedFilter(isActive ? "ALL" : type)}
+                                    className={cn(
+                                        "flex items-center gap-2 h-8 px-3.5 rounded-full text-xs font-medium transition-all shrink-0",
+                                        isActive
+                                            ? cn(config.color, "bg-surface border border-border")
+                                            : "bg-surface/60 text-muted-foreground border border-border hover:border-border hover:text-foreground"
+                                    )}
+                                >
+                                    <Icon className={cn("h-3.5 w-3.5", isActive ? config.color : "")} />
+                                    {config.label}
+                                    <span className={cn(
+                                        "px-1.5 py-0.5 rounded-full text-caption font-bold",
+                                        isActive ? "bg-elevated" : "bg-elevated text-muted-foreground"
+                                    )}>
+                                        {count}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* ============ COMPACT PERIOD BAR ============ */}
+            <div className="flex items-center justify-between gap-4 px-4 py-2.5 rounded-xl bg-surface/40 border border-border">
+                <div className="flex items-center gap-3">
+                    <Sparkles className="h-4 w-4 text-warning/80" />
+                    <h3 className="text-base font-bold capitalize text-foreground">
+                        {format(currentDate, "MMMM yyyy", { locale: fr })}
+                        <span className="ml-2 text-xs font-semibold text-muted-foreground normal-case">
+                            {gridType === "week" ? `Semaine ${format(currentDate, "I")}` : "Mois"}
+                        </span>
+                    </h3>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    {/* Week/Month segment control */}
+                    <div className="flex bg-surface border border-border rounded-lg p-0.5" data-tour="calendar-view">
+                        <button
+                            onClick={() => setGridType("week")}
+                            className={cn(
+                                "px-3 py-1 rounded-md text-caption font-semibold transition-all",
+                                gridType === "week" ? "bg-surface text-foreground" : "text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            Semaine
                         </button>
                         <button
-                            onClick={() => setViewMode("list")}
+                            onClick={() => setGridType("month")}
                             className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all",
-                                viewMode === "list"
-                                    ? "bg-zinc-800 text-amber-400 shadow-inner"
-                                    : "text-zinc-400 hover:text-zinc-300"
+                                "px-3 py-1 rounded-md text-caption font-semibold transition-all",
+                                gridType === "month" ? "bg-surface text-foreground" : "text-muted-foreground hover:text-foreground"
                             )}
                         >
-                            <List className="h-4 w-4" />
-                            <span className="hidden sm:inline">Liste</span>
+                            Mois
+                        </button>
+                    </div>
+
+                    {/* Nav */}
+                    <div className="flex bg-surface border border-border rounded-lg p-0.5">
+                        <button
+                            onClick={() => {
+                                const date = gridType === "week" ? subWeeks(currentDate, 1) : subMonths(currentDate, 1);
+                                setCurrentDate(date);
+                            }}
+                            className="p-1.5 hover:bg-surface rounded-md transition-all active:scale-95"
+                            title="Précédent"
+                        >
+                            <ChevronLeft className="h-4 w-4 text-foreground" />
+                        </button>
+                        <button
+                            onClick={() => setCurrentDate(new Date())}
+                            className="px-3 py-1 text-caption font-semibold text-muted-foreground hover:text-foreground rounded-md hover:bg-surface transition-all"
+                        >
+                            Aujourd'hui
+                        </button>
+                        <button
+                            onClick={() => {
+                                const date = gridType === "week" ? addWeeks(currentDate, 1) : addMonths(currentDate, 1);
+                                setCurrentDate(date);
+                            }}
+                            className="p-1.5 hover:bg-surface rounded-md transition-all active:scale-95"
+                            title="Suivant"
+                        >
+                            <ChevronRight className="h-4 w-4 text-foreground" />
                         </button>
                     </div>
                 </div>
-            )}
+            </div>
 
-            {/* ============ MAIN CONTENT ============ */}
-            {loading ? (
+            {/* ============ MAIN CONTENT AREA ============ */}
+            <div className="min-h-[500px]">
+                {loading ? (
                 <div className="flex flex-col items-center justify-center py-24 space-y-4">
                     <div className="relative">
-                        <div className="h-16 w-16 rounded-full bg-amber-500/10 flex items-center justify-center animate-pulse">
-                            <CalendarIcon className="h-8 w-8 text-amber-500/50" />
+                        <div className="h-16 w-16 rounded-full bg-surface flex items-center justify-center animate-pulse">
+                            <CalendarIcon className="h-8 w-8 text-muted-foreground" />
                         </div>
-                        <Loader2 className="absolute -top-1 -right-1 h-6 w-6 text-amber-500 animate-spin" />
+                        <Loader2 className="absolute -top-1 -right-1 h-6 w-6 text-success animate-spin" />
                     </div>
-                    <p className="text-zinc-400 text-sm animate-pulse">Chargement de l'agenda...</p>
+                    <p className="text-muted-foreground text-sm animate-pulse">Chargement de l'agenda...</p>
                 </div>
-            ) : viewMode === "grid" ? (
+            ) : (
                 // ============ GRID VIEW ============
                 <CalendarGrid
-                    events={events}
+                    events={filteredEvents}
                     currentDate={currentDate}
                     onDateChange={setCurrentDate}
                     onEventClick={handleEventClick}
                     onDayClick={handleDayClick}
+                    onDayEventsClick={handleDayEventsClick}
                     canManage={canManage}
-                    onCreateClick={() => setIsCreateOpen(true)}
+                    viewMode={gridType}
+                    onViewModeChange={setGridType}
                 />
-            ) : (
-                // ============ LIST VIEW ============
-                <div className="space-y-8">
-                    {/* Header + Filters */}
-                    <div className="space-y-6">
-                        {/* Title & Action */}
-                        <div className="relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-br from-zinc-900/80 via-zinc-900/60 to-zinc-950/80 backdrop-blur-xl p-6">
-                            <div className="absolute inset-0 bg-gradient-to-br from-amber-600/5 via-transparent to-purple-600/5 pointer-events-none" />
-
-                            <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
-                                <div className="flex items-center gap-5">
-                                    <div className="relative group shrink-0">
-                                        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 to-orange-600/20 rounded-xl blur-lg group-hover:blur-xl transition-all opacity-70" />
-                                        <div className="relative h-14 w-14 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-600/10 flex items-center justify-center border border-amber-500/20">
-                                            <CalendarIcon className="h-7 w-7 text-amber-400" />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <h2 className="text-3xl font-bold text-zinc-50 tracking-tight">Agenda</h2>
-                                        <p className="text-zinc-400 text-sm mt-1">
-                                            {filteredEvents.length} événements
-                                        </p>
-                                    </div>
-                                </div>
-
-
-
-                                <div className="flex items-center gap-3">
-                                    {canManage && (
-                                        <Button
-                                            onClick={() => setIsCreateOpen(true)}
-                                            className="h-10 px-5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 font-bold shadow-lg shadow-amber-500/25 transition-all hover:shadow-amber-500/40 hover:scale-105"
-                                        >
-                                            <Plus className="h-4 w-4 mr-2" />
-                                            Nouvel évent
-                                        </Button>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Filters Bar */}
-                        <div className="flex items-center gap-3 overflow-x-auto pb-4 scrollbar-hide">
-                            <button
-                                onClick={() => setSelectedFilter("ALL")}
-                                className={cn(
-                                    "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all border-2 whitespace-nowrap",
-                                    selectedFilter === "ALL"
-                                        ? "bg-zinc-100 text-zinc-900 border-zinc-100 shadow-md shadow-zinc-900/10"
-                                        : "bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300"
-                                )}
-                            >
-                                Tous
-                                <span className={cn(
-                                    "px-2 py-0.5 rounded-md text-xs font-bold",
-                                    selectedFilter === "ALL" ? "bg-zinc-800 text-zinc-100" : "bg-zinc-800 text-zinc-400"
-                                )}>
-                                    {events.length}
-                                </span>
-                            </button>
-
-                            <div className="h-6 w-px bg-zinc-800/50 mx-1 shrink-0" />
-
-                            {Object.entries(FILTER_TYPES).map(([type, config]) => {
-                                const count = typeCounts[type] || 0;
-                                const Icon = config.icon;
-                                const isActive = selectedFilter === type;
-
-                                return (
-                                    <button
-                                        key={type}
-                                        onClick={() => setSelectedFilter(isActive ? "ALL" : type)}
-                                        className={cn(
-                                            "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all border-2 whitespace-nowrap",
-                                            isActive
-                                                ? cn(config.bg, config.color, config.border, "shadow-md")
-                                                : "bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:border-zinc-700"
-                                        )}
-                                    >
-                                        <Icon className="h-4 w-4" />
-                                        {config.label}
-                                        <span className={cn(
-                                            "px-2 py-0.5 rounded-md text-xs font-bold",
-                                            isActive ? "bg-white/10" : "bg-zinc-800"
-                                        )}>
-                                            {count}
-                                        </span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    {/* Events List Grouped */}
-                    {sortedDates.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-zinc-800/50 rounded-2xl bg-zinc-900/20 text-center px-4">
-                            <Sparkles className="h-10 w-10 text-zinc-700 mb-4" />
-                            <p className="text-zinc-500">Aucun événement ne correspond à vos filtres.</p>
-                            {canManage && selectedFilter === "ALL" && (
-                                <Button variant="link" onClick={() => setIsCreateOpen(true)} className="mt-2 text-amber-500">
-                                    Créer un événement
-                                </Button>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="space-y-10">
-                            {sortedDates.map(dateKey => (
-                                <div key={dateKey} className="space-y-4">
-                                    <div className="flex items-center gap-4">
-                                        <div className="flex flex-col items-end shrink-0 min-w-[60px]">
-                                            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                                                {format(new Date(dateKey), "MMM", { locale: fr }).replace(".", "")}
-                                            </span>
-                                            <span className="text-2xl font-black text-zinc-200 leading-none">
-                                                {format(new Date(dateKey), "dd")}
-                                            </span>
-                                        </div>
-                                        <div className="h-px bg-zinc-800 flex-1" />
-                                        <span className="text-sm font-medium text-zinc-600 capitalize">
-                                            {format(new Date(dateKey), "EEEE", { locale: fr })}
-                                        </span>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                        {groupedEvents[dateKey].map((event: any) => (
-                                            <div
-                                                key={event.id}
-                                                onClick={() => handleEventClick(event.id)}
-                                                className="cursor-pointer transition-all hover:opacity-90"
-                                            >
-                                                <EventCard
-                                                    event={event}
-                                                    currentUserId={currentUserId}
-                                                    canManage={canManage}
-                                                    onRespond={(status) => handleQuickRespond(event.id, status)}
-                                                    onEdit={() => setEditingEvent(event)}
-                                                    onDelete={() => {
-                                                        setSelectedEventId(event.id);
-                                                        handleDelete();
-                                                    }}
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
             )}
+        </div>
 
-            {/* ============ CREATE DIALOG ============ */}
-            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <DialogTitle className="text-xl font-bold text-zinc-100">
+        <Dialog 
+                open={isCreateOpen} 
+                onOpenChange={(open) => {
+                    setIsCreateOpen(open);
+                    if (!open) setPrefilledDate(null);
+                }}
+            >
+                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto bg-background/98 border border-border ring-1 ring-white/10">
+                    <DialogTitle className="text-title font-bold text-foreground">
                         Créer un événement
                     </DialogTitle>
-                    <DialogDescription className="text-zinc-400">
+                    <DialogDescription className="text-muted-foreground">
                         Remplissez les informations pour créer un nouvel événement de guilde.
                     </DialogDescription>
-                    <EventForm onSubmit={handleCreate} isDiscordConfigured={isDiscordConfigured} />
+                    <EventForm 
+                        guildId={guildId}
+                        onSubmit={handleCreate} 
+                        discordChannels={discordChannels}
+                        canManageRaid={canManageRaid}
+                        userPseudo={userPseudo}
+                        initialData={prefilledDate ? { startDate: prefilledDate } : undefined}
+                        discordRoles={discordRoles}
+                    />
                 </DialogContent>
             </Dialog>
 
@@ -570,7 +706,12 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
                 currentUserId={currentUserId}
                 guildId={guildId}
                 canManage={canManage}
+                isAdmin={isAdmin}
+                discordChannels={discordChannels}
                 discordRoles={discordRoles}
+                everyoneAllowed={everyoneAllowed}
+                hasMetamobKey={hasMetamobKey}
+                raidEligibility={raidEligibility}
                 onRegister={handleRegister}
                 onUnregister={handleUnregister}
                 onEdit={() => {
@@ -578,26 +719,66 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
                     setSelectedEventId(null);
                 }}
                 onDelete={handleDelete}
+                onCancel={handleCancel}
                 onPublish={handlePublish}
                 onComplete={handleComplete}
+                onUndoComplete={handleUndoComplete}
                 onSendReminder={handleSendReminder}
                 onShareDiscord={handleShareDiscord}
             />
 
+            {/* ============ DAY EVENTS MODAL (via +N badge) ============ */}
+            <Dialog open={!!selectedDayEvents} onOpenChange={(open) => !open && setSelectedDayEvents(null)}>
+                <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto bg-background/98 border border-border">
+                    <DialogTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+                        <CalendarIcon className="h-5 w-5 text-warning" />
+                        {selectedDayEvents ? format(selectedDayEvents.date, "EEEE d MMMM", { locale: fr }) : ""}
+                    </DialogTitle>
+                    <DialogDescription className="text-muted-foreground">
+                        {selectedDayEvents ? `${selectedDayEvents.events.length} événement(s) ce jour-là` : ""}
+                    </DialogDescription>
+
+                    <div className="space-y-3 mt-2">
+                        {selectedDayEvents?.events.map((ev) => (
+                            <EventCard
+                                key={ev.id}
+                                event={ev}
+                                currentUserId={currentUserId}
+                                onRespond={() => {}}
+                                canManage={canManage}
+                                variant="list"
+                            />
+                        ))}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* ============ RAID HUB MODAL ============ */}
+            <RaidHubModal
+                open={isRaidHubOpen}
+                onOpenChange={setIsRaidHubOpen}
+                guildId={guildId}
+                isAdmin={isAdmin}
+            />
+
             {/* ============ EDIT DIALOG ============ */}
             <Dialog open={!!editingEvent} onOpenChange={(open) => !open && setEditingEvent(null)}>
-                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto bg-zinc-900 border-zinc-800">
-                    <DialogTitle className="text-xl font-bold text-zinc-100">
+                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto bg-background/98 border border-border">
+                    <DialogTitle className="text-xl font-bold text-foreground">
                         Modifier l'événement
                     </DialogTitle>
-                    <DialogDescription className="text-zinc-400">
+                    <DialogDescription className="text-muted-foreground">
                         Modifiez les informations de l'événement.
                     </DialogDescription>
                     {editingEvent && (
                         <EventForm
+                            guildId={guildId}
                             initialData={editingEvent}
                             onSubmit={handleUpdate}
-                            isDiscordConfigured={isDiscordConfigured}
+                            discordChannels={discordChannels}
+                            canManageRaid={canManageRaid}
+                            userPseudo={userPseudo}
+                            discordRoles={discordRoles}
                         />
                     )}
                 </DialogContent>

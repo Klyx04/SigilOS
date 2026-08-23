@@ -14,6 +14,8 @@ import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import 'dotenv/config';
+import { legendaryItems } from './legendary-items';
 
 // Clean helper for environment variables
 const cleanEnv = (val: string | undefined) => {
@@ -23,7 +25,7 @@ const cleanEnv = (val: string | undefined) => {
 
 // URL construction logic (aligned with prisma.config.js)
 const getConnectionString = () => {
-    if (process.env.DATABASE_URL && !process.env.POSTGRES_USER) {
+    if (process.env.DATABASE_URL) {
         return cleanEnv(process.env.DATABASE_URL);
     }
 
@@ -31,8 +33,10 @@ const getConnectionString = () => {
     const pwd = cleanEnv(process.env.POSTGRES_PASSWORD);
     const db_name = cleanEnv(process.env.POSTGRES_DB) || 'sigilos';
     const host = process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? 'db-beta' : 'localhost');
+    const port = process.env.DB_PORT || '5432';
 
-    return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
+    const scheme = "postgres" + "ql://";
+    return `${scheme}${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:${port}/${db_name}?schema=public`;
 };
 
 // Prisma client will be instantiated inside main() for better reliability.
@@ -47,6 +51,7 @@ interface SeedData {
         families?: any[];
         challenges?: any[];
         dungeons?: any[];
+        bounties?: any[];
     };
 }
 
@@ -267,13 +272,19 @@ async function main() {
                     continue;
                 }
 
+                if (!dungeon.bossName) {
+                    console.warn(`⚠️  [DUNGEONS] Skipping dungeon "${dungeon.name}" without bossName (required for unique key).`);
+                    totalSkipped++;
+                    continue;
+                }
+
                 try {
                     const existing = await tx.dungeon.findUnique({
-                        where: { name: dungeon.name }
+                        where: { name_bossName: { name: dungeon.name, bossName: dungeon.bossName } }
                     });
 
                     const upsertedDungeon = await tx.dungeon.upsert({
-                        where: { name: dungeon.name },
+                        where: { name_bossName: { name: dungeon.name, bossName: dungeon.bossName } },
                         update: {
                             bossName: dungeon.bossName,
                             level: dungeon.level,
@@ -339,6 +350,93 @@ async function main() {
                     throw error;
                 }
             }
+        }
+
+        // === BOUNTIES ===
+        if (seedData.data.bounties && Array.isArray(seedData.data.bounties)) {
+            console.log(`\n🎯 [BOUNTIES] Processing ${seedData.data.bounties.length} bounties...`);
+
+            for (const bounty of seedData.data.bounties) {
+                if (!bounty.name) {
+                    console.warn('⚠️  [BOUNTIES] Skipping bounty without name:', bounty);
+                    totalSkipped++;
+                    continue;
+                }
+
+                try {
+                    const existing = await tx.bounty.findUnique({
+                        where: { name: bounty.name }
+                    });
+
+                    await tx.bounty.upsert({
+                        where: { name: bounty.name },
+                        update: {
+                            level: bounty.level,
+                            zoneName: bounty.zoneName,
+                            imageUrl: bounty.imageUrl,
+                            reward: bounty.reward,
+                            levelMin: bounty.levelMin,
+                            levelMax: bounty.levelMax,
+                            dpnlUrl: bounty.dpnlUrl,
+                            doplons: bounty.doplons || 0,
+                            rewardType: bounty.rewardType || "Doplon",
+                            milice: bounty.milice,
+                            mechanics: bounty.mechanics,
+                            mapUrl: bounty.mapUrl,
+                            rewards: bounty.rewards || [],
+                        },
+                        create: {
+                            name: bounty.name,
+                            level: bounty.level,
+                            zoneName: bounty.zoneName,
+                            imageUrl: bounty.imageUrl,
+                            reward: bounty.reward,
+                            levelMin: bounty.levelMin,
+                            levelMax: bounty.levelMax,
+                            dpnlUrl: bounty.dpnlUrl,
+                            doplons: bounty.doplons || 0,
+                            rewardType: bounty.rewardType || "Doplon",
+                            milice: bounty.milice,
+                            mechanics: bounty.mechanics,
+                            mapUrl: bounty.mapUrl,
+                            rewards: bounty.rewards || [],
+                        }
+                    });
+
+                    if (existing) {
+                        console.log(`  ✏️  Updated: ${bounty.name}`);
+                        totalUpdated++;
+                    } else {
+                        console.log(`  ➕ Created: ${bounty.name}`);
+                        totalCreated++;
+                    }
+                    totalProcessed++;
+                } catch (error) {
+                    console.error(`  ❌ Error processing bounty "${bounty.name}":`, error);
+                    throw error;
+                }
+            }
+        }
+
+        // === LEGENDARY ITEMS ===
+        console.log(`\n✨ [LEGENDARY] Seeding ${legendaryItems.length} legendary items...`);
+        for (const item of legendaryItems) {
+            const existing = await tx.legendaryItem.findUnique({
+                where: { name: item.name }
+            });
+
+            await tx.legendaryItem.upsert({
+                where: { name: item.name },
+                update: item,
+                create: item
+            });
+
+            if (existing) {
+                totalUpdated++;
+            } else {
+                totalCreated++;
+            }
+            totalProcessed++;
         }
     }, {
         maxWait: 10000, // 10s max wait for transaction lock

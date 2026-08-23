@@ -1,24 +1,31 @@
 import { Suspense } from "react";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { redirect } from "next/navigation";
-import { LogViewer } from "./log-viewer";
 import { getGlobalAuditLogs } from "@/server/actions/audit-actions";
+import { getRecentAccessAttempts } from "@/server/actions/super-admin-actions";
 import { Shield } from "lucide-react";
+import { LogsTabs } from "./logs-tabs";
 
 export default async function GodLogsPage() {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) redirect("/");
 
     const { data } = await getGlobalAuditLogs({ limit: 50 });
+    const attemptsRes = await getRecentAccessAttempts(50);
+
+    // 🧹 Maintenance: Trigger background cleanup of old platform logs (30d retention)
+    const { cleanupGlobalAuditLogs } = await import("@/server/actions/audit-actions");
+    const { logger } = await import("@/lib/logger");
+    cleanupGlobalAuditLogs().catch(err => logger.error("[PlatformCleanup] Failed:", { error: (err as Error).message }));
 
     return (
         <div className="space-y-8 py-8">
             <div className="flex flex-col gap-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-[10px] font-black text-violet-400 uppercase tracking-widest w-fit">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-caption font-semibold text-emerald-400 uppercase tracking-wider w-fit">
                     <Shield className="w-3 h-3" />
                     Archive Système
                 </div>
-                <h1 className="text-4xl font-black text-white tracking-tighter uppercase">
+                <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
                     Audit Logs
                 </h1>
                 <p className="text-zinc-500 max-w-2xl font-medium">
@@ -27,7 +34,12 @@ export default async function GodLogsPage() {
             </div>
 
             <Suspense fallback={<div className="h-96 animate-pulse bg-zinc-900/50 rounded-2xl border border-white/5" />}>
-                <LogViewer initialLogs={data?.logs || []} initialTotal={data?.total || 0} />
+                <LogsTabs
+                    attempts={attemptsRes.data?.attempts || []}
+                    attemptsTotal={attemptsRes.data?.total || 0}
+                    initialLogs={data?.logs || []}
+                    initialTotal={data?.total || 0}
+                />
             </Suspense>
         </div>
     );

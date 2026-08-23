@@ -1,0 +1,321 @@
+{
+  "dofus": "dokoko",
+  "displayName": "Dokoko",
+  "color": "#D2B48C",
+  "successName": "Koko Boy",
+  "recommendedLevel": 100,
+  "description": "Obtenir l'œuf de Kokoko sur l'île de Moon via les aventures flibustières.",
+  "dofusItemId": 17078,
+  "iconId": 23022,
+  "imageUrl": "/module-dofus/Dofus_Dokoko.png",
+  "compiledAt": "2026-04-10T16:07:18.883Z",
+  "compilerVersion": "3.0",
+  "chains": [
+    {
+      "sectionName": "Koko Boy",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Île de Moon",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Partir un jour sans retour",
+          "dofusdbId": 1666,
+          "level": 50,
+          "zone": "Île de Moon",
+          "npcName": "Employée de l'agence Touriste",
+          "npcSubArea": null,
+          "coords": {
+            "x": 11,
+            "y": 10,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 1019,
+              "name": "Casque",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/16025.png"
+            },
+            {
+              "id": 1021,
+              "name": "Ailes en bois",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/17022.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Utiliser le canon pour se rendre sur l'île de Moon",
+            "Aller voir Employée de l'agence Touriste"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
+        },
+        {
+          "name": "Un parfum de vacances",
+          "dofusdbId": 1667,
+          "level": 50,
+          "zone": "Île de Moon",
+          "npcName": "Gropinson Cruaulé",
+          "npcSubArea": null,
+          "coords": {
+            "x": 33,
+            "y": 12,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 17162,
+              "name": "Pulpe macérée de Nodkoko",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/15605.png"
+            },
+            {
+              "id": 17163,
+              "name": "Huile de foie de tortue",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/60069.png"
+            },
+            {
+              "id": 17165,
+              "name": "Feuille de vieux grokoko",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/36609.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Parler au doyen des touristes",
+            "Ramener à Gropinson Cruaulé : x4 Pulpe macérée de Nodkoko",
+            "Ramener à Gropinson Cruaulé : x4 Huile de foie de tortue",
+            "Rapporter 4 feuilles de salace marine à Gropinson Cruaulé",
+            "Aller voir Gropinson Cruaulé",
+            "Vaincre x3 {monster,4152}",
+            "Vaincre un Vieux Grokoko",
+            "Montrer à Gropinson Cruaulé : 1 Feuille de vieux grokoko"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1666
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Un indigeste chez les indigènes",
+          "dofusdbId": 1668,
+          "level": 60,
+          "zone": "Village Kanniboul - Cinquième Salle",
+          "npcName": "Gentil Organisateur Kanniboul",
+          "npcSubArea": "Village Kanniboul - Cinquième Salle",
+          "coords": {
+            "x": 29,
+            "y": 9,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 27,
+              "name": "Village Kanniboul",
+              "level": null,
+              "bossName": "Kanniboul Ebil",
+              "img": "https://api.dofusdb.fr/img/monsters/837.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Gentil Organisateur Kanniboul",
+            "Vaincre x1 {monster,2960} en un seul combat",
+            "Aller voir Kanniboul Ebil",
+            "Aller voir Mamie Voudou"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1667
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Squelettes et amulette",
+          "dofusdbId": 1669,
+          "level": 90,
+          "zone": "Bateau du Chouque - Cabine du Chouque",
+          "npcName": "Jack Martel",
+          "npcSubArea": "Bateau du Chouque - Cabine du Chouque",
+          "coords": {
+            "x": 33,
+            "y": 3,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 27,
+              "name": "Village Kanniboul",
+              "level": null,
+              "bossName": "Kanniboul Ebil",
+              "img": "https://api.dofusdb.fr/img/monsters/837.png",
+              "idoleName": null
+            },
+            {
+              "id": 91,
+              "name": "Bateau du Chouque",
+              "level": null,
+              "bossName": "Le Chouque",
+              "img": "https://api.dofusdb.fr/img/monsters/126.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Jack Martel",
+            "Vaincre x1 {monster,230} en un seul combat",
+            "Aller voir Le Chouque",
+            "Interroger le premier membre d'équipage",
+            "Interroger le deuxième membre d'équipage",
+            "Interroger le troisième membre d'équipage",
+            "Interroger le quatrième membre d'équipage",
+            "Vérifier l'alibi de Gros Bob",
+            "Identifier le voleur de l'amulette",
+            "Vaincre x1 {monster,4230} en un seul combat",
+            "Retourner voir Mamie Voudou"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1668
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Rendez-vous avec la lune",
+          "dofusdbId": 1670,
+          "level": 100,
+          "zone": "Arbre de Moon - Cinquième Salle",
+          "npcName": "Servante de Moon",
+          "npcSubArea": "Arbre de Moon - Cinquième Salle",
+          "coords": {
+            "x": 31,
+            "y": 7,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 92,
+              "name": "Arbre de Moon",
+              "level": null,
+              "bossName": "Moon",
+              "img": "https://api.dofusdb.fr/img/monsters/123.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Enterrer la jeune pousse et 5 doses d'engrais de Moon au pied d'un totem",
+            "Aller voir Servante de Moon",
+            "Vaincre x1 {monster,226} en un seul combat",
+            "Aller voir Moon"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1669
+            }
+          ],
+          "notes": null
+        }
+      ]
+    }
+  ],
+  "globalSummary": {
+    "totalQuests": 5,
+    "totalItems": 5,
+    "totalDungeons": 3,
+    "items": [
+      {
+        "id": 17162,
+        "name": "Pulpe macérée de Nodkoko",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/15605.png"
+      },
+      {
+        "id": 17163,
+        "name": "Huile de foie de tortue",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/60069.png"
+      },
+      {
+        "id": 1019,
+        "name": "Casque",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/16025.png"
+      },
+      {
+        "id": 1021,
+        "name": "Ailes en bois",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/17022.png"
+      },
+      {
+        "id": 17165,
+        "name": "Feuille de vieux grokoko",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/36609.png"
+      }
+    ],
+    "dungeons": [
+      {
+        "id": 27,
+        "name": "Village Kanniboul",
+        "level": null,
+        "bossName": "Kanniboul Ebil",
+        "img": "https://api.dofusdb.fr/img/monsters/837.png",
+        "idoleName": null
+      },
+      {
+        "id": 91,
+        "name": "Bateau du Chouque",
+        "level": null,
+        "bossName": "Le Chouque",
+        "img": "https://api.dofusdb.fr/img/monsters/126.png",
+        "idoleName": null
+      },
+      {
+        "id": 92,
+        "name": "Arbre de Moon",
+        "level": null,
+        "bossName": "Moon",
+        "img": "https://api.dofusdb.fr/img/monsters/123.png",
+        "idoleName": null
+      }
+    ]
+  }
+}

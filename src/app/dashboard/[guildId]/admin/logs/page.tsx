@@ -8,6 +8,8 @@ import { FileText, Shield } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { AuditLogsClient } from "./_components/audit-logs-client";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
+import { logger } from "@/lib/logger";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -21,15 +23,15 @@ export default async function AdminLogsPage({ params }: Props) {
 
     // Security: Verify admin access + Audit Log
     const user = await getUserContext(guildId);
-    if (!user.isAdmin) {
+    if (!user.canViewAuditLogs) {
         await logAdminAccessDenied(guildId, "/admin/logs");
         return <AccessDenied />;
     }
 
     // Lazy Cleanup: Trigger automatic cleanup of old logs (fire & forget)
-    // retention policy is now 7 days
+    // Retention policy is exactly 30 days (consistent with UI notice)
     cleanupOldAuditLogs(guildId).catch(err =>
-        console.error("[LazyCleanup] Failed to clean old logs:", err)
+        logger.error("[LazyCleanup] Failed to clean old logs:", err)
     );
 
     // Fetch audit logs (initial page)
@@ -45,43 +47,61 @@ export default async function AdminLogsPage({ params }: Props) {
             roleNames[role.id] = role.name;
         });
     } catch (error) {
-        console.error("[AdminLogs] Failed to fetch role names:", error);
+        logger.error("[AdminLogs] Failed to fetch role names:", error);
     }
 
-    // Convert dates to strings for client component
-    const serializedLogs = logs.map(log => ({
-        ...log,
-        createdAt: log.createdAt.toISOString(),
-        metadata: log.metadata as any,
-    }));
+    // Convert dates and BigInts for client component
+    const serializedLogs = logs.map(log => {
+        // Handle BigInts in metadata/oldValue/newValue (Prisma Json fields)
+        const stringify = (val: any) => {
+            if (!val) return val;
+            return JSON.parse(JSON.stringify(val, (_, v) => 
+                typeof v === 'bigint' ? v.toString() : v
+            ));
+        };
+
+        return {
+            ...log,
+            createdAt: log.createdAt.toISOString(),
+            metadata: stringify(log.metadata),
+            oldValue: stringify(log.oldValue),
+            newValue: stringify(log.newValue),
+        };
+    });
 
     return (
         <div className="space-y-6 pb-12">
-            <UnifiedModuleHeader
-                title="Logs d'Audit"
-                description="Historique des modifications administratives"
-                icon={FileText}
-                backHref={`/dashboard/${guildId}/admin`}
-            />
+            <div data-tour="admin-logs-header">
+                <UnifiedModuleHeader
+                    title="Logs d'Audit"
+                    description="Historique des modifications administratives"
+                    icon={FileText}
+                    backHref={`/dashboard/${guildId}/admin`}
+                    actions={<AdminTourReplay phase="adminLogs" />}
+                />
+            </div>
 
             {/* Security Notice */}
-            <Card className="bg-amber-500/10 border-amber-500/20">
-                <CardContent className="p-4 flex items-start gap-3">
-                    <Shield className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
-                    <p className="text-sm text-amber-200">
-                        <strong>Logs immutables</strong> — Ces entrées ne peuvent pas être modifiées ou supprimées.
-                        Chaque action administrative est enregistrée de manière permanente.
-                    </p>
-                </CardContent>
-            </Card>
+                <div className="bg-warning/10 border border-warning/20 rounded-xl p-6 flex items-start gap-4 mb-8">
+                    <Shield className="w-6 h-6 text-warning shrink-0 mt-1" />
+                    <div>
+                        <h2 className="text-warning font-black uppercase tracking-wider mb-1">Journal de Transparence</h2>
+                        <p className="text-muted-foreground text-sm leading-relaxed">
+                            Ces entrées sont enregistrées pour garantir la sécurité de la guilde et la traçabilité des actions administratives. 
+                            Conformément à notre politique de confidentialité, ces journaux sont <strong>automatiquement supprimés après 30 jours</strong>.
+                        </p>
+                    </div>
+                </div>
 
             {/* Logs Timeline - Client Component */}
-            <AuditLogsClient
-                guildId={guildId}
-                initialLogs={serializedLogs}
-                initialTotal={total}
-                roleNames={roleNames}
-            />
+            <div data-tour="admin-logs-list">
+                <AuditLogsClient
+                    guildId={guildId}
+                    initialLogs={serializedLogs}
+                    initialTotal={total}
+                    roleNames={roleNames}
+                />
+            </div>
         </div>
     );
 }

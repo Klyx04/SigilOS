@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "NotificationType" ADD VALUE 'SERVICE_REQUEST';
+ALTER TYPE "NotificationType" ADD VALUE 'SERVICE_REPLY';

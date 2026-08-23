@@ -70,8 +70,8 @@ export function ResizableSidebar({
             {/* Drag Handle */}
             <div
                 className={cn(
-                    "absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-indigo-500/50 transition-colors z-10",
-                    isResizing && "bg-indigo-500 w-1.5"
+                    "absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-info/50 transition-colors z-10",
+                    isResizing && "bg-info w-1.5"
                 )}
                 onMouseDown={startResizing}
             />

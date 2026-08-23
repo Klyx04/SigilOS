@@ -10,6 +10,9 @@ import { Loader2, Save, AlertTriangle, Hash, Bell, Users } from "lucide-react";
 import { toast } from "sonner";
 import { getPollSettings, updatePollSettings } from "@/server/actions/poll-actions";
 import { cn } from "@/lib/utils";
+import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/actions/user-actions";
+import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
+import { ChannelPreview } from "@/components/shared/ChannelPreview";
 
 interface PollSettingsClientProps {
     guildId: string;
@@ -17,18 +20,25 @@ interface PollSettingsClientProps {
 
 export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
     const [channelId, setChannelId] = useState<string>("");
-    const [roleId, setRoleId] = useState<string>("");
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
     const [isConfigured, setIsConfigured] = useState(false);
+    const [pollsPingRoleIds, setPollsPingRoleIds] = useState<string[]>([]);
+    const [discordRoles, setDiscordRoles] = useState<{ id: string, name: string, color: string }[]>([]);
 
     useEffect(() => {
         async function loadConfig() {
-            const result = await getPollSettings(guildId);
+            const [result, rolesRes] = await Promise.all([
+                getPollSettings(guildId),
+                getDiscordRolesAction(guildId, { ignoreWhitelist: true })
+            ]);
             if (result.success && result.data) {
                 setChannelId(result.data.pollsNotifyChannelId || "");
-                setRoleId(result.data.pollsNotifyRoleId || "");
                 setIsConfigured(!!result.data.pollsNotifyChannelId);
+                setPollsPingRoleIds(result.data.pollsPingRoleIds || []);
+            }
+            if (rolesRes.success && rolesRes.roles) {
+                setDiscordRoles(rolesRes.roles.filter((r: any) => r.name !== "@everyone") as any);
             }
             setIsLoading(false);
         }
@@ -38,14 +48,15 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
     const handleSave = () => {
         startTransition(async () => {
             const result = await updatePollSettings(guildId, {
-                pollsNotifyChannelId: channelId.trim() || null,
-                pollsNotifyRoleId: roleId.trim() || null
+                pollsNotifyChannelId: channelId.trim() || null
             });
-            if (result.success) {
+            const pingRolesResult = await updateAllowedPingRolesAction(guildId, pollsPingRoleIds, "polls");
+
+            if (result.success && pingRolesResult.success) {
                 toast.success("Configuration des sondages sauvegardée !");
                 setIsConfigured(!!channelId.trim());
             } else {
-                toast.error(result.error || "Erreur lors de la sauvegarde");
+                toast.error(result.error || pingRolesResult.error || "Erreur lors de la sauvegarde");
             }
         });
     };
@@ -53,28 +64,28 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-[300px]">
-                <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+                <Loader2 className="w-8 h-8 animate-spin text-info" />
             </div>
         );
     }
 
     return (
         <div className="space-y-6">
-            <Card className="bg-zinc-900/60 border-white/5">
+            <Card className="bg-surface/60 border-border">
                 <CardHeader>
                     <div className="flex items-center justify-between">
                         <CardTitle className="flex items-center gap-2">
-                            <span className="bg-cyan-500/20 text-cyan-400 p-2 rounded-lg">
+                            <span className="bg-info/20 text-info p-2 rounded-lg">
                                 <Bell className="w-5 h-5" />
                             </span>
                             Notifications de Sondages
                         </CardTitle>
                         {isConfigured ? (
-                            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                            <Badge className="bg-success/10 text-success border-success/20">
                                 Connecté à Discord
                             </Badge>
                         ) : (
-                            <Badge variant="outline" className="text-zinc-500">
+                            <Badge variant="outline" className="text-muted-foreground">
                                 Mode Manuel
                             </Badge>
                         )}
@@ -87,7 +98,7 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
                 <CardContent className="space-y-6">
                     {/* Channel ID */}
                     <div className="space-y-2">
-                        <Label className="text-zinc-400 flex items-center gap-2">
+                        <Label className="text-muted-foreground flex items-center gap-2">
                             <Hash className="w-3.5 h-3.5" />
                             Salon d'annonce par défaut
                         </Label>
@@ -95,41 +106,42 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
                             value={channelId}
                             onChange={(e) => setChannelId(e.target.value)}
                             placeholder="ID du salon Discord (ex: 123456789...)"
-                            className="font-mono bg-black/20 border-white/10 focus:border-cyan-500/50"
+                            className="font-mono bg-black/20 border-border focus:border-info/50"
                         />
-                        <p className="text-[10px] text-zinc-500 italic">
+                        <ChannelPreview guildId={guildId} channelId={channelId} color="cyan" />
+                        <p className="text-caption text-muted-foreground italic">
                             Le salon où les nouveaux sondages seront publiés automatiquement si l'option est cochée lors de la création.
                         </p>
                     </div>
 
-                    {/* Role ID */}
-                    <div className="space-y-2">
-                        <Label className="text-zinc-400 flex items-center gap-2">
-                            <Users className="w-3.5 h-3.5" />
-                            Rôle à mentionner par défaut
+                    {/* Whitelist of Ping Roles */}
+                    <div className="space-y-2 pt-2 border-t border-border">
+                        <Label className="text-muted-foreground flex items-center gap-2">
+                            <Users className="w-3.5 h-3.5 text-info" />
+                            Rôles autorisés pour les mentions (Whitelist)
                         </Label>
-                        <Input
-                            value={roleId}
-                            onChange={(e) => setRoleId(e.target.value)}
-                            placeholder="ID du rôle (laisser vide pour ne mentionner personne)"
-                            className="font-mono bg-black/20 border-white/10 focus:border-cyan-500/50"
-                        />
-                        <p className="text-[10px] text-zinc-500 italic">
-                            Identifiant du rôle Discord à notifier (pings) lors de la publication d'un sondage.
+                        <p className="text-caption text-muted-foreground italic mb-2">
+                            Définissez quels rôles Discord les créateurs de sondages peuvent mentionner lors de la publication.
                         </p>
+                        <PingRolesSelector
+                            value={pollsPingRoleIds}
+                            onChange={setPollsPingRoleIds}
+                            roles={discordRoles}
+                            description="Si la liste est vide, aucun rôle Discord ne sera disponible pour le ping/sélection dans les modales de création (seuls les administrateurs verront toujours tous les rôles)."
+                        />
                     </div>
 
-                    <div className="pt-4 flex items-center justify-between border-t border-white/5">
-                        <div className="flex items-center gap-2 text-amber-500/80">
+                    <div className="pt-4 flex items-center justify-between border-t border-border">
+                        <div className="flex items-center gap-2 text-warning/80">
                             <AlertTriangle className="w-4 h-4" />
-                            <span className="text-[10px] font-medium uppercase tracking-wider">
+                            <span className="text-caption font-medium uppercase tracking-wider">
                                 Vérifiez que le bot a les droits d'écriture
                             </span>
                         </div>
                         <Button
                             onClick={handleSave}
                             disabled={isPending}
-                            className="bg-cyan-600 hover:bg-cyan-500 text-white min-w-[140px]"
+                            className="bg-info hover:bg-info text-info-foreground min-w-[140px]"
                         >
                             {isPending ? (
                                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
@@ -143,14 +155,14 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
             </Card>
 
             {/* Help Card */}
-            <Card className="bg-blue-500/5 border-blue-500/10">
+            <Card className="bg-info/5 border-info/10">
                 <CardContent className="p-4 flex gap-3">
-                    <div className="p-2 bg-blue-500/20 rounded-lg shrink-0 h-fit">
-                        <Hash className="w-4 h-4 text-blue-400" />
+                    <div className="p-2 bg-info/20 rounded-lg shrink-0 h-fit">
+                        <Hash className="w-4 h-4 text-info" />
                     </div>
                     <div className="space-y-1">
-                        <h4 className="text-sm font-medium text-blue-200">Comment obtenir les IDs ?</h4>
-                        <p className="text-xs text-blue-300/70 leading-relaxed">
+                        <h4 className="text-sm font-medium text-info">Comment obtenir les IDs ?</h4>
+                        <p className="text-xs text-info/70 leading-relaxed">
                             Activez le <strong>Mode Développeur</strong> dans vos paramètres Discord (Apparence {'>'} Avancé).
                             Ensuite, faites un clic droit sur un salon ou un rôle et choisissez <strong>"Copier l'identifiant"</strong>.
                         </p>

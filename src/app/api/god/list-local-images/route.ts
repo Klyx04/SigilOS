@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { canGodAccess } from "@/server/actions/super-admin-actions";
+import { logger } from "@/lib/logger";
 import { readdir } from "fs/promises";
-import { join } from "path";
+import { join, normalize } from "path";
 
 const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
 
 export async function GET(req: NextRequest) {
     try {
-        // 1. Check super admin
-        const isAdmin = await isSuperAdmin();
-        if (!isAdmin) {
+        // 1. R3 : lecture des images game-data = scope "game-data" (cohérent R1).
+        const hasGameDataScope = await canGodAccess("game-data");
+        if (!hasGameDataScope) {
             return NextResponse.json(
-                { success: false, error: "Unauthorized: Super admin only" },
+                { success: false, error: "Unauthorized: game-data scope required" },
                 { status: 403 }
             );
         }
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
         const type = searchParams.get("type") || "achievement";
 
         // Validate type
-        const validTypes = ["achievement", "monster", "dungeon", "item"];
+        const validTypes = ["achievement", "monster", "dungeon", "item", "legendary"];
         if (!validTypes.includes(type)) {
             return NextResponse.json(
                 { success: false, error: "Invalid type" },
@@ -29,8 +30,17 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        // 3. Build path
-        const dirPath = join(process.cwd(), "public", "game-data", `${type}s`);
+        // 3. Build path - String concatenation to bypass Turbopack's static analysis
+        const root = process.cwd();
+        let subPath = "";
+        switch (type) {
+            case "achievement": subPath = "game-data/achievements"; break;
+            case "monster": subPath = "game-data/monsters"; break;
+            case "dungeon": subPath = "game-data/dungeons"; break;
+            case "item": subPath = "game-data/items"; break;
+            case "legendary": subPath = "game-data/legendary"; break;
+        }
+        const dirPath = normalize(root + "/public/" + subPath);
 
         // 4. Read directory
         const files = await readdir(dirPath, { withFileTypes: true });
@@ -44,7 +54,7 @@ export async function GET(req: NextRequest) {
             })
             .map(file => ({
                 filename: file.name,
-                path: `/game-data/${type}s/${file.name}`,
+                path: type === "legendary" ? `/game-data/legendary/${file.name}` : `/game-data/${type}s/${file.name}`,
                 name: file.name.replace(/\.[^.]+$/, "") // Remove extension for display
             }));
 
@@ -55,7 +65,7 @@ export async function GET(req: NextRequest) {
         });
 
     } catch (error: any) {
-        console.error("[ListLocalImages API] Error:", error);
+        logger.error("[ListLocalImages API] Error", { error: String(error) });
         return NextResponse.json(
             { success: false, error: error.message || "Internal server error" },
             { status: 500 }

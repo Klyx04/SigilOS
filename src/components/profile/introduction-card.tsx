@@ -56,20 +56,21 @@ export function IntroductionCard({
 
     if (!isEditing && !readOnly && !introduction) {
         return (
-            <Card className="p-12 bg-zinc-900/40 border-white/5 flex flex-col items-center justify-center text-center space-y-6 relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none" />
-                <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
-                    <Sparkles className="w-8 h-8 text-emerald-400" />
+            <Card className="p-12 bg-surface/40 border-border flex flex-col items-center justify-center text-center space-y-6 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-br from-success/5 to-transparent pointer-events-none" />
+                <div className="w-16 h-16 rounded-2xl bg-success/10 border border-success/20 flex items-center justify-center group- transition-transform duration-300">
+                    <Sparkles className="w-8 h-8 text-success" />
                 </div>
                 <div className="space-y-2 max-w-sm">
-                    <h3 className="text-xl font-black text-white">Parle-nous de toi !</h3>
-                    <p className="text-sm text-zinc-500">
+                    <h3 className="text-xl font-black text-foreground">Parle-nous de toi !</h3>
+                    <p className="text-sm text-muted-foreground">
                         Ajoute une présentation pour que les autres membres de la guilde apprennent à te connaître.
                     </p>
                 </div>
                 <Button
                     onClick={() => setIsEditing(true)}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-8 py-6 h-auto rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+                    variant="sigil-emerald"
+                    size="xl"
                 >
                     Commencer ma présentation
                 </Button>
@@ -78,18 +79,18 @@ export function IntroductionCard({
     }
 
     return (
-        <Card className="bg-zinc-950/20 backdrop-blur-sm border-white/5 space-y-4 relative overflow-hidden group hover:border-white/10 transition-all rounded-3xl">
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent pointer-events-none" />
+        <Card className="bg-background/20 backdrop-blur-sm border-border space-y-4 relative overflow-hidden group hover:border-border transition-all rounded-3xl">
+            <div className="absolute inset-0 bg-gradient-to-br from-success/5 via-transparent to-transparent pointer-events-none" />
 
             <div className="p-5 space-y-4">
                 <div className="flex items-center justify-between relative">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                            <MessageSquare className="w-5 h-5 text-emerald-400" />
+                        <div className="w-10 h-10 rounded-2xl bg-success/10 border border-success/20 flex items-center justify-center">
+                            <MessageSquare className="w-5 h-5 text-success" />
                         </div>
                         <div>
-                            <h3 className="text-sm font-bold text-white tracking-tight">Ma Présentation</h3>
-                            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black opacity-60">Bio de {displayName}</p>
+                            <h3 className="text-sm font-bold text-foreground tracking-tight">Ma Présentation</h3>
+                            <p className="text-caption text-muted-foreground uppercase tracking-widest font-black opacity-60">Bio de {displayName}</p>
                         </div>
                     </div>
                     {!readOnly && !isEditing && (
@@ -97,7 +98,7 @@ export function IntroductionCard({
                             variant="ghost"
                             size="sm"
                             onClick={() => setIsEditing(true)}
-                            className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white h-7 px-3 rounded-lg"
+                            className="text-caption font-black uppercase tracking-widest text-muted-foreground hover:text-foreground h-7 px-3 rounded-lg"
                         >
                             Modifier
                         </Button>
@@ -107,15 +108,15 @@ export function IntroductionCard({
                 <div className="relative">
                     {isEditing ? (
                         <div className="space-y-3 animate-in fade-in zoom-in-95 duration-200">
-                            <div className="relative rounded-2xl border border-white/10 bg-black/40 overflow-hidden focus-within:border-emerald-500/30 transition-all">
-                                <div className="flex items-center justify-between px-3 py-2 border-b border-white/5 bg-white/5">
+                            <div className="relative rounded-2xl border border-border bg-black/40 overflow-hidden focus-within:border-success/30 transition-all">
+                                <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-surface">
                                     <div className="flex items-center gap-1">
                                         <EmojiPicker onSelect={handleEmojiSelect} />
-                                        <span className="text-[10px] font-bold text-zinc-500 uppercase ml-2">Apparence & Bio</span>
+                                        <span className="text-caption font-bold text-muted-foreground uppercase ml-2">Apparence & Bio</span>
                                     </div>
                                     <div className={cn(
-                                        "text-[10px] font-black tabular-nums transition-colors px-2 py-1 rounded",
-                                        text.length > MAX_CHARS ? "text-rose-500 bg-rose-500/10" : "text-zinc-500 bg-black/20"
+                                        "text-caption font-black tabular-nums transition-colors px-2 py-1 rounded",
+                                        text.length > MAX_CHARS ? "text-danger bg-danger/10" : "text-muted-foreground bg-muted/20"
                                     )}>
                                         {text.length} / {MAX_CHARS}
                                     </div>
@@ -124,13 +125,13 @@ export function IntroductionCard({
                                     value={text}
                                     onChange={(e) => setText(e.target.value)}
                                     placeholder="Partage ton histoire, tes objectifs ou tes passions..."
-                                    className="bg-transparent border-none min-h-[160px] max-h-[400px] resize-y p-4 focus-visible:ring-0 text-[13px] leading-relaxed placeholder:text-zinc-700"
+                                    className="bg-transparent border-none min-h-[160px] max-h-[400px] resize-y p-4 focus-visible:ring-0 text-body-sm leading-relaxed placeholder:text-muted-foreground"
                                 />
                             </div>
 
                             <div className="flex items-center justify-between pt-1">
-                                <p className="text-[10px] text-zinc-500 italic flex items-center gap-1.5 opacity-60">
-                                    <Info className="w-3 h-3 text-emerald-500/50" />
+                                <p className="text-caption text-muted-foreground italic flex items-center gap-1.5 opacity-60">
+                                    <Info className="w-3 h-3 text-success/50" />
                                     Visible par toute la guilde. Markdown supporté.
                                 </p>
                                 <div className="flex gap-2">
@@ -142,15 +143,15 @@ export function IntroductionCard({
                                             setIsEditing(false);
                                         }}
                                         disabled={isSaving}
-                                        className="text-[11px] font-bold text-zinc-400 hover:text-white"
+                                        className="text-caption font-bold text-muted-foreground hover:text-foreground"
                                     >
                                         Annuler
                                     </Button>
                                     <Button
-                                        size="sm"
                                         onClick={handleSave}
                                         disabled={isSaving || text.length > MAX_CHARS}
-                                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs h-9 px-5 rounded-xl gap-2 shadow-lg shadow-emerald-900/20"
+                                        variant="sigil-emerald"
+                                        className="h-9 px-5"
                                     >
                                         {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                                         Enregistrer
@@ -159,13 +160,13 @@ export function IntroductionCard({
                             </div>
                         </div>
                     ) : (
-                        <div className="p-6 rounded-2xl bg-black/40 border border-white/5 text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap min-h-[80px] group-hover:bg-black/60 transition-colors">
+                        <div className="p-6 rounded-2xl bg-muted/40 border border-border text-foreground text-sm leading-relaxed whitespace-pre-wrap min-h-[80px] group-hover:bg-muted/60 transition-colors">
                             {introduction ? (
-                                <div className="text-[13px] text-zinc-300/90 tracking-wide font-medium italic">
+                                <div className="text-body-sm text-foreground/90 tracking-wide font-medium italic">
                                     "{introduction}"
                                 </div>
                             ) : (
-                                <span className="text-zinc-600 italic text-xs">Aucune présentation enregistrée.</span>
+                                <span className="text-muted-foreground italic text-xs">Aucune présentation enregistrée.</span>
                             )}
                         </div>
                     )}
@@ -174,7 +175,7 @@ export function IntroductionCard({
 
             {/* Corner Accent */}
             <div className="absolute top-0 right-0 p-3 opacity-[0.03] pointer-events-none group-hover:opacity-[0.06] transition-opacity">
-                <Sparkles className="w-20 h-20 text-white" />
+                <Sparkles className="w-20 h-20 text-foreground" />
             </div>
         </Card>
     );

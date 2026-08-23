@@ -1,0 +1,1378 @@
+{
+  "dofus": "forgelave",
+  "displayName": "Dofus Forgelave",
+  "color": "#E67E22",
+  "successName": "Entre le marteau et l'enclume",
+  "recommendedLevel": 200,
+  "description": "Obtenir le Dofus Forgelave en enquêtant sur la Fratrie des Oubliés et les tours de Bethel et Solar.",
+  "dofusItemId": 19398,
+  "iconId": 23024,
+  "imageUrl": "/module-dofus/Dofus_Forgelave.png",
+  "compiledAt": "2026-04-11T17:35:27.021Z",
+  "chains": [
+    {
+      "sectionName": "La Fratrie des Oubliés",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Tours de la Fratrie",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Aventure miniature",
+          "dofusdbId": 1607,
+          "level": 40,
+          "zone": "Cache de Kankreblath - Sortie",
+          "npcName": null,
+          "npcSubArea": "Cache de Kankreblath - Sortie",
+          "coords": {
+            "x": 3,
+            "y": -17,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 88,
+              "name": "Cache de Kankreblath",
+              "bossId": 241,
+              "img": "https://api.dofusdb.fr/img/monsters/1245.png"
+            }
+          ],
+          "objectives": [
+            "Aller voir {npc,2767}",
+            "Réduire la taille de la croquette pour l'emporter avec vous",
+            "Montrer à {npc,1901} : 1 {item,15988}",
+            "Découvrir la carte : Lieu du rendez-vous avec l'Ecaflip",
+            "Aller voir {npc,2769}",
+            "Vaincre x1 {monster,3938} en un seul combat",
+            "Retourner voir {npc,1901}"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Ne tirez pas sur le messager",
+          "dofusdbId": 1845,
+          "level": 40,
+          "zone": "Boutique de Kerubim",
+          "npcName": null,
+          "npcSubArea": "Boutique de Kerubim",
+          "coords": {
+            "x": 3,
+            "y": -17,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Ramener à {npc,1901} : x1 {item,18650}",
+            "Voir si le talisman de Kerubim va vous porter chance",
+            "Lire le message trouvé dans la bouteille",
+            "Se rendre sur l'île mentionnée dans le message",
+            "Montrer le message à Coqueline et en apprendre plus sur l'île",
+            "Fouiller le camp des chasseurs",
+            "Trouver un stratagème pour tromper Bébert",
+            "Récupérer de la peinture",
+            "Récupérer de la laine",
+            "Récupérer une fausse tête de bouftou",
+            "Récupérer des pierres plates pour faire les sabots du bouftou",
+            "Trouver un atelier et fabriquer la peluche",
+            "Montrer à Bébert le bouftou arc-en-ciel que vous avez fabr... capturé",
+            "Aller voir {npc,3737}",
+            "Vaincre x1 {monster,4826} en un seul combat",
+            "Trouver l'auteur du message",
+            "Libérer le kaskargo",
+            "Libérer la mouette",
+            "Libérer le scarafeuille",
+            "Aller voir {npc,3739}",
+            "Escorter l'alchimiste jusqu'à Coqueline",
+            "Aller voir {npc,3733}"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1607
+            }
+          ]
+        },
+        {
+          "name": "À la rescousse des magypus",
+          "dofusdbId": 1853,
+          "level": 40,
+          "zone": "Boutique de Kerubim",
+          "npcName": null,
+          "npcSubArea": "Boutique de Kerubim",
+          "coords": {
+            "x": -20,
+            "y": 39,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Obtenir plus d'informations sur l'endroit où ont été envoyés les deux magypus",
+            "Trouver l'Enutrof qui a signé le bon de livraison",
+            "Apprendre le nom du client qui a acheté les magypus",
+            "Obtenir des explications de la part de Nevark",
+            "Aller voir {npc,1458}",
+            "Identifier le faussaire qui a imité la signature de Nevark",
+            "Trouver les magypus",
+            "Parler aux ruffians",
+            "Vaincre les ruffians",
+            "Ramener les magypus en sécurité sur Nimotopia",
+            "Aller voir {npc,3733}",
+            "Aller voir {npc,1901}"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1845
+            }
+          ]
+        },
+        {
+          "name": "Dernier contact",
+          "dofusdbId": 1867,
+          "level": 40,
+          "zone": "Taverne Atolmond",
+          "npcName": null,
+          "npcSubArea": "Taverne Atolmond",
+          "coords": {
+            "x": -27,
+            "y": 33,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Rencontrer le nécromancien ouginak",
+            "Ramener à {npc,3905} : x1 {item,18819}",
+            "Obtenir des informations concernant Azrim chez les Mériens",
+            "Aller voir {npc,3907}",
+            "Découvrir la carte : Grotte d'Azrim",
+            "Récupérer un souvenir d'Azrim dans la grotte où le shaman méditait",
+            "Trouver les maraudeurs mulous",
+            "Vaincre les maraudeurs mulous",
+            "Ramener à {npc,3905} : x1 {item,18821}",
+            "Ramener à {npc,3905} : x1 {item,18822}",
+            "Escorter le nécromancien jusqu'au temple d'Ouginak",
+            "Assister le nécromancien",
+            "Retourner voir {npc,3712}"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1853
+            }
+          ]
+        },
+        {
+          "name": "La voix des morts",
+          "dofusdbId": 1868,
+          "level": 40,
+          "zone": "Côte de la Meute",
+          "npcName": null,
+          "npcSubArea": "Côte de la Meute",
+          "coords": {
+            "x": 9,
+            "y": -66,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir {npc,3724}",
+            "Aller voir {npc,3906}",
+            "Se rendre au camp des Bradors",
+            "Aller voir {npc,3912}",
+            "Aider Kalidar",
+            "Se rendre au camp des Bermanes",
+            "Aller voir {npc,3913}",
+            "Aller voir {npc,3914}",
+            "Se rendre au camp des Maciens",
+            "Aller voir {npc,3870}",
+            "Se rendre au camp des Pagneuls",
+            "Aller voir {npc,3869}",
+            "Trouver le partisan d'Imaguni",
+            "Donner de l'eau au partisan",
+            "Aller voir {npc,365}",
+            "Ramener à {npc,3916} : x1 {item,18829}",
+            "Se rendre au camp des Shibaks",
+            "Aller voir {npc,3917}",
+            "Rencontrer Imaguni",
+            "Utiliser le sifflet enchanté pour appeler Nosya",
+            "Vaincre Imaguni et ses serviteurs",
+            "Aller voir {npc,3919}"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1867
+            }
+          ]
+        },
+        {
+          "name": "Le fléau de Burin",
+          "dofusdbId": 1869,
+          "level": 40,
+          "zone": "Temple Ouginak",
+          "npcName": null,
+          "npcSubArea": "Temple Ouginak",
+          "coords": {
+            "x": -28,
+            "y": 33,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Montrer à {npc,365} : 1 {item,18835}",
+            "Explorer la mine abandonnée",
+            "Trouver un moyen d'entrer dans la fournaise",
+            "Rencontrer le forgeron",
+            "Aller voir {npc,3923}",
+            "Parler à un ami de Brumen",
+            "Trouver la chasseuse de Srambad",
+            "Vaincre x1 {monster,4910} en un seul combat",
+            "Montrer à {npc,3712} : 1 {item,18854}"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1868
+            }
+          ]
+        },
+        {
+          "name": "Le gang des Toxines",
+          "dofusdbId": 1934,
+          "level": 50,
+          "zone": "Quartier général du gang des Toxines",
+          "npcName": null,
+          "npcSubArea": "Quartier général du gang des Toxines",
+          "coords": {
+            "x": 5,
+            "y": -1,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Passer le portail vers Srambad",
+            "Rencontrer Incognita",
+            "Trouver un Désosseur ouginak",
+            "Se débarrasser des sbires du chef des Désosseurs",
+            "Parler au chef des Désosseurs",
+            "Aller voir {npc,2541}",
+            "Survivre à l'attaque des Toxines",
+            "Aller voir {npc,4190}",
+            "S'échapper et identifier le chef du gang des Toxines",
+            "Aller voir {npc,4191}",
+            "S'enfuir avec l'aide d'Incognita",
+            "Aller voir {npc,3502}"
+          ],
+          "stepOrder": 6,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1869
+            }
+          ]
+        },
+        {
+          "name": "Sombres desseins",
+          "dofusdbId": 1935,
+          "level": 50,
+          "zone": "Temple Ouginak",
+          "npcName": null,
+          "npcSubArea": "Temple Ouginak",
+          "coords": {
+            "x": 8,
+            "y": -67,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 395,
+              "name": "Trèfle à 5 feuilles",
+              "amount": 50,
+              "img": "https://api.dofusdb.fr/img/items/36067.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir {npc,2489}",
+            "Retourner voir {npc,3712}",
+            "Aller voir {npc,90}",
+            "Se rendre au lieu de rendez-vous mentionné par Mori Arty",
+            "Vaincre les Matougarous",
+            "Examiner le parchemin trouvé sur les Matougarous",
+            "Trouver un moyen de se faire passer pour un Matougarou d'Ecaflipus",
+            "Se rendre au phare de Madrestam déguisé en Matougarou",
+            "Aller voir {npc,2769}",
+            "Lire le message destiné à Toxine",
+            "Trouver un imprimeur expert en encre invisible",
+            "Ramener à {npc,1574} : x50 {item,395}",
+            "Montrer le message à Kerubim Crépin"
+          ],
+          "stepOrder": 7,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1934
+            }
+          ]
+        },
+        {
+          "name": "Le jour des assassins",
+          "dofusdbId": 1936,
+          "level": 50,
+          "zone": "Temple Ouginak",
+          "npcName": null,
+          "npcSubArea": "Temple Ouginak",
+          "coords": {
+            "x": 0,
+            "y": 0,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir {npc,4197}",
+            "Aller voir {npc,4199}",
+            "Retourner voir {npc,3712}",
+            "Aller voir {npc,3733}",
+            "Récupérer des poils de magypus",
+            "Aller voir {npc,3765}",
+            "Ramener à {npc,3765} : x1 {item,19392}",
+            "Retourner voir {npc,3733}",
+            "Apprendre à endormir un magypus",
+            "Patrouiller dans les environs de votre temple avec le molosk de garde",
+            "Vaincre l'assassin envoyé par Toxine",
+            "Annoncer votre victoire à Chalcas"
+          ],
+          "stepOrder": 8,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1935
+            }
+          ]
+        },
+        {
+          "name": "Le piège se referme",
+          "dofusdbId": 1937,
+          "level": 50,
+          "zone": "Temple Ouginak",
+          "npcName": null,
+          "npcSubArea": "Temple Ouginak",
+          "coords": {
+            "x": 8,
+            "y": -67,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir {npc,3502}",
+            "Interroger Imaguni",
+            "Aller voir {npc,3923}",
+            "Trouver Mystigrize ou l'un de ses complices",
+            "Retourner voir {npc,3502}",
+            "Aller voir {npc,914}",
+            "Ramener à {npc,914} : x3 {item,19393}",
+            "Aller voir {npc,3712}",
+            "Entrer dans la grotte d'Azrim",
+            "Faire semblant de méditer près du feu éteint pendant un court instant",
+            "Aller voir {npc,4191}",
+            "Vaincre Toxine",
+            "Aller voir {npc,2803}",
+            "Aller voir {npc,4206}",
+            "Aller voir {npc,2447}",
+            "Retourner voir {npc,3712}"
+          ],
+          "stepOrder": 9,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1936
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "L'armée des morts",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Marches de l'Est",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 1,
+      "requires": [],
+      "entries": [
+        {
+          "name": "La colère des dieux",
+          "dofusdbId": 1938,
+          "level": 200,
+          "zone": "Marches de l'Est",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 0,
+            "y": 0,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Prier devant la statue du temple pour entrer dans le Domaine des dieux",
+            "Aller voir {npc,4197}",
+            "Aller voir {npc,4207}",
+            "Aller voir {npc,4209}"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "L'arme fatale",
+          "dofusdbId": 1939,
+          "level": 200,
+          "zone": "Marches de l'Est",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 1,
+            "y": 0,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 17995,
+              "name": "Écume de mer",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/39399.png"
+            },
+            {
+              "id": 17992,
+              "name": "Salikrone",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/36653.png"
+            },
+            {
+              "id": 17994,
+              "name": "Patelle",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/41419.png"
+            },
+            {
+              "id": 17991,
+              "name": "Bois d'Aquajou",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/38684.png"
+            },
+            {
+              "id": 17993,
+              "name": "Quisnoa",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/34560.png"
+            },
+            {
+              "id": 17988,
+              "name": "Pierre Angulaire",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/51499.png"
+            },
+            {
+              "id": 15691,
+              "name": "Sel de Baleine",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/164045.png"
+            },
+            {
+              "id": 15414,
+              "name": "Étoffe de la Cour Sombre",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/59645.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Récupérer un bloc de nécronyx brut",
+            "Ramener à {npc,4199} : x1 {item,19396}",
+            "Aller voir {npc,4208}",
+            "Ramener à {npc,4208} : x5 {item,17995}",
+            "Ramener à {npc,4208} : x5 {item,17992}",
+            "Ramener à {npc,4208} : x5 {item,17994}",
+            "Ramener à {npc,4208} : x5 {item,17991}",
+            "Ramener à {npc,4208} : x5 {item,17993}",
+            "Ramener à {npc,4208} : x3 {item,17988}",
+            "Ramener à {npc,4208} : x3 {item,15691}",
+            "Ramener à {npc,4208} : x2 {item,15414}",
+            "Terminer la confection de la poupée en donnant de sa personne",
+            "Sacrifier des Armutins à la poupée de nécronyx",
+            "Sacrifier des Goules à la poupée de nécronyx",
+            "Sacrifier des Maudits à la poupée de nécronyx",
+            "Sacrifier des Brûlâmes à la poupée de nécronyx",
+            "Retourner voir {npc,4208}",
+            "Aller voir {npc,4210}"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1938
+            }
+          ]
+        },
+        {
+          "name": "Les cœurs livides",
+          "dofusdbId": 1954,
+          "level": 200,
+          "zone": "Tour de Solar - Cinquième salle",
+          "npcName": null,
+          "npcSubArea": "Tour de Solar - Cinquième salle",
+          "coords": {
+            "x": 0,
+            "y": 0,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 109,
+              "name": "Tour de Solar",
+              "bossId": 5100,
+              "img": "https://api.dofusdb.fr/img/monsters/1661.png"
+            },
+            {
+              "id": 108,
+              "name": "Tour de Bethel",
+              "bossId": 5110,
+              "img": "https://api.dofusdb.fr/img/monsters/1670.png"
+            }
+          ],
+          "objectives": [
+            "Aller voir {npc,4247}",
+            "Remplir la mission confiée par la prêtresse d'Ouginak",
+            "Aller voir {npc,4249}",
+            "Confirmer le lien entre les forces élémentaires et les cœurs livides",
+            "Aller voir {npc,4250}",
+            "Faire battre le cœur d'un craqueleur ancestral",
+            "Retourner voir {npc,4197}",
+            "Entrer dans la Tour de Solar",
+            "Vaincre x1 {monster,5100} en un seul combat",
+            "Découvrir la carte : Sommet de la tour de Solar",
+            "Se concentrer sur les battements du cœur des Calcinés",
+            "Aller voir {npc,4296}",
+            "Entrer dans la Tour de Bethel",
+            "Vaincre x1 {monster,5110} en un seul combat",
+            "Découvrir la carte : Sommet de la tour de Bethel",
+            "Se concentrer sur les battements du cœur des Submergés",
+            "Aller voir {npc,4292}"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1939
+            }
+          ]
+        },
+        {
+          "name": "La guerre des Marches",
+          "dofusdbId": 1940,
+          "level": 200,
+          "zone": "Temple démoniaque",
+          "npcName": null,
+          "npcSubArea": "Temple démoniaque",
+          "coords": {
+            "x": 0,
+            "y": 0,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Parler au bibliothécaire de Brâkmar",
+            "Lire l'ouvrage sur la guerre des marches",
+            "Lire le premier panneau du parcours des Marches Magmatiques",
+            "Lire le deuxième panneau du parcours des Marches Magmatiques",
+            "Lire le troisième panneau du parcours des Marches Magmatiques",
+            "Lire le quatrième panneau du parcours des Marches Magmatiques",
+            "Examiner l'œil vitrifié",
+            "Enquêter du côté du temple démoniaque",
+            "En apprendre davantage sur le Tueur de mort",
+            "Retourner voir {npc,4247}",
+            "Trouver comment éveiller le démon du puits",
+            "Montrer à {npc,4248} : 4 {item,19438}",
+            "Faire l'offrande à l'arbre pour obtenir du sang",
+            "Vider le sang dans le puits",
+            "Prier devant le tombeau du tueur de mort",
+            "Aller voir {npc,4238}",
+            "Vaincre le démon du puits",
+            "Retourner voir {npc,4238}",
+            "Aller voir {npc,4247}"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1954
+            }
+          ]
+        },
+        {
+          "name": "La quête sous l'eau",
+          "dofusdbId": 1955,
+          "level": 200,
+          "zone": "Marches de l'Est",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -48,
+            "y": -78,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir {npc,4174}",
+            "Ramener à {npc,4174} : x10 {item,19562}",
+            "Vaincre x1 {monster,5208} en un seul combat",
+            "Montrer à {npc,4174} : 1 {item,19563}",
+            "Aller voir {npc,3428}",
+            "Retourner voir {npc,4249}"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1940
+            }
+          ]
+        },
+        {
+          "name": "Craquements de cœur",
+          "dofusdbId": 1956,
+          "level": 200,
+          "zone": "Marches de l'Est",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -9,
+            "y": -28,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir {npc,4287}",
+            "Escorter le craqueleur jusqu'au pied de la tour brisée",
+            "Protéger le craqueleur pendant le rituel",
+            "Emmener le craqueleur en haut de la tour",
+            "Escorter le craqueleur dans les profondeurs de la tour",
+            "Assister à la fin du rituel",
+            "Aller voir {npc,4291}",
+            "Vaincre x1 {monster,5190} en un seul combat",
+            "Montrer à {npc,4250} : 1 {item,19522}",
+            "Aller voir {npc,4295}"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1955
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Marche et crève",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Volcan de Chabrulé",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 2,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Cœur de pierre",
+          "dofusdbId": 1948,
+          "level": 200,
+          "zone": "Volcan de Chabrulé",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -28,
+            "y": 28,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir {npc,4251}",
+            "Espionner l'activité du groupe de Brâkmariens",
+            "Continuer l'espionnage du groupe de Brâkmariens",
+            "Entrer en contact avec le groupe de Brâkmariens",
+            "Ramener à {npc,4254} : x20 {item,19463}",
+            "Aller voir {npc,4255}",
+            "Vaincre x1 {monster,5175} en un seul combat",
+            "Aller voir {npc,4254}",
+            "Découvrir la carte : Brakdad café",
+            "Discuter avec les Brâkmariens",
+            "Découvrir la carte : Lieu de la livraison",
+            "Écouter la conversation",
+            "Prendre l'individu discret en filature",
+            "Fouiller le repaire",
+            "Aller voir {npc,4257}",
+            "Vaincre x1 {monster,5176} en un seul combat"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Les pierres à feu",
+          "dofusdbId": 1949,
+          "level": 200,
+          "zone": "Volcan de Chabrulé",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -31,
+            "y": 24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Découvrir la carte : Lieu de destination",
+            "Aller voir {npc,4258}",
+            "Combattre les Calcinés",
+            "Occuper les cibles",
+            "Vaincre les brigands"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1948
+            }
+          ]
+        },
+        {
+          "name": "Du feu de dieu",
+          "dofusdbId": 1950,
+          "level": 200,
+          "zone": "Volcan de Chabrulé",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -21,
+            "y": 25,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 17205,
+              "name": "Saucisse Fumée",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/69820.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Vaincre x3 {monster,5102}",
+            "Vaincre x3 {monster,5103}",
+            "Vaincre x3 {monster,5104}",
+            "Vaincre x3 {monster,5105}",
+            "Aller voir {npc,3869}",
+            "Chercher des traces des Pagneuls disparus",
+            "Chercher des survivants",
+            "Aller voir {npc,4267}",
+            "Aller voir {npc,4268}",
+            "Utiliser le sifflet",
+            "Aller voir {npc,4272}",
+            "Ramener à {npc,4269} : x4 {item,17205}",
+            "Aller voir {npc,4273}",
+            "Aller voir {npc,4270}",
+            "Aller voir {npc,4274}",
+            "Vaincre x1 {monster,5186} en un seul combat",
+            "Montrer à {npc,4267} : 1 {item,19511}",
+            "Montrer à {npc,4267} : 1 {item,19512}",
+            "Montrer à {npc,4267} : 1 {item,19513}",
+            "Aller voir {npc,4271}",
+            "Découvrir la carte : Endroit indiqué par Guy Mauve",
+            "Découvrir la carte : Repaire caché",
+            "Aller voir {npc,4258}",
+            "Vaincre Claude M'Sé"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1949
+            }
+          ]
+        },
+        {
+          "name": "Plantes contre Trépamorts",
+          "dofusdbId": 1951,
+          "level": 200,
+          "zone": "Volcan de Chabrulé",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -29,
+            "y": 36,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 465,
+              "name": "Cristal",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/50098.png"
+            },
+            {
+              "id": 315,
+              "name": "Diamant",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/50025.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Récupérer des objets de rebut",
+            "Aller voir {npc,766}",
+            "Aller voir {npc,4276}",
+            "Montrer à {npc,4275} : 5 {item,19484}",
+            "Montrer à {npc,4275} : 5 {item,19483}",
+            "Montrer à {npc,4275} : 5 {item,19485}",
+            "Montrer à {npc,4275} : 5 {item,19486}",
+            "Ramener à {npc,4275} : x4 {item,465}",
+            "Ramener à {npc,4277} : x1 {item,19484}",
+            "Ramener à {npc,4277} : x1 {item,19483}",
+            "Ramener à {npc,4277} : x1 {item,19485}",
+            "Ramener à {npc,4277} : x1 {item,19486}",
+            "Ramener à {npc,4277} : x1 {item,315}",
+            "Aller voir {npc,4275}",
+            "Installer le premier relais",
+            "Installer le deuxième relais",
+            "Installer le troisième relais",
+            "Installer le quatrième relais",
+            "Aller voir {npc,4277}",
+            "Ramener à {npc,4275} : x1 {item,19488}",
+            "Ramener à {npc,4275} : x1 {item,34209}",
+            "Ramener à {npc,4275} : x1 {item,34210}",
+            "Ramener à {npc,4275} : x1 {item,34211}",
+            "Ramener à {npc,4275} : x1 {item,34212}"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1950
+            }
+          ]
+        },
+        {
+          "name": "Le héros de Plantes contre Trépamorts",
+          "dofusdbId": 1952,
+          "level": 200,
+          "zone": "Volcan de Chabrulé",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -73,
+            "y": -76,
+            "worldId": 12
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Récupérer cinq objets éthérés dans la caserne du Jour sans fin",
+            "Utiliser le talisman de Hugues Lindien avec huit cendres de Brûlâmes",
+            "Découvrir la carte : Passage vers la Blessure d'Erazal",
+            "Ramener à {npc,4058} : x1 {item,19493}",
+            "Ramener à {npc,4275} : x1 {item,19492}",
+            "Ramener à {npc,4275} : x1 {item,19494}",
+            "Aller voir {npc,4275}",
+            "Vaincre les assaillants Calcinés"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1951
+            }
+          ]
+        },
+        {
+          "name": "Battre le fer tant qu'il est chaud",
+          "dofusdbId": 1953,
+          "level": 200,
+          "zone": "Taverne d'Amakna",
+          "npcName": null,
+          "npcSubArea": "Taverne d'Amakna",
+          "coords": {
+            "x": -26,
+            "y": 23,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 11503,
+              "name": "Pain de Frostiz",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/33072.png"
+            },
+            {
+              "id": 11510,
+              "name": "Poisskaille en Fricassée",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/49136.png"
+            },
+            {
+              "id": 17205,
+              "name": "Saucisse Fumée",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/69820.png"
+            },
+            {
+              "id": 11505,
+              "name": "Potion Torboyo",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/12720.png"
+            },
+            {
+              "id": 2044,
+              "name": "Bière du Chabrûlé",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/37004.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 108,
+              "name": "Tour de Bethel",
+              "bossId": 5110,
+              "img": "https://api.dofusdb.fr/img/monsters/1670.png"
+            }
+          ],
+          "objectives": [
+            "Ramener à {npc,4285} : x2 {item,11503}",
+            "Ramener à {npc,4285} : x2 {item,11510}",
+            "Ramener à {npc,4285} : x2 {item,17205}",
+            "Ramener à {npc,4285} : x2 {item,11505}",
+            "Ramener à {npc,4285} : x10 {item,2044}",
+            "Découvrir la carte : Traces de Yamamoto Kacapoté",
+            "Aller voir {npc,4286}",
+            "Fouiller le lieu indiqué",
+            "Continuer à fouiller à proximité du minerai",
+            "Ramener à {npc,4285} : x1 {item,19542}",
+            "Aller voir {npc,825}",
+            "Aller voir {npc,81}",
+            "Aller voir {npc,62}",
+            "Aller voir {npc,1412}",
+            "Aller voir {npc,4285}"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1952
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Cimetière marin",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Zone Krobe",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 3,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Algue au rythme",
+          "dofusdbId": 1942,
+          "level": 200,
+          "zone": "Profondeurs de la Mer Kantil",
+          "npcName": null,
+          "npcSubArea": "Profondeurs de la Mer Kantil",
+          "coords": {
+            "x": -48,
+            "y": -78,
+            "worldId": 20
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 17995,
+              "name": "Écume de mer",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/39399.png"
+            },
+            {
+              "id": 17993,
+              "name": "Quisnoa",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/34560.png"
+            },
+            {
+              "id": 17992,
+              "name": "Salikrone",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/36653.png"
+            },
+            {
+              "id": 11505,
+              "name": "Potion Torboyo",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/12720.png"
+            },
+            {
+              "id": 17994,
+              "name": "Patelle",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/41419.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Chercher comment récupérer des parasites sur les Submergés",
+            "Fabriquer 1 {item,19415} et fermer l'interface",
+            "Montrer à {npc,4211} : 5 {item,19417}",
+            "Montrer à {npc,4211} : 5 {item,19418}",
+            "Montrer à {npc,4211} : 5 {item,19419}",
+            "Montrer à {npc,4211} : 5 {item,19420}",
+            "Chasser les importuns",
+            "Donner des parasites de Submergés à Zrid Rahys",
+            "Donner des parasites de Submergés à Albert Paisse",
+            "Ramener à {npc,1251} : x5 {item,11505}",
+            "Ramener à {npc,1251} : x3 {item,17994}",
+            "Ramener à {npc,1260} : x1 {item,19416}",
+            "Ramener à {npc,4211} : x1 {item,19421}"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Au-delà de la Côte",
+          "dofusdbId": 1943,
+          "level": 200,
+          "zone": "Profondeurs de la Mer Kantil",
+          "npcName": null,
+          "npcSubArea": "Profondeurs de la Mer Kantil",
+          "coords": {
+            "x": -48,
+            "y": -78,
+            "worldId": 20
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 12728,
+              "name": "Ardonite",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/40710.png"
+            },
+            {
+              "id": 11475,
+              "name": "Eau calme",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/15778.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Ramener à {npc,4215} : x1 {item,19422}",
+            "Aller voir {npc,4218}",
+            "Ramener à {npc,4218} : x3 {item,12728}",
+            "Ramener à {npc,4218} : x20 {item,11475}",
+            "Aller voir {npc,4215}",
+            "Capturer un Submergé",
+            "Aller voir {npc,4212}",
+            "Vaincre la horde de Submergés",
+            "Parler aux Steamers",
+            "Ramener à {npc,4216} : x1 {item,19581}",
+            "Découvrir la carte : Taverne d'Argent",
+            "Aller voir {npc,1244}",
+            "Aller voir {npc,4216}"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1942
+            }
+          ]
+        },
+        {
+          "name": "La croisière, ça m'use",
+          "dofusdbId": 1944,
+          "level": 200,
+          "zone": "Zone Krobe",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -48,
+            "y": -80,
+            "worldId": 20
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Ramener à {npc,4240} : x1 {item,19429}",
+            "Explorer l'épave",
+            "Aller voir {npc,4241}",
+            "Aller voir {npc,4242}",
+            "Vaincre x2 {monster,5173} en un seul combat",
+            "Aller voir {npc,4245}",
+            "Aller voir {npc,4243}",
+            "Aller voir {npc,4244}",
+            "Poursuivre l'exploration de l'épave",
+            "Ramener à {npc,4240} : x1 {item,19546}",
+            "Ramener à {npc,4240} : x1 {item,19547}",
+            "Ramener à {npc,4240} : x1 {item,19548}",
+            "Ramener à {npc,4240} : x1 {item,19549}",
+            "Aller voir {npc,4216}"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1943
+            }
+          ]
+        },
+        {
+          "name": "Toucher le fond",
+          "dofusdbId": 1945,
+          "level": 200,
+          "zone": "Profondeurs de la Mer Kantil",
+          "npcName": null,
+          "npcSubArea": "Profondeurs de la Mer Kantil",
+          "coords": {
+            "x": -48,
+            "y": -78,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 460,
+              "name": "Bois de Chêne",
+              "amount": 70,
+              "img": "https://api.dofusdb.fr/img/items/38092.png"
+            },
+            {
+              "id": 16387,
+              "name": "Belladone",
+              "amount": 45,
+              "img": "https://api.dofusdb.fr/img/items/35638.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 108,
+              "name": "Tour de Bethel",
+              "bossId": 5110,
+              "img": "https://api.dofusdb.fr/img/monsters/1670.png"
+            }
+          ],
+          "objectives": [
+            "Aller voir {npc,4174}",
+            "Découvrir la carte : Épave",
+            "Fouiller l'épave",
+            "Aller voir {npc,4303}",
+            "Aller voir {npc,4215}",
+            "Aller voir {npc,4218}",
+            "Aller voir {npc,4240}",
+            "Aller voir {npc,4176}",
+            "Interroger les Steamers",
+            "Aller voir {npc,1251}",
+            "Ramener à {npc,1251} : x70 {item,460}",
+            "Ramener à {npc,1251} : x45 {item,16387}",
+            "Ramener à {npc,4307} : x1 {item,19564}",
+            "Aller voir {npc,4211}",
+            "Découvrir la carte : Entrée du vortex sous-marin",
+            "Emprunter le vortex sous-marin",
+            "Fouiller la grotte",
+            "Vaincre x1 {monster,5211} en un seul combat",
+            "Emprunter le passage souterrain",
+            "Chercher une sortie"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1944
+            }
+          ]
+        },
+        {
+          "name": "La mort de ma vie",
+          "dofusdbId": 1946,
+          "level": 200,
+          "zone": "Forêt des Abraknydes - Atelier des forgemages",
+          "npcName": null,
+          "npcSubArea": "Forêt des Abraknydes - Atelier des forgemages",
+          "coords": {
+            "x": -46,
+            "y": -82,
+            "worldId": 20
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 19423,
+              "name": "Clarisse",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/32154.png"
+            },
+            {
+              "id": 17991,
+              "name": "Bois d'Aquajou",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/38684.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Découvrir la carte : Chercher Clarisse emmenée au nord",
+            "Aller voir {npc,4234}",
+            "Délivrer Clarisse",
+            "Ramener à {npc,4232} : x1 {item,19423}",
+            "Aller voir {npc,4211}",
+            "Récupérer des éclats de nécronyx",
+            "Réduire le nécronyx en poudre",
+            "Ramener à {npc,4211} : x1 {item,19425}",
+            "Trouver une perle d'éternité et la montrer à Zrid Rahys",
+            "Absorber l'âme d'un fantôme",
+            "Ramener à {npc,4211} : x1 {item,19426}",
+            "Cueillir un Iris d'Os",
+            "Ramener à {npc,4211} : x1 {item,19427}",
+            "Ramener à {npc,4211} : x3 {item,17991}",
+            "Aller voir {npc,4232}",
+            "Aller voir {npc,4233}",
+            "Vaincre Clarisse"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1945
+            }
+          ]
+        },
+        {
+          "name": "Krobe en bourg",
+          "dofusdbId": 1947,
+          "level": 200,
+          "zone": "Profondeurs de la Mer Kantil",
+          "npcName": null,
+          "npcSubArea": "Profondeurs de la Mer Kantil",
+          "coords": {
+            "x": -47,
+            "y": -82,
+            "worldId": 20
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 11503,
+              "name": "Pain de Frostiz",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/33072.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 109,
+              "name": "Tour de Solar",
+              "bossId": 5100,
+              "img": "https://api.dofusdb.fr/img/monsters/1661.png"
+            }
+          ],
+          "objectives": [
+            "Ramener à {npc,4246} : x1 {item,11503}",
+            "Aller voir {npc,4211}",
+            "Chercher des informations sur les Krobes",
+            "Aller voir {npc,4215}",
+            "Chercher les Krobes",
+            "Vaincre les Nékrobes"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1946
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -5,6 +5,7 @@
  * Tasks:
  * 1. GDPR: Delete User + Account records with no UserProfile (>7 days).
  * 2. Audit: Delete audit logs older than 30 days.
+ * 6. Anti-surcharge : purge des notifications de dialogue service.
  * 
  * Usage:
  *   npx tsx scripts/database-janitor.ts           # Dry-run (default)
@@ -17,6 +18,13 @@ import { PrismaClient } from '@prisma/client';
 
 const GRACE_PERIOD_DAYS = 7;
 const AUDIT_RETENTION_DAYS = 30;
+const GOD_NOTIF_RETENTION_DAYS = 90;
+// Rétention des journaux/grants God (P4) — limite la croissance des tables PIM.
+const GOD_LOG_RETENTION_DAYS = 90;
+const GOD_GRANT_RETENTION_DAYS = 90;
+const GOD_DELEGATE_RETENTION_DAYS = 90;
+// Rétention des tentatives de connexion refusées (PII minimale, bornée).
+const ACCESS_ATTEMPT_RETENTION_DAYS = 90;
 
 async function main() {
     const isDryRun = !process.argv.includes('--execute');
@@ -134,6 +142,174 @@ async function main() {
                     where: { id: { in: oldPolls.map(p => p.id) } }
                 });
                 console.log(`  [DEL] Successfully archived/deleted ${result.count} legacy polls.`);
+            }
+        }
+
+        // 5. GodNotification Cleanup (90 days retention)
+        const godNotifCutoff = new Date();
+        godNotifCutoff.setDate(godNotifCutoff.getDate() - GOD_NOTIF_RETENTION_DAYS);
+
+        const oldNotifsCount = await (db as any).godNotification.count({
+            where: { createdAt: { lt: godNotifCutoff } }
+        });
+
+        console.log(`[GodNotif] Found ${oldNotifsCount} notifications older than ${GOD_NOTIF_RETENTION_DAYS} days.`);
+
+        if (oldNotifsCount > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete ${oldNotifsCount} old god notifications.`);
+            } else {
+                const result = await (db as any).godNotification.deleteMany({
+                    where: { createdAt: { lt: godNotifCutoff } }
+                });
+                console.log(`  [DEL] Successfully deleted ${result.count} old god notifications.`);
+            }
+        }
+
+        // 7. GodAccessLog Cleanup (P4 — journaux d'accès God > 90 jours)
+        const godAccessLogCutoff = new Date();
+        godAccessLogCutoff.setDate(godAccessLogCutoff.getDate() - GOD_LOG_RETENTION_DAYS);
+
+        const oldGodAccessLogs = await (db as any).godAccessLog.count({
+            where: { createdAt: { lt: godAccessLogCutoff } }
+        });
+        console.log(`[GodAccessLog] Found ${oldGodAccessLogs} access log(s) older than ${GOD_LOG_RETENTION_DAYS} days.`);
+        if (oldGodAccessLogs > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete ${oldGodAccessLogs} god access log entries.`);
+            } else {
+                const res = await (db as any).godAccessLog.deleteMany({
+                    where: { createdAt: { lt: godAccessLogCutoff } }
+                });
+                console.log(`  [DEL] Successfully deleted ${res.count} god access log entries.`);
+            }
+        }
+
+        // 8. GodSessionLog Cleanup (P4 — sessions God terminées/inactives > 90 jours)
+        const godSessionLogCutoff = new Date();
+        godSessionLogCutoff.setDate(godSessionLogCutoff.getDate() - GOD_LOG_RETENTION_DAYS);
+
+        const oldGodSessions = await (db as any).godSessionLog.count({
+            where: { endedAt: { lt: godSessionLogCutoff } }
+        });
+        console.log(`[GodSessionLog] Found ${oldGodSessions} ended session(s) older than ${GOD_LOG_RETENTION_DAYS} days.`);
+        if (oldGodSessions > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete ${oldGodSessions} ended god session(s).`);
+            } else {
+                const res = await (db as any).godSessionLog.deleteMany({
+                    where: { endedAt: { lt: godSessionLogCutoff } }
+                });
+                console.log(`  [DEL] Successfully deleted ${res.count} ended god session(s).`);
+            }
+        }
+
+        // 9. GodAccessGrant Cleanup (P4 — grants révoqués/expirés > 90 jours)
+        const godGrantCutoff = new Date();
+        godGrantCutoff.setDate(godGrantCutoff.getDate() - GOD_GRANT_RETENTION_DAYS);
+
+        const oldGrants = await (db as any).godAccessGrant.count({
+            where: {
+                OR: [
+                    { revokedAt: { lt: godGrantCutoff } },
+                    { revokedAt: null, expiresAt: { lt: godGrantCutoff } },
+                ],
+            }
+        });
+        console.log(`[GodAccessGrant] Found ${oldGrants} revoked/expired grant(s) older than ${GOD_GRANT_RETENTION_DAYS} days.`);
+        if (oldGrants > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete ${oldGrants} revoked/expired grant(s).`);
+            } else {
+                const res = await (db as any).godAccessGrant.deleteMany({
+                    where: {
+                        OR: [
+                            { revokedAt: { lt: godGrantCutoff } },
+                            { revokedAt: null, expiresAt: { lt: godGrantCutoff } },
+                        ],
+                    }
+                });
+                console.log(`  [DEL] Successfully deleted ${res.count} revoked/expired grant(s).`);
+            }
+        }
+
+        // 10. GodDelegate Cleanup (P4 — délégués révoqués > 90 jours, grants déjà purgés)
+        const godDelegateCutoff = new Date();
+        godDelegateCutoff.setDate(godDelegateCutoff.getDate() - GOD_DELEGATE_RETENTION_DAYS);
+
+        const oldDelegates = await (db as any).godDelegate.count({
+            where: { revokedAt: { lt: godDelegateCutoff } }
+        });
+        console.log(`[GodDelegate] Found ${oldDelegates} revoked delegate(s) older than ${GOD_DELEGATE_RETENTION_DAYS} days.`);
+        if (oldDelegates > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete ${oldDelegates} revoked delegate(s).`);
+            } else {
+                const res = await (db as any).godDelegate.deleteMany({
+                    where: { revokedAt: { lt: godDelegateCutoff } }
+                });
+                console.log(`  [DEL] Successfully deleted ${res.count} revoked delegate(s).`);
+            }
+        }
+
+        // 11. AccessAttempt Cleanup (rétention bornée des connexions refusées, PII)
+        const accessAttemptCutoff = new Date();
+        accessAttemptCutoff.setDate(accessAttemptCutoff.getDate() - ACCESS_ATTEMPT_RETENTION_DAYS);
+
+        const oldAccessAttempts = await (db as any).accessAttempt.count({
+            where: { createdAt: { lt: accessAttemptCutoff } }
+        });
+        console.log(`[AccessAttempt] Found ${oldAccessAttempts} refused sign-in(s) older than ${ACCESS_ATTEMPT_RETENTION_DAYS} days.`);
+        if (oldAccessAttempts > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete ${oldAccessAttempts} refused sign-in record(s).`);
+            } else {
+                const res = await (db as any).accessAttempt.deleteMany({
+                    where: { createdAt: { lt: accessAttemptCutoff } }
+                });
+                console.log(`  [DEL] Successfully deleted ${res.count} refused sign-in record(s).`);
+            }
+        }
+
+        // 6. Service Dialogue Notifications Cleanup (anti-surcharge)
+        // Les notifications de mini-dialogue service (SERVICE_REQUEST / SERVICE_REPLY)
+        // sont éphémères : le contenu vit sur Discord. On purge après TTL court :
+        //  - non lues : 14 jours (pour laisser le destinataire répondre)
+        //  - lues : 30 jours (traçabilité légère, pas d'accumulation)
+        const SERVICE_UNREAD_RETENTION_DAYS = 14;
+        const SERVICE_READ_RETENTION_DAYS = 30;
+
+        const serviceUnreadCutoff = new Date();
+        serviceUnreadCutoff.setDate(serviceUnreadCutoff.getDate() - SERVICE_UNREAD_RETENTION_DAYS);
+        const serviceReadCutoff = new Date();
+        serviceReadCutoff.setDate(serviceReadCutoff.getDate() - SERVICE_READ_RETENTION_DAYS);
+
+        const serviceNotifsCount = await db.notification.count({
+            where: {
+                type: { in: ["SERVICE_REQUEST", "SERVICE_REPLY"] },
+                OR: [
+                    { read: false, createdAt: { lt: serviceUnreadCutoff } },
+                    { read: true, createdAt: { lt: serviceReadCutoff } },
+                ],
+            }
+        });
+
+        console.log(`[ServiceDialogue] Found ${serviceNotifsCount} service dialogue notification(s) past retention.`);
+
+        if (serviceNotifsCount > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete ${serviceNotifsCount} old service dialogue notifications.`);
+            } else {
+                const result = await db.notification.deleteMany({
+                    where: {
+                        type: { in: ["SERVICE_REQUEST", "SERVICE_REPLY"] },
+                        OR: [
+                            { read: false, createdAt: { lt: serviceUnreadCutoff } },
+                            { read: true, createdAt: { lt: serviceReadCutoff } },
+                        ],
+                    }
+                });
+                console.log(`  [DEL] Successfully deleted ${result.count} old service dialogue notifications.`);
             }
         }
 

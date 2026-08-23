@@ -15,8 +15,9 @@
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
 import { logger } from "@/lib/logger";
-
-const DISCORD_API = "https://discord.com/api/v10";
+import { createAuditLog } from "./audit-actions";
+import { fetchGuildBans, fetchAllGuildMembers } from "@/server/discord";
+import { sendLifecycleNotification } from "./lifecycle-actions";
 
 interface SyncResult {
     success: boolean;
@@ -30,53 +31,7 @@ interface SyncResult {
     };
 }
 
-/**
- * Fetch all members from a Discord guild
- * Uses pagination to handle large guilds (1000 members per request)
- */
-async function fetchAllGuildMembers(discordGuildId: string): Promise<Set<string>> {
-    const token = process.env.DISCORD_BOT_TOKEN;
-    if (!token) throw new Error("DISCORD_BOT_TOKEN not configured");
 
-    const memberIds = new Set<string>();
-    let after = "0";
-    let hasMore = true;
-
-    while (hasMore) {
-        const res = await fetch(
-            `${DISCORD_API}/guilds/${discordGuildId}/members?limit=1000&after=${after}`,
-            {
-                headers: { Authorization: `Bot ${token}` },
-            }
-        );
-
-        if (!res.ok) {
-            const errText = await res.text();
-            console.error(`[Sync] Failed to fetch members: ${res.status} - ${errText}`);
-
-            if (res.status === 403) {
-                throw new Error("Discord API Forbidden (403): Le bot n'a probablement pas l'intent 'Server Members' activé dans le portail développeur Discord.");
-            }
-
-            throw new Error(`Discord API error: ${res.status} (${res.statusText})`);
-        }
-
-        const members = await res.json();
-
-        for (const member of members) {
-            memberIds.add(member.user.id);
-        }
-
-        if (members.length < 1000) {
-            hasMore = false;
-        } else {
-            after = members[members.length - 1].user.id;
-        }
-    }
-
-    logger.info(`[Sync] Successfully fetched ${memberIds.size} unique member IDs from Discord.`);
-    return memberIds;
-}
 
 /**
  * Sync membership status for a guild
@@ -111,8 +66,13 @@ export async function syncMembershipStatus(
             return { success: false, archived: 0, reactivated: 0, errors: ["Guild not found in database"] };
         }
 
-        // 2. Fetch all Discord members
-        const discordMemberIds = await fetchAllGuildMembers(discordGuildId);
+        // 2. Fetch all Discord members and bans
+        const [discordMemberIds, discordBans] = await Promise.all([
+            fetchAllGuildMembers(discordGuildId),
+            fetchGuildBans(discordGuildId).catch(() => [])
+        ]);
+
+        const bannedUserIds = new Set(discordBans.map(b => b.user.id));
 
         // 3. Get all profiles for this guild
         const profiles = await db.userProfile.findMany({
@@ -145,26 +105,90 @@ export async function syncMembershipStatus(
             const isInGuild = discordMemberIds.has(discordUserId);
 
             if (profile.status === "ACTIVE" && !isInGuild) {
-                // Member left Discord - Archive their profile
-                await db.userProfile.update({
-                    where: { id: profile.id },
-                    data: {
-                        status: "ARCHIVED",
-                        archivedAt: new Date(),
-                        archiveReason: "LEFT"
-                    }
-                });
+                // Member is no longer in Discord - Check if they were banned
+                const isBannedOnDiscord = bannedUserIds.has(discordUserId);
+                
+                if (isBannedOnDiscord) {
+                    // Member was BANNED on Discord - Archive with BANNED status
+                    await db.userProfile.update({
+                        where: { id: profile.id },
+                        data: {
+                            status: "BANNED",
+                            archivedAt: new Date(),
+                            archiveReason: "BANNED",
+                            scheduledDeletion: null // No automatic deletion for bans
+                        }
+                    });
+
+                    await createAuditLog({
+                        guildId: discordGuildId,
+                        actorUserId: ctx.id || "SYSTEM",
+                        actorName: ctx.name || "Admin Sync",
+                        action: "PROFILE_ARCHIVED",
+                        targetType: "PROFILE",
+                        targetId: profile.id,
+                        metadata: { description: profile.discordNickname || profile.userId, reason: "BANNED_FROM_DISCORD" }
+                    });
+                } else {
+                    // Member LEFT Discord - Archive for 12 months (Retention policy)
+                    const twelveMonthsFromNow = new Date();
+                    twelveMonthsFromNow.setFullYear(twelveMonthsFromNow.getFullYear() + 1);
+
+                    await db.userProfile.update({
+                        where: { id: profile.id },
+                        data: {
+                            status: "ARCHIVED",
+                            archivedAt: new Date(),
+                            archiveReason: "LEFT",
+                            scheduledDeletion: twelveMonthsFromNow
+                        }
+                    });
+                    
+                    // 📝 Audit Log Archival (Sync)
+                    await createAuditLog({
+                        guildId: discordGuildId,
+                        actorUserId: ctx.id || "SYSTEM",
+                        actorName: ctx.name || "Admin Sync",
+                        action: "PROFILE_ARCHIVED",
+                        targetType: "PROFILE",
+                        targetId: profile.id,
+                        metadata: { 
+                            description: profile.discordNickname || profile.userId, 
+                            reason: "LEFT_GUILD",
+                            retention: "12_MONTHS"
+                        }
+                    });
+                }
                 result.archived++;
             }
-            else if (profile.status === "ARCHIVED" && isInGuild && options.reactivateReturning) {
-                // Member returned - Reactivate their profile
+            else if (
+                profile.status === "ARCHIVED" &&
+                isInGuild &&
+                options.reactivateReturning &&
+                // SECURITY: Only auto-reactivate profiles archived because they LEFT Discord.
+                // Never reactivate manual bans, suspensions or scheduled deletions.
+                (profile.archiveReason === "LEFT" || profile.archiveReason === "LEFT_GUILD")
+            ) {
+                // Member returned to Discord - Reactivate their profile
                 await db.userProfile.update({
                     where: { id: profile.id },
                     data: {
                         status: "ACTIVE",
                         archivedAt: null,
-                        archiveReason: null
+                        archiveReason: null,
+                        scheduledDeletion: null
                     }
+                });
+
+                // 📝 Audit Log Reactivation (Sync)
+                await createAuditLog({
+                    guildId: discordGuildId,
+                    actorUserId: ctx.id || "SYSTEM",
+                    actorName: ctx.name || "Admin Sync",
+                    action: "PROFILE_REACTIVATED",
+                    targetType: "PROFILE",
+                    targetId: profile.id,
+                    metadata: { description: profile.discordNickname || profile.userId }
                 });
                 result.reactivated++;
             }
@@ -181,7 +205,7 @@ export async function syncMembershipStatus(
     } catch (error) {
         result.success = false;
         result.errors.push(error instanceof Error ? error.message : "Unknown error");
-        console.error("[Sync] Error:", error);
+        logger.error("[Sync] Error:", error);
     }
 
     return result;
@@ -239,13 +263,27 @@ async function syncMembershipStatusInternal(discordGuildId: string): Promise<Syn
             return { success: false, archived: 0, reactivated: 0, errors: ["Guild not found"] };
         }
 
-        const discordMemberIds = await fetchAllGuildMembers(discordGuildId);
+        // 2. Fetch all Discord members and bans
+        const [discordMemberIds, discordBans] = await Promise.all([
+            fetchAllGuildMembers(discordGuildId),
+            fetchGuildBans(discordGuildId).catch(() => [])
+        ]);
+
+        const bannedUserIds = new Set(discordBans.map(b => b.user.id));
 
         const profiles = await db.userProfile.findMany({
             where: { guildId: guild.id },
             include: {
                 user: {
                     include: {
+                        accounts: {
+                            where: { provider: "discord" },
+                            select: { providerAccountId: true }
+                        }
+                    },
+                    select: {
+                        name: true,
+                        image: true,
                         accounts: {
                             where: { provider: "discord" },
                             select: { providerAccountId: true }
@@ -259,26 +297,93 @@ async function syncMembershipStatusInternal(discordGuildId: string): Promise<Syn
             const discordAccount = profile.user.accounts[0];
             if (!discordAccount) continue;
 
-            const isInGuild = discordMemberIds.has(discordAccount.providerAccountId);
+            const discordUserId = discordAccount.providerAccountId;
+            const isInGuild = discordMemberIds.has(discordUserId);
 
             if (profile.status === "ACTIVE" && !isInGuild) {
-                await db.userProfile.update({
-                    where: { id: profile.id },
-                    data: {
-                        status: "ARCHIVED",
-                        archivedAt: new Date(),
-                        archiveReason: "LEFT"
-                    }
-                });
+                const isBannedOnDiscord = bannedUserIds.has(discordUserId);
+
+                if (isBannedOnDiscord) {
+                    await db.userProfile.update({
+                        where: { id: profile.id },
+                        data: {
+                            status: "BANNED",
+                            archivedAt: new Date(),
+                            archiveReason: "BANNED",
+                            scheduledDeletion: null
+                        }
+                    });
+
+                    // 🔔 Lifecycle notification (embed Discord)
+                    await sendLifecycleNotification(discordGuildId, profile, "BANNED", "SYNC (Détection automatique)").catch(() => null);
+
+                    await createAuditLog({
+                        guildId: discordGuildId,
+                        actorUserId: "SYSTEM",
+                        actorName: "Internal Sync Bot",
+                        action: "PROFILE_ARCHIVED",
+                        targetType: "PROFILE",
+                        targetId: profile.id,
+                        metadata: { description: profile.discordNickname || profile.userId, reason: "BANNED_FROM_DISCORD" }
+                    });
+                } else {
+                    const twelveMonthsFromNow = new Date();
+                    twelveMonthsFromNow.setFullYear(twelveMonthsFromNow.getFullYear() + 1);
+
+                    await db.userProfile.update({
+                        where: { id: profile.id },
+                        data: {
+                            status: "ARCHIVED",
+                            archivedAt: new Date(),
+                            archiveReason: "LEFT",
+                            scheduledDeletion: twelveMonthsFromNow
+                        }
+                    });
+
+                    // 🔔 Lifecycle notification (embed Discord)
+                    await sendLifecycleNotification(discordGuildId, profile, "LEFT", "SYNC (Détection automatique)").catch(() => null);
+
+                    // 📝 Audit Log (Internal/Cron)
+                    await createAuditLog({
+                        guildId: discordGuildId,
+                        actorUserId: "SYSTEM",
+                        actorName: "Internal Sync Bot",
+                        action: "PROFILE_ARCHIVED",
+                        targetType: "PROFILE",
+                        targetId: profile.id,
+                        metadata: { 
+                            description: profile.discordNickname || profile.userId, 
+                            reason: "LEFT_GUILD",
+                            retention: "12_MONTHS"
+                        }
+                    });
+                }
                 result.archived++;
-            } else if (profile.status === "ARCHIVED" && isInGuild) {
+            } else if (
+                profile.status === "ARCHIVED" &&
+                isInGuild &&
+                (profile.archiveReason === "LEFT" || profile.archiveReason === "LEFT_GUILD")
+            ) {
+                // SECURITY: Only reactivate profiles that left voluntarily — not manual bans/suspensions
                 await db.userProfile.update({
                     where: { id: profile.id },
                     data: {
                         status: "ACTIVE",
                         archivedAt: null,
-                        archiveReason: null
+                        archiveReason: null,
+                        scheduledDeletion: null
                     }
+                });
+
+                // 📝 Audit Log (Internal/Cron)
+                await createAuditLog({
+                    guildId: discordGuildId,
+                    actorUserId: "SYSTEM",
+                    actorName: "Internal Sync Bot",
+                    action: "PROFILE_REACTIVATED",
+                    targetType: "PROFILE",
+                    targetId: profile.id,
+                    metadata: { description: profile.discordNickname || profile.userId }
                 });
                 result.reactivated++;
             }

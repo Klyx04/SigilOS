@@ -1,0 +1,29 @@
+-- CreateTable
+CREATE TABLE "Skin" (
+    "id" TEXT NOT NULL,
+    "name" TEXT,
+    "imageUrl" TEXT NOT NULL,
+    "sourceUrl" TEXT,
+    "authorId" TEXT NOT NULL,
+    "guildId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Skin_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "UserSkin" (
+    "userId" TEXT NOT NULL,
+    "skinId" TEXT NOT NULL,
+    "isFavorite" BOOLEAN NOT NULL DEFAULT false,
+    "acquiredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "UserSkin_pkey" PRIMARY KEY ("userId","skinId")
+);
+
+-- AddForeignKey
+ALTER TABLE "UserSkin" ADD CONSTRAINT "UserSkin_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserSkin" ADD CONSTRAINT "UserSkin_skinId_fkey" FOREIGN KEY ("skinId") REFERENCES "Skin"("id") ON DELETE CASCADE ON UPDATE CASCADE;

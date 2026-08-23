@@ -1,0 +1,1192 @@
+{
+  "dofus": "dom-de-pin",
+  "displayName": "Dom de Pin",
+  "color": "#006400",
+  "successName": "L'héritage de l'île brisée",
+  "recommendedLevel": 200,
+  "description": "Obtenir le Dom de Pin via les quêtes de l'île de Valonia et de Pandala.",
+  "dofusItemId": 27803,
+  "iconId": 23035,
+  "imageUrl": "/module-dofus/Dom_De_Pin.png",
+  "compiledAt": "2026-04-12T16:33:07.348Z",
+  "chains": [
+    {
+      "sectionName": "Prérequis de Pandala & Eliocalypse",
+      "sectionType": "PREREQUISITE",
+      "zone": "Pandala / Eliocalypse",
+      "description": "Série de quêtes nécessaires avant Valonia.",
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Infâme pourriture",
+          "dofusdbId": 2163,
+          "level": 110,
+          "zone": "Pandala / Eliocalypse",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 23,
+            "y": -29,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Ramener à {npc,5670} : x20 {item,23534}"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Le saule du promeneur",
+          "dofusdbId": 2161,
+          "level": 110,
+          "zone": "Pandala / Eliocalypse",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 26,
+            "y": -31,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 23345,
+              "name": "Feuille de Fujibakama",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/36609.png"
+            },
+            {
+              "id": 311,
+              "name": "Eau Potable",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/15026.png"
+            },
+            {
+              "id": 397,
+              "name": "Huile de Koode",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/60069.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 125,
+              "name": "Bambusaie de Damadrya",
+              "bossId": 6326,
+              "img": "https://api.dofusdb.fr/img/monsters/2088.png"
+            }
+          ],
+          "objectives": [
+            "Ramener à {npc,5578} : x5 {item,23345}",
+            "Protéger le villageois des plantalas agressives",
+            "Escorter Inataba jusqu'à l'atelier des alchimistes",
+            "Fabriquer 1 {item,23346} et fermer l'interface",
+            "Se rendre auprès de Yinagi avec Inataba",
+            "Administrer le traitement à Yinagi",
+            "Demander conseil à Surivitna",
+            "Ramener à {npc,5561} : x5 {item,23347}",
+            "Ramener à {npc,5561} : x1 {item,23348}",
+            "Découvrir la carte : Étang du Saule argenté",
+            "Inspecter le saule argenté en quête d'indice",
+            "Montrer à {npc,5578} : 1 {item,23349}",
+            "Aller voir {npc,5579}",
+            "Protéger le Saule argenté des bûcherons",
+            "Faire le point avec Inataba et Yinagi",
+            "Demander de l'aide à la sorcière de Plantala",
+            "Ramener à {npc,5557} : x1 {item,23350}",
+            "Donner le Philtre végétalisant à Inataba",
+            "Attacher le ruban pour lier les branches des deux arbres"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2163
+            }
+          ]
+        },
+        {
+          "name": "Arak-haï en pagaille",
+          "dofusdbId": 1619,
+          "level": 90,
+          "zone": "Antre de la Reine Nyée - Cinquième salle",
+          "npcName": null,
+          "npcSubArea": "Antre de la Reine Nyée - Cinquième salle",
+          "coords": {
+            "x": -6,
+            "y": -10,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 89,
+              "name": "Antre de la Reine Nyée",
+              "bossId": 3996,
+              "img": "https://api.dofusdb.fr/img/monsters/1267.png"
+            }
+          ],
+          "objectives": [
+            "Vaincre x3 {monster,3992}",
+            "Vaincre x3 {monster,3993}",
+            "Vaincre x3 {monster,3995}",
+            "Vaincre x3 {monster,3994}",
+            "Aller voir {npc,2852}",
+            "Se défendre contre l'embuscade",
+            "Trouver la reine des Arak-haï",
+            "Vaincre x1 {monster,3996} sur la carte {map,149165056} en un seul combat",
+            "Aller voir {npc,2846}",
+            "Retourner voir {npc,2852}"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2161
+            }
+          ]
+        },
+        {
+          "name": "Requiem pour un Yokai",
+          "dofusdbId": 2180,
+          "level": 170,
+          "zone": "Tombe du Shogun Tofugawa - Cinquième Salle",
+          "npcName": null,
+          "npcSubArea": "Tombe du Shogun Tofugawa - Cinquième Salle",
+          "coords": {
+            "x": 36,
+            "y": -44,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 23578,
+              "name": "Outil de gravure",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24901.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 132,
+              "name": "Tombe du Shogun Tofugawa",
+              "bossId": 6388,
+              "img": "https://api.dofusdb.fr/img/monsters/2095.png"
+            },
+            {
+              "id": 131,
+              "name": "Demeure des Esprits",
+              "bossId": 6394,
+              "img": "https://api.dofusdb.fr/img/monsters/2097.png"
+            }
+          ],
+          "objectives": [
+            "Négocier les termes du marché avec le Shogun",
+            "Aller voir {npc,5569}",
+            "Découvrir la carte : Première salle de la Demeure des Esprits",
+            "Vaincre x1 {monster,6394} en un seul combat",
+            "Montrer à {npc,5830} : 1 {item,23576}",
+            "Retrouver le feu perdu de la Kitsoune",
+            "Emporter une flamme du Kitsounebi de Koumiho",
+            "Montrer à {npc,5828} : 1 {item,23577}",
+            "Tenter d'entrer dans l'Antre du Péki Garou",
+            "Trouver un moyen de se prémunir du Feu noir de la Malédiction",
+            "Parler de vos connaissances à propos du voleur d'âmes et en acquérir davantage si nécessaire.",
+            "Aller voir {npc,5839}",
+            "Trouver l'endroit où repose Tonam Etamwa",
+            "Aller voir {npc,5840}",
+            "Montrer à {npc,5839} : 1 {item,23578}",
+            "Graver la tombe du voleur d'âme à son nom",
+            "Aller voir {npc,5927}",
+            "Retrouver le Grimoire de Tonam Etamwa",
+            "Ramener à {npc,5841} : x1 {item,23579}",
+            "Découvrir la carte : Antre du Peki Garou",
+            "Vaincre x1 {monster,6382} en un seul combat",
+            "Aller voir {npc,5828}",
+            "Tenter de communiquer avec Ronald",
+            "Assister à la confrontation entre Imagiro et le Shogun dans le Plan Astral",
+            "Aller voir {npc,5834}"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1619
+            }
+          ]
+        },
+        {
+          "name": "Si loin, si proches",
+          "dofusdbId": 2162,
+          "level": 170,
+          "zone": "Dojo du Pandawushu",
+          "npcName": null,
+          "npcSubArea": "Dojo du Pandawushu",
+          "coords": {
+            "x": 20,
+            "y": -31,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir {npc,5814}",
+            "Vaincre x1 {monster,6442} en un seul combat",
+            "Vaincre x2 {monster,6443} en un seul combat",
+            "Vaincre x3 {monster,6444} en un seul combat",
+            "Retourner voir {npc,5814}",
+            "Montrer à {npc,5557} : 1 {item,23587}",
+            "Découvrir la carte : Sanctuaire des chachas roux",
+            "Inciter les chabitants du sanctuaire à se manifester",
+            "Communiquer avec les chachas roux",
+            "Vaincre le gardien du sanctuaire de Nixie",
+            "Aller voir {npc,5776}",
+            "Accéder à la salle des archives de la bibliothèque",
+            "Dépoussiérer les archives et lire l'histoire des deux sorcières",
+            "Aller voir {npc,5841}",
+            "Trouver le Bakénéko qui a permis la libération de Koumiho",
+            "Aller voir {npc,5869}",
+            "S'endormir dans le cercle de champignons après s'être débarrassé des spectres aux alentours",
+            "Affronter les Bushitake",
+            "Suivre le rayon de lune donné par Tsukimao dans le Plan Astral",
+            "Aller voir {npc,5855}",
+            "Vaincre les Kachagaru et le Chaferokuro",
+            "Passer le collier au cou de Mona",
+            "Assister aux retrouvailles des deux sœurs"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2180
+            }
+          ]
+        },
+        {
+          "name": "Jusqu'à leur dernier soupir",
+          "dofusdbId": 2198,
+          "level": 170,
+          "zone": "Temple du Vent",
+          "npcName": null,
+          "npcSubArea": "Temple du Vent",
+          "coords": {
+            "x": 23,
+            "y": -36,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 131,
+              "name": "Demeure des Esprits",
+              "bossId": 6394,
+              "img": "https://api.dofusdb.fr/img/monsters/2097.png"
+            }
+          ],
+          "objectives": [
+            "Étudier les légendes de Pandala pour en apprendre davantage sur la Kitsoune à neuf queues",
+            "Trouver un samouraï qui pourrait en savoir plus sur le rōnin mentionné dans le conte",
+            "Se rendre dans la montagne, près du temple du Vent",
+            "Entrer dans le temple du Vent",
+            "Parler au vieux Kozaru",
+            "Rencontrer la descendante d'une voyageuse perdue",
+            "Débarquer sur l'île de Grobe et parler au Nocher",
+            "Boire l'élixir des Trépasseurs et se rendre au début de la route des morts",
+            "Prendre une lanterne d'Externam sur la route des morts",
+            "Suivre la route jusqu'à la taverne du cimetière",
+            "Suivre la route jusqu'au pied du Mont des Tombeaux",
+            "Suivre la route jusqu'au ponton brumeux",
+            "Payer le prix de Karon",
+            "Naviguer sur le fleuve Akeranzu",
+            "Vaincre les Lémures dans l'Éther",
+            "Reprendre le cours du voyage le long du fleuve",
+            "Saluer le visiteur qui explore les ruines",
+            "Continuer à naviguer jusqu'à la Mer de poussière",
+            "Aider le guide et l'âme aventurière",
+            "Parler au guide errant",
+            "Retourner voir le vieux Kozaru au temple du Vent",
+            "Récupérer le secret gardé par le vent de l'ouest",
+            "Récupérer le secret gardé par le vent de l'est",
+            "Récupérer le secret gardé par le vent du nord",
+            "Récupérer le secret gardé par le vent du sud",
+            "Confier les quatre secrets au vieux Kozaru",
+            "Rapporter le Hoshinotama à la Kitsoune"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2162
+            }
+          ]
+        },
+        {
+          "name": "Deux souffles, une inspiration",
+          "dofusdbId": 2201,
+          "level": 200,
+          "zone": "Atelier de calligraphie",
+          "npcName": null,
+          "npcSubArea": "Atelier de calligraphie",
+          "coords": {
+            "x": 23,
+            "y": -32,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 133,
+              "name": "Mémoire d'Orukam",
+              "bossId": 6472,
+              "img": "https://api.dofusdb.fr/img/monsters/2121.png"
+            },
+            {
+              "id": 134,
+              "name": "Souvenir d'Imagiro",
+              "bossId": 6478,
+              "img": "https://api.dofusdb.fr/img/monsters/2127.png"
+            }
+          ],
+          "objectives": [
+            "Aller voir {npc,5995}",
+            "Se rendre à la bibliothèque pour parler à Chochi",
+            "Trouver le possesseur du dernier manuscrit de Myamowa Musashwan",
+            "Vaincre les spectres terrassés par Musashwan",
+            "Aller voir {npc,6013}",
+            "Explorer Terrdala à la recherche d'une œuvre de Tanukang Jei",
+            "Éloigner les Tsukumogami du vase antique",
+            "Examiner le vase antique",
+            "Survivre à l'embuscade des shinobi",
+            "Recopier le caractère tracé sur un vase antique",
+            "Montrer les deux caractères à Shufamukin",
+            "Aller voir {npc,5560}",
+            "Découvrir l'un des temples du Wukin et du Wukang sur l'île de Pandala",
+            "Parler à Daoh et quitter l'un des temples pour entrer dans les Royaumes célestes d'encre et de papier",
+            "Explorer la Mémoire d'Orukam",
+            "Vaincre x1 {monster,6472} en un seul combat",
+            "Décrypter le sens des mots-esprits dans la dernière salle de la Mémoire d'Orukam",
+            "Trouver le Yokianzhi du Wukin dans le Royaume d'encre",
+            "Survivre à l'attaque de la Paume du chtigre pour obtenir la silhouette du Wukin",
+            "Parler au dragon Orukam dans sa caverne",
+            "Explorer le Souvenir d'Imagiro",
+            "Vaincre x1 {monster,6478} en un seul combat",
+            "Décrypter le sens des mots-esprits dans la dernière salle du Souvenir d'Imagiro",
+            "Trouver le Yokianzhi du Wukang dans le royaume de papier",
+            "Parler au dragon Imagiro dans sa caverne",
+            "Se rendre au pied du Mont Noir et Blanc",
+            "Vaincre les chtigres de papier",
+            "Faire des offrandes aux éléments sur le Mont Noir et Blanc",
+            "Calmer les esprits",
+            "Parler aux trois Kozaru",
+            "Explorer le rêve du taciturne",
+            "Rompre le silence pour obtenir l'héritage de Kian Zhi",
+            "Parler au maître des rêves",
+            "Montrer à {npc,5995} : 1 {item,24067}",
+            "Se rendre au Palais de bambou pour s'entretenir avec la Daimya",
+            "Vaincre l'exécuteur de la Paume avec l'aide de Wulan",
+            "Retourner voir le Grandapan dans le temple de la Taverne interdite"
+          ],
+          "stepOrder": 6,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2198
+            }
+          ]
+        },
+        {
+          "name": "En ce jardin qui nous unit",
+          "dofusdbId": 2202,
+          "level": 200,
+          "zone": "Temple Pandawa",
+          "npcName": null,
+          "npcSubArea": "Temple Pandawa",
+          "coords": {
+            "x": 4,
+            "y": -2,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Se rendre au temple de Pandawa en Amakna",
+            "Aller voir {npc,644}",
+            "Se préparer pour le rituel de la Main de Pandawa",
+            "Affronter Keltra Ekazumi et terminer vos préparatifs",
+            "Créer la Main de Pandawa grâce à la volonté de la déesse",
+            "Retourner sur Pandala et découvrir le jardin secret",
+            "Parler à Imagiro et à Orukam dans le jardin secret",
+            "Se concentrer sur le rocher et les deux Dofus",
+            "Aller voir {npc,5961}",
+            "Affronter le reflet du dragon",
+            "Aller voir {npc,5986}"
+          ],
+          "stepOrder": 7,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2201
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Le Secret des Dofus",
+      "sectionType": "PREREQUISITE",
+      "zone": "Astrub / Pandala",
+      "description": "Quêtes rattachées à la trame principale des Dofus.",
+      "isSynergyCandidate": false,
+      "chainOrder": 1,
+      "requires": [],
+      "entries": [
+        {
+          "name": "La bête au bois dormant",
+          "dofusdbId": 2449,
+          "level": 200,
+          "zone": "Temple Crâ",
+          "npcName": null,
+          "npcSubArea": "Temple Crâ",
+          "coords": {
+            "x": -57,
+            "y": -1,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 139,
+              "name": "Tertre du long sommeil",
+              "bossId": 107,
+              "img": "https://api.dofusdb.fr/img/monsters/55.png"
+            }
+          ],
+          "objectives": [
+            "Entrer dans le rêve de Terrakourial",
+            "Aller voir {npc,3499}",
+            "S'entretenir avec le maître du temple de Crâ",
+            "Passer l'épreuve de la baliste de Crâ",
+            "Parler à la Grande Chasseresse",
+            "Explorer la Forêt Maléfique à la recherche d'une créature qui se souvient de Terrakourial",
+            "Faire face au vieux moussu",
+            "Aller voir {npc,6687}",
+            "Pénétrer dans le bloc d'ambre caché sous le tumulus",
+            "Aller voir {npc,6689}",
+            "Aller voir {npc,6742}"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Les coûts du sort",
+          "dofusdbId": 1784,
+          "level": 180,
+          "zone": "Maison du chaman",
+          "npcName": null,
+          "npcSubArea": "Maison du chaman",
+          "coords": {
+            "x": 20,
+            "y": -27,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 22,
+              "name": "Temple du Grand Ougah",
+              "bossId": 1159,
+              "img": "https://api.dofusdb.fr/img/monsters/640.png"
+            }
+          ],
+          "objectives": [
+            "Aller voir {npc,5561}",
+            "Lire le parchemin dans la bibliothèque de Pandala",
+            "Retourner voir {npc,5561}",
+            "Vaincre x1 {monster,1159} en un seul combat",
+            "Ramener à {npc,5561} : x1 {item,18243}",
+            "Chercher un ermite koalak dans les marécages sans fond",
+            "Trouver le boomerang de Bivoak",
+            "Vaincre x1 {monster,4632} en un seul combat",
+            "Ramener à {npc,3436} : x1 {item,18244}",
+            "Aller voir {npc,3439}",
+            "Cueillir 4 racines marécageuses et les montrer à Yado",
+            "Plonger les racines dans la marmite",
+            "Partager la soupe avec Bivoak et Maître Yado",
+            "Cueillir la première fleur de kaliptus",
+            "Cueillir la deuxième fleur de kaliptus",
+            "Donner les deux fleurs de kaliptus séculaire à Surivitna",
+            "Découvrir la carte : Statue du Réceptacle des Dofus",
+            "Respirer les fumées de l'encens ancestral",
+            "Méditer devant la statue en se concentrant sur les Dofus",
+            "Se concentrer sur les quatre lumières émises par la statue",
+            "Tenter de communiquer avec les élémentaires",
+            "Demander conseil à Rimanda sur l'île de Rok",
+            "Aller voir {npc,3046}",
+            "Aller voir {npc,3080}",
+            "Récupérer les orbes avalés par Lebagag",
+            "Transformer les orbes élémentaires et les jeter dans les flammes",
+            "Vaincre x1 {monster,4635} en un seul combat",
+            "Ramener à {npc,3428} : x1 {item,18254}"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2449
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Quêtes de Valonia",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Île de Valonia",
+      "description": "La série des quêtes sur l'île de Valonia pour le succès final.",
+      "isSynergyCandidate": true,
+      "chainOrder": 2,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Association de fureteurs",
+          "dofusdbId": 2466,
+          "level": 50,
+          "zone": "Refuge sylvestre - Cinquième salle",
+          "npcName": null,
+          "npcSubArea": "Refuge sylvestre - Cinquième salle",
+          "coords": {
+            "x": 36,
+            "y": -78,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 27643,
+              "name": "Bière aigrisante",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/27643.png"
+            },
+            {
+              "id": 27810,
+              "name": "Élixir de jeunesse",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/27810.png"
+            },
+            {
+              "id": 27807,
+              "name": "Fragment de Dom de Pin",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/27807.png"
+            },
+            {
+              "id": 27809,
+              "name": "Cristal de Valonia",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/27809.png"
+            },
+            {
+              "id": 27808,
+              "name": "Artefact de Dom de Pin",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/27808.png"
+            },
+            {
+              "id": 737,
+              "name": "Dofus Émeraude",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23002.png"
+            },
+            {
+              "id": 7114,
+              "name": "Dofus Ébène",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23007.png"
+            },
+            {
+              "id": 739,
+              "name": "Dofus Pourpre",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23001.png"
+            },
+            {
+              "id": 7113,
+              "name": "Dofus Turquoise",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23003.png"
+            },
+            {
+              "id": 7115,
+              "name": "Dofus Ivoire",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23011.png"
+            },
+            {
+              "id": 7754,
+              "name": "Dofus Ocre",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23012.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 142,
+              "name": "Antre du Trankilou",
+              "bossId": 7197,
+              "img": "https://api.dofusdb.fr/img/monsters/7197.png"
+            }
+          ],
+          "objectives": [
+            "Aller voir {npc,6804}",
+            "Découvrir la carte : Barrage d'Albuera",
+            "Aller voir {npc,6816}",
+            "Aller voir {npc,6815}",
+            "Aller constater les dégâts sur le barrage sans perdre une minute",
+            "Reparler aux ouvriers du barrage",
+            "Se dépêcher d'aller trouver Leichäf Odäg",
+            "Retourner au barrage avec la kole",
+            "Aller voir {npc,6802}",
+            "Vaincre x1 {monster,7197} en un seul combat",
+            "Aller voir {npc,6807}",
+            "Retirer les bandages et appliquer l'onguent sur la cheville de Bentlaitue",
+            "Parlez à Rakoopeur à nouveau",
+            "Aller voir {npc,6899}",
+            "Parlez à Rakoopeur une dernière fois"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": true,
+          "requirements": []
+        },
+        {
+          "name": "La complote des P.O.M.S",
+          "dofusdbId": 2468,
+          "level": 50,
+          "zone": "Île de Valonia",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 37,
+            "y": -84,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Découvrir la carte : Hauteurs d'Albuera",
+            "Chercher des signes du passage d'Albuerans suspects",
+            "Se cacher derrière un rocher afin d'éviter de se faire repérer",
+            "Épier l'Albueran venant de faire son apparition",
+            "Suivre Bjarni Amblok",
+            "Écouter les informations qu'Aster Bou est en train de partager à ses confrères",
+            "Aller voir {npc,6814}",
+            "Écouter ce que Bentlaitue a à dire",
+            "Reparler à Aster Bou",
+            "Livrer Aster Bou à Thorbjarn"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2466
+            }
+          ]
+        },
+        {
+          "name": "La fin des maningances",
+          "dofusdbId": 2474,
+          "level": 190,
+          "zone": "Bastion des Marteaux-Aigris - Sortie",
+          "npcName": null,
+          "npcSubArea": "Bastion des Marteaux-Aigris - Sortie",
+          "coords": {
+            "x": 32,
+            "y": -62,
+            "worldId": 31
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 141,
+              "name": "Demeure de Barberyl",
+              "bossId": 7219,
+              "img": "https://api.dofusdb.fr/img/monsters/7219.png"
+            }
+          ],
+          "objectives": [
+            "Échafauder un plan d'évasion avec Vitkour",
+            "Mettre le plan d'évasion à exécution",
+            "Aller voir {npc,6849}",
+            "Ramener à {npc,6849} : x1 {item,27619}",
+            "Repasser de l'autre côté de la cascade avec Vitkour",
+            "Aller voir Barbéryl, en compagnie de Vitkour Pied-Vif, pour l'avertir à propos de Malva Bonnepanse",
+            "Écouter le plaidoyer de Malva Bonnepanse",
+            "Suivre l'intervention de Vitkour Pied-Vif",
+            "Interrompre la tentative de meurtre de Malva Bonnepanse",
+            "Aller voir {npc,6847}",
+            "Ramener à {npc,6803} : x20 {item,27620}",
+            "Aller voir {npc,6842}",
+            "Aller voir {npc,6843}"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2468
+            }
+          ]
+        },
+        {
+          "name": "La sorcière exilée",
+          "dofusdbId": 2475,
+          "level": 200,
+          "zone": "Chambre des maléfices - Cinquième salle",
+          "npcName": null,
+          "npcSubArea": "Chambre des maléfices - Cinquième salle",
+          "coords": {
+            "x": 38,
+            "y": -76,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 140,
+              "name": "Chambre des maléfices",
+              "bossId": 7210,
+              "img": "https://api.dofusdb.fr/img/monsters/2325.png"
+            }
+          ],
+          "objectives": [
+            "Prendre le bateau pour Ephedrya",
+            "Retrouver Grenn... ou ce qu'il en reste",
+            "Récupérer l'arme du Forgelance, puis discuter avec lui",
+            "Se rendre à l'entrée du château avec Grenn",
+            "Vaincre x1 {monster,7210} sur la carte {map,223875072} en un seul combat",
+            "Aller voir {npc,6946}",
+            "Trouver les ouvrages à déposer sur les pupitres enchantés de la bibliothèque",
+            "Se plonger dans « Les aventures de Bobby Glourson »",
+            "Aller voir {npc,6985}",
+            "Aider Koko Wapin à chasser les Inouifes de son potager",
+            "Convaincre Kristoff de quitter le livre",
+            "Se plonger dans « Le conte de Nissun Shibo »",
+            "Parler à Frida",
+            "Aller voir {npc,6990}",
+            "Vaincre les dévoreurs de mots",
+            "Convaincre Duim et Frida de quitter le livre",
+            "Se plonger dans « Promenons-nous dans les bois »",
+            "Empêcher les mulous de dévorer les enfants",
+            "Convaincre Lizbeth et Frida de quitter le livre",
+            "Faire un point sur la situation des enfants avec Grenn",
+            "Faire ses adieux à Kristoff",
+            "S'assurer que les disparus restants ont bien été reconduits auprès de Gidrud"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2474
+            }
+          ]
+        },
+        {
+          "name": "Pour que la flamme vacille",
+          "dofusdbId": 2477,
+          "level": 200,
+          "zone": "Bastion des Marteaux-Aigris - Sortie",
+          "npcName": null,
+          "npcSubArea": "Bastion des Marteaux-Aigris - Sortie",
+          "coords": {
+            "x": 32,
+            "y": -64,
+            "worldId": 31
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 27403,
+              "name": "Fleur des protecteurs",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/36662.png"
+            },
+            {
+              "id": 27397,
+              "name": "Liane de Soldalia",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/36660.png"
+            },
+            {
+              "id": 27401,
+              "name": "Casque de Statulipe",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/165066.png"
+            },
+            {
+              "id": 27400,
+              "name": "Poing de Coquelicogne",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/165065.png"
+            },
+            {
+              "id": 27399,
+              "name": "Épine d'Armuguet",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/47883.png"
+            },
+            {
+              "id": 27398,
+              "name": "Mousse de Caméliache",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/36661.png"
+            },
+            {
+              "id": 16387,
+              "name": "Belladone",
+              "amount": 14,
+              "img": "https://api.dofusdb.fr/img/items/35638.png"
+            },
+            {
+              "id": 27621,
+              "name": "Cendrepierre",
+              "amount": 14,
+              "img": "https://api.dofusdb.fr/img/items/39403.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 141,
+              "name": "Donjon"
+            }
+          ],
+          "objectives": [
+            "Aller voir {npc,6847}",
+            "Aller voir {npc,6919}",
+            "Aller voir {npc,6920}",
+            "Consulter le manuel de fabrication de la Fleur de Cendrepierre",
+            "Montrer à {npc,6918} : 1 {item,27403}",
+            "Montrer à {npc,6918} : 1 {item,27397}",
+            "Montrer à {npc,6918} : 1 {item,27401}",
+            "Montrer à {npc,6918} : 1 {item,27400}",
+            "Montrer à {npc,6918} : 1 {item,27399}",
+            "Montrer à {npc,6918} : 1 {item,27398}",
+            "Montrer à {npc,6918} : 7 {item,16387}",
+            "Montrer à {npc,6918} : 7 {item,27621}",
+            "Fabriquer 1 {item,27714} et fermer l'interface",
+            "Aller voir {npc,6918}",
+            "Aller voir {npc,6921}",
+            "Aller voir {npc,6917}"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2475
+            }
+          ]
+        },
+        {
+          "name": "La graine de la révolte",
+          "dofusdbId": 2478,
+          "level": 200,
+          "zone": "Temple Forgelance",
+          "npcName": null,
+          "npcSubArea": "Temple Forgelance",
+          "coords": {
+            "x": 33,
+            "y": -84,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir {npc,6843}",
+            "Découvrir la carte : Archives des Forgelances",
+            "Aller voir {npc,6909}",
+            "Examiner les documents des archives",
+            "Faire part de votre découverte à Hyurianger",
+            "Faire votre rapport à Nascherite devant la Lance Originelle",
+            "Déposer le livre sur l'un des pupitres enchantés de la bibliothèque d'Ephedrya",
+            "Vaincre les sentinelles de Belladone",
+            "Accéder à l'Imaginarium par « La Légende d'Arthodan »",
+            "Assister à la fin du roi Arthodan",
+            "Clarifier la situation avec Rathrosk",
+            "Amener Rathrosk sur l'île d'Ereboria pour raviver ses souvenirs",
+            "Parler au dragon gris",
+            "Protéger Rathrosk des morts-brûlés",
+            "Demander au dragon s'il se souvient de quelque chose",
+            "Trouver le Trépasseur dans un lieu de Pandala lié aux morts",
+            "Aller voir {npc,5824}",
+            "Partager vos découvertes avec Nascherite près de la Lance Originelle"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2477
+            }
+          ]
+        },
+        {
+          "name": "Par l'héritage qui vous lie",
+          "dofusdbId": 2479,
+          "level": 200,
+          "zone": "Salle de l'ordre des Chevaliers d'Astrub",
+          "npcName": null,
+          "npcSubArea": "Salle de l'ordre des Chevaliers d'Astrub",
+          "coords": {
+            "x": 36,
+            "y": -77,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 425,
+              "name": "Chanvre",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/34121.png"
+            },
+            {
+              "id": 428,
+              "name": "Sauge",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/36643.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir {npc,6842}",
+            "Suivre Ofsi",
+            "Aller voir {npc,6802}",
+            "Vaincre les envoyés de Corruption",
+            "Faire le point avec Gidrud et Thorbjarn",
+            "Assister au débat dans la hutte du Ginth",
+            "Aller voir {npc,6839}",
+            "Aller voir {npc,4325}",
+            "Interroger les Chevaliers d'Astrub",
+            "Lire la note froissée",
+            "Se rendre sur le lieu de rendez-vous",
+            "Rencontrer Godefon de Bouilloire dans le fortin abandonné",
+            "Trouver les documents cachés dans la salle de l'ordre",
+            "Prévenir Fallanster de votre découverte",
+            "Libérer le Chevalier du Soleil",
+            "Vaincre x1 {monster,7264} en un seul combat",
+            "Discuter avec le Forgelance vaincu",
+            "Aller voir {npc,6309}",
+            "Réquisitionner un navire dans le port de Bonta",
+            "Retrouver Edgard Cœur de Dragon",
+            "Interrompre le rituel des Possédés",
+            "Vaincre x1 {monster,7266} en un seul combat",
+            "Aller voir {npc,6841}",
+            "Retrouver l'apothicaire albueran à Bonta",
+            "Ramener à {npc,6974} : x1 {item,27793}",
+            "Ramener à {npc,6974} : x1 {item,27794}",
+            "Ramener à {npc,6974} : x1 {item,27795}",
+            "Ramener à {npc,6974} : x10 {item,425}",
+            "Ramener à {npc,6974} : x10 {item,428}",
+            "Mettre Amayiro au courant des événements",
+            "Ramener à {npc,6841} : x1 {item,27796}",
+            "Retourner faire le point avec Nascherite"
+          ],
+          "stepOrder": 6,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2478
+            }
+          ]
+        },
+        {
+          "name": "Une dernière volonté",
+          "dofusdbId": 2480,
+          "level": 200,
+          "zone": "Belvédère d'Ilyzaelle - Blessure d'Erazal",
+          "npcName": null,
+          "npcSubArea": "Belvédère d'Ilyzaelle - Blessure d'Erazal",
+          "coords": {
+            "x": -1,
+            "y": -1,
+            "worldId": 28
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 23902,
+              "name": "Cristal liquide",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/39402.png"
+            },
+            {
+              "id": 23903,
+              "name": "Cristal pliable",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/39401.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 1031,
+              "name": "Bastion des Marteaux-Aigris",
+              "bossId": 7222,
+              "img": "https://api.dofusdb.fr/img/monsters/7222.png"
+            },
+            {
+              "id": 107,
+              "name": "Belvédère d'Ilyzaelle",
+              "bossId": 4967,
+              "img": "https://api.dofusdb.fr/img/monsters/1628.png"
+            }
+          ],
+          "objectives": [
+            "Rencontrer Namuna en Aerdala",
+            "Rejoindre Namuna à la Forge Astrale",
+            "Ramener à {npc,6982} : x1 {item,27769}",
+            "Ramener à {npc,6982} : x10 {item,23902}",
+            "Ramener à {npc,6982} : x1 {item,27767}",
+            "Ramener à {npc,6982} : x1 {item,27770}",
+            "Ramener à {npc,6982} : x10 {item,23903}",
+            "Ramener à {npc,6982} : x1 {item,27768}",
+            "Aller voir {npc,6982}",
+            "Aider Namuna à rassembler les deux parties de Jormun",
+            "Vous frayer un chemin jusqu'à Ilyzaelle",
+            "Aller voir {npc,4057}",
+            "Demander conseil au roi de Bonta",
+            "Annoncer à Ilyzaelle que le roi se porte volontaire",
+            "Prouver à la championne de Jiva que le roi peut repousser les Brûlâmes",
+            "Retourner à la Table du Serment",
+            "Commencer la cérémonie",
+            "Entrer dans la brèche spirituelle",
+            "Protéger la Volonté persistante",
+            "Utiliser le pouvoir des sept lances pour sauver la Volonté persistante d'Heimër",
+            "Examiner la Volonté persistante d'Heimër",
+            "Faire le point avec les Forgelances du Serment"
+          ],
+          "stepOrder": 7,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2479
+            }
+          ]
+        },
+        {
+          "name": "L'heure des adieux",
+          "dofusdbId": 2481,
+          "level": 200,
+          "zone": "Temple Forgelance",
+          "npcName": null,
+          "npcSubArea": "Temple Forgelance",
+          "coords": {
+            "x": 33,
+            "y": -84,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir {npc,6843}",
+            "Escorter Nascherite auprès de l'esprit Blanchebière",
+            "Écouter Nascherite indiquer à Pashir où se trouve Gnugnir, la lance de Skori",
+            "Aller voir {npc,6948}",
+            "Aller voir {npc,5824}",
+            "Découvrir la carte : Caverne de Cire Momore",
+            "Vaincre x1 {monster,7222} sur la carte {map,227280130} en un seul combat",
+            "Demander à Karon si le plan s'est déroulé sans encombres",
+            "Trouver l'entrée du tombeau du clan Blanchebière",
+            "Découvrir la carte : Tombeau du roi Skori Blanchebière",
+            "Écouter l'éloge funèbre de Nascherite",
+            "Honorer le défunt Roi des rois Skori Blanchebière",
+            "Assister au départ des esprits Blanchebière, guidés par Karon le Trépasseur",
+            "Être témoin des adieux de Skori par l'intermédiaire de Karon"
+          ],
+          "stepOrder": 8,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2480
+            }
+          ]
+        },
+        {
+          "name": "Les risques du métier",
+          "dofusdbId": 2482,
+          "level": 200,
+          "zone": "Île de Valonia",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 26,
+            "y": -86,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 27748,
+              "name": "Ronce ephedryenne",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/25014.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Trouver la Serpyn membre de l'escouade",
+            "Ramener à {npc,6951} : x1 {item,27745}",
+            "Escorter la Serpyn auprès de son capitaine d'escouade",
+            "Trouver le Sanglirok membre de l'escouade",
+            "Exterminer les bourdards pour permettre au Sanglirok de s'enfuir",
+            "Trouver le Marthos membre de l'escouade",
+            "Aller voir {npc,6954}",
+            "Fabriquer 1 {item,27746} et fermer l'interface",
+            "Aider le Marthos à sortir du puits à l'aide de la corde",
+            "Aller voir {npc,6953}",
+            "Escorter le Marthos auprès du capitaine d'escouade"
+          ],
+          "stepOrder": 9,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2481
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

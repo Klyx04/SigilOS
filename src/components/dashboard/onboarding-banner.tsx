@@ -1,11 +1,11 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Shield, ScrollText, BookOpen, Sparkles, Zap, ArrowRight, CheckCircle2, Infinity as InfinityIcon, Users, AlertCircle, Rocket } from "lucide-react";
+import { Check, Shield, ScrollText, BookOpen, Sparkles, Zap, ArrowRight, CheckCircle2, Infinity as InfinityIcon, Users, AlertCircle, Rocket, X } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { BorderBeam } from "@/components/ui/border-beam";
+import { useEffect, useState } from "react";
 
 interface OnboardingStep {
     id: string;
@@ -23,7 +23,9 @@ export function OnboardingBanner({
     subtitle = "Configuration",
     checklistLabel = "Checklist de configuration",
     guideHref,
-    variant = "admin"
+    variant = "admin",
+    dismissible = false,
+    storageKey
 }: {
     guildId: string,
     steps: OnboardingStep[],
@@ -31,11 +33,38 @@ export function OnboardingBanner({
     subtitle?: string,
     checklistLabel?: string,
     guideHref?: string,
-    variant?: "admin" | "user"
+    variant?: "admin" | "user",
+    dismissible?: boolean,
+    storageKey?: string
 }) {
+    const [isDismissed, setIsDismissed] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+        if (storageKey) {
+            const dismissed = localStorage.getItem(`sigilos-dismiss-${storageKey}`);
+            if (dismissed === "true") setIsDismissed(true);
+        }
+    }, [storageKey]);
+
+    const handleDismiss = () => {
+        setIsDismissed(true);
+        if (storageKey) {
+            localStorage.setItem(`sigilos-dismiss-${storageKey}`, "true");
+        }
+    };
+
     const completedSteps = steps.filter(s => s.completed).length;
     const progress = (completedSteps / steps.length) * 100;
     const isFinished = completedSteps === steps.length;
+
+    // Automatic dismissal if everything is done — don't show the banner anymore
+    useEffect(() => {
+        if (mounted && isFinished) {
+            handleDismiss();
+        }
+    }, [isFinished, mounted]);
 
     const iconMap = {
         shield: Shield,
@@ -48,75 +77,69 @@ export function OnboardingBanner({
         rocket: Rocket
     };
 
+    if (isDismissed || !mounted) return null;
+
     return (
         <div className="relative group/onboarding w-full">
-            {/* Animated Glow when incomplete */}
-            {!isFinished && (
-                <div className={cn(
-                    "absolute -inset-[2px] rounded-2xl blur-md opacity-30 animate-pulse-slow",
-                    variant === "user" ? "bg-gradient-to-r from-blue-500/40 via-indigo-500/40 to-blue-500/40" : "bg-gradient-to-r from-emerald-500/40 via-teal-500/40 to-emerald-500/40"
-                )} />
-            )}
-
             <div className={cn(
-                "relative glass-premium p-6 md:p-8 rounded-2xl border border-white/10 overflow-hidden transition-all duration-500",
-                variant === "user" ? "ring-1 ring-blue-500/20 shadow-[0_0_30px_rgba(59,130,246,0.1)]" : "ring-1 ring-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.1)]",
+                "relative bg-surface p-6 md:p-8 rounded-2xl border border-border overflow-hidden transition-colors duration-200 group-hover/onboarding:border-border-strong",
+                variant === "user" ? "ring-1 ring-info/20 " : "ring-1 ring-success/20 ",
                 !isFinished ? "opacity-100" : "opacity-90"
             )}>
-                {!isFinished && (
-                    <BorderBeam
-                        size={200}
-                        duration={6}
-                        colorFrom={variant === "user" ? "#3b82f6" : "#10b981"}
-                        colorTo={variant === "user" ? "#60a5fa" : "#34d399"}
-                    />
+                {dismissible && (
+                    <button
+                        onClick={handleDismiss}
+                        className="absolute top-4 right-4 p-2 rounded-full hover:bg-surface text-muted-foreground hover:text-foreground transition-colors z-20 group/close"
+                    >
+                        <X className="w-4 h-4 group-hover/close:rotate-90 transition-transform" />
+                    </button>
                 )}
-
+                
                 <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
                     <div className="space-y-6 flex-1 max-w-2xl">
                         <div className="flex items-start gap-4">
                             <div className={cn(
-                                "p-3 rounded-2xl border transition-colors",
+                                "p-3 rounded-2xl border transition-colors duration-200",
                                 !isFinished
-                                    ? (variant === "user" ? "bg-blue-500/20 border-blue-500/30 text-blue-400 group-hover/onboarding:scale-110 duration-500" : "bg-emerald-500/20 border-emerald-500/30 text-emerald-400 group-hover/onboarding:scale-110 duration-500")
-                                    : "bg-zinc-500/10 border-white/10 text-zinc-400"
+                                    ? (variant === "user" ? "bg-info/20 border-info/30 text-info" : "bg-success/20 border-success/30 text-success")
+                                    : "bg-muted/10 border-border text-muted-foreground"
                             )}>
                                 {isFinished ? (
                                     <CheckCircle2 className="w-6 h-6" />
                                 ) : (
-                                    variant === "user" ? <Sparkles className="w-6 h-6 animate-pulse" /> : <Rocket className="w-6 h-6 animate-bounce-subtle" />
+                                    variant === "user" ? <Sparkles className="w-6 h-6" /> : <Rocket className="w-6 h-6" />
                                 )}
                             </div>
                             <div className="space-y-1">
                                 <div className="flex items-center gap-2">
                                     <span className={cn(
-                                        "text-[10px] font-black uppercase tracking-[0.4em] leading-none",
-                                        variant === "user" ? "text-blue-400/80" : "text-emerald-400/80"
+                                        "text-caption font-black uppercase tracking-widest leading-none",
+                                        variant === "user" ? "text-info/80" : "text-success/80"
                                     )}>
                                         {isFinished ? (variant === "user" ? "Prêt pour l'aventure" : "Succès") : (variant === "user" ? "Préparation" : "Configuration Nécessaire")}
                                     </span>
                                     {!isFinished && (
                                         <div className={cn(
                                             "flex items-center gap-1 px-1.5 py-0.5 rounded-full border",
-                                            variant === "user" ? "bg-blue-500/10 border-blue-500/20" : "bg-emerald-500/10 border-emerald-500/20"
+                                            variant === "user" ? "bg-info/10 border-info/20" : "bg-success/10 border-success/20"
                                         )}>
                                             <span className={cn(
-                                                "w-1 h-1 rounded-full animate-ping",
-                                                variant === "user" ? "bg-blue-400" : "bg-emerald-400"
+                                                "w-1 h-1 rounded-full",
+                                                variant === "user" ? "bg-info" : "bg-success"
                                             )} />
                                             <span className={cn(
-                                                "text-[8px] font-black uppercase tracking-tighter",
-                                                variant === "user" ? "text-blue-400" : "text-emerald-400"
+                                                "text-caption font-black uppercase tracking-tighter",
+                                                variant === "user" ? "text-info" : "text-success"
                                             )}>Priorité</span>
                                         </div>
                                     )}
                                 </div>
-                                <h2 className="text-2xl md:text-3xl font-black tracking-tighter text-white">
+                                <h2 className="text-2xl md:text-3xl font-black tracking-tighter text-foreground">
                                     {isFinished
                                         ? (variant === "user" ? "Votre profil est prêt !" : "Votre Guilde est prête !")
                                         : title}
                                 </h2>
-                                <p className="text-zinc-400 text-sm font-medium leading-relaxed max-w-md">
+                                <p className="text-muted-foreground text-sm font-medium leading-relaxed max-w-md">
                                     {isFinished
                                         ? (variant === "user"
                                             ? "Vous avez configuré les piliers essentiels de votre identité. Profitez pleinement de SigilOS !"
@@ -130,10 +153,7 @@ export function OnboardingBanner({
 
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 pt-2">
                             {guideHref && !isFinished && (
-                                <Button asChild className={cn(
-                                    "font-black px-8 py-6 rounded-xl transition-all group/btn",
-                                    variant === "user" ? "bg-blue-500 hover:bg-blue-400 text-white shadow-[0_0_20px_rgba(59,130,246,0.3)]" : "bg-emerald-500 hover:bg-emerald-400 text-black shadow-[0_0_20px_rgba(16,185,129,0.3)]"
-                                )}>
+                                <Button asChild variant={variant === "user" ? "sigil" : "sigil-emerald"} className="h-12 px-8">
                                     <Link href={guideHref}>
                                         {variant === "user" ? "MON PARCOURS" : "AVANCEMENT"}
                                         <ArrowRight className="ml-2 w-5 h-5 group-hover/btn:translate-x-2 transition-transform" />
@@ -142,18 +162,18 @@ export function OnboardingBanner({
                             )}
 
                             <div className="flex-1 min-w-[200px] space-y-2">
-                                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                                    <span className="text-zinc-500">{checklistLabel}</span>
-                                    <span className={variant === "user" ? "text-blue-400" : "text-emerald-400"}>{completedSteps} / {steps.length}</span>
+                                <div className="flex justify-between text-caption font-black uppercase tracking-widest">
+                                    <span className="text-muted-foreground">{checklistLabel}</span>
+                                    <span className={variant === "user" ? "text-info" : "text-success"}>{completedSteps} / {steps.length}</span>
                                 </div>
-                                <div className="h-2 w-full bg-zinc-900 rounded-full overflow-hidden border border-white/5">
+                                <div className="h-2 w-full bg-surface rounded-full overflow-hidden border border-border">
                                     <motion.div
                                         initial={{ width: 0 }}
                                         animate={{ width: `${progress}%` }}
                                         transition={{ duration: 1, ease: "easeOut" }}
                                         className={cn(
-                                            "h-full transition-all duration-500",
-                                            variant === "user" ? "bg-gradient-to-r from-blue-600 to-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.5)]" : "bg-gradient-to-r from-emerald-600 to-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.5)]"
+                                            "h-full transition-colors duration-200",
+                                            variant === "user" ? "bg-info" : "bg-success"
                                         )}
                                     />
                                 </div>
@@ -171,36 +191,32 @@ export function OnboardingBanner({
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: 0.1 * idx }}
                                         className={cn(
-                                            "relative p-4 rounded-2xl border transition-all hover:scale-110 active:scale-95 group/step flex flex-col items-center gap-3 min-w-[90px]",
+                                            "relative p-4 rounded-2xl border transition-all  active:scale-95 group/step flex flex-col items-center gap-3 min-w-[90px]",
                                             step.completed
-                                                ? (variant === "user" ? "bg-blue-500/10 border-blue-500/30 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)]" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400")
-                                                : "bg-white/5 border-white/10 text-zinc-500 hover:border-white/30 hover:bg-white/10"
+                                                ? (variant === "user" ? "bg-info/10 border-info/30 text-info " : "bg-success/10 border-success/30 text-success")
+                                                : "bg-surface border-border text-muted-foreground hover:border-border-strong hover:bg-surface"
                                         )}
                                     >
                                         <Icon className={cn("w-6 h-6", !step.completed && "grayscale opacity-50")} />
-                                        <span className="text-[8px] font-black uppercase tracking-widest text-center leading-tight">{step.title}</span>
+                                        <span className="text-caption font-black uppercase tracking-widest text-center leading-tight">{step.title}</span>
 
                                         {step.completed && (
                                             <div className={cn(
-                                                "absolute -top-1.5 -right-1.5 rounded-full p-1 border-2 border-zinc-950 shadow-lg",
-                                                variant === "user" ? "bg-blue-500" : "bg-emerald-500"
+                                                "absolute -top-1.5 -right-1.5 rounded-full p-1 border-2 border-border",
+                                                variant === "user" ? "bg-info" : "bg-success"
                                             )}>
-                                                <Check className="w-2.5 h-2.5 text-white" />
+                                                <Check className="w-2.5 h-2.5 text-foreground" />
                                             </div>
                                         )}
 
-                                        <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/10 p-2 rounded-lg opacity-0 group-hover/step:opacity-100 pointer-events-none transition-all z-50 whitespace-nowrap scale-90 group-hover/step:scale-100 origin-top">
-                                            <p className="text-[9px] font-black uppercase tracking-widest text-white">{step.description}</p>
+                                        <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 bg-surface border border-border p-2 rounded-lg opacity-0 group-hover/step:opacity-100 pointer-events-none transition-all z-50 whitespace-nowrap scale-90 group-hover/step:scale-100 origin-top">
+                                            <p className="text-caption font-black uppercase tracking-widest text-foreground">{step.description}</p>
                                         </div>
                                     </motion.div>
                                 </Link>
                             );
                         })}
                     </div>
-                </div>
-
-                <div className="absolute -bottom-10 -right-10 p-8 opacity-[0.03] pointer-events-none group-hover/onboarding:opacity-[0.07] transition-opacity duration-1000 group-hover/onboarding:rotate-0 rotate-12">
-                    {variant === "user" ? <Sparkles className="w-64 h-64 text-white" /> : <Shield className="w-64 h-64 text-white" />}
                 </div>
             </div>
         </div>

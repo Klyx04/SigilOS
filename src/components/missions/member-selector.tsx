@@ -101,7 +101,7 @@ export function MemberSelector({ guildId, selectedIds, onSelect, maxSelection = 
                         variant="outline"
                         role="combobox"
                         aria-expanded={open}
-                        className="w-full justify-between bg-zinc-900/50 border-white/10 text-zinc-300 hover:bg-zinc-900 hover:text-white"
+                        className="w-full justify-between bg-surface/50 border-border text-foreground hover:bg-surface hover:text-foreground"
                         disabled={selectedIds.length >= maxSelection}
                     >
                         <span className="flex items-center gap-2">
@@ -113,7 +113,7 @@ export function MemberSelector({ guildId, selectedIds, onSelect, maxSelection = 
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[300px] p-0 bg-zinc-900 border-zinc-800 text-white" align="start">
+                <PopoverContent className="w-[300px] p-0 bg-surface border-border text-foreground" align="start">
                     <Command shouldFilter={false}>
                         <CommandInput
                             placeholder="Pseudo Dofus ou Discord..."
@@ -122,12 +122,12 @@ export function MemberSelector({ guildId, selectedIds, onSelect, maxSelection = 
                             className="bg-transparent border-none focus:ring-0"
                         />
                         <CommandList>
-                            {loading && <div className="p-4 text-center text-xs text-zinc-500"><LoaderSpin /> Recherche...</div>}
+                            {loading && <div className="p-4 text-center text-xs text-muted-foreground"><LoaderSpin /> Recherche...</div>}
                             {!loading && options.length === 0 && query.length >= 2 && (
                                 <CommandEmpty>Aucun membre trouvé.</CommandEmpty>
                             )}
                             {!loading && query.length < 2 && (
-                                <div className="p-4 text-center text-xs text-zinc-500">Tapez 2 lettres pour chercher</div>
+                                <div className="p-4 text-center text-xs text-muted-foreground">Tapez 2 lettres pour chercher</div>
                             )}
 
                             <CommandGroup>
@@ -138,25 +138,25 @@ export function MemberSelector({ guildId, selectedIds, onSelect, maxSelection = 
                                             key={member.id}
                                             value={member.id}
                                             onSelect={() => handleSelect(member)}
-                                            className="flex items-center gap-2 cursor-pointer hover:bg-zinc-800 aria-selected:bg-zinc-800"
+                                            className="flex items-center gap-2 cursor-pointer hover:bg-elevated aria-selected:bg-elevated"
                                         >
                                             <div className="relative">
-                                                <Avatar className="h-8 w-8 border border-white/10">
+                                                <Avatar className="h-8 w-8 border border-border">
                                                     <AvatarImage src={member.image || undefined} />
-                                                    <AvatarFallback className="bg-zinc-800 text-xs">
+                                                    <AvatarFallback className="bg-elevated text-xs">
                                                         {member.name.substring(0, 2).toUpperCase()}
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 {isSelected && (
-                                                    <div className="absolute -top-1 -right-1 bg-emerald-500 rounded-full p-0.5 border border-black">
-                                                        <Check className="w-2 h-2 text-black font-bold" />
+                                                    <div className="absolute -top-1 -right-1 bg-success rounded-full p-0.5 border border-black">
+                                                        <Check className="w-2 h-2 text-foreground font-bold" />
                                                     </div>
                                                 )}
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-sm font-medium text-white">{member.name}</span>
+                                                <span className="text-sm font-medium text-foreground">{member.name}</span>
                                                 {member.subtitle && (
-                                                    <span className="text-xs text-zinc-500">{member.subtitle}</span>
+                                                    <span className="text-xs text-muted-foreground">{member.subtitle}</span>
                                                 )}
                                             </div>
                                         </CommandItem>
@@ -174,18 +174,18 @@ export function MemberSelector({ guildId, selectedIds, onSelect, maxSelection = 
                     {selectedMembers.map((member) => (
                         <div
                             key={member.id}
-                            className="flex items-center gap-2 pl-1 pr-2 py-1 bg-zinc-800 hover:bg-zinc-700 border border-white/10 rounded-full transition-colors group"
+                            className="flex items-center gap-2 pl-1 pr-2 py-1 bg-elevated hover:bg-muted border border-border rounded-full transition-colors group"
                         >
-                            <Avatar className="h-6 w-6 border border-white/10">
+                            <Avatar className="h-6 w-6 border border-border">
                                 <AvatarImage src={member.image || undefined} />
-                                <AvatarFallback className="bg-zinc-700 text-[9px]">
+                                <AvatarFallback className="bg-muted text-caption">
                                     {member.name.substring(0, 2).toUpperCase()}
                                 </AvatarFallback>
                             </Avatar>
-                            <span className="text-xs font-medium text-zinc-200">{member.name}</span>
+                            <span className="text-xs font-medium text-foreground">{member.name}</span>
                             <button
                                 onClick={() => handleRemove(member.id)}
-                                className="ml-1 p-0.5 rounded-full hover:bg-red-500/20 hover:text-red-400 text-zinc-500 transition-colors"
+                                className="ml-1 p-0.5 rounded-full hover:bg-danger/20 hover:text-danger text-muted-foreground transition-colors"
                             >
                                 <X className="w-3 h-3" />
                             </button>
@@ -194,7 +194,7 @@ export function MemberSelector({ guildId, selectedIds, onSelect, maxSelection = 
                 </div>
             )}
 
-            <div className="text-[10px] text-zinc-500">
+            <div className="text-caption text-muted-foreground">
                 {selectedIds.length} / {maxSelection} participants sélectionnés
             </div>
         </div>
@@ -204,7 +204,7 @@ export function MemberSelector({ guildId, selectedIds, onSelect, maxSelection = 
 function LoaderSpin() {
     return (
         <svg
-            className="animate-spin h-4 w-4 text-zinc-400 mx-auto"
+            className="animate-spin h-4 w-4 text-muted-foreground mx-auto"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"

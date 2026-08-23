@@ -14,13 +14,17 @@
  * - getSoftDeletedProfiles
  * - getArchivedProfiles
  * - getPlatformBans
- * - getActiveGuilds
+ * - transferGuildOwnership
+ * - getGuildOwnerId
  */
 
 'use server';
 
+import { logger } from "@/lib/logger";
+
 import { db } from '@/lib/prisma';
-import { isSuperAdmin } from './super-admin-actions';
+import { isSuperAdmin, canGodAccess, canAccessBrick } from './super-admin-actions';
+import { getDisplayName } from "@/lib/display-name";
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 
@@ -36,6 +40,9 @@ export async function softDeleteGuild(
     }
 
     try {
+        const session = await auth();
+        const adminName = session?.user?.name || "Super Admin";
+
         const scheduledDeletion = new Date();
         scheduledDeletion.setDate(scheduledDeletion.getDate() + graceDays);
 
@@ -49,7 +56,6 @@ export async function softDeleteGuild(
             }
         });
 
-        // Also soft delete all profiles
         await db.userProfile.updateMany({
             where: { guildId },
             data: {
@@ -60,11 +66,22 @@ export async function softDeleteGuild(
             }
         });
 
+        // NOTIFY GOD (Platform Alert)
+        const { notifyGod } = await import('./god-notif-actions');
+        await notifyGod({
+            title: reason === 'BOT_REMOVED' ? "🤖 BOT EXPULSÉ" : "🏰 GUILDE DÉSAVOUÉE",
+            message: `La guilde "${guildId}" a été marquée pour suppression (Raison: ${reason}).\n👤 Par: **${adminName}**`,
+            type: 'SYSTEM',
+            success: false,
+            ping: reason === 'BOT_REMOVED', // Pinger si le bot est viré (urgent)
+            metadata: { guildId, reason, performedBy: adminName, operation: "SOFT_DELETE_GUILD" },
+        });
+
         // revalidatePath handles UI update
         revalidatePath('/god');
         return { success: true };
     } catch (error) {
-        console.error('[GOD] softDeleteGuild error:', error);
+        logger.error('[GOD] softDeleteGuild error:', error);
         return { success: false, error: 'Failed to soft delete guild' };
     }
 }
@@ -76,6 +93,15 @@ export async function reactivateGuild(guildId: string) {
     }
 
     try {
+        const session = await auth();
+        const adminName = session?.user?.name || "Super Admin";
+
+        // Récupérer le nom lisible avant la notif
+        const guild = await db.guildConfig.findUnique({
+            where: { id: guildId },
+            select: { name: true }
+        });
+
         await db.guildConfig.update({
             where: { id: guildId },
             data: {
@@ -100,11 +126,22 @@ export async function reactivateGuild(guildId: string) {
             }
         });
 
+        // 🔔 NOTIFY GOD
+        const guildName = guild?.name || guildId;
+        const { notifyGod } = await import('./god-notif-actions');
+        await notifyGod({
+            title: "🏰 Guilde Réactivée",
+            message: `La guilde **"${guildName}"** a été réactivée sur la plateforme.\n👤 Par: **${adminName}**`,
+            type: "SYSTEM",
+            success: true,
+            metadata: { guildId, guildName, performedBy: adminName, operation: "REACTIVATE_GUILD" },
+        });
+
         // revalidatePath handles UI update
         revalidatePath('/god');
         return { success: true };
     } catch (error) {
-        console.error('[GOD] reactivateGuild error:', error);
+        logger.error('[GOD] reactivateGuild error:', error);
         return { success: false, error: 'Failed to reactivate guild' };
     }
 }
@@ -116,6 +153,9 @@ export async function hardDeleteGuild(guildId: string) {
     }
 
     try {
+        const session = await auth();
+        const adminName = session?.user?.name || "Super Admin";
+
         // 1. Get Discord Guild ID before deleting config
         const guildConfig = await db.guildConfig.findUnique({
             where: { id: guildId },
@@ -135,10 +175,20 @@ export async function hardDeleteGuild(guildId: string) {
             });
         }
 
+        // 🔔 NOTIFY GOD
+        const { notifyGod } = await import('./god-notif-actions');
+        await notifyGod({
+            title: "🗑️ Guilde Supprimée Définitivement",
+            message: `La guilde "${guildConfig?.discordGuildId || guildId}" a été supprimée définitivement de la plateforme.\n👤 Par: **${adminName}**`,
+            type: "SYSTEM",
+            success: false,
+            metadata: { guildId, discordGuildId: guildConfig?.discordGuildId, performedBy: adminName, operation: "HARD_DELETE_GUILD" },
+        });
+
         revalidatePath('/god');
         return { success: true };
     } catch (error) {
-        console.error('[GOD] hardDeleteGuild error:', error);
+        logger.error('[GOD] hardDeleteGuild error:', error);
         return { success: false, error: 'Failed to hard delete guild' };
     }
 }
@@ -154,6 +204,9 @@ export async function softDeleteProfile(
     }
 
     try {
+        const session = await auth();
+        const adminName = session?.user?.name || "Super Admin";
+
         const scheduledDeletion = new Date();
         scheduledDeletion.setDate(scheduledDeletion.getDate() + graceDays);
 
@@ -167,11 +220,21 @@ export async function softDeleteProfile(
             }
         });
 
+        // 🔔 NOTIFY GOD
+        const { notifyGod } = await import('./god-notif-actions');
+        await notifyGod({
+            title: "👤 Profil Archivé (Soft Delete)",
+            message: `Le profil "${profileId}" a été marqué pour suppression (Raison: ${reason}, Grace: ${graceDays}j).\n👤 Par: **${adminName}**`,
+            type: "SYSTEM",
+            success: false,
+            metadata: { profileId, reason, performedBy: adminName, scheduledDeletion: scheduledDeletion.toISOString(), operation: "SOFT_DELETE_PROFILE" },
+        });
+
         // revalidatePath handles UI update
         revalidatePath('/god');
         return { success: true };
     } catch (error) {
-        console.error('[GOD] softDeleteProfile error:', error);
+        logger.error('[GOD] softDeleteProfile error:', error);
         return { success: false, error: 'Failed to soft delete profile' };
     }
 }
@@ -183,6 +246,9 @@ export async function reactivateProfile(profileId: string) {
     }
 
     try {
+        const session = await auth();
+        const adminName = session?.user?.name || "Super Admin";
+
         const profile = await db.userProfile.update({
             where: { id: profileId },
             data: {
@@ -193,11 +259,21 @@ export async function reactivateProfile(profileId: string) {
             }
         });
 
+        // 🔔 NOTIFY GOD
+        const { notifyGod } = await import('./god-notif-actions');
+        await notifyGod({
+            title: "👤 Profil Réactivé",
+            message: `Le profil "${profileId}" a été réactivé sur la plateforme.\n👤 Par: **${adminName}**`,
+            type: "SYSTEM",
+            success: true,
+            metadata: { profileId, performedBy: adminName, operation: "REACTIVATE_PROFILE" },
+        });
+
         // revalidatePath handles UI update
         revalidatePath('/god');
         return { success: true };
     } catch (error) {
-        console.error('[GOD] reactivateProfile error:', error);
+        logger.error('[GOD] reactivateProfile error:', error);
         return { success: false, error: 'Failed to reactivate profile' };
     }
 }
@@ -209,6 +285,9 @@ export async function hardDeleteProfile(profileId: string) {
     }
 
     try {
+        const session = await auth();
+        const adminName = session?.user?.name || "Super Admin";
+
         // Get profile data BEFORE delete
         const profile = await db.userProfile.findUnique({
             where: { id: profileId },
@@ -229,46 +308,71 @@ export async function hardDeleteProfile(profileId: string) {
             where: { id: profileId }
         });
 
+        // 🔔 NOTIFY GOD
+        const { notifyGod } = await import('./god-notif-actions');
+        await notifyGod({
+            title: "👤 Profil Supprimé Définitivement",
+            message: `Le profil "${profileId}" a été supprimé définitivement (guilde: ${profile.guildId || "inconnue"}).\n👤 Par: **${adminName}**`,
+            type: "SYSTEM",
+            success: false,
+            metadata: { profileId, guildId: profile.guildId, performedBy: adminName, operation: "HARD_DELETE_PROFILE" },
+        });
+
         revalidatePath('/god');
         return { success: true };
     } catch (error) {
-        console.error('[GOD] hardDeleteProfile error:', error);
+        logger.error('[GOD] hardDeleteProfile error:', error);
         return { success: false, error: 'Failed to hard delete profile' };
     }
 }
 
 /**
  * Get soft-deleted guilds
+ * 🔄 R1 — LECTURE compatible scope "guilds".
  */
 export async function getSoftDeletedGuilds() {
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return [];
+    if (!isAdmin && !(await canGodAccess("guilds"))) return [];
 
     return db.guildConfig.findMany({
         where: {
             isActive: false,
             deletedAt: { not: null }
         },
-        include: {
+        orderBy: { scheduledDeletion: 'asc' },
+        select: {
+            id: true,
+            name: true,
+            discordGuildId: true,
+            isActive: true,
+            deletedAt: true,
+            deletionReason: true,
+            scheduledDeletion: true,
             _count: { select: { profiles: true } }
-        },
-        orderBy: { scheduledDeletion: 'asc' }
+        }
     });
 }
 
 /**
  * Get soft-deleted profiles
+ * 🔄 R1 — LECTURE compatible scope "guilds".
  */
 export async function getSoftDeletedProfiles() {
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return [];
+    if (!isAdmin && !(await canGodAccess("guilds"))) return [];
 
     return db.userProfile.findMany({
         where: {
             status: 'ARCHIVED',
             archivedAt: { not: null }
         },
-        include: {
+        select: {
+            id: true,
+            userId: true,
+            guildId: true,
+            status: true,
+            archivedAt: true,
+            scheduledDeletion: true,
             guild: { select: { name: true } },
             user: { select: { name: true } }
         },
@@ -278,14 +382,21 @@ export async function getSoftDeletedProfiles() {
 
 /**
  * Get all archived profiles (not just soft-deleted)
+ * 🔄 R1 — LECTURE compatible scope "guilds".
  */
 export async function getArchivedProfiles() {
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return [];
+    if (!isAdmin && !(await canGodAccess("guilds"))) return [];
 
     return db.userProfile.findMany({
         where: { status: 'ARCHIVED' },
-        include: {
+        select: {
+            id: true,
+            userId: true,
+            guildId: true,
+            status: true,
+            archivedAt: true,
+            scheduledDeletion: true,
             guild: { select: { name: true } },
             user: { select: { name: true } }
         },
@@ -296,10 +407,11 @@ export async function getArchivedProfiles() {
 
 /**
  * Get all active guilds for the control panel
+ * 🔄 R1 — LECTURE compatible scope "guilds".
  */
 export async function getActiveGuilds() {
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return [];
+    if (!isAdmin && !(await canGodAccess("guilds"))) return [];
 
     return db.guildConfig.findMany({
         where: { isActive: true },
@@ -312,12 +424,21 @@ export async function getActiveGuilds() {
 
 /**
  * Get all platform-level bans
+ * 🔄 R1 — LECTURE compatible scope "guilds".
  */
 export async function getPlatformBans() {
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return [];
+    if (!isAdmin && !(await canGodAccess("guilds"))) return [];
 
     return db.platformBan.findMany({
+        select: {
+            id: true,
+            entityType: true,
+            discordId: true,
+            reason: true,
+            bannedBy: true,
+            createdAt: true
+        },
         orderBy: { createdAt: 'desc' }
     });
 }
@@ -340,6 +461,17 @@ export async function banEntity(type: 'GUILD' | 'USER', discordId: string, reaso
             }
         });
 
+        // 🔔 NOTIFY GOD
+        const adminName = session?.user?.name || "Super Admin";
+        const { notifyGod } = await import('./god-notif-actions');
+        await notifyGod({
+            title: type === 'GUILD' ? "🚫 Guilde Bannie" : "🚫 Utilisateur Banni",
+            message: `**${type}** \`${discordId}\` a été banni de la plateforme (Raison: ${reason}).\n👤 Par: **${adminName}**`,
+            type: "SYSTEM",
+            success: false,
+            metadata: { entityType: type, discordId, reason, performedBy: adminName, operation: "BAN_ENTITY" },
+        });
+
         revalidatePath('/god');
         return { success: true };
     } catch (error) {
@@ -359,6 +491,18 @@ export async function unbanEntity(banId: string) {
             where: { id: banId }
         });
 
+        const session = await auth();
+        const adminName = session?.user?.name || "Super Admin";
+        // 🔔 NOTIFY GOD
+        const { notifyGod } = await import('./god-notif-actions');
+        await notifyGod({
+            title: "✅ Ban Levé",
+            message: `Le ban \`${banId}\` a été levé de la plateforme.\n👤 Par: **${adminName}**`,
+            type: "SYSTEM",
+            success: true,
+            metadata: { banId, performedBy: adminName, operation: "UNBAN_ENTITY" },
+        });
+
         revalidatePath('/god');
         return { success: true };
     } catch (error) {
@@ -370,39 +514,144 @@ export async function unbanEntity(banId: string) {
  */
 export async function getGuildMembersForGod(guildId: string) {
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) throw new Error("Unauthorized");
+    // #108 — un sous-god avec la brique "guilds" (whitelist + roster en lecture seule)
+    // accède aussi au roster God.
+    const isGuildBrick = isAdmin ? true : await canAccessBrick("guilds");
+    if (!isAdmin && !isGuildBrick) throw new Error("Unauthorized");
 
-    const members = await db.userProfile.findMany({
-        where: { guildId },
-        include: {
-            user: {
-                select: {
-                    name: true,
-                    image: true,
-                    accounts: {
-                        where: { provider: "discord" },
-                        select: { providerAccountId: true }
+    const [members, guild] = await Promise.all([
+        db.userProfile.findMany({
+            where: { guildId },
+            select: {
+                id: true,
+                userId: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true,
+                archivedAt: true,
+                archiveReason: true,
+                pseudoDofus: true,
+                discordNickname: true,
+                scheduledDeletion: true,
+                user: {
+                    select: {
+                        name: true,
+                        image: true,
+                        accounts: {
+                            where: { provider: "discord" },
+                            select: { providerAccountId: true }
+                        }
                     }
                 }
-            }
-        },
-        orderBy: { updatedAt: "desc" }
-    });
+            },
+            orderBy: { updatedAt: "desc" }
+        }),
+        db.guildConfig.findUnique({
+            where: { id: guildId },
+            select: { ownerId: true }
+        })
+    ]);
 
-    return members.map(m => ({
-        id: m.id,
-        userId: m.userId,
-        status: m.status as "ACTIVE" | "ARCHIVED" | "BANNED",
-        createdAt: m.createdAt.toISOString(),
-        updatedAt: m.updatedAt.toISOString(),
-        archivedAt: m.archivedAt?.toISOString() || null,
-        archiveReason: m.archiveReason,
-        pseudoDofus: m.pseudoDofus,
-        discordNickname: m.discordNickname,
-        user: {
-            name: m.user.name,
-            image: m.user.image,
-            accounts: m.user.accounts
-        }
-    }));
+    return {
+        ownerId: guild?.ownerId,
+        members: members.map(m => ({
+            id: m.id,
+            userId: m.userId,
+            status: m.status as "ACTIVE" | "ARCHIVED" | "BANNED",
+            createdAt: m.createdAt.toISOString(),
+            updatedAt: m.updatedAt.toISOString(),
+            archivedAt: m.archivedAt?.toISOString() || null,
+            archiveReason: m.archiveReason,
+            pseudoDofus: m.pseudoDofus,
+            discordNickname: m.discordNickname,
+            scheduledDeletion: m.scheduledDeletion?.toISOString() || null,
+            user: {
+                name: getDisplayName(m),
+                image: m.user.image,
+                accounts: m.user.accounts
+            }
+        }))
+    };
 }
+
+/**
+ * Transfer full ownership of a guild to another user (Super-admin only)
+ */
+export async function transferGuildOwnership(guildId: string, newOwnerUserId: string) {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: 'Unauthorized' };
+
+    try {
+        const session = await auth();
+        const adminName = session?.user?.name || "Super Admin";
+
+        await db.guildConfig.update({
+            where: {
+                // Use OR to support both internal ID and discordGuildId (ID mismatch fix)
+                id: guildId.length < 25 ? undefined : guildId,
+                discordGuildId: guildId.length < 25 ? guildId : undefined
+            },
+            data: { ownerId: newOwnerUserId }
+        });
+
+        // 🔔 NOTIFY GOD
+        const { notifyGod } = await import('./god-notif-actions');
+        await notifyGod({
+            title: "👑 Propriété Transférée",
+            message: `La propriété de la guilde "${guildId}" a été transférée à l'utilisateur "${newOwnerUserId}".\n👤 Par: **${adminName}**`,
+            type: "SYSTEM",
+            success: true,
+            metadata: { guildId, newOwnerUserId, performedBy: adminName, operation: "TRANSFER_OWNERSHIP" },
+        });
+
+        revalidatePath('/god');
+        return { success: true };
+    } catch (error) {
+        logger.error('[GOD] transferGuildOwnership error:', error);
+        return { success: false, error: 'Failed to transfer ownership' };
+    }
+}
+
+/**
+ * 👑 Augmenter ou modifier la capacité max de membres d'une guilde (Super-admin ou God scope "guilds")
+ */
+export async function updateGuildMaxMembers(guildId: string, maxMembers: number) {
+    const isAdmin = await isSuperAdmin();
+    const hasScope = await canGodAccess("guilds");
+    if (!isAdmin && !hasScope) return { success: false, error: "Non autorisé" };
+
+    if (isNaN(maxMembers) || maxMembers < 1 || maxMembers > 1000) {
+        return { success: false, error: "La capacité doit être comprise entre 1 et 1000 membres." };
+    }
+
+    try {
+        const session = await auth();
+        const adminName = session?.user?.name || "Admin SigilOS";
+
+        const isDiscordId = guildId.length < 25;
+        const guild = await db.guildConfig.update({
+            where: {
+                id: isDiscordId ? undefined : guildId,
+                discordGuildId: isDiscordId ? guildId : undefined
+            },
+            data: { maxMembers }
+        });
+
+        const { notifyGod } = await import('./god-notif-actions');
+        await notifyGod({
+            title: "📈 Capacité de Guilde Modifiée",
+            message: `La guilde **"${guild.name}"** a une nouvelle capacité max de **${maxMembers}** membres (précédemment : ${guild.maxMembers}).\n👤 Par : **${adminName}**`,
+            type: "SYSTEM",
+            success: true,
+            metadata: { guildId: guild.id, discordGuildId: guild.discordGuildId, maxMembers, performedBy: adminName, operation: "UPDATE_MAX_MEMBERS" },
+        });
+
+        revalidatePath('/god');
+        revalidatePath(`/dashboard/${guild.discordGuildId}/admin/members`);
+        return { success: true, maxMembers: guild.maxMembers };
+    } catch (error) {
+        logger.error('[GOD] updateGuildMaxMembers error:', error);
+        return { success: false, error: 'Échec de la modification de la capacité' };
+    }
+}
+

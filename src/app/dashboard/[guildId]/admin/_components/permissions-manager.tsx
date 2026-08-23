@@ -3,12 +3,15 @@
 import { useState, useTransition, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { updateRoleMapping } from "@/server/actions/admin-actions";
-import { PERMISSIONS, PERMISSION_DETAILS, PERMISSION_MODULES, type PermissionId, type PermissionModule } from "@/lib/permissions";
+import { updateRBACMapping } from "@/server/actions/admin-actions";
+import { PERMISSIONS, PERMISSION_DETAILS, PERMISSION_MODULES, MODULE_ORDER as PERM_MODULE_ORDER, type PermissionId, type PermissionModule } from "@/lib/permissions";
 import { PermissionCard } from "./permission-card";
+import { type Option } from "@/components/ui/multi-select";
 import { cn } from "@/lib/utils";
-import { Save, Filter, ChevronDown, ChevronRight, Search, X } from "lucide-react";
+import { Save, Filter, ChevronDown, ChevronRight, Search, X, Users, ShieldAlert, Loader2, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { getDisplayName } from "@/lib/display-name";
+import { UnsavedChangesGuard } from "@/components/ui/unsaved-changes-guard";
 
 type Role = {
     id: string;
@@ -19,12 +22,18 @@ type Role = {
 type Props = {
     guildId: string;
     roles: Role[];
+    members: any[];
     currentMapping: Record<string, PermissionId[]>;
+    currentUsersMapping: Record<string, PermissionId[]>;
+    // Chantier #72 — kill-switch God « Membres Spécifiques » (PlatformConfig) :
+    // quand la plateforme le désactive, les sélecteurs par membre sont masqués
+    // (lecture seule) ; le serveur rejette de toute façon toute écriture.
+    usersMappingEnabled: boolean;
 };
 
-const MODULE_ORDER: PermissionModule[] = ["admin", "missions", "songes", "calendar", "profile", "features", "tools", "info", "chat"];
+const MODULE_ORDER = PERM_MODULE_ORDER;
 
-export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
+export function PermissionsManager({ guildId, roles, members, currentMapping, currentUsersMapping, usersMappingEnabled }: Props) {
     // Transform: DB (Role -> Perms)  ==>  UI (Perm -> Roles)
     const initialPermState: Record<PermissionId, string[]> = Object.values(PERMISSIONS).reduce((acc, perm) => {
         acc[perm] = [];
@@ -33,35 +42,101 @@ export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
 
     Object.entries(currentMapping).forEach(([roleId, perms]) => {
         perms.forEach(perm => {
-            if (!initialPermState[perm]) initialPermState[perm] = [];
-            initialPermState[perm].push(roleId);
+            // Only include permissions that still exist in the new system
+            if (initialPermState[perm]) {
+                initialPermState[perm].push(roleId);
+            }
+        });
+    });
+
+    // Transform: DB (User -> Perms) ==> UI (Perm -> Users)
+    const initialUserState: Record<PermissionId, string[]> = Object.values(PERMISSIONS).reduce((acc, perm) => {
+        acc[perm] = [];
+        return acc;
+    }, {} as Record<PermissionId, string[]>);
+
+    Object.entries(currentUsersMapping).forEach(([discordUserId, perms]) => {
+        perms.forEach(perm => {
+            // Only include permissions that still exist in the new system
+            if (initialUserState[perm]) {
+                initialUserState[perm].push(discordUserId);
+            }
         });
     });
 
     const [permState, setPermState] = useState(initialPermState);
+    const [userState, setUserState] = useState(initialUserState);
+    // #202 — snapshot « sauvegardé » : permet d'afficher un état « modifications non
+    // sauvegardées » et un bouton Sauvegarder toujours visible (footer sticky bas).
+    const [savedSnapshot, setSavedSnapshot] = useState<{ permState: Record<PermissionId, string[]>; userState: Record<PermissionId, string[]> }>({
+        permState: initialPermState,
+        userState: initialUserState,
+    });
     const [isPending, startTransition] = useTransition();
     const [activeModule, setActiveModule] = useState<PermissionModule | "all">("all");
     const [searchQuery, setSearchQuery] = useState("");
     // Track which module sections are collapsed (only relevant in "all" view)
     const [collapsed, setCollapsed] = useState<Record<PermissionModule, boolean>>({} as Record<PermissionModule, boolean>);
 
+    // Roles that currently have DASHBOARD_ACCESS assigned
+    const rolesWithDashboardAccess = new Set(permState[PERMISSIONS.DASHBOARD_LOGIN] || []);
+
     const handlePermChange = (permId: PermissionId, newRoleIds: string[]) => {
-        setPermState(prev => ({ ...prev, [permId]: newRoleIds }));
+        setPermState(prev => {
+            const next = { ...prev, [permId]: newRoleIds };
+            // Auto-add DASHBOARD_ACCESS when any permission is granted to a role
+            if (permId !== PERMISSIONS.DASHBOARD_LOGIN && newRoleIds.length > 0) {
+                const currentAccess = new Set(prev[PERMISSIONS.DASHBOARD_LOGIN] || []);
+                newRoleIds.forEach(roleId => currentAccess.add(roleId));
+                next[PERMISSIONS.DASHBOARD_LOGIN] = Array.from(currentAccess);
+            }
+            return next;
+        });
+    };
+
+    const handleUserChange = (permId: PermissionId, newUserIds: string[]) => {
+        setUserState(prev => ({ ...prev, [permId]: newUserIds }));
     };
 
     const handleSave = () => {
         startTransition(async () => {
-            const dbMapping: Record<string, PermissionId[]> = {};
+            // Reconstruct rolesMapping
+            const rolesMapping: Record<string, PermissionId[]> = {};
             Object.entries(permState).forEach(([permId, roleIds]) => {
                 roleIds.forEach(roleId => {
-                    if (!dbMapping[roleId]) dbMapping[roleId] = [];
-                    if (!dbMapping[roleId].includes(permId as PermissionId)) {
-                        dbMapping[roleId].push(permId as PermissionId);
+                    if (!rolesMapping[roleId]) rolesMapping[roleId] = [];
+                    if (!rolesMapping[roleId].includes(permId as PermissionId)) {
+                        rolesMapping[roleId].push(permId as PermissionId);
                     }
                 });
             });
-            const res = await updateRoleMapping(guildId, dbMapping);
+
+            // Reconstruct usersMapping
+            const usersMapping: Record<string, PermissionId[]> = {};
+            // Chantier #72 — kill-switch God « Membres Spécifiques » : quand la plateforme
+            // désactive les permissions individuelles, on renvoie l'existant INCHANGÉ
+            // (jamais un payload vide ou recalculé qui ferait « semblant » d'effacer
+            // des grants ; le serveur rejette toute modification de toute façon).
+            if (usersMappingEnabled) {
+                Object.entries(userState).forEach(([permId, userIds]) => {
+                    userIds.forEach(userId => {
+                        const discordUserId = userId; // The ID passed should be the discord provider account ID
+                        if (!usersMapping[discordUserId]) usersMapping[discordUserId] = [];
+                        if (!usersMapping[discordUserId].includes(permId as PermissionId)) {
+                            usersMapping[discordUserId].push(permId as PermissionId);
+                        }
+                    });
+                });
+            } else {
+                Object.entries(currentUsersMapping).forEach(([discordUserId, perms]) => {
+                    usersMapping[discordUserId] = [...perms];
+                });
+            }
+
+            const res = await updateRBACMapping(guildId, rolesMapping, usersMapping);
             if (res.success) {
+                // #202 — le snapshot « sauvegardé » suit l'état réel (l'indicateur se réinitialise).
+                setSavedSnapshot({ permState, userState });
                 toast.success("Permissions sauvegardées");
             } else {
                 toast.error(res.error || "Erreur lors de la sauvegarde");
@@ -74,6 +149,19 @@ export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
     };
 
     const roleOptions = roles.map(r => ({ label: r.name, value: r.id, color: r.color }));
+    // La clé du usersMapping DOIT être le Discord ID (snowflake) : getUserContext
+    // lit `individualMapping[discordUserId]`. Le fallback `|| m.userId` (UUID interne)
+    // rendait la permission silencieusement inopérante. Un membre sans compte Discord
+    // lié ne peut pas se connecter → il est exclu (aucune permission individuelle possible).
+    const memberOptions: Option[] = members.flatMap(m => {
+        const discordAccount = m.user.accounts?.find((a: any) => a.provider === "discord");
+        if (!discordAccount?.providerAccountId) return [];
+        return [{
+            label: getDisplayName(m),
+            value: discordAccount.providerAccountId,
+            icon: m.user.image ?? undefined,
+        }];
+    });
 
     const permissionsByModule = useMemo(() => {
         const grouped = {} as Record<PermissionModule, PermissionId[]>;
@@ -124,201 +212,311 @@ export function PermissionsManager({ guildId, roles, currentMapping }: Props) {
 
     const totalConfigured = useMemo(() => Object.values(permState).filter(r => r.length > 0).length, [permState]);
 
+    // #202 — des modifications locales non sauvegardées existent-elles ?
+    const hasUnsavedChanges = useMemo(() => {
+        const permChanged = (Object.keys(PERMISSIONS) as PermissionId[]).some((perm) => {
+            const cur = (permState[perm] || []).slice().sort().join(",");
+            const init = (savedSnapshot.permState[perm] || []).slice().sort().join(",");
+            return cur !== init;
+        });
+        const userChanged = (Object.keys(PERMISSIONS) as PermissionId[]).some((perm) => {
+            const cur = (userState[perm] || []).slice().sort().join(",");
+            const init = (savedSnapshot.userState[perm] || []).slice().sort().join(",");
+            return cur !== init;
+        });
+        return permChanged || userChanged;
+    }, [permState, userState, savedSnapshot]);
+
+    // Roles that have any permission but are missing DASHBOARD_ACCESS (need migration)
+    const rolesNeedingMigration = useMemo(() => {
+        const allMappedRoles = new Set<string>();
+        Object.entries(permState).forEach(([permId, roleIds]) => {
+            if (permId !== PERMISSIONS.DASHBOARD_LOGIN && roleIds.length > 0) {
+                roleIds.forEach(id => allMappedRoles.add(id));
+            }
+        });
+        const withAccess = new Set(permState[PERMISSIONS.DASHBOARD_LOGIN] || []);
+        return [...allMappedRoles].filter(rId => !withAccess.has(rId));
+    }, [permState]);
+
     return (
-        <div className="space-y-4">
-            {/* Sticky save bar */}
-            <div className="flex justify-between items-center bg-zinc-900/80 backdrop-blur-sm px-4 py-3 rounded-xl border border-white/8 sticky top-4 z-10">
-                <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-white">Gestion des Droits</span>
-                    <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                        {totalConfigured}/{Object.values(PERMISSIONS).length} configurés
-                    </span>
+        <div className="space-y-8 relative">
+            {/* Background Ambient Glow */}
+            <div className="absolute -top-40 -right-40 w-96 h-96 bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-surface radial-gradient blur-[160px] rounded-full pointer-events-none" />
+
+            {/* ⚠️ Warning Banner: roles missing DASHBOARD_ACCESS */}
+            {rolesNeedingMigration.length > 0 && (
+                <div className="flex items-start gap-4 bg-warning/10 border border-warning/30 rounded-2xl px-6 py-4">
+                    <span className="text-2xl mt-0.5">⚠️</span>
+                    <div>
+                        <p className="text-warning font-black uppercase tracking-widest text-sm">
+                            Accès non explicite détecté
+                        </p>
+                        <p className="text-warning/80 text-xs mt-1 leading-relaxed">
+                            {rolesNeedingMigration.length > 0 && (
+                                <>
+                                    {rolesNeedingMigration.map(rId => roles.find(r => r.id === rId)?.name || rId).join(", ")} — 
+                                    {" "}Ces rôles ont des permissions mais n'ont pas <strong>🚪 Accès Dashboard</strong> coché.
+                                    Les nouvelles permissions cochées ci-dessus l'ont automatiquement ajouté.
+                                    <strong> Pensez à sauvegarder.</strong>
+                                </>
+                            )}
+                        </p>
+                    </div>
                 </div>
-                <Button
-                    onClick={handleSave}
-                    disabled={isPending}
-                    size="sm"
-                    className="bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30"
+            )}
+
+            {/* ⚠️ Chantier #72 — kill-switch God « Membres Spécifiques » désactivé */}
+            {!usersMappingEnabled && (
+                <div className="flex items-start gap-4 bg-danger/10 border border-danger/30 rounded-2xl px-6 py-4">
+                    <span className="text-2xl mt-0.5">🚫</span>
+                    <div>
+                        <p className="text-danger font-black uppercase tracking-widest text-sm">
+                            Permissions « Membres Spécifiques » désactivées par la plateforme
+                        </p>
+                        <p className="text-danger/80 text-xs mt-1 leading-relaxed">
+                            L'option par membre est temporairement coupée (panel God). Les sélecteurs individuels
+                            sont masqués et aucune modification ne sera enregistrée. Les permissions de <strong>rôles</strong>
+                            restent entièrement configurables.
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {/* Sticky Action Bar — Sigma 2026 Style */}
+            <div className="flex flex-col sm:flex-row justify-between items-center bg-elevated/90 backdrop-blur-2xl px-6 py-5 rounded-[2rem] border border-border-strong sticky top-4 z-20 gap-4 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)]">
+                <div className="flex items-center gap-5">
+                    <div className="p-3 bg-primary/20 rounded-2xl border border-primary/40">
+                        <ShieldAlert className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                        <h2 className="text-base font-semibold text-foreground leading-none tracking-tight">Matrice des Droits</h2>
+                        <div className="flex items-center gap-3 mt-2">
+                            <div className="h-2 w-48 bg-surface rounded-full overflow-hidden border border-border">
+                                <div 
+                                    className="h-full bg-primary transition-all duration-200"
+                                    style={{ 
+                                        width: `${(totalConfigured / Object.values(PERMISSIONS).length) * 100}%`
+                                    }}
+                                />
+                            </div>
+                            <span className="text-xs font-semibold text-foreground tracking-wide">
+                                {totalConfigured} / {Object.values(PERMISSIONS).length} activés
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:w-72">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground" />
+                        <Input
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            placeholder="Rechercher une permission..."
+                            className="pl-11 bg-muted/40 border-border h-12 rounded-xl text-sm focus-visible:ring-primary/40 w-full placeholder:text-muted-foreground text-foreground"
+                        />
+                    </div>
+                    <Button
+                        onClick={handleSave}
+                        disabled={isPending}
+                        className="bg-background hover:bg-primary text-foreground font-semibold rounded-xl h-12 px-8 transition-colors"
+                    >
+                        {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5 mr-3" />}
+                        {isPending ? "Synchronisation..." : "Sauvegarder"}
+                    </Button>
+                </div>
+            </div>
+
+            {/* Module Filter Island */}
+            <div className="flex flex-wrap gap-2.5 p-2.5 bg-elevated/40 rounded-2xl border border-border overflow-x-auto no-scrollbar">
+                <button
+                    onClick={() => setActiveModule("all")}
+                    className={cn(
+                        "px-5 py-2.5 rounded-xl text-xs font-semibold tracking-wide uppercase whitespace-nowrap border transition-colors",
+                        activeModule === "all"
+                            ? "bg-background text-foreground border-border"
+                            : "bg-transparent text-muted-foreground border-transparent hover:text-foreground hover:bg-surface"
+                    )}
                 >
-                    <Save className="w-3.5 h-3.5 mr-1.5" />
-                    {isPending ? "Sauvegarde..." : "Sauvegarder"}
-                </Button>
+                    Tous les modules
+                </button>
+                {MODULE_ORDER.map(moduleKey => {
+                    const module = PERMISSION_MODULES[moduleKey];
+                    const isActive = activeModule === moduleKey;
+                    return (
+                        <button
+                            key={moduleKey}
+                            onClick={() => setActiveModule(moduleKey)}
+                            className={cn(
+                                "px-5 py-2.5 rounded-xl text-xs font-semibold tracking-wide uppercase whitespace-nowrap flex items-center gap-2.5 border transition-colors",
+                                isActive
+                                    ? "text-foreground border-border-strong"
+                                    : "text-muted-foreground border-transparent hover:text-foreground hover:bg-surface"
+                            )}
+                            style={{ 
+                                backgroundColor: isActive ? `${module.color}40` : undefined,
+                                borderColor: isActive ? `${module.color}80` : undefined
+                            }}
+                        >
+                            <span className="text-sm">{module.icon}</span>
+                            <span>{module.label}</span>
+                        </button>
+                    );
+                })}
             </div>
 
-            {/* Search bar */}
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
-                <Input
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    placeholder="Rechercher une permission, une description ou un rôle assigné..."
-                    className="pl-9 pr-9 bg-zinc-900/60 border-white/8 h-10 text-sm placeholder:text-zinc-600 focus-visible:ring-primary/40"
-                />
-                {searchQuery && (
-                    <button
-                        onClick={() => setSearchQuery("")}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors"
-                    >
-                        <X className="w-3.5 h-3.5" />
-                    </button>
-                )}
-                {isSearchActive && (
-                    <span className="absolute right-10 top-1/2 -translate-y-1/2 text-[10px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                        {visiblePermissions.length} résultat{visiblePermissions.length !== 1 ? "s" : ""}
-                    </span>
-                )}
-            </div>
-
-            {/* Module filter chips */}
-            <div className="bg-zinc-900/60 rounded-xl border border-white/5 px-4 py-3">
-                <div className="flex items-center gap-2 mb-2.5">
-                    <Filter className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span className="text-xs font-medium text-muted-foreground">Filtrer par module</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                    <button
-                        onClick={() => setActiveModule("all")}
-                        className={cn(
-                            "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                            activeModule === "all"
-                                ? "bg-white/10 text-white border border-white/20"
-                                : "bg-zinc-800/50 text-muted-foreground hover:bg-zinc-800 hover:text-white border border-transparent"
-                        )}
-                    >
-                        Tous ({Object.values(PERMISSIONS).length})
-                    </button>
-                    {MODULE_ORDER.map(moduleKey => {
-                        const module = PERMISSION_MODULES[moduleKey];
-                        const count = permissionsByModule[moduleKey].length;
-                        const configured = moduleStats[moduleKey];
-                        return (
-                            <button
-                                key={moduleKey}
-                                onClick={() => setActiveModule(moduleKey)}
-                                className={cn(
-                                    "px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5",
-                                    activeModule === moduleKey
-                                        ? "text-white border"
-                                        : "bg-zinc-800/50 text-muted-foreground hover:bg-zinc-800 hover:text-white border border-transparent"
-                                )}
-                                style={{
-                                    backgroundColor: activeModule === moduleKey ? `${module.color}20` : undefined,
-                                    borderColor: activeModule === moduleKey ? `${module.color}50` : undefined,
-                                }}
-                            >
-                                <span>{module.icon}</span>
-                                <span>{module.label}</span>
-                                <span className={cn(
-                                    "text-[10px] px-1 py-0 rounded",
-                                    configured > 0 ? "bg-emerald-500/20 text-emerald-400" : "bg-zinc-700 text-zinc-400"
-                                )}>
-                                    {configured}/{count}
-                                </span>
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* Permissions list */}
+            {/* Content Area */}
             {isSearchActive ? (
-                // Search results — flat list, no module grouping
-                <div className="rounded-xl border border-white/5 overflow-hidden">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {visiblePermissions.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-12 text-center">
-                            <Search className="w-8 h-8 text-zinc-700 mb-3" />
-                            <p className="text-sm font-bold text-zinc-500">Aucune permission trouvée</p>
-                            <p className="text-xs text-zinc-600 mt-1">Essaie un autre mot-clé ou nom de rôle</p>
+                        <div className="col-span-full py-32 text-center bg-elevated/20 rounded-[2rem] border border-dashed border-border-strong">
+                            <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                            <p className="text-muted-foreground font-extrabold uppercase tracking-widest text-sm">No assignments found for "{searchQuery}"</p>
                         </div>
                     ) : (
-                        <div className="divide-y divide-white/[0.04] bg-zinc-950/30">
-                            {visiblePermissions.map((permId) => {
-                                const moduleColor = PERMISSION_MODULES[PERMISSION_DETAILS[permId].module].color;
-                                return (
-                                    <PermissionCard
-                                        key={permId}
-                                        permissionId={permId}
-                                        allRoles={roleOptions}
-                                        selectedRoleIds={permState[permId] || []}
-                                        onRolesChange={(ids) => handlePermChange(permId, ids)}
-                                        onSave={handleSave}
-                                        moduleColor={moduleColor}
-                                    />
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-            ) : activeModule === "all" ? (
-                <div className="space-y-3">
-                    {MODULE_ORDER.map(moduleKey => {
-                        const module = PERMISSION_MODULES[moduleKey];
-                        const modulePerms = permissionsByModule[moduleKey];
-                        if (modulePerms.length === 0) return null;
-                        const isCollapsed = collapsed[moduleKey];
-
-                        return (
-                            <div key={moduleKey} className="rounded-xl border border-white/5 overflow-hidden">
-                                {/* Module header */}
-                                <button
-                                    onClick={() => toggleCollapse(moduleKey)}
-                                    className="w-full flex items-center justify-between px-4 py-2.5 bg-zinc-900/60 hover:bg-zinc-900/80 transition-colors text-left"
-                                >
-                                    <div className="flex items-center gap-2.5">
-                                        <span className="text-base">{module.icon}</span>
-                                        <span className="text-sm font-bold" style={{ color: module.color }}>
-                                            {module.label}
-                                        </span>
-                                        <span className="text-[10px] text-zinc-500">({modulePerms.length} droits)</span>
-                                        {moduleStats[moduleKey] > 0 && (
-                                            <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
-                                                {moduleStats[moduleKey]} configuré{moduleStats[moduleKey] > 1 ? "s" : ""}
-                                            </span>
-                                        )}
-                                    </div>
-                                    {isCollapsed
-                                        ? <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
-                                        : <ChevronDown className="w-3.5 h-3.5 text-zinc-600" />}
-                                </button>
-
-                                {/* Permission rows */}
-                                {!isCollapsed && (
-                                    <div className="divide-y divide-white/[0.04] bg-zinc-950/30">
-                                        {modulePerms.map((permId) => (
-                                            <PermissionCard
-                                                key={permId}
-                                                permissionId={permId}
-                                                allRoles={roleOptions}
-                                                selectedRoleIds={permState[permId] || []}
-                                                onRolesChange={(ids) => handlePermChange(permId, ids)}
-                                                onSave={handleSave}
-                                                moduleColor={module.color}
-                                            />
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-            ) : (
-                // Filtered by specific module
-                <div className="rounded-xl border border-white/5 overflow-hidden">
-                    <div className="divide-y divide-white/[0.04] bg-zinc-950/30">
-                        {visiblePermissions.map((permId) => (
+                        visiblePermissions.map(permId => (
                             <PermissionCard
                                 key={permId}
                                 permissionId={permId}
                                 allRoles={roleOptions}
+                                allUsers={memberOptions}
                                 selectedRoleIds={permState[permId] || []}
+                                selectedUserIds={userState[permId] || []}
                                 onRolesChange={(ids) => handlePermChange(permId, ids)}
+                                onUsersChange={(ids) => handleUserChange(permId, ids)}
                                 onSave={handleSave}
                                 moduleColor={PERMISSION_MODULES[PERMISSION_DETAILS[permId].module].color}
+                                locked={permId !== PERMISSIONS.DASHBOARD_LOGIN && rolesWithDashboardAccess.size === 0}
+                                hideUsers={permId === PERMISSIONS.DASHBOARD_LOGIN || !usersMappingEnabled}
                             />
-                        ))}
-                    </div>
+                        ))
+                    )}
+                </div>
+            ) : activeModule === "all" ? (
+                <div className="space-y-20">
+                    {MODULE_ORDER.map(moduleKey => {
+                        const module = PERMISSION_MODULES[moduleKey];
+                        const modulePerms = permissionsByModule[moduleKey];
+                        if (modulePerms.length === 0) return null;
+                        const configuredCount = moduleStats[moduleKey];
+
+                        return (
+                            <section key={moduleKey} className="space-y-8">
+                                <div className="flex items-center justify-between px-4">
+                                    <div className="flex items-center gap-4">
+                                        <div 
+                                            className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl"
+                                            style={{ backgroundColor: `${module.color}20`, border: `1px solid ${module.color}40` }}
+                                        >
+                                            <span>{module.icon}</span>
+                                        </div>
+                                        <div>
+                                            <h2 className="text-xl font-bold tracking-tight" style={{ color: module.color }}>
+                                                {module.label}
+                                            </h2>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className="px-2 py-0.5 bg-elevated text-foreground text-xs font-semibold rounded border border-border">
+                                                    {modulePerms.length} permission{modulePerms.length > 1 ? "s" : ""}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="hidden md:flex flex-col items-end gap-2">
+                                        <div className="text-xs font-semibold text-muted-foreground tracking-wide">Configurées</div>
+                                        <div className="flex gap-2">
+                                            {Array.from({ length: modulePerms.length }).map((_, i) => (
+                                                <div 
+                                                    key={i}
+                                                    className="h-2 w-7 rounded-[2px] transition-colors duration-200 border border-border"
+                                                    style={{ 
+                                                        backgroundColor: i < configuredCount ? module.color : 'rgba(255,255,255,0.08)'
+                                                    }}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {modulePerms.map(permId => (
+                                        <PermissionCard
+                                            key={permId}
+                                            permissionId={permId}
+                                            allRoles={roleOptions}
+                                            allUsers={memberOptions}
+                                            selectedRoleIds={permState[permId] || []}
+                                            selectedUserIds={userState[permId] || []}
+                                            onRolesChange={(ids) => handlePermChange(permId, ids)}
+                                            onUsersChange={(ids) => handleUserChange(permId, ids)}
+                                            onSave={handleSave}
+                                            moduleColor={module.color}
+                                            locked={permId !== PERMISSIONS.DASHBOARD_LOGIN && rolesWithDashboardAccess.size === 0}
+                                            hideUsers={permId === PERMISSIONS.DASHBOARD_LOGIN || !usersMappingEnabled}
+                                        />
+                                    ))}
+                                </div>
+                                
+                                {moduleKey !== MODULE_ORDER[MODULE_ORDER.length - 1] && (
+                                    <div className="h-px w-full bg-surface" />
+                                )}
+                            </section>
+                        );
+                    })}
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {visiblePermissions.map(permId => (
+                        <PermissionCard
+                            key={permId}
+                            permissionId={permId}
+                            allRoles={roleOptions}
+                            allUsers={memberOptions}
+                            selectedRoleIds={permState[permId] || []}
+                            selectedUserIds={userState[permId] || []}
+                            onRolesChange={(ids) => handlePermChange(permId, ids)}
+                            onUsersChange={(ids) => handleUserChange(permId, ids)}
+                            onSave={handleSave}
+                            moduleColor={PERMISSION_MODULES[PERMISSION_DETAILS[permId].module].color}
+                            locked={permId !== PERMISSIONS.DASHBOARD_LOGIN && rolesWithDashboardAccess.size === 0}
+                            hideUsers={permId === PERMISSIONS.DASHBOARD_LOGIN || !usersMappingEnabled}
+                        />
+                    ))}
                 </div>
             )}
+
+            {/* Sticky Save Footer — #202 : sauvegarder sans re-scroller en haut */}
+            <div className="sticky bottom-0 z-30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-surface/90 backdrop-blur-md border border-border shadow-2xl">
+                <div className="flex items-center gap-3 min-w-0">
+                    {hasUnsavedChanges ? (
+                        <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-warning">
+                            <span className="w-2 h-2 rounded-full bg-warning animate-pulse shrink-0" />
+                            Modifications non sauvegardées
+                        </span>
+                    ) : (
+                        <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                            <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
+                            Toutes les modifications sont enregistrées
+                        </span>
+                    )}
+                </div>
+                <Button
+                    onClick={handleSave}
+                    disabled={isPending}
+                    className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-black px-8 h-12 rounded-xl shadow-lg transition-all"
+                >
+                    {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                    {isPending ? "Synchronisation..." : "Sauvegarder"}
+                </Button>
+            </div>
+
+            {/* #202 — garde anti-navigation : avertit si des permissions ne sont pas sauvegardées */}
+            <UnsavedChangesGuard
+                hasUnsavedChanges={hasUnsavedChanges}
+                message="Vous avez des modifications de permissions non sauvegardées. Quitter cette page les perdra définitivement."
+            />
         </div>
     );
 }

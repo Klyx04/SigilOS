@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
@@ -64,7 +65,7 @@ export async function searchDungeons(
 
         return { success: true, data: dungeons as DungeonWithAchievements[] };
     } catch (error) {
-        console.error("[searchDungeons]", error);
+        logger.error("[searchDungeons]", error);
         return { success: false, error: "Erreur interne" };
     }
 }
@@ -105,7 +106,7 @@ export async function searchGameQuests(
 
         return { success: true, data: quests };
     } catch (error) {
-        console.error("[searchGameQuests]", error);
+        logger.error("[searchGameQuests]", error);
         return { success: false, error: "Erreur interne" };
     }
 }

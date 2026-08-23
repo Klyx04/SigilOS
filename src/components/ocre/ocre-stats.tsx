@@ -19,33 +19,33 @@ interface OcreStatCardProps {
 
 const colorClasses = {
     red: {
-        bg: "from-red-500/20 to-red-500/5",
-        border: "border-red-500/30 hover:border-red-500/50",
-        icon: "text-red-500",
+        bg: "from-danger/20 to-danger/5",
+        border: "border-danger/30 hover:border-danger/50",
+        icon: "text-danger",
         glow: "shadow-red-500/10",
     },
     green: {
-        bg: "from-emerald-500/20 to-emerald-500/5",
-        border: "border-emerald-500/30 hover:border-emerald-500/50",
-        icon: "text-emerald-500",
+        bg: "from-success/20 to-success/5",
+        border: "border-success/30 hover:border-success/50",
+        icon: "text-success",
         glow: "shadow-emerald-500/10",
     },
     amber: {
-        bg: "from-amber-500/20 to-amber-500/5",
-        border: "border-amber-500/30 hover:border-amber-500/50",
-        icon: "text-amber-500",
+        bg: "from-warning/20 to-warning/5",
+        border: "border-warning/30 hover:border-warning/50",
+        icon: "text-warning",
         glow: "shadow-amber-500/10",
     },
     blue: {
-        bg: "from-blue-500/20 to-blue-500/5",
-        border: "border-blue-500/30 hover:border-blue-500/50",
-        icon: "text-blue-500",
+        bg: "from-info/20 to-info/5",
+        border: "border-info/30 hover:border-info/50",
+        icon: "text-info",
         glow: "shadow-blue-500/10",
     },
     purple: {
-        bg: "from-purple-500/20 to-purple-500/5",
-        border: "border-purple-500/30 hover:border-purple-500/50",
-        icon: "text-purple-500",
+        bg: "from-info/20 to-info/5",
+        border: "border-info/30 hover:border-info/50",
+        icon: "text-info",
         glow: "shadow-purple-500/10",
     },
 };
@@ -91,9 +91,9 @@ export function OcreStatCard({
                     >
                         {value.toLocaleString("fr-FR")}
                     </motion.p>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-bold truncate">{label}</p>
+                    <p className="text-caption uppercase tracking-wider text-muted-foreground/60 font-bold truncate">{label}</p>
                     {subValue && (
-                        <p className={cn("text-[10px] font-medium mt-0.5", colors.icon)}>
+                        <p className={cn("text-caption font-medium mt-0.5", colors.icon)}>
                             ✨ {subValue}
                         </p>
                     )}
@@ -111,9 +111,9 @@ interface StatsGridProps {
 
 export function StatsGrid({ children, columns = 4 }: StatsGridProps) {
     const colsClass = {
-        2: "grid-cols-2",
-        3: "grid-cols-3",
-        4: "grid-cols-2 md:grid-cols-4",
+        2: "grid-cols-1 sm:grid-cols-2",
+        3: "grid-cols-1 sm:grid-cols-3",
+        4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4",
     };
 
     return (

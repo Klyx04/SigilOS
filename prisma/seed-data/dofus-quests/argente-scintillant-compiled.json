@@ -1,0 +1,852 @@
+{
+  "dofus": "argente-scintillant",
+  "displayName": "Dofus Argenté Scintillant",
+  "color": "#e0e0e0",
+  "successName": "Le phénix renaît de ses cendres",
+  "recommendedLevel": 200,
+  "description": "Terminer la série de quêtes du Dofus Argenté Scintillant et la réunification des Dofus Primordiaux.",
+  "dofusItemId": 23000,
+  "iconId": null,
+  "imageUrl": "/module-dofus/Dofus_Argente_Scintillant.png",
+  "compiledAt": "2026-04-10T16:17:57.620Z",
+  "compilerVersion": "3.0",
+  "chains": [
+    {
+      "sectionName": "Quatre sur six",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Pandala / Monde des Douze",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Les coûts du sort",
+          "dofusdbId": 1784,
+          "level": 180,
+          "zone": "Maison du chaman",
+          "npcName": "Surivitna",
+          "npcSubArea": "Maison du chaman",
+          "coords": {
+            "x": 20,
+            "y": -27,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 18243,
+              "name": "Champignon psychotrope",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15390.png"
+            },
+            {
+              "id": 18244,
+              "name": "Boomerang de Bivoak",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15721.png"
+            },
+            {
+              "id": 18254,
+              "name": "Essence prismatique",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/136081.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 22,
+              "name": "Temple du Grand Ougah",
+              "level": null,
+              "bossName": "Ougah",
+              "img": "https://api.dofusdb.fr/img/monsters/640.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": "https://www.dofuspourlesnoobs.com/les-couts-du-sort.html",
+          "objectives": [
+            "Aller voir Surivitna",
+            "Lire le parchemin dans la bibliothèque de Pandala",
+            "Retourner voir Surivitna",
+            "Vaincre x1 {monster,1159} en un seul combat",
+            "Ramener à Surivitna : x1 Champignon psychotrope",
+            "Chercher un ermite koalak dans les marécages sans fond",
+            "Trouver le boomerang de Bivoak",
+            "Vaincre x1 {monster,4632} en un seul combat",
+            "Ramener à Bivoak : x1 Boomerang de Bivoak",
+            "Aller voir Maître Yado",
+            "Cueillir 4 racines marécageuses et les montrer à Yado",
+            "Plonger les racines dans la marmite",
+            "Partager la soupe avec Bivoak et Maître Yado",
+            "Aller voir Maître Yado",
+            "Cueillir la première fleur de kaliptus",
+            "Cueillir la deuxième fleur de kaliptus",
+            "Donner les deux fleurs de kaliptus séculaire à Surivitna",
+            "Aller voir Surivitna",
+            "Découvrir la carte : Statue du Réceptacle des Dofus",
+            "Respirer les fumées de l'encens ancestral",
+            "Méditer devant la statue en se concentrant sur les Dofus",
+            "Se concentrer sur les quatre lumières émises par la statue",
+            "Tenter de communiquer avec les élémentaires",
+            "Demander conseil à Rimanda sur l'île de Rok",
+            "Aller voir Maha Shoja",
+            "Aller voir Rincedent",
+            "Récupérer les orbes avalés par Lebagag",
+            "Transformer les orbes élémentaires et les jeter dans les flammes",
+            "Vaincre x1 {monster,4635} en un seul combat",
+            "Ramener à Rimanda : x1 Essence prismatique"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
+        },
+        {
+          "name": "Une ombre au tableau",
+          "dofusdbId": 1785,
+          "level": 190,
+          "zone": "Pyramide d'Ombre - Cinquième Salle",
+          "npcName": "Joris Jurgen",
+          "npcSubArea": "Pyramide d'Ombre - Cinquième Salle",
+          "coords": {
+            "x": 38,
+            "y": -20,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 74,
+              "name": "Pyramide d'Ombre",
+              "level": null,
+              "bossName": "Ombre",
+              "img": "https://api.dofusdb.fr/img/monsters/1002.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": "https://www.dofuspourlesnoobs.com/une-ombre-au-tableau.html",
+          "objectives": [
+            "Aller voir Joris Jurgen",
+            "Parler à Nabrisa sur l'île de Rok",
+            "Escorter Nabrisa jusqu'à la Pyramide d'Ombre",
+            "Vaincre x1 {monster,3564} en un seul combat",
+            "Aller voir Nabrisa",
+            "Capturer l'âme d'Ombre avec l'aide de Nabrisa",
+            "Aller voir Kalisthe",
+            "Écouter la voix pour dissiper l'obscurité",
+            "Aller voir Mériana",
+            "Aller voir Kalisthe",
+            "Aller voir Mériana",
+            "Aller voir Otomaï"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1784
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Un remède draconien",
+          "dofusdbId": 1786,
+          "level": 190,
+          "zone": "Temple Crâ",
+          "npcName": "Taurgnol",
+          "npcSubArea": "Temple Crâ",
+          "coords": {
+            "x": -28,
+            "y": -22,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 18259,
+              "name": "Foulard rouge",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15802.png"
+            },
+            {
+              "id": 14503,
+              "name": "Cawotte fraîche",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/68031.png"
+            },
+            {
+              "id": 18261,
+              "name": "Gâteau aux cawottes",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/136083.png"
+            },
+            {
+              "id": 18268,
+              "name": "Pépin de pomme d'or",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/136090.png"
+            },
+            {
+              "id": 18267,
+              "name": "Nectar céleste",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/136089.png"
+            },
+            {
+              "id": 18263,
+              "name": "Sang d'Aguabrial",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/136085.png"
+            },
+            {
+              "id": 18264,
+              "name": "Sang d'Aerafal",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/136086.png"
+            },
+            {
+              "id": 18265,
+              "name": "Sang d'Ignemikhal",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/136087.png"
+            },
+            {
+              "id": 18266,
+              "name": "Sang de Terrakourial",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/136088.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 61,
+              "name": "Antichambre des Gloursons",
+              "level": null,
+              "bossName": "Glourséleste",
+              "img": "https://api.dofusdb.fr/img/monsters/785.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": "https://www.dofuspourlesnoobs.com/un-remede-draconien.html",
+          "objectives": [
+            "Trouver Silouate le Protecteur dans les Plaines de Cania",
+            "Aller voir Taurgnol",
+            "Aller voir Ruzo",
+            "Trouver quelque chose qui pourrait faire perdre son sang-froid à Taurgnol",
+            "Montrer à Taurgnol : 1 Foulard rouge",
+            "Participer à la bagarre entre Taurgnol et les éclaireurs",
+            "Aller voir Ruzo",
+            "Aller voir Taurgnol",
+            "Emmener Taurgnol voir Silouate",
+            "Trouver un wabbit qui se lève au petit matin",
+            "Aller voir Pâtissiew Wabbit",
+            "Ramener à Pâtissiew Wabbit : x5 Cawotte fraîche",
+            "Ramener à Wabbit du Matin Pewlant : x1 Gâteau aux cawottes",
+            "Retourner voir Silouate",
+            "Offrir la goutte de rosée à Rosal",
+            "Aller voir Edrige Valling",
+            "Trouver une championne de Crâ dans la Forêt Sombre",
+            "Découvrir des traces de Razarbok",
+            "Pister Razarbok",
+            "Continuer à pister Razarbok",
+            "Trouver un moyen de débusquer Razarbok",
+            "Utiliser l'appeau à sanglier dans les champs de Cania",
+            "Dompter Razarbok",
+            "Ramener le sanglier au refuge de Kokillette",
+            "Ramener à Rosal : x1 Pépin de pomme d'or",
+            "Ramener à Rosal : x1 Nectar céleste",
+            "Ramener à Rosal : x1 Sang d'Aguabrial",
+            "Ramener à Rosal : x1 Sang d'Aerafal",
+            "Ramener à Rosal : x1 Sang d'Ignemikhal",
+            "Ramener à Rosal : x1 Sang de Terrakourial",
+            "Aller voir Rosal",
+            "Boire le remède de Rosal",
+            "Aller voir Otomaï"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1785
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Le dragon des vents",
+          "dofusdbId": 1788,
+          "level": 190,
+          "zone": "Tente de la voyante",
+          "npcName": "Yova Etna",
+          "npcSubArea": "Tente de la voyante",
+          "coords": {
+            "x": -9,
+            "y": -40,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 18283,
+              "name": "Clef nuageuse",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/136093.png"
+            },
+            {
+              "id": 18284,
+              "name": "Clef brumeuse",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/136094.png"
+            },
+            {
+              "id": 18286,
+              "name": "Feuille de rozberk",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/136102.png"
+            },
+            {
+              "id": 18287,
+              "name": "Fer de lance antique",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/136103.png"
+            },
+            {
+              "id": 18288,
+              "name": "Grosse patate",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/136104.png"
+            },
+            {
+              "id": 18289,
+              "name": "Hampe en bois ignifugé",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/136105.png"
+            },
+            {
+              "id": 18291,
+              "name": "Cage à foudre électrisée",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/136101.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": "https://www.dofuspourlesnoobs.com/le-dragon-des-vents.html",
+          "objectives": [
+            "Trouver un signe de la présence d'Aerafal dans les Hauts du Kramdam",
+            "Trouver un signe de la présence d'Aerafal sur les hauteurs des Routes Rocailleuses",
+            "Trouver un signe de la présence d'Aerafal au sommet de l'arbre Hakam",
+            "Aller voir Yova Etna",
+            "Explorer les hauteurs du pic des truches",
+            "S'approcher du courant d'air ascendant",
+            "Aller voir Gardien des vents",
+            "Ramener à Gardien des vents : x1 Clef nuageuse",
+            "Ramener à Gardien des vents : x1 Clef brumeuse",
+            "Vaincre x1 {monster,4648} en un seul combat",
+            "Découvrir la carte : Promontoire d'Aerafal",
+            "Aller voir Aerafal",
+            "Aller voir Mama Ayuto",
+            "Aller voir Violette",
+            "Trouver Nobir chez les bworks du massif de Cania",
+            "Aller voir Nobir",
+            "Aller voir Bwork pacifique",
+            "Aller voir Vieux chef bwork",
+            "Récupérer une feuille de rozberk",
+            "Ramener à Nobir : x1 Feuille de rozberk",
+            "Ramener à Violette : x1 Fer de lance antique",
+            "Ramener à Violette : x1 Grosse patate",
+            "Ramener à Violette : x1 Hampe en bois ignifugé",
+            "Suivre Violette jusqu'à la plate-forme des orages",
+            "Capturer la foudre de l'orage avec le patatonnerre",
+            "Ramener à Aerafal : x1 Cage à foudre électrisée"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1786
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Le dragon des flammes",
+          "dofusdbId": 1789,
+          "level": 190,
+          "zone": "Tente de la voyante",
+          "npcName": "Yova Etna",
+          "npcSubArea": "Tente de la voyante",
+          "coords": {
+            "x": -9,
+            "y": -40,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 18292,
+              "name": "Clef carbonisée",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/136095.png"
+            },
+            {
+              "id": 18293,
+              "name": "Clef incandescente",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/136096.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 57,
+              "name": "Hypogée de l'Obsidiantre",
+              "level": null,
+              "bossName": "Obsidiantre",
+              "img": "https://api.dofusdb.fr/img/monsters/825.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": "https://www.dofuspourlesnoobs.com/le-dragon-des-flammes.html",
+          "objectives": [
+            "Trouver un signe de la présence d'Ignemikhal dans la zone de Feudala",
+            "Trouver un signe de la présence d'Ignemikhal près de la bordure de Brâkmar",
+            "Trouver un signe de la présence d'Ignemikhal sur la presqu'île des Dragoeufs",
+            "Aller voir Yova Etna",
+            "Explorer l'Hypogée de l'Obsidiantre",
+            "S'approcher du courant brûlant",
+            "Aller voir Gardienne des flammes",
+            "Ramener à Gardienne des flammes : x1 Clef carbonisée",
+            "Ramener à Gardienne des flammes : x1 Clef incandescente",
+            "Vaincre x1 {monster,4650} en un seul combat",
+            "Découvrir la carte : Caverne d'Ignemikhal",
+            "Aller voir Ignemikhal",
+            "Purifier Bonta de la présence des adeptes du dieu cornu",
+            "Purifier Brâkmar de la présence des adeptes du dieu cornu",
+            "Purifier Astrub de la présence des adeptes du dieu cornu",
+            "Purifier Sufokia de la présence des adeptes du dieu cornu",
+            "Purifier la Bourgade de la présence des adeptes du dieu cornu",
+            "Purifier Pandala de la présence des adeptes du dieu cornu",
+            "Purifier Amakna de la présence des adeptes du dieu cornu",
+            "Retourner voir Ignemikhal"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1788
+            }
+          ],
+          "notes": null
+        }
+      ]
+    },
+    {
+      "sectionName": "Le Phénix",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Pandala / Écaflipus",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 1,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Le destin de Kalisthe",
+          "dofusdbId": 1793,
+          "level": 200,
+          "zone": "Le château d'Amakna - Milice",
+          "npcName": "Cornelia Granpa",
+          "npcSubArea": "Le château d'Amakna - Milice",
+          "coords": {
+            "x": -11,
+            "y": -14,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 18312,
+              "name": "Plume de corbac porte-bonheur",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/53327.png"
+            },
+            {
+              "id": 18313,
+              "name": "Plume de corbac gazouilleur",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/53327.png"
+            },
+            {
+              "id": 18314,
+              "name": "Plume de corbac thanatophobe",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/53327.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": "https://www.dofuspourlesnoobs.com/le-destin-de-kalisthe.html",
+          "objectives": [
+            "Aller voir Cornelia Granpa",
+            "Aller voir Kokillette",
+            "Montrer à Kokillette : 1 Plume de corbac porte-bonheur",
+            "Montrer à Kokillette : 1 Plume de corbac gazouilleur",
+            "Montrer à Kokillette : 1 Plume de corbac thanatophobe",
+            "Suivre les instructions de Kokillette pour être métamorphosé en corbac",
+            "Discuter avec les corbacs de Morrie Gane",
+            "Se rendre à l'assemblée dans les Pénates du Corbac",
+            "Identifier le corbac de Kalisthe",
+            "Suivre le corbac de Kalisthe",
+            "Continuer à suivre le corbac de Kalisthe",
+            "Trouver Kalisthe",
+            "Aller voir Kalisthe",
+            "Aller voir Déesse Crâ",
+            "Parler de nouveau à la déesse Crâ",
+            "Vaincre x1 {monster,4614} en un seul combat",
+            "Aller voir Déesse Crâ",
+            "Aller voir Kalisthe",
+            "Retourner voir Mériana"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
+        },
+        {
+          "name": "Dans la gueule du dragon",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 76,
+              "name": "Palais du roi Nidas",
+              "level": null,
+              "bossName": "Roi Nidas",
+              "img": "https://api.dofusdb.fr/img/monsters/1106.png",
+              "idoleName": null
+            },
+            {
+              "id": 77,
+              "name": "Le Trône de la Reine des Voleurs",
+              "level": null,
+              "bossName": "Reine des Voleurs",
+              "img": "https://api.dofusdb.fr/img/monsters/1141.png",
+              "idoleName": null
+            },
+            {
+              "id": 79,
+              "name": "L'Oeil de Vortex",
+              "level": null,
+              "bossName": "Vortex",
+              "img": "https://api.dofusdb.fr/img/monsters/1208.png",
+              "idoleName": null
+            },
+            {
+              "id": 105,
+              "name": "Plateau de Chaloeil",
+              "level": null,
+              "bossName": "Chalœil",
+              "img": "https://api.dofusdb.fr/img/monsters/1345.png",
+              "idoleName": null
+            }
+          ],
+          "objectives": [],
+          "stepOrder": 1,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1793
+            }
+          ],
+          "externalRef": "https://www.dofuspourlesnoobs.com/dans-la-gueule-du-dragon.html"
+        },
+        {
+          "name": "Le silence est d'Aure",
+          "dofusdbId": 2051,
+          "level": 200,
+          "zone": "Temple Enutrof",
+          "npcName": "Barda Yaga",
+          "npcSubArea": "Temple Enutrof",
+          "coords": {
+            "x": 2,
+            "y": -3,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 19629,
+              "name": "Dofus Argenté",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23025.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 107,
+              "name": "Belvédère d'Ilyzaelle",
+              "level": null,
+              "bossName": "Ilyzaelle",
+              "img": "https://api.dofusdb.fr/img/monsters/1628.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": "https://www.dofuspourlesnoobs.com/le-silence-est-daure.html",
+          "objectives": [
+            "Discuter des phénix avec un aigle céleste",
+            "Lire le premier tome des Souvenirs d'entre les mondes",
+            "Discuter des phénix avec un hibou archiviste",
+            "Lire le second tome des Souvenirs d'entre les mondes",
+            "Trouver un document contant la légende d'une Enutrof et d'une phénix",
+            "Lire le document trouvé dans le temple enutrof",
+            "Parler à une sorcière que vous connaissez bien",
+            "Trouver Barda Yaga",
+            "Aider Barda Yaga à se débarrasser de la truche hystérique",
+            "Aller voir Barda Yaga",
+            "Espionner les chasseurs d'étoiles",
+            "Entrer en Externam",
+            "Vaincre ou convaincre le chasseur d'étoiles",
+            "Aller voir Reine Thanatena",
+            "Se faire passer pour un fantôme auprès des chasseurs d'étoiles",
+            "Attirer l'oiseau de feu aux alentours de la statue du phénix d'Astrub",
+            "Vaincre les chasseurs d'étoiles avec l'aide de Chazatot et de l'oiseau de feu",
+            "Aller voir Aure",
+            "Aller voir Barda Yaga",
+            "Convaincre le dieu Enutrof de dissoudre la confrérie des chasseurs d'étoiles",
+            "Retourner voir Aure",
+            "Guider Aure jusqu'à Rathrosk",
+            "Assister aux retrouvailles entre Aure et Rathrosk",
+            "Aller voir Chef des chasseurs d'étoiles",
+            "Observer la réaction de Rathrosk"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1793
+            }
+          ],
+          "notes": null
+        }
+      ]
+    }
+  ],
+  "globalSummary": {
+    "totalQuests": 8,
+    "totalItems": 25,
+    "totalDungeons": 6,
+    "items": [
+      {
+        "id": 14503,
+        "name": "Cawotte fraîche",
+        "totalAmount": 5,
+        "img": "https://api.dofusdb.fr/img/items/68031.png"
+      },
+      {
+        "id": 18243,
+        "name": "Champignon psychotrope",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15390.png"
+      },
+      {
+        "id": 18244,
+        "name": "Boomerang de Bivoak",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15721.png"
+      },
+      {
+        "id": 18254,
+        "name": "Essence prismatique",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/136081.png"
+      },
+      {
+        "id": 18259,
+        "name": "Foulard rouge",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15802.png"
+      },
+      {
+        "id": 18261,
+        "name": "Gâteau aux cawottes",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/136083.png"
+      },
+      {
+        "id": 18268,
+        "name": "Pépin de pomme d'or",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/136090.png"
+      },
+      {
+        "id": 18267,
+        "name": "Nectar céleste",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/136089.png"
+      },
+      {
+        "id": 18263,
+        "name": "Sang d'Aguabrial",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/136085.png"
+      },
+      {
+        "id": 18264,
+        "name": "Sang d'Aerafal",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/136086.png"
+      },
+      {
+        "id": 18265,
+        "name": "Sang d'Ignemikhal",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/136087.png"
+      },
+      {
+        "id": 18266,
+        "name": "Sang de Terrakourial",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/136088.png"
+      },
+      {
+        "id": 18283,
+        "name": "Clef nuageuse",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/136093.png"
+      },
+      {
+        "id": 18284,
+        "name": "Clef brumeuse",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/136094.png"
+      },
+      {
+        "id": 18286,
+        "name": "Feuille de rozberk",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/136102.png"
+      },
+      {
+        "id": 18287,
+        "name": "Fer de lance antique",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/136103.png"
+      },
+      {
+        "id": 18288,
+        "name": "Grosse patate",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/136104.png"
+      },
+      {
+        "id": 18289,
+        "name": "Hampe en bois ignifugé",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/136105.png"
+      },
+      {
+        "id": 18291,
+        "name": "Cage à foudre électrisée",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/136101.png"
+      },
+      {
+        "id": 18292,
+        "name": "Clef carbonisée",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/136095.png"
+      },
+      {
+        "id": 18293,
+        "name": "Clef incandescente",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/136096.png"
+      },
+      {
+        "id": 18312,
+        "name": "Plume de corbac porte-bonheur",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/53327.png"
+      },
+      {
+        "id": 18313,
+        "name": "Plume de corbac gazouilleur",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/53327.png"
+      },
+      {
+        "id": 18314,
+        "name": "Plume de corbac thanatophobe",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/53327.png"
+      },
+      {
+        "id": 19629,
+        "name": "Dofus Argenté",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/23025.png"
+      }
+    ],
+    "dungeons": [
+      {
+        "id": 22,
+        "name": "Temple du Grand Ougah",
+        "level": null,
+        "bossName": "Ougah",
+        "img": "https://api.dofusdb.fr/img/monsters/640.png",
+        "idoleName": null
+      },
+      {
+        "id": 74,
+        "name": "Pyramide d'Ombre",
+        "level": null,
+        "bossName": "Ombre",
+        "img": "https://api.dofusdb.fr/img/monsters/1002.png",
+        "idoleName": null
+      },
+      {
+        "id": 61,
+        "name": "Antichambre des Gloursons",
+        "level": null,
+        "bossName": "Glourséleste",
+        "img": "https://api.dofusdb.fr/img/monsters/785.png",
+        "idoleName": null
+      },
+      {
+        "id": 57,
+        "name": "Hypogée de l'Obsidiantre",
+        "level": null,
+        "bossName": "Obsidiantre",
+        "img": "https://api.dofusdb.fr/img/monsters/825.png",
+        "idoleName": null
+      },
+      {
+        "id": 107,
+        "name": "Belvédère d'Ilyzaelle",
+        "level": null,
+        "bossName": "Ilyzaelle",
+        "img": "https://api.dofusdb.fr/img/monsters/1628.png",
+        "idoleName": null
+      },
+      {
+        "id": 76,
+        "name": "Palais du roi Nidas",
+        "level": null,
+        "bossName": "Roi Nidas",
+        "img": "https://api.dofusdb.fr/img/monsters/1106.png",
+        "idoleName": null
+      }
+    ]
+  }
+}

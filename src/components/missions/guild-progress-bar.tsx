@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { GUILD_TIERS } from "@/lib/game-data/guild-tiers";
 import { cn } from "@/lib/utils";
-import { Trophy, Target, Sparkles, Medal, Crown } from "lucide-react";
+import { Trophy, Target, Sparkles, Medal, Crown, BarChart3 } from "lucide-react";
 import {
     Tooltip,
     TooltipContent,
@@ -12,14 +12,19 @@ import {
 } from "@/components/ui/tooltip";
 import { ResetCountdown } from "./reset-countdown";
 import { ActiveBonusBar } from "@/components/admin/ActiveBonusBar";
+import { KamaContributionWidget } from "@/components/kamas/kama-contribution-widget";
+import type { KamaWeeklyStatus } from "@/server/actions/kama-actions";
+import Link from "next/link";
 
 interface GuildProgressBarProps {
     currentXP: number;
     targetTier?: number;
     guildId: string;
+    kamaStatus?: KamaWeeklyStatus | null;
+    raidRequireKamaDonation?: boolean;
 }
 
-export function GuildProgressBar({ currentXP, targetTier = 5, guildId }: GuildProgressBarProps) {
+export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatus, raidRequireKamaDonation = true }: GuildProgressBarProps) {
     const [progress, setProgress] = useState(0);
 
     const targetInfo = GUILD_TIERS[targetTier as keyof typeof GUILD_TIERS] || GUILD_TIERS[5];
@@ -40,51 +45,56 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId }: GuildPr
         }
     }
 
+    // Find the next milestone (step) not yet reached within the target tier
+    const targetSteps = GUILD_TIERS[targetTier as keyof typeof GUILD_TIERS]?.steps || [];
+    const nextStep = targetSteps.find(step => currentXP < step.xp);
+    const xpToNextStep = nextStep ? nextStep.xp - currentXP : 0;
+
     // Helper for Milestone styling (Medal Progression)
     const getMilestoneStyle = (index: number) => {
         switch (index) {
             case 0: // Bronze
                 return {
                     icon: Medal,
-                    color: "text-amber-500",
-                    borderColor: "border-amber-600/50",
-                    bg: "bg-amber-950/80",
-                    glow: "shadow-[0_0_20px_rgba(245,158,11,0.3)]",
+                    color: "text-warning",
+                    borderColor: "border-warning/50",
+                    bg: "bg-warning/80",
+                    glow: "",
                     label: "Bronze"
                 };
             case 1: // Silver
                 return {
                     icon: Medal,
-                    color: "text-slate-200",
-                    borderColor: "border-slate-400/50",
-                    bg: "bg-slate-900/80",
-                    glow: "shadow-[0_0_20px_rgba(148,163,184,0.3)]",
+                    color: "text-foreground",
+                    borderColor: "border-border/50",
+                    bg: "bg-surface/80",
+                    glow: "",
                     label: "Argent"
                 };
             case 2: // Gold
                 return {
                     icon: Medal,
-                    color: "text-yellow-400",
-                    borderColor: "border-yellow-500/50",
-                    bg: "bg-yellow-950/80",
-                    glow: "shadow-[0_0_20px_rgba(250,204,21,0.3)]",
+                    color: "text-warning",
+                    borderColor: "border-warning/50",
+                    bg: "bg-warning/80",
+                    glow: "",
                     label: "Or"
                 };
             case 3: // Platinum/Diamond (Validé)
                 return {
                     icon: Trophy,
-                    color: "text-cyan-400",
-                    borderColor: "border-cyan-500/50",
-                    bg: "bg-cyan-950/80",
-                    glow: "shadow-[0_0_25px_rgba(34,211,238,0.4)]",
+                    color: "text-info",
+                    borderColor: "border-info/50",
+                    bg: "bg-info/80",
+                    glow: "",
                     label: "Platine"
                 };
             default:
                 return {
                     icon: Target,
-                    color: "text-zinc-400",
-                    borderColor: "border-zinc-700",
-                    bg: "bg-zinc-900",
+                    color: "text-muted-foreground",
+                    borderColor: "border-border",
+                    bg: "bg-surface",
                     glow: "",
                     label: "Jalon"
                 };
@@ -92,13 +102,7 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId }: GuildPr
     };
 
     return (
-        <div className="w-full relative overflow-hidden rounded-3xl bg-zinc-950 border border-white/5 shadow-2xl">
-            {/* Background Effects */}
-            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-            <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
-
-            <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[120px] pointer-events-none" />
-            <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-fuchsia-500/5 rounded-full blur-[120px] pointer-events-none" />
+        <div className="w-full relative overflow-hidden rounded-3xl bg-surface border border-border">
 
             {/* MAIN LAYOUT CONTAINER */}
             <div className="relative z-10 p-6 md:p-8 flex flex-col gap-8 md:gap-12">
@@ -108,29 +112,22 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId }: GuildPr
 
                     {/* LEFT: Guild Identity */}
                     <div className="flex items-center gap-4 relative z-30 shrink-0">
-                        <div className="p-3 rounded-2xl bg-zinc-900/80 border border-white/10 shadow-inner backdrop-blur-sm relative">
-                            <div className="absolute inset-0 bg-yellow-500/10 rounded-2xl blur-lg animate-pulse" />
-                            <Crown className="w-7 h-7 text-yellow-500 relative z-10" />
+                        <div className="p-3 rounded-2xl bg-foreground/[0.03] border border-border relative">
+                            <Crown className="w-7 h-7 text-warning dark:text-warning relative z-10" />
                         </div>
                         <div className="space-y-0.5">
-                            <h3 className="font-black text-white text-2xl tracking-tighter leading-none">
+                            <h3 className="font-black text-foreground text-2xl tracking-tighter leading-none">
                                 Activité Guilde
                             </h3>
-                            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-500">
+                            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
                                 <span>Objectif : Palier {targetTier}</span>
-                                {currentAchievedTier > 0 && (
-                                    <span className="text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                                        Niveau {currentAchievedTier}
-                                    </span>
-                                )}
                             </div>
                         </div>
                     </div>
 
                     {/* CENTER: Timer (Absolute on desktop, completely isolated) */}
                     <div className="relative md:absolute md:left-1/2 md:-translate-x-1/2 md:top-0 w-full md:w-auto flex justify-center z-20 order-first md:order-none mb-6 md:mb-0">
-                        <div className="group/timer cursor-default transform scale-110 md:scale-125 origin-top transition-transform duration-500 hover:scale-[1.15] md:hover:scale-[1.3]">
-                            <div className="absolute -inset-6 bg-gradient-to-r from-indigo-500/0 via-indigo-500/10 to-indigo-500/0 blur-xl opacity-0 group-hover/timer:opacity-100 transition-opacity duration-700" />
+                        <div className="cursor-default transform scale-110 md:scale-125 origin-top">
                             <div className="relative">
                                 <ResetCountdown />
                             </div>
@@ -140,14 +137,14 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId }: GuildPr
                     {/* RIGHT: XP Stats (with explicit min-width to prevent squeeze) */}
                     <div className="text-left md:text-right relative z-30 self-end md:self-start shrink-0 min-w-[120px]">
                         <div className="flex items-baseline justify-start md:justify-end gap-2">
-                            <span className="text-4xl font-black text-white tracking-tighter drop-shadow-lg">
+                            <span className="text-4xl font-black text-foreground tracking-tighter">
                                 {currentXP.toLocaleString()}
                             </span>
-                            <span className="text-lg font-bold text-zinc-600 tracking-tight">
+                            <span className="text-lg font-black text-muted-foreground tracking-tight italic">
                                 / {maxXP.toLocaleString()}
                             </span>
                         </div>
-                        <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em] whitespace-nowrap">
+                        <div className="text-caption text-muted-foreground font-black uppercase tracking-[0.2em] whitespace-nowrap">
                             XP de la semaine
                         </div>
                     </div>
@@ -163,18 +160,18 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId }: GuildPr
                     <div className="relative h-6 w-full">
 
                         {/* THE TRACK (Background & Fill) */}
-                        <div className="absolute inset-0 bg-zinc-900/50 rounded-full border border-white/5 overflow-visible shadow-inner">
+                        <div className="absolute inset-0 bg-foreground/10 rounded-full border border-border overflow-visible">
                             <TooltipProvider delayDuration={0}>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <div
-                                            className="h-full rounded-full bg-gradient-to-r from-indigo-600 via-purple-500 to-fuchsia-500 transition-all duration-1000 ease-out relative shadow-[0_0_30px_rgba(168,85,247,0.3)] cursor-help"
+                                            className="h-full rounded-full bg-info transition-colors duration-300 ease-out relative cursor-help"
                                             style={{ width: `${progress}%` }}
                                         >
-                                            <div className="absolute right-0 top-0 bottom-0 w-1 bg-white/50 blur-[2px]" />
+                                            <div className="absolute right-0 top-0 bottom-0 w-1 bg-elevated" />
                                         </div>
                                     </TooltipTrigger>
-                                    <TooltipContent side="bottom" className="bg-zinc-800 border-white/10 text-white font-mono font-bold">
+                                    <TooltipContent side="bottom" className="glass-premium border-border text-foreground font-mono font-bold">
                                         {currentXP.toLocaleString()} / {maxXP.toLocaleString()} XP ({Math.floor(percentage)}%)
                                     </TooltipContent>
                                 </Tooltip>
@@ -202,37 +199,36 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId }: GuildPr
                                         {/* Tick Mark - ONLY MIDDLE ONES */}
                                         {!isLast && (
                                             <div className={cn(
-                                                "w-1 h-full transition-colors duration-500 z-20", // w-1 = 4px
+                                                "w-1 h-full transition-colors duration-300 z-20", // w-1 = 4px
                                                 isReached
-                                                    ? "bg-white shadow-[0_0_10px_rgba(255,255,255,0.9)]"
-                                                    : "bg-white/30" // Thicker and white-ish even if not reached
+                                                    ? "bg-background "
+                                                    : "bg-elevated" // Thicker and white-ish even if not reached
                                             )} />
                                         )}
 
                                         {/* Badge Container */}
-                                        <div className="absolute top-8 flex flex-col items-center transition-transform hover:scale-110 duration-300 origin-top">
+                                        <div className="absolute top-8 flex flex-col items-center transition-transform  duration-300 origin-top">
                                             {/* Icon Circle */}
                                             <div className={cn(
-                                                "w-10 h-10 rounded-full flex items-center justify-center border-2 shadow-xl backdrop-blur-md mb-1.5 relative",
+                                                "w-10 h-10 rounded-full flex items-center justify-center border-2 mb-1.5 relative",
                                                 style.bg,
                                                 style.color,
                                                 style.borderColor,
                                                 // More vibrant "unreached" state: less opacity reduction, keep saturation
-                                                isReached ? style.glow : "opacity-100 grayscale-[0.3] border-zinc-600 bg-zinc-800"
+                                                isReached ? style.glow : "opacity-100 grayscale-[0.3] border-border bg-background"
                                             )}>
-                                                <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-white/20 to-transparent opacity-50" />
-                                                <Icon className="w-5 h-5 relative z-10 drop-shadow-md" />
+                                                <Icon className="w-5 h-5 relative z-10" />
                                             </div>
 
                                             {/* Labels */}
                                             <div className="flex flex-col items-center gap-0.5">
                                                 <span className={cn(
-                                                    "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-zinc-950/90 border border-white/10 whitespace-nowrap shadow-lg",
+                                                    "text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-background border border-border whitespace-nowrap",
                                                     style.color
                                                 )}>
                                                     {style.label}
                                                 </span>
-                                                <span className="text-[9px] font-bold font-mono text-zinc-500">
+                                                <span className="text-caption font-black italic text-muted-foreground/60">
                                                     {xpDisplay}
                                                 </span>
                                             </div>
@@ -244,28 +240,66 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId }: GuildPr
                     </div>
                 </div>
 
-                {/* 3. FOOTER LEGEND */}
-                <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-2 border-t border-white/5 relative z-10 text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
-                    <div className="flex items-center gap-6">
-                        <div className="flex items-center gap-2">
-                            <div className="w-2.5 h-2.5 rounded-full bg-zinc-800 ring-2 ring-zinc-800/50" />
-                            <span> À faire</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
-                            <span className="text-zinc-300">Complété</span>
-                        </div>
-                    </div>
+                {/* 3. FOOTER */}
+                <div className="flex flex-col md:flex-row items-start justify-between gap-4 pt-4 border-t border-border/10 relative z-40 mt-4 w-full">
+                    {/* LEFT: Kama widget + legend (if raidRequireKamaDonation is enabled) */}
+                    {raidRequireKamaDonation ? (
+                        <div className="flex flex-col gap-3 w-full md:w-1/2">
+                            {/* Kama contribution widget */}
+                            <KamaContributionWidget guildId={guildId} initialStatus={kamaStatus ?? null} />
 
-                    {/* Active Bonus Tracker */}
-                    <ActiveBonusBar guildId={guildId} />
-
-                    {currentAchievedTier < 5 && (
-                        <div className="bg-zinc-900/50 px-3 py-1.5 rounded-lg border border-white/5 flex items-center gap-2 w-full md:w-auto justify-center md:justify-start">
-                            <Target className="w-3.5 h-3.5 text-zinc-400" />
-                            <span className="text-zinc-400">Prochain palier : <span className="text-white font-mono text-sm ml-1">{(GUILD_TIERS[(currentAchievedTier + 1) as keyof typeof GUILD_TIERS]?.xpMax - currentXP).toLocaleString()}</span> XP</span>
+                            {/* Legend */}
+                            <div className="flex items-center gap-6 text-caption text-muted-foreground font-black uppercase tracking-widest italic">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-foreground/10 ring-2 ring-foreground/5" />
+                                    <span> À faire</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-info " />
+                                    <span className="text-foreground">Complété</span>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-6 text-caption text-muted-foreground font-black uppercase tracking-widest italic">
+                            <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full bg-foreground/10 ring-2 ring-foreground/5" />
+                                <span> À faire</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full bg-info " />
+                                <span className="text-foreground">Complété</span>
+                            </div>
                         </div>
                     )}
+
+                    {/* RIGHT: Active Bonus and Raid Notice */}
+                    <div className="flex flex-col items-start md:items-end gap-3 mt-4 md:mt-0 w-full md:w-1/2 md:ml-auto">
+                        {/* Active Bonus Tracker */}
+                        <ActiveBonusBar guildId={guildId} />
+
+                        {/* Raid / Kama Notice (only if toggle ON) */}
+                        {raidRequireKamaDonation && (
+                            <div className="bg-warning/[0.03] border border-warning/20 rounded-2xl p-4 w-full md:max-w-md text-left md:text-right">
+                                <h4 className="text-caption font-black text-warning uppercase tracking-widest flex items-center md:justify-end gap-2 mb-1">
+                                    <Sparkles className="w-3.5 h-3.5 text-warning" />
+                                    Financement des Raids
+                                </h4>
+                                <p className="text-caption text-muted-foreground leading-relaxed font-medium">
+                                    Les contributions en Kamas sont indispensables pour le financement et la participation de la guilde aux **Raids de Guilde**. Donnez pour soutenir l'effort collectif !
+                                </p>
+                                <div className="mt-2.5">
+                                    <Link
+                                        href={`/dashboard/${guildId}/kamas/summary`}
+                                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-warning/15 bg-warning/[0.04] hover:bg-warning/[0.08] hover:border-warning/25 text-warning/70 hover:text-warning transition-all duration-200 text-caption font-black uppercase tracking-wider"
+                                    >
+                                        <BarChart3 className="w-3 h-3 shrink-0" />
+                                        Récap kamas de la semaine
+                                    </Link>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

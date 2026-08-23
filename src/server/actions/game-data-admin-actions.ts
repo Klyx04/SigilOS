@@ -1,12 +1,17 @@
 'use server';
 
+import { logger } from "@/lib/logger";
+
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { z } from "zod";
-import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { isSuperAdmin, canAccessBrick } from "@/server/actions/super-admin-actions";
+import { createGodAuditLog } from "@/server/actions/audit-actions";
 import { revalidatePath } from "next/cache";
 import { writeFileSync } from "fs";
 import { join } from "path";
+
+import { addIgnoredFamily, addIgnoredZone } from "@/server/actions/game-data-actions";
 
 // --- Types ---
 
@@ -40,60 +45,106 @@ const DungeonFormSchema = z.object({
     bossName: z.string().min(1, "Nom du boss requis").max(150),
     level: z.number().min(1, "Niveau invalide").max(1000),
     dpnlUrl: z.string().optional().or(z.literal("")),
+    dofuspourlesnoobsUrl: z.string().optional().or(z.literal("")),
+    dofensiveUrl: z.string().optional().or(z.literal("")),
     imageUrl: z.string().optional().or(z.literal("")),
     isExpedition: z.boolean().default(false),
     expeditionModes: z.array(z.enum(["BRAVOURE", "AUDACE", "NORMAL"])).optional(),
     expeditionMechanics: z.string().optional(),
+    isOcreQuest: z.boolean().default(false),
+    mapId: z.number().int().nullable().optional(),
     challengeIds: z.array(z.string()).optional(),
 });
 
 // --- Helper: Check super-admin access ---
 
+// 🛡️ Fail-closed : super-admin OU sous-god avec la brique "game-data".
 async function requireSuperAdmin(): Promise<string | null> {
     const session = await auth();
     if (!session?.user?.id) return null;
 
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return null;
+    if (isAdmin) return session.user.id;
+
+    const ok = await canAccessBrick("game-data");
+    if (!ok) return null;
 
     return session.user.id;
+}
+
+// 🛡️ Trace une écriture God UNIQUEMENT pour un sous-god (pas super-admin).
+async function logGameDataWrite(op: string, targetId?: string, metadata?: Record<string, any>) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return;
+        const isAdmin = await isSuperAdmin();
+        if (isAdmin) return;
+        await createGodAuditLog({
+            action: "GOD_GAME_DATA_UPDATE",
+            targetType: "DATA_SYNC",
+            targetId,
+            metadata: { op, ...metadata },
+        });
+    } catch {
+        // Non bloquant
+    }
 }
 
 // ===========================
 // MONSTER FAMILIES
 // ===========================
 
-const FamilyFilterSchema = z.object({
-    zoneId: z.string().optional(),
+const CommonFilterSchema = z.object({
     search: z.string().optional(),
+    minLevel: z.number().optional(),
+    maxLevel: z.number().optional(),
+});
+
+const FamilyFilterSchema = CommonFilterSchema.extend({
+    zoneId: z.string().optional(),
 });
 
 export async function getMonsterFamilies(
     filters: z.infer<typeof FamilyFilterSchema> = {}
 ): Promise<ActionResponse<any[]>> {
     try {
+        const validated = FamilyFilterSchema.parse(filters);
         const whereClause: any = {};
 
-        if (filters.zoneId) {
-            whereClause.zones = { some: { id: filters.zoneId } };
+        if (validated.zoneId) {
+            whereClause.zones = { some: { id: validated.zoneId } };
         }
 
-        if (filters.search) {
-            whereClause.name = { contains: filters.search, mode: 'insensitive' };
+        if (validated.search) {
+            whereClause.name = { contains: validated.search, mode: 'insensitive' };
+        }
+
+        if (validated.minLevel !== undefined || validated.maxLevel !== undefined) {
+            const levelFilter: any = {};
+            if (typeof validated.minLevel === 'number') levelFilter.gte = validated.minLevel;
+            if (typeof validated.maxLevel === 'number') levelFilter.lte = validated.maxLevel;
+            
+            if (Object.keys(levelFilter).length > 0) {
+                whereClause.level = levelFilter;
+            }
         }
 
         const families = await db.monsterFamily.findMany({
             where: whereClause,
-            include: {
+            select: {
+                id: true,
+                name: true,
+                level: true,
+                description: true,
+                imageUrl: true,
                 _count: { select: { monsters: true } },
                 zones: { select: { id: true, name: true } }
             },
-            take: filters.search ? 20 : 100, // Limit results if searching
-            orderBy: { level: 'asc' }
+            orderBy: { name: 'asc' }
         });
         return { success: true, data: families };
     } catch (error) {
-        console.error('[getMonsterFamilies] Error:', error);
+        logger.error('[getMonsterFamilies] Error:', error);
         return { success: false, error: 'Erreur lors du chargement des familles' };
     }
 }
@@ -117,11 +168,12 @@ export async function createMonsterFamily(
                 } : undefined
             }
         });
+        await logGameDataWrite('create-monster-family', family.id, { name: family.name });
 
         revalidatePath('/god/game-data');
         return { success: true, data: family };
     } catch (error: any) {
-        console.error('[createMonsterFamily] Error:', error);
+        logger.error('[createMonsterFamily] Error:', error);
         if (error.code === 'P2002') {
             return { success: false, error: 'Cette famille existe déjà' };
         }
@@ -150,11 +202,12 @@ export async function updateMonsterFamily(
                 } : undefined
             }
         });
+        await logGameDataWrite('update-monster-family', id, { name: family.name });
 
         revalidatePath('/god/game-data');
         return { success: true, data: family };
     } catch (error: any) {
-        console.error('[updateMonsterFamily] Error:', error);
+        logger.error('[updateMonsterFamily] Error:', error);
         if (error.code === 'P2002') {
             return { success: false, error: 'Cette famille existe déjà' };
         }
@@ -167,11 +220,19 @@ export async function deleteMonsterFamily(id: string): Promise<ActionResponse> {
     if (!userId) return { success: false, error: "Accès refusé" };
 
     try {
+        const target = await db.monsterFamily.findUnique({
+            where: { id },
+            select: { name: true }
+        });
+        if (target?.name) {
+            addIgnoredFamily(target.name);
+        }
         await db.monsterFamily.delete({ where: { id } });
+        await logGameDataWrite('delete-monster-family', id);
         revalidatePath('/god/game-data');
         return { success: true };
     } catch (error: any) {
-        console.error('[deleteMonsterFamily] Error:', error);
+        logger.error('[deleteMonsterFamily] Error:', error);
         if (error.code === 'P2003') {
             return { success: false, error: 'Impossible de supprimer : des monstres sont associés' };
         }
@@ -193,7 +254,7 @@ export async function getChallenges(): Promise<ActionResponse<any[]>> {
         });
         return { success: true, data: challenges };
     } catch (error) {
-        console.error('[getChallenges] Error:', error);
+        logger.error('[getChallenges] Error:', error);
         return { success: false, error: 'Erreur lors du chargement des challenges' };
     }
 }
@@ -212,11 +273,12 @@ export async function createChallenge(
                 iconUrl: validated.iconUrl || null,
             }
         });
+        await logGameDataWrite('create-challenge', challenge.id, { name: challenge.name });
 
         revalidatePath('/god/game-data');
         return { success: true, data: challenge };
     } catch (error: any) {
-        console.error('[createChallenge] Error:', error);
+        logger.error('[createChallenge] Error:', error);
         if (error.code === 'P2002') {
             return { success: false, error: 'Ce challenge (nom ou slug) existe déjà' };
         }
@@ -240,11 +302,12 @@ export async function updateChallenge(
                 iconUrl: validated.iconUrl || null,
             }
         });
+        await logGameDataWrite('update-challenge', id, { name: challenge.name });
 
         revalidatePath('/god/game-data');
         return { success: true, data: challenge };
     } catch (error: any) {
-        console.error('[updateChallenge] Error:', error);
+        logger.error('[updateChallenge] Error:', error);
         if (error.code === 'P2002') {
             return { success: false, error: 'Ce challenge (nom ou slug) existe déjà' };
         }
@@ -258,10 +321,11 @@ export async function deleteChallenge(id: string): Promise<ActionResponse> {
 
     try {
         await db.challenge.delete({ where: { id } });
+        await logGameDataWrite('delete-challenge', id);
         revalidatePath('/god/game-data');
         return { success: true };
     } catch (error: any) {
-        console.error('[deleteChallenge] Error:', error);
+        logger.error('[deleteChallenge] Error:', error);
         if (error.code === 'P2003') {
             return { success: false, error: 'Impossible de supprimer : des donjons sont associés' };
         }
@@ -273,9 +337,29 @@ export async function deleteChallenge(id: string): Promise<ActionResponse> {
 // DUNGEONS
 // ===========================
 
-export async function getDungeonsWithAchievements(): Promise<ActionResponse<any[]>> {
+export async function getDungeonsWithAchievements(
+    filters: z.infer<typeof CommonFilterSchema> = {}
+): Promise<ActionResponse<any[]>> {
     try {
+        const validated = CommonFilterSchema.parse(filters);
+        const whereClause: any = {};
+
+        if (validated.search) {
+            whereClause.OR = [
+                { name: { contains: validated.search, mode: 'insensitive' } },
+                { bossName: { contains: validated.search, mode: 'insensitive' } }
+            ];
+        }
+
+        if (validated.minLevel !== undefined || validated.maxLevel !== undefined) {
+            const levelFilter: any = {};
+            if (typeof validated.minLevel === 'number') levelFilter.gte = validated.minLevel;
+            if (typeof validated.maxLevel === 'number') levelFilter.lte = validated.maxLevel;
+            if (Object.keys(levelFilter).length > 0) whereClause.level = levelFilter;
+        }
+
         const dungeons = await db.dungeon.findMany({
+            where: whereClause,
             include: {
                 achievements: {
                     include: { challenge: true },
@@ -286,7 +370,7 @@ export async function getDungeonsWithAchievements(): Promise<ActionResponse<any[
         });
         return { success: true, data: dungeons };
     } catch (error) {
-        console.error('[getDungeonsWithAchievements] Error:', error);
+        logger.error('[getDungeonsWithAchievements] Error:', error);
         return { success: false, error: 'Erreur lors du chargement des donjons' };
     }
 }
@@ -305,6 +389,8 @@ export async function createDungeon(
             data: {
                 ...dungeonData,
                 dpnlUrl: dungeonData.dpnlUrl || null,
+                dofuspourlesnoobsUrl: dungeonData.dofuspourlesnoobsUrl || null,
+                dofensiveUrl: dungeonData.dofensiveUrl || null,
                 imageUrl: dungeonData.imageUrl || null,
                 expeditionModes: (dungeonData.expeditionModes || null) as any,
                 expeditionMechanics: dungeonData.expeditionMechanics || null,
@@ -319,12 +405,13 @@ export async function createDungeon(
                 achievements: { include: { challenge: true } }
             }
         });
+        await logGameDataWrite('create-dungeon', dungeon.id, { name: dungeon.name });
 
         revalidatePath('/god/game-data');
         revalidatePath('/admin/missions');
         return { success: true, data: dungeon };
     } catch (error: any) {
-        console.error('[createDungeon] Error:', error);
+        logger.error('[createDungeon] Error:', error);
         if (error.code === 'P2002') {
             return { success: false, error: 'Ce donjon existe déjà' };
         }
@@ -351,6 +438,8 @@ export async function updateDungeon(
                 data: {
                     ...dungeonData,
                     dpnlUrl: dungeonData.dpnlUrl || null,
+                    dofuspourlesnoobsUrl: dungeonData.dofuspourlesnoobsUrl || null,
+                    dofensiveUrl: dungeonData.dofensiveUrl || null,
                     imageUrl: dungeonData.imageUrl || null,
                     expeditionModes: (dungeonData.expeditionModes || null) as any,
                     expeditionMechanics: dungeonData.expeditionMechanics || null,
@@ -385,11 +474,12 @@ export async function updateDungeon(
             });
         });
 
+        await logGameDataWrite('update-dungeon', id, { name: dungeon?.name });
         revalidatePath('/god/game-data');
         revalidatePath('/admin/missions');
         return { success: true, data: dungeon };
     } catch (error: any) {
-        console.error('[updateDungeon] Error:', error);
+        logger.error('[updateDungeon] Error:', error);
         if (error.code === 'P2002') {
             return { success: false, error: 'Ce donjon existe déjà' };
         }
@@ -403,11 +493,12 @@ export async function deleteDungeon(id: string): Promise<ActionResponse> {
 
     try {
         await db.dungeon.delete({ where: { id } });
+        await logGameDataWrite('delete-dungeon', id);
         revalidatePath('/god/game-data');
         revalidatePath('/admin/missions');
         return { success: true };
     } catch (error: any) {
-        console.error('[deleteDungeon] Error:', error);
+        logger.error('[deleteDungeon] Error:', error);
         if (error.code === 'P2003') {
             return { success: false, error: 'Impossible de supprimer : des missions sont associées' };
         }
@@ -433,7 +524,7 @@ export async function getDreamBonuses(): Promise<ActionResponse<any[]>> {
         const bonuses = await db.dreamBonus.findMany({ orderBy: [{ type: 'asc' }, { name: 'asc' }] });
         return { success: true, data: bonuses };
     } catch (error) {
-        console.error('[getDreamBonuses] Error:', error);
+        logger.error('[getDreamBonuses] Error:', error);
         return { success: false, error: 'Erreur lors du chargement des bonus de rêve' };
     }
 }
@@ -449,7 +540,7 @@ export async function createDreamBonus(data: z.infer<typeof DreamBonusSchema>): 
         revalidatePath('/god/game-data');
         return { success: true, data: bonus };
     } catch (error: any) {
-        console.error('[createDreamBonus] Error:', error);
+        logger.error('[createDreamBonus] Error:', error);
         if (error.code === 'P2002') return { success: false, error: 'Ce bonus existe déjà' };
         return { success: false, error: 'Erreur lors de la création' };
     }
@@ -467,7 +558,7 @@ export async function updateDreamBonus(id: string, data: z.infer<typeof DreamBon
         revalidatePath('/god/game-data');
         return { success: true, data: bonus };
     } catch (error: any) {
-        console.error('[updateDreamBonus] Error:', error);
+        logger.error('[updateDreamBonus] Error:', error);
         if (error.code === 'P2002') return { success: false, error: 'Ce bonus existe déjà' };
         return { success: false, error: 'Erreur lors de la mise à jour' };
     }
@@ -481,7 +572,7 @@ export async function deleteDreamBonus(id: string): Promise<ActionResponse> {
         revalidatePath('/god/game-data');
         return { success: true };
     } catch (error: any) {
-        console.error('[deleteDreamBonus] Error:', error);
+        logger.error('[deleteDreamBonus] Error:', error);
         return { success: false, error: 'Erreur lors de la suppression' };
     }
 }
@@ -505,7 +596,7 @@ export async function getGameQuests(): Promise<ActionResponse<any[]>> {
         const quests = await db.gameQuest.findMany({ orderBy: [{ category: 'asc' }, { name: 'asc' }] });
         return { success: true, data: quests };
     } catch (error) {
-        console.error('[getGameQuests] Error:', error);
+        logger.error('[getGameQuests] Error:', error);
         return { success: false, error: 'Erreur lors du chargement des quêtes' };
     }
 }
@@ -521,7 +612,7 @@ export async function createGameQuest(data: z.infer<typeof GameQuestSchema>): Pr
         revalidatePath('/god/game-data');
         return { success: true, data: quest };
     } catch (error: any) {
-        console.error('[createGameQuest] Error:', error);
+        logger.error('[createGameQuest] Error:', error);
         if (error.code === 'P2002') return { success: false, error: 'Cette quête existe déjà' };
         return { success: false, error: 'Erreur lors de la création' };
     }
@@ -539,7 +630,7 @@ export async function updateGameQuest(id: string, data: z.infer<typeof GameQuest
         revalidatePath('/god/game-data');
         return { success: true, data: quest };
     } catch (error: any) {
-        console.error('[updateGameQuest] Error:', error);
+        logger.error('[updateGameQuest] Error:', error);
         if (error.code === 'P2002') return { success: false, error: 'Cette quête existe déjà' };
         return { success: false, error: 'Erreur lors de la mise à jour' };
     }
@@ -553,8 +644,100 @@ export async function deleteGameQuest(id: string): Promise<ActionResponse> {
         revalidatePath('/god/game-data');
         return { success: true };
     } catch (error: any) {
-        console.error('[deleteGameQuest] Error:', error);
+        logger.error('[deleteGameQuest] Error:', error);
         return { success: false, error: 'Erreur lors de la suppression' };
+    }
+}
+
+// ===========================
+// GAME QUESTS — SIPHON DOFUSDB (#154)
+// ===========================
+
+/**
+ * 🧲 #154 — Siphonne des quêtes depuis l'API DofusDB vers la table locale GameQuest.
+ * Elles deviennent alors réutilisables dans les posts DJ/quêtes (recherche locale d'abord,
+ * fallback dofusdb ensuite via `searchGameQuests`/`dofus-search-actions`).
+ *
+ * Anti-doublons : les quêtes déjà présentes (par dofusDbId ou par nom) sont ignorées.
+ * Bornage : 10 ≤ limit ≤ 300 par clic (appel paginé en tâches de 50).
+ */
+export async function siphonQuestsFromDofusDB(limit = 100): Promise<ActionResponse<{
+    created: number;
+    skipped: number;
+    errors: number;
+}>> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+
+    const capped = Math.min(300, Math.max(10, Math.round(limit) || 100));
+
+    try {
+        let created = 0;
+        let skipped = 0;
+        let errors = 0;
+        let fetched = 0;
+        let page = 1;
+        const pageSize = 50;
+
+        while (fetched < capped) {
+            const take = Math.min(pageSize, capped - fetched);
+            const res = await fetch(`https://api.dofusdb.fr/quests?limit=${take}&page=${page}`, {
+                headers: { Accept: "application/json" },
+                signal: AbortSignal.timeout(15000),
+            });
+
+            if (!res.ok) {
+                // DofusDB indisponible → on s'arrête proprement (fail-stop, sans casser l'existant).
+                logger.error(`[siphonQuestsFromDofusDB] DofusDB HTTP ${res.status}`);
+                break;
+            }
+
+            const json = await res.json();
+            const data: any[] = Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : []);
+
+            if (data.length === 0) break;
+
+            for (const q of data) {
+                const dofusDbId = Number(q?.id) || null;
+                const name = String(q?.name?.fr || q?.name || q?.className || "").trim();
+                if (!name) { errors++; continue; }
+
+                const existingById = dofusDbId
+                    ? await db.gameQuest.findFirst({ where: { dofusDbId }, select: { id: true } })
+                    : null;
+                if (existingById) { skipped++; continue; }
+
+                const existingByName = await db.gameQuest.findUnique({ where: { name }, select: { id: true } });
+                if (existingByName) { skipped++; continue; }
+
+                try {
+                    await db.gameQuest.create({
+                        data: {
+                            name,
+                            dofusDbId,
+                            levelMin: Number(q?.levelMin) || null,
+                            levelMax: Number(q?.levelMax) || null,
+                            description: q?.description?.fr || q?.description || null,
+                            imageUrl: q?.img || null,
+                            category: String(q?.category?.name?.fr || "DofusDB").slice(0, 60),
+                        },
+                    });
+                    created++;
+                } catch (e: any) {
+                    if (e?.code === "P2002") { skipped++; continue; }
+                    errors++;
+                }
+            }
+
+            fetched += data.length;
+            page++;
+        }
+
+        if (created > 0) revalidatePath('/god/game-data');
+        return { success: true, data: { created, skipped, errors } };
+    } catch (error: any) {
+        logger.error('[siphonQuestsFromDofusDB] Error:', error);
+        return { success: false, error: error?.message || 'Erreur lors du siphonnage des quêtes' };
     }
 }
 
@@ -580,7 +763,7 @@ export async function addDungeonAchievement(
         revalidatePath('/god/game-data');
         return { success: true, data: achievement };
     } catch (error: any) {
-        console.error('[addDungeonAchievement] Error:', error);
+        logger.error('[addDungeonAchievement] Error:', error);
         if (error.code === 'P2002') {
             return { success: false, error: 'Ce succès est déjà associé à ce donjon' };
         }
@@ -603,7 +786,7 @@ export async function removeDungeonAchievement(
         revalidatePath('/god/game-data');
         return { success: true };
     } catch (error) {
-        console.error('[removeDungeonAchievement] Error:', error);
+        logger.error('[removeDungeonAchievement] Error:', error);
         return { success: false, error: 'Erreur lors de la suppression' };
     }
 }
@@ -625,7 +808,7 @@ export async function updateDungeonAchievementPoints(
         revalidatePath('/god/game-data');
         return { success: true, data: achievement };
     } catch (error) {
-        console.error('[updateDungeonAchievementPoints] Error:', error);
+        logger.error('[updateDungeonAchievementPoints] Error:', error);
         return { success: false, error: 'Erreur lors de la mise à jour' };
     }
 }
@@ -667,11 +850,12 @@ export async function createZone(
                 dungeons: true
             }
         });
+        await logGameDataWrite('create-zone', zone.id, { name: zone.name });
 
         revalidatePath('/god/game-data');
         return { success: true, data: zone };
     } catch (error: any) {
-        console.error('[createZone] Error:', error);
+        logger.error('[createZone] Error:', error);
         if (error.code === 'P2002') {
             return { success: false, error: 'Cette zone existe déjà' };
         }
@@ -706,11 +890,12 @@ export async function updateZone(
                 dungeons: true
             }
         });
+        await logGameDataWrite('update-zone', id, { name: zone.name });
 
         revalidatePath('/god/game-data');
         return { success: true, data: zone };
     } catch (error: any) {
-        console.error('[updateZone] Error:', error);
+        logger.error('[updateZone] Error:', error);
         return { success: false, error: 'Erreur lors de la mise à jour' };
     }
 }
@@ -720,11 +905,19 @@ export async function deleteZone(id: string): Promise<ActionResponse> {
     if (!userId) return { success: false, error: "Accès refusé" };
 
     try {
+        const target = await db.zone.findUnique({
+            where: { id },
+            select: { name: true }
+        });
+        if (target?.name) {
+            addIgnoredZone(target.name);
+        }
         await db.zone.delete({ where: { id } });
+        await logGameDataWrite('delete-zone', id);
         revalidatePath('/god/game-data');
         return { success: true };
     } catch (error: any) {
-        console.error('[deleteZone] Error:', error);
+        logger.error('[deleteZone] Error:', error);
         return { success: false, error: 'Erreur lors de la suppression' };
     }
 }
@@ -748,7 +941,7 @@ export async function searchZones(query: string = ""): Promise<ActionResponse<an
         });
         return { success: true, data: zones };
     } catch (error) {
-        console.error('[searchZones] Error:', error);
+        logger.error('[searchZones] Error:', error);
         return { success: false, error: 'Erreur recherche zones' };
     }
 }
@@ -767,14 +960,31 @@ export async function searchDungeons(query: string = ""): Promise<ActionResponse
         });
         return { success: true, data: dungeons };
     } catch (error) {
-        console.error('[searchDungeons] Error:', error);
+        logger.error('[searchDungeons] Error:', error);
         return { success: false, error: 'Erreur recherche donjons' };
     }
 }
 
-export async function getAdminZones(): Promise<ActionResponse<any[]>> {
+export async function getAdminZones(
+    filters: z.infer<typeof CommonFilterSchema> = {}
+): Promise<ActionResponse<any[]>> {
     try {
+        const validated = CommonFilterSchema.parse(filters);
+        const whereClause: any = {};
+
+        if (validated.search) {
+            whereClause.name = { contains: validated.search, mode: 'insensitive' };
+        }
+
+        if (validated.minLevel !== undefined || validated.maxLevel !== undefined) {
+            const levelFilter: any = {};
+            if (typeof validated.minLevel === 'number') levelFilter.gte = validated.minLevel;
+            if (typeof validated.maxLevel === 'number') levelFilter.lte = validated.maxLevel;
+            if (Object.keys(levelFilter).length > 0) whereClause.level = levelFilter;
+        }
+
         const zones = await db.zone.findMany({
+            where: whereClause,
             include: {
                 families: true,
                 dungeons: true
@@ -783,7 +993,7 @@ export async function getAdminZones(): Promise<ActionResponse<any[]>> {
         });
         return { success: true, data: zones };
     } catch (error) {
-        console.error('[getAdminZones] Error:', error);
+        logger.error('[getAdminZones] Error:', error);
         return { success: false, error: 'Erreur lors du chargement des zones' };
     }
 }
@@ -850,7 +1060,7 @@ export async function exportGameData(): Promise<ActionResponse<any>> {
 
         return { success: true, data: exportData };
     } catch (error) {
-        console.error('[exportGameData] Error:', error);
+        logger.error('[exportGameData] Error:', error);
         return { success: false, error: 'Erreur lors de l\'export' };
     }
 }
@@ -887,7 +1097,7 @@ export async function exportGameDataToGit(): Promise<ActionResponse<string>> {
                 `💡 Commit ce fichier dans Git pour versionner tes données !`
         };
     } catch (error: any) {
-        console.error('[exportGameDataToGit] Error:', error);
+        logger.error('[exportGameDataToGit] Error:', error);
         return { success: false, error: `Erreur: ${error.message}` };
     }
 }
@@ -1072,6 +1282,8 @@ export async function importGameData(jsonData: string): Promise<ActionResponse<s
                                 isExpedition: dungeon.isExpedition ?? false,
                                 expeditionModes: dungeon.expeditionModes || null,
                                 expeditionMechanics: dungeon.expeditionMechanics || null,
+                                isOcreQuest: dungeon.isOcreQuest ?? false,
+                                mapId: dungeon.mapId ?? null,
                             }
                         });
                         dungeonId = existing.id;
@@ -1086,6 +1298,8 @@ export async function importGameData(jsonData: string): Promise<ActionResponse<s
                                 isExpedition: dungeon.isExpedition ?? false,
                                 expeditionModes: dungeon.expeditionModes || null,
                                 expeditionMechanics: dungeon.expeditionMechanics || null,
+                                isOcreQuest: dungeon.isOcreQuest ?? false,
+                                mapId: dungeon.mapId ?? null,
                             }
                         });
                         dungeonId = created.id;
@@ -1152,6 +1366,7 @@ export async function importGameData(jsonData: string): Promise<ActionResponse<s
             }
         }, { timeout: 60000 }); // 60s timeout for large imports
 
+        await logGameDataWrite('import-game-data');
         revalidatePath('/god/game-data');
         revalidatePath('/admin/missions');
 
@@ -1170,7 +1385,7 @@ export async function importGameData(jsonData: string): Promise<ActionResponse<s
 
         return { success: true, data: summary };
     } catch (error: any) {
-        console.error('[importGameData] Error:', error);
+        logger.error('[importGameData] Error:', error);
 
         // Provide user-friendly error messages
         if (error.code === 'P2002') {

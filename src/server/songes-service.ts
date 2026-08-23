@@ -1,5 +1,5 @@
 import { db } from "@/lib/prisma";
-import { sendChannelMessage, updateChannelMessage, validateChannelBelongsToGuild } from "@/server/discord";
+import { sendChannelMessage, updateChannelMessage, validateChannelBelongsToGuild, fetchChannel, createForumPost } from "@/server/discord";
 import { getAppBaseUrl } from "@/lib/utils";
 import { createNotification } from "@/server/actions/notification-actions";
 
@@ -97,7 +97,7 @@ async function buildRunEmbedData(guildId: string, runId: string) {
     // Robust URL detection: prioritize app URL but fallback to NextAuth URL
     // If the context suggests we are in a beta environment, force beta link
     const publicUrl = getAppBaseUrl();
-    const dashboardUrl = `${publicUrl}/dashboard/${guildId}/songes/${run.id}`;
+    const dashboardUrl = `${publicUrl}/dashboard/${guildId}/songes`;
 
     // Get leader more info
     const leaderProfile = await getUserProfileData(run.leaderId, guildConfig.id);
@@ -109,7 +109,15 @@ async function buildRunEmbedData(guildId: string, runId: string) {
         const reqClass = run.joinRequests.find(r => r.userId === m.userId)?.classe;
         const displayClass = reqClass || p.classe;
         const classTag = displayClass ? `[${displayClass}] ` : "";
-        memberLines.push(`• ${classTag}**${p.name}**`);
+        
+        // Add stuff info if available
+        let stuffInfo = "";
+        const memberStuff = m as any;
+        if (memberStuff.linkedStuffId && memberStuff.linkedStuffUrl) {
+            stuffInfo = ` 🛡️ [${memberStuff.linkedStuffName || "Stuff"}](${memberStuff.linkedStuffUrl})`;
+        }
+        
+        memberLines.push(`• ${classTag}**${p.name}**${stuffInfo}`);
     }
     const membersList = memberLines.length > 0 ? memberLines.join("\n") : "*Aucun membre*";
 
@@ -139,12 +147,25 @@ async function buildRunEmbedData(guildId: string, runId: string) {
         { name: "💀 Difficulté", value: `${diffConfig.emoji} **${diffConfig.label}**`, inline: true },
         { name: "👑 Leader", value: `**${leaderProfile.name}**`, inline: true },
         { name: "👥 Places", value: `**${run.members.length}/${MAX_MEMBERS}**`, inline: true },
+        ...(run.scheduledAt ? [{ 
+            name: "📅 Date & Heure", 
+            value: `<t:${Math.floor(run.scheduledAt.getTime() / 1000)}:F> (<t:${Math.floor(run.scheduledAt.getTime() / 1000)}:R>)`, 
+            inline: false 
+        }] : []),
         ...(epreuveMeta ? [{ name: "🏆 Épreuve de Songe", value: `${epreuveMeta.icon} **${epreuveMeta.label}**\n*Pas de butin ni d'expérience*`, inline: false }] : []),
         { name: "🎯 Objectifs", value: objectivesStr, inline: false },
         { name: `✅ Équipe (${run.members.length})`, value: membersList, inline: true },
         { name: `⏳ File d'attente (${run.waitlist.length})`, value: waitlistList, inline: true },
         { name: "🔗 Dashboard", value: `[📋 Voir la Run](${dashboardUrl})`, inline: false },
     ];
+
+    // Tier Image mapping for Discord (absolute URL required)
+    const tierImageKey = run.difficulty?.toLowerCase()
+        .replace('_iv', '4')
+        .replace('_iii', '3')
+        .replace('_ii', '2')
+        .replace('_i', '1') || 'reve1';
+    const thumbnailUrl = `${publicUrl}/assets/missions/${tierImageKey}.png`;
 
     const isOpen = run.status === "RECRUITING" || run.status === "IN_PROGRESS";
     const statusText = run.status === "RECRUITING" ? "🟢 Recrutement"
@@ -185,6 +206,7 @@ async function buildRunEmbedData(guildId: string, runId: string) {
         dashboardUrl,
         leaderProfile,
         embedTitle,
+        thumbnailUrl,
     };
 }
 
@@ -209,29 +231,56 @@ export async function publishDiscordRun(guildId: string, runId: string) {
             return { success: false, error: "Canal Discord invalide" };
         }
 
-        const messageId = await sendChannelMessage(
-            guildConfig.songesNotifyChannelId,
-            "",
-            {
-                embedTitle: data.embedTitle,
-                embedColor: diffConfig.color,
-                embedThumbnail: "https://plutonio.fr/i/sigil_songes.png",
-                embedAuthor: {
-                    name: `Proposée par ${data.leaderProfile.name}`,
-                    iconUrl: data.leaderProfile.avatar || undefined
-                },
-                fields,
-                embedFooter: `Statut: ${statusText}`,
-                components,
+        const roleMentions = run.mentionRoleId ? run.mentionRoleId.split(",").map(id => `<@&${id.trim()}>`).join(" ") : "";
+        const creatorDiscordId = await getDiscordId(run.leaderId);
+        const creatorMention = creatorDiscordId ? `<@${creatorDiscordId}>` : "";
+        const mentions = [creatorMention, roleMentions].filter(Boolean).join(" ");
+        
+        const channel = await fetchChannel(guildConfig.songesNotifyChannelId);
+        
+        let messageId: string | null = null;
+        let finalChannelId = guildConfig.songesNotifyChannelId;
+
+        const messageOptions = {
+            embedTitle: data.embedTitle,
+            embedColor: diffConfig.color,
+            embedThumbnail: data.thumbnailUrl,
+            embedAuthor: {
+                name: `Proposée par ${data.leaderProfile.name}`,
+                iconUrl: data.leaderProfile.avatar || undefined
+            },
+            fields,
+            embedFooter: `Statut: ${statusText}`,
+            components,
+        };
+
+        if (channel && channel.type === 15) {
+            // C'est un salon forum
+            const res = await createForumPost(
+                guildConfig.songesNotifyChannelId,
+                data.embedTitle,
+                mentions,
+                messageOptions
+            );
+            if (res) {
+                messageId = res.messageId;
+                finalChannelId = res.id; // The thread ID
             }
-        );
+        } else {
+            // Salon textuel classique
+            messageId = await sendChannelMessage(
+                guildConfig.songesNotifyChannelId,
+                mentions,
+                messageOptions
+            );
+        }
 
         if (messageId) {
             await db.dreamRun.update({
                 where: { id: runId },
                 data: {
                     discordMessageId: messageId,
-                    discordChannelId: guildConfig.songesNotifyChannelId,
+                    discordChannelId: finalChannelId,
                 },
             });
             return { success: true };
@@ -264,7 +313,7 @@ export async function updateDiscordRunEmbed(guildId: string, runId: string) {
             {
                 embedTitle: data.embedTitle,
                 embedColor: diffConfig.color,
-                embedThumbnail: "https://plutonio.fr/i/sigil_songes.png",
+                embedThumbnail: data.thumbnailUrl,
                 embedAuthor: {
                     name: `Proposée par ${data.leaderProfile.name}`,
                     iconUrl: data.leaderProfile.avatar || undefined
@@ -397,7 +446,7 @@ export async function notifyRunMembers(guildId: string, runId: string, message: 
                         : []),
                 ],
                 embedFooter: `SigilOS • Songes Infinis`,
-                embedThumbnail: "https://plutonio.fr/i/sigil_songes.png"
+                embedThumbnail: embedData.thumbnailUrl
             }
         );
 
@@ -529,7 +578,7 @@ export async function processRunJoin(guildId: string, runId: string, userId: str
 
         // Notify leader in-app
         const publicUrl = getAppBaseUrl();
-        const dashboardUrl = `${publicUrl}/dashboard/${guildId}/songes/${run.id}`;
+        const dashboardUrl = `${publicUrl}/dashboard/${guildId}/songes`;
 
         // Notify leader in-app
         await createNotification(
@@ -537,7 +586,7 @@ export async function processRunJoin(guildId: string, runId: string, userId: str
             "SONGES_JOIN_REQUEST",
             "Candidature Songes",
             `**${candidateName}** (${classe}) • Run ${run.difficulty}`,
-            `/dashboard/${guildId}/songes/${run.id}`,
+            `/dashboard/${guildId}/songes`,
             guildId
         );
 

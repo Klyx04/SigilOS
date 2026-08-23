@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 /**
  * Songes Module - Server Actions
@@ -12,6 +13,8 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { createNotification } from "@/server/actions/notification-actions";
 import { sendChannelMessage } from "@/server/discord";
 import { rateLimit } from "@/lib/ratelimit";
+import { getDisplayName } from "@/lib/display-name";
+import { resolveSongesContributionPoints } from "@/lib/points-config";
 
 // ============================================
 // CONSTANTS & HELPERS
@@ -91,6 +94,13 @@ const CreateRunSchema = z.object({
     ])).min(1, "Sélectionnez au moins un objectif"),
     publishToDiscord: z.boolean().optional(),
     epreuveCode: z.string().optional(), // Code épreuve (FONSOCAC, REVERSED, etc.) — null = run standard
+    scheduledAt: z.date().optional().nullable(),
+    mentionRoleIds: z.array(z.string()).default([]),
+    linkedStuffId: z.string().nullable().optional(),
+    linkedStuffName: z.string().nullable().optional(),
+    linkedStuffThumbnail: z.string().nullable().optional(),
+    linkedStuffUrl: z.string().nullable().optional(),
+    leaderClass: z.string().optional(),
 }).refine((data) => {
     if (data.epreuveCode) return true; // Épreuve bypasse la restriction objectifs
     const isParadoxeOrHigher = data.difficulty.startsWith("PARADOXE") || data.difficulty.startsWith("CAUCHEMAR");
@@ -181,36 +191,168 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
             objectives: validated.data.objectives,
             objective: validated.data.objectives[0], // Init legacy field
             epreuveCode: validated.data.epreuveCode ?? null,
+            scheduledAt: validated.data.scheduledAt ?? null,
+            mentionRoleId: validated.data.mentionRoleIds.length > 0 ? validated.data.mentionRoleIds.join(",") : null,
+            status: "IN_PROGRESS",
+            currentFloor: 1,
+            startedAt: new Date(),
             members: {
                 create: {
                     userId: ctx.userId,
                     slot: 1, // Leader takes slot 1
+                    linkedStuffId: validated.data.linkedStuffId ?? null,
+                    linkedStuffName: validated.data.linkedStuffName ?? null,
+                    linkedStuffThumbnail: validated.data.linkedStuffThumbnail ?? null,
+                    linkedStuffUrl: validated.data.linkedStuffUrl ?? null,
                 },
             },
         },
     });
 
-    revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+    // Create an ACCEPTED join request for the leader to store their class choice
+    if (validated.data.leaderClass) {
+        await db.dreamJoinRequest.create({
+            data: {
+                runId: run.id,
+                userId: ctx.userId,
+                classe: validated.data.leaderClass,
+                status: "ACCEPTED",
+                message: "Meneur de la run",
+                linkedStuffId: validated.data.linkedStuffId ?? null,
+                linkedStuffName: validated.data.linkedStuffName ?? null,
+                linkedStuffThumbnail: validated.data.linkedStuffThumbnail ?? null,
+                linkedStuffUrl: validated.data.linkedStuffUrl ?? null,
+            }
+        });
+    }
 
-    // Publish to Discord if requested
+    // Auto-publish to Discord if requested
     if (validated.data.publishToDiscord) {
         const { publishDiscordRun } = await import("@/server/songes-service");
         await publishDiscordRun(ctx.guildId, run.id);
     }
 
-    try {
-        const { pushSystemChatMessage } = await import("@/server/actions/chat-actions");
-        const leaderName = ctx.name || "Un explorateur";
-        await pushSystemChatMessage(
-            ctx.guildId,
-            `🌌 **${leaderName}** a lancé une expédition Songes Infinis (${run.difficulty.replace("_", " ")}) !`,
-            { type: "songes_run_created", runId: run.id }
-        );
-    } catch (chatErr) {
-        console.error("Failed to push system chat message for songes run", chatErr);
-    }
+    revalidatePath(`/dashboard/${ctx.guildId}/songes`);
 
     return { success: true, runId: run.id };
+}
+
+// ============================================
+// UPDATE RUN (édition — chantier Songes)
+// ============================================
+
+const UpdateRunSchema = z.object({
+    difficulty: z.enum([
+        "REVE_I", "REVE_II", "REVE_III",
+        "PARADOXE_I", "PARADOXE_II", "PARADOXE_III", "PARADOXE_IV",
+        "CAUCHEMAR_I", "CAUCHEMAR_II", "CAUCHEMAR_III"
+    ]),
+    objectives: z.array(z.enum([
+        "MISSION_GUILDE", "DROP_LEGENDE", "SUCCES_NO_ACHAT", "FUN", "QUETE"
+    ])).min(1, "Sélectionnez au moins un objectif"),
+    epreuveCode: z.string().nullable().optional(), // null = run standard
+    scheduledAt: z.date().optional().nullable(),
+    mentionRoleIds: z.array(z.string()).default([]),
+    currentFloor: z.number().min(0).max(26).optional(),
+}).refine((data) => {
+    if (data.epreuveCode) return true; // Épreuve bypasse la restriction objectifs
+    const isParadoxeOrHigher = data.difficulty.startsWith("PARADOXE") || data.difficulty.startsWith("CAUCHEMAR");
+    const restrictedObjectives = ["DROP_LEGENDE", "SUCCES_NO_ACHAT"];
+    if (!isParadoxeOrHigher) {
+        const hasRestricted = data.objectives.some(o => restrictedObjectives.includes(o));
+        if (hasRestricted) return false;
+    }
+    return true;
+}, {
+    message: "Certains objectifs nécessitent une difficulté Paradoxe ou plus.",
+    path: ["objectives"]
+});
+
+/**
+ * Édite une run Songes (difficulté, objectifs, épreuve, date/heure, rôles ping, étage).
+ * Sécurité : fail-closed (contexte guilde), guild isolation (la run doit appartenir
+ * à la guilde du contexte), seuls le leader ou un admin peuvent modifier, rate-limit,
+ * jamais de console.log → logger. Rafraîchit l'embed Discord si la run était publiée.
+ */
+export async function updateDreamRun(
+    guildId: string,
+    runId: string,
+    data: z.infer<typeof UpdateRunSchema>
+): Promise<{ success: boolean; error?: string; resetAt?: number }> {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
+
+    const validated = UpdateRunSchema.safeParse(data);
+    if (!validated.success) {
+        return { success: false, error: validated.error.errors[0].message };
+    }
+
+    // RATE LIMIT : 10 éditions par 10 minutes (anti-spam)
+    const limiter = await rateLimit(`update_dream_run:${ctx.userId}:${guildId}`, 10, 10 * 60 * 1000);
+    if (!limiter.success) return { success: false, error: "Trop de modifications. Veuillez patienter.", resetAt: limiter.reset };
+
+    try {
+        // ── Guild isolation : la run doit appartenir à la guilde du contexte ──
+        const run = await db.dreamRun.findFirst({
+            where: { id: runId, guildId: ctx.guildId },
+        });
+        if (!run) return { success: false, error: "Run non trouvée" };
+
+        // ── Seul le leader ou un admin peut modifier ──
+        if (run.leaderId !== ctx.userId && !ctx.isAdmin) {
+            return { success: false, error: "Seul le leader ou un administrateur peut modifier cette run" };
+        }
+
+        // ── Une run terminée/abandonnée n'est plus modifiable ──
+        if (["COMPLETED", "FAILED", "ABANDONED"].includes(run.status)) {
+            return { success: false, error: "Impossible de modifier une run terminée ou abandonnée" };
+        }
+
+        await db.dreamRun.update({
+            where: { id: runId },
+            data: {
+                difficulty: validated.data.difficulty,
+                objectives: validated.data.objectives,
+                objective: validated.data.objectives[0], // legacy field
+                epreuveCode: validated.data.epreuveCode ?? null,
+                scheduledAt: validated.data.scheduledAt ?? null,
+                mentionRoleId: validated.data.mentionRoleIds.length > 0 ? validated.data.mentionRoleIds.join(",") : null,
+                ...(validated.data.currentFloor !== undefined && { currentFloor: validated.data.currentFloor }),
+            },
+        });
+
+        // Rafraîchir l'embed Discord si la run était publiée (best-effort, non bloquant)
+        try {
+            const { updateDiscordRunEmbed } = await import("@/server/songes-service");
+            await updateDiscordRunEmbed(ctx.guildId, runId);
+        } catch (embedErr) {
+            logger.warn("[updateDreamRun] refresh embed non bloquant", { error: embedErr });
+        }
+
+        revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+        return { success: true };
+    } catch (error) {
+        logger.error("[updateDreamRun] error:", error);
+        return { success: false, error: "Erreur lors de la modification de la run" };
+    }
+}
+
+/**
+ * Lightweight public config fetch for Songes (no admin required)
+ */
+export async function getSongesPublicConfig(guildId: string) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié" };
+
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { songesNotifyChannelId: true },
+        });
+        return { success: true, data: { songesNotifyChannelId: config?.songesNotifyChannelId || null } };
+    } catch (error) {
+        return { success: false, error: "Erreur serveur" };
+    }
 }
 
 // ============================================
@@ -236,8 +378,8 @@ export async function getDreamRuns(guildId: string, statusFilter?: string[]) {
                 orderBy: { position: "asc" },
             },
             joinRequests: {
-                where: { status: "PENDING" },
-                select: { id: true, userId: true },
+                where: { status: { in: ["PENDING", "ACCEPTED"] } },
+                select: { id: true, userId: true, message: true, classe: true, status: true },
             },
             _count: {
                 select: { floors: true, bonuses: true },
@@ -256,32 +398,42 @@ export async function getDreamRunById(guildId: string, runId: string) {
 
     // Cleanup is now handled by the BullMQ worker (daily job)
 
-    const run = await db.dreamRun.findFirst({
-        where: {
-            id: runId,
-            guildId: ctx.guildId,
-        },
-        include: {
-            members: {
-                orderBy: { slot: "asc" },
+    const [run, guildConfig] = await Promise.all([
+        db.dreamRun.findFirst({
+            where: {
+                id: runId,
+                guildId: ctx.guildId,
             },
-            waitlist: {
-                orderBy: { position: "asc" },
+            include: {
+                members: {
+                    orderBy: { slot: "asc" },
+                },
+                waitlist: {
+                    orderBy: { position: "asc" },
+                },
+                floors: {
+                    orderBy: { floorNumber: "asc" },
+                },
+                bonuses: {
+                    orderBy: { acquiredAt: "asc" },
+                },
             },
-            floors: {
-                orderBy: { floorNumber: "asc" },
-            },
-            bonuses: {
-                orderBy: { acquiredAt: "asc" },
-            },
-        },
-    });
+        }),
+        db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { songesNotifyChannelId: true }
+        })
+    ]);
 
     if (!run) {
         return { success: false, error: "Run non trouvée", run: null };
     }
 
-    return { success: true, run };
+    return { 
+        success: true, 
+        run, 
+        songesNotifyChannelId: guildConfig?.songesNotifyChannelId || null 
+    };
 }
 
 // ============================================
@@ -584,6 +736,9 @@ export async function deleteDreamBonus(guildId: string, data: z.infer<typeof Del
     const ctx = await getGuildUserContext(guildId);
     if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
+    const limiter = await rateLimit(`delete_dream_bonus:${ctx.userId}:${guildId}`, 10, 60_000);
+    if (!limiter.success) return { success: false, error: "Trop d'actions. Veuillez réessayer plus tard." };
+
     const validated = DeleteBonusSchema.safeParse(data);
     if (!validated.success) return { success: false, error: "Données invalides" };
 
@@ -605,6 +760,9 @@ export async function deleteDreamBonus(guildId: string, data: z.infer<typeof Del
 export async function addDreamBonus(guildId: string, data: z.infer<typeof AddBonusSchema>) {
     const ctx = await getGuildUserContext(guildId);
     if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
+
+    const limiter = await rateLimit(`add_dream_bonus:${ctx.userId}:${guildId}`, 10, 60_000);
+    if (!limiter.success) return { success: false, error: "Trop d'actions. Veuillez réessayer plus tard." };
 
     const validated = AddBonusSchema.safeParse(data);
     if (!validated.success) {
@@ -646,6 +804,10 @@ const SendJoinRequestSchema = z.object({
     runId: z.string(),
     classe: z.string().min(1),
     message: z.string().optional(),
+    linkedStuffId: z.string().nullable().optional(),
+    linkedStuffName: z.string().nullable().optional(),
+    linkedStuffThumbnail: z.string().nullable().optional(),
+    linkedStuffUrl: z.string().nullable().optional(),
 });
 
 export async function sendJoinRequest(guildId: string, data: z.infer<typeof SendJoinRequestSchema>) {
@@ -720,7 +882,7 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
             select: { id: true, discordNickname: true, pseudoDofus: true, user: { select: { name: true } } },
         });
         if (candidateProfile) {
-            candidateName = candidateProfile.discordNickname || candidateProfile.pseudoDofus || candidateProfile.user.name || "Un joueur";
+            candidateName = getDisplayName(candidateProfile);
             candidateProfileId = candidateProfile.id;
         }
     }
@@ -767,6 +929,10 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
             userId: ctx.id!,
             classe: validated.data.classe,
             message: validated.data.message,
+            linkedStuffId: validated.data.linkedStuffId ?? null,
+            linkedStuffName: validated.data.linkedStuffName ?? null,
+            linkedStuffThumbnail: validated.data.linkedStuffThumbnail ?? null,
+            linkedStuffUrl: validated.data.linkedStuffUrl ?? null,
         },
     });
 
@@ -777,7 +943,7 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
             "SONGES_JOIN_REQUEST",
             "Candidature Songes",
             `**${candidateName}** (${validated.data.classe}) • Étage ${run.currentFloor}`,
-            `/dashboard/${guildId}/songes/${validated.data.runId}`,
+            `/dashboard/${guildId}/songes`,
             guildId
         );
 
@@ -805,7 +971,7 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
 
             const difficultyDisplay = run.difficulty.replace("_", " ");
             const { getAppBaseUrl } = await import("@/lib/utils");
-            const runUrl = `${getAppBaseUrl()}/dashboard/${run.guildId}/songes/${run.id}`;
+            const runUrl = `${getAppBaseUrl()}/dashboard/${run.guildId}/songes`;
 
             // SECURITY: Validate channel belongs to this guild before sending
             const { validateChannelBelongsToGuild, sendChannelMessage } = await import("@/server/discord");
@@ -910,6 +1076,9 @@ export async function respondToJoinRequest(guildId: string, data: z.infer<typeof
     const ctx = await getGuildUserContext(guildId);
     if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
+    const limiter = await rateLimit(`respond_join_request:${ctx.userId}:${guildId}`, 30, 60_000);
+    if (!limiter.success) return { success: false, error: "Trop d'actions. Veuillez réessayer plus tard." };
+
     const validated = RespondJoinRequestSchema.safeParse(data);
     if (!validated.success) {
         return { success: false, error: "Données invalides" };
@@ -959,6 +1128,10 @@ export async function respondToJoinRequest(guildId: string, data: z.infer<typeof
                     runId: request.runId,
                     userId: request.userId,
                     slot: nextSlot,
+                    linkedStuffId: request.linkedStuffId,
+                    linkedStuffName: request.linkedStuffName,
+                    linkedStuffThumbnail: request.linkedStuffThumbnail,
+                    linkedStuffUrl: request.linkedStuffUrl,
                 },
             }),
         ]);
@@ -969,7 +1142,7 @@ export async function respondToJoinRequest(guildId: string, data: z.infer<typeof
             "SYSTEM_INFO",
             "Candidature acceptée !",
             `Votre candidature pour la run ${request.run.difficulty} a été acceptée. Bienvenue dans l'équipe !`,
-            `/dashboard/${request.run.guildId}/songes/${request.runId}`,
+            `/dashboard/${request.run.guildId}/songes`,
             request.run.guildId
         );
 
@@ -1000,7 +1173,7 @@ export async function respondToJoinRequest(guildId: string, data: z.infer<typeof
             const { deleteChannelMessage } = await import("@/server/discord");
             await deleteChannelMessage(request.discordChannelId, request.discordMessageId);
         } catch (error) {
-            console.error("[Songes] Error deleting candidacy message:", error);
+            logger.error("[Songes] Error deleting candidacy message:", error);
         }
     }
 
@@ -1203,9 +1376,9 @@ export async function getMyJoinRequestStatus(guildId: string, runId: string) {
 
 export async function getMemberProfiles(guildId: string, userIds: string[]) {
     // Determine internal guildId for profile lookup
-    const guildConfig = await db.guildConfig.findUnique({
+    const guildConfig = await (db.guildConfig as any).findUnique({
         where: { discordGuildId: guildId },
-        select: { id: true, rolesMapping: true },
+        select: { id: true, rolesMapping: true, usersMapping: true },
     });
     const internalGuildId = guildConfig?.id;
 
@@ -1226,6 +1399,10 @@ export async function getMemberProfiles(guildId: string, userIds: string[]) {
                 select: {
                     name: true,
                     image: true,
+                    accounts: {
+                        where: { provider: "discord" },
+                        select: { providerAccountId: true }
+                    }
                 },
             },
         },
@@ -1233,20 +1410,18 @@ export async function getMemberProfiles(guildId: string, userIds: string[]) {
 
     // Transform to include discordNickname with fallbacks + Admin check
     const rolesMapping = (guildConfig?.rolesMapping as Record<string, string[]>) || {};
+    const usersMapping = (guildConfig?.usersMapping as Record<string, string[]>) || {};
 
     // identify role names that grant admin access
-    // This is a bit of a proxy since we don't have role IDs here, 
-    // but better than nothing for the songes list view performance.
     const enrichedProfiles = profiles.map((p) => {
         const discordNickname = p.discordNickname || p.user?.name || null;
+        const discordAccountId = p.user?.accounts?.[0]?.providerAccountId;
 
-        // Check for admin role name in mapping
-        // We look if any roles mapped to 'admin:access' match this user's current role name
-        // (Note: This is an approximation since we match on NAME in this specific list view)
         const isAdmin = p.discordRoleName === "Administrateur" ||
             Object.entries(rolesMapping).some(([_, perms]) =>
                 perms.includes("admin:access") && p.discordRoleName
-            );
+            ) ||
+            (discordAccountId && usersMapping[discordAccountId]?.includes("admin:access"));
 
         return {
             userId: p.userId,
@@ -1292,6 +1467,9 @@ export async function updateCurrentFloor(guildId: string, runId: string, floorNu
     const ctx = await getGuildUserContext(guildId);
     if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
 
+    const limiter = await rateLimit(`update_current_floor:${ctx.userId}:${runId}`, 30, 60_000);
+    if (!limiter.success) return { success: false, error: "Trop d'actions. Veuillez réessayer plus tard." };
+
     // Validate floor number
     if (floorNumber < 0 || floorNumber > 26) {
         return { success: false, error: "Numéro d'étage invalide (0-26)" };
@@ -1324,7 +1502,7 @@ export async function updateCurrentFloor(guildId: string, runId: string, floorNu
         },
     });
 
-    revalidatePath(`/dashboard/${ctx.guildId}/songes/${runId}`);
+    revalidatePath(`/dashboard/${ctx.guildId}/songes`);
     return { success: true };
 }
 
@@ -1401,7 +1579,6 @@ export async function reopenDreamRun(guildId: string, runId: string) {
     });
 
     revalidatePath(`/dashboard/${ctx.guildId}/songes`);
-    revalidatePath(`/dashboard/${ctx.guildId}/songes/${runId}`);
     return { success: true };
 }
 
@@ -1460,15 +1637,20 @@ export async function triggerRunNotification(guildId: string, runId: string, mes
     }
 
     // Dashboard notifications for each member
+    // Use relative time (locale-independent) so it works for every timezone
+    const { formatDistanceToNow } = await import("date-fns");
+    const { fr } = await import("date-fns/locale");
+    const rdvLabel = scheduledAt
+        ? `RDV prévu dans ${formatDistanceToNow(scheduledAt, { locale: fr, addSuffix: false })} • ${message}`
+        : `Message du leader : ${message}`;
+
     const notificationPromises = run.members.map(member =>
         createNotification(
             member.userId,
             "SYSTEM_INFO",
             "Rappel Songes",
-            scheduledAt
-                ? `RDV à ${scheduledAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • ${message}`
-                : `Message du leader : ${message}`,
-            `/dashboard/${ctx.guildId}/songes/${runId}`,
+            rdvLabel,
+            `/dashboard/${ctx.guildId}/songes`,
             guildId
         )
     );
@@ -1505,6 +1687,158 @@ export async function triggerRunNotification(guildId: string, runId: string, mes
     }
 
     return result;
+}
+
+// ============================================
+// CONTRIBUTION POINTS — CLOSE RUN WITH DISTRIBUTION
+// ============================================
+
+/**
+ * Points de contribution Songes — calcul délégué à la config admin
+ * `GuildConfig.pointsConfig` (défauts : Rêve = 1, Paradoxe = 2, Cauchemar = 3).
+ * Épreuves exclues (gérées séparément par l'appelant).
+ */
+
+/**
+ * Lightweight guild member list for the Songes close modal.
+ * Returns id (profileId), name, and avatar of active guild members.
+ */
+export async function getSongesGuildMembersForClose(
+    guildId: string
+): Promise<{ success: boolean; data?: { id: string; userId: string; name: string; image: string | null }[]; error?: string }> {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
+
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { id: true },
+    });
+    if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+    const profiles = await db.userProfile.findMany({
+        where: { guildId: guildConfig.id, status: "ACTIVE" },
+        select: {
+            id: true,
+            userId: true,
+            discordNickname: true,
+            pseudoDofus: true,
+            user: { select: { name: true, image: true } },
+        },
+        orderBy: { pseudoDofus: "asc" },
+    });
+
+    return {
+        success: true,
+        data: profiles.map((p) => ({
+            id: p.id,           // profileId (used for contribution points)
+            userId: p.userId,   // internal userId (used to match run members)
+            name: getDisplayName(p),
+            image: p.user.image,
+        })),
+    };
+}
+
+/**
+ * Close a Songes run and award contribution points to validated participants.
+ * - Only available for non-épreuve runs (caller must check epreuveCode === null)
+ * - Leader (creator) does NOT receive points
+ * - Members are identified by their internal profile ID
+ * @param validatedProfileIds - profileIds of participants to reward
+ */
+export async function closeRunWithContributions(
+    guildId: string,
+    runId: string,
+    validatedProfileIds: string[]
+): Promise<{ success: boolean; data?: { pointsAwarded: number }; error?: string }> {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
+
+    // Load run with guildId isolation
+    const run = await db.dreamRun.findFirst({
+        where: { id: runId, guildId: ctx.guildId },
+        include: { members: true },
+    });
+
+    if (!run) return { success: false, error: "Run non trouvée" };
+
+    // Only leader can close with contribution distribution
+    if (run.leaderId !== ctx.userId) {
+        return { success: false, error: "Seul le leader peut valider la clôture avec distribution" };
+    }
+
+    // Security: skip point distribution for épreuves
+    if (run.epreuveCode) {
+        return { success: false, error: "Les runs épreuve ne distribuent pas de points de contribution" };
+    }
+
+    // Get internal guildConfig to resolve profile IDs + config points personnalisée (admin)
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { id: true, pointsConfig: true },
+    });
+    if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+    const pts = resolveSongesContributionPoints(run.difficulty, guildConfig.pointsConfig as unknown);
+
+    // Determine the leader's profile ID to exclude them from rewards
+    const leaderProfile = await db.userProfile.findFirst({
+        where: { userId: run.leaderId, guildId: guildConfig.id },
+        select: { id: true },
+    });
+    const leaderProfileId = leaderProfile?.id ?? null;
+
+    // Filter out the leader from point distribution
+    const toReward = validatedProfileIds.filter(
+        (pid) => pid !== leaderProfileId
+    );
+
+    // Delete the run (Ménage Time)
+    await db.dreamRun.delete({
+        where: { id: runId },
+    });
+
+    // Award contribution points
+    if (toReward.length > 0) {
+        await db.userProfile.updateMany({
+            where: {
+                id: { in: toReward },
+                guildId: guildConfig.id, // guild isolation
+            },
+            data: { contributionPoints: { increment: pts } },
+        });
+    }
+
+    // Remove Discord embed (fire-and-forget)
+    try {
+        const { deleteDiscordRunEmbed } = await import("@/server/songes-service");
+        await deleteDiscordRunEmbed(ctx.guildId, runId);
+    } catch (_) {
+        // Non-fatal
+    }
+
+    // Audit log
+    try {
+        await db.auditLog.create({
+            data: {
+                guildId: guildConfig.id,
+                actorUserId: ctx.userId,
+                actorName: ctx.name || "Leader",
+                action: "SONGES_RUN_CLOSED_WITH_CONTRIBUTIONS",
+                targetType: "DREAM_RUN",
+                targetId: runId,
+                metadata: {
+                    difficulty: run.difficulty,
+                    pointsAwarded: pts,
+                    rewardedCount: toReward.length,
+                } as any,
+            },
+        });
+    } catch (_) {
+        // Non-fatal audit log failure
+    }
+
+    revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+    return { success: true, data: { pointsAwarded: pts } };
 }
 
 /**
@@ -1550,4 +1884,46 @@ export async function getMemberDreamRuns(guildId: string, userId?: string) {
     });
 
     return { success: true, runs };
+}
+
+// ============================================
+// UPDATE STUFF
+// ============================================
+
+const UpdateStuffSchema = z.object({
+    runId: z.string(),
+    linkedStuffId: z.string().nullable(),
+    linkedStuffName: z.string().nullable(),
+    linkedStuffThumbnail: z.string().nullable(),
+    linkedStuffUrl: z.string().nullable(),
+});
+
+export async function updateMemberStuff(guildId: string, data: z.infer<typeof UpdateStuffSchema>) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié" };
+
+    const limiter = await rateLimit(`update_member_stuff:${ctx.userId}:${guildId}`, 10, 60_000);
+    if (!limiter.success) return { success: false, error: "Trop d'actions. Veuillez réessayer plus tard." };
+
+    const validated = UpdateStuffSchema.safeParse(data);
+    if (!validated.success) return { success: false, error: "Données invalides" };
+
+    // Update the member record for this user in this run
+    await db.dreamRunMember.update({
+        where: {
+            runId_userId: {
+                runId: validated.data.runId,
+                userId: ctx.userId
+            }
+        },
+        data: {
+            linkedStuffId: validated.data.linkedStuffId,
+            linkedStuffName: validated.data.linkedStuffName,
+            linkedStuffThumbnail: validated.data.linkedStuffThumbnail,
+            linkedStuffUrl: validated.data.linkedStuffUrl
+        }
+    });
+
+    revalidatePath(`/dashboard/${guildId}/songes`);
+    return { success: true };
 }

@@ -101,15 +101,15 @@ export function ValidationQueue({ submissions: initialSubmissions, guildId }: { 
     return (
         <div className="space-y-6">
             {/* Toolbar: Stats & Filters */}
-            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between bg-zinc-900/50 p-4 rounded-xl border border-white/5">
+            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between bg-surface/50 p-4 rounded-xl border border-border">
                 <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2 text-sm text-zinc-400 border-r border-white/10 pr-4">
-                        <span className="text-white font-medium">{submissions.length}</span> en attente
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground border-r border-border pr-4">
+                        <span className="text-foreground font-medium">{submissions.length}</span> en attente
                     </div>
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-zinc-400 hover:text-white transition-colors"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground transition-colors"
                         onClick={() => startTransition(() => router.refresh())}
                         disabled={isPending}
                         title="Actualiser la liste"
@@ -121,18 +121,18 @@ export function ValidationQueue({ submissions: initialSubmissions, guildId }: { 
                 <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
                     {/* Search */}
                     <div className="relative w-full sm:w-64">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-500" />
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Chercher membre ou mission..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9 h-9 bg-black/20 border-white/10"
+                            className="pl-9 h-9 bg-black/20 border-border"
                         />
                     </div>
 
                     {/* Category Filter */}
                     <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as any)}>
-                        <SelectTrigger className="w-full sm:w-[180px] h-9 bg-black/20 border-white/10">
+                        <SelectTrigger className="w-full sm:w-[180px] h-9 bg-black/20 border-border">
                             <FilterIcon className="w-3.5 h-3.5 mr-2 opacity-50" />
                             <SelectValue placeholder="Catégorie" />
                         </SelectTrigger>
@@ -147,7 +147,7 @@ export function ValidationQueue({ submissions: initialSubmissions, guildId }: { 
 
             {/* Grid */}
             {filteredSubmissions.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-[40vh] text-zinc-500 border border-dashed border-zinc-800 rounded-xl bg-zinc-900/20">
+                <div className="flex flex-col items-center justify-center h-[40vh] text-muted-foreground border border-dashed border-border rounded-xl bg-surface/20">
                     <Check className="w-12 h-12 mb-4 opacity-20" />
                     <p>Aucune soumission correspondante.</p>
                 </div>
@@ -180,7 +180,7 @@ export function ValidationQueue({ submissions: initialSubmissions, guildId }: { 
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute top-4 right-4 text-white hover:bg-white/10"
+                        className="absolute top-4 right-4 text-foreground hover:bg-surface"
                         onClick={() => setSelectedImage(null)}
                     >
                         <X className="w-6 h-6" />

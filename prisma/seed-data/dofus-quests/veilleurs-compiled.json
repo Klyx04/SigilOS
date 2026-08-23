@@ -1,0 +1,112 @@
+{
+  "dofus": "veilleurs",
+  "displayName": "Dofus des Veilleurs",
+  "color": "#1ABC9C",
+  "successName": "Veilleurs, au rapport !",
+  "recommendedLevel": null,
+  "description": null,
+  "dofusItemId": 16061,
+  "iconId": null,
+  "imageUrl": "/module-dofus/Dofus_Veilleur.png",
+  "compiledAt": "2026-04-04T13:48:12.086Z",
+  "chains": [
+    {
+      "sectionName": "Veilleurs, au rapport !",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Dimensions Divines / Monde des Douze",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Crise d'identité",
+          "dofusdbId": 1613,
+          "level": 100,
+          "zone": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
+          "npcName": null,
+          "npcSubArea": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
+          "coords": {
+            "x": -22,
+            "y": -24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,2337}",
+            "Découvrir la carte : Salle de Briefing",
+            "Aller voir {npc,2335}",
+            "Aller voir {npc,2823}",
+            "Aller voir {npc,2339}",
+            "Aller voir {npc,2340}",
+            "Aller voir {npc,2338}",
+            "Aller voir {npc,2343}",
+            "Aller voir {npc,2344}",
+            "Retourner voir {npc,2335}",
+            "Aller voir {npc,2803}",
+            "Aider Gein à vaincre Écho",
+            "Aller voir {npc,2802}"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Choc de civilisations",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 1,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1613
+            }
+          ]
+        },
+        {
+          "name": "Le calme après la tempête",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 2,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1613
+            }
+          ]
+        },
+        {
+          "name": "Renouement",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 3,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1613
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -2,8 +2,10 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 import { z } from "zod";
 import { getUserContext } from "./user-actions";
+import { rateLimit } from "@/lib/ratelimit";
 
 // ============================================================================
 // TYPES
@@ -17,7 +19,7 @@ export type AuditAction =
     | "SETTINGS_UPDATED"      // Guild settings changed
     | "API_KEY_UPDATED"       // Metamob API key changed
     | "CHANNEL_CONFIGURED"    // Discord channel configured
-    | "ADMIN_ACCESS_DENIED"   // Unauthorized admin page access attempt
+    | "ADMIN_FULL_DENIED"   // Unauthorized admin page access attempt
     | "SECURITY_ALERT"        // NSFW/Safety violation
     | "HELP_CREDIT_GIVEN"     // Peer-to-peer gratitude
     | "SUCCESS_SYNC"          // Personal success points updated
@@ -26,6 +28,7 @@ export type AuditAction =
     | "WEBHOOK_GUILD_DELETE"   // Bot removed from guild
     | "WEBHOOK_MEMBER_ADD"     // Member joined Discord guild
     | "WEBHOOK_MEMBER_REMOVE"  // Member left Discord guild
+    | "WEBHOOK_MEMBER_UPDATE"  // Member changed nickname or roles
     | "USER_GDPR_DELETE"      // User requested full account deletion
     | "MISSION_CREATED"       // Admin published missions for a week
     | "MISSION_DELETED"       // Admin deleted a mission or reset a week
@@ -38,10 +41,33 @@ export type AuditAction =
     | "POLL_CLOSED"           // Poll closed
     | "POLL_DELETED"          // Poll deleted
     | "POLL_CREATOR_ROLE_ACQUIRED" // Member took the guild micro
-    | "CHAT_MUTE"                  // Admin muted a user in chat
-    | "CHAT_CLEAR"                 // Admin cleared guild chat history
-    | "CHAT_BLOCKED_ATTEMPT"       // System blocked a message (strike)
-    | "CHAT_MOTD_UPDATE";          // Admin updated the MOTD
+    | "MEMBER_RELANCE"            // Admin sent pings/changed roles for absents
+    | "MEMBER_BANNED"             // Member was banned on Discord
+    | "MEMBER_PSEUDO_UPDATE"      // Manual pseudo override
+    | "MEMBER_ANKAMA_ID_UPDATE"   // Manual Ankama ID override
+    | "PROFILE_ARCHIVED"          // Profile manually or automatically archived
+    | "PROFILE_REACTIVATED"       // Archived profile restored to active
+    | "PLATFORM_ARRIVAL"          // User first registered on platform
+    | "PLATFORM_DEPARTURE"        // User left or was deleted from platform
+    | "ADMIN_ROSTER_AUDIT_SENT"   // Roster audit report sent to Discord
+    | "GOD_AUTH_BYPASS"           // Super-admin bypassed a permission check
+    | "GOD_GUILD_WHITELIST"       // Guild added/removed from global whitelist
+    | "GOD_USER_PLATFORM_BAN"      // User banned/unbanned from the entire platform
+    | "GOD_CONFIG_OVERRIDE"       // Manual override of a guild's configuration
+    | "GOD_DATABASE_SYNC"         // Massive data synchronization (DofusDB, etc)
+    | "GOD_NEWS_PUBLISH"          // Platform-wide news published
+    | "GOD_DASHBOARD_ACCESS"      // Dashboard God accédé (R5)
+    | "GOD_MAINTENANCE_MODE"
+    | "GOD_GUIDE_UPDATE"          // Écriture sur un guide optimisé (sous-god) — P2 traçage
+    | "GOD_RUSH_UPDATE"           // Écriture sur le rush Sylvestre (sous-god) — P2 traçage
+    | "GOD_QUEST_DATA_UPDATE"     // Écriture sur les quêtes Dofus (sous-god) — P2 traçage
+    | "GOD_GAME_DATA_UPDATE"      // Écriture sur les données de jeu (sous-god) — P2 traçage
+    | "GOD_TICKET_ACTION"         // Action support ticket (sous-god) — P2 traçage
+    | "GOD_DOC_UPDATE"            // Écriture doc (sous-god) — P2 traçage
+    | "MISSION_XP_OVERRIDE"
+    | "GUILDATON_UPDATE"
+    | "GUILDATON_CSV_IMPORT"
+    | "GUILDATON_SETTINGS_UPDATE";
 
 export type AuditTargetType =
     | "PERMISSION"
@@ -51,12 +77,19 @@ export type AuditTargetType =
     | "ACCESS_ATTEMPT"
     | "CONTENT_SAFETY"
     | "USER_PROFILE"
+    | "PROFILE"
     | "PLATFORM_SECURITY"
     | "USER"
     | "MISSION"
     | "GUILD"
     | "CHAT"
-    | "POLL";
+    | "POLL"
+    | "MEMBER"
+    | "SYSTEM_GOD"
+    | "WHITELIST"
+    | "MAINTENANCE"
+    | "NEWS"
+    | "DATA_SYNC";
 
 export type AuditLogEntry = {
     id: string;
@@ -95,18 +128,24 @@ export async function reportSecurityIncident(
 
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
+    // #55 — rate-limit des signalements (spam d'alertes God/Discord).
+    const rl = await rateLimit(`security-report:${session.user.id}`, 5, 60_000);
+    if (!rl.success) return { success: false, error: "Trop de signalements. Réessayez dans une minute." };
+
     try {
-        // Try to get internal user details, but don't block on it
-        let actorName = session.user.name || "Unknown User";
+        // Try to get server context for accurate pseudo
+        let actorName = session.user.name || "Membre";
         try {
-            const user = await db.user.findUnique({
-                where: { id: session.user.id },
-                select: { name: true }
-            });
-            if (user?.name) actorName = user.name;
+            const ctx = await getUserContext(guildId);
+            if (ctx.name) actorName = ctx.name;
         } catch (e) {
-            console.warn("[Security] User lookup failed, using session name", e);
+            logger.warn("[Security] Context lookup failed, using session name", e);
         }
+
+        // 🛡️ FORENSICS: Get real security headers
+        const { headers } = await import("next/headers");
+        const headersList = await headers();
+        const ip = maskIp(headersList.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1");
 
         const result = await createAuditLog({
             guildId,
@@ -118,14 +157,39 @@ export async function reportSecurityIncident(
             metadata: {
                 description,
                 ...metadata,
+                ip,
                 severity: "HIGH"
             }
         });
 
+        // 🔔 TRIGGER DISCORD ALERT
+        if (result.success) {
+            const { sendSecurityAlert } = await import("@/server/discord");
+            let guildName = "Unknown Guild";
+            try {
+                const config = await db.guildConfig.findUnique({
+                    where: { discordGuildId: guildId },
+                    select: { name: true }
+                });
+                if (config?.name) guildName = config.name;
+            } catch {}
+
+            await sendSecurityAlert({
+                type: incidentType,
+                description,
+                severity: "HIGH",
+                guildName,
+                userName: actorName,
+                metadata: {
+                    ...metadata,
+                    logId: result.data?.logId
+                }
+            });
+        }
 
         return { success: true };
     } catch (error) {
-        console.error("Failed to report security incident:", error);
+        logger.error("Failed to report security incident:", error);
         return { success: false, error: "Internal Error" };
     }
 }
@@ -196,8 +260,125 @@ export async function createAuditLog({
 
         return { success: true, data: { logId: log.id } };
     } catch (error) {
-        console.error("[createAuditLog] Error:", error);
+        logger.error("[createAuditLog] Error:", error);
         return { success: false, error: "Failed to create audit log" };
+    }
+}
+
+/**
+ * Masque une IP pour ne stocker que les 2 premiers octets visibles.
+ * Ex: "192.168.1.45" → "192.168.x.xx"
+ *     "2001:db8::1" → "2001:db8:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx"
+ */
+function maskIp(ip: string): string {
+    if (!ip) return "0.0.0.0";
+    if (ip.includes(".")) {
+        const parts = ip.split(".");
+        if (parts.length === 4) return `${parts[0]}.${parts[1]}.x.xx`;
+        return ip;
+    }
+    if (ip.includes(":")) {
+        const parts = ip.split(":");
+        if (parts.length >= 2) return `${parts[0]}:${parts[1]}:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx`;
+        return ip;
+    }
+    return "0.0.0.0";
+}
+
+/**
+ * 🚀 PRO VERBOSE LOGGER
+ * Automatically captures IP (masked), User-Agent and handles Discord IDs.
+ */
+export async function logAction({
+    guildId,
+    action,
+    targetType,
+    targetId,
+    oldValue,
+    newValue,
+    metadata = {}
+}: {
+    guildId: string;
+    action: AuditAction;
+    targetType: AuditTargetType;
+    targetId?: string;
+    oldValue?: unknown;
+    newValue?: unknown;
+    metadata?: Record<string, any>;
+}): Promise<void> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return;
+
+        // 🛡️ FORENSICS
+        const { headers } = await import("next/headers");
+        const headersList = await headers();
+        const userAgent = headersList.get("user-agent") || "Inconnu";
+        const ip = maskIp(headersList.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1");
+
+        // Get fresh server pseudo
+        let actorName = session.user.name || "Anonymous";
+        try {
+            const ctx = await getUserContext(guildId);
+            if (ctx.name) actorName = ctx.name;
+        } catch {}
+
+        await createAuditLog({
+            guildId,
+            actorUserId: session.user.id,
+            actorName,
+            action,
+            targetType,
+            targetId,
+            oldValue,
+            newValue,
+            metadata: {
+                ...metadata,
+                userAgent,
+                ip,
+                timestamp: new Date().toISOString(),
+                source: "SERVER_ACTION_VERBOSE"
+            }
+        });
+    } catch (error) {
+        logger.error("[logAction] Silent Fail:", error);
+    }
+}
+
+/**
+ * Interroge ip-api.com (gratuit, 45 req/min, pas de clé API) pour enrichir
+ * une IP avec des infos de géolocalisation.
+ * Retourne un objet vide si la requête échoue (timeout, rate-limit, etc).
+ */
+async function enrichIp(ip: string): Promise<Record<string, any>> {
+    try {
+        // Ne pas enrichir les IP locales/masquées
+        if (!ip || ip.startsWith("127.") || ip.startsWith("0.") || ip === "0.0.0.0") return {};
+        
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 2000); // 2s timeout max
+        
+        const res = await fetch(`http://ip-api.com/json/${ip}?fields=country,regionName,city,isp,proxy,mobile,hosting`, {
+            signal: controller.signal,
+            headers: { "Accept": "application/json" }
+        });
+        clearTimeout(timeout);
+        
+        if (!res.ok) return {};
+        const data = await res.json();
+        if (data.status !== "success") return {};
+        
+        return {
+            country: data.country || null,
+            region: data.regionName || null,
+            city: data.city || null,
+            isp: data.isp || null,
+            proxy: !!data.proxy,
+            mobile: !!data.mobile,
+            hosting: !!data.hosting,
+        };
+    } catch {
+        return {};
     }
 }
 
@@ -205,7 +386,7 @@ export async function createAuditLog({
  * Log unauthorized admin access attempt
  * This function can be called WITHOUT admin permissions (since it logs failed access attempts)
  * It uses internal auth to get user info
- * Differentiates between internal members (with role) and external users
+ * Logs ALL attempts (members AND externals) avec enrichissement IP.
  */
 export async function logAdminAccessDenied(
     discordGuildId: string,
@@ -218,55 +399,178 @@ export async function logAdminAccessDenied(
         // Get guild config
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId },
-            select: { id: true }
+            select: { id: true, name: true }
         });
 
         if (!guildConfig) return;
 
-        // Try to get user context to determine if they're a guild member
+        // Try to get user context
         let isMember = false;
         let roleName: string | null = null;
+        let guildName = guildConfig.name || "Guilde inconnue";
 
         try {
             const user = await getUserContext(discordGuildId);
             isMember = user.isMember;
             roleName = user.roleName || null;
+            if (user.guildName) guildName = user.guildName;
         } catch {
             // If we can't get context, they're likely external
         }
 
-        // Import Prisma for JsonNull handling
+        // 🛡️ FORENSICS: Get real security headers
+        const { headers } = await import("next/headers");
+        const headersList = await headers();
+        
+        // 🛡️ SECURITY: Detect and ignore prefetch attempts
+        const isPrefetch = 
+            headersList.get("Next-Router-Prefetch") === "1" || 
+            headersList.get("Purpose") === "prefetch" ||
+            headersList.get("x-middleware-prefetch") === "1" ||
+            headersList.get("sec-purpose") === "prefetch" ||
+            headersList.get("rsc") === "1";
+        if (isPrefetch) return;
+
+        const userAgent = headersList.get("user-agent") || "Inconnu";
+        const rawIp = headersList.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1";
+        const ip = maskIp(rawIp);
+
         const { Prisma } = await import("@prisma/client");
+
+        // Get fresh server pseudo
+        let actorName = session.user.name || "Membre";
+        try {
+            const ctx = await getUserContext(discordGuildId);
+            if (ctx.name) actorName = ctx.name;
+        } catch {}
+
+        // Enrichissement IP (fire & forget — on ne bloque pas le log si ça échoue)
+        const geoPromise = enrichIp(rawIp);
 
         await db.auditLog.create({
             data: {
                 guildId: guildConfig.id,
                 actorUserId: session.user.id,
-                actorName: session.user.name || "Unknown",
-                action: "ADMIN_ACCESS_DENIED",
+                actorName: actorName,
+                action: "ADMIN_FULL_DENIED",
                 targetType: "ACCESS_ATTEMPT",
                 targetId: targetPage,
                 oldValue: Prisma.JsonNull,
                 newValue: Prisma.JsonNull,
                 metadata: {
-                    userAgent: "web",
+                    userAgent,
+                    ip,
+                    geo: await geoPromise.catch(() => ({})),
                     timestamp: new Date().toISOString(),
                     isMember,
                     roleName: roleName || "Aucun rôle (externe)",
+                    guildName,
                     accessType: isMember ? "internal_member" : "external_user",
+                    description: isMember
+                        ? `Membre ${actorName} (${roleName}) de ${guildName} a tenté d'accéder à ${targetPage}`
+                        : `Utilisateur externe ${actorName} a tenté d'accéder à ${targetPage}`
                 }
             }
         });
-
-        const memberStatus = isMember ? `membre (${roleName})` : "utilisateur externe";
     } catch (error) {
         // Silent fail - logging shouldn't break the app
-        console.error("[logAdminAccessDenied] Error:", error);
+        logger.error("[logAdminAccessDenied] Error:", error);
     }
 }
 
 /**
- * Log platform-wide beta access attempt
+ * GOD AUDIT LOG - actions super-admin isolees des logs de guilde.
+ * Ecrit un log avec isGodLog=true et SANS guildId, donc invisible dans
+ * les logs d'une guilde (getAuditLogs filtre isGodLog=false).
+ */
+export async function createGodAuditLog({
+    action,
+    targetType,
+    targetId,
+    oldValue,
+    newValue,
+    metadata = {},
+    guildId,
+}: {
+    action: AuditAction;
+    targetType: AuditTargetType;
+    targetId?: string;
+    oldValue?: unknown;
+    newValue?: unknown;
+    metadata?: Record<string, any>;
+    guildId?: string;
+}): Promise<{ success: boolean; logId?: string }> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false };
+
+        // 🔵 TÂCHE 2 — Throttle GOD_DASHBOARD_ACCESS : 1 log/heure utilisateur.
+        // Le layout God se re-rend souvent (navigation, refresh) → sans throttle, le volume
+        // explose. On garde la traçabilité du premier accès + un snapshot horaire.
+        if (action === "GOD_DASHBOARD_ACCESS") {
+            const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+            const lastAccess = await db.auditLog.findFirst({
+                where: {
+                    action: "GOD_DASHBOARD_ACCESS",
+                    actorUserId: session.user.id,
+                    isGodLog: true,
+                    createdAt: { gte: hourAgo }
+                },
+                select: { id: true },
+                orderBy: { createdAt: "desc" }
+            });
+            if (lastAccess) {
+                return { success: true, logId: lastAccess.id };
+            }
+        }
+
+        const { Prisma } = await import("@prisma/client");
+        const toJson = (val: unknown) => (val === undefined || val === null ? Prisma.JsonNull : val);
+
+        // 🛡️ #109 — Logs détaillés : on enrichit CHAQUE log God avec l'identité
+        // Discord de l'acteur (qui, avec son compte Discord) en plus du nom interne.
+        // Best-effort : si la requête échoue, on garde le log sans ce détail.
+        let actorDiscordId: string | null = null;
+        try {
+            const discordAccount = await db.account.findFirst({
+                where: { userId: session.user.id, provider: "discord" },
+                select: { providerAccountId: true },
+            });
+            actorDiscordId = discordAccount?.providerAccountId ?? null;
+        } catch {
+            // best-effort — jamais bloquant
+        }
+
+        const log = await db.auditLog.create({
+            data: {
+                guildId: undefined,
+                actorUserId: session.user.id,
+                actorName: session.user.name || "Super Admin",
+                action,
+                targetType,
+                targetId: targetId || null,
+                oldValue: toJson(oldValue),
+                newValue: toJson(newValue),
+                metadata: toJson({
+                    ...metadata,
+                    ...(guildId ? { discordGuildId: guildId } : {}),
+                    actorDiscordId,
+                    timestamp: new Date().toISOString(),
+                    source: "GOD_ACTION"
+                }),
+                isGodLog: true
+            }
+        });
+
+        return { success: true, logId: log.id };
+    } catch (error) {
+        logger.error("[createGodAuditLog] Error:", { error });
+        return { success: false };
+    }
+}
+
+/**
+ * Log unauthorized admin access attempt
  */
 export async function logBetaAccessAttempt(
     success: boolean,
@@ -305,7 +609,7 @@ export async function logBetaAccessAttempt(
             }
         });
     } catch (error) {
-        console.error("[logBetaAccessAttempt] Error:", error);
+        logger.error("[logBetaAccessAttempt] Error:", error);
     }
 }
 
@@ -339,9 +643,9 @@ export async function getAuditLogs(
             return { success: false, error: "Non authentifié" };
         }
 
-        // Security: Verify admin access
+        // Security: Verify access to view logs
         const user = await getUserContext(discordGuildId);
-        if (!user.isAdmin) {
+        if (!user.canViewAuditLogs) {
             return { success: false, error: "Accès non autorisé" };
         }
 
@@ -357,34 +661,42 @@ export async function getAuditLogs(
 
         // Parse and validate options
         const parsed = GetLogsSchema.safeParse(options || {});
-        const { page, limit, actionFilter, actorFilter, dateFrom, dateTo } = parsed.success
+        const { page, limit, actionFilter, actorFilter, dateFrom, dateTo, search } = parsed.success
             ? parsed.data
-            : { page: 1, limit: 50, actionFilter: undefined, actorFilter: undefined, dateFrom: undefined, dateTo: undefined };
+            : { page: 1, limit: 50, actionFilter: undefined, actorFilter: undefined, dateFrom: undefined, dateTo: undefined, search: undefined };
 
         // Build where clause
-        const where: {
-            guildId: string;
-            action?: string;
-            actorUserId?: string;
-            createdAt?: { gte?: Date; lte?: Date };
-        } = {
+        const where: any = {
             guildId: guildConfig.id,
+            isGodLog: false, // ne JAMAIS exposer les actions super-admin aux admins de guilde
         };
 
         if (actionFilter) {
             if (actionFilter.includes(",")) {
-                (where as any).action = { in: actionFilter.split(",") };
+                where.action = { in: actionFilter.split(",") };
             } else {
                 where.action = actionFilter;
             }
         }
-        if (actorFilter) {
-            where.actorUserId = actorFilter;
+
+        if (actorFilter && actorFilter.trim()) {
+            where.actorName = { contains: actorFilter.trim(), mode: 'insensitive' };
         }
+
         if (dateFrom || dateTo) {
             where.createdAt = {};
             if (dateFrom) where.createdAt.gte = dateFrom;
             if (dateTo) where.createdAt.lte = dateTo;
+        }
+
+        // --- SEARCH LOGIC (NEW) ---
+        if (search && search.trim()) {
+            const searchTerm = search.trim();
+            where.OR = [
+                { actorName: { contains: searchTerm, mode: 'insensitive' } },
+                { action: { contains: searchTerm, mode: 'insensitive' } },
+                { targetId: { contains: searchTerm, mode: 'insensitive' } }
+            ];
         }
 
         // Get total count
@@ -410,16 +722,46 @@ export async function getAuditLogs(
             }
         });
 
+        // Enrichir actorName avec le vrai surnom / pseudo Dofus du membre dans la guilde
+        const actorUserIds = [...new Set(logs.map(l => l.actorUserId).filter(id => id && id !== "SYSTEM"))];
+        const profiles = actorUserIds.length > 0 ? await db.userProfile.findMany({
+            where: {
+                guildId: guildConfig.id,
+                userId: { in: actorUserIds }
+            },
+            select: {
+                userId: true,
+                pseudoDofus: true,
+                discordNickname: true,
+                user: { select: { name: true } }
+            }
+        }) : [];
+
+        const nameMap = new Map<string, string>();
+        for (const p of profiles) {
+            const bestName = p.pseudoDofus || p.discordNickname || p.user?.name;
+            if (bestName) nameMap.set(p.userId, bestName);
+        }
+
+        const enrichedLogs = logs.map(log => {
+            const enrichedActor = (log.actorUserId && nameMap.get(log.actorUserId)) || log.actorName;
+            return {
+                ...log,
+                actorName: enrichedActor
+            };
+        });
+
+        // IP est déjà masquée au stockage (maskIp) — tout le monde voit l'IP partielle
         return {
             success: true,
             data: {
-                logs: logs as AuditLogEntry[],
+                logs: enrichedLogs as AuditLogEntry[],
                 total,
                 hasMore: page * limit < total
             }
         };
     } catch (error) {
-        console.error("[getAuditLogs] Error:", error);
+        logger.error("[getAuditLogs] Error:", error);
         return { success: false, error: "Erreur lors du chargement des logs" };
     }
 }
@@ -437,7 +779,7 @@ export async function getAuditActionTypes(
         }
 
         const user = await getUserContext(discordGuildId);
-        if (!user.isAdmin) {
+        if (!user.canViewAuditLogs) {
             return { success: false, error: "Accès non autorisé" };
         }
 
@@ -462,7 +804,7 @@ export async function getAuditActionTypes(
             data: actions.map(a => a.action)
         };
     } catch (error) {
-        console.error("[getAuditActionTypes] Error:", error);
+        logger.error("[getAuditActionTypes] Error:", error);
         return { success: false, error: "Erreur" };
     }
 }
@@ -471,6 +813,9 @@ export async function getAuditActionTypes(
 // AUDIT LOG CLEANUP (Retention Policy)
 // ============================================================================
 
+// Rétention à 30 jours pour les logs d'audit
+// — Évite le gonflement de la BDD sur le VPS multi-guildes
+// — Les admins peuvent exporter manuellement avant purge si besoin
 const RETENTION_DAYS = 30;
 
 /**
@@ -487,9 +832,9 @@ export async function cleanupOldAuditLogs(
             return { success: false, error: "Non authentifié" };
         }
 
-        // Security: Verify admin access
+        // Security: Verify access
         const user = await getUserContext(discordGuildId);
-        if (!user.isAdmin) {
+        if (!user.canViewAuditLogs && !user.isAdmin) {
             return { success: false, error: "Accès non autorisé" };
         }
 
@@ -521,7 +866,7 @@ export async function cleanupOldAuditLogs(
             data: { deletedCount: result.count }
         };
     } catch (error) {
-        console.error("[cleanupOldAuditLogs] Error:", error);
+        logger.error("[cleanupOldAuditLogs] Error:", error);
         return { success: false, error: "Erreur lors du nettoyage des logs" };
     }
 }
@@ -532,9 +877,10 @@ export async function getGlobalAuditLogs(
     options?: Partial<GetLogsInput>
 ): Promise<ActionResponse<{ logs: AuditLogEntry[]; total: number; hasMore: boolean }>> {
     try {
-        const { isSuperAdmin } = await import("./super-admin-actions");
+        // R1 - LECTURE compatible scope "logs" (sub-god logs autorise a lire les logs God).
+        const { isSuperAdmin, canGodAccess } = await import("./super-admin-actions");
         const isAdmin = await isSuperAdmin();
-        if (!isAdmin) {
+        if (!isAdmin && !(await canGodAccess("logs"))) {
             return { success: false, error: "Unauthorized" };
         }
 
@@ -551,7 +897,9 @@ export async function getGlobalAuditLogs(
                 where.action = actionFilter;
             }
         }
-        if (actorFilter) where.actorUserId = actorFilter;
+        if (actorFilter && actorFilter.trim()) {
+            where.actorName = { contains: actorFilter.trim(), mode: 'insensitive' };
+        }
         if (dateFrom || dateTo) {
             where.createdAt = {};
             if (dateFrom) (where.createdAt as any).gte = dateFrom;
@@ -588,7 +936,7 @@ export async function getGlobalAuditLogs(
             }
         };
     } catch (error) {
-        console.error("[getGlobalAuditLogs] Error:", error);
+        logger.error("[getGlobalAuditLogs] Error:", error);
         return { success: false, error: "Erreur" };
     }
 }
@@ -598,12 +946,11 @@ export async function getGlobalAuditLogs(
  */
 export async function cleanupGlobalAuditLogs(): Promise<ActionResponse<{ deletedCount: number }>> {
     try {
-        const { isSuperAdmin } = await import("./super-admin-actions");
-        const isAdmin = await isSuperAdmin();
-        if (!isAdmin) return { success: false, error: "Unauthorized" };
-
+        // 🔒 #147bis — Suppression du gate `isSuperAdmin()` : en contexte CRON il n'y a
+        // AUCUNE session → la purge des logs échouait toujours avec « Unauthorized » (500).
+        // Les deux appelants sont déjà authentifiés en amont : la route cron `/api/cron/cleanup-logs`
+        // via `verifyCronSecret` (fail-closed), et la page God `/god/logs` via son layout.
         const cutoffDate = new Date();
-        const RETENTION_DAYS = 30; // 30 days retention for audit logs
         cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS);
 
         const result = await db.auditLog.deleteMany({
@@ -617,7 +964,7 @@ export async function cleanupGlobalAuditLogs(): Promise<ActionResponse<{ deleted
             data: { deletedCount: result.count }
         };
     } catch (error) {
-        console.error("[cleanupGlobalAuditLogs] Error:", error);
+        logger.error("[cleanupGlobalAuditLogs] Error:", error);
         return { success: false, error: "Erreur" };
     }
 }

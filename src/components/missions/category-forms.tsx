@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { getDungeons, getZones, getMonsterFamilies, searchDungeons, searchZones, searchDungeonsAdvanced } from "@/server/actions/game-data-actions";
+import { getDungeons, getZones, getMonsterFamilies, searchDungeons, searchZones, searchDungeonsAdvanced, searchGameDataMonsters } from "@/server/actions/game-data-actions";
 import { AsyncCombobox } from "@/components/ui/async-combobox";
 import {
     SONGES_CONFIG,
@@ -19,7 +19,7 @@ import {
     type ExpeditionPayload,
     type EventPayload
 } from "@/lib/mission-payloads";
-import { Loader2, ExternalLink, Skull, MapPin, CheckCircle2 } from "lucide-react";
+import { Loader2, ExternalLink, Skull, MapPin, CheckCircle2, Sparkles, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // --- Types ---
@@ -109,12 +109,10 @@ export function DungeonForm({ payload, onPayloadChange, onTitleChange, onRankCha
 
     return (
         <div className="space-y-4">
-
-
             <div className="space-y-2">
-                <Label className="text-xs text-zinc-400">Rechercher un donjon</Label>
+                <Label className="text-xs text-muted-foreground">Rechercher un donjon</Label>
                 <AsyncCombobox
-                    key={selectedLevel} // Force refresh when palier changes
+                    key={selectedLevel}
                     value={payload.dungeonId}
                     onSelect={handleSelect}
                     fetcher={dungeonFetcher}
@@ -124,21 +122,45 @@ export function DungeonForm({ payload, onPayloadChange, onTitleChange, onRankCha
                 />
             </div>
 
-            {/* Selected Preview */}
+            {/* Visual Preview Card for Dungeon */}
             {selectedDungeon && (
-                <div className="p-3 bg-zinc-900/50 rounded-lg border border-rose-500/20 space-y-2">
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-white">{selectedDungeon.name}</span>
-                        {selectedDungeon.dpnlUrl && (
-                            <a href={selectedDungeon.dpnlUrl} target="_blank" rel="noopener noreferrer"
-                                className="text-xs text-indigo-400 hover:underline flex items-center gap-1">
-                                <ExternalLink className="w-3 h-3" /> DPLN
-                            </a>
-                        )}
+                <div className="relative group overflow-hidden rounded-2xl border border-danger/30 bg-surface/40 backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 duration-300 p-4">
+                    <div className="flex gap-4 relative z-10">
+                        <div className="w-20 h-20 rounded-xl bg-elevated border border-border flex-shrink-0 overflow-hidden relative">
+                            {selectedDungeon.imageUrl ? (
+                                <img 
+                                    src={selectedDungeon.imageUrl} 
+                                    alt={selectedDungeon.name}
+                                    className="w-full h-full object-contain scale-110 group-hover:scale-100 transition-all duration-300"
+                                />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-surface">
+                                    <Skull className="w-8 h-8 text-foreground" />
+                                </div>
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
+                        </div>
+
+                        <div className="flex-1 min-w-0 py-1">
+                            <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-caption font-black text-danger uppercase tracking-widest flex items-center gap-1.5">
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> Mission Active
+                                </span>
+                                <span className="px-2 py-0.5 bg-danger/10 text-caption font-black text-danger border border-danger/20 rounded-md">
+                                    NIV. {selectedDungeon.level}
+                                </span>
+                            </div>
+                            <h4 className="text-foreground font-black uppercase text-sm leading-tight truncate mb-1">
+                                {selectedDungeon.name}
+                            </h4>
+                            <div className="flex items-center gap-1.5 text-muted-foreground text-caption font-bold">
+                                <Skull className="w-3.5 h-3.5 text-danger/70" />
+                                <span>{selectedDungeon.bossName}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div className="text-xs text-zinc-400">
-                        Vaincre <span className="text-rose-400 font-medium">{selectedDungeon.bossName}</span> dans son donjon
-                    </div>
+                    {/* Ambient background glow */}
+                    <div className="absolute -right-4 -top-4 w-24 h-24 bg-danger/5 blur-3xl rounded-full" />
                 </div>
             )}
         </div>
@@ -240,16 +262,14 @@ export function RegulationForm({ payload, onPayloadChange, onTitleChange, onRank
         }
     };
 
+    const selectedFamily = payload.familyId ? families.find(f => f.id === payload.familyId) : null;
     const selectedZone = payload.zoneId ? zones.find(z => z.id === payload.zoneId) : null;
-
 
     return (
         <div className="space-y-4">
-
-
             {/* Zone Selector */}
             <div className="space-y-2">
-                <Label className="text-xs text-zinc-400 flex items-center gap-1.5">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
                     <MapPin className="w-3 h-3" /> Zone (Territoire)
                 </Label>
                 <AsyncCombobox
@@ -263,7 +283,7 @@ export function RegulationForm({ payload, onPayloadChange, onTitleChange, onRank
 
             {/* Family Selector */}
             <div className="space-y-2">
-                <Label className="text-xs text-zinc-400 flex items-center gap-1.5">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
                     <Skull className="w-3 h-3" /> Famille de monstres
                 </Label>
                 <AsyncCombobox
@@ -273,21 +293,42 @@ export function RegulationForm({ payload, onPayloadChange, onTitleChange, onRank
                     fetcher={familyFetcher}
                     placeholder={payload.zoneId ? "Choisir une famille de la zone" : "Choisir une famille (Toutes)"}
                     searchPlaceholder="Rechercher une famille..."
-                    disabled={!payload.zoneId && false} // Can technically search all if no zone selected
                 />
             </div>
 
-            {/* Preview */}
+            {/* Visual Preview Card for Regulation */}
             {(payload.familyName || payload.zoneName) && (
-                <div className="p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20 space-y-1">
-                    <div className="text-xs font-bold text-emerald-400 flex items-center gap-2">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Mission configurée
+                <div className="relative overflow-hidden rounded-2xl border border-success/30 bg-surface/40 backdrop-blur-md p-4 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 rounded-xl bg-elevated border border-border flex-shrink-0 overflow-hidden">
+                            {payload.imageUrl ? (
+                                <img src={payload.imageUrl} alt={payload.familyName} className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                    <Skull className="w-6 h-6 text-muted-foreground" />
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="text-caption font-black text-success uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Mission Active
+                            </div>
+                            <h4 className="text-foreground font-black uppercase text-sm truncate leading-tight">
+                                {payload.familyName || "Famille inconnue"}
+                            </h4>
+                            <div className="text-muted-foreground text-caption mt-1 flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                <span className="truncate">{payload.zoneName || "Toute zone"}</span>
+                            </div>
+                        </div>
                     </div>
-                    <p className="text-[11px] text-zinc-400 leading-relaxed">
-                        Vaincre <span className="text-white font-bold">50 monstres</span>
-                        {payload.familyName && <> de la famille <span className="text-emerald-400 font-bold">{payload.familyName}</span></>}
-                        {payload.zoneName && <> dans la zone <span className="text-emerald-400 font-bold">{payload.zoneName}</span></>}
-                    </p>
+                    
+                    <div className="pt-3 border-t border-border">
+                        <div className="flex items-center justify-between">
+                            <span className="text-caption text-muted-foreground font-bold uppercase tracking-tighter">Objectif de guilde</span>
+                            <span className="text-success font-black text-xs">Vaincre 50 monstres</span>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
@@ -299,84 +340,152 @@ export function RegulationForm({ payload, onPayloadChange, onTitleChange, onRank
 export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankChange }: FormProps) {
     const anomalieType = payload.type || 'ZONE';
     const levelRange = payload.levelRange || '200';
+    const elixir = payload.elixir || 'majeur';
 
-    const handleTypeChange = (type: 'ZONE' | 'BOSS') => {
-        const newPayload: AnomaliePayload = { type, levelRange };
+    const handleTypeChange = (type: AnomaliePayload['type']) => {
+        const newPayload: AnomaliePayload = {
+            type,
+            levelRange,
+            elixir: type === 'STABILISATION' ? elixir : undefined
+        };
         onPayloadChange(newPayload);
         updateTitle(type, levelRange);
     };
 
     const handleLevelChange = (range: string) => {
-        const newPayload: AnomaliePayload = { type: anomalieType, levelRange: range as AnomaliePayload['levelRange'] };
+        const newPayload: AnomaliePayload = {
+            type: anomalieType,
+            levelRange: range as AnomaliePayload['levelRange'],
+            elixir: anomalieType === 'STABILISATION' ? elixir : undefined
+        };
         onPayloadChange(newPayload);
         updateTitle(anomalieType, range);
+    };
+
+    const handleElixirChange = (val: string) => {
+        const newPayload: AnomaliePayload = {
+            type: anomalieType,
+            levelRange,
+            elixir: val as AnomaliePayload['elixir'],
+        };
+        onPayloadChange(newPayload);
     };
 
     const updateTitle = (type: string, range: string) => {
         if (type === 'ZONE') {
             onTitleChange(`Zone Anomalie ${range}`);
-        } else {
+        } else if (type === 'BOSS') {
             onTitleChange(`Gardien Anomalie ${range}`);
+        } else if (type === 'FRAGMENTS') {
+            onTitleChange(`Collecte Fragments Anomalie`);
+        } else if (type === 'STABILISATION') {
+            onTitleChange(`Stabilisation Gardiens Anomalie`);
+        }
+    };
+
+    const TYPES: { value: AnomaliePayload['type']; label: string; desc: string }[] = [
+        { value: 'ZONE', label: 'Zone', desc: '50 monstres' },
+        { value: 'BOSS', label: 'Gardien', desc: 'Gardien d\'anomalie' },
+        { value: 'FRAGMENTS', label: 'Fragments', desc: '20 fragments d\'anomalie' },
+        { value: 'STABILISATION', label: 'Stabilisation', desc: '3 gardiens d\'anomalies' },
+    ];
+
+    // Anomalie Artwork
+    const getAnomalieArtwork = () => {
+        switch(anomalieType) {
+            case 'BOSS': return "/assets/missions/ano1.png";
+            case 'FRAGMENTS': return "/assets/missions/fragment.png";
+            case 'STABILISATION': return "/assets/missions/3-gardiens.png";
+            default: return "/assets/missions/anomalie.png";
         }
     };
 
     return (
         <div className="space-y-4">
-            {/* Type Selector */}
             <div className="space-y-2">
-                <Label className="text-xs text-zinc-400">Type d'anomalie</Label>
+                <Label className="text-xs text-muted-foreground">Type d'anomalie</Label>
                 <RadioGroup value={anomalieType} onValueChange={handleTypeChange} className="grid grid-cols-2 gap-2">
-                    <div className={cn(
-                        "flex items-center space-x-2 p-3 rounded-lg border cursor-pointer transition-all",
-                        anomalieType === 'ZONE' ? "bg-fuchsia-500/20 border-fuchsia-500/50" : "bg-zinc-900 border-zinc-800"
-                    )}>
-                        <RadioGroupItem value="ZONE" id="zone" />
-                        <Label htmlFor="zone" className="cursor-pointer text-sm">
-                            <div className="font-medium">Zone</div>
-                            <div className="text-xs text-zinc-500">50 monstres</div>
-                        </Label>
-                    </div>
-                    <div className={cn(
-                        "flex items-center space-x-2 p-3 rounded-lg border cursor-pointer transition-all",
-                        anomalieType === 'BOSS' ? "bg-fuchsia-500/20 border-fuchsia-500/50" : "bg-zinc-900 border-zinc-800"
-                    )}>
-                        <RadioGroupItem value="BOSS" id="boss" />
-                        <Label htmlFor="boss" className="cursor-pointer text-sm">
-                            <div className="font-medium">Gardien</div>
-                            <div className="text-xs text-zinc-500">Gardien d'anomalie</div>
-                        </Label>
-                    </div>
+                    {TYPES.map(t => (
+                        <div key={t.value} className={cn(
+                            "flex items-center space-x-2 p-3 rounded-xl border cursor-pointer transition-all",
+                            anomalieType === t.value ? "bg-fuchsia-500/10 border-fuchsia-500/50 shadow-lg shadow-fuchsia-500/10" : "bg-background border-border"
+                        )}>
+                            <RadioGroupItem value={t.value} id={t.value} />
+                            <Label htmlFor={t.value} className="cursor-pointer text-sm">
+                                <div className={cn("font-black uppercase tracking-tighter", anomalieType === t.value ? "text-fuchsia-300" : "text-muted-foreground")}>{t.label}</div>
+                                <div className="text-caption text-muted-foreground font-medium">{t.desc}</div>
+                            </Label>
+                        </div>
+                    ))}
                 </RadioGroup>
             </div>
 
-            {/* Level Range Selector */}
-            <div className="space-y-2">
-                <Label className="text-xs text-zinc-400">Tranche de niveau</Label>
-                <Select value={levelRange} onValueChange={handleLevelChange}>
-                    <SelectTrigger className="bg-zinc-950 border-zinc-800">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {ANOMALIE_LEVEL_RANGES.map(range => (
-                            <SelectItem key={range} value={range}>{range}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
+            {anomalieType !== 'FRAGMENTS' && anomalieType !== 'STABILISATION' && (
+                <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Tranche de niveau</Label>
+                    <Select value={levelRange} onValueChange={handleLevelChange}>
+                        <SelectTrigger className="bg-background border-border rounded-xl">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border-border">
+                            {ANOMALIE_LEVEL_RANGES.map(range => (
+                                <SelectItem key={range} value={range}>{range}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
 
-            {/* Preview */}
-            <div className="p-3 bg-zinc-900/50 rounded-lg border border-fuchsia-500/20 text-xs text-zinc-400">
-                {anomalieType === 'ZONE' ? (
-                    <>Vaincre 50 monstres dans un territoire de niveau <span className="text-fuchsia-400 font-medium">{levelRange}</span> sous anomalie avec un <span className="text-fuchsia-400">[Elixir uchronique]</span></>
-                ) : (
-                    <>Vaincre un gardien d'anomalie de niveau <span className="text-fuchsia-400 font-medium">{levelRange}</span> avec un <span className="text-fuchsia-400">[Elixir uchronique]</span></>
-                )}
+            {anomalieType === 'STABILISATION' && (
+                <div className="space-y-2 animate-in fade-in duration-300">
+                    <Label className="text-xs text-muted-foreground">Choix de l'élixir</Label>
+                    <Select value={elixir} onValueChange={handleElixirChange}>
+                        <SelectTrigger className="bg-background border-border rounded-xl">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border-border">
+                            <SelectItem value="aucun">Sans élixir (Simple)</SelectItem>
+                            <SelectItem value="uchronique">Élixir uchronique (sans niveau)</SelectItem>
+                            <SelectItem value="mineur">Élixir uchronique mineur</SelectItem>
+                            <SelectItem value="ameliore">Élixir uchronique amélioré</SelectItem>
+                            <SelectItem value="majeur">Élixir uchronique majeur</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
+
+            {/* Visual Preview Card for Anomalie */}
+            <div className="relative overflow-hidden rounded-2xl border border-fuchsia-500/30 bg-fuchsia-500/5 p-4 flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="w-14 h-14 rounded-xl bg-surface/80 backdrop-blur-md border border-fuchsia-500/20 flex-shrink-0 flex items-center justify-center relative overflow-hidden">
+                    <img src={getAnomalieArtwork()} className="w-10 h-10 object-contain z-10" alt="Artwork" />
+                    <div className="absolute inset-0 bg-fuchsia-500/10 blur-xl scale-150" />
+                </div>
+                <div className="flex-1 text-caption text-muted-foreground leading-relaxed py-0.5">
+                    <div className="font-black text-fuchsia-400 uppercase tracking-widest text-caption mb-1">Visualisation Mission</div>
+                    {anomalieType === 'ZONE' && (
+                        <>Vaincre 50 monstres dans un territoire de niveau <span className="text-foreground font-black">{levelRange}</span> sous anomalie avec un <span className="text-fuchsia-300 font-bold">[Elixir uchronique]</span></>
+                    )}
+                    {anomalieType === 'BOSS' && (
+                        <>Vaincre un <span className="text-foreground font-black text-xs">Gardien d'anomalie</span> de niveau <span className="text-foreground font-black">{levelRange}</span> avec un <span className="text-fuchsia-300 font-bold">[Elixir uchronique]</span></>
+                    )}
+                    {anomalieType === 'FRAGMENTS' && (
+                        <>Obtenir <span className="text-foreground font-black">20 Fragments d'anomalie</span> dans une anomalie</>
+                    )}
+                    {anomalieType === 'STABILISATION' && (
+                        <>
+                            Vaincre <span className="text-foreground font-black">3 Gardiens des anomalies</span>
+                            {elixir !== 'aucun' && (
+                                <> sous l'effet d'un <span className="text-fuchsia-300 font-bold">
+                                    {elixir === 'uchronique' ? "[Élixir uchronique]" : elixir === 'mineur' ? "[Élixir uchronique mineur]" : elixir === 'ameliore' ? "[Élixir uchronique amélioré]" : "[Élixir uchronique majeur]"}
+                                </span></>
+                            )}
+                        </>
+                    )}
+                </div>
             </div>
         </div>
     );
-}
-
-// --- SONGES FORM ---
+}// --- SONGES FORM ---
 
 export function SongesForm({ payload, onPayloadChange, onTitleChange, onRankChange }: FormProps) {
     const difficulty = payload.difficulty || 'Paradoxe';
@@ -407,39 +516,44 @@ export function SongesForm({ payload, onPayloadChange, onTitleChange, onRankChan
         }
     };
 
-    const handleDifficultyChange = (newDifficulty: string) => {
-        const newLevels = SONGES_CONFIG.levels[newDifficulty as keyof typeof SONGES_CONFIG.levels];
-        const newLevel = newLevels.includes(level as any) ? level : newLevels[0];
-        updatePayload(newDifficulty, newLevel, tier);
+    const getDifficultyColor = () => {
+        if (difficulty === 'Cauchemar') return "text-danger border-danger/50 bg-danger/10 shadow-rose-500/10";
+        if (difficulty === 'Paradoxe') return "text-info border-info/50 bg-info/10 shadow-cyan-500/10";
+        return "text-success border-success/50 bg-success/10 shadow-emerald-500/10";
+    };
+
+    const getDifficultyArtwork = () => {
+        const diffKey = difficulty === 'Cauchemar' ? 'cauchemar' : difficulty === 'Paradoxe' ? 'paradoxe' : 'reve';
+        const lvlKey = level === 'I' ? '1' : level === 'II' ? '2' : level === 'III' ? '3' : '4';
+        return `/assets/missions/${diffKey}${lvlKey}.png`;
     };
 
     return (
-        <div className="space-y-4">
-            {/* Difficulty Selector */}
+        <div className="space-y-5">
             <div className="space-y-2">
-                <Label className="text-xs text-zinc-400">Difficulté</Label>
+                <Label className="text-xs text-muted-foreground font-black uppercase tracking-widest text-caption">Difficulté Onirique</Label>
                 <div className="grid grid-cols-3 gap-2">
-                    {SONGES_CONFIG.difficulties.map(diff => (
-                        <button
-                            key={diff}
-                            type="button"
-                            onClick={() => handleDifficultyChange(diff)}
-                            className={cn(
-                                "p-2 rounded-lg border text-sm font-medium transition-all",
-                                difficulty === diff
-                                    ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-300"
-                                    : "bg-zinc-900 border-zinc-800 hover:border-zinc-600 text-zinc-400"
-                            )}
-                        >
-                            {diff}
-                        </button>
-                    ))}
+                    {SONGES_CONFIG.difficulties.map(diff => {
+                        const isActive = difficulty === diff;
+                        return (
+                            <button
+                                key={diff}
+                                type="button"
+                                onClick={() => updatePayload(diff, level, tier)}
+                                className={cn(
+                                    "py-2.5 rounded-xl border text-caption font-black uppercase tracking-widest transition-all",
+                                    isActive ? getDifficultyColor() : "bg-background border-border text-muted-foreground"
+                                )}
+                            >
+                                {diff}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
-            {/* Level Selector */}
             <div className="space-y-2">
-                <Label className="text-xs text-zinc-400">Niveau de songe</Label>
+                <Label className="text-xs text-muted-foreground">Niveau de songe (Étage)</Label>
                 <div className="flex gap-2">
                     {availableLevels.map(lvl => (
                         <button
@@ -447,10 +561,8 @@ export function SongesForm({ payload, onPayloadChange, onTitleChange, onRankChan
                             type="button"
                             onClick={() => updatePayload(difficulty, lvl, tier)}
                             className={cn(
-                                "flex-1 p-2 rounded-lg border text-sm font-medium transition-all",
-                                level === lvl
-                                    ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-300"
-                                    : "bg-zinc-900 border-zinc-800 hover:border-zinc-600 text-zinc-400"
+                                "flex-1 py-2 rounded-xl border text-caption font-black transition-all",
+                                level === lvl ? "bg-elevated border-border-strong text-foreground shadow-xl" : "bg-background border-border text-muted-foreground"
                             )}
                         >
                             {lvl}
@@ -459,44 +571,128 @@ export function SongesForm({ payload, onPayloadChange, onTitleChange, onRankChan
                 </div>
             </div>
 
-            {/* Tier (Palier) Selector */}
             <div className="space-y-2">
-                <Label className="text-xs text-zinc-400">Palier à atteindre</Label>
-                <div className="flex gap-2">
+                <Label className="text-xs text-muted-foreground">Palier de réussite</Label>
+                <div className="flex gap-1.5 p-1 bg-background border border-border rounded-2xl">
                     {SONGES_CONFIG.tiers.map(t => (
                         <button
                             key={t}
                             type="button"
                             onClick={() => updatePayload(difficulty, level, t)}
                             className={cn(
-                                "flex-1 p-2 rounded-lg border text-sm font-medium transition-all",
-                                tier === t
-                                    ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-300"
-                                    : "bg-zinc-900 border-zinc-800 hover:border-zinc-600 text-zinc-400"
+                                "flex-1 py-2 rounded-xl text-caption font-black transition-all",
+                                tier === t ? "bg-info text-info-foreground shadow-lg shadow-cyan-500/20" : "text-muted-foreground hover:text-muted-foreground"
                             )}
                         >
-                            {t}
+                            T{t}
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* Preview */}
-            {(() => {
-                const palierNames: Record<number, string> = {
-                    1: "Pensées oniriques",
-                    2: "Balades fantastiques",
-                    3: "Espaces imaginaires",
-                    4: "Concepts brumeux",
-                    5: "Abstractions chimériques"
-                };
-                const palierName = palierNames[tier] || palierNames[2];
-                return (
-                    <div className="p-3 bg-zinc-900/50 rounded-lg border border-cyan-500/20 text-xs text-zinc-400">
-                        Démarrer un songe en <span className="text-cyan-400 font-medium">{difficulty} {level}</span> et terminer le <span className="text-cyan-400 font-medium">Palier {tier}</span> : les {palierName}
+            {/* Visual Preview Card for Songes */}
+            <div className="relative overflow-hidden rounded-2xl border border-info/30 bg-info/5 p-4 flex items-center gap-4 animate-in fade-in zoom-in-95 duration-300">
+                <div className="w-16 h-16 rounded-2xl bg-surface/50 backdrop-blur-md border border-info/20 flex items-center justify-center relative overflow-hidden shrink-0">
+                    <img src={getDifficultyArtwork()} className="w-14 h-14 object-contain z-10" alt="Songes" />
+                    <div className="absolute inset-0 bg-info/5 animate-pulse" />
+                </div>
+                <div className="flex-1 space-y-1">
+                    <div className="flex items-center justify-between">
+                        <span className="text-caption font-black text-info uppercase tracking-widest">Aperçu Mission</span>
+                        <div className="flex items-center gap-1">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                                <div key={i} className={cn("w-1 h-1 rounded-full", i < tier ? "bg-info" : "bg-elevated")} />
+                            ))}
+                        </div>
                     </div>
-                );
-            })()}
+                    <p className="text-caption text-muted-foreground leading-tight">
+                        Compléter le <span className="text-foreground font-black">Palier {tier}</span> d'un songe en <span className="text-info font-bold uppercase">{difficulty} {level}</span>.
+                    </p>
+                    <div className="text-caption text-muted-foreground font-bold italic">
+                        {tier === 1 ? "Pensées oniriques" : tier === 5 ? "Abstractions chimériques" : "Exploration onirique"}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// --- ÉPREUVE SONGE FORM (Fonsocac, Nilezaff, Reversed, Sinjsonj) ---
+
+export function SongesEpreuveForm({ payload, onPayloadChange, onTitleChange }: FormProps) {
+    const epreuve = payload.epreuve || '';
+    const epreuves = ['Fonsocac', 'Nilezaff', 'Reversed', 'Sinjsonj'];
+
+    const handleSelect = (name: string) => {
+        onPayloadChange({ epreuve: name, imageUrl: `/assets/missions/epreuves-songes/${name}.png` });
+        onTitleChange(`Réaliser l'épreuve de Songe ${name}`);
+    };
+
+    return (
+        <div className="space-y-5">
+            <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground font-black uppercase tracking-widest text-caption">
+                    Épreuve de Songe
+                </Label>
+                <p className="text-caption text-muted-foreground italic">
+                    Choisissez une épreuve de Songe à réaliser.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                    {epreuves.map(name => {
+                        const isActive = epreuve === name;
+                        return (
+                            <button
+                                key={name}
+                                type="button"
+                                onClick={() => handleSelect(name)}
+                                className={cn(
+                                    "relative overflow-hidden rounded-2xl border-2 p-4 flex flex-col items-center gap-3 transition-all duration-200",
+                                    isActive
+                                        ? "border-info/60 bg-info/10 shadow-lg shadow-cyan-500/10"
+                                        : "border-border bg-surface/40 hover:border-border hover:bg-surface/60"
+                                )}
+                            >
+                                <div className="w-20 h-20 rounded-xl bg-elevated/60 border border-border flex items-center justify-center overflow-hidden">
+                                    <img
+                                        src={`/assets/missions/epreuves-songes/${name}.png`}
+                                        alt={name}
+                                        className="w-16 h-16 object-contain"
+                                    />
+                                </div>
+                                <span className={cn(
+                                    "text-xs font-black uppercase tracking-wider text-center",
+                                    isActive ? "text-info" : "text-muted-foreground"
+                                )}>
+                                    {name}
+                                </span>
+                                {isActive && (
+                                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-info flex items-center justify-center">
+                                        <Check className="h-3 w-3 text-foreground" />
+                                    </div>
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {epreuve && (
+                <div className="relative overflow-hidden rounded-2xl border border-info/30 bg-info/5 p-4 flex items-center gap-4 animate-in fade-in zoom-in-95 duration-300">
+                    <div className="w-16 h-16 rounded-2xl bg-surface/50 backdrop-blur-md border border-info/20 flex items-center justify-center overflow-hidden shrink-0">
+                        <img
+                            src={`/assets/missions/epreuves-songes/${epreuve}.png`}
+                            className="w-14 h-14 object-contain z-10"
+                            alt={epreuve}
+                        />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                        <span className="text-caption font-black text-info uppercase tracking-widest">Aperçu Mission</span>
+                        <p className="text-caption text-muted-foreground leading-tight">
+                            Réaliser l'épreuve de Songe <span className="text-foreground font-black">{epreuve}</span>.
+                        </p>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -553,10 +749,9 @@ export function ExpeditionForm({ payload, onPayloadChange, onTitleChange, onRank
     const selectedDungeon = payload.dungeonId ? dungeons.find(d => d.id === payload.dungeonId) : null;
 
     return (
-        <div className="space-y-4">
-            {/* Mode Selector */}
+        <div className="space-y-5">
             <div className="space-y-2">
-                <Label className="text-xs text-zinc-400">Mode</Label>
+                <Label className="text-xs text-muted-foreground">Mode d'expédition</Label>
                 <div className="grid grid-cols-3 gap-2">
                     {EXPEDITION_MODES.map(m => (
                         <button
@@ -564,10 +759,10 @@ export function ExpeditionForm({ payload, onPayloadChange, onTitleChange, onRank
                             type="button"
                             onClick={() => handleModeChange(m.value)}
                             className={cn(
-                                "p-2 rounded-lg border text-sm transition-all",
+                                "py-2.5 rounded-xl border text-caption font-black uppercase tracking-widest transition-all",
                                 mode === m.value
-                                    ? "bg-amber-500/20 border-amber-500/50 text-amber-300"
-                                    : "bg-zinc-900 border-zinc-800 hover:border-zinc-600 text-zinc-400"
+                                    ? "bg-warning/20 border-warning/50 text-warning shadow-xl shadow-amber-500/10"
+                                    : "bg-background border-border text-muted-foreground hover:border-border"
                             )}
                         >
                             {m.label}
@@ -576,9 +771,8 @@ export function ExpeditionForm({ payload, onPayloadChange, onTitleChange, onRank
                 </div>
             </div>
 
-            {/* Search */}
             <div className="space-y-2">
-                <Label className="text-xs text-zinc-400">Rechercher un donjon</Label>
+                <Label className="text-xs text-muted-foreground">Rechercher un donjon</Label>
                 <AsyncCombobox
                     value={payload.dungeonId}
                     onSelect={handleSelect}
@@ -588,11 +782,47 @@ export function ExpeditionForm({ payload, onPayloadChange, onTitleChange, onRank
                 />
             </div>
 
-            {/* Preview */}
+            {/* Selected Preview - Expedition Card */}
             {selectedDungeon && (
-                <div className="p-3 bg-zinc-900/50 rounded-lg border border-amber-500/20 text-xs text-zinc-400">
-                    Vaincre <span className="text-amber-400 font-medium">{selectedDungeon.bossName}</span> dans son expédition
-                    {mode !== 'aucun' && <> <span className="text-amber-400">de {mode}</span></>}
+                <div className="relative group overflow-hidden rounded-2xl border border-warning/30 bg-surface/40 backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 duration-300 p-4">
+                    <div className="flex gap-4 relative z-10">
+                        <div className="w-20 h-20 rounded-xl bg-elevated border border-border flex-shrink-0 overflow-hidden relative">
+                            {selectedDungeon.imageUrl ? (
+                                <img 
+                                    src={selectedDungeon.imageUrl} 
+                                    alt={selectedDungeon.name}
+                                    className="w-full h-full object-contain scale-110 group-hover:scale-100 transition-transform duration-300"
+                                />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-surface">
+                                    <Sparkles className="w-8 h-8 text-foreground" />
+                                </div>
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
+                        </div>
+
+                        <div className="flex-1 min-w-0 py-1">
+                            <div className="flex items-center gap-2 mb-1.5">
+                                <span className="px-1.5 py-0.5 bg-warning/20 text-caption font-black text-warning border border-warning/30 rounded uppercase tracking-widest">
+                                    Expédition
+                                </span>
+                                {mode !== 'aucun' && (
+                                    <span className="text-caption font-black text-foreground/40 uppercase tracking-widest">
+                                        Mode {mode}
+                                    </span>
+                                )}
+                            </div>
+                            <h4 className="text-foreground font-black uppercase text-sm leading-tight truncate mb-1">
+                                {selectedDungeon.name}
+                            </h4>
+                            <div className="flex items-center gap-1.5 text-muted-foreground text-caption font-bold">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-warning/70" />
+                                <span>Vaincre le Boss en mode expédition</span>
+                            </div>
+                        </div>
+                    </div>
+                    {/* Ambient background glow */}
+                    <div className="absolute -right-4 -top-4 w-24 h-24 bg-warning/5 blur-3xl rounded-full" />
                 </div>
             )}
         </div>
@@ -600,42 +830,590 @@ export function ExpeditionForm({ payload, onPayloadChange, onTitleChange, onRank
 }
 
 // --- EVENT FORM ---
+// Flow: 1) Event context  2) Sub-type  3) Detail form
+
+type EventSubType = 'REGULATION' | 'DONJON' | 'MONSTRE_SPECIAL' | 'OBJECTIF' | 'FRAGMENTS_ANOMALIE';
+
+const EVENT_SUBTYPES: { value: EventSubType; label: string; emoji: string; desc: string; color: string; border: string }[] = [
+    { value: 'REGULATION', label: 'Régulation', emoji: '⚔️', desc: '50 monstres de l\'événement', color: 'text-warning', border: 'border-warning/50 bg-warning/10' },
+    { value: 'DONJON', label: 'Donjon', emoji: '🏰', desc: 'Vaincre le boss du donjon', color: 'text-danger', border: 'border-danger/50 bg-danger/10' },
+    { value: 'MONSTRE_SPECIAL', label: 'Monstre Spécial', emoji: '💀', desc: 'Monstre unique / boss', color: 'text-info', border: 'border-info/50 bg-info/10' },
+    { value: 'OBJECTIF', label: 'Objectif Manuel', emoji: '📜', desc: 'Objectif à rédiger à la main', color: 'text-info', border: 'border-info/50 bg-info/10' },
+    { value: 'FRAGMENTS_ANOMALIE', label: 'Fragments', emoji: '⚡', desc: '20 fragments d\'anomalie', color: 'text-fuchsia-300', border: 'border-fuchsia-500/50 bg-fuchsia-500/10' },
+];
+
+type EventContextPreset = 'VULKANIA' | 'NOWEL' | 'PWAK' | 'HALOUINE' | 'AUTRE';
+
+const EVENT_CONTEXTS: { value: EventContextPreset; label: string; emoji: string; period: string }[] = [
+    { value: 'VULKANIA', label: 'Vulkania', emoji: '🦕', period: 'Été' },
+    { value: 'PWAK', label: 'Île de Pwâk', emoji: '🐣', period: 'Pâques' },
+    { value: 'HALOUINE', label: 'Halouine', emoji: '🎃', period: 'Halloween' },
+    { value: 'NOWEL', label: 'Île de Nowel', emoji: '🎄', period: 'Noël' },
+    { value: 'AUTRE', label: 'Autre...', emoji: '✏️', period: 'Manuel' },
+];
+
+const CONTEXT_LABELS: Record<string, string> = {
+    VULKANIA: 'Vulkania',
+    NOWEL: 'Île de Nowel',
+    PWAK: 'Île de Pwâk',
+    HALOUINE: 'Halouine',
+};
 
 export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps) {
-    const title = payload.title || '';
-    const description = payload.description || '';
+    const eventType: EventSubType = payload.eventType || 'REGULATION';
+    const contextPreset: EventContextPreset = payload.contextPreset || 'AUTRE';
+    const contextLabel: string = contextPreset !== 'AUTRE'
+        ? (CONTEXT_LABELS[contextPreset] || '')
+        : (payload.contextManual || '');
 
-    const handleTitleChange = (value: string) => {
-        onPayloadChange({ ...payload, title: value, description });
-        onTitleChange(value);
+    // Local state for searches
+    const [dungeons, setDungeons] = useState<Dungeon[]>([]);
+    const [zones, setZones] = useState<Zone[]>([]);
+    const [families, setFamilies] = useState<MonsterFamily[]>([]);
+    const [gameDataMonsters, setGameDataMonsters] = useState<any[]>([]);
+
+    const handleContextPreset = (ctx: EventContextPreset) => {
+        onPayloadChange({ ...payload, contextPreset: ctx, contextManual: ctx !== 'AUTRE' ? '' : payload.contextManual });
+        // Rebuild title if a mission name was already set
+        rebuildTitle(payload.eventType || 'REGULATION', ctx, ctx !== 'AUTRE' ? (CONTEXT_LABELS[ctx] || '') : (payload.contextManual || ''), payload);
     };
 
-    const handleDescriptionChange = (value: string) => {
-        const newPayload: EventPayload = { description: value };
-        onPayloadChange({ ...payload, description: value });
+    const handleContextManual = (name: string) => {
+        onPayloadChange({ ...payload, contextPreset: 'AUTRE', contextManual: name });
+        rebuildTitle(payload.eventType || 'REGULATION', 'AUTRE', name, payload);
+    };
+
+    const handleSubTypeChange = (newType: EventSubType) => {
+        if (newType === 'FRAGMENTS_ANOMALIE') {
+            const defaultDesc = "Obtenir 20 Fragments d'anomalie dans une anomalie";
+            onPayloadChange({
+                ...payload,
+                eventType: newType,
+                contextPreset,
+                contextManual: payload.contextManual,
+                description: defaultDesc,
+                targetCount: 20,
+                imageUrl: '/assets/missions/fragment.png'
+            });
+            onTitleChange("Fragments d'anomalie");
+        } else if (newType === 'OBJECTIF') {
+            const currentDesc = payload.description || '';
+            onPayloadChange({
+                ...payload,
+                eventType: newType,
+                contextPreset,
+                contextManual: payload.contextManual,
+                description: currentDesc
+            });
+        } else {
+            onPayloadChange({ eventType: newType, contextPreset, contextManual: payload.contextManual });
+            onTitleChange('');
+        }
+    };
+
+    const rebuildTitle = (type: EventSubType, ctx: EventContextPreset, ctxName: string, p: Record<string, any>) => {
+        const suffix = ctxName ? ` — ${ctxName}` : '';
+        if (type === 'DONJON' && p.dungeonName) onTitleChange(`${p.dungeonName}${suffix}`);
+        else if (type === 'REGULATION' && p.familyName) onTitleChange(`Régulation des ${p.familyName}${suffix}`);
+        else if (type === 'MONSTRE_SPECIAL' && p.monsterName) onTitleChange(`Vaincre ${p.monsterName}${suffix}`);
+        else if (type === 'FRAGMENTS_ANOMALIE') onTitleChange(`Fragments d'anomalie${suffix}`);
+    };
+
+    // --- Dungeon fetcher: filtered by event zone if preset active ---
+    const dungeonFetcher = useCallback(async (query: string) => {
+        // If a preset is selected, try to filter to event dungeons for that zone
+        const filters: any = { query };
+        if (contextPreset !== 'AUTRE') {
+            filters.isEventDungeon = true;
+            // Also filter by zone if we can look it up via the event zone key
+            const zoneRes = await searchZones(contextLabel, true);
+            const matchingZone = zoneRes.data?.find((z: any) => z.eventZoneKey === contextPreset);
+            if (matchingZone) filters.zoneId = matchingZone.id;
+        }
+        const res = await searchDungeonsAdvanced(filters);
+        if (res.success && res.data) {
+            setDungeons(res.data);
+            const items = res.data.map((d: any) => ({ value: d.id, label: d.name, subLabel: `Niv. ${d.level} · Boss: ${d.bossName}` }));
+            // If event-filtered returned nothing, fallback to full search
+            if (items.length === 0 && contextPreset !== 'AUTRE') {
+                const fallback = await searchDungeonsAdvanced({ query });
+                if (fallback.success && fallback.data) {
+                    setDungeons(fallback.data);
+                    return fallback.data.map((d: any) => ({ value: d.id, label: d.name, subLabel: `Niv. ${d.level} · Boss: ${d.bossName} (toute zone)` }));
+                }
+            }
+            return items;
+        }
+        return [];
+    }, [contextPreset, contextLabel]);
+
+    const handleDungeonSelect = (dungeonId: string) => {
+        const dungeon = dungeons.find(d => d.id === dungeonId);
+        if (dungeon) {
+            const suffix = contextLabel ? ` — ${contextLabel}` : '';
+            onPayloadChange({ ...payload, eventType: 'DONJON', dungeonId: dungeon.id, dungeonName: dungeon.name, bossName: dungeon.bossName, level: dungeon.level, imageUrl: dungeon.imageUrl });
+            onTitleChange(`${dungeon.name}${suffix}`);
+        }
+    };
+
+    // --- Zone fetcher: event-only when preset active ---
+    const zoneFetcher = useCallback(async (query: string) => {
+        const eventOnly = contextPreset !== 'AUTRE';
+        const res = await searchZones(query, eventOnly);
+        if (res.success && res.data) {
+            setZones(prev => { const m = new Map(prev.map(z => [z.id, z])); res.data?.forEach(z => m.set(z.id, z)); return Array.from(m.values()); });
+            return res.data.map(z => ({ value: z.id, label: z.name, subLabel: eventOnly ? `🗺 Zone événement · Niv. ${z.level}` : `Niv. ${z.level}` }));
+        }
+        return [];
+    }, [contextPreset]);
+
+    const familyFetcher = useCallback(async (query: string) => {
+        const res = await getMonsterFamilies({ zoneId: payload.zoneId, search: query });
+        if (res.success && res.data) {
+            setFamilies(prev => { const m = new Map(prev.map(f => [f.id, f])); res.data?.forEach(f => m.set(f.id, f)); return Array.from(m.values()); });
+            return res.data.map(f => ({ value: f.id, label: f.name }));
+        }
+        return [];
+    }, [payload.zoneId]);
+
+    const handleRegZone = (zoneId: string) => {
+        const zone = zones.find(z => z.id === zoneId);
+        if (zone) {
+            onPayloadChange({ ...payload, eventType: 'REGULATION', zoneId: zone.id, zoneName: zone.name, familyId: '', familyName: '', targetCount: 50 });
+            const suffix = contextLabel ? ` — ${contextLabel}` : '';
+            onTitleChange(`Régulation en ${zone.name}${suffix}`);
+        }
+    };
+
+    const handleRegFamily = (familyId: string) => {
+        const family = families.find(f => f.id === familyId);
+        if (family) {
+            onPayloadChange({ ...payload, eventType: 'REGULATION', familyId: family.id, familyName: family.name, imageUrl: family.imageUrl });
+            const suffix = contextLabel ? ` — ${contextLabel}` : '';
+            onTitleChange(`Régulation des ${family.name}${suffix}`);
+        }
+    };
+
+    // --- Monstre Spécial ---
+    const handleMonsterName = (name: string) => {
+        onPayloadChange({ ...payload, eventType: 'MONSTRE_SPECIAL', monsterName: name });
+        const suffix = contextLabel ? ` — ${contextLabel}` : '';
+        onTitleChange(name ? `Vaincre ${name}${suffix}` : '');
+    };
+
+    const handleTargetCount = (count: number) => {
+        onPayloadChange({ ...payload, eventType: 'MONSTRE_SPECIAL', targetCount: count });
+    };
+
+    const handleMonsterLevel = (level: number | undefined) => {
+        onPayloadChange({ ...payload, eventType: 'MONSTRE_SPECIAL', level });
+    };
+
+    const handleMonsterDescription = (description: string) => {
+        onPayloadChange({ ...payload, eventType: 'MONSTRE_SPECIAL', description });
+    };
+
+    const handleMonsterImage = (imageUrl: string) => {
+        onPayloadChange({ ...payload, eventType: 'MONSTRE_SPECIAL', imageUrl });
+    };
+
+    const handleMonsterZone = (zoneId: string) => {
+        const zone = zones.find(z => z.id === zoneId);
+        if (zone) {
+            onPayloadChange({ ...payload, eventType: 'MONSTRE_SPECIAL', zoneId: zone.id, zoneName: zone.name });
+        }
+    };
+
+    // Base game-data selector: cherche un "Monstre Spécial" créé côté GOD et pré-remplit le formulaire
+    const gameDataMonsterFetcher = useCallback(async (query: string) => {
+        const res = await searchGameDataMonsters(query);
+        if (res.success && res.data) {
+            setGameDataMonsters(res.data);
+            return res.data.map((m: any) => ({
+                value: m.id,
+                label: m.name,
+                subLabel: m.level > 0 ? `Niv. ${m.level}${m.zone ? ` · ${m.zone}` : ''}` : (m.zone || undefined)
+            }));
+        }
+        return [];
+    }, []);
+
+    const handleGameDataMonsterSelect = (monsterId: string) => {
+        const monster = gameDataMonsters.find((m: any) => m.id === monsterId);
+        if (monster) {
+            onPayloadChange({
+                ...payload,
+                eventType: 'MONSTRE_SPECIAL',
+                monsterId: monster.id,
+                monsterName: monster.name,
+                level: monster.level > 0 ? monster.level : undefined,
+                zoneLabel: monster.zone || undefined,
+                zoneName: monster.zone || undefined,
+                imageUrl: monster.imageUrl || undefined,
+                description: monster.description || undefined,
+            });
+            const suffix = contextLabel ? ` — ${contextLabel}` : '';
+            onTitleChange(`Vaincre ${monster.name}${suffix}`);
+        }
+    };
+
+    // --- Notes / Instructions libres (missions spéciales) ---
+    const handleNotes = (notes: string) => {
+        onPayloadChange({ ...payload, notes });
+    };
+
+    // --- Objectif Manuel ---
+    const handleManualTitle = (title: string) => {
+        onTitleChange(title);
+        // Sync title into payload too so the input field displays it
+        onPayloadChange({ ...payload, eventType: 'OBJECTIF', title });
+    };
+
+    const handleManualDescription = (desc: string) => {
+        onPayloadChange({ ...payload, eventType: 'OBJECTIF', description: desc });
     };
 
     return (
-        <div className="space-y-4">
-            <div className="space-y-2">
-                <Label className="text-xs text-zinc-400">Titre de l'événement</Label>
-                <Input
-                    className="bg-zinc-950 border-zinc-800"
-                    placeholder="Ex: Tournoi PvP inter-guilde"
-                    value={title}
-                    onChange={e => handleTitleChange(e.target.value)}
-                />
+        <div className="space-y-6">
+            {/* ── STEP 1: Event Context ────────────────── */}
+            <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center border border-warning/30">
+                            <span className="text-caption font-black text-warning">1</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground font-black uppercase tracking-widest">Contexte</span>
+                    </div>
+                </div>
+                
+                <div className="grid grid-cols-3 gap-2">
+                    {EVENT_CONTEXTS.map(ctx => (
+                        <button
+                            key={ctx.value}
+                            type="button"
+                            onClick={() => handleContextPreset(ctx.value)}
+                            className={cn(
+                                "flex flex-col items-center gap-1.5 p-3 rounded-2xl border text-center transition-all duration-300 relative overflow-hidden group",
+                                contextPreset === ctx.value
+                                    ? "border-warning/50 bg-warning/10 text-warning shadow-lg shadow-yellow-500/5"
+                                    : "bg-background border-border hover:border-border text-muted-foreground"
+                            )}
+                        >
+                            <span className={cn("text-2xl transition-transform duration-300", contextPreset === ctx.value ? "scale-110" : "group-")}>{ctx.emoji}</span>
+                            <div className="space-y-0.5">
+                                <div className="text-caption font-black leading-tight uppercase tracking-tighter">{ctx.label}</div>
+                                <div className="text-caption opacity-60 font-bold">{ctx.period}</div>
+                            </div>
+                            {contextPreset === ctx.value && <div className="absolute inset-0 bg-warning/5 animate-pulse pointer-events-none" />}
+                        </button>
+                    ))}
+                </div>
+
+                {contextPreset === 'AUTRE' && (
+                    <Input
+                        className="bg-background border-border rounded-xl placeholder:text-muted-foreground text-xs mt-2 focus:border-warning/50 transition-all"
+                        placeholder="Nom de l'événement personnalisé..."
+                        value={payload.contextManual || ''}
+                        onChange={e => handleContextManual(e.target.value)}
+                    />
+                )}
             </div>
 
-            <div className="space-y-2">
-                <Label className="text-xs text-zinc-400">Description</Label>
-                <Textarea
-                    className="bg-zinc-950 border-zinc-800 min-h-[80px]"
-                    placeholder="Décrivez l'événement..."
-                    value={description}
-                    onChange={e => handleDescriptionChange(e.target.value)}
-                />
+            {/* ── STEP 2: Sub-type ─────────────────────── */}
+            <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-info/20 flex items-center justify-center border border-info/30">
+                        <span className="text-caption font-black text-info">2</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground font-black uppercase tracking-widest">Type de mission</span>
+                </div>
+                
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {EVENT_SUBTYPES.map(st => (
+                        <button
+                            key={st.value}
+                            type="button"
+                            onClick={() => handleSubTypeChange(st.value)}
+                            className={cn(
+                                "flex flex-col items-center gap-1.5 p-3 rounded-2xl border text-center transition-all duration-300",
+                                eventType === st.value 
+                                    ? st.border + " shadow-lg" 
+                                    : "bg-background border-border hover:border-border text-muted-foreground"
+                            )}
+                        >
+                            <span className="text-xl">{st.emoji}</span>
+                            <div className="space-y-0.5">
+                                <div className={cn("text-caption font-black uppercase tracking-tighter", eventType === st.value ? st.color : "text-muted-foreground")}>{st.label}</div>
+                                <div className="text-caption opacity-60 font-bold leading-tight">{st.desc}</div>
+                            </div>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* ── STEP 3: Detail form ──────────────────── */}
+            <div className="space-y-4 pt-2 border-t border-border">
+                <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-success/20 flex items-center justify-center border border-success/30">
+                        <span className="text-caption font-black text-success">3</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground font-black uppercase tracking-widest">Objectif</span>
+                </div>
+
+                {/* DONJON */}
+                {eventType === 'DONJON' && (
+                    <div className="space-y-3 animate-in fade-in slide-in-from-top-1 duration-300">
+                        <AsyncCombobox
+                            value={payload.dungeonId}
+                            onSelect={handleDungeonSelect}
+                            fetcher={dungeonFetcher}
+                            placeholder="Choisir le donjon événement..."
+                            searchPlaceholder="Nom du donjon..."
+                            emptyText="Aucun donjon trouvé."
+                        />
+                        {payload.bossName && (
+                            <div className="relative overflow-hidden rounded-2xl border border-danger/30 bg-danger/5 p-4 flex gap-4">
+                                <div className="w-14 h-14 rounded-xl bg-surface border border-border flex-shrink-0 overflow-hidden relative">
+                                    {payload.imageUrl ? (
+                                        <img src={payload.imageUrl} alt={payload.bossName} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center"><Skull className="w-6 h-6 text-foreground" /></div>
+                                    )}
+                                </div>
+                                <div className="flex-1">
+                                    <div className="text-caption font-black text-danger uppercase tracking-widest mb-1">Cible Événement</div>
+                                    <h4 className="text-foreground font-black uppercase text-sm leading-tight">{payload.bossName}</h4>
+                                    {contextLabel && <div className="text-caption text-warning font-bold mt-1 flex items-center gap-1"><Sparkles className="w-3 h-3" /> {contextLabel}</div>}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Notes / Instructions libres (missions spéciales) */}
+                {eventType !== 'FRAGMENTS_ANOMALIE' && (
+                    <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-300">
+                        <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                            📝 Notes / Instructions (optionnel)
+                        </Label>
+                        <Textarea
+                            className="bg-background border-border rounded-xl text-xs text-foreground focus:border-info/50 outline-none resize-none h-20"
+                            placeholder='Ex: "Farm uniquement en mode Bravoure", "Ne pas kiter le boss"...'
+                            value={payload.notes || ''}
+                            onChange={e => handleNotes(e.target.value)}
+                        />
+                    </div>
+                )}
+
+                {/* REGULATION */}
+                {eventType === 'REGULATION' && (
+                    <div className="space-y-3 animate-in fade-in slide-in-from-top-1 duration-300">
+                        <AsyncCombobox value={payload.zoneId} onSelect={handleRegZone} fetcher={zoneFetcher} placeholder="Zone (Territoire)..." searchPlaceholder="Rechercher une zone..." />
+                        <AsyncCombobox key={payload.zoneId} value={payload.familyId} onSelect={handleRegFamily} fetcher={familyFetcher} placeholder="Famille de monstres..." searchPlaceholder="Rechercher une famille..." />
+                        {payload.familyName && (
+                            <div className="relative overflow-hidden rounded-2xl border border-warning/30 bg-warning/5 p-4 flex gap-4">
+                                <div className="w-14 h-14 rounded-xl bg-surface border border-border flex-shrink-0 overflow-hidden relative">
+                                    {payload.imageUrl ? (
+                                        <img src={payload.imageUrl} alt={payload.familyName} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center"><Skull className="w-6 h-6 text-foreground" /></div>
+                                    )}
+                                </div>
+                                <div className="flex-1">
+                                    <div className="text-caption font-black text-warning uppercase tracking-widest mb-1">Régulation Active</div>
+                                    <h4 className="text-foreground font-black uppercase text-sm leading-tight">{payload.familyName}</h4>
+                                    <div className="text-caption text-muted-foreground font-bold mt-1">Vaincre 50 monstres</div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* MONSTRE SPÉCIAL */}
+                {eventType === 'MONSTRE_SPECIAL' && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
+                        {/* Sélecteur depuis la base game-data (GOD) */}
+                        <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                <Skull className="w-3 h-3" /> Monstre de la base (optionnel)
+                            </Label>
+                            <AsyncCombobox
+                                value={payload.monsterId}
+                                onSelect={handleGameDataMonsterSelect}
+                                fetcher={gameDataMonsterFetcher}
+                                placeholder="Rechercher dans la base game-data..."
+                                searchPlaceholder="Nom du monstre..."
+                                emptyText="Aucun monstre trouvé dans la base."
+                            />
+                            <p className="text-caption text-muted-foreground italic">Sélectionnez un monstre créé côté GOD pour pré-remplir le formulaire. Les champs restent modifiables.</p>
+                        </div>
+
+                        {/* Nom (requis) */}
+                        <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">
+                                Nom du monstre <span className="text-info">*</span>
+                            </Label>
+                            <Input
+                                className="bg-background border-border rounded-xl text-sm h-11 focus:border-info/50"
+                                placeholder="Ex: Malice, Damadrya, Tofus d'Halouine..."
+                                value={payload.monsterName || ''}
+                                onChange={e => handleMonsterName(e.target.value)}
+                            />
+                        </div>
+                        {/* Niveau (opt) */}
+                        <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Niveau (optionnel)</Label>
+                            <Input
+                                type="number"
+                                min={1}
+                                max={200}
+                                className="bg-background border-border rounded-xl text-sm h-11 focus:border-info/50"
+                                placeholder="Ex: 120"
+                                value={payload.level || ''}
+                                onChange={e => handleMonsterLevel(e.target.value ? Number(e.target.value) : undefined)}
+                            />
+                        </div>
+                        {/* Zone (combobox async) */}
+                        <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                <MapPin className="w-3 h-3" /> Zone (optionnel)
+                            </Label>
+                            <AsyncCombobox
+                                value={payload.zoneId}
+                                onSelect={handleMonsterZone}
+                                fetcher={zoneFetcher}
+                                placeholder="Choisir une zone..."
+                                searchPlaceholder="Rechercher une zone..."
+                                emptyText="Aucune zone trouvée."
+                            />
+                        </div>
+                        {/* Description (opt) */}
+                        <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Description (optionnel)</Label>
+                            <Textarea
+                                className="bg-background border-border rounded-xl text-xs text-foreground focus:border-info/50 outline-none resize-none h-20"
+                                placeholder={'Ex: "Monstre à faible taux d\'apparition", "Se montre la nuit"...'}
+                                value={payload.description || ''}
+                                onChange={e => handleMonsterDescription(e.target.value)}
+                            />
+                        </div>
+                        {/* Image (URL) */}
+                        <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Image (URL, optionnel)</Label>
+                            <Input
+                                className="bg-background border-border rounded-xl text-sm h-11 focus:border-info/50"
+                                placeholder="https://.../monstre.png"
+                                value={payload.imageUrl || ''}
+                                onChange={e => handleMonsterImage(e.target.value)}
+                            />
+                        </div>
+                        {/* Nombre de cibles */}
+                        <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Nombre de spécimens à vaincre</Label>
+                            <div className="flex gap-1.5 p-1 bg-background border border-border rounded-2xl">
+                                {[1, 10, 25, 50, 100].map(count => (
+                                    <button
+                                        key={count}
+                                        type="button"
+                                        onClick={() => handleTargetCount(count)}
+                                        className={cn(
+                                            "flex-1 py-2 rounded-xl text-caption font-black transition-all",
+                                            (payload.targetCount || 50) === count
+                                                ? "bg-info text-info-foreground shadow-lg shadow-purple-500/20"
+                                                : "text-muted-foreground hover:text-muted-foreground"
+                                        )}
+                                    >
+                                        {count}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        {/* Preview */}
+                        {payload.monsterName && (
+                            <div className="relative overflow-hidden rounded-2xl border border-info/30 bg-info/5 p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-caption font-black text-info uppercase tracking-widest">Contrat Spécial</span>
+                                    <Skull className="w-3.5 h-3.5 text-info" />
+                                </div>
+                                <div className="flex gap-3">
+                                    {payload.imageUrl && (
+                                        <div className="w-14 h-14 rounded-xl bg-surface border border-border flex-shrink-0 overflow-hidden">
+                                            <img src={payload.imageUrl} alt={payload.monsterName} className="w-full h-full object-cover" />
+                                        </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="text-foreground font-black uppercase text-sm leading-tight mb-1">{payload.monsterName}</h4>
+                                        <div className="space-y-0.5">
+                                            <p className="text-caption text-muted-foreground font-bold">Objectif : Vaincre {payload.targetCount || 50} spécimens</p>
+                                            {payload.level && <p className="text-caption text-info font-bold">Niveau : {payload.level}</p>}
+                                            {payload.zoneName && (
+                                                <p className="text-caption text-muted-foreground font-bold flex items-center gap-1">
+                                                    <MapPin className="w-3 h-3 text-info" /> {payload.zoneName}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                {payload.description && (
+                                    <p className="text-caption text-muted-foreground mt-2 pt-2 border-t border-border leading-snug">{payload.description}</p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* OBJECTIF MANUEL */}
+                {eventType === 'OBJECTIF' && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
+                        <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Titre de la mission</Label>
+                            <Input
+                                className="bg-background border-border rounded-xl text-sm h-11 focus:border-info/50"
+                                placeholder="Ex: Chasse à l'ambre fossile, Kilukru..."
+                                value={payload.title || ''}
+                                onChange={e => handleManualTitle(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Description / Objectif (écrit à la main)</Label>
+                            <textarea
+                                className="w-full bg-background border border-border rounded-xl p-3 text-sm text-foreground focus:border-info/50 outline-none resize-none h-24"
+                                placeholder="Ex: Demander de l'aide à Edgar Kéolog pour obtenir une ambre fossile durant la saison Ocre..."
+                                value={payload.description || ''}
+                                onChange={e => handleManualDescription(e.target.value)}
+                            />
+                        </div>
+                        {payload.description && (
+                            <div className="relative overflow-hidden rounded-2xl border border-info/30 bg-info/5 p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-caption font-black text-info uppercase tracking-widest flex items-center gap-1">
+                                        <Sparkles className="w-3.5 h-3.5" /> Objectif Personnel
+                                    </span>
+                                </div>
+                                <h4 className="text-foreground font-black uppercase text-sm leading-tight mb-1">{payload.title || "Sans titre"}</h4>
+                                <p className="text-caption text-foreground font-medium leading-snug">{payload.description}</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* FRAGMENTS D'ANOMALIE */}
+                {eventType === 'FRAGMENTS_ANOMALIE' && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
+                        <div className="relative overflow-hidden rounded-2xl border border-fuchsia-500/30 bg-fuchsia-500/5 p-4 flex gap-4">
+                            <div className="w-14 h-14 rounded-xl bg-surface/80 border border-fuchsia-500/20 flex-shrink-0 flex items-center justify-center relative overflow-hidden">
+                                <img src="/assets/missions/fragment.png" className="w-10 h-10 object-contain z-10" alt="Fragments" />
+                                <div className="absolute inset-0 bg-fuchsia-500/10 blur-xl scale-150" />
+                            </div>
+                            <div className="flex-1 text-caption text-muted-foreground leading-relaxed py-0.5">
+                                <div className="font-black text-fuchsia-400 uppercase tracking-widest text-caption mb-1">Mission Événement Fragments</div>
+                                Obtenir <span className="text-foreground font-black">20 Fragments d'anomalie</span> dans une anomalie
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
 }
+

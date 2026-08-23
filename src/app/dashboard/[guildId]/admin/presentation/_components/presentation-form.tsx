@@ -97,9 +97,9 @@ const calculateCompleteness = (
 };
 
 const getCompletenessColor = (score: number) => {
-    if (score < 50) return "bg-red-500";
-    if (score < 80) return "bg-amber-500";
-    return "bg-emerald-500";
+    if (score < 50) return "bg-danger";
+    if (score < 80) return "bg-warning";
+    return "bg-success";
 };
 
 
@@ -120,9 +120,9 @@ interface SectionHeaderProps {
     isPending: boolean;
 }
 
-const SectionHeader = ({ title, icon: Icon, section, color = "text-indigo-400", onSave, isPending }: SectionHeaderProps) => (
+const SectionHeader = ({ title, icon: Icon, section, color = "text-info", onSave, isPending }: SectionHeaderProps) => (
     <div className="flex items-center justify-between group">
-        <h2 className={cn("text-lg font-semibold text-white flex items-center gap-2")}>
+        <h2 className={cn("text-lg font-semibold text-foreground flex items-center gap-2")}>
             <Icon className={cn("w-5 h-5", color)} />
             {title}
         </h2>
@@ -131,7 +131,7 @@ const SectionHeader = ({ title, icon: Icon, section, color = "text-indigo-400", 
             size="sm"
             onClick={() => onSave(section)}
             disabled={isPending}
-            className="opacity-0 group-hover:opacity-100 transition-opacity h-8 gap-1.5 text-xs text-zinc-400 hover:text-white"
+            className="opacity-0 group-hover:opacity-100 transition-opacity h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
         >
             <Save className="w-3.5 h-3.5" />
             Sauvegarder
@@ -159,6 +159,7 @@ export function PresentationForm({ guildId }: Props) {
     const [bannerUrl, setBannerUrl] = useState<string | null>(null);
     const [photoUrl, setPhotoUrl] = useState<string | null>(null);
     const [foundedDate, setFoundedDate] = useState<Date | null>(null);
+    const [memberCount, setMemberCount] = useState<string>("");
     const [discordRequired, setDiscordRequired] = useState(false);
     const [minLevel, setMinLevel] = useState<string>("");
     const [minSuccesses, setMinSuccesses] = useState<string>("");
@@ -191,9 +192,11 @@ export function PresentationForm({ guildId }: Props) {
                 setBannerType(d.bannerType || "discord");
                 setBannerUrl(d.bannerUrl);
                 setPhotoUrl(d.photoUrl);
+                setFoundedDate(d.foundedDate);
                 setDiscordRequired(d.discordRequired);
                 setMinLevel(d.minLevel?.toString() || "");
                 setMinSuccesses(d.minSuccesses?.toString() || "");
+                setMemberCount(d.memberCount?.toString() || "");
             }
 
             if (membersResult.success && membersResult.members) {
@@ -265,6 +268,7 @@ export function PresentationForm({ guildId }: Props) {
                 minLevel: minLevel ? parseInt(minLevel, 10) : null,
                 minSuccesses: minSuccesses ? parseInt(minSuccesses, 10) : null,
                 foundedDate,
+                memberCount: memberCount ? parseInt(memberCount, 10) : null,
             };
 
             const result = await updateGuildPresentation(guildId, data);
@@ -291,6 +295,14 @@ export function PresentationForm({ guildId }: Props) {
     ) => {
         const file = e.target.files?.[0];
         if (!file) return;
+
+        // 🛡️ NSFW Safety Check
+        const { analyzeImageSafety } = await import("@/lib/safety-client");
+        const safety = await analyzeImageSafety(file);
+        if (!safety.isSafe) {
+            toast.error(safety.reason || "Contenu inapproprié détecté. L'image a été bloquée.");
+            return;
+        }
 
         const formData = new FormData();
         formData.append("file", file);
@@ -408,7 +420,7 @@ export function PresentationForm({ guildId }: Props) {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                <Loader2 className="w-8 h-8 text-info animate-spin" />
             </div>
         );
     }
@@ -420,19 +432,19 @@ export function PresentationForm({ guildId }: Props) {
     return (
         <div className="space-y-6">
             {/* Completeness & Public Link Header */}
-            <div className="flex flex-col md:flex-row gap-6 md:items-start justify-between bg-zinc-900/50 p-6 rounded-xl border border-white/5">
+            <div className="flex flex-col md:flex-row gap-6 md:items-start justify-between bg-surface/50 p-6 rounded-xl border border-border">
                 <div className="flex-1 space-y-4">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                            <Sparkles className="w-5 h-5 text-amber-500" />
+                        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                            <Sparkles className="w-5 h-5 text-warning" />
                             Qualité de la page
                         </h2>
-                        <span className={`text-sm font-bold ${completeness === 100 ? "text-emerald-400" : "text-zinc-400"
+                        <span className={`text-sm font-bold ${completeness === 100 ? "text-success" : "text-muted-foreground"
                             }`}>{completeness}%</span>
                     </div>
-                    <Progress value={completeness} className="h-2 bg-zinc-800" indicatorClassName={getCompletenessColor(completeness)} />
+                    <Progress value={completeness} className="h-2 bg-elevated" indicatorClassName={getCompletenessColor(completeness)} />
                     {completeness < 100 && (
-                        <p className="text-xs text-zinc-500">
+                        <p className="text-xs text-muted-foreground">
                             Astuce : Ajoutez {
                                 !bannerUrl ? "une bannière" :
                                     !photoUrl ? "un logo" :
@@ -443,26 +455,26 @@ export function PresentationForm({ guildId }: Props) {
                     )}
                 </div>
 
-                <Link href={`/guilds/${guildId}`} target="_blank">
-                    <Button variant="outline" className="gap-2 border-dashed border-zinc-700 hover:bg-zinc-800 w-full md:w-auto h-full">
+                <Link href={`/guilds/${guildId}`} target="_blank" className="w-full md:w-auto block">
+                    <Button variant="outline" className="gap-2 border-dashed border-border hover:bg-elevated w-full h-full py-4 md:py-2">
                         <ExternalLink className="w-4 h-4" />
                         Voir page publique
                     </Button>
                 </Link>
             </div>
             {/* Visibility Toggle - Always visible */}
-            <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6">
+            <div className="bg-surface/50 rounded-xl border border-border p-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
                             {enabled ? (
-                                <Eye className="w-5 h-5 text-emerald-400" />
+                                <Eye className="w-5 h-5 text-success" />
                             ) : (
-                                <EyeOff className="w-5 h-5 text-zinc-500" />
+                                <EyeOff className="w-5 h-5 text-muted-foreground" />
                             )}
                             Visibilité dans l&apos;annuaire
                         </h2>
-                        <p className="text-sm text-zinc-400 mt-1">
+                        <p className="text-sm text-muted-foreground mt-1">
                             Rendre votre guilde visible publiquement
                         </p>
                     </div>
@@ -477,7 +489,7 @@ export function PresentationForm({ guildId }: Props) {
                         href={`/guilds/${guildId}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 mt-4 text-sm text-indigo-400 hover:text-indigo-300"
+                        className="inline-flex items-center gap-1.5 mt-4 text-sm text-info hover:text-info"
                     >
                         Voir la page publique
                         <ExternalLink className="w-3.5 h-3.5" />
@@ -488,38 +500,38 @@ export function PresentationForm({ guildId }: Props) {
             {/* Tabs Navigation */}
             <Tabs defaultValue="general" className="w-full">
                 <div className="flex items-center justify-center mb-6">
-                    <TabsList className="bg-black/40 backdrop-blur-md border border-white/10 p-1 h-11 rounded-full">
+                    <TabsList className="bg-black/40 backdrop-blur-md border border-border p-1 h-auto min-h-[44px] rounded-2xl md:rounded-full flex-wrap w-full md:w-auto justify-center gap-1">
                         <TabsTrigger
                             value="general"
-                            className="rounded-full px-5 data-[state=active]:bg-indigo-500/20 data-[state=active]:text-indigo-300 data-[state=active]:border-indigo-500/30 border border-transparent transition-all"
+                            className="flex-1 md:flex-none rounded-full px-3 py-1.5 md:px-5 data-[state=active]:bg-info/20 data-[state=active]:text-info data-[state=active]:border-info/30 border border-transparent transition-all whitespace-nowrap"
                         >
                             <Server className="w-4 h-4 mr-2" />
                             Général
                         </TabsTrigger>
                         <TabsTrigger
                             value="team"
-                            className="rounded-full px-5 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-300 data-[state=active]:border-amber-500/30 border border-transparent transition-all"
+                            className="flex-1 md:flex-none rounded-full px-3 py-1.5 md:px-5 data-[state=active]:bg-warning/20 data-[state=active]:text-warning data-[state=active]:border-warning/30 border border-transparent transition-all whitespace-nowrap"
                         >
                             <Crown className="w-4 h-4 mr-2" />
                             Direction
                         </TabsTrigger>
                         <TabsTrigger
                             value="content"
-                            className="rounded-full px-5 data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 data-[state=active]:border-emerald-500/30 border border-transparent transition-all"
+                            className="flex-1 md:flex-none rounded-full px-3 py-1.5 md:px-5 data-[state=active]:bg-success/20 data-[state=active]:text-success data-[state=active]:border-success/30 border border-transparent transition-all whitespace-nowrap"
                         >
                             <Gamepad2 className="w-4 h-4 mr-2" />
                             Contenu
                         </TabsTrigger>
                         <TabsTrigger
                             value="images"
-                            className="rounded-full px-5 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 data-[state=active]:border-purple-500/30 border border-transparent transition-all"
+                            className="flex-1 md:flex-none rounded-full px-3 py-1.5 md:px-5 data-[state=active]:bg-info/20 data-[state=active]:text-info data-[state=active]:border-info/30 border border-transparent transition-all whitespace-nowrap"
                         >
                             <ImageIcon className="w-4 h-4 mr-2" />
                             Images
                         </TabsTrigger>
                         <TabsTrigger
                             value="recruitment"
-                            className="rounded-full px-5 data-[state=active]:bg-pink-500/20 data-[state=active]:text-pink-300 data-[state=active]:border-pink-500/30 border border-transparent transition-all"
+                            className="flex-1 md:flex-none rounded-full px-3 py-1.5 md:px-5 data-[state=active]:bg-pink-500/20 data-[state=active]:text-pink-300 data-[state=active]:border-pink-500/30 border border-transparent transition-all whitespace-nowrap"
                         >
                             <UserPlus className="w-4 h-4 mr-2" />
                             Recrutement
@@ -528,17 +540,17 @@ export function PresentationForm({ guildId }: Props) {
                 </div>
 
                 {/* GENERAL TAB */}
-                <TabsContent value="general" className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
+                <TabsContent value="general" className="animate-in fade-in slide-in-from-bottom-4 duration-300 space-y-6">
                     {/* Server Selection - Grid Style */}
-                    <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-4">
+                    <div className="bg-surface/50 rounded-xl border border-border p-6 space-y-4">
                         <SectionHeader title="Serveur Dofus Unity" icon={Server} section="server" onSave={handleSaveSection} isPending={isPending} />
 
                         <div className="space-y-4">
                             {/* Épiques */}
                             <div>
                                 <div className="flex items-center gap-2 mb-3">
-                                    <Shield className="w-4 h-4 text-emerald-500" />
-                                    <p className="text-sm font-medium text-emerald-500">Serveurs Épiques</p>
+                                    <Shield className="w-4 h-4 text-success" />
+                                    <p className="text-sm font-medium text-success">Serveurs Épiques</p>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                                     {DOFUS_UNITY_SERVERS.epique.map((s) => (
@@ -549,8 +561,8 @@ export function PresentationForm({ guildId }: Props) {
                                             className={cn(
                                                 "relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
                                                 server === s.name
-                                                    ? "bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-[0_0_15px_-3px_rgba(16,185,129,0.2)]"
-                                                    : "bg-zinc-900/40 border-white/5 text-zinc-400 hover:border-white/10 hover:bg-white/5"
+                                                    ? "bg-success/10 border-success text-success "
+                                                    : "bg-surface/40 border-border text-muted-foreground hover:border-border hover:bg-surface"
                                             )}
                                         >
                                             <span className="relative z-10">{s.name}</span>
@@ -562,8 +574,8 @@ export function PresentationForm({ guildId }: Props) {
                             {/* Monocompte */}
                             <div>
                                 <div className="flex items-center gap-2 mb-3">
-                                    <Trophy className="w-4 h-4 text-amber-500" />
-                                    <p className="text-sm font-medium text-amber-500">Serveurs Monocompte</p>
+                                    <Trophy className="w-4 h-4 text-warning" />
+                                    <p className="text-sm font-medium text-warning">Serveurs Monocompte</p>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                                     {DOFUS_UNITY_SERVERS.monocompte.map((s) => (
@@ -574,8 +586,8 @@ export function PresentationForm({ guildId }: Props) {
                                             className={cn(
                                                 "relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
                                                 server === s.name
-                                                    ? "bg-amber-500/10 border-amber-500 text-amber-400 shadow-[0_0_15px_-3px_rgba(245,158,11,0.2)]"
-                                                    : "bg-zinc-900/40 border-white/5 text-zinc-400 hover:border-white/10 hover:bg-white/5"
+                                                    ? "bg-warning/10 border-warning text-warning "
+                                                    : "bg-surface/40 border-border text-muted-foreground hover:border-border hover:bg-surface"
                                             )}
                                         >
                                             <span className="relative z-10">{s.name}</span>
@@ -587,8 +599,8 @@ export function PresentationForm({ guildId }: Props) {
                             {/* Classiques */}
                             <div>
                                 <div className="flex items-center gap-2 mb-3">
-                                    <Gamepad2 className="w-4 h-4 text-zinc-400" />
-                                    <p className="text-sm font-medium text-zinc-400">Serveurs Classiques</p>
+                                    <Gamepad2 className="w-4 h-4 text-muted-foreground" />
+                                    <p className="text-sm font-medium text-muted-foreground">Serveurs Classiques</p>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                                     {DOFUS_UNITY_SERVERS.classique.map((s) => (
@@ -599,8 +611,8 @@ export function PresentationForm({ guildId }: Props) {
                                             className={cn(
                                                 "relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
                                                 server === s.name
-                                                    ? "bg-white/10 border-white text-white shadow-[0_0_15px_-3px_rgba(255,255,255,0.2)]"
-                                                    : "bg-zinc-900/40 border-white/5 text-zinc-400 hover:border-white/10 hover:bg-white/5"
+                                                    ? "bg-surface border-border text-foreground "
+                                                    : "bg-surface/40 border-border text-muted-foreground hover:border-border hover:bg-surface"
                                             )}
                                         >
                                             <span className="relative z-10">{s.name}</span>
@@ -612,8 +624,8 @@ export function PresentationForm({ guildId }: Props) {
                             {/* Pionniers Mono */}
                             <div>
                                 <div className="flex items-center gap-2 mb-3">
-                                    <Sparkles className="w-4 h-4 text-indigo-400" />
-                                    <p className="text-sm font-medium text-indigo-400">Serveurs Pionniers Monocompte</p>
+                                    <Sparkles className="w-4 h-4 text-info" />
+                                    <p className="text-sm font-medium text-info">Serveurs Pionniers Monocompte</p>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                                     {DOFUS_UNITY_SERVERS.pionnierMono.map((s) => (
@@ -624,8 +636,8 @@ export function PresentationForm({ guildId }: Props) {
                                             className={cn(
                                                 "relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
                                                 server === s.name
-                                                    ? "bg-indigo-500/10 border-indigo-500 text-indigo-400 shadow-[0_0_15px_-3px_rgba(99,102,241,0.2)]"
-                                                    : "bg-zinc-900/40 border-white/5 text-zinc-400 hover:border-white/10 hover:bg-white/5"
+                                                    ? "bg-info/10 border-info text-info "
+                                                    : "bg-surface/40 border-border text-muted-foreground hover:border-border hover:bg-surface"
                                             )}
                                         >
                                             <span className="relative z-10">{s.name}</span>
@@ -637,8 +649,8 @@ export function PresentationForm({ guildId }: Props) {
                             {/* Pionniers Multi */}
                             <div>
                                 <div className="flex items-center gap-2 mb-3">
-                                    <Users className="w-4 h-4 text-blue-500" />
-                                    <p className="text-sm font-medium text-blue-500">Serveurs Pionniers</p>
+                                    <Users className="w-4 h-4 text-info" />
+                                    <p className="text-sm font-medium text-info">Serveurs Pionniers</p>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                                     {DOFUS_UNITY_SERVERS.pionnier.map((s) => (
@@ -649,8 +661,8 @@ export function PresentationForm({ guildId }: Props) {
                                             className={cn(
                                                 "relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
                                                 server === s.name
-                                                    ? "bg-blue-500/10 border-blue-500 text-blue-400 shadow-[0_0_15px_-3px_rgba(59,130,246,0.2)]"
-                                                    : "bg-zinc-900/40 border-white/5 text-zinc-400 hover:border-white/10 hover:bg-white/5"
+                                                    ? "bg-info/10 border-info text-info "
+                                                    : "bg-surface/40 border-border text-muted-foreground hover:border-border hover:bg-surface"
                                             )}
                                         >
                                             <span className="relative z-10">{s.name}</span>
@@ -661,14 +673,14 @@ export function PresentationForm({ guildId }: Props) {
 
                             {server && (
                                 <div className="flex items-center justify-between pt-2">
-                                    <p className="text-sm text-zinc-400">
-                                        Serveur sélectionné : <span className="text-white font-medium">{server}</span>
+                                    <p className="text-sm text-muted-foreground">
+                                        Serveur sélectionné : <span className="text-foreground font-medium">{server}</span>
                                     </p>
                                     <Button
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => setServer("")}
-                                        className="text-zinc-500 hover:text-white"
+                                        className="text-muted-foreground hover:text-foreground"
                                     >
                                         <X className="w-4 h-4 mr-1" />
                                         Effacer
@@ -679,21 +691,21 @@ export function PresentationForm({ guildId }: Props) {
                     </div>
 
                     {/* Founded Date */}
-                    <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-4">
-                        <SectionHeader title="Date de fondation" icon={Calendar} section="foundedDate" color="text-amber-500" onSave={handleSaveSection} isPending={isPending} />
+                    <div className="bg-surface/50 rounded-xl border border-border p-6 space-y-4">
+                        <SectionHeader title="Date de fondation" icon={Calendar} section="foundedDate" color="text-warning" onSave={handleSaveSection} isPending={isPending} />
                         <div className="space-y-2">
-                            <p className="text-sm text-zinc-400">Cette date servira à calculer l'ancienneté de votre guilde.</p>
+                            <p className="text-sm text-muted-foreground">Cette date servira à calculer l'ancienneté de votre guilde.</p>
                             <Input
                                 type="date"
                                 value={foundedDate ? foundedDate.toISOString().split('T')[0] : ""}
                                 onChange={(e) => setFoundedDate(e.target.value ? new Date(e.target.value) : null)}
-                                className="bg-zinc-800/50 border-white/10 w-full md:w-auto"
+                                className="bg-elevated/50 border-border w-full md:w-auto"
                             />
                         </div>
                     </div>
 
                     {/* Discord Link */}
-                    <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-4">
+                    <div className="bg-surface/50 rounded-xl border border-border p-6 space-y-4">
                         <SectionHeader title="Lien Discord" icon={MessageCircle} section="discord" color="text-[#5865F2]" onSave={handleSaveSection} isPending={isPending} />
                         <div className="space-y-2">
                             <Input
@@ -719,17 +731,17 @@ export function PresentationForm({ guildId }: Props) {
                                 }}
                                 placeholder="https://discord.gg/votre-invite"
                                 className={cn(
-                                    "bg-zinc-800/50 border-white/10",
-                                    errors.discord && "border-red-500/50"
+                                    "bg-elevated/50 border-border",
+                                    errors.discord && "border-danger/50"
                                 )}
                             />
                             {errors.discord ? (
-                                <p className="text-xs text-red-400 flex items-center gap-1">
+                                <p className="text-xs text-danger flex items-center gap-1">
                                     <AlertCircle className="w-3 h-3" />
                                     {errors.discord}
                                 </p>
                             ) : (
-                                <p className="text-xs text-zinc-500">
+                                <p className="text-xs text-muted-foreground">
                                     Format : discord.gg/xxx ou discord.com/invite/xxx
                                 </p>
                             )}
@@ -738,12 +750,12 @@ export function PresentationForm({ guildId }: Props) {
                 </TabsContent>
 
                 {/* TEAM TAB */}
-                <TabsContent value="team" className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
+                <TabsContent value="team" className="animate-in fade-in slide-in-from-bottom-4 duration-300 space-y-6">
                     {/* Founder Section */}
-                    <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-4 space-y-3">
-                        <SectionHeader title="Fondateur" icon={Crown} section="founder" color="text-amber-400" onSave={handleSaveSection} isPending={isPending} />
-                        <div className="bg-amber-500/5 rounded-xl border border-amber-500/10 p-3">
-                            <Label className="text-amber-500 mb-2 block">Chef de guilde</Label>
+                    <div className="bg-surface/50 rounded-xl border border-border p-4 space-y-3">
+                        <SectionHeader title="Fondateur" icon={Crown} section="founder" color="text-warning" onSave={handleSaveSection} isPending={isPending} />
+                        <div className="bg-warning/5 rounded-xl border border-warning/10 p-3">
+                            <Label className="text-warning mb-2 block">Chef de guilde</Label>
                             <MemberSelector
                                 value={founder}
                                 onChange={(val) => {
@@ -759,10 +771,10 @@ export function PresentationForm({ guildId }: Props) {
                                 members={members}
                                 placeholder="Rechercher le chef de guilde..."
                                 error={!!errors.founder}
-                                className="bg-zinc-900/50 border-amber-500/20 focus:border-amber-400"
+                                className="bg-surface/50 border-warning/20 focus:border-warning"
                             />
                             {errors.founder && (
-                                <p className="text-xs text-red-400 mt-2 flex items-center gap-1">
+                                <p className="text-xs text-danger mt-2 flex items-center gap-1">
                                     <AlertCircle className="w-3 h-3" />
                                     {errors.founder}
                                 </p>
@@ -772,17 +784,17 @@ export function PresentationForm({ guildId }: Props) {
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Co-Leaders Section */}
-                        <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-4 space-y-4">
+                        <div className="bg-surface/50 rounded-xl border border-border p-4 space-y-4">
                             <div className="flex items-center justify-between">
-                                <SectionHeader title="Co-leaders" icon={Star} section="coleaders" color="text-yellow-400" onSave={handleSaveSection} isPending={isPending} />
-                                <span className="bg-yellow-500/10 text-yellow-400 text-xs px-2 py-1 rounded-full font-mono">
+                                <SectionHeader title="Co-leaders" icon={Star} section="coleaders" color="text-warning" onSave={handleSaveSection} isPending={isPending} />
+                                <span className="bg-warning/10 text-warning text-xs px-2 py-1 rounded-full font-mono">
                                     {coLeaders.filter(c => c.trim()).length}/3
                                 </span>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                 {coLeaders.map((cl, i) => (
-                                    <div key={i} className="flex gap-2 items-center bg-zinc-900/50 p-1.5 rounded-lg border border-white/5 group hover:border-white/10 transition-colors">
+                                    <div key={i} className="flex gap-2 items-center bg-surface/50 p-1.5 rounded-lg border border-border group hover:border-border transition-colors">
                                         <div className="flex-1 min-w-0">
                                             <MemberSelector
                                                 value={cl}
@@ -796,7 +808,7 @@ export function PresentationForm({ guildId }: Props) {
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="h-7 w-7 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            className="h-7 w-7 text-muted-foreground hover:text-danger hover:bg-danger/10 opacity-0 group-hover:opacity-100 transition-opacity"
                                             onClick={() => {
                                                 const newCoLeaders = coLeaders.filter((_, index) => index !== i);
                                                 setCoLeaders(newCoLeaders);
@@ -811,7 +823,7 @@ export function PresentationForm({ guildId }: Props) {
                                     <Button
                                         variant="outline"
                                         onClick={() => setCoLeaders([...coLeaders, ""])}
-                                        className="h-full min-h-[44px] border-dashed border-zinc-700 text-zinc-500 hover:text-white hover:bg-zinc-800 bg-transparent"
+                                        className="h-full min-h-[44px] border-dashed border-border text-muted-foreground hover:text-foreground hover:bg-elevated bg-transparent"
                                     >
                                         <UserPlus className="w-4 h-4 mr-2" />
                                         Ajouter
@@ -821,17 +833,17 @@ export function PresentationForm({ guildId }: Props) {
                         </div>
 
                         {/* Bras Droits Section */}
-                        <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-4 space-y-4">
+                        <div className="bg-surface/50 rounded-xl border border-border p-4 space-y-4">
                             <div className="flex items-center justify-between">
-                                <SectionHeader title="Bras Droits" icon={Shield} section="brasdroits" color="text-indigo-400" onSave={handleSaveSection} isPending={isPending} />
-                                <span className="bg-indigo-500/10 text-indigo-400 text-xs px-2 py-1 rounded-full font-mono">
+                                <SectionHeader title="Bras Droits" icon={Shield} section="brasdroits" color="text-info" onSave={handleSaveSection} isPending={isPending} />
+                                <span className="bg-info/10 text-info text-xs px-2 py-1 rounded-full font-mono">
                                     {brasDroits.filter(b => b.trim()).length}/10
                                 </span>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                 {brasDroits.map((bd, i) => (
-                                    <div key={i} className="flex gap-2 items-center bg-zinc-900/50 p-1.5 rounded-lg border border-white/5 group hover:border-white/10 transition-colors">
+                                    <div key={i} className="flex gap-2 items-center bg-surface/50 p-1.5 rounded-lg border border-border group hover:border-border transition-colors">
                                         <div className="flex-1 min-w-0">
                                             <MemberSelector
                                                 value={bd}
@@ -845,7 +857,7 @@ export function PresentationForm({ guildId }: Props) {
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="h-7 w-7 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            className="h-7 w-7 text-muted-foreground hover:text-danger hover:bg-danger/10 opacity-0 group-hover:opacity-100 transition-opacity"
                                             onClick={() => {
                                                 const newBras = brasDroits.filter((_, index) => index !== i);
                                                 setBrasDroits(newBras);
@@ -860,7 +872,7 @@ export function PresentationForm({ guildId }: Props) {
                                     <Button
                                         variant="outline"
                                         onClick={() => setBrasDroits([...brasDroits, ""])}
-                                        className="h-full min-h-[44px] border-dashed border-zinc-700 text-zinc-500 hover:text-white hover:bg-zinc-800 bg-transparent"
+                                        className="h-full min-h-[44px] border-dashed border-border text-muted-foreground hover:text-foreground hover:bg-elevated bg-transparent"
                                     >
                                         <UserPlus className="w-4 h-4 mr-2" />
                                         Ajouter
@@ -872,11 +884,11 @@ export function PresentationForm({ guildId }: Props) {
                 </TabsContent>
 
                 {/* CONTENT TAB */}
-                <TabsContent value="content" className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
+                <TabsContent value="content" className="animate-in fade-in slide-in-from-bottom-4 duration-300 space-y-6">
                     {/* History */}
-                    <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-4">
-                        <SectionHeader title="Notre Histoire 📜" icon={Gamepad2} section="history" color="text-emerald-400" onSave={handleSaveSection} isPending={isPending} />
-                        <p className="text-xs text-zinc-500">Emojis autorisés ✨ | Les liens seront supprimés automatiquement</p>
+                    <div className="bg-surface/50 rounded-xl border border-border p-6 space-y-4">
+                        <SectionHeader title="Notre Histoire 📜" icon={Gamepad2} section="history" color="text-success" onSave={handleSaveSection} isPending={isPending} />
+                        <p className="text-xs text-muted-foreground">Emojis autorisés ✨ | Les liens seront supprimés automatiquement</p>
                         <Textarea
                             value={history}
                             onChange={(e) => setHistory(e.target.value)}
@@ -884,14 +896,14 @@ export function PresentationForm({ guildId }: Props) {
                             placeholder="Racontez l'histoire de votre guilde... 🎮"
                             rows={8}
                             maxLength={5000}
-                            className="bg-zinc-800/50 border-white/10"
+                            className="bg-elevated/50 border-border"
                         />
-                        <p className="text-xs text-zinc-500">{history.length}/5000 caractères</p>
+                        <p className="text-xs text-muted-foreground">{history.length}/5000 caractères</p>
                     </div>
 
                     {/* Activities */}
-                    <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-4">
-                        <SectionHeader title="Nos Activités" icon={Gamepad2} section="activities" color="text-emerald-400" onSave={handleSaveSection} isPending={isPending} />
+                    <div className="bg-surface/50 rounded-xl border border-border p-6 space-y-4">
+                        <SectionHeader title="Nos Activités" icon={Gamepad2} section="activities" color="text-success" onSave={handleSaveSection} isPending={isPending} />
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                             {AVAILABLE_ACTIVITIES.map((activity) => (
                                 <button
@@ -901,23 +913,23 @@ export function PresentationForm({ guildId }: Props) {
                                     className={cn(
                                         "p-4 rounded-xl border transition-all text-left",
                                         activities.includes(activity.id)
-                                            ? "bg-emerald-500/20 border-emerald-500/50"
-                                            : "bg-zinc-800/50 border-white/5 hover:border-white/20"
+                                            ? "bg-success/20 border-success/50"
+                                            : "bg-elevated/50 border-border hover:border-border-strong"
                                     )}
                                 >
                                     <div className="flex items-center justify-between">
                                         <span className={cn(
                                             "font-semibold",
-                                            activities.includes(activity.id) ? "text-emerald-300" : "text-zinc-300"
+                                            activities.includes(activity.id) ? "text-success" : "text-foreground"
                                         )}>
                                             {activity.label}
                                         </span>
                                         {activities.includes(activity.id) && (
-                                            <Check className="w-4 h-4 text-emerald-400" />
+                                            <Check className="w-4 h-4 text-success" />
                                         )}
                                     </div>
                                     {activity.subtitle && (
-                                        <p className="text-xs text-zinc-500 mt-1">{activity.subtitle}</p>
+                                        <p className="text-xs text-muted-foreground mt-1">{activity.subtitle}</p>
                                     )}
                                 </button>
                             ))}
@@ -926,9 +938,9 @@ export function PresentationForm({ guildId }: Props) {
                 </TabsContent>
 
                 {/* IMAGES TAB */}
-                <TabsContent value="images" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-6">
-                        <SectionHeader title="Images" icon={ImageIcon} section="images" color="text-purple-400" onSave={handleSaveSection} isPending={isPending} />
+                <TabsContent value="images" className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    <div className="bg-surface/50 rounded-xl border border-border p-6 space-y-6">
+                        <SectionHeader title="Images" icon={ImageIcon} section="images" color="text-info" onSave={handleSaveSection} isPending={isPending} />
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Banner */}
@@ -941,9 +953,9 @@ export function PresentationForm({ guildId }: Props) {
                                             name="bannerType"
                                             checked={bannerType === "discord"}
                                             onChange={() => setBannerType("discord")}
-                                            className="text-indigo-500"
+                                            className="text-info"
                                         />
-                                        <span className="text-sm text-zinc-300">Sans bannière</span>
+                                        <span className="text-sm text-foreground">Sans bannière</span>
                                     </label>
                                     <label className="flex items-center gap-2 cursor-pointer">
                                         <input
@@ -951,9 +963,9 @@ export function PresentationForm({ guildId }: Props) {
                                             name="bannerType"
                                             checked={bannerType === "custom"}
                                             onChange={() => setBannerType("custom")}
-                                            className="text-indigo-500"
+                                            className="text-info"
                                         />
-                                        <span className="text-sm text-zinc-300">Bannière personnalisée</span>
+                                        <span className="text-sm text-foreground">Bannière personnalisée</span>
                                     </label>
                                 </div>
 
@@ -971,15 +983,15 @@ export function PresentationForm({ guildId }: Props) {
                                                 <button
                                                     type="button"
                                                     onClick={() => handleDeleteImage("banner")}
-                                                    className="absolute top-2 right-2 p-2 bg-red-500/80 hover:bg-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    className="absolute top-2 right-2 p-2 bg-danger/80 hover:bg-danger rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                                                 >
-                                                    <X className="w-4 h-4 text-white" />
+                                                    <X className="w-4 h-4 text-foreground" />
                                                 </button>
                                             </div>
                                         )}
-                                        <label className="flex items-center justify-center gap-2 px-4 py-6 border-2 border-dashed border-white/10 rounded-lg cursor-pointer hover:border-indigo-500/50 transition-colors">
-                                            <Upload className="w-4 h-4 text-zinc-400" />
-                                            <span className="text-sm text-zinc-400">
+                                        <label className="flex items-center justify-center gap-2 px-4 py-6 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-info/50 transition-colors">
+                                            <Upload className="w-4 h-4 text-muted-foreground" />
+                                            <span className="text-sm text-muted-foreground">
                                                 {bannerUrl ? "Changer" : "Uploader"} une bannière
                                             </span>
                                             <input
@@ -989,7 +1001,7 @@ export function PresentationForm({ guildId }: Props) {
                                                 className="hidden"
                                             />
                                         </label>
-                                        <p className="text-xs text-zinc-500">
+                                        <p className="text-xs text-muted-foreground">
                                             📐 Format Discord : 960×540px (16:9) | Max 2MB | Optionnel
                                         </p>
                                     </div>
@@ -1000,7 +1012,7 @@ export function PresentationForm({ guildId }: Props) {
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
                                     <Label>Photo de guilde</Label>
-                                    <span className="text-xs text-zinc-500">Optionnel</span>
+                                    <span className="text-xs text-muted-foreground">Optionnel</span>
                                 </div>
                                 {photoUrl && (
                                     <div className="relative h-52 rounded-lg overflow-hidden group">
@@ -1014,15 +1026,15 @@ export function PresentationForm({ guildId }: Props) {
                                         <button
                                             type="button"
                                             onClick={() => handleDeleteImage("photo")}
-                                            className="absolute top-2 right-2 p-2 bg-red-500/80 hover:bg-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                            className="absolute top-2 right-2 p-2 bg-danger/80 hover:bg-danger rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                                         >
-                                            <X className="w-4 h-4 text-white" />
+                                            <X className="w-4 h-4 text-foreground" />
                                         </button>
                                     </div>
                                 )}
-                                <label className="flex items-center justify-center gap-2 px-4 py-6 border-2 border-dashed border-white/10 rounded-lg cursor-pointer hover:border-indigo-500/50 transition-colors">
-                                    <Upload className="w-4 h-4 text-zinc-400" />
-                                    <span className="text-sm text-zinc-400">
+                                <label className="flex items-center justify-center gap-2 px-4 py-6 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-info/50 transition-colors">
+                                    <Upload className="w-4 h-4 text-muted-foreground" />
+                                    <span className="text-sm text-muted-foreground">
                                         {photoUrl ? "Changer" : "Uploader"} une photo
                                     </span>
                                     <input
@@ -1032,7 +1044,7 @@ export function PresentationForm({ guildId }: Props) {
                                         className="hidden"
                                     />
                                 </label>
-                                <p className="text-xs text-zinc-500">
+                                <p className="text-xs text-muted-foreground">
                                     📐 Recommandé : 800×600px | Max 2MB
                                 </p>
                             </div>
@@ -1041,8 +1053,8 @@ export function PresentationForm({ guildId }: Props) {
                 </TabsContent>
 
                 {/* RECRUITMENT TAB */}
-                <TabsContent value="recruitment" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="bg-zinc-900/50 rounded-xl border border-white/5 p-6 space-y-6">
+                <TabsContent value="recruitment" className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    <div className="bg-surface/50 rounded-xl border border-border p-6 space-y-6">
                         <div className="flex items-center justify-between">
                             <SectionHeader title="Recrutement" icon={UserPlus} section="recruitment" color="text-pink-400" onSave={handleSaveSection} isPending={isPending} />
                             <Switch
@@ -1053,16 +1065,16 @@ export function PresentationForm({ guildId }: Props) {
 
                         {recruiting && (
                             <div className="space-y-6">
-                                <p className="text-sm text-zinc-400 p-3 bg-pink-500/10 border border-pink-500/20 rounded-lg">
+                                <p className="text-sm text-muted-foreground p-3 bg-pink-500/10 border border-pink-500/20 rounded-lg">
                                     ℹ️ Ces informations seront affichées sur la page publique de votre guilde.
                                 </p>
 
                                 {/* Requirements Grid */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     {/* Discord Required */}
-                                    <div className="p-4 bg-zinc-800/50 rounded-xl border border-white/5">
+                                    <div className="p-4 bg-elevated/50 rounded-xl border border-border">
                                         <div className="flex items-center justify-between mb-2">
-                                            <Label className="text-zinc-300 flex items-center gap-2">
+                                            <Label className="text-foreground flex items-center gap-2">
                                                 <MessageCircle className="w-4 h-4 text-[#5865F2]" />
                                                 Discord obligatoire
                                             </Label>
@@ -1074,8 +1086,8 @@ export function PresentationForm({ guildId }: Props) {
                                     </div>
 
                                     {/* Min Level */}
-                                    <div className="p-4 bg-zinc-800/50 rounded-xl border border-white/5">
-                                        <Label className="text-zinc-300 text-sm mb-2 block">Niveau minimum</Label>
+                                    <div className="p-4 bg-elevated/50 rounded-xl border border-border">
+                                        <Label className="text-foreground text-sm mb-2 block">Niveau minimum</Label>
                                         <Input
                                             type="number"
                                             value={minLevel}
@@ -1097,20 +1109,20 @@ export function PresentationForm({ guildId }: Props) {
                                             min={0}
                                             max={200}
                                             className={cn(
-                                                "bg-zinc-900/50 border-white/10",
-                                                errors.minLevel && "border-red-500/50"
+                                                "bg-surface/50 border-border",
+                                                errors.minLevel && "border-danger/50"
                                             )}
                                         />
                                         {errors.minLevel ? (
-                                            <p className="text-xs text-red-400 mt-1">{errors.minLevel}</p>
+                                            <p className="text-xs text-danger mt-1">{errors.minLevel}</p>
                                         ) : (
-                                            <p className="text-xs text-zinc-500 mt-1">Optionnel</p>
+                                            <p className="text-xs text-muted-foreground mt-1">Optionnel</p>
                                         )}
                                     </div>
 
                                     {/* Min Successes */}
-                                    <div className="p-4 bg-zinc-800/50 rounded-xl border border-white/5">
-                                        <Label className="text-zinc-300 text-sm mb-2 block">Succès minimum</Label>
+                                    <div className="p-4 bg-elevated/50 rounded-xl border border-border">
+                                        <Label className="text-foreground text-sm mb-2 block">Succès minimum</Label>
                                         <Input
                                             type="number"
                                             value={minSuccesses}
@@ -1132,15 +1144,41 @@ export function PresentationForm({ guildId }: Props) {
                                             min={0}
                                             max={25000}
                                             className={cn(
-                                                "bg-zinc-900/50 border-white/10",
-                                                errors.minSuccesses && "border-red-500/50"
+                                                "bg-surface/50 border-border",
+                                                errors.minSuccesses && "border-danger/50"
                                             )}
                                         />
                                         {errors.minSuccesses ? (
-                                            <p className="text-xs text-red-400 mt-1">{errors.minSuccesses}</p>
+                                            <p className="text-xs text-danger mt-1">{errors.minSuccesses}</p>
                                         ) : (
-                                            <p className="text-xs text-zinc-500 mt-1">Optionnel</p>
+                                            <p className="text-xs text-muted-foreground mt-1">Optionnel</p>
                                         )}
+                                    </div>
+
+                                    {/* Member Count */}
+                                    <div className="p-4 bg-elevated/50 rounded-xl border border-border">
+                                        <Label className="text-foreground text-sm mb-2 flex items-center gap-2">
+                                            <Users className="w-4 h-4 text-info" />
+                                            Membres actuels
+                                        </Label>
+                                        <Input
+                                            type="number"
+                                            value={memberCount}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                const num = parseInt(val, 10);
+                                                if (val === "" || (num >= 0 && num <= 350)) {
+                                                    setMemberCount(val);
+                                                }
+                                            }}
+                                            placeholder="0-350"
+                                            min={0}
+                                            max={350}
+                                            className="bg-surface/50 border-border"
+                                        />
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            {memberCount ? `Places disponibles : ${350 - parseInt(memberCount)}` : "Optionnel"}
+                                        </p>
                                     </div>
                                 </div>
 
@@ -1154,9 +1192,9 @@ export function PresentationForm({ guildId }: Props) {
                                         placeholder="Décrivez vos attentes..."
                                         rows={4}
                                         maxLength={1000}
-                                        className="bg-zinc-800/50 border-white/10"
+                                        className="bg-elevated/50 border-border"
                                     />
-                                    <p className="text-xs text-zinc-500">
+                                    <p className="text-xs text-muted-foreground">
                                         {recruitmentRequirements.length}/1000 caractères
                                     </p>
                                 </div>
@@ -1172,7 +1210,7 @@ export function PresentationForm({ guildId }: Props) {
                     onClick={handleSubmit}
                     disabled={isPending}
                     size="lg"
-                    className="bg-indigo-600 hover:bg-indigo-700 gap-2 shadow-lg shadow-indigo-500/20"
+                    className="bg-info hover:bg-info gap-2 shadow-lg shadow-indigo-500/20"
                 >
                     {isPending ? (
                         <Loader2 className="w-4 h-4 animate-spin" />

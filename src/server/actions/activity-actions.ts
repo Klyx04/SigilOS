@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
@@ -63,7 +64,7 @@ export async function emitGuildActivity(
             });
         }
     } catch (e) {
-        console.error("[Activity] emitGuildActivity error:", e);
+        logger.error("[Activity] emitGuildActivity error:", e);
     }
 }
 
@@ -97,7 +98,7 @@ export async function getGuildActivitiesSince(
             createdAt: r.createdAt,
         }));
     } catch (e) {
-        console.error("[Activity] getGuildActivitiesSince error:", e);
+        logger.error("[Activity] getGuildActivitiesSince error:", e);
         return [];
     }
 }
@@ -134,7 +135,7 @@ export async function getRecentGuildActivities(
             createdAt: r.createdAt,
         }));
     } catch (e) {
-        console.error("[Activity] getRecentGuildActivities error:", e);
+        logger.error("[Activity] getRecentGuildActivities error:", e);
         return [];
     }
 }

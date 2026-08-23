@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 
@@ -38,7 +39,7 @@ export async function logServiceActivity(entry: LogEntry): Promise<void> {
         });
     } catch (error) {
         // Never let logging failure break the main operation
-        console.error("[ServiceActivityLog] Failed to log:", error);
+        logger.error("[ServiceActivityLog] Failed to log:", error);
     }
 }
 
@@ -91,7 +92,7 @@ export async function getActivityLogs(
             },
         });
     } catch (error) {
-        console.error("[getActivityLogs]", error);
+        logger.error("[getActivityLogs]", error);
         return [];
     }
 }
@@ -147,7 +148,7 @@ export async function getModuleLogs(
             },
         });
     } catch (error) {
-        console.error("[getModuleLogs]", error);
+        logger.error("[getModuleLogs]", error);
         return [];
     }
 }

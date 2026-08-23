@@ -9,6 +9,20 @@ import { redis } from "./redis";
 type Fetcher<T> = () => Promise<T>;
 
 /**
+ * BigInt-safe JSON serializer.
+ * Prisma can return BigInt for Discord snowflake IDs.
+ * JSON.stringify crashes on BigInt — we convert to Number when safe, or String if > MAX_SAFE_INTEGER.
+ */
+function safeStringify(data: unknown): string {
+    return JSON.stringify(data, (_key, value) => {
+        if (typeof value === "bigint") {
+            return value <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(value) : value.toString();
+        }
+        return value;
+    });
+}
+
+/**
  * withCache - Wraps a data-fetching function with Redis caching
  * 
  * @param key The unique string key for this cache entry
@@ -32,7 +46,7 @@ export async function withCache<T>(
             try {
                 return JSON.parse(cachedValue) as T;
             } catch (parseError) {
-                console.error(`[Cache] Parse error for key ${key}:`, parseError);
+                console.error("[Cache] Parse error for key:", key, parseError);
                 // Fallback to fetcher if data is corrupted
             }
         }
@@ -42,13 +56,13 @@ export async function withCache<T>(
 
         // 4. Store in Cache (Background)
         // We don't await this to keep response time fast
-        redis.set(key, JSON.stringify(data), "EX", ttlSeconds).catch((err) => {
-            console.error(`[Cache] Failed to set key ${key}:`, err);
+        redis.set(key, safeStringify(data), "EX", ttlSeconds).catch((err) => {
+            console.error("[Cache] Failed to set key:", key, err);
         });
 
         return data;
     } catch (error) {
-        console.error(`[Cache] Redis error for key ${key}, falling back to source:`, error);
+        console.error("[Cache] Redis error for key, falling back to source:", key, error);
         return fetcher();
     }
 }
@@ -61,7 +75,7 @@ export async function invalidateCache(key: string): Promise<void> {
     try {
         await redis.del(key);
     } catch (error) {
-        console.error(`[Cache] Failed to invalidate key ${key}:`, error);
+        console.error("[Cache] Failed to invalidate key:", key, error);
     }
 }
 
@@ -81,6 +95,6 @@ export async function clearCachePattern(pattern: string): Promise<void> {
             }
         } while (cursor !== "0");
     } catch (error) {
-        console.error(`[Cache] Failed to clear pattern ${pattern}:`, error);
+        console.error("[Cache] Failed to clear pattern:", pattern, error);
     }
 }

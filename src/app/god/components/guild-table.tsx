@@ -68,12 +68,14 @@ interface Guild {
 
 interface GuildTableProps {
     guilds: Guild[];
+    /** 🔄 P2 — true pour un sous-god : whitelist seule, actions destructives masquées. */
+    isReadOnly?: boolean;
 }
 
 type FilterStatus = 'all' | 'active' | 'inactive' | 'deleted';
 type SortBy = 'name' | 'members' | 'createdAt';
 
-export function GuildTable({ guilds }: GuildTableProps) {
+export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
     const [search, setSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
     const [sortBy, setSortBy] = useState<SortBy>('name');
@@ -171,8 +173,7 @@ export function GuildTable({ guilds }: GuildTableProps) {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-200 to-violet-500 bg-clip-text text-transparent">
                         Gestion des Guildes
@@ -183,10 +184,58 @@ export function GuildTable({ guilds }: GuildTableProps) {
                     </p>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-center gap-3">
+                    {/* Unauthorized bot attempts button */}
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-400 hover:bg-orange-500/20 font-black uppercase tracking-widest text-caption px-4 py-5 rounded-xl gap-2 transition-all">
+                                <ShieldAlert className="w-4 h-4 text-orange-400" />
+                                Connexions non autorisées
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="bg-zinc-950 border-white/10 text-white max-w-lg rounded-3xl p-6 backdrop-blur-2xl">
+                            <DialogHeader>
+                                <DialogTitle className="text-xl font-black uppercase tracking-tight flex items-center gap-2 text-orange-400">
+                                    <ShieldAlert className="w-5 h-5" /> Serveurs ayant invité le Bot
+                                </DialogTitle>
+                                <DialogDescription className="text-zinc-400 text-xs">
+                                    Ces serveurs Discord ont ajouté le Bot SigilOS mais ne sont pas encore dans la Whitelist. Le bot y reste inactif jusqu'à votre approbation.
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <div className="space-y-3 mt-4 max-h-[350px] overflow-y-auto pr-1">
+                                {guilds.filter(g => g.isWhitelistOnly && g.tier === 'PENDING').length === 0 ? (
+                                    <div className="p-8 text-center text-zinc-500 text-xs font-bold uppercase tracking-wider bg-zinc-900/40 rounded-2xl border border-white/5">
+                                        ✅ Aucune tentative non autorisée
+                                    </div>
+                                ) : (
+                                    guilds.filter(g => g.isWhitelistOnly && g.tier === 'PENDING').map(g => (
+                                        <div key={g.id} className="flex items-center justify-between p-3 bg-zinc-900/60 border border-white/5 rounded-2xl">
+                                            <div className="space-y-0.5">
+                                                <div className="font-bold text-xs text-white">{g.name}</div>
+                                                <div className="text-caption font-mono text-zinc-500">{g.discordGuildId}</div>
+                                            </div>
+                                            <Button
+                                                size="sm"
+                                                onClick={async () => {
+                                                    await addAllowedGuild({ discordGuildId: g.discordGuildId, name: g.name });
+                                                    toast.success(`Guilde ${g.name} Whitelistée !`);
+                                                    window.location.reload();
+                                                }}
+                                                className="bg-emerald-600 hover:bg-emerald-500 text-white text-caption font-black uppercase tracking-wider px-3 py-1.5 rounded-lg"
+                                            >
+                                                Autoriser
+                                            </Button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+
                     <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                         <DialogTrigger asChild>
-                            <Button className="bg-violet-600 hover:bg-violet-700 text-white font-black uppercase tracking-widest text-[10px] px-6 py-5 rounded-xl shadow-lg shadow-violet-500/10 gap-2 border border-violet-400/20 active:scale-95 transition-all">
+                            <Button className="bg-violet-600 hover:bg-violet-700 text-white font-black uppercase tracking-widest text-caption px-6 py-5 rounded-xl shadow-lg shadow-violet-500/10 gap-2 border border-violet-400/20 active:scale-95 transition-all">
                                 <UserPlus className="w-4 h-4" />
                                 Whitelist New Guild
                             </Button>
@@ -201,7 +250,7 @@ export function GuildTable({ guilds }: GuildTableProps) {
 
                             <div className="space-y-6 mt-8">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                                    <label className="text-caption font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
                                         <Hash className="w-3 h-3" /> Discord Guild ID *
                                     </label>
                                     <Input
@@ -213,7 +262,7 @@ export function GuildTable({ guilds }: GuildTableProps) {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                                    <label className="text-caption font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
                                         <Filter className="w-3 h-3" /> Nom de la guilde
                                     </label>
                                     <Input
@@ -225,7 +274,7 @@ export function GuildTable({ guilds }: GuildTableProps) {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                                    <label className="text-caption font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
                                         <FileText className="w-3 h-3" /> Notes (Interne)
                                     </label>
                                     <Input
@@ -257,10 +306,10 @@ export function GuildTable({ guilds }: GuildTableProps) {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                         <input
                             type="text"
-                            placeholder="Rechercher par nom ou ID Discord..."
+                            placeholder="Recherche..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
+                            className="w-full pl-10 pr-4 py-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
                         />
                     </div>
 
@@ -313,13 +362,13 @@ export function GuildTable({ guilds }: GuildTableProps) {
                                 <th className="p-4 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                                     Guilde
                                 </th>
-                                <th className="p-4 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
-                                    Membres / Capacité
+                                <th className="p-4 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider hidden md:table-cell">
+                                    Membres
                                 </th>
-                                <th className="p-4 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                                <th className="p-4 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider hidden sm:table-cell">
                                     Status
                                 </th>
-                                <th className="p-4 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                                <th className="p-4 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider hidden lg:table-cell">
                                     Créée
                                 </th>
                                 <th className="p-4 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">
@@ -335,6 +384,7 @@ export function GuildTable({ guilds }: GuildTableProps) {
                                         guild={guild}
                                         selected={selected.has(guild.id)}
                                         onSelect={() => toggleSelect(guild.id)}
+                                        isReadOnly={isReadOnly}
                                     />
                                 ))}
                             </AnimatePresence>
@@ -352,10 +402,12 @@ export function GuildTable({ guilds }: GuildTableProps) {
     );
 }
 
-function GuildRow({ guild, selected, onSelect }: {
+function GuildRow({ guild, selected, onSelect, isReadOnly }: {
     guild: Guild;
     selected: boolean;
     onSelect: () => void;
+    /** 🔄 P2 — true pour un sous-god : whitelist seule, actions destructives masquées. */
+    isReadOnly: boolean;
 }) {
     const [isUpdating, setIsUpdating] = useState(false);
 
@@ -401,11 +453,17 @@ function GuildRow({ guild, selected, onSelect }: {
     };
 
     const statusConfig = guild.isWhitelistOnly
-        ? {
-            label: '🛡️ Whitelist',
-            color: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
-            tooltip: 'Guilde autorisée mais pas encore connectée (Onboarding en attente).'
-        }
+        ? guild.tier === 'PENDING'
+            ? {
+                label: '⏳ En attente',
+                color: 'text-zinc-400 bg-zinc-500/10 border-zinc-500/30',
+                tooltip: "Demande d'accès en attente d'approbation via ticket."
+            }
+            : {
+                label: '🛡️ Approuvée',
+                color: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
+                tooltip: 'Guilde autorisée mais pas encore connectée (Onboarding en attente).'
+            }
         : guild.deletedAt
             ? {
                 label: '🗑️ Supprimée',
@@ -477,7 +535,7 @@ function GuildRow({ guild, selected, onSelect }: {
                         <div className="flex items-center gap-2">
                             <div className="font-medium">{guild.name}</div>
                             {guild.tier && (
-                                <span className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest ${guild.tier === 'PREMIUM' ? 'bg-amber-500/20 text-amber-500 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                                <span className={`text-caption px-1.5 py-0.5 rounded font-black uppercase tracking-widest ${guild.tier === 'PREMIUM' ? 'bg-amber-500/20 text-amber-500 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
                                     }`}>
                                     {guild.tier}
                                 </span>
@@ -486,7 +544,7 @@ function GuildRow({ guild, selected, onSelect }: {
                         <div className="text-xs text-zinc-500 font-mono flex items-center gap-2">
                             {guild.discordGuildId}
                             {guild.notes && (
-                                <span className="text-[10px] text-zinc-600 italic truncate max-w-[150px]">
+                                <span className="text-caption text-zinc-600 italic truncate max-w-[150px]">
                                     — {guild.notes}
                                 </span>
                             )}
@@ -495,20 +553,59 @@ function GuildRow({ guild, selected, onSelect }: {
                 </div>
             </td>
 
-            <td className="p-4">
+            <td className="p-4 hidden md:table-cell">
                 <div className="space-y-1.5 min-w-[120px]">
-                    <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1.5 font-medium">
-                            <Users className="w-3.5 h-3.5 text-zinc-500" />
+                    <div className="flex items-center justify-between text-caption">
+                        <div className="flex items-center gap-1 font-medium">
+                            <Users className="w-3 h-3 text-zinc-500" />
                             <span>{guild._count.profiles}</span>
                         </div>
-                        <span className="text-zinc-500 font-mono text-[10px]">/{guild.maxMembers}</span>
+                        <div className="flex items-center gap-1">
+                            <span className="text-zinc-500 font-mono">/{guild.maxMembers}</span>
+                            {!isReadOnly && !guild.isWhitelistOnly && (
+                                <button
+                                    onClick={async () => {
+                                        const input = prompt(`Nouvelle capacité max de membres pour "${guild.name}" :`, String(guild.maxMembers));
+                                        if (!input) return;
+                                        const newCap = parseInt(input, 10);
+                                        if (isNaN(newCap) || newCap < 1 || newCap > 1000) {
+                                            toast.error("Capacité invalide (1 - 1000)");
+                                            return;
+                                        }
+                                        const { updateGuildMaxMembers } = await import('@/server/actions/god-lifecycle-actions');
+                                        const res = await updateGuildMaxMembers(guild.id, newCap);
+                                        if (res.success) {
+                                            toast.success(`Capacité portée à ${newCap} membres !`);
+                                            window.location.reload();
+                                        } else {
+                                            toast.error(res.error || "Erreur lors de la modification");
+                                        }
+                                    }}
+                                    className="p-0.5 hover:bg-white/10 rounded text-violet-400 transition-colors"
+                                    title="Modifier le nombre d'emplacements"
+                                >
+                                    ✏️
+                                </button>
+                            )}
+                        </div>
                     </div>
+
+                    {/* Alert Badges (50% / 80%) */}
+                    {guild.maxMembers > 0 && (guild._count.profiles / guild.maxMembers) >= 0.8 ? (
+                        <div className="text-caption font-black text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded text-center uppercase tracking-wider animate-pulse">
+                            ⚠️ Seuil &gt; 80% ({Math.round((guild._count.profiles / guild.maxMembers) * 100)}%)
+                        </div>
+                    ) : guild.maxMembers > 0 && (guild._count.profiles / guild.maxMembers) >= 0.5 ? (
+                        <div className="text-caption font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded text-center uppercase tracking-wider">
+                            ⚡ Capacité &gt; 50% ({Math.round((guild._count.profiles / guild.maxMembers) * 100)}%)
+                        </div>
+                    ) : null}
+
                     {/* Capacity Bar */}
-                    <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
                         <div
-                            className={`h-full rounded-full transition-all duration-1000 ${(guild._count.profiles / guild.maxMembers) >= 0.95 ? "bg-red-500" :
-                                (guild._count.profiles / guild.maxMembers) >= 0.8 ? "bg-amber-500" :
+                            className={`h-full rounded-full transition-all duration-300 ${(guild._count.profiles / guild.maxMembers) >= 0.8 ? "bg-red-500 shadow-sm shadow-red-500/50" :
+                                (guild._count.profiles / guild.maxMembers) >= 0.5 ? "bg-amber-500 shadow-sm shadow-amber-500/50" :
                                     "bg-emerald-500"
                                 }`}
                             style={{ width: `${Math.min(100, (guild._count.profiles / guild.maxMembers) * 100)}%` }}
@@ -517,16 +614,16 @@ function GuildRow({ guild, selected, onSelect }: {
                 </div>
             </td>
 
-            <td className="p-4">
+            <td className="p-4 hidden sm:table-cell">
                 <span
                     title={statusConfig.tooltip}
-                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border ${statusConfig.color} cursor-help`}
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-caption font-medium border ${statusConfig.color} cursor-help whitespace-nowrap`}
                 >
                     {statusConfig.label}
                 </span>
             </td>
 
-            <td className="p-4 text-sm text-zinc-400">
+            <td className="p-4 text-caption text-zinc-400 hidden lg:table-cell">
                 {formatDistanceToNow(new Date(guild.createdAt), { addSuffix: true, locale: fr })}
             </td>
 
@@ -568,41 +665,48 @@ function GuildRow({ guild, selected, onSelect }: {
                                         <Copy className="w-4 h-4" />
                                         Copier ID Discord
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        onClick={handleRevokeWhitelist}
-                                        className="gap-3 p-3 cursor-pointer focus:bg-red-500/10 focus:text-red-400 font-bold"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                        Révoquer Permission
-                                    </DropdownMenuItem>
+                                    {/* P2 — sous-god (readOnly) : pas de révocation de permission */}
+                                    {!isReadOnly && (
+                                        <DropdownMenuItem
+                                            onClick={handleRevokeWhitelist}
+                                            className="gap-3 p-3 cursor-pointer focus:bg-red-500/10 focus:text-red-400 font-bold"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                            Révoquer Permission
+                                        </DropdownMenuItem>
+                                    )}
                                 </>
                             ) : (
                                 <>
-                                    {!guild.deletedAt ? (
-                                        <DropdownMenuItem
-                                            onClick={handleSoftDelete}
-                                            className="gap-3 p-3 cursor-pointer focus:bg-amber-500/10 focus:text-amber-400"
-                                        >
-                                            <Archive className="w-4 h-4" />
-                                            Mettre en pause
-                                        </DropdownMenuItem>
-                                    ) : (
-                                        <DropdownMenuItem
-                                            onClick={handleReactivate}
-                                            className="gap-3 p-3 cursor-pointer focus:bg-emerald-500/10 focus:text-emerald-400"
-                                        >
-                                            <RotateCcw className="w-4 h-4" />
-                                            Réactiver
-                                        </DropdownMenuItem>
-                                    )}
+                                    {!isReadOnly && (
+                                        <>
+                                            {!guild.deletedAt ? (
+                                                <DropdownMenuItem
+                                                    onClick={handleSoftDelete}
+                                                    className="gap-3 p-3 cursor-pointer focus:bg-amber-500/10 focus:text-amber-400"
+                                                >
+                                                    <Archive className="w-4 h-4" />
+                                                    Mettre en pause
+                                                </DropdownMenuItem>
+                                            ) : (
+                                                <DropdownMenuItem
+                                                    onClick={handleReactivate}
+                                                    className="gap-3 p-3 cursor-pointer focus:bg-emerald-500/10 focus:text-emerald-400"
+                                                >
+                                                    <RotateCcw className="w-4 h-4" />
+                                                    Réactiver
+                                                </DropdownMenuItem>
+                                            )}
 
-                                    <DropdownMenuItem
-                                        onClick={handleHardDelete}
-                                        className="gap-3 p-3 cursor-pointer focus:bg-red-500/10 focus:text-red-400"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                        Hard Delete
-                                    </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                onClick={handleHardDelete}
+                                                className="gap-3 p-3 cursor-pointer focus:bg-red-500/10 focus:text-red-400"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                                Hard Delete
+                                            </DropdownMenuItem>
+                                        </>
+                                    )}
                                 </>
                             )}
                         </DropdownMenuContent>

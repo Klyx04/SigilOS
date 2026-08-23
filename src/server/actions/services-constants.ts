@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 /**
  * Shared constants for the Services Guilde module.
  * Separated from "use server" files since Next.js only allows
@@ -14,6 +15,7 @@ export const CATEGORY_LABELS = {
     METIER: "Métier",
     QUETE: "Quête",
     OCRE: "Quête Ocre",
+    TUTORAT: "Tutorat",
     AUTRE: "Autre",
 } as const;
 
@@ -23,6 +25,7 @@ export const CATEGORY_EMOJIS = {
     METIER: "🛠️",
     QUETE: "📜",
     OCRE: "👑",
+    TUTORAT: "🎓",
     AUTRE: "🔧",
 } as const;
 
@@ -32,6 +35,7 @@ export const CATEGORY_COLORS_HEX = {
     METIER: 0x10b981,
     QUETE: 0x8b5cf6,
     OCRE: 0xeab308,
+    TUTORAT: 0x3b82f6,
     AUTRE: 0x6b7280,
 } as const;
 

@@ -2,6 +2,7 @@ import { getDocBySlug } from "@/server/actions/doc-actions";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { DocViewer } from "./_components/doc-viewer";
+import { getAppBaseUrl } from "@/lib/utils";
 
 type Props = {
     params: Promise<{ slug: string[] }>
@@ -15,7 +16,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     if (!doc) return { title: "404 - Document non trouvé" };
 
     return {
-        title: `${doc.title} - Documentation SigilOS`,
+        title: `${doc.title} — Guide SigilOS`,
+        description: `${doc.title} — Guide et documentation SigilOS pour les guildes Dofus. Tutoriels, configurations et bonnes pratiques.`,
+        alternates: {
+            canonical: `${getAppBaseUrl()}/docs/${docSlug}`,
+        },
     };
 }
 

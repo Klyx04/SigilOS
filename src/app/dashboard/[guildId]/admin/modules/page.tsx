@@ -5,7 +5,10 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { getGuildModules } from "@/server/actions/module-actions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
-import { Puzzle } from "lucide-react";
+import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
+import { Puzzle, ShieldAlert } from "lucide-react";
+import { db } from "@/lib/prisma";
+import Link from "next/link";
 import { ModulesClient } from "./_components/modules-client";
 
 type Props = {
@@ -19,22 +22,52 @@ export default async function AdminModulesPage({ params }: Props) {
     const { guildId } = await params;
 
     const user = await getUserContext(guildId);
-    if (!user.isAdmin) {
+    if (!user.isDiscordAdmin) {
         await logAdminAccessDenied(guildId, "/admin/modules");
         return <AccessDenied />;
     }
 
     const modules = await getGuildModules(guildId);
+    const guild = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { rolesMapping: true }
+    });
+    const rolesMapping = (guild?.rolesMapping as Record<string, string[]>) || {};
+    const isRbacConfigured = Array.isArray(rolesMapping["dashboard:login"]) && rolesMapping["dashboard:login"].length > 0;
 
     return (
         <div className="space-y-6 pb-12">
-            <UnifiedModuleHeader
-                title="Modules"
-                description="Activez ou désactivez les fonctionnalités de votre guilde"
-                icon={Puzzle}
-                backHref={`/dashboard/${guildId}/admin`}
-            />
-            <ModulesClient guildId={guildId} initialModules={modules} />
+            <div data-tour="admin-modules-header">
+                <UnifiedModuleHeader
+                    title="Modules"
+                    description="Activez ou désactivez les fonctionnalités de votre guilde"
+                    icon={Puzzle}
+                    backHref={`/dashboard/${guildId}/admin`}
+                    actions={<AdminTourReplay phase="adminModulesMgmt" />}
+                />
+            </div>
+
+            {!isRbacConfigured && (
+                <div className="p-4 rounded-xl border border-warning/20 bg-warning/10 flex items-start gap-4 animate-in fade-in slide-in-from-top-4">
+                    <ShieldAlert className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+                    <div className="space-y-2 flex-1">
+                        <h3 className="text-warning font-black text-sm uppercase tracking-wide">Rôles Discord Requis</h3>
+                        <p className="text-warning/80 text-xs font-medium">
+                            Vous devez configurer au moins un rôle Discord pour l'accès au Dashboard avant de pouvoir activer de nouveaux modules pour vos membres.
+                        </p>
+                        <Link
+                            href={`/dashboard/${guildId}/admin/permissions`}
+                            className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-warning text-warning-foreground text-xs font-bold uppercase tracking-wider hover:bg-warning transition-colors"
+                        >
+                            Configurer les rôles
+                        </Link>
+                    </div>
+                </div>
+            )}
+
+            <div data-tour="admin-modules-list">
+                <ModulesClient guildId={guildId} initialModules={modules} />
+            </div>
         </div>
     );
 }

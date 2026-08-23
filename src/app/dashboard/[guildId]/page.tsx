@@ -1,38 +1,35 @@
-import { AuroraBackground } from "@/components/ui/aurora-background";
-import { BorderBeam } from "@/components/ui/border-beam";
+import { redirect } from "next/navigation";
+
 import { getUserContext } from "@/server/actions/user-actions";
 import { getGuildStats } from "@/server/actions/guild-stats-actions";
-import { getActivityLadder } from "@/server/actions/ladder-actions";
 import { getActivePresence } from "@/server/actions/presence-actions";
 import { getDashboardFocus } from "@/server/actions/intelligence-actions";
 import { getMyOcreProgress } from "@/server/actions/ocre-actions";
 import { getUserProfile } from "@/server/actions/profile-actions";
-import { EchoDuSigil } from "./_components/echo-du-sigil";
-import { PresenceFacepile } from "./_components/presence-facepile";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-    ArrowRight,
-    Users,
-    ScrollText,
-    Bug,
-    InfinityIcon,
-    Sparkles,
-    Target,
-    BookOpen,
-    CircleDashed,
-    Flame
-} from "lucide-react";
+import { getUpcomingAlmanax } from "@/server/actions/resources-actions";
+import { getUnifiedActiveGroups } from "@/server/actions/unified-groups-actions";
+import { getUnifiedGuildActivity } from "@/server/actions/unified-activity-actions";
+import { getUpcomingEvents, getActiveRaid } from "@/server/actions/calendar-actions";
+import { getPolls } from "@/server/actions/poll-actions";
+import { isModuleEnabled } from "@/server/actions/module-actions";
+import { hasFilledAvailability } from "@/lib/dofus-assets";
+import { getISOWeek, getYear } from "date-fns";
+import NextImage from "next/image";
 import Link from "next/link";
+
+import { QuickStatsRow } from "./_components/quick-stats-row";
+import { RecentDjPosts } from "./_components/recent-dj-posts";
+import { GuildActivityFeed } from "./_components/guild-activity-feed";
+import { UpcomingEventsWidget } from "./_components/upcoming-events-widget";
+import { EchoDuSigil } from "./_components/echo-du-sigil";
+import { RaidHeroBanner } from "./_components/raid-hero-banner";
+
 import { AccessDenied } from "@/components/layout/access-denied";
-import { LadderPreview } from "./_components/ladder-preview";
-import { OnboardingBanner } from "@/components/dashboard/onboarding-banner";
-import { Suspense } from "react";
 import { SignOutButton } from "@/components/auth/sign-out-button";
-import { StatProgress } from "./_components/stat-progress";
-import { GuidePulse } from "@/components/dashboard/guide-pulse";
 import { WelcomeModal } from "@/components/dashboard/welcome-modal";
 import { MemberWelcomeModal } from "@/components/dashboard/member-welcome-modal";
+import { DashboardAdminTourButton } from "@/components/tour/dashboard-admin-tour-button";
+import { AvailabilityReminderPopup } from "@/components/dashboard/availability-reminder-popup";
 
 export default async function DashboardPage({
     params,
@@ -42,50 +39,135 @@ export default async function DashboardPage({
     const { guildId } = await params;
     const user = await getUserContext(guildId);
 
+    // ONBOARDING REDIRECT
+    if (!user.isOnboardingComplete && user.isAdmin) {
+        redirect(`/dashboard/${guildId}/admin/getting-started`);
+    }
+
     // RBAC: Must be authenticated member of the guild
     if (!user.isAuthenticated || !user.isMember) {
         return <AccessDenied />;
     }
 
-    // CAPACITY CHECK: If guild is full and user is just joining
+    // CAPACITY CHECK
     if (user.isCapacityFull) {
         return (
             <AccessDenied
                 title="Guilde Pleine"
-                message="Désolé, cette guilde a atteint sa capacité maximale sur SigilOS (350 membres). Contactez le support pour augmenter la limite."
+                message="Désolé, cette guilde a atteint sa capacité maximale sur SigilOS (350 membres)."
                 variant="lock"
                 action={<SignOutButton />}
             />
         );
     }
 
-    // Parallel data fetching
-    const focusData = await getDashboardFocus(guildId, user);
-    const [presenceData, ladderResult, guildStatsResult, profileResult] = await Promise.all([
-        getActivePresence(guildId),
-        getActivityLadder(guildId, "monthly"),
+    // Parallel Data Fetching
+    const [
+        onlineUsersResult,
+        profileResult,
+        ocreProgress,
+        guildStatsResult,
+        almanaxItems,
+        groupsResult,
+        guildLogs,
+        calendarResult,
+        pollsResult,
+        activeRaid,
+        availabilityModuleEnabled,
+    ] = await Promise.all([
+        getActivePresence(guildId, 50),
+        getUserProfile(guildId),
+        user.canViewOcre ? getMyOcreProgress(guildId) : Promise.resolve({ success: false, data: undefined }),
         getGuildStats(guildId),
-        getUserProfile(guildId)
+        getUpcomingAlmanax().catch(() => null),
+        getUnifiedActiveGroups(guildId),
+        getUnifiedGuildActivity(guildId, 12).catch(() => []),
+        getUpcomingEvents(guildId, 7).catch(() => ({ success: false, events: [] })),
+        user.canViewPolls ? getPolls(guildId).catch(() => ({ success: false, data: [] })) : Promise.resolve({ success: false, data: [] }),
+        getActiveRaid(guildId).catch(() => null),
+        isModuleEnabled(guildId, "availability"),
     ]);
 
-    const topLadder = ladderResult.success && ladderResult.data ? ladderResult.data : [];
-    const guildStats = guildStatsResult.success && guildStatsResult.stats ? guildStatsResult.stats : null;
+    // Derived Data
+    const focusData = await getDashboardFocus(guildId, user, ocreProgress.success ? ocreProgress.data : undefined);
     const profile = profileResult.success && profileResult.data ? profileResult.data : null;
+    const activeGroups = groupsResult.success ? groupsResult.groups : [];
 
-    const ocreProgress = await getMyOcreProgress(guildId);
+    // Module Disponibilités — rappel hebdomadaire doux.
+    // #183 — JAMAIS à la 1ère arrivée d'un NOUVEAU membre (`!profile.hasSeenWelcome`) :
+    // le pop-up de bienvenue suffit à son arrivée ; le rappel hebdo reprend ensuite.
+    // JAMAIS non plus si : onboarding en cours, module inactif, pas de permission,
+    // semaine déjà remplie ou déjà dismissée cette semaine sur n'importe quel appareil.
+    const now = new Date();
+    const currentWeekKey = `${getYear(now)}-W${String(getISOWeek(now)).padStart(2, "0")}`;
+    const profileAvail = (profile as any)?.availability as Record<string, any> | undefined;
+    const isDismissedThisWeek = profileAvail?.dismissedWeek === currentWeekKey;
+
+    const showAvailabilityReminder =
+        user.isOnboardingComplete &&
+        availabilityModuleEnabled &&
+        !!user.canViewAvailability &&
+        !!profile &&
+        !!profile.hasSeenWelcome &&
+        !isDismissedThisWeek &&
+        !hasFilledAvailability(profileAvail);
+    const upcomingEvents = calendarResult.success ? calendarResult.events : [];
+    const polls = pollsResult.success && pollsResult.data ? (pollsResult.data as any[]) : [];
+    const hasRaidNow = !!activeRaid;
+
+    // Quick Stats Data
+    const guildStats = guildStatsResult.success && guildStatsResult.stats ? guildStatsResult.stats : null;
+    const dofusCompletionRate = guildStats?.quests?.guildCompletionRate || 0;
+    const onlineCount = onlineUsersResult.success ? (onlineUsersResult.totalActive || 0) : 0;
+    const onlineUsers = onlineUsersResult.success ? onlineUsersResult.data : [];
+    const totalMembers = guildStats?.activeMembers || 0;
+    const topActivityName = guildStats?.records?.[0]?.label || "";
+    const topActivityValue = guildStats?.records?.[0]?.value || "";
+
+    // Comparaison temporelle (point 4 — KPI "parlant") : réutilise des données
+    // DÉJÀ calculées par getGuildStats (0 requête supplémentaire → pas d'impact sur le pool).
+    // - Membres : croissance nette du dernier mois (joins − leaves) via retention.growth.
+    const growth = guildStats?.retention?.growth || [];
+    const lastGrowth = growth[growth.length - 1];
+    const membersDelta = lastGrowth ? lastGrowth.joins - lastGrowth.leaves : null;
+    // Vitrine (admin → missions) : on masque la carte "Progression Dofus" (même règle
+    // que l'onglet "Présence & Feed" des profils — infos de progression cachées en lecture seule).
+    const isVitrineActive = !!user.missionVitrineMode;
+
+    // Contextual greeting (direction 2026 : header contextuel, plus de watermark ghost)
+    const hour = new Date().getHours();
+    const greeting = hour < 6 ? "Bonne nuit" : hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
+    const firstName = (user.name || "Aventurier").split(" ")[0];
+    const nextEvent = upcomingEvents[0] as any;
+    const contextLine = nextEvent?.title
+        ? `Prochain rendez-vous : ${nextEvent.title}`
+        : "Rien de prévu — la guilde est au calme";
+    // "À faire maintenant" (direction 2026 §9.3) — actions compactes, jamais de vide pur
+    const todoItems: { href: string; label: string; action: string; image?: string | null; imageQty?: number }[] = [];
+    const activePolls = (polls as any[]).filter((p: any) => p?.status === "ACTIVE");
+    if (activePolls.length > 0) todoItems.push({ href: `/dashboard/${guildId}/sondages`, label: `${activePolls.length} sondage${activePolls.length > 1 ? "s" : ""} en cours`, action: "Voter" });
+    if (nextEvent?.title) todoItems.push({ href: `/dashboard/${guildId}/calendar`, label: `Prochain : ${nextEvent.title}`, action: "Voir" });
+    const todayAlmanax = almanaxItems?.[0];
+    if (todayAlmanax) todoItems.push({
+        href: `/dashboard/${guildId}/ressources?tab=almanax`,
+        label: todayAlmanax.tribute.item.name,
+        action: "Offrande",
+        image: todayAlmanax.tribute.item.image_urls.icon,
+        imageQty: todayAlmanax.tribute.quantity,
+    });
+
+
 
     return (
         <div className="relative w-full min-h-full pb-20">
-            {/* Ambient Background Layer */}
-            <div className="fixed inset-0 z-0 pointer-events-none opacity-5 bg-[radial-gradient(circle_at_50%_50%,rgba(99,102,241,0.03),transparent_70%)]" />
-            <AuroraBackground className="absolute inset-0 z-0 h-full w-full pointer-events-none opacity-5 saturate-100 blur-3xl scale-125" />
+            
+            
+            
 
-            {/* Onboarding Welcome Modal (Admins only) */}
+            {/* Modals */}
             {user.isAdmin && profile && !profile.hasSeenWelcome && (
                 <WelcomeModal guildId={guildId} show={true} />
             )}
-
-            {/* Onboarding Welcome Modal (Members — non-admin) */}
             {!user.isAdmin && profile && !profile.hasSeenWelcome && (
                 <MemberWelcomeModal
                     guildId={guildId}
@@ -95,273 +177,112 @@ export default async function DashboardPage({
                 />
             )}
 
-            <div className="relative z-10 p-4 md:p-6 space-y-10 max-w-[1600px] mx-auto">
+            <div className="relative z-10 p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto">
 
-                {/* --- HEADER LAYER : IDENTITY & PRESENCE --- */}
-                <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 animate-in fade-in slide-in-from-top-4 duration-1000">
-                    <div className="space-y-1">
-                        <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-white drop-shadow-sm">
-                            Dashboard
+                <header className="flex items-end justify-between gap-6">
+                    <div>
+                        <h1 className="text-[26px] md:text-[28px] font-bold italic tracking-tight text-foreground">
+                            {greeting} {firstName} ⚔
                         </h1>
+                        <p className="text-body-sm text-muted-foreground mt-1">{contextLine}</p>
                     </div>
-
-                    <div className="flex flex-col items-start md:items-end gap-3 group">
-                        {/* Presence removed here to avoid redundancy with the TopNav */}
-                    </div>
+                    <DashboardAdminTourButton isAdmin={user.isAdmin} />
                 </header>
 
-                {/* --- ONBOARDING LAYER (Admin & Member) --- */}
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-200">
-                    {user.isAdmin && (
-                        <div className="md:col-span-12">
-                            <OnboardingBanner
-                                guildId={guildId}
-                                guideHref={`/dashboard/${guildId}/admin/getting-started`}
-                                steps={[
-                                    { id: "discord", title: "Bot", description: "Serveur Discord lié", href: `/dashboard/${guildId}/admin/settings`, completed: !!guildStats, icon: "shield" },
-                                    { id: "missions", title: "Missions", description: "Système de quêtes", href: `/dashboard/${guildId}/missions/manage`, completed: (guildStats?.totalMissionsValidated ?? 0) > 0, icon: "scroll-text" },
-                                    { id: "wiki", title: "Documentation", description: "Base de connaissances", href: `/docs`, completed: (guildStats?.totalXp ?? 0) > 100, icon: "book-open" }
-                                ]}
-                            />
-                        </div>
-                    )}
-
-                    {/* Member Profile Completion (For EVERYONE if incomplete) */}
-                    {(() => {
-                        if (!user.canViewProfile || !profile) return null;
-
-                        const memberSteps = [
-                            { id: "profile", title: "Identité", description: "Pseudo Dofus & Classe", href: `/dashboard/${guildId}/profile?edit=identity`, completed: !!profile.pseudoDofus && !!profile.classe, icon: "users" },
-                            user.canViewArchis && { id: "metamob", title: "Metamob", description: "Lier mon compte Metamob", href: `/dashboard/${guildId}/profile`, completed: !!profile.metamobVerified, icon: "infinity" },
-                            { id: "jobs", title: "Métiers", description: "Renseigner mes métiers", href: `/dashboard/${guildId}/profile`, completed: (profile.metiers as string[] || []).length > 0, icon: "scroll-text" },
-                            { id: "docs", title: "Guide", description: "Comprendre SigilOS", href: `/docs`, completed: (profile.xp ?? 0) > 0, icon: "book-open" }
-                        ].filter(Boolean) as any[];
-
-                        const hasIncompleteSteps = memberSteps.some(s => !s.completed);
-                        if (!hasIncompleteSteps) return null;
-
-                        return (
-                            <div className="md:col-span-12">
-                                <OnboardingBanner
-                                    guildId={guildId}
-                                    variant="user"
-                                    title={`Bienvenue sur SigilOS, ${profile.pseudoDofus || user.name || "Aventurier"} !`}
-                                    subtitle="Préparation Personnelle"
-                                    checklistLabel="Ma progression"
-                                    steps={memberSteps}
-                                />
-                            </div>
-                        );
-                    })()}
-                </div>
-
-                {/* --- 1. THE ECHO (Intelligence Focus) --- */}
-                <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
-                    <EchoDuSigil data={focusData} />
+                {/* ── 1. QUICK STATS ROW ───────────────────────────────── */}
+                <section data-tour="dash-stats" className="animate-in fade-in slide-in-from-top-1 duration-150">
+                    <QuickStatsRow
+                        onlineCount={onlineCount}
+                        totalMembers={totalMembers}
+                        dofusCompletionRate={dofusCompletionRate}
+                        topActivityName={topActivityName}
+                        topActivityValue={topActivityValue}
+                        onlineUsers={onlineUsers}
+                        membersDelta={membersDelta}
+                        hideDofusProgress={isVitrineActive}
+                    />
                 </section>
 
-                {/* --- 2. BENTO GRID 2.0 --- */}
-                <main className="grid grid-cols-1 md:grid-cols-12 auto-rows-[180px] gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
-
-                    {/* Missions (Main landscape - Priority 1) */}
-                    {user.canViewMissions && (
-                        <div className="md:col-span-12 lg:col-span-8 row-span-1">
-                            <Link href={`/dashboard/${guildId}/missions`} className="block h-full">
-                                <Card className="glass-premium h-full hover:border-emerald-500/50 transition-all cursor-pointer group relative overflow-hidden">
-                                    <CardHeader className="pb-2">
-                                        <div className="flex items-center justify-between">
-                                            <CardTitle className="text-zinc-200 group-hover:text-emerald-400 transition-colors flex items-center gap-2 text-base font-black uppercase tracking-wider">
-                                                <ScrollText className="w-4 h-4" />
-                                                Missions
-                                                <GuidePulse
-                                                    description="C'est ici que vous validez vos défis hebdomadaires pour faire progresser la guilde."
-                                                    className="ml-1"
-                                                    side="right"
+                {/* ── 1.5 À FAIRE MAINTENANT (compact, direction §9.3) ──── */}
+                {todoItems.length > 0 && (
+                    <section data-tour="dash-todo" className="animate-in fade-in slide-in-from-top-1 duration-150">
+                        <div className="rounded-xl border border-border/60 bg-background/40 p-3.5">
+                            <div className="flex items-center gap-2 mb-2 px-1">
+                                <span className="text-caption font-semibold uppercase tracking-wider text-muted-foreground">À faire maintenant</span>
+                                <span className="flex-1 h-px bg-surface" />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                                {todoItems.map((item) => (
+                                    <Link
+                                        key={item.href + item.label}
+                                        href={item.href}
+                                        className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface transition-colors"
+                                    >
+                                        {item.image ? (
+                                            <div className="relative h-9 w-9 rounded-lg border border-border bg-background flex items-center justify-center overflow-hidden shrink-0">
+                                                <NextImage
+                                                    src={item.image}
+                                                    alt={item.label}
+                                                    fill
+                                                    className="object-contain p-1"
+                                                    unoptimized
                                                 />
-                                            </CardTitle>
-                                            <Badge variant="outline" className="border-emerald-500/20 text-emerald-400/60 text-[8px] font-black">ACTIF</Badge>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <p className="text-zinc-500 font-bold text-[11px] mb-4">Objectifs et défis hebdomadaires.</p>
-                                        <div className="flex items-center text-[10px] text-emerald-400 font-black uppercase tracking-[0.2em] opacity-40 group-hover:opacity-100 transition-opacity">
-                                            Voir les missions <ArrowRight className="ml-1 w-3 h-3 group-hover:translate-x-1 transition-transform" />
-                                        </div>
-                                    </CardContent>
-                                    <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
-                                        <Flame className="w-16 h-16 text-emerald-500" />
-                                    </div>
-                                </Card>
-                            </Link>
-                        </div>
-                    )}
-
-                    {/* Guild Stats (Vertical Focus - Side Column) */}
-                    {user.canViewStats && (
-                        <div className="md:col-span-12 lg:col-span-4 lg:row-span-2">
-                            <Card className="glass-premium h-full saturate-boost relative overflow-hidden border-white/10">
-                                <BorderBeam size={150} duration={8} delay={2} colorFrom="#6366f1" colorTo="#a855f7" />
-                                <CardHeader className="pb-8 pt-6">
-                                    <CardTitle className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em] flex items-center gap-2">
-                                        <Target className="h-4 w-4" />
-                                        Activité Hebdomadaire
-                                        <GuidePulse
-                                            description="Suivez la progression collective de la guilde et votre contribution personnelle en XP."
-                                            side="top"
-                                        />
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-8">
-                                    {guildStats ? (
-                                        <>
-                                            <div className="group/stat">
-                                                <p className="text-[9px] text-zinc-600 font-black uppercase mb-1 tracking-widest group-hover/stat:text-indigo-400 transition-colors">Progression Hebdo</p>
-                                                <div className="flex items-end gap-2">
-                                                    <span className="text-4xl font-black text-white leading-none tracking-tighter">{guildStats.totalMissionsValidated}</span>
-                                                    <span className="text-[10px] text-zinc-500 font-bold mb-1 uppercase">Missions</span>
-                                                </div>
+                                                {item.imageQty != null && (
+                                                    <span className="absolute -bottom-0.5 -right-0.5 bg-warning text-warning-foreground text-[10px] font-bold px-1 rounded-sm leading-tight">
+                                                        x{item.imageQty}
+                                                    </span>
+                                                )}
                                             </div>
-                                            <div className="group/stat">
-                                                <p className="text-[9px] text-zinc-600 font-black uppercase mb-1 tracking-widest group-hover/stat:text-indigo-400 transition-colors">Points de Gloire</p>
-                                                <div className="flex items-end gap-2">
-                                                    <span className="text-4xl font-black text-yellow-400 leading-none tracking-tighter">+{guildStats.totalXp}</span>
-                                                    <span className="text-[10px] text-zinc-500 font-bold mb-1 uppercase">XP</span>
-                                                </div>
-                                            </div>
-                                            <div className="pt-4 border-t border-white/5">
-                                                <div className="flex items-center justify-between text-[10px] text-zinc-500 font-black uppercase">
-                                                    <span>Songes actifs</span>
-                                                    <span className="text-purple-400 font-black">{guildStats.totalSongesCompleted} Complétés</span>
-                                                </div>
-                                                <StatProgress value={65} color="bg-purple-500" glowColor="rgba(168,85,247,0.5)" />
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <div className="flex items-center gap-2 text-zinc-600 italic text-sm py-10">
-                                            <CircleDashed className="animate-spin w-4 h-4" /> Collecte des échos...
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
+                                        ) : (
+                                            <span className="h-1.5 w-1.5 rounded-full bg-success shrink-0" />
+                                        )}
+                                        <span className="text-body-sm truncate">{item.label}</span>
+                                        <span className="ml-auto text-label font-medium text-success/80 shrink-0">{item.action}</span>
+                                    </Link>
+                                ))}
+                            </div>
                         </div>
-                    )}
+                    </section>
+                )}
 
-                    {/* Songes (Main landscape - Priority 2) */}
-                    {user.canViewSonges && (
-                        <div className="md:col-span-6 lg:col-span-8 row-span-1">
-                            <Link href={`/dashboard/${guildId}/songes`} className="block h-full">
-                                <Card className="glass-premium h-full hover:border-purple-500/50 transition-all cursor-pointer group relative overflow-hidden">
-                                    <CardHeader className="pb-2">
-                                        <CardTitle className="text-zinc-200 group-hover:text-purple-400 transition-colors flex items-center gap-2 text-base font-black uppercase tracking-wider">
-                                            <InfinityIcon className="w-5 h-5" />
-                                            Songes
-                                            <GuidePulse
-                                                description="Gérez vos runs de songes infinis et trouvez des partenaires de combat."
-                                                side="right"
-                                            />
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <p className="text-zinc-500 font-bold text-[11px] mb-4">Gestion des étages et recrutement.</p>
-                                        <div className="flex items-center text-[10px] text-purple-400 font-black uppercase tracking-[0.2em] opacity-40 group-hover:opacity-100 transition-opacity">
-                                            Voir les runs <ArrowRight className="ml-1 w-3 h-3 group-hover:translate-x-1 transition-transform" />
-                                        </div>
-                                    </CardContent>
-                                    <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
-                                        <InfinityIcon className="w-24 h-24 text-purple-500" />
-                                    </div>
-                                </Card>
-                            </Link>
-                        </div>
-                    )}
+                {/* ── 2. RAID HERO (prioritaire — conditionnel) ────────── */}
+                {hasRaidNow && (
+                    <section data-tour="dash-raid" className="animate-in fade-in slide-in-from-top-1 duration-150">
+                        <RaidHeroBanner guildId={guildId} raid={activeRaid as any} />
+                    </section>
+                )}
 
-                    {/* Ladder Preview (Horizontal row) */}
-                    {user.canViewLadder && (
-                        <div className="md:col-span-6 lg:col-span-8 row-span-1">
-                            <LadderPreview guildId={guildId} topLadder={topLadder} />
-                        </div>
-                    )}
+                {/* ── 3. INTELLIGENCE FOCUS (masqué si raid actif) ─────── */}
+                {focusData && !hasRaidNow && (
+                    <section data-tour="dash-focus" className="animate-in fade-in slide-in-from-bottom-2 duration-150">
+                        <EchoDuSigil data={focusData} />
+                    </section>
+                )}
 
-                    {/* Tertiary Quick Modules */}
-                    <div className="md:col-span-12 lg:col-span-4 row-span-1 grid grid-cols-2 gap-4">
-                        {user.canViewArchis && (
-                            <Link href={`/dashboard/${guildId}/archimonstres`} className="h-full">
-                                <Card className="glass-premium h-full hover:border-amber-500/50 transition-all group overflow-hidden relative">
-                                    <CardHeader className="p-4">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <Bug className="w-5 h-5 text-amber-500" />
-                                            {ocreProgress.success && ocreProgress.data && (
-                                                <span className="text-[10px] font-black text-amber-500/80 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                                                    {ocreProgress.data.stats.progressPercent}%
-                                                </span>
-                                            )}
-                                        </div>
-                                        <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-300 flex items-center gap-2">
-                                            Quête Ocre
-                                            <GuidePulse
-                                                description="Gardez un œil sur votre progression de la quête Ocre via Metamob."
-                                                side="top"
-                                            />
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="px-4 pb-4 pt-0">
-                                        <p className="text-[10px] text-zinc-500 font-bold leading-tight">
-                                            {ocreProgress.success && ocreProgress.data
-                                                ? `${ocreProgress.data.stats.manquants} manquants pour l'étape.`
-                                                : "Liez Metamob pour suivre."}
-                                        </p>
-                                    </CardContent>
-                                </Card>
-                            </Link>
-                        )}
-                        {user.canViewProfile && (
-                            <Link href={`/dashboard/${guildId}/profile`} className="h-full">
-                                <Card className="glass-premium h-full hover:border-blue-500/50 transition-all group overflow-hidden relative">
-                                    <CardHeader className="p-4">
-                                        <Sparkles className="w-5 h-5 text-blue-500 mb-2" />
-                                        <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-300">Profil</CardTitle>
-                                    </CardHeader>
-                                    <div className="absolute -bottom-2 -right-2 opacity-5">
-                                        <Sparkles className="w-12 h-12 text-blue-500" />
-                                    </div>
-                                </Card>
-                            </Link>
-                        )}
-                        {user.canViewRoster && (
-                            <Link href={`/dashboard/${guildId}/members`} className="h-full">
-                                <Card className="glass-premium h-full hover:border-pink-500/50 transition-all group overflow-hidden relative">
-                                    <CardHeader className="p-4">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <Users className="w-5 h-5 text-pink-500" />
-                                            {guildStats && (
-                                                <span className="text-[10px] font-black text-pink-500/80 bg-pink-500/10 px-2 py-0.5 rounded-full border border-pink-500/20">
-                                                    {guildStats.activeMembers}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-300">Annuaire</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="px-4 pb-4 pt-0">
-                                        <p className="text-[10px] text-zinc-500 font-bold leading-tight">Membres & Métiers.</p>
-                                    </CardContent>
-                                </Card>
-                            </Link>
-                        )}
-                        <Link href={`/docs`} className="h-full">
-                            <Card className="glass-premium h-full hover:border-zinc-500/50 transition-all group overflow-hidden relative">
-                                <CardHeader className="p-4">
-                                    <BookOpen className="w-5 h-5 text-zinc-400 mb-2" />
-                                    <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-300">Wiki</CardTitle>
-                                </CardHeader>
-                                <div className="absolute -bottom-2 -right-2 opacity-5">
-                                    <BookOpen className="w-12 h-12 text-zinc-400" />
-                                </div>
-                            </Card>
-                        </Link>
-                    </div>
+                {/* ── 4. AGENDA DE GUILDE (pleine largeur) ─────────────── */}
+                {user.canViewCalendar && (
+                    <section data-tour="dash-events" className="min-h-[340px] animate-in fade-in slide-in-from-bottom-2 duration-150">
+                        <UpcomingEventsWidget
+                            guildId={guildId}
+                            events={upcomingEvents as any}
+                        />
+                    </section>
+                )}
 
-                </main>
+                {/* ── 5. GROUPES ACTIFS (pleine largeur) ─────────────────── */}
+                <section data-tour="dash-groups" className="min-h-[360px] animate-in fade-in slide-in-from-bottom-2 duration-150">
+                    <RecentDjPosts guildId={guildId} groups={activeGroups} />
+                </section>
+
+                {/* ── 6. FLUX DE VIE DE LA GUILDE (pleine largeur) ─────── */}
+                <section data-tour="dash-activity" className="animate-in fade-in slide-in-from-bottom-2 duration-150">
+                    <GuildActivityFeed logs={guildLogs} guildId={guildId} canViewLogs={user.canViewAuditLogs} />
+                </section>
+
             </div>
+
+            {/* #Module Disponibilités — rappel hebdo (jamais à la 1ère arrivée d'un nouveau, #183) */}
+            <AvailabilityReminderPopup guildId={guildId} enabled={showAvailabilityReminder} />
         </div>
     );
 }

@@ -1,45 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
-import { unlink } from "fs/promises";
-import { existsSync } from "fs";
-import path from "path";
 import { sendChannelMessage } from "@/server/discord";
+import { logger } from "@/lib/logger";
+import { getDisplayName } from "@/lib/display-name";
+import { deleteProofFile } from "@/lib/storage-utils";
 
 // ---------------------------------------------------------------------------
-// CLEANUP: supprime les screenshots de preuve après 7 jours
+// CLEANUP: supprime les screenshots de preuve
+//  - Prêts/Coffre : après 7 jours
+//  - Missions / Succès / Kamas PENDING : après 24h (auto-suppression si non validé)
 // Route sécurisée par CRON_SECRET (appelée par le cron nightly du serveur)
 //
 // Appel depuis maintenance.sh (crontab 4h00):
 //   curl -s -X POST https://sigilos.fr/api/cron/cleanup-proofs \
 //     -H "Authorization: Bearer $CRON_SECRET"
+//
+// F-17 (17/08) : les uploads vivent désormais dans `private_uploads` avec des URLs
+// `/api/storage/...`. Les anciens helpers (`public/uploads` + `/uploads/...`) ne
+// supprimaient RIEN → fichiers orphelins à vie sur le VPS. On passe par
+// `deleteProofFile` (storage-utils) qui gère `/uploads/` ET `/api/storage/`.
 // ---------------------------------------------------------------------------
 
-const UPLOAD_BASE_DIR = path.join(process.cwd(), "public", "uploads", "guilds");
 const PROOF_EXPIRY_DAYS = 7;
-
-// Safely delete a local file from /uploads/guilds/{guildId}/proofs/{filename}
-async function deleteLocalProof(proofUrl: string, internalGuildId: string): Promise<boolean> {
-    try {
-        const expectedPrefix = `/uploads/guilds/${internalGuildId}/proofs/`;
-        if (!proofUrl.startsWith(expectedPrefix)) return false;
-
-        const filename = proofUrl.slice(expectedPrefix.length);
-        // Security: only allow UUID.webp filenames
-        if (!/^[a-f0-9-]{36}\.webp$/.test(filename)) return false;
-
-        const filePath = path.join(UPLOAD_BASE_DIR, internalGuildId, "proofs", filename);
-        const normalizedPath = path.normalize(filePath);
-        const expectedBase = path.normalize(path.join(UPLOAD_BASE_DIR, internalGuildId, "proofs"));
-        if (!normalizedPath.startsWith(expectedBase)) return false;
-
-        if (existsSync(filePath)) {
-            await unlink(filePath);
-        }
-        return true;
-    } catch {
-        return false;
-    }
-}
+const PENDING_EXPIRY_HOURS = 24;
 
 // Get Discord user ID from NextAuth account
 async function getDiscordId(userId: string): Promise<string | null> {
@@ -54,13 +37,13 @@ export async function POST(request: NextRequest) {
     // Security: validate cron secret
     const cronSecret = process.env.CRON_SECRET;
     if (!cronSecret) {
-        console.error("[cleanup-proofs] CRON_SECRET not configured");
+        logger.error("[cleanup-proofs] CRON_SECRET not configured");
         return NextResponse.json({ error: "Not configured" }, { status: 500 });
     }
 
     const authHeader = request.headers.get("authorization");
     if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
-        console.warn("[cleanup-proofs] Unauthorized cron attempt");
+        logger.warn("[cleanup-proofs] Unauthorized cron attempt");
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -90,6 +73,8 @@ export async function POST(request: NextRequest) {
                 returnProofUrl: true,
                 description: true,
                 guildId: true,
+                discordChannelId: true,
+                discordMessageId: true,
                 guild: {
                     select: {
                         discordGuildId: true,
@@ -120,10 +105,20 @@ export async function POST(request: NextRequest) {
             const urlsToDelete = [loan.proofUrl, loan.returnProofUrl].filter(Boolean) as string[];
 
             try {
-                // Delete files
+                // #201 — supprimer l'embed Discord avant les fichiers (sinon image noire)
+                if (loan.discordChannelId && loan.discordMessageId) {
+                    try {
+                        const { deleteChannelMessage } = await import("@/server/discord");
+                        await deleteChannelMessage(loan.discordChannelId, loan.discordMessageId);
+                    } catch (discordErr) {
+                        stats.errors.push(`Loan ${loan.id} embed delete: ${discordErr}`);
+                    }
+                }
+
+                // Delete files (F-17 : deleteProofFile gère les URLs /api/storage/ actuelles)
                 for (const url of urlsToDelete) {
-                    const deleted = await deleteLocalProof(url, loan.guildId);
-                    if (deleted) stats.filesDeleted++;
+                    await deleteProofFile(url);
+                    stats.filesDeleted++;
                 }
 
                 // Clear URLs in DB
@@ -137,8 +132,8 @@ export async function POST(request: NextRequest) {
                     const lenderDiscordId = await getDiscordId(loan.lender.userId);
                     const borrowerDiscordId = await getDiscordId(loan.borrower.userId);
 
-                    const lenderName = loan.lender.pseudoDofus || loan.lender.discordNickname || loan.lender.user.name || "Prêteur";
-                    const borrowerName = loan.borrower.pseudoDofus || loan.borrower.discordNickname || loan.borrower.user.name || "Emprunteur";
+                    const lenderName = getDisplayName(loan.lender) || "Prêteur";
+                    const borrowerName = getDisplayName(loan.borrower);
 
                     const mentions = [
                         lenderDiscordId ? `<@${lenderDiscordId}>` : lenderName,
@@ -185,6 +180,8 @@ export async function POST(request: NextRequest) {
                 itemName: true,
                 action: true,
                 guildId: true,
+                discordChannelId: true,
+                discordMessageId: true,
                 guild: {
                     select: {
                         discordGuildId: true,
@@ -205,9 +202,19 @@ export async function POST(request: NextRequest) {
         for (const entry of expiredVault) {
             stats.vaultProcessed++;
             try {
+                // #201 — supprimer l'embed Discord avant le fichier (sinon image noire)
+                if (entry.discordChannelId && entry.discordMessageId) {
+                    try {
+                        const { deleteChannelMessage } = await import("@/server/discord");
+                        await deleteChannelMessage(entry.discordChannelId, entry.discordMessageId);
+                    } catch (discordErr) {
+                        stats.errors.push(`VaultEntry ${entry.id} embed delete: ${discordErr}`);
+                    }
+                }
+
                 if (entry.proofUrl) {
-                    const deleted = await deleteLocalProof(entry.proofUrl, entry.guildId);
-                    if (deleted) stats.filesDeleted++;
+                    await deleteProofFile(entry.proofUrl);
+                    stats.filesDeleted++;
                 }
 
                 await db.vaultEntry.update({
@@ -218,7 +225,7 @@ export async function POST(request: NextRequest) {
                 // Discord ping notification
                 if (entry.guild.loansNotifyChannelId) {
                     const memberDiscordId = await getDiscordId(entry.profile.userId);
-                    const memberName = entry.profile.pseudoDofus || entry.profile.discordNickname || entry.profile.user.name || "Membre";
+                    const memberName = getDisplayName(entry.profile);
                     const mention = memberDiscordId ? `<@${memberDiscordId}>` : memberName;
                     const actionLabel = entry.action === "DEPOSIT" ? "Dépôt" : "Retrait";
 
@@ -255,7 +262,7 @@ export async function POST(request: NextRequest) {
     const archiveCutoff = new Date();
     archiveCutoff.setDate(archiveCutoff.getDate() - ARCHIVE_EXPIRY_DAYS);
 
-    const extraStats = { loansDeleted: 0, archiveNotifsSent: 0 };
+    const extraStats = { loansDeleted: 0, archiveNotifsSent: 0, remindersSent: 0 };
 
     try {
         const expiredArchivedLoans = await db.guildLoan.findMany({
@@ -273,6 +280,8 @@ export async function POST(request: NextRequest) {
                 proofUrl: true,
                 returnProofUrl: true,
                 guildId: true,
+                discordChannelId: true,
+                discordMessageId: true,
                 guild: {
                     select: {
                         discordGuildId: true,
@@ -300,11 +309,21 @@ export async function POST(request: NextRequest) {
 
         for (const loan of expiredArchivedLoans) {
             try {
-                // 1. Cleanup fichiers physiques résiduels
+                // #201 — supprimer l'embed Discord résiduel avant le hard delete (sinon image noire)
+                if (loan.discordChannelId && loan.discordMessageId) {
+                    try {
+                        const { deleteChannelMessage } = await import("@/server/discord");
+                        await deleteChannelMessage(loan.discordChannelId, loan.discordMessageId);
+                    } catch (discordErr) {
+                        stats.errors.push(`ArchiveLoan ${loan.id} embed delete: ${discordErr}`);
+                    }
+                }
+
+                // 1. Cleanup fichiers physiques résiduels (F-17)
                 const residualUrls = [loan.proofUrl, loan.returnProofUrl].filter(Boolean) as string[];
                 for (const url of residualUrls) {
-                    const deleted = await deleteLocalProof(url, loan.guildId);
-                    if (deleted) stats.filesDeleted++;
+                    await deleteProofFile(url);
+                    stats.filesDeleted++;
                 }
 
                 // 2. Suppression hard en DB
@@ -313,8 +332,8 @@ export async function POST(request: NextRequest) {
 
                 // 3. Ping Discord optionnel (non-bloquant)
                 if (loan.guild.loansNotifyChannelId) {
-                    const lenderName = loan.lender.pseudoDofus || loan.lender.discordNickname || loan.lender.user.name || "Prêteur";
-                    const borrowerName = loan.borrower.pseudoDofus || loan.borrower.discordNickname || loan.borrower.user.name || "Emprunteur";
+                    const lenderName = getDisplayName(loan.lender) || "Prêteur";
+                    const borrowerName = getDisplayName(loan.borrower);
                     const lenderDiscordId = await getDiscordId(loan.lender.userId).catch(() => null);
                     const borrowerDiscordId = await getDiscordId(loan.borrower.userId).catch(() => null);
                     const mentions = [
@@ -348,6 +367,99 @@ export async function POST(request: NextRequest) {
         stats.errors.push(`Archive loans batch error: ${err}`);
     }
 
-    console.log("[cleanup-proofs] Done:", { ...stats, ...extraStats });
-    return NextResponse.json({ success: true, ...stats, ...extraStats });
+    // ---------------------------------------------------------------------------
+    // 4. KAMA DONATIONS — auto-suppress PENDING donations after 24h
+    // ---------------------------------------------------------------------------
+    const kamaCutoff = new Date();
+    kamaCutoff.setHours(kamaCutoff.getHours() - PENDING_EXPIRY_HOURS);
+
+    const kamaStats = { kamaExpired: 0 };
+
+    try {
+        const kamaDb = db as any;
+
+        const expiredKamaDonations = await kamaDb.kamaDonation.findMany({
+            where: { status: "PENDING", createdAt: { lt: kamaCutoff } },
+            select: {
+                id: true, proofUrl: true, guildId: true,
+                profile: { select: { userId: true, pseudoDofus: true, discordNickname: true, user: { select: { name: true } } } },
+            },
+        });
+
+        for (const donation of expiredKamaDonations) {
+            try {
+                if (donation.proofUrl) { await deleteProofFile(donation.proofUrl); stats.filesDeleted++; }
+                await (db as any).imageHash.deleteMany({ where: { guildId: donation.guildId, sourceType: "KAMA_DONATION", sourceId: donation.id } });
+                await kamaDb.kamaDonation.delete({ where: { id: donation.id } });
+                kamaStats.kamaExpired++;
+            } catch (err) { stats.errors.push(`KamaDonation ${donation.id}: ${err}`); }
+        }
+    } catch (err) { stats.errors.push(`Kama donations batch error: ${err}`); }
+
+    // ---------------------------------------------------------------------------
+    // 5. MISSION SUBMISSIONS — auto-suppress PENDING after 24h
+    // ---------------------------------------------------------------------------
+    const missionStats = { missionsExpired: 0 };
+
+    try {
+        const expiredSubmissions = await db.submission.findMany({
+            where: { status: "PENDING", createdAt: { lt: kamaCutoff } },
+            select: { id: true, proofUrl: true },
+        });
+
+        for (const sub of expiredSubmissions) {
+            try {
+                if (sub.proofUrl) { await deleteProofFile(sub.proofUrl); stats.filesDeleted++; }
+                await (db as any).imageHash.deleteMany({ where: { sourceType: "MISSION", sourceId: sub.id } });
+                await db.submission.delete({ where: { id: sub.id } });
+                missionStats.missionsExpired++;
+            } catch (err) { stats.errors.push(`Submission ${sub.id}: ${err}`); }
+        }
+    } catch (err) { stats.errors.push(`Mission submissions batch error: ${err}`); }
+
+    // ---------------------------------------------------------------------------
+    // 6. ACHIEVEMENT SUBMISSIONS — auto-suppress PENDING after 24h
+    // ---------------------------------------------------------------------------
+    const achievementStats = { achievementsExpired: 0 };
+
+    try {
+        const expiredAchievements = await (db as any).achievementSubmission.findMany({
+            where: { status: "PENDING", createdAt: { lt: kamaCutoff } },
+            select: { id: true, proofUrl: true, guildId: true },
+        });
+
+        for (const sub of expiredAchievements) {
+            try {
+                if (sub.proofUrl) {
+                    // achievementSubmission proofs utilisent /api/storage/ (F-17)
+                    await deleteProofFile(sub.proofUrl);
+                    stats.filesDeleted++;
+                }
+                await (db as any).imageHash.deleteMany({ where: { sourceType: "ACHIEVEMENT", sourceId: sub.id } });
+                await (db as any).achievementSubmission.delete({ where: { id: sub.id } });
+                achievementStats.achievementsExpired++;
+            } catch (err) { stats.errors.push(`Achievement ${sub.id}: ${err}`); }
+        }
+    } catch (err) { stats.errors.push(`Achievement submissions batch error: ${err}`); }
+
+    // ---------------------------------------------------------------------------
+    // 7. LOAN REMINDERS — rappels prêts non clos (#71)
+    //    Déclenchés avec le nettoyage nocturne (aucune ligne crontab à ajouter),
+    //    idempotent via lastReminderAt (max 1 rappel / 24h par prêt).
+    //    Une route dédiée `/api/cron/loan-reminders` existe aussi pour un créneau
+    //    matinal optionnel.
+    // ---------------------------------------------------------------------------
+    try {
+        const { sendLoanReminders } = await import("@/server/actions/loan-reminder-actions");
+        const reminderSummary = await sendLoanReminders();
+        extraStats.remindersSent = reminderSummary.reminded;
+        if (reminderSummary.failed > 0) {
+            stats.errors.push(`LoanReminders: ${reminderSummary.errors.join("; ")}`);
+        }
+    } catch (err) {
+        stats.errors.push(`LoanReminders batch error: ${err}`);
+    }
+
+    logger.info("[cleanup-proofs] Done", { stats: { ...stats, ...extraStats, ...kamaStats, ...missionStats, ...achievementStats } });
+    return NextResponse.json({ success: true, ...stats, ...extraStats, ...kamaStats, ...missionStats, ...achievementStats });
 }

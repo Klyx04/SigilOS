@@ -1,7 +1,6 @@
-"use strict";
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -9,6 +8,7 @@ import { Plus, Loader2 } from "lucide-react";
 import { onboardGuild } from "@/server/actions/admin-actions";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner"; // Assuming sonner or use a simple alert if not available
+import { buildDiscordBotInviteUrl } from "@/lib/discord-permissions";
 
 type GuildProps = {
     id: string;
@@ -31,7 +31,17 @@ export function GuildSetupCard({ guild, clientId }: { guild: GuildProps, clientI
                 toast.error("Configuration Discord manquante (Client ID)");
                 return;
             }
-            const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&permissions=8&scope=bot`;
+
+            // Using window.location.origin ensures we redirect back to the correct environment (localhost/beta/prod)
+            // #223 P2 — bitmask minimal (plus de permissions=8 Administrateur).
+            const inviteUrl = buildDiscordBotInviteUrl(clientId, {
+                redirectUri: `${window.location.origin}/onboarding/success`,
+                scope: "bot",
+            });
+
+            if (!inviteUrl) return; // fail-closed (clientId déjà vérifié, garde TS)
+
+            // Open in a new tab to keep the context, but we list for completion
             window.open(inviteUrl, "_blank");
             return;
         }
@@ -54,11 +64,23 @@ export function GuildSetupCard({ guild, clientId }: { guild: GuildProps, clientI
         }
     };
 
+    // Auto-refresh when bot is authorized in the other tab
+    useEffect(() => {
+        const handleMessage = (event: MessageEvent) => {
+            if (event.data === "sigilos-bot-invited" && event.origin === window.location.origin) {
+                window.location.reload();
+            }
+        };
+
+        window.addEventListener("message", handleMessage);
+        return () => window.removeEventListener("message", handleMessage);
+    }, []);
+
     return (
-        <Card className="bg-black/20 border-white/5 border-dashed hover:border-white/20 transition-all cursor-default">
+        <Card className="bg-black/20 border-border border-dashed hover:border-border-strong transition-all cursor-default">
             <CardContent className="p-6 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4 overflow-hidden">
-                    <Avatar className="h-12 w-12 border-2 border-white/5 grayscale opacity-70">
+                    <Avatar className="h-12 w-12 border-2 border-border grayscale opacity-70">
                         <AvatarImage src={guild.icon || ""} alt={guild.name} />
                         <AvatarFallback className="bg-muted text-muted-foreground">
                             {guild.name.substring(0, 2).toUpperCase()}
@@ -78,7 +100,7 @@ export function GuildSetupCard({ guild, clientId }: { guild: GuildProps, clientI
                     size="sm"
                     variant={needsInvite ? "secondary" : "outline"}
                     className={needsInvite
-                        ? "bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/40"
+                        ? "bg-info/20 text-info hover:bg-info/40"
                         : "border-primary/20 hover:bg-primary/10 hover:text-primary transition-colors"
                     }
                     onClick={handleSetup}

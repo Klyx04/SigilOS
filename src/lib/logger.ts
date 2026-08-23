@@ -5,9 +5,9 @@
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-interface LogContext {
-    [key: string]: any;
-}
+// Autorise n'importe quelle valeur en contexte de log (objet, Error, string, ...).
+// Normalisée dans normalizeContext avant l'affichage.
+type LogContext = unknown;
 
 /**
  * Structured logger with environment-aware output
@@ -19,10 +19,34 @@ class Logger {
     private sensitiveKeys = ['password', 'token', 'secret', 'authorization', 'cookie', 'apiKey'];
 
     /**
+     * Normalise une valeur arbitraire en objet de contexte sûr :
+     * - undefined/null → pas de contexte
+     * - Error → { error: { message, name, stack } }
+     * - objet → utilisé tel quel
+     * - primitive → { value }
+     */
+    private normalizeContext(context: LogContext): Record<string, unknown> | undefined {
+        if (context === undefined || context === null) return undefined;
+        if (context instanceof Error) {
+            return {
+                error: {
+                    name: context.name,
+                    message: context.message,
+                    ...(context.stack ? { stack: context.stack } : {}),
+                },
+            };
+        }
+        if (typeof context === 'object') {
+            return context as Record<string, unknown>;
+        }
+        return { value: context };
+    }
+
+    /**
      * Redact sensitive information from log context
      */
-    private redact(context: LogContext): LogContext {
-        const redacted: LogContext = {};
+    private redact(context: Record<string, unknown>): Record<string, unknown> {
+        const redacted: Record<string, unknown> = {};
 
         for (const [key, value] of Object.entries(context)) {
             const lowerKey = key.toLowerCase();
@@ -31,7 +55,7 @@ class Logger {
             if (isSensitive) {
                 redacted[key] = '[REDACTED]';
             } else if (typeof value === 'object' && value !== null) {
-                redacted[key] = this.redact(value);
+                redacted[key] = this.redact(value as Record<string, unknown>);
             } else {
                 redacted[key] = value;
             }
@@ -45,6 +69,21 @@ class Logger {
      */
     private format(level: LogLevel, message: string, context?: LogContext): string {
         const timestamp = new Date().toISOString();
+        const normalized = this.normalizeContext(context);
+
+        // Sérialisation robuste : certaines valeurs (BigInt, cycles) font échouer
+        // JSON.stringify → on retombe sur une représentation sûre plutôt que de crasher.
+        const safeSerialize = (value: unknown): string => {
+            try {
+                return JSON.stringify(value);
+            } catch {
+                try {
+                    return JSON.stringify(String(value));
+                } catch {
+                    return '"[Unserializable]"';
+                }
+            }
+        };
 
         if (this.isDevelopment) {
             // Pretty format for development
@@ -55,17 +94,25 @@ class Logger {
                 error: '❌'
             }[level];
 
-            return context
-                ? `${emoji} [${level.toUpperCase()}] ${message} ${JSON.stringify(this.redact(context), null, 2)}`
+            return normalized
+                ? `${emoji} [${level.toUpperCase()}] ${message} ${safeSerialize(this.redact(normalized))}`
                 : `${emoji} [${level.toUpperCase()}] ${message}`;
         } else {
             // Structured JSON for production (ready for log aggregation like Datadog, Splunk, etc.)
-            return JSON.stringify({
+            const out = {
                 timestamp,
                 level,
                 message,
-                ...(context ? { context: this.redact(context) } : {})
-            });
+                ...(normalized ? { context: this.redact(normalized) } : {})
+            };
+            try {
+                return JSON.stringify(out);
+            } catch {
+                // BigInt / cycles dans le contexte → format de secours sans crash
+                const safeOut: Record<string, unknown> = { timestamp, level, message };
+                if (normalized) safeOut.context = String(this.redact(normalized));
+                return JSON.stringify(safeOut);
+            }
         }
     }
 

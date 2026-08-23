@@ -1,0 +1,2316 @@
+{
+  "dofus": "abyssal",
+  "displayName": "Dofus Abyssal",
+  "color": "#1E90FF",
+  "successName": "Abysses",
+  "recommendedLevel": 200,
+  "successDescription": "Obtenir le Dofus Abyssal en complétant le méta-succès « Abysses » composé de 7 séries de quêtes dans les profondeurs de Sufokia.",
+  "dofusItemId": 17355,
+  "compiledAt": "2026-04-09T13:15:49.029Z",
+  "compilerVersion": "3.0",
+  "chains": [
+    {
+      "sectionName": "Prerequis de Sufokia",
+      "sectionType": "PREREQUISITE",
+      "zone": "Sufokia / Abysses",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "La pêche aux infos",
+          "dofusdbId": 1731,
+          "externalRef": "https://www.dofuspourlesnoobs.com/la-pecircche-aux-infos.h",
+          "level": 200,
+          "zone": "Sufokia / Abysses",
+          "npcName": "Kiara Byssal",
+          "npcSubArea": null,
+          "coords": {
+            "x": 23,
+            "y": 24
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir Kiara Byssal",
+            "Aller voir Pollie Perkine",
+            "Découvrir la zone {subarea,860}",
+            "Aller voir Prosper Meraimée",
+            "Aller voir Pollie Perkine",
+            "Découvrir la zone {subarea,863}",
+            "Aller voir Dame Askina",
+            "Aller voir Pollie Perkine",
+            "Découvrir la zone {subarea,866}",
+            "Aller voir Marchand mystérieux",
+            "Défendre Pollie Perkine",
+            "Aller voir Pollie Perkine",
+            "Escorter Pollie Perkine jusqu'à Sufokia",
+            "Aller voir Pollie Perkine"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Le héros de Sufokia",
+          "dofusdbId": 1760,
+          "level": 200,
+          "zone": "Temple Steamer",
+          "npcName": "Roi Talas",
+          "npcSubArea": "Temple Steamer",
+          "coords": {
+            "x": 23,
+            "y": 24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir Roi Talas",
+            "Aller voir Jelus Vern"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1731
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "La mer en héritage",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Abysses de Sufokia",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 1,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Il y a de l'électricité dans l'eau",
+          "dofusdbId": 1733,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": "Marine Ancrenage",
+          "npcSubArea": null,
+          "coords": {
+            "x": 22,
+            "y": 28,
+            "worldId": 17
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 17862,
+              "name": "Crystal mauve",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164101.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir Marine Ancrenage",
+            "Contrôler les installations",
+            "Vaincre x1 {monster,4477} sur la carte {map,169083906::Installations des Steamers} en un seul combat",
+            "Vaincre x1 {monster,4477} sur la carte {map,169082880::Installations des Steamers} en un seul combat",
+            "Retourner voir Marine Ancrenage",
+            "Montrer à Pinke Tada : 1 Crystal mauve",
+            "Montrer à Deks : 1 Crystal mauve",
+            "Retourner voir Marine Ancrenage"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Topo le petit robot",
+          "dofusdbId": 1734,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": "Prosper Meraimée",
+          "npcSubArea": null,
+          "coords": {
+            "x": 22,
+            "y": 28,
+            "worldId": 17
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 17963,
+              "name": "Sceau des fondateurs",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/181001.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir Prosper Meraimée",
+            "Montrer à Prosper Meraimée : 1 Sceau des fondateurs",
+            "Utiliser le sceau sur l'ascenseur de l'Ancienne Sufokia",
+            "Escorter Topo jusqu'au premier site",
+            "Assurer la sécurité de Topo pendant qu'il fait ses relevés",
+            "Escorter Topo jusqu'au deuxième site",
+            "Escorter Topo jusqu'au troisième site",
+            "Escorter Topo jusqu'au quatrième site",
+            "Retrouver Topo dans l'Ancienne Sufokia",
+            "Explorer les lieux",
+            "Ramener Topo à Prosper Meraimée"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1733
+            }
+          ]
+        },
+        {
+          "name": "Piège de crystal",
+          "dofusdbId": 1735,
+          "level": 200,
+          "zone": "Vaisseau du Capitaine Meno - Dernière salle",
+          "npcName": "Deks",
+          "npcSubArea": "Vaisseau du Capitaine Meno - Dernière salle",
+          "coords": {
+            "x": 23,
+            "y": 27,
+            "worldId": 17
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 97,
+              "name": "Vaisseau du Capitaine Meno",
+              "level": null,
+              "bossName": "Capitaine Meno",
+              "img": "https://api.dofusdb.fr/img/monsters/1430.png",
+              "idoleName": null
+            }
+          ],
+          "objectives": [
+            "Rejoindre Deks dans la ville submergée",
+            "Aller voir Deks",
+            "Tirer Deks de sa torpeur",
+            "Aller voir Deks",
+            "Entrer dans le vaisseau du Capitaine Meno",
+            "Vaincre x1 {monster,4460} en un seul combat",
+            "Aller voir Capitaine Meno"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1734
+            }
+          ]
+        },
+        {
+          "name": "Son nom est Personne",
+          "dofusdbId": 1736,
+          "level": 200,
+          "zone": "Temple Steamer",
+          "npcName": "Deks",
+          "npcSubArea": "Temple Steamer",
+          "coords": {
+            "x": 23,
+            "y": 24,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 17940,
+              "name": "Partition pour orgue",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15851.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 97,
+              "name": "Vaisseau du Capitaine Meno",
+              "level": null,
+              "bossName": "Capitaine Meno",
+              "img": "https://api.dofusdb.fr/img/monsters/1430.png",
+              "idoleName": null
+            }
+          ],
+          "objectives": [
+            "Aller voir Deks",
+            "Découvrir la carte : Bibliothèque de Sufokia",
+            "Aller voir Docteur Hou",
+            "Aller voir Jelus Vern",
+            "Ramener à Capitaine Meno : x1 Partition pour orgue",
+            "Aller voir Inconnu aux aguets",
+            "Vaincre x1 {monster,4433} en un seul combat",
+            "Retourner voir Prosper Meraimée"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1735
+            }
+          ]
+        },
+        {
+          "name": "La clef de l'énigme",
+          "dofusdbId": 1743,
+          "level": 200,
+          "zone": "Temple Eliotrope",
+          "npcName": "Roukerol de Nerouz",
+          "npcSubArea": "Temple Eliotrope",
+          "coords": {
+            "x": 16,
+            "y": 32,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 17952,
+              "name": "Sable de Wakfu",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/48292.png"
+            },
+            {
+              "id": 17954,
+              "name": "Corail opalin",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/38685.png"
+            },
+            {
+              "id": 17955,
+              "name": "Clef du sanctuaire de Leanor",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164103.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Entrer dans le temple des Eliotropes",
+            "Obtenir des informations sur le sable de Wakfu",
+            "Utiliser un volant hydraulique pour actionner l'ascenseur menant aux vestiges engloutis",
+            "Ramener à Roukerol de Nerouz : x10 Sable de Wakfu",
+            "Ramener à Roukerol de Nerouz : x6 Corail opalin",
+            "Montrer à Prosper Meraimée : 1 Clef du sanctuaire de Leanor"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1736
+            }
+          ]
+        },
+        {
+          "name": "Une porte vers le passé",
+          "dofusdbId": 1744,
+          "level": 200,
+          "zone": "Temple Steamer",
+          "npcName": "Capitaine Meno",
+          "npcSubArea": "Temple Steamer",
+          "coords": {
+            "x": 23,
+            "y": 31,
+            "worldId": 17
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Franchir la grille magique du sanctuaire de Leanor",
+            "Explorer le sanctuaire de Leanor",
+            "Vaincre x1 {monster,4445} en un seul combat",
+            "Aller voir Capitaine Meno",
+            "Vaincre x1 {monster,4446} en un seul combat",
+            "Aller voir Prosper Meraimée",
+            "Aller voir Jelus Vern"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1743
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "La guerre des profondeurs",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Abysses de Sufokia",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 2,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Reine de beauté",
+          "dofusdbId": 1737,
+          "level": 200,
+          "zone": "Palais de Dantinéa - Dernière Salle",
+          "npcName": "Dantinéa",
+          "npcSubArea": "Palais de Dantinéa - Dernière Salle",
+          "coords": {
+            "x": 19,
+            "y": 26,
+            "worldId": 17
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 99,
+              "name": "Palais de Dantinéa",
+              "level": null,
+              "bossName": "Dantinéa",
+              "img": "https://api.dofusdb.fr/img/monsters/1321.png",
+              "idoleName": null
+            }
+          ],
+          "objectives": [
+            "Découvrir la carte : Entrée du Palais de Dantinéa",
+            "Vaincre x1 {monster,4444} en un seul combat",
+            "Aller voir Dantinéa",
+            "Aller voir Reine Viktorie"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Rançon nage",
+          "dofusdbId": 1738,
+          "level": 200,
+          "zone": "Palais de Dantinéa - Sortie",
+          "npcName": "Nicole Portson",
+          "npcSubArea": "Palais de Dantinéa - Sortie",
+          "coords": {
+            "x": 23,
+            "y": 24,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 17941,
+              "name": "Reconnaissance de dette",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24033.png"
+            },
+            {
+              "id": 17942,
+              "name": "Bijoux de la rançon",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/24044.png"
+            },
+            {
+              "id": 17943,
+              "name": "Caisse de Perles des Profondeurs",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15056.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 99,
+              "name": "Palais de Dantinéa",
+              "level": null,
+              "bossName": "Dantinéa",
+              "img": "https://api.dofusdb.fr/img/monsters/1321.png",
+              "idoleName": null
+            }
+          ],
+          "objectives": [
+            "Aller voir Nicole Portson",
+            "Ramener à Shani Sings : x1 Reconnaissance de dette",
+            "Ramener à Azra Lazarus : x1 Reconnaissance de dette",
+            "Ramener à Laure Faivre : x1 Reconnaissance de dette",
+            "Chercher les cambrioleurs dans le Territoire des Porcos",
+            "Vaincre x2 {monster,4468} en un seul combat",
+            "Récupérer le coffre auprès du trafiquant",
+            "Montrer à Nicole Portson : 3 Bijoux de la rançon",
+            "Aller voir Kruchula",
+            "Vaincre x2 {monster,4502}",
+            "Ramener à Dantinéa : x3 Bijoux de la rançon",
+            "Ramener à Dantinéa : x1 Caisse de Perles des Profondeurs",
+            "Accompagner Dame Askina au campement",
+            "Aller voir Dame Askina"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1737
+            }
+          ]
+        },
+        {
+          "name": "Stratégie en Trithon Réel",
+          "dofusdbId": 1739,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 21,
+            "y": 27,
+            "worldId": 17
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Vaincre un duo de Trithons",
+            "Vaincre un quatuor de Trithons"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1738
+            }
+          ]
+        },
+        {
+          "name": "Sur fond de crise",
+          "dofusdbId": 1740,
+          "level": 200,
+          "zone": "Base Abyssale - Salles des Courants",
+          "npcName": "Pinke Tada",
+          "npcSubArea": "Base Abyssale - Salles des Courants",
+          "coords": {
+            "x": 23,
+            "y": 24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 17965,
+              "name": "Accélérateur de propulsion",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/181003.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir Pinke Tada",
+            "Chercher Stim Power dans la base abyssale",
+            "Montrer à Stim Power : 1 Accélérateur de propulsion",
+            "Explorer la faille des Trithons",
+            "Vaincre x1 {monster,4471} en un seul combat",
+            "Aller voir Poulpallas",
+            "Montrer à Lieutenant Trenne : 1 Accélérateur de propulsion",
+            "Aller voir Dame Askina"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1739
+            }
+          ]
+        },
+        {
+          "name": "Risquer un œil",
+          "dofusdbId": 1741,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": "Poulpallas",
+          "npcSubArea": null,
+          "coords": {
+            "x": 20,
+            "y": 29,
+            "worldId": 17
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 17945,
+              "name": "Mercure aquatique",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/39024.png"
+            },
+            {
+              "id": 17950,
+              "name": "Foie toxique",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/69816.png"
+            },
+            {
+              "id": 18097,
+              "name": "Œil d'Ansôh",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164105.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Chercher Poulpallas dans la faille des Trithons",
+            "Apporter 5 Échantillons d'algues à Poulpallas",
+            "Ramener à Poulpallas : x1 Mercure aquatique",
+            "Ramener à Carpeausanias : x1 Foie toxique",
+            "Aller voir Dame Askina",
+            "Aller voir Johan Gusstafen",
+            "Découvrir la carte : Chapelle d'Ansôh",
+            "Aller voir Chapelain d'Ansôh",
+            "Vaincre le Chapelain d'Ansôh pour lui dérober l'œil",
+            "Montrer à Dame Askina : 1 Œil d'Ansôh"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1740
+            }
+          ]
+        },
+        {
+          "name": "La gueule de l'enfer",
+          "dofusdbId": 1742,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": "Rita Byrla",
+          "npcSubArea": null,
+          "coords": {
+            "x": 22,
+            "y": 19,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 17205,
+              "name": "Saucisse Fumée",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/69820.png"
+            },
+            {
+              "id": 18097,
+              "name": "Œil d'Ansôh",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164105.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Ramener à Rita Byrla : x5 Saucisse Fumée",
+            "Découvrir la carte : Léviathon",
+            "Montrer à Petit Léviathon : 1 Œil d'Ansôh",
+            "Aller voir Loton",
+            "Vaincre x1 {monster,4505} en un seul combat",
+            "Aller voir Lieutenant Trenne",
+            "Vaincre la première vague puis parler au Lieutenant Trenne",
+            "Vaincre la deuxième vague puis parler au Lieutenant Trenne",
+            "Vaincre la troisième vague puis parler au Lieutenant Trenne",
+            "Aller voir Dame Askina",
+            "Aller voir Reine Viktorie"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1741
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "L'appel de Koutoulou",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Abysses de Sufokia",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 3,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Celle qui glougloutait dans les ténèbres",
+          "dofusdbId": 1745,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": "Docteur Hou",
+          "npcSubArea": null,
+          "coords": {
+            "x": 20,
+            "y": 25,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 18027,
+              "name": "Statuette abominable",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164106.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Parler à un spécialiste des livres illisibles",
+            "Lire un extrait des œuvres de Lavecroft",
+            "Retourner voir Docteur Hou",
+            "Trouver la maison de Justine Smousse",
+            "Ouvrir la porte de la maison de Justine Smousse",
+            "Fouiller la maison",
+            "Trouver quelqu'un qui vous indiquera le moyen de vaincre votre peur des eaux profondes",
+            "Descendre dans le bassin en se protégeant avec un attrape-peur",
+            "Aller voir Justine Smousse",
+            "Vaincre x1 {monster,4463} en un seul combat",
+            "Vaincre x1 {monster,4464} en un seul combat",
+            "Montrer à Docteur Hou : 1 Statuette abominable",
+            "Aller voir Capitaine Skaille"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "L'affaire Pollie Perkine",
+          "dofusdbId": 1746,
+          "level": 200,
+          "zone": "Temple Steamer",
+          "npcName": "Tavernier du Ripate",
+          "npcSubArea": "Temple Steamer",
+          "coords": {
+            "x": 12,
+            "y": 24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir Tavernier du Ripate",
+            "Interroger un client de la taverne du Ripate",
+            "Interroger la responsable du chantier de fouilles",
+            "Interroger le gestionnaire du chantier de fouilles",
+            "Aller voir Capitaine Skaille",
+            "Aller voir Jelus Vern",
+            "Retourner voir Capitaine Skaille",
+            "Vaincre les adeptes des profondeurs",
+            "Aller voir Adepte des Profondeurs",
+            "Aller voir Capitaine Skaille",
+            "Aller voir Mage Hellan",
+            "Aller voir Sergent de la garde sufokienne",
+            "Aller voir Capitaine Skaille"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1745
+            }
+          ]
+        },
+        {
+          "name": "Trop Pollie pour être honnête",
+          "dofusdbId": 1747,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": "Prêtre en jaune",
+          "npcSubArea": null,
+          "coords": {
+            "x": 23,
+            "y": 26,
+            "worldId": 17
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Discuter avec les autres prisonniers pour passer le temps",
+            "Aller voir Prêtre en jaune",
+            "Vaincre x1 {monster,4487} en un seul combat",
+            "Aller voir Capitaine Skaille",
+            "Vaincre x1 {monster,4489} en un seul combat",
+            "Aller voir Capitaine Skaille",
+            "Aller voir Reine Viktorie"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1746
+            }
+          ]
+        },
+        {
+          "name": "Quand les astres seront propices",
+          "dofusdbId": 1756,
+          "level": 200,
+          "zone": "Porte du Village des Brigandins",
+          "npcName": "Mage Hellan",
+          "npcSubArea": "Porte du Village des Brigandins",
+          "coords": {
+            "x": 13,
+            "y": 25,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 18039,
+              "name": "Bocal du professeur Nomis",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164108.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir Mage Hellan",
+            "Consulter les archives de Sufokia",
+            "Interroger Ayuto la sorcière",
+            "Interroger le maître du temple des Osamodas",
+            "Trouver où vivait le sorcier osamodas",
+            "Explorer les profondeurs de la maison",
+            "Déverrouiller la dalle",
+            "Trouver quelqu'un qui vous indiquera comment éviter le mal des abîmes",
+            "Descendre sous la dalle en se protégeant avec une statuette de Snedon",
+            "Vaincre x1 {monster,4499} en un seul combat",
+            "Tenter de communiquer avec l'un des cerveaux",
+            "Retourner voir Reine Viktorie",
+            "Montrer à Deks : 1 Bocal du professeur Nomis",
+            "Aller voir Professeur Nomis"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1747
+            }
+          ]
+        },
+        {
+          "name": "Il suffira d'un signe",
+          "dofusdbId": 1758,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": "Professeur Nomis",
+          "npcSubArea": null,
+          "coords": {
+            "x": 23,
+            "y": 24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 17983,
+              "name": "Tentacule de Grofond",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/103729.png"
+            },
+            {
+              "id": 17984,
+              "name": "Tentacule de N'Yalg",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/103728.png"
+            },
+            {
+              "id": 17986,
+              "name": "Œil de Shokkoth",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/109614.png"
+            },
+            {
+              "id": 17985,
+              "name": "Patte de Li-Fo",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/103727.png"
+            },
+            {
+              "id": 17987,
+              "name": "Flûte de Klûtiste",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/15938.png"
+            },
+            {
+              "id": 18086,
+              "name": "Poils de mage visionnaire",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/54685.png"
+            },
+            {
+              "id": 18087,
+              "name": "Coquillage de R'lyugluglu",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/164113.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Montrer à Professeur Nomis : 5 Tentacule de Grofond",
+            "Montrer à Professeur Nomis : 5 Tentacule de N'Yalg",
+            "Montrer à Professeur Nomis : 5 Œil de Shokkoth",
+            "Montrer à Professeur Nomis : 5 Patte de Li-Fo",
+            "Montrer à Professeur Nomis : 5 Flûte de Klûtiste",
+            "Montrer à Professeur Nomis : 1 Poils de mage visionnaire",
+            "Montrer à Professeur Nomis : 5 Coquillage de R'lyugluglu",
+            "Vaincre x1 {monster,4500} en un seul combat",
+            "Aider Nomis à créer le Signe des Très Vieux Anciens",
+            "Aller voir Reine Viktorie"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1756
+            }
+          ]
+        },
+        {
+          "name": "De mal en impie",
+          "dofusdbId": 1759,
+          "level": 200,
+          "zone": "Temple de Koutoulou - Dernière salle",
+          "npcName": "Capitaine Skaille",
+          "npcSubArea": "Temple de Koutoulou - Dernière salle",
+          "coords": {
+            "x": 27,
+            "y": 26,
+            "worldId": 17
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 98,
+              "name": "Temple de Koutoulou",
+              "level": null,
+              "bossName": "Larve de Koutoulou",
+              "img": "https://api.dofusdb.fr/img/monsters/1423.png",
+              "idoleName": null
+            }
+          ],
+          "objectives": [
+            "Entrer dans le temple de Koutoulou",
+            "Vaincre x1 {monster,4453} en un seul combat",
+            "Aller voir Capitaine Skaille",
+            "Vaincre x1 {monster,4501} en un seul combat",
+            "Aller voir Pollie Perkine",
+            "Aller voir Capitaine Skaille",
+            "Aller voir Reine Viktorie"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1758
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Vous ne descendrez pas plus bas",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Abysses de Sufokia",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 4,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Le vieux gob et la mer",
+          "dofusdbId": 1764,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": "Santiagob",
+          "npcSubArea": null,
+          "coords": {
+            "x": 22,
+            "y": 30,
+            "worldId": 17
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 18107,
+              "name": "Greuvette centenaire",
+              "amount": 7,
+              "img": "https://api.dofusdb.fr/img/items/41292.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Montrer à Santiagob : 7 Greuvette centenaire",
+            "Cacher les appâts",
+            "Retourner voir Santiagob",
+            "Vaincre x1 {monster,4513} en un seul combat",
+            "Aller voir Santiagob"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Demain, j'arête",
+          "dofusdbId": 1757,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": "Markaris",
+          "npcSubArea": null,
+          "coords": {
+            "x": 19,
+            "y": 32,
+            "worldId": 17
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 18105,
+              "name": "Documents de Victor Schubert",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/147001.png"
+            },
+            {
+              "id": 18106,
+              "name": "Coffre de Tablettes",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24044.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Vaincre x2 {monster,4511} en un seul combat",
+            "Aller voir Markaris",
+            "Aller voir Tourthon Curieux",
+            "Aller voir Émissaire Néa",
+            "Découvrir la carte : Regroupement des plongeurs",
+            "Aller voir Plongeur de l'Astre Noir",
+            "Découvrir la carte : Camp de l'Astre Noir",
+            "Aller voir Victor Schubert",
+            "Ramener à Rilur Intrigant : x1 Documents de Victor Schubert",
+            "Ramener à Victor Schubert : x1 Coffre de Tablettes",
+            "Aller voir Émissaire Néa",
+            "Découvrir la carte : Vers la caverne de Neptoon",
+            "Vaincre x2 {monster,4512} en un seul combat",
+            "Aller voir Émissaire Néa"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1764
+            }
+          ]
+        },
+        {
+          "name": "L'effet Paula Rice",
+          "dofusdbId": 1766,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": "Plongeuse de l'Astre Noir",
+          "npcSubArea": null,
+          "coords": {
+            "x": 27,
+            "y": 31,
+            "worldId": 17
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 17983,
+              "name": "Tentacule de Grofond",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/103729.png"
+            },
+            {
+              "id": 17984,
+              "name": "Tentacule de N'Yalg",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/103728.png"
+            },
+            {
+              "id": 17986,
+              "name": "Œil de Shokkoth",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/109614.png"
+            },
+            {
+              "id": 17981,
+              "name": "Peau de Trithon",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/59651.png"
+            },
+            {
+              "id": 17974,
+              "name": "Parasite Aquatique",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/15936.png"
+            },
+            {
+              "id": 18113,
+              "name": "Mixture Indicible",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/63354.png"
+            },
+            {
+              "id": 18114,
+              "name": "Mite de Koutoulou",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15936.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Découvrir la carte : Agent de l'Astre Noir égaré",
+            "Aller voir Plongeuse de l'Astre Noir",
+            "Emmener la plongeuse jusqu'à l'entrée du temple de Koutoulou",
+            "Aller voir Plongeuse de l'Astre Noir",
+            "Aller voir Victor Schubert",
+            "Découvrir la carte : Plage de la Tortue",
+            "Aller voir Sbire de l'Astre Noir",
+            "Aller voir Calamarcus Delfion",
+            "Découvrir la carte : Zone de nage du Li-Fo",
+            "Aller voir Mi-To",
+            "Fabriquer 1 Mixture Indicible et fermer l'interface",
+            "Appâter une mite de Koutoulou",
+            "Ramener à Mi-To : x1 Mite de Koutoulou",
+            "Aller voir Calamarcus Delfion",
+            "Aller voir Paula Rice",
+            "Se protéger contre les gardes",
+            "Aller voir Gobvious Amoché",
+            "Sauver Markaris des griffes de Paula Rice",
+            "Aller voir Markaris",
+            "Aller voir Calamarcus Delfion",
+            "Aller voir Mi-To"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1757
+            }
+          ]
+        },
+        {
+          "name": "Fhtagn !",
+          "dofusdbId": 1765,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 27,
+            "y": 34,
+            "worldId": 17
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Bloubloup R'lyugluglu mglw'nogl",
+            "Bloubloup R'lyugluglu ph'neglb",
+            "Bloubloup R'lyugluglu wgah'ptiph",
+            "Plogplob gnk'tgeblap",
+            "Plogplob shk'golonakph",
+            "Plogplob dhol'chtitaq",
+            "Cloolooth P'Koutoulou Ch'ton",
+            "Cloolooth P'Koutoulou Zothoth",
+            "Cloolooth P'Koutoulou Glaakiph",
+            "Fhtagn ?"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1766
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Silence on coule",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Abysses de Sufokia",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 5,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Les sept Mercemers",
+          "dofusdbId": 1748,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": "Pam Chollion",
+          "npcSubArea": null,
+          "coords": {
+            "x": 21,
+            "y": 13,
+            "worldId": 33
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 18063,
+              "name": "Contrat des Mercemers",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24026.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir Pam Chollion",
+            "Aller voir Rita Byrla",
+            "Aller voir Maxime Laubouftou",
+            "Aller voir Pam Chollion",
+            "Aller voir Prosper Meraimée",
+            "Aller voir Marine Ancrenage",
+            "Découvrir la carte : Salle de plongée",
+            "Affronter les saboteurs et veiller à ce qu'ils soient arrêtés",
+            "Ramener à Marine Ancrenage : x1 Contrat des Mercemers"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Nos chairs voisines",
+          "dofusdbId": 1755,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": "Marine Ancrenage",
+          "npcSubArea": null,
+          "coords": {
+            "x": 22,
+            "y": 28,
+            "worldId": 17
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 18076,
+              "name": "Chair aquatique",
+              "amount": 40,
+              "img": "https://api.dofusdb.fr/img/items/63411.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Ramener à Marine Ancrenage : x40 Chair aquatique"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1748
+            }
+          ]
+        },
+        {
+          "name": "Concurrence déloyale",
+          "dofusdbId": 1752,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": "Fessyou",
+          "npcSubArea": null,
+          "coords": {
+            "x": 10,
+            "y": 25,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir Fessyou",
+            "Aller voir Mousse Taffa",
+            "Aller voir Benoît Zaim",
+            "Aller voir Sharky",
+            "Vaincre x1 {monster,4498} en un seul combat",
+            "Aller voir Sharky",
+            "Aller voir Kaje",
+            "Aller voir Kaje",
+            "Aller voir Lazur",
+            "Aller voir Lazur",
+            "Aller voir Tavernier du Ripate",
+            "Aller voir Colonel Ilkor",
+            "Aller voir Petra Fikante"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1755
+            }
+          ]
+        },
+        {
+          "name": "Qui a la plus grosse ?",
+          "dofusdbId": 1750,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": "Assistant de Deks",
+          "npcSubArea": null,
+          "coords": {
+            "x": 20,
+            "y": 27,
+            "worldId": 17
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 18119,
+              "name": "Bon au porteur",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/147001.png"
+            },
+            {
+              "id": 18120,
+              "name": "Caisse de pièces de rechange",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15056.png"
+            },
+            {
+              "id": 18121,
+              "name": "Morceau de tôle",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/107737.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Chercher un Steamer prêt à aider un Trithon",
+            "Escorter l'assistant de Deks jusqu'à la machine",
+            "Aller voir Assistant de Deks",
+            "Ramener à Pinke Tada : x1 Bon au porteur",
+            "Récupérer des morceaux de tôle",
+            "Ramener à Assistant de Deks : x1 Caisse de pièces de rechange",
+            "Ramener à Assistant de Deks : x1 Morceau de tôle",
+            "Protéger l'assistant de Deks pendant qu'il répare la machine",
+            "Aller voir Frédyglb Rardé"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1752
+            }
+          ]
+        },
+        {
+          "name": "Droit de cuissage",
+          "dofusdbId": 1753,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": "Jett Saite",
+          "npcSubArea": null,
+          "coords": {
+            "x": 21,
+            "y": 24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 18074,
+              "name": "Cuisse de Trithon",
+              "amount": 40,
+              "img": "https://api.dofusdb.fr/img/items/94022.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Ramener à Jett Saite : x40 Cuisse de Trithon"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1750
+            }
+          ]
+        },
+        {
+          "name": "La musique de Rykke Zane",
+          "dofusdbId": 1732,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": "Sered",
+          "npcSubArea": null,
+          "coords": {
+            "x": 14,
+            "y": 22,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 17860,
+              "name": "Vieux luth",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164112.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Chercher Rykke Zane dans les environs de Sufokia",
+            "Montrer à Sered : 1 Vieux luth",
+            "Trouver la Sram",
+            "Aller voir Sassine la Sourdine",
+            "Vaincre x1 {monster,4430} en un seul combat",
+            "Aller voir Sassine la Sourdine",
+            "Aller voir Kalfath",
+            "Vaincre x1 {monster,4428} en un seul combat",
+            "Aller voir Kalfath",
+            "Retourner voir Sered",
+            "Découvrir la carte : Accès aux profondeurs sous-marines",
+            "Aller voir Sered",
+            "Retrouver Sered à R'lyugluglu",
+            "Aller voir Sered",
+            "Entrer en contact avec l'âme de Rykke Zane",
+            "Utiliser la fée d'artifice pour prévenir Sered",
+            "Aller voir Sered",
+            "Vaincre le joueur de flûte avec l'aide de Sered",
+            "Parler une dernière fois à Sered"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1753
+            }
+          ]
+        },
+        {
+          "name": "Mémoires d'un amnésique",
+          "dofusdbId": 1749,
+          "level": 200,
+          "zone": "Taverne de Lisa Kaya",
+          "npcName": "Mage Hellan",
+          "npcSubArea": "Taverne de Lisa Kaya",
+          "coords": {
+            "x": 22,
+            "y": 28,
+            "worldId": 17
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 18072,
+              "name": "Cnidocyste de Buba",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/63528.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Discuter avec les Steamers du camp",
+            "Aller voir Mage Hellan",
+            "Inspecter le gouffre de Yug à la recherche de minerai de toklium",
+            "Vaincre les gardiens du minerai de toklium",
+            "Prendre le minerai de toklium",
+            "Obtenir 8 cerveaux de Trithons et les déposer dans la grotte des déments",
+            "Aller voir Mi-To",
+            "Découvrir la carte : Taverne de Lisa Kaya",
+            "Interroger les habitués",
+            "Aller voir Narouto Hicsixikse",
+            "Aller voir Narouto Hicsixikse",
+            "Escorter Narouto Hicsixikse jusqu'à Mi-To",
+            "Aller voir Markaris",
+            "Aller voir Mi-To",
+            "Aller voir Markaris",
+            "Aller voir Mi-To",
+            "Aller voir Markaris",
+            "Accompagner Markaris au camp des archéologues",
+            "Aller voir Docteur Lise Merryl",
+            "Aller voir Jack Mouldon",
+            "Aller voir Jack Mouldon",
+            "Protéger le siphon",
+            "Aller voir Jack Mouldon",
+            "Ramener à Docteur Lise Merryl : x6 Cnidocyste de Buba",
+            "Aller voir Markaris"
+          ],
+          "stepOrder": 6,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1732
+            }
+          ]
+        },
+        {
+          "name": "L'odeur devant le seuil",
+          "dofusdbId": 1751,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": "Mage Hellan",
+          "npcSubArea": null,
+          "coords": {
+            "x": 13,
+            "y": 25,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 17991,
+              "name": "Bois d'Aquajou",
+              "amount": 12,
+              "img": "https://api.dofusdb.fr/img/items/38684.png"
+            },
+            {
+              "id": 17992,
+              "name": "Salikrone",
+              "amount": 12,
+              "img": "https://api.dofusdb.fr/img/items/36653.png"
+            },
+            {
+              "id": 17993,
+              "name": "Quisnoa",
+              "amount": 12,
+              "img": "https://api.dofusdb.fr/img/items/34560.png"
+            },
+            {
+              "id": 17994,
+              "name": "Patelle",
+              "amount": 12,
+              "img": "https://api.dofusdb.fr/img/items/41419.png"
+            },
+            {
+              "id": 17995,
+              "name": "Écume de mer",
+              "amount": 12,
+              "img": "https://api.dofusdb.fr/img/items/39399.png"
+            },
+            {
+              "id": 17160,
+              "name": "Viande Goûtue",
+              "amount": 12,
+              "img": "https://api.dofusdb.fr/img/items/63487.png"
+            },
+            {
+              "id": 17975,
+              "name": "Lanterne de Tourthon",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/15939.png"
+            },
+            {
+              "id": 17977,
+              "name": "Encre de Poulpée",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/15940.png"
+            },
+            {
+              "id": 17978,
+              "name": "Trident de Tryde",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/15941.png"
+            },
+            {
+              "id": 17970,
+              "name": "Bave de Mol Usk",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/15937.png"
+            },
+            {
+              "id": 17971,
+              "name": "Pince de Crabe Yoloniste",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/47852.png"
+            },
+            {
+              "id": 17972,
+              "name": "Écaille de Gambaf",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/59650.png"
+            },
+            {
+              "id": 17983,
+              "name": "Tentacule de Grofond",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/103729.png"
+            },
+            {
+              "id": 17986,
+              "name": "Œil de Shokkoth",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/109614.png"
+            },
+            {
+              "id": 18082,
+              "name": "Globes Iridescents",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/126023.png"
+            },
+            {
+              "id": 18083,
+              "name": "Chair Protoplasmique",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/63456.png"
+            },
+            {
+              "id": 18084,
+              "name": "Tentacule Agité",
+              "amount": 8,
+              "img": "https://api.dofusdb.fr/img/items/103729.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir Mage Hellan",
+            "Récupérer l'Anneau de Pierres",
+            "Aller voir Umra Tawil",
+            "Fabriquer 1 Globes Iridescents et fermer l'interface",
+            "Fabriquer 1 Chair Protoplasmique et fermer l'interface",
+            "Ramener à Umra Tawil : x8 Tentacule Agité",
+            "Ramener à Umra Tawil : x1 Globes Iridescents",
+            "Ramener à Umra Tawil : x1 Chair Protoplasmique"
+          ],
+          "stepOrder": 7,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1749
+            }
+          ]
+        },
+        {
+          "name": "Aux grands mots les grands remèdes",
+          "dofusdbId": 1754,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": "Dan Wich",
+          "npcSubArea": null,
+          "coords": {
+            "x": 25,
+            "y": 28,
+            "worldId": 17
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 18075,
+              "name": "Page indéchiffrable",
+              "amount": 40,
+              "img": "https://api.dofusdb.fr/img/items/24176.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Ramener à Dan Wich : x40 Page indéchiffrable"
+          ],
+          "stepOrder": 8,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1751
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Test d'étanchéité",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Abysses de Sufokia",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 6,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "L'ivresse des profondeurs",
+          "dofusdbId": 1433,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": "Capitaine Grog",
+          "npcSubArea": null,
+          "coords": {
+            "x": 22,
+            "y": 22,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 14808,
+              "name": "Rhum Marin",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/15177.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Ramener à Capitaine Grog : x10 Rhum Marin"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Les Mercemers sont bien outillés",
+          "dofusdbId": 1438,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": "Apprentie de Roukerol",
+          "npcSubArea": null,
+          "coords": {
+            "x": 22,
+            "y": 14,
+            "worldId": 33
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 14818,
+              "name": "Boîte à Outils des Mercemers",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/15844.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Ramener à Apprentie de Roukerol : x5 Boîte à Outils des Mercemers"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1433
+            }
+          ]
+        },
+        {
+          "name": "Pêche aux krabouilleurs",
+          "dofusdbId": 1439,
+          "level": 200,
+          "zone": "Abysses de Sufokia",
+          "npcName": "Estave Guiffel",
+          "npcSubArea": null,
+          "coords": {
+            "x": 22,
+            "y": 14,
+            "worldId": 33
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 14816,
+              "name": "Spécimen de Krabouilleur",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/18087.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Ramener à Estave Guiffel : x4 Spécimen de Krabouilleur"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1438
+            }
+          ]
+        },
+        {
+          "name": "À bas Kralab Rah",
+          "dofusdbId": 1441,
+          "level": 200,
+          "zone": "Base Abyssale - Salles des Embruns",
+          "npcName": null,
+          "npcSubArea": "Base Abyssale - Salles des Embruns",
+          "coords": {
+            "x": 23,
+            "y": 26,
+            "worldId": 33
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Vaincre x1 {monster,3541} en un seul combat"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1439
+            }
+          ]
+        },
+        {
+          "name": "KO pour Bosko Tho",
+          "dofusdbId": 1440,
+          "level": 200,
+          "zone": "Base Abyssale - Salles des Courants",
+          "npcName": null,
+          "npcSubArea": "Base Abyssale - Salles des Courants",
+          "coords": {
+            "x": 23,
+            "y": 30,
+            "worldId": 33
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Vaincre x1 {monster,3539} en un seul combat"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1441
+            }
+          ]
+        },
+        {
+          "name": "Relevez les niveaux",
+          "dofusdbId": 1442,
+          "level": 200,
+          "zone": "Base Abyssale - Salles des Embruns",
+          "npcName": "Théo Dolith",
+          "npcSubArea": "Base Abyssale - Salles des Embruns",
+          "coords": {
+            "x": 22,
+            "y": 20,
+            "worldId": 33
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 14815,
+              "name": "Appareil Topographique",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15843.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Découvrir la carte : Salle du Bassin",
+            "Découvrir la carte : Salle des Minerais",
+            "Découvrir la carte : Ascenseur du Cartographe",
+            "Découvrir la carte : Quartiers de Kralab Rah",
+            "Découvrir la carte : Salle des Poissons",
+            "Découvrir la carte : Ascenseur des Courants",
+            "Découvrir la carte : Salle des Arbres",
+            "Découvrir la carte : Salle de la Rocaille",
+            "Découvrir la carte : Quartiers de Bosko Tho",
+            "Découvrir la carte : Ascenseur des Abîmes",
+            "Découvrir la carte : Entrée de l'Aquadôme",
+            "Ramener à Théo Dolith : x1 Appareil Topographique"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1440
+            }
+          ]
+        },
+        {
+          "name": "Prise de notes",
+          "dofusdbId": 1443,
+          "level": 200,
+          "zone": "Aquadôme – Salle du Bathyscaphe",
+          "npcName": "Théo Dolith",
+          "npcSubArea": "Aquadôme – Salle du Bathyscaphe",
+          "coords": {
+            "x": 21,
+            "y": 18,
+            "worldId": 33
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 14820,
+              "name": "Notes de Merkator",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/24176.png"
+            },
+            {
+              "id": 14821,
+              "name": "Rapport de Théo Dolith",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24033.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 73,
+              "name": "Aquadôme de Merkator",
+              "level": null,
+              "bossName": "Cyclophandre",
+              "img": "https://api.dofusdb.fr/img/monsters/1062.png",
+              "idoleName": null
+            }
+          ],
+          "objectives": [
+            "Récupérer des notes dans la Salle du Bathyscaphe",
+            "Récupérer des notes dans la Salle des Bulles",
+            "Récupérer des notes dans la Salle des Globes",
+            "Récupérer des notes dans la Salle du Périscope",
+            "Récupérer des notes dans la Salle des Trésors",
+            "Ramener à Théo Dolith : x5 Notes de Merkator",
+            "Ramener à Pam Chollion : x1 Rapport de Théo Dolith"
+          ],
+          "stepOrder": 6,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1442
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "globalSummary": {
+    "totalQuests": 40,
+    "totalItems": 60,
+    "totalDungeons": 4,
+    "items": [
+      {
+        "id": 18076,
+        "name": "Chair aquatique",
+        "totalAmount": 40,
+        "img": "https://api.dofusdb.fr/img/items/63411.png"
+      },
+      {
+        "id": 18074,
+        "name": "Cuisse de Trithon",
+        "totalAmount": 40,
+        "img": "https://api.dofusdb.fr/img/items/94022.png"
+      },
+      {
+        "id": 18075,
+        "name": "Page indéchiffrable",
+        "totalAmount": 40,
+        "img": "https://api.dofusdb.fr/img/items/24176.png"
+      },
+      {
+        "id": 17983,
+        "name": "Tentacule de Grofond",
+        "totalAmount": 16,
+        "img": "https://api.dofusdb.fr/img/items/103729.png"
+      },
+      {
+        "id": 17986,
+        "name": "Œil de Shokkoth",
+        "totalAmount": 16,
+        "img": "https://api.dofusdb.fr/img/items/109614.png"
+      },
+      {
+        "id": 17984,
+        "name": "Tentacule de N'Yalg",
+        "totalAmount": 12,
+        "img": "https://api.dofusdb.fr/img/items/103728.png"
+      },
+      {
+        "id": 17991,
+        "name": "Bois d'Aquajou",
+        "totalAmount": 12,
+        "img": "https://api.dofusdb.fr/img/items/38684.png"
+      },
+      {
+        "id": 17992,
+        "name": "Salikrone",
+        "totalAmount": 12,
+        "img": "https://api.dofusdb.fr/img/items/36653.png"
+      },
+      {
+        "id": 17993,
+        "name": "Quisnoa",
+        "totalAmount": 12,
+        "img": "https://api.dofusdb.fr/img/items/34560.png"
+      },
+      {
+        "id": 17994,
+        "name": "Patelle",
+        "totalAmount": 12,
+        "img": "https://api.dofusdb.fr/img/items/41419.png"
+      },
+      {
+        "id": 17995,
+        "name": "Écume de mer",
+        "totalAmount": 12,
+        "img": "https://api.dofusdb.fr/img/items/39399.png"
+      },
+      {
+        "id": 17160,
+        "name": "Viande Goûtue",
+        "totalAmount": 12,
+        "img": "https://api.dofusdb.fr/img/items/63487.png"
+      },
+      {
+        "id": 17952,
+        "name": "Sable de Wakfu",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/48292.png"
+      },
+      {
+        "id": 17205,
+        "name": "Saucisse Fumée",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/69820.png"
+      },
+      {
+        "id": 17985,
+        "name": "Patte de Li-Fo",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/103727.png"
+      },
+      {
+        "id": 17987,
+        "name": "Flûte de Klûtiste",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/15938.png"
+      },
+      {
+        "id": 14808,
+        "name": "Rhum Marin",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/15177.png"
+      },
+      {
+        "id": 18084,
+        "name": "Tentacule Agité",
+        "totalAmount": 8,
+        "img": "https://api.dofusdb.fr/img/items/103729.png"
+      },
+      {
+        "id": 18107,
+        "name": "Greuvette centenaire",
+        "totalAmount": 7,
+        "img": "https://api.dofusdb.fr/img/items/41292.png"
+      },
+      {
+        "id": 17954,
+        "name": "Corail opalin",
+        "totalAmount": 6,
+        "img": "https://api.dofusdb.fr/img/items/38685.png"
+      },
+      {
+        "id": 18072,
+        "name": "Cnidocyste de Buba",
+        "totalAmount": 6,
+        "img": "https://api.dofusdb.fr/img/items/63528.png"
+      },
+      {
+        "id": 18087,
+        "name": "Coquillage de R'lyugluglu",
+        "totalAmount": 5,
+        "img": "https://api.dofusdb.fr/img/items/164113.png"
+      },
+      {
+        "id": 14818,
+        "name": "Boîte à Outils des Mercemers",
+        "totalAmount": 5,
+        "img": "https://api.dofusdb.fr/img/items/15844.png"
+      },
+      {
+        "id": 14820,
+        "name": "Notes de Merkator",
+        "totalAmount": 5,
+        "img": "https://api.dofusdb.fr/img/items/24176.png"
+      },
+      {
+        "id": 17965,
+        "name": "Accélérateur de propulsion",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/181003.png"
+      },
+      {
+        "id": 17975,
+        "name": "Lanterne de Tourthon",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/15939.png"
+      },
+      {
+        "id": 17977,
+        "name": "Encre de Poulpée",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/15940.png"
+      },
+      {
+        "id": 17978,
+        "name": "Trident de Tryde",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/15941.png"
+      },
+      {
+        "id": 17970,
+        "name": "Bave de Mol Usk",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/15937.png"
+      },
+      {
+        "id": 17971,
+        "name": "Pince de Crabe Yoloniste",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/47852.png"
+      },
+      {
+        "id": 17972,
+        "name": "Écaille de Gambaf",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/59650.png"
+      },
+      {
+        "id": 14816,
+        "name": "Spécimen de Krabouilleur",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/18087.png"
+      },
+      {
+        "id": 17942,
+        "name": "Bijoux de la rançon",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/24044.png"
+      },
+      {
+        "id": 17963,
+        "name": "Sceau des fondateurs",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/181001.png"
+      },
+      {
+        "id": 18097,
+        "name": "Œil d'Ansôh",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/164105.png"
+      },
+      {
+        "id": 17981,
+        "name": "Peau de Trithon",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/59651.png"
+      },
+      {
+        "id": 17974,
+        "name": "Parasite Aquatique",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/15936.png"
+      },
+      {
+        "id": 17862,
+        "name": "Crystal mauve",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164101.png"
+      },
+      {
+        "id": 17940,
+        "name": "Partition pour orgue",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15851.png"
+      },
+      {
+        "id": 17955,
+        "name": "Clef du sanctuaire de Leanor",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164103.png"
+      },
+      {
+        "id": 17941,
+        "name": "Reconnaissance de dette",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24033.png"
+      },
+      {
+        "id": 17943,
+        "name": "Caisse de Perles des Profondeurs",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15056.png"
+      },
+      {
+        "id": 17945,
+        "name": "Mercure aquatique",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/39024.png"
+      },
+      {
+        "id": 17950,
+        "name": "Foie toxique",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/69816.png"
+      },
+      {
+        "id": 18027,
+        "name": "Statuette abominable",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164106.png"
+      },
+      {
+        "id": 18039,
+        "name": "Bocal du professeur Nomis",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164108.png"
+      },
+      {
+        "id": 18086,
+        "name": "Poils de mage visionnaire",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/54685.png"
+      },
+      {
+        "id": 18105,
+        "name": "Documents de Victor Schubert",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/147001.png"
+      },
+      {
+        "id": 18106,
+        "name": "Coffre de Tablettes",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24044.png"
+      },
+      {
+        "id": 18113,
+        "name": "Mixture Indicible",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/63354.png"
+      },
+      {
+        "id": 18114,
+        "name": "Mite de Koutoulou",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15936.png"
+      },
+      {
+        "id": 18063,
+        "name": "Contrat des Mercemers",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24026.png"
+      },
+      {
+        "id": 18119,
+        "name": "Bon au porteur",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/147001.png"
+      },
+      {
+        "id": 18120,
+        "name": "Caisse de pièces de rechange",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15056.png"
+      },
+      {
+        "id": 18121,
+        "name": "Morceau de tôle",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/107737.png"
+      },
+      {
+        "id": 17860,
+        "name": "Vieux luth",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164112.png"
+      },
+      {
+        "id": 18082,
+        "name": "Globes Iridescents",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/126023.png"
+      },
+      {
+        "id": 18083,
+        "name": "Chair Protoplasmique",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/63456.png"
+      },
+      {
+        "id": 14815,
+        "name": "Appareil Topographique",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15843.png"
+      },
+      {
+        "id": 14821,
+        "name": "Rapport de Théo Dolith",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24033.png"
+      }
+    ],
+    "dungeons": [
+      {
+        "id": 97,
+        "name": "Vaisseau du Capitaine Meno",
+        "level": null,
+        "bossName": "Capitaine Meno",
+        "img": "https://api.dofusdb.fr/img/monsters/1430.png",
+        "idoleName": null
+      },
+      {
+        "id": 99,
+        "name": "Palais de Dantinéa",
+        "level": null,
+        "bossName": "Dantinéa",
+        "img": "https://api.dofusdb.fr/img/monsters/1321.png",
+        "idoleName": null
+      },
+      {
+        "id": 98,
+        "name": "Temple de Koutoulou",
+        "level": null,
+        "bossName": "Larve de Koutoulou",
+        "img": "https://api.dofusdb.fr/img/monsters/1423.png",
+        "idoleName": null
+      },
+      {
+        "id": 73,
+        "name": "Aquadôme de Merkator",
+        "level": null,
+        "bossName": "Cyclophandre",
+        "img": "https://api.dofusdb.fr/img/monsters/1062.png",
+        "idoleName": null
+      }
+    ]
+  }
+}

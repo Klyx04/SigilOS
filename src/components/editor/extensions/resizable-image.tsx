@@ -71,7 +71,7 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: NodeViewP
                     layout === 'left' ? "float-left mr-8 mb-4 clear-left" :
                         layout === 'right' ? "float-right ml-8 mb-4 clear-right" :
                             layout === 'full' ? "w-full clear-both" : "clear-both",
-                    (selected || isResizing) ? "ring-4 ring-indigo-500/50 rounded-2xl" : ""
+                    (selected || isResizing) ? "ring-4 ring-ring/50 rounded-2xl" : ""
                 )}
                 style={{ width: layout === 'full' ? '100%' : width }}
             >
@@ -89,7 +89,7 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: NodeViewP
                 {(selected || isResizing) && (
                     <>
                         {/* Alignment Toolbar */}
-                        <div className="absolute -top-14 left-1/2 -translate-x-1/2 flex items-center gap-1 p-1 bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl z-30 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="absolute -top-14 left-1/2 -translate-x-1/2 flex items-center gap-1 p-1 bg-surface/90 backdrop-blur-xl border border-border rounded-xl shadow-2xl z-30 animate-in fade-in zoom-in-95 duration-200">
                             {[
                                 { id: 'left', icon: AlignLeft, label: 'Gauche' },
                                 { id: 'block', icon: AlignCenter, label: 'Centré' },
@@ -101,7 +101,7 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: NodeViewP
                                     onClick={() => handleLayoutChange(mode.id as any)}
                                     className={cn(
                                         "p-2 rounded-lg transition-all",
-                                        layout === mode.id ? "bg-indigo-500 text-white" : "text-zinc-400 hover:text-white hover:bg-white/10"
+                                        layout === mode.id ? "bg-info text-info-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface"
                                     )}
                                     title={mode.label}
                                 >
@@ -114,23 +114,23 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: NodeViewP
                         {layout !== 'full' && (
                             <>
                                 <div
-                                    className="absolute top-1/2 -right-3 -translate-y-1/2 w-6 h-12 flex items-center justify-center bg-indigo-500 rounded-lg cursor-ew-resize shadow-xl hover:scale-110 transition-transform z-20"
+                                    className="absolute top-1/2 -right-3 -translate-y-1/2 w-6 h-12 flex items-center justify-center bg-info rounded-lg cursor-ew-resize shadow-xl  transition-transform z-20"
                                     onMouseDown={(e) => handleResize(e, 'right')}
                                 >
-                                    <div className="w-1 h-4 bg-white/40 rounded-full" />
+                                    <div className="w-1 h-4 bg-elevated rounded-full" />
                                 </div>
                                 <div
-                                    className="absolute top-1/2 -left-3 -translate-y-1/2 w-6 h-12 flex items-center justify-center bg-indigo-500 rounded-lg cursor-ew-resize shadow-xl hover:scale-110 transition-transform z-20"
+                                    className="absolute top-1/2 -left-3 -translate-y-1/2 w-6 h-12 flex items-center justify-center bg-info rounded-lg cursor-ew-resize shadow-xl  transition-transform z-20"
                                     onMouseDown={(e) => handleResize(e, 'left')}
                                 >
-                                    <div className="w-1 h-4 bg-white/40 rounded-full" />
+                                    <div className="w-1 h-4 bg-elevated rounded-full" />
                                 </div>
                             </>
                         )}
 
                         {/* Size Label */}
                         {isResizing && (
-                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-zinc-900 border border-white/20 rounded-full text-[10px] font-black text-white uppercase tracking-widest">
+                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-surface border border-border-strong rounded-full text-caption font-black text-foreground uppercase tracking-widest">
                                 {typeof width === 'number' ? width : parseInt(width.toString()) || 0}px
                             </div>
                         )}

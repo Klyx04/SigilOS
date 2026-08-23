@@ -16,6 +16,7 @@ import { Loader2, Plus, X, Sword, ScrollText, Hammer, Crown, Wrench, MessageSqua
 import { createServiceListing } from "@/server/actions/service-actions";
 import { ServiceCategory } from "@prisma/client";
 import { toast } from "sonner";
+import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 import { DungeonPicker, type DungeonSelection } from "./dungeon-picker";
 import { QuestPicker, type QuestSelection } from "./quest-picker";
 import { DofusItemSearch } from "./dofus-item-search";
@@ -71,6 +72,27 @@ const CATEGORY_ACCENT: Record<ServiceCategory, string> = {
 // MAIN COMPONENT
 // ---------------------------------------------------------------------------
 
+// #228 — Valeurs initiales d'un formulaire de service vierge → détection « sale ».
+const SERVICE_DEFAULTS = {
+    category: "PASSAGE_DONJON",
+    title: "", description: "", price: "", availability: "",
+    contactDiscord: true, contactIngame: false,
+    dungeonSelection: null, priceTiers: [] as any[],
+    questSelection: null,
+    selectedJobs: [] as string[], fmItem: "", passTrans: "", commandeExo: false, fmLinkedItem: null,
+    ocrePack: "boss", ocrePrice: "",
+    metierMode: "craft", selectedMetierJob: "",
+    eleveurOptions: {
+        emeraude: { active: false, price: "" },
+        dragodinde: { active: false, price: "", gen: "all" },
+        muldo: { active: false, price: "", gen: "all" },
+        volkorne: { active: false, price: "", gen: "all" },
+        pack100: { active: false, price: "" },
+        pack1000: { active: false, price: "" },
+    },
+    tutoratBases: false, tutoratBasesPrice: "", tutoratAvance: false, tutoratAvancePrice: "", tutoratStuff: false, tutoratStuffPrice: "", tutoratClasses: [] as string[],
+};
+
 export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
@@ -123,6 +145,17 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
     const [tutoratStuff, setTutoratStuff] = useState(false);
     const [tutoratStuffPrice, setTutoratStuffPrice] = useState("");
     const [tutoratClasses, setTutoratClasses] = useState<string[]>([]);
+
+    // #228 — État « sale » = le formulaire diffère de son état vierge
+    const currentState = () => ({
+        category, title, description, price, availability,
+        contactDiscord, contactIngame, dungeonSelection, priceTiers, questSelection,
+        selectedJobs, fmItem, passTrans, commandeExo, fmLinkedItem,
+        ocrePack, ocrePrice, metierMode, selectedMetierJob, eleveurOptions,
+        tutoratBases, tutoratBasesPrice, tutoratAvance, tutoratAvancePrice,
+        tutoratStuff, tutoratStuffPrice, tutoratClasses,
+    });
+    const dirty = isDirty(currentState(), SERVICE_DEFAULTS);
 
     useEffect(() => {
         if (open) {
@@ -1504,6 +1537,9 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                     </div>
                 )}
             </DialogContent>
+
+            {/* #228 — Garde anti-navigation : alerte en cas de service non sauvegardé. */}
+            <UnsavedChangesGuard hasUnsavedChanges={dirty} />
         </Dialog>
     );
 }

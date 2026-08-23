@@ -61,11 +61,17 @@ export default function MentionsPage() {
                     <li>
                         <strong>Ganymède :</strong> Parcours d'optimisation, guides et étapes de quêtes issus du site <a href="https://ganymede-app.com/" target="_blank" rel="noopener noreferrer" className="text-success hover:underline">Ganymède</a>.
                     </li>
+                    <li>
+                        <strong>Dofensive :</strong> Données de combat, sorts, géométries de donjons et bestiaire issues de l'API du site <a href="https://dofensive.com/" target="_blank" rel="noopener noreferrer" className="text-success hover:underline">Dofensive</a>.
+                    </li>
+                    <li>
+                        <strong>Dofus pour les Noobs :</strong> Guides, parcours de quêtes et contenus de référence du site <a href="https://www.dofuspourlesnoobs.com/" target="_blank" rel="noopener noreferrer" className="text-success hover:underline">Dofus pour les Noobs</a>.
+                    </li>
                 </ul>
 
                 <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">5. Cookies</h2>
                 <p>
-                    Nous utilisons exclusivement des cookies techniques strictly nécessaires au fonctionnement de la plateforme (gestion de session d'authentification). Aucun cookie publicitaire ou de tracking tiers n'est utilisé.
+                    SigilOS utilise exclusivement des cookies techniques strictement nécessaires au fonctionnement de la plateforme (gestion de session d'authentification). Aucun cookie publicitaire ou de tracking tiers n'est utilisé.
                 </p>
 
                 <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">6. Droit Applicable</h2>

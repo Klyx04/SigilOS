@@ -1,240 +1,207 @@
 import { getAppBaseUrl } from "@/lib/utils";
 import { Metadata } from "next";
 import { headers } from "next/headers";
-import { HelpCircle, ShieldCheck, Server, Lock, Fingerprint } from "lucide-react";
+import {
+    HelpCircle,
+    Users,
+    Layers,
+    MessageSquare,
+    Lock,
+    LifeBuoy,
+    type LucideIcon,
+} from "lucide-react";
+import Link from "next/link";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 import { JsonLd } from "@/components/shared/json-ld";
 
 export const metadata: Metadata = {
-    title: "FAQ Dofus & Aide | SigilOS",
-    description: "Questions fréquentes sur SigilOS : sécurité des données Dofus, connexion Discord, fonctionnement de l'outil de gestion de guilde, intégration Metamob et RGPD.",
+    title: "FAQ & Aide | SigilOS",
+    description: "Réponses aux questions fréquentes sur SigilOS : accès via Discord, gestion de guilde Dofus, permissions, modules (Almanax, quêtes, événements, archimonstres), données collectées et RGPD.",
     alternates: {
         canonical: `${getAppBaseUrl()}/legal/faq`,
     },
 };
 
+type FaqItem = { q: string; a: string };
+type FaqSection = { id: string; title: string; icon: LucideIcon; items: FaqItem[] };
+
+const FAQ_SECTIONS: FaqSection[] = [
+    {
+        id: "acces",
+        title: "Accès & compte",
+        icon: HelpCircle,
+        items: [
+            { q: "Qu'est-ce que SigilOS ?", a: "SigilOS est un outil web de gestion de guilde pour Dofus, relié à votre serveur Discord. Il regroupe au même endroit le suivi des quêtes et de la progression, les sorties et événements, le calendrier, l'annuaire, les guides ainsi que le suivi des archimonstres. L'accès se fait uniquement via Discord." },
+            { q: "Comment créer l'espace de ma guilde ?", a: "Depuis la page d'accueil, le bouton « Créer l'espace de ma guilde » ouvre une demande d'accès. Vous pouvez aussi rejoindre le serveur Discord officiel du projet et ouvrir un ticket. La création est réservée au meneur de guilde ou à un officier habilité." },
+            { q: "Comment se connecter ?", a: "La connexion se fait uniquement avec votre compte Discord (OAuth2). Il n'existe ni compte ni mot de passe SigilOS : vous vous connectez à Discord, puis vous accédez aux guildes où vous êtes membre. SigilOS ne récupère que votre identité et la liste de vos serveurs." },
+            { q: "Est-ce que SigilOS est gratuit ?", a: "Oui. SigilOS est gratuit et sans publicité pour les guildes qui en font la demande et obtiennent un accès." },
+            { q: "Pourquoi ne vois-je pas ma guilde après connexion ?", a: "Il faut que votre guilde soit déjà enregistrée sur SigilOS et que vous en soyez membre avec un rôle actif. Sinon, contactez un meneur ou un officier de votre guilde, ou formulez une demande d'accès sur le serveur Discord officiel." },
+        ],
+    },
+    {
+        id: "guilde",
+        title: "Guilde & permissions",
+        icon: Users,
+        items: [
+            { q: "Quels rangs existent dans une guilde ?", a: "Les rangs sont définis par le meneur dans les réglages de la guilde : meneur, officiers, rangs personnalisés. Ils s'appuient sur les rôles de votre serveur Discord, qui sont propres à chaque serveur et que chaque guilde configure librement. Les permissions associées à chaque rang se règlent dans les paramètres de la guilde." },
+            { q: "Comment sont gérées les permissions ?", a: "Les permissions sont définies par le meneur dans les réglages de la guilde. Elles sont regroupées en familles (membres, activités, contenu, coffre, etc.) et peuvent être déléguées aux officiers. Le meneur peut créer, modifier ou supprimer des rangs, chacun étant associé à son propre jeu de permissions." },
+            { q: "Comment inviter ou retirer un membre ?", a: "L'invitation et le retrait se font depuis l'espace de gestion des membres de la guilde, sous réserve des permissions accordées à votre rang. Les modifications sont enregistrées et un indicateur signale les changements non sauvegardés." },
+            { q: "Puis-je gérer plusieurs guildes ?", a: "Oui. Un même compte Discord peut accéder à plusieurs guildes. Vous changez de guilde depuis le menu de l'application (sélecteur de guilde)." },
+            { q: "Un membre a été banni ou archivé par erreur, que faire ?", a: "Seul un meneur ou un officier peut le réactiver (débannir ou désarchiver) depuis les réglages de la guilde. Contactez-le directement sur Discord." },
+        ],
+    },
+    {
+        id: "modules",
+        title: "Fonctionnalités & modules",
+        icon: Layers,
+        items: [
+            { q: "Comment fonctionne l'Almanax ?", a: "L'Almanax affiche la ressource du jour et le bonus qui lui est associé. Il est consultable publiquement et intégré à l'espace guilde pour la planification collective." },
+            { q: "Comment est suivi la progression Dofus ?", a: "Les quêtes et leur progression sont suivies par joueur et affichées dans la guilde. Valider une quête met à jour automatiquement la complétion des Dofus associés et le pourcentage global." },
+            { q: "Comment organiser les sorties et événements ?", a: "Le calendrier permet de créer sorties, événements et groupes, avec notification sur Discord et suivi des disponibilités des membres. Les inscriptions et désinscriptions sont gérées depuis la guilde." },
+            { q: "Comment fonctionne le suivi des Songes / donjons ?", a: "Chaque run peut être publié avec la classe, le chef et le stuff associé. Les membres s'inscrivent et le déroulé est partagé avec la guilde. Un lien peut être créé vers un équipement (stuff)." },
+            { q: "Comment intégrer les archimonstres / la quête de l'Ocre ?", a: "Vous renseignez votre pseudo Dofus et votre clé API Metamob (en lecture seule). SigilOS synchronise alors les archimonstres que vous avez capturés afin que la guilde s'entraide sur la quête de l'Ocre. Aucun mot de passe Metamob n'est demandé." },
+            { q: "Le suivi des points de succès est-il disponible ?", a: "Oui. Les points de succès des membres sont synchronisés et comparés pour suivre la progression de la guilde sur la durée." },
+            { q: "Y a-t-il un annuaire, des guides ou des ressources ?", a: "Oui. Un annuaire de guildes, des guides Dofus et une section Ressources (liens organisés par catégories) sont disponibles. La gestion des ressources peut être déléguée aux officiers." },
+        ],
+    },
+    {
+        id: "discord",
+        title: "Discord",
+        icon: MessageSquare,
+        items: [
+            { q: "Comment configurer le serveur Discord ?", a: "La configuration se fait dans les réglages de la guilde : liaison du serveur Discord, mapping des rôles et choix des salons de notification. Le meneur ou un officier habilité gère ces réglages." },
+            { q: "Comment fonctionnent les notifications ?", a: "Les sorties, événements et mises à jour envoient des notifications dans les salons Discord choisis via des embeds. Si l'API Discord est momentanément indisponible, les données sont conservées et la reprise est automatique." },
+            { q: "Existe-t-il des commandes slash ?", a: "L'interface principale est web, avec notifications Discord. Les commandes slash et la granularité par rôle font partie des évolutions prévues." },
+        ],
+    },
+    {
+        id: "donnees",
+        title: "Données & sécurité",
+        icon: Lock,
+        items: [
+            { q: "Quelles données sont collectées ?", a: "Votre identifiant Discord, votre pseudo public, votre avatar, les données de guilde (rangs, permissions, quêtes, sorties, progression) et, si vous l'ajoutez, votre pseudo Dofus et votre clé API Metamob. Les jetons d'accès Discord sont stockés chiffrés." },
+            { q: "Collectez-vous mon adresse e-mail ?", a: "Non. La connexion utilise uniquement Discord et le périmètre de permissions demandé est limité à votre identité et à vos serveurs (identify guilds). Aucune adresse e-mail n'est récupérée." },
+            { q: "Demandez-vous mon mot de passe Ankama ?", a: "Non, jamais. SigilOS n'a aucun lien avec votre compte Ankama : vous connectez uniquement Discord, qui ne transmet ni mot de passe ni données de compte de jeu." },
+            { q: "Comment mes données sont-elles protégées ?", a: "Les données sont isolées par guilde : chaque membre ne voit que sa guilde. Les jetons de session ont une durée limitée (8 heures) avec rotation, et les données sensibles sont chiffrées au repos en base." },
+            { q: "Comment supprimer mes données (RGPD) ?", a: "Vous pouvez supprimer votre compte et vos données directement depuis votre profil (self-service), ou en faire la demande auprès du meneur de votre guilde ou via le support Discord, conformément au RGPD. Sans guilde active, le compte est également retiré des listes." },
+            { q: "D'où viennent les données Dofus ?", a: "Les ressources et données complémentaires proviennent de DofusDB (licence LPNC-IA 1.0) et de Ganymède. Dofus est une marque déposée d'Ankama Games ; SigilOS est une plateforme indépendante." },
+        ],
+    },
+    {
+        id: "support",
+        title: "Support & dépannage",
+        icon: LifeBuoy,
+        items: [
+            { q: "Comment signaler un bug ?", a: "Le plus simple est de passer par le serveur Discord officiel du projet. Précisez votre guilde, la page concernée, ce que vous faisiez et ce qui s'est passé, pour faciliter la reproduction." },
+            { q: "Comment connaître l'état du service ?", a: "Une page dédiée affiche l'état en temps réel des services (page Statut), accessible depuis le menu principal." },
+            { q: "Comment obtenir de l'aide ?", a: "Rejoignez le serveur Discord officiel pour un accompagnement rapide par la communauté et l'équipe du projet." },
+        ],
+    },
+];
+
 export default async function FAQPage() {
     // [AUDIT 2026] Retrieve nonce for inline scripts
     const headersList = await headers();
-    const nonce = headersList.get('x-nonce') ?? '';
+    const nonce = headersList.get("x-nonce") ?? "";
 
-    // FAQPage structured data for Google rich snippets
+    // FAQPage structured data — generated from the same data as the UI to keep
+    // visible content and rich snippets strictly in sync.
     const faqJsonLd = {
         "@context": "https://schema.org",
         "@type": "FAQPage",
-        "mainEntity": [
-            {
+        mainEntity: FAQ_SECTIONS.flatMap((section) =>
+            section.items.map((item) => ({
                 "@type": "Question",
-                "name": "Qu'est-ce que SigilOS ?",
-                "acceptedAnswer": {
-                    "@type": "Answer",
-                    "text": "SigilOS est un système d'exploitation de guilde exclusif pour Dofus. Il relie votre serveur Discord à un tableau de bord web pour automatiser la gestion des membres, des events (Songes, Donjons), et le suivi des archimonstres via Metamob."
-                }
-            },
-            {
-                "@type": "Question",
-                "name": "Est-ce que SigilOS est gratuit ?",
-                "acceptedAnswer": {
-                    "@type": "Answer",
-                    "text": "Oui, SigilOS est intégralement gratuit et sans publicité pour les guildes bénéficiant d'un accès."
-                }
-            },
-            {
-                "@type": "Question",
-                "name": "Comment fonctionne la connexion Discord ?",
-                "acceptedAnswer": {
-                    "@type": "Answer",
-                    "text": "La connexion s'effectue uniquement via Discord (OAuth2). SigilOS ne demande jamais vos identifiants Ankama. Nous n'avons accès qu'à votre ID Discord, votre pseudo public et votre avatar. Aucune adresse e-mail n'est collectée."
-                }
-            },
-            {
-                "@type": "Question",
-                "name": "Qui a accès à mes données ?",
-                "acceptedAnswer": {
-                    "@type": "Answer",
-                    "text": "Vos données sont strictement isolées au sein de votre guilde. Les données sensibles sont chiffrées de bout en bout. Aucune donnée n'est vendue à des tiers."
-                }
-            },
-            {
-                "@type": "Question",
-                "name": "Comment ajouter SigilOS à ma guilde ?",
-                "acceptedAnswer": {
-                    "@type": "Answer",
-                    "text": "SigilOS est en bêta fermée. Si vous êtes Meneur ou Officier d'une guilde ambitieuse, vous pouvez formuler une demande d'accès via le serveur Discord officiel du projet."
-                }
-            },
-        ],
+                name: item.q,
+                acceptedAnswer: { "@type": "Answer", text: item.a },
+            }))
+        ),
     };
 
     return (
         <>
-            <JsonLd
-                id="json-ld-faq"
-                nonce={nonce}
-                data={faqJsonLd}
-            />
-            <div className="space-y-12">
-                {/* Hero Section */}
-                <div className="text-center space-y-4">
-                    <div className="inline-flex items-center justify-center p-3 bg-violet-500/10 rounded-2xl border border-violet-500/20 mb-4 relative group">
-                        <div className="absolute inset-0 bg-violet-500/20 blur-xl rounded-full opacity-50 group-hover:opacity-100 transition-opacity" />
-                        <HelpCircle className="w-8 h-8 text-violet-400 relative z-10" />
+            <JsonLd id="json-ld-faq" nonce={nonce} data={faqJsonLd} />
+            <div className="min-h-screen bg-background text-foreground">
+                <div className="mx-auto max-w-[1100px] px-4 sm:px-6 lg:px-8 py-14 md:py-20">
+                    {/* Hero */}
+                    <div className="max-w-2xl mb-14">
+                        <p className="text-caption font-semibold uppercase tracking-[0.14em] text-success mb-4">
+                            FAQ & Aide
+                        </p>
+                        <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-foreground mb-4">
+                            Vos questions, nos réponses.
+                        </h1>
+                        <p className="text-muted-foreground text-[15px] leading-relaxed">
+                            Tout ce qu&apos;il faut savoir pour démarrer et utiliser SigilOS au quotidien :
+                            accès, permissions, modules, Discord, données et sécurité.
+                        </p>
                     </div>
-                    <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-white/60 tracking-tight">
-                        Foire Aux Questions
-                    </h1>
-                    <p className="text-muted-foreground max-w-2xl mx-auto text-sm md:text-base">
-                        Retrouvez toutes les réponses concernant l'utilisation de SigilOS, notre politique de confidentialité et la sécurisation de vos données.
-                    </p>
-                </div>
 
-                {/* Security Notice */}
-                <div className="bg-warning/5 border border-warning/20 rounded-2xl p-6 relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-gradient-to-br from-warning/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="relative z-10 flex flex-col sm:flex-row gap-4 items-start sm:items-center text-warning/90">
-                        <div className="p-3 bg-warning/10 rounded-xl shrink-0">
-                            <ShieldCheck className="w-6 h-6 text-warning" />
-                        </div>
-                        <div>
-                            <h3 className="font-black tracking-tight text-foreground mb-1">Votre sécurité d'abord</h3>
-                            <p className="text-sm leading-relaxed text-warning/80">
-                                <strong>SigilOS ne vous demandera JAMAIS les identifiants de votre compte Ankama (nom de compte, mot de passe, ou Shield).</strong> L'application n'a aucun lien direct avec les serveurs d'Ankama Games. Votre sécurité est garantie.
-                            </p>
-                        </div>
+                    {/* Sommaire */}
+                    <nav aria-label="Sommaire de la FAQ" className="mb-14 flex flex-wrap gap-3">
+                        {FAQ_SECTIONS.map((section) => (
+                            <Link
+                                key={section.id}
+                                href={`/legal/faq#${section.id}`}
+                                className="inline-flex items-center gap-2 px-4 h-10 rounded-xl border border-border bg-surface text-sm font-medium text-foreground hover:border-success/40 transition-colors"
+                            >
+                                <section.icon className="w-4 h-4 text-success" aria-hidden="true" />
+                                {section.title}
+                            </Link>
+                        ))}
+                    </nav>
+
+                    {/* Sections */}
+                    <div className="space-y-14">
+                        {FAQ_SECTIONS.map((section) => (
+                            <section key={section.id} id={section.id} className="scroll-mt-24">
+                                <div className="flex items-center gap-3 mb-5">
+                                    <div className="w-10 h-10 rounded-xl bg-success/10 border border-success/20 flex items-center justify-center">
+                                        <section.icon className="w-5 h-5 text-success" aria-hidden="true" />
+                                    </div>
+                                    <h2 className="text-xl md:text-2xl font-bold text-foreground tracking-tight">
+                                        {section.title}
+                                    </h2>
+                                </div>
+                                <Accordion type="single" collapsible className="w-full space-y-4">
+                                    {section.items.map((item, idx) => (
+                                        <AccordionItem
+                                            key={`${section.id}-${idx}`}
+                                            value={`${section.id}-${idx}`}
+                                            className="border border-border bg-surface/30 rounded-xl px-4 overflow-hidden shadow-sm data-[state=open]:border-success/40 transition-colors"
+                                        >
+                                            <AccordionTrigger className="hover:no-underline py-4 text-sm font-semibold text-foreground/90 hover:text-foreground">
+                                                {item.q}
+                                            </AccordionTrigger>
+                                            <AccordionContent className="text-muted-foreground leading-relaxed text-sm pb-4">
+                                                {item.a}
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    ))}
+                                </Accordion>
+                            </section>
+                        ))}
                     </div>
-                </div>
 
-                {/* Spacing */}
-                <hr className="border-border" />
-
-                {/* Accordion List */}
-                <div className="space-y-12">
-                    {/* CATEGORY 1: Général */}
-                    <section>
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="p-2 bg-info/10 rounded-lg">
-                                <Server className="w-4 h-4 text-info" />
-                            </div>
-                            <h2 className="text-xl font-bold text-foreground tracking-tight">Général & Découverte</h2>
-                        </div>
-                        <Accordion type="single" collapsible className="w-full space-y-4">
-                            <AccordionItem value="item-1" className="border border-border bg-surface/30 rounded-xl px-4 overflow-hidden shadow-lg data-[state=open]:border-info/30 transition-colors">
-                                <AccordionTrigger className="hover:no-underline py-4 text-sm font-semibold text-foreground/90 hover:text-foreground group">
-                                    Qu'est-ce que SigilOS ?
-                                </AccordionTrigger>
-                                <AccordionContent className="text-muted-foreground leading-relaxed text-sm pb-4">
-                                    SigilOS est un système d'exploitation de guilde exclusif pour Dofus. Il relie votre serveur Discord à un tableau de bord web pour automatiser la gestion des membres, des events (Songes, Donjons), et le suivi des archimonstres via Metamob. Plus qu'un simple bot, c'est une plateforme complète pour les guildes ambitieuses.
-                                </AccordionContent>
-                            </AccordionItem>
-                            <AccordionItem value="item-2" className="border border-border bg-surface/30 rounded-xl px-4 overflow-hidden shadow-lg data-[state=open]:border-info/30 transition-colors">
-                                <AccordionTrigger className="hover:no-underline py-4 text-sm font-semibold text-foreground/90 hover:text-foreground">
-                                    Est-ce que SigilOS est gratuit ?
-                                </AccordionTrigger>
-                                <AccordionContent className="text-muted-foreground leading-relaxed text-sm pb-4">
-                                    Oui, SigilOS est intégralement gratuit et sans publicité pour les guildes bénéficiant d'un accès.
-                                </AccordionContent>
-                            </AccordionItem>
-                            <AccordionItem value="item-3" className="border border-border bg-surface/30 rounded-xl px-4 overflow-hidden shadow-lg data-[state=open]:border-info/30 transition-colors">
-                                <AccordionTrigger className="hover:no-underline py-4 text-sm font-semibold text-foreground/90 hover:text-foreground">
-                                    Faut-il installer quelque chose sur son ordinateur ?
-                                </AccordionTrigger>
-                                <AccordionContent className="text-muted-foreground leading-relaxed text-sm pb-4">
-                                    Absolument pas. SigilOS fonctionne entièrement dans votre navigateur web, comme un site internet classique. Il n'y a aucun logiciel tiers à télécharger.
-                                </AccordionContent>
-                            </AccordionItem>
-                            <AccordionItem value="item-4" className="border border-border bg-surface/30 rounded-xl px-4 overflow-hidden shadow-lg data-[state=open]:border-info/30 transition-colors">
-                                <AccordionTrigger className="hover:no-underline py-4 text-sm font-semibold text-foreground/90 hover:text-foreground">
-                                    Qui a créé SigilOS ?
-                                </AccordionTrigger>
-                                <AccordionContent className="text-muted-foreground leading-relaxed text-sm pb-4">
-                                    SigilOS a été conçu et développé bénévolement par <strong className="text-foreground">Wylan</strong>, un développeur passionné par l'univers de Dofus et par la cybersécurité. Le projet est né de la volonté de sécuriser et simplifier la gestion des guildes. Vos données sont donc entre de bonnes mains !
-                                </AccordionContent>
-                            </AccordionItem>
-                        </Accordion>
-                    </section>
-
-                    {/* CATEGORY 2: Sécurité */}
-                    <section>
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="p-2 bg-success/10 rounded-lg">
-                                <Lock className="w-4 h-4 text-success" />
-                            </div>
-                            <h2 className="text-xl font-bold text-foreground tracking-tight">Sécurité & Confidentialité</h2>
-                        </div>
-                        <Accordion type="single" collapsible className="w-full space-y-4">
-                            <AccordionItem value="item-sec-1" className="border border-border bg-surface/30 rounded-xl px-4 overflow-hidden shadow-lg data-[state=open]:border-success/30 transition-colors">
-                                <AccordionTrigger className="hover:no-underline py-4 text-sm font-semibold text-foreground/90 hover:text-foreground">
-                                    Comment fonctionne la connexion si je ne donne pas mes pass Dofus ?
-                                </AccordionTrigger>
-                                <AccordionContent className="text-muted-foreground leading-relaxed text-sm pb-4">
-                                    La connexion s'effectue <strong className="text-foreground">uniquement via Discord</strong> (Système OAuth2). Nous utilisons l'authentification officielle de Discord pour vérifier que vous appartenez bien au serveur Discord de votre guilde. Nous n'avons accès qu'à votre ID Discord, votre pseudo public, votre avatar et la liste de vos serveurs Discord. Aucune adresse e-mail n'est collectée.
-                                </AccordionContent>
-                            </AccordionItem>
-                            <AccordionItem value="item-sec-email" className="border border-border bg-surface/30 rounded-xl px-4 overflow-hidden shadow-lg data-[state=open]:border-success/30 transition-colors">
-                                <AccordionTrigger className="hover:no-underline py-4 text-sm font-semibold text-foreground/90 hover:text-foreground">
-                                    Est-ce que vous collectez mon adresse email ?
-                                </AccordionTrigger>
-                                <AccordionContent className="text-muted-foreground leading-relaxed text-sm pb-4 space-y-2">
-                                    <p><strong className="text-foreground">Non.</strong> SigilOS ne collecte <strong className="text-foreground">ni ne stocke</strong> votre adresse e-mail. Lors de la connexion via Discord, nous ne demandons que les permissions strictement nécessaires : votre <strong className="text-foreground">ID Discord</strong>, votre <strong className="text-foreground">pseudo public</strong> et la <strong className="text-foreground">liste des serveurs Discord</strong> auxquels vous appartenez (pour vérifier votre appartenance à une guilde gérée par SigilOS).</p>
-                                    <p>Votre adresse e-mail Discord n'est jamais demandée, jamais transmise à nos serveurs, et jamais stockée dans notre base de données.</p>
-                                </AccordionContent>
-                            </AccordionItem>
-                            <AccordionItem value="item-sec-2" className="border border-border bg-surface/30 rounded-xl px-4 overflow-hidden shadow-lg data-[state=open]:border-success/30 transition-colors">
-                                <AccordionTrigger className="hover:no-underline py-4 text-sm font-semibold text-foreground/90 hover:text-foreground">
-                                    Qui a accès à mes données (API Metamob, absences, etc.) ?
-                                </AccordionTrigger>
-                                <AccordionContent className="text-muted-foreground leading-relaxed text-sm pb-4 space-y-2">
-                                    <p>Vos données sont strictement isolées au sein de votre guilde. Seuls les Administrateurs désignés sur le Discord de <strong>votre</strong> guilde peuvent voir vos informations détaillées (API Metamob, dates de vacances).</p>
-                                    <p>De plus, toutes les données sensibles (comme votre clé API Metamob ou les jetons de connexion Discord) sont systématiquement <strong className="text-foreground">chiffrées de bout en bout</strong> dans notre base de données. Même en cas d'accès physique à nos serveurs, ces informations sont illisibles.</p>
-                                </AccordionContent>
-                            </AccordionItem>
-                            <AccordionItem value="item-sec-3" className="border border-border bg-surface/30 rounded-xl px-4 overflow-hidden shadow-lg data-[state=open]:border-success/30 transition-colors">
-                                <AccordionTrigger className="hover:no-underline py-4 text-sm font-semibold text-foreground/90 hover:text-foreground">
-                                    Que se passe-t-il si je quitte le Discord de ma guilde ?
-                                </AccordionTrigger>
-                                <AccordionContent className="text-muted-foreground leading-relaxed text-sm pb-4">
-                                    Dès que le bot Discord détecte votre départ, votre compte SigilOS est automatiquement passé en statut "Archivé" et vos accès sont révoqués. Conformément au RGPD, vos données sont conservées pendant un délai maximum de 30 jours (pour faciliter un éventuel retour), puis détruites informatiquement et définitivement de nos serveurs.
-                                </AccordionContent>
-                            </AccordionItem>
-                        </Accordion>
-                    </section>
-
-                    {/* CATEGORY 3: Fonctionnement */}
-                    <section>
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="p-2 bg-pink-500/10 rounded-lg">
-                                <Fingerprint className="w-4 h-4 text-pink-400" />
-                            </div>
-                            <h2 className="text-xl font-bold text-foreground tracking-tight">Fonctionnement & Utilisation</h2>
-                        </div>
-                        <Accordion type="single" collapsible className="w-full space-y-4">
-                            <AccordionItem value="item-func-1" className="border border-border bg-surface/30 rounded-xl px-4 overflow-hidden shadow-lg data-[state=open]:border-pink-500/30 transition-colors">
-                                <AccordionTrigger className="hover:no-underline py-4 text-sm font-semibold text-foreground/90 hover:text-foreground">
-                                    Le lien avec Metamob, comment ça marche ?
-                                </AccordionTrigger>
-                                <AccordionContent className="text-muted-foreground leading-relaxed text-sm pb-4">
-                                    En renseignant votre clé API Metamob (une clé de lecture seule fournie par le site Metamob) et votre pseudo, SigilOS va synchroniser vos captures d'Archimonstres de manière sécurisée. Cela permet à votre guilde de voir qui possède quels monstres pour s'entraider sur la quête de l'Ocre. <strong className="text-foreground">Les mots de passe Metamob ne sont jamais demandés.</strong>
-                                </AccordionContent>
-                            </AccordionItem>
-                            <AccordionItem value="item-func-2" className="border border-border bg-surface/30 rounded-xl px-4 overflow-hidden shadow-lg data-[state=open]:border-pink-500/30 transition-colors">
-                                <AccordionTrigger className="hover:no-underline py-4 text-sm font-semibold text-foreground/90 hover:text-foreground">
-                                    J'ai été banni ou archivé par erreur, que faire ?
-                                </AccordionTrigger>
-                                <AccordionContent className="text-muted-foreground leading-relaxed text-sm pb-4">
-                                    Vous devez contacter un Administrateur ou un Officier de votre guilde directement sur Discord. Eux seuls ont le pouvoir de réactiver votre accès ("Débannir" ou "Désarchiver") depuis leur propre Panneau de Configuration SigilOS.
-                                </AccordionContent>
-                            </AccordionItem>
-                            <AccordionItem value="item-func-3" className="border border-border bg-surface/30 rounded-xl px-4 overflow-hidden shadow-lg data-[state=open]:border-pink-500/30 transition-colors">
-                                <AccordionTrigger className="hover:no-underline py-4 text-sm font-semibold text-foreground/90 hover:text-foreground">
-                                    Comment ajouter SigilOS à ma propre guilde ?
-                                </AccordionTrigger>
-                                <AccordionContent className="text-muted-foreground leading-relaxed text-sm pb-4">
-                                    SigilOS est actuellement un projet en bêta fermée. L'accès est limité à certaines guildes partenaires pour garantir la stabilité et la qualité du service. Cependant, si vous êtes <strong>Meneur ou Officier d'une guilde ambitieuse</strong>, vous pouvez formuler une demande d'accès en rejoignant le serveur Discord officiel du projet : <a href="https://discord.gg/uX7G6SUDgN" target="_blank" rel="noreferrer" className="text-info hover:text-info underline font-semibold transition-colors">Rejoindre le Discord SigilOS</a>.
-                                </AccordionContent>
-                            </AccordionItem>
-                        </Accordion>
-                    </section>
+                    {/* CTA support */}
+                    <div className="mt-16 rounded-3xl border border-border bg-surface px-6 py-10 md:p-12 text-center">
+                        <h2 className="text-xl md:text-2xl font-bold text-foreground mb-3">
+                            Vous n&apos;avez pas trouvé votre réponse ?
+                        </h2>
+                        <p className="text-muted-foreground text-[15px] max-w-md mx-auto mb-6 leading-relaxed">
+                            Posez votre question sur le serveur Discord officiel : la communauté et
+                            l&apos;équipe du projet vous répondent rapidement.
+                        </p>
+                        <a
+                            href="https://discord.gg/uX7G6SUDgN"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-2 h-12 px-6 rounded-xl bg-success hover:bg-success text-success-foreground font-bold text-sm transition-colors"
+                        >
+                            Rejoindre le Discord SigilOS
+                        </a>
+                    </div>
                 </div>
             </div>
         </>

@@ -576,21 +576,47 @@ export async function getGuildMembersForGod(guildId: string) {
 
 /**
  * Transfer full ownership of a guild to another user (Super-admin only)
+ * #230 — Durcissement : validation du destinataire (membre ACTIF de la guilde),
+ * garde contre le no-op (déjà propriétaire) et résolution robuste de la guilde.
  */
 export async function transferGuildOwnership(guildId: string, newOwnerUserId: string) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: 'Unauthorized' };
 
+    if (!newOwnerUserId || typeof newOwnerUserId !== "string" || !newOwnerUserId.trim()) {
+        return { success: false, error: "Destinataire manquant." };
+    }
+
     try {
         const session = await auth();
         const adminName = session?.user?.name || "Super Admin";
 
-        await db.guildConfig.update({
+        // Résoudre la guilde en interne (id court = discordGuildId, sinon id interne)
+        const guild = await db.guildConfig.findFirst({
             where: {
-                // Use OR to support both internal ID and discordGuildId (ID mismatch fix)
                 id: guildId.length < 25 ? undefined : guildId,
                 discordGuildId: guildId.length < 25 ? guildId : undefined
             },
+            select: { id: true, name: true, ownerId: true }
+        });
+        if (!guild) return { success: false, error: "Guilde introuvable." };
+
+        // Garde anti no-op
+        if (guild.ownerId === newOwnerUserId) {
+            return { success: false, error: "Cet utilisateur est déjà propriétaire de la guilde." };
+        }
+
+        // Le destinataire doit être un membre ACTIF de cette guilde
+        const targetMember = await db.userProfile.findFirst({
+            where: { userId: newOwnerUserId, guildId: guild.id, status: "ACTIVE" },
+            select: { id: true }
+        });
+        if (!targetMember) {
+            return { success: false, error: "Le destinataire doit être un membre actif de cette guilde." };
+        }
+
+        await db.guildConfig.update({
+            where: { id: guild.id },
             data: { ownerId: newOwnerUserId }
         });
 
@@ -598,7 +624,7 @@ export async function transferGuildOwnership(guildId: string, newOwnerUserId: st
         const { notifyGod } = await import('./god-notif-actions');
         await notifyGod({
             title: "👑 Propriété Transférée",
-            message: `La propriété de la guilde "${guildId}" a été transférée à l'utilisateur "${newOwnerUserId}".\n👤 Par: **${adminName}**`,
+            message: `La propriété de la guilde "${guild.name || guildId}" a été transférée.\n👤 Par: **${adminName}**`,
             type: "SYSTEM",
             success: true,
             metadata: { guildId, newOwnerUserId, performedBy: adminName, operation: "TRANSFER_OWNERSHIP" },

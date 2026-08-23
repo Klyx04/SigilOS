@@ -214,10 +214,32 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         </div>
                     </div>
 
+                    {/* Target date */}
+                    {post.targetDate && (
+                        <div className={cn(
+                            "flex items-center justify-center gap-2.5 text-caption font-black w-full px-4 py-2.5 rounded-xl border shadow-inner group/date transition-colors duration-300",
+                            isOpen
+                                ? isDonjon
+                                    ? "text-info bg-info/5 border-info/20"
+                                    : "text-info bg-info/5 border-info/20"
+                                : "text-muted-foreground bg-background border-border"
+                        )}>
+                            <Calendar className={cn(
+                                "w-4 h-4 shrink-0 group-hover/date:scale-110 transition-transform",
+                                isOpen ? (isDonjon ? "text-info" : "text-info") : "text-muted-foreground"
+                            )} />
+                            <span className="uppercase tracking-tight">
+                                {new Date(post.targetDate).toLocaleDateString("fr-FR", {
+                                    weekday: "short", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit"
+                                }).replace(/, /g, " à ")}
+                            </span>
+                        </div>
+                    )}
+
                     {/* Participants Bubbles */}
                     <div className="flex -space-x-2 overflow-hidden py-1">
                         {/* Leader */}
-                        <div key={post.profileId} className="relative group/avatar" title={`${post.profile.pseudoDofus || post.profile.discordNickname} (LEAD)`}>
+                        <div key={post.profileId} className="relative group/avatar animate-in fade-in-0 zoom-in-95 duration-200 motion-reduce:animate-none" title={`${post.profile.pseudoDofus || post.profile.discordNickname} (LEAD)`}>
                             <Avatar className="h-9 w-9 ring-2 ring-ring hover:ring-ring transition-all border-2 border-border shadow-lg">
                                 <DiscordAvatarImage src={post.profile.user.image || undefined} />
                                 <AvatarFallback className="bg-info text-info text-caption font-black">
@@ -231,7 +253,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
 
                         {/* Others */}
                         {post.participants.map((p) => (
-                            <div key={p.id} className="relative group/avatar" title={p.profile.pseudoDofus || p.profile.discordNickname || "Membre"}>
+                            <div key={p.id} className="relative group/avatar animate-in fade-in-0 zoom-in-95 duration-200 motion-reduce:animate-none" title={p.profile.pseudoDofus || p.profile.discordNickname || "Membre"}>
                                 <Avatar className="h-9 w-9 ring-2 ring-border hover:ring-ring/50 transition-all border-2 border-border shadow-lg">
                                     <DiscordAvatarImage src={p.profile.user.image || undefined} />
                                     <AvatarFallback className="bg-elevated text-muted-foreground text-caption font-bold">
@@ -331,7 +353,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         {post.dungeon?.dofuspourlesnoobsUrl && (
                             <a href={post.dungeon.dofuspourlesnoobsUrl} target="_blank" rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-2 text-caption font-black uppercase tracking-widest text-warning hover:text-warning-foreground bg-warning/10 border border-warning/25 rounded-xl px-3 py-2 w-max transition-all shadow-lg hover:bg-warning hover:border-warning hover:scale-[1.03] shadow-amber-500/5 hover:shadow-amber-500/20">
+                                className="inline-flex items-center gap-2 text-caption font-black uppercase tracking-widest text-warning hover:text-warning-foreground bg-warning/10 border border-warning/25 rounded-xl px-3 py-2 w-max transition-colors duration-200 shadow-md hover:bg-warning hover:border-warning shadow-amber-500/5 hover:shadow-amber-500/20">
                                 <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" />
                                 Guide DPNL
                             </a>
@@ -339,7 +361,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         {post.dungeon?.dofensiveUrl && (
                             <a href={post.dungeon.dofensiveUrl} target="_blank" rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-2 text-caption font-black uppercase tracking-widest text-success hover:text-success-foreground bg-success/10 border border-success/25 rounded-xl px-3 py-2 w-max transition-all shadow-lg hover:bg-success hover:border-success hover:scale-[1.03] shadow-emerald-500/5 hover:shadow-emerald-500/20">
+                                className="inline-flex items-center gap-2 text-caption font-black uppercase tracking-widest text-success hover:text-success-foreground bg-success/10 border border-success/25 rounded-xl px-3 py-2 w-max transition-colors duration-200 shadow-md hover:bg-success hover:border-success shadow-emerald-500/5 hover:shadow-emerald-500/20">
                                 <span className="text-xs">🛡️</span>
                                 Dofensive
                             </a>
@@ -350,7 +372,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                     <a href={`https://dofusdb.fr/fr/database/quest/${post.questId}`} target="_blank" rel="noopener noreferrer"
                                         onClick={(e) => e.stopPropagation()}
                                         className={cn(
-                                            "inline-flex items-center gap-2 text-caption font-black uppercase tracking-widest rounded-xl px-3 py-2 w-max transition-all border shadow-lg hover:scale-[1.03]",
+                                            "inline-flex items-center gap-2 text-caption font-black uppercase tracking-widest rounded-xl px-3 py-2 w-max transition-colors duration-200 border shadow-md",
                                             isDonjon
                                                 ? "text-info hover:text-info-foreground bg-info/10 border-info/25 hover:bg-info hover:border-info shadow-cyan-500/5 hover:shadow-cyan-500/20"
                                                 : "text-muted-foreground hover:text-foreground bg-background border-border hover:bg-elevated"
@@ -361,7 +383,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 ) : post.questUrl && !post.dungeon?.dofuspourlesnoobsUrl && (
                                     <a href={post.questUrl} target="_blank" rel="noopener noreferrer"
                                         onClick={(e) => e.stopPropagation()}
-                                        className="inline-flex items-center gap-2 text-caption font-black uppercase tracking-widest text-warning hover:text-warning-foreground bg-warning/10 border border-warning/25 rounded-xl px-3 py-2 w-max transition-all shadow-lg hover:bg-warning hover:border-warning hover:scale-[1.03] shadow-amber-500/5 hover:shadow-amber-500/20">
+                                        className="inline-flex items-center gap-2 text-caption font-black uppercase tracking-widest text-warning hover:text-warning-foreground bg-warning/10 border border-warning/25 rounded-xl px-3 py-2 w-max transition-colors duration-200 shadow-md hover:bg-warning hover:border-warning shadow-amber-500/5 hover:shadow-amber-500/20">
                                         <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" />
                                         DofusPourLesNoobs
                                     </a>
@@ -385,28 +407,6 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                     )}
 
                     <div className="flex-1" /> {/* Spacer */}
-
-                    {/* Target date */}
-                    {post.targetDate && (
-                        <div className={cn(
-                            "flex items-center justify-center gap-2.5 text-caption font-black w-full px-4 py-2.5 rounded-xl border shadow-inner mt-2 group/date transition-colors duration-300",
-                            isOpen
-                                ? isDonjon
-                                    ? "text-info bg-info/5 border-info/20"
-                                    : "text-info bg-info/5 border-info/20"
-                                : "text-muted-foreground bg-background border-border"
-                        )}>
-                            <Calendar className={cn(
-                                "w-4 h-4 shrink-0 group-hover/date:scale-110 transition-transform",
-                                isOpen ? (isDonjon ? "text-info" : "text-info") : "text-muted-foreground"
-                            )} />
-                            <span className="uppercase tracking-tight">
-                                {new Date(post.targetDate).toLocaleDateString("fr-FR", {
-                                    weekday: "short", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit"
-                                }).replace(/, /g, " à ")}
-                            </span>
-                        </div>
-                    )}
 
                     {/* Creator Header (pushed to bottom) */}
                     <div className="flex items-center gap-3 pt-4 border-t border-border mt-auto">

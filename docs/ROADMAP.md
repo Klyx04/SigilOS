@@ -49,8 +49,8 @@
 ## 🟠 Retours user (suite #202)
 
 - **#227** — Épurer l'UI de la notif partout (badges compteur + toasts, charte design-system, zéro glow, OKLCH).
-- **#228** — Étendre `UnsavedChangesGuard` à galerie / présentation / services / donjons
-  (+ intercepter les navigations programmatiques `router.push`).
+- **#228** — ✅ FAIT (23/08, `feat/chantier-2026-08-23-one-shot`) : garde appliquée à galerie /
+  présentation / services / donjons + interception `router.push` (best-effort, à valider en runtime).
 
 ## 🟡 Bloc C — Fonctionnalités (valeur moyenne)
 
@@ -76,7 +76,9 @@
 
 #192 bouton « Suivant » · #199 tour tuto Succès · #202 / #204 RBAC · #206 Dofoobz centralisé
 · #223 P0/P1/P2 · #127 audit RBAC · #85 blacklist embeds · #169 · #101 SEO almanax · #176 fiches boss
-· #181 privacy OCR · #96 README déploiement CD · #41bis circuit-breaker Dofusbook · #140 landing God → `page.tsx`.
+· #181 privacy OCR · #96 README déploiement CD · #41bis circuit-breaker Dofusbook · #140 landing God → `page.tsx`
+· #232 legal (crédits Dofensive/DPLN) · #231 ladder RBAC profil membre · #230 transfert propriété durci
+· #228 garde anti-nav (4 formulaires + `router.push`) · #226 cartes dj/quêtes (P1/3/4) · #225 édition image Dofus + pag. Dokille.
 
 ---
 

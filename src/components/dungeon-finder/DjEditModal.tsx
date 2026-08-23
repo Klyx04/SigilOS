@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useMemo, useTransition } from "react";
+import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -39,6 +40,27 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
     const isManualQuest = post.mode === "QUETE" && (!post.questId || post.questId <= 0);
     const [questName, setQuestName] = useState(post.questName ?? "");
     const [questUrl, setQuestUrl] = useState(post.questUrl ?? "");
+
+    // #228 — Snapshot initial (post) pour la garde anti-navigation.
+    const initialSnapshot = useMemo(() => ({
+        maxMembers: post.maxMembers,
+        message: post.message ?? "",
+        targetDate: post.targetDate ? new Date(post.targetDate).toISOString().slice(0, 16) : "",
+        selectedAchievements: post.wantedAchievementIds ?? [],
+        requiredClasses: post.requiredClasses ?? [],
+        questName: post.questName ?? "",
+        questUrl: post.questUrl ?? "",
+    }), [post]);
+
+    const dirty = isDirty({
+        maxMembers,
+        message,
+        targetDate,
+        selectedAchievements,
+        requiredClasses,
+        questName,
+        questUrl,
+    }, initialSnapshot);
 
     function toggleAchievement(id: string) {
         setSelectedAchievements(prev =>
@@ -303,6 +325,9 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                     </Button>
                 </div>
             </DialogContent>
+
+            {/* #228 — Garde anti-navigation (perte de modifications de l'édition). */}
+            <UnsavedChangesGuard hasUnsavedChanges={dirty} />
         </Dialog>
     );
 }

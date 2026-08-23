@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ChannelPreview } from "@/components/shared/ChannelPreview";
+import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 
 interface GallerySettingsClientProps {
     guildId: string;
@@ -17,6 +18,7 @@ interface GallerySettingsClientProps {
 
 export function GallerySettingsClient({ guildId }: GallerySettingsClientProps) {
     const [config, setConfig] = useState<{ skinGalleryChannelId: string | null; stuffGalleryChannelId: string | null } | null>(null);
+    const [initialConfig, setInitialConfig] = useState<{ skinGalleryChannelId: string | null; stuffGalleryChannelId: string | null } | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
 
@@ -26,6 +28,7 @@ export function GallerySettingsClient({ guildId }: GallerySettingsClientProps) {
 
             if (configRes.success && configRes.data) {
                 setConfig(configRes.data);
+                setInitialConfig(configRes.data);
             }
 
             setIsLoading(false);
@@ -44,6 +47,8 @@ export function GallerySettingsClient({ guildId }: GallerySettingsClientProps) {
 
             if (result.success) {
                 toast.success("Paramètres de la galerie mis à jour !");
+                // La sauvegarde devient la nouvelle référence → plus rien de « sale ».
+                setInitialConfig(config);
             } else {
                 toast.error(result.error || "Erreur lors de la sauvegarde");
             }
@@ -57,6 +62,9 @@ export function GallerySettingsClient({ guildId }: GallerySettingsClientProps) {
             </div>
         );
     }
+
+    // #228 — Détection « modifications non sauvegardées » pour la garde anti-navigation.
+    const dirty = isDirty(config, initialConfig);
 
     return (
         <div className="space-y-8 max-w-5xl mx-auto pb-8">
@@ -161,6 +169,9 @@ export function GallerySettingsClient({ guildId }: GallerySettingsClientProps) {
                     SAUVEGARDER LA CONFIGURATION
                 </Button>
             </div>
+
+            {/* #228 — Garde anti-navigation : alerte si des modifications sont non sauvegardées. */}
+            <UnsavedChangesGuard hasUnsavedChanges={dirty} />
         </div>
     );
 }

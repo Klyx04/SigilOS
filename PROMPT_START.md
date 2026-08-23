@@ -3,20 +3,25 @@
 > **Ce fichier = le réflexe à avoir à chaque nouvelle session.** Il oriente l'IA (Cline ou autre) vers les bonnes références selon le type de travail, pour garantir que tout soit fait **à l'état de l'art** (sécurité, qualité, infra, SEO).
 >
 > **Méthode** : colle le bloc ci-dessous, puis remplace `[TYPE]` et ajoute ta tâche.
+>
+> ♻️ **Mode plan = économie de tokens** : commence toujours par **`docs/ROADMAP.md`** (backlog priorisé).
+> Ne relis PAS `CONTEXT.md` ni l'historique par défaut — ouvre-les seulement si la session l'exige.
 
 ---
 
 ## 📋 BLOC À COLLER (commun à toutes les sessions)
 
 ```
-Réfère-toi à @/CONTEXT.md pour le contexte complet.
+📋 EN MODE PLAN (économie de tokens — lire UNIQUEMENT ça) :
+- @/docs/ROADMAP.md — backlog priorisé + workflow de session (CANONIQUE, le lire en premier).
+- @/src/temp/chantier-actif.md — demandes OUVERTES + dernières annotations (léger).
+- @/PROMPT_START.md — bloc exigences de type.
 
-📋 OUVRE AUSSI (obligatoire avant toute tâche) :
-- @/src/temp/chantier-actif.md — demandes OUVERTES + dernières annotations (léger, à lire à chaque session).
-  ⚠️ Historique complet (toutes demandes annotées depuis 2026) : `src/temp/archive/contexte/chantier-historique-complet-2026-08-21.md` (à la demande).
-- Mémo de session priorité #223 (résilience Discord) : `src/temp/memo-2026-08-21-resilience-discord.md`
-  (+ amorce P3/finition/veille : `src/temp/prompt-next-chantier-2026-08-21-resilience-discord.md`).
-- ⚠️ Historique complet des sessions (avant 21/08/2026) : `src/temp/archive/contexte/CONTEXT-historique-complet-2026-08-21.md` (à la demande).
+📖 Ouvre l'historique SEULEMENT si nécessaire (jamais en plan mode par défaut) :
+- Contexte complet (point d'entrée/étape de chaque session) : @/CONTEXT.md.
+- Historique annoté complet (toutes demandes depuis 2026) : `src/temp/archive/contexte/chantier-historique-complet-2026-08-21.md`.
+- Mémo/amorce #223 résilience Discord : `src/temp/memo-2026-08-21-resilience-discord.md`
+  + `src/temp/prompt-next-chantier-2026-08-21-resilience-discord.md` (à ouvrir si la session touche Discord).
 
 🔒 Exigences systématiques (état de l'art) :
 - Sécurité : respecter RULES.md + SECURITY.md (fail-closed, auth sur chaque action,
@@ -72,7 +77,7 @@ vérifier l'impact multi-tenant (guildId), jamais de breaking sans rollback poss
 
 | Ce que tu fais | Commence à coller |
 |----------------|-------------------|
-| **Tout le temps** | Le bloc commun ci-dessus (CONTEXT.md + exigences) |
+| **Tout le temps** | Le bloc commun ci-dessus (`docs/ROADMAP.md` + exigences) |
 | Bug / fonctionnalité | + « Type : développeur… » |
 | Sécurité | + « Type : sécurité… » |
 | Infra / déploiement | + « Type : infra… » |

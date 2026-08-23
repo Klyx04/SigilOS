@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
-import { exec } from "child_process";
-import { promisify } from "util";
 import { redis } from "@/lib/redis";
-
-const execAsync = promisify(exec);
 
 // Cache TTL: 1 hour for searches
 const SEARCH_CACHE_TTL = 3600;
@@ -31,23 +27,32 @@ export async function GET(request: Request) {
         }
 
         // 2. Fetch from Dofusbook if not in cache
-        const url = `https://www.dofusbook.net/api/items/dofus/search/equipment?keywords=${encodeURIComponent(query)}&context=item&page=1&sort=desc${category ? `&include=${category}` : ""}&level_min=${minLevel}&level_max=${maxLevel}`;
+        // 🔒 SSRF/injection fix: replace exec(curl) with native fetch. All query
+        // params are URI-encoded so they cannot break out of the URL string.
+        const safeCategory = category ? encodeURIComponent(category) : "";
+        const url = `https://www.dofusbook.net/api/items/dofus/search/equipment?keywords=${encodeURIComponent(query)}&context=item&page=1&sort=desc${safeCategory ? `&include=${safeCategory}` : ""}&level_min=${encodeURIComponent(minLevel)}&level_max=${encodeURIComponent(maxLevel)}`;
 
         // Advanced Browser Simulation Headers (Best practices 2026)
         const userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
         const referer = "https://www.dofusbook.net/fr/encyclopedie/items";
 
-        const { stdout } = await execAsync(
-            `curl -L "${url}" \
-            -A "${userAgent}" \
-            -H "Referer: ${referer}" \
-            -H "x-lang: fr" \
-            -H "Accept: application/json, text/plain, */*" \
-            -H "Sec-Fetch-Site: same-origin" \
-            -H "Sec-Fetch-Mode: cors" \
-            -H "Sec-Fetch-Dest: empty" \
-            --max-time 15`
-        );
+        const response = await fetch(url, {
+            headers: {
+                "User-Agent": userAgent,
+                "Referer": referer,
+                "x-lang": "fr",
+                "Accept": "application/json, text/plain, */*",
+                "Sec-Fetch-Site": "same-origin",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Dest": "empty",
+            },
+            signal: AbortSignal.timeout(15000),
+        });
+
+        if (!response.ok) {
+            return NextResponse.json({ error: `Upstream HTTP ${response.status}` }, { status: 502 });
+        }
+        const stdout = await response.text();
 
         if (!stdout) {
             return NextResponse.json({ error: "Empty response from source" }, { status: 502 });

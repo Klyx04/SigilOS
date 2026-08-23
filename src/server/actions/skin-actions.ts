@@ -8,6 +8,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import * as cheerio from "cheerio";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
+import { assertSafeUrl } from "@/lib/image-downloader";
 
 const SkinSchema = z.object({
     guildId: z.string(),
@@ -29,6 +30,12 @@ export type SkinData = {
  * Detects the provider and extracts basic metadata (thumbnail, title)
  */
 export async function scrapeSkinMetadata(url: string): Promise<SkinData> {
+    // 🔒 SSRF fix (CodeQL): validate the URL before any fetch. The previous code
+    // only looked for "barbofus.com" substring anywhere in the URL, so an attacker
+    // could pass `https://evil.com/?ref=barbofus.com` (or any internal URL via the
+    // generic fallback scraper, which had NO host validation at all). `assertSafeUrl`
+    // enforces http(s), blocks private/reserved IPs + DNS rebinding (fail-closed).
+    await assertSafeUrl(url);
     const lowerUrl = url.toLowerCase();
     
     // 1. Barbofus (Extraction avancée: Couleurs + Items)

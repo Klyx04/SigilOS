@@ -10,6 +10,7 @@ import { z } from "zod";
 import { db } from "@/lib/prisma";
 import { getUserContext } from "@/server/actions/user-actions";
 import { revalidatePath } from "next/cache";
+import { assertSafeUrl } from "@/lib/image-downloader";
 
 // ============================================
 // TYPES
@@ -154,6 +155,11 @@ export async function fetchLinkPreview(url: string): Promise<{
         if (!["http:", "https:"].includes(urlObj.protocol)) {
             return { success: false, error: "Protocole non autorisé" };
         }
+
+        // 🔒 SSRF fix (CodeQL): the protocol check alone does not stop an attacker
+        // pointing at internal services (169.254.169.254, localhost, private IPs).
+        // `assertSafeUrl` blocks private/reserved IPs + DNS rebinding (fail-closed).
+        await assertSafeUrl(url);
 
         const response = await fetch(url, {
             headers: { "User-Agent": "SigilOS-Bot/1.0 (link preview)" },

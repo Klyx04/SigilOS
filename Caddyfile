@@ -53,10 +53,10 @@
 }
 
 # =============================================================================
-# 🔴 PRODUCTION — App Next.js ouverte (vitrine maintenance en fallback opt-in)
+# 🔴 PRODUCTION — Vitrine maintenance immersive (page d'attente, pas encore ouverte)
 # =============================================================================
-# Pour activer la maintenance :  touch /srv/maintenance-prod-on
-# Pour la désactiver :           rm /srv/maintenance-prod-on
+# La vitrine refaite (bg-guild, screenshots, modules). Les assets /assets/* sont
+# servis par file_server AVANT le rewrite maintenance pour que les images s'affichent.
 # =============================================================================
 sigilos.fr {
     import security_headers
@@ -69,37 +69,18 @@ sigilos.fr {
         respond "google-site-verification: google77dc76da1868d7bd.html" 200
     }
 
-    # If maintenance flag file exists, serve the maintenance page
-    @maintenance_prod_on expression `file("/srv/maintenance-prod-on")`
-    handle @maintenance_prod_on {
+    # 🎨 Assets de la vitrine (fond bg-guild, screenshots, icônes, logo) — file_server
+    # ⚠️ Le rewrite maintenance ne doit JAMAIS avaler /assets/* (sinon images cassées).
+    handle /assets/* {
+        root * /srv/static
+        file_server
+    }
+
+    # 🛠️ Vitrine maintenance : tout le reste → maintenance.html
+    handle {
         root * /srv/static
         rewrite * /maintenance.html
         file_server
-    }
-
-    handle /socket.io/* {
-        reverse_proxy sigilos-ws-prod:3001 {
-            header_up X-Real-IP {remote_host}
-            header_up -X-Forwarded-For
-            header_up X-Forwarded-For {remote_host}
-        }
-    }
-
-    # 🗺️ Assets monde (tuiles webp, worldmap.json, maps HD) servis en STATIQUE
-    # directement par Caddy — évite de faire transiter 2.18G par Node (Next.js
-    # en mode standalone ne sert pas de façon fiable le dossier public bind-mounté).
-    handle /game-data/* {
-        root * /srv/game-data
-        uri strip_prefix /game-data
-        file_server
-    }
-
-    handle {
-        reverse_proxy sigilos-prod:3000 {
-            header_up X-Real-IP {remote_host}
-            header_up -X-Forwarded-For
-            header_up X-Forwarded-For {remote_host}
-        }
     }
 }
 

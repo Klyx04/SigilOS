@@ -16,7 +16,7 @@ import { AlertTriangle } from "lucide-react";
  * Retourne `true` pour tout href qui ne doit être ni exécuté par le navigateur ni
  * passé à `router.push` (sinon injection de code / XSS).
  */
-function isExecutableScheme(rawHref: string): boolean {
+export function isExecutableScheme(rawHref: string): boolean {
     let u = rawHref;
     try {
         // Décodé `%xx` (ex. `%6a%61vascript:` → `javascript:`), mais une URI malformée
@@ -34,15 +34,23 @@ function isExecutableScheme(rawHref: string): boolean {
  * `UnsavedChangesGuard` — pattern réutilisable « modifications non sauvegardées ».
  *
  * Quand `hasUnsavedChanges` est vrai et que l'utilisateur tente de quitter la page,
- * on l'avertit au lieu de perdre silencieusement son travail :
+ * on l'avertit au lieu de perdre silencieusement son travail. Quatre mécanismes :
  *   1. `beforeunload` → refresh / fermeture d'onglet (modale native navigateur).
- *   2. Clics sur liens internes du dashboard (`<a href>`) → modale custom + navigation différée.
- *   3. Back / forward navigateur (`beforePopState`) → blocage + modale custom, re-navigation après confirmation.
+ *   2. Clics sur liens internes (`<a href>`) → modale custom + navigation différée.
+ *   3. Back / forward navigateur (`popstate` épinglé) → bloqués + modale custom, re-navigation à la confirmation.
+ *   4. Navigations programmatiques (`router.push`/`router.replace`) → patch best-effort
+ *      de l'instance PARTAGÉE du router (voir le bloc d'effet n°4).
  *
  * Usage : `<UnsavedChangesGuard hasUnsavedChanges={isDirty} />` à la fin du composant.
  *
- * NB : les navigations programmatiques (`router.push`) ne passent PAS par un clic sur
- * `<a>` et ne sont donc pas interceptées ici (best-effort — le cas dominant est couvert).
+ *  #4 — mécanisme & limite (vérifié Next 16) :
+ *  `useRouter()` renvoie l'instance globale et modifiable du router (`publicAppRouterInstance`,
+ *  aussi exposée via `window.next.router`). Ses méthodes `push`/`replace` sont des propriétés
+ *  inscriptibles → le patch prend effet et est vu par TOUS les consommateurs. Si une future
+ *  version figeait cet objet (lecture seule), l'affectation leverait une exception strict-mode →
+ *  interceptée par le `try/catch` → dégradation silencieuse vers le best-effort.
+ *  NB : si plusieurs gardes sont montées simultanément, la CLEANUP de l'une restaurerait
+ *  `router.push` qui a été patché par une autre (last-write-wins).
  */
 export function UnsavedChangesGuard({
     hasUnsavedChanges,

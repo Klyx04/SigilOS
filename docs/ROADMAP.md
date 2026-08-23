@@ -49,8 +49,10 @@
 ## 🟠 Retours user (suite #202)
 
 - **#227** — Épurer l'UI de la notif partout (badges compteur + toasts, charte design-system, zéro glow, OKLCH).
-- **#228** — ✅ FAIT (23/08, `feat/chantier-2026-08-23-one-shot`) : garde appliquée à galerie /
-  présentation / services / donjons + interception `router.push` (best-effort, à valider en runtime).
+- **#228** — ✅ FAIT + VALIDÉ (23/08, `feat/chantier-2026-08-23-one-shot`) : garde appliquée à galerie /
+  présentation / services / donjons + interception `router.push`/`replace` **validée** : mécanisme confirmé
+  sur Next 16 (`useRouter()` → instance router partagée & modifiable, `window.next.router`). Tests unitaires
+  ajoutés (`tests/unit/unsaved-changes-guard.test.ts` : `isDirty` + `isExecutableScheme` sécu).
 
 ## 🟡 Bloc C — Fonctionnalités (valeur moyenne)
 
@@ -78,7 +80,7 @@
 · #223 P0/P1/P2 · #127 audit RBAC · #85 blacklist embeds · #169 · #101 SEO almanax · #176 fiches boss
 · #181 privacy OCR · #96 README déploiement CD · #41bis circuit-breaker Dofusbook · #140 landing God → `page.tsx`
 · #232 legal (crédits Dofensive/DPLN) · #231 ladder RBAC profil membre · #230 transfert propriété durci
-· #228 garde anti-nav (4 formulaires + `router.push`) · #226 cartes dj/quêtes (P1/3/4) · #225 édition image Dofus + pag. Dokille.
+· ✅ #228 garde anti-nav (4 formulaires + `router.push`/`replace` — interception validée + tests) · 🔸 #226 cartes dj/quêtes (P1/3/4, P5 drawer fermable) — RESTE : P2+P6 · 🔸 #225 édition image Dofus + pag. Dokille — RESTE : seed + trackeur krokille. (#207 FAQ · #23/#134 avatar · #26/#177 donjons : traités/poussés le 23/08.)
 
 ---
 

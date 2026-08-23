@@ -47,5 +47,10 @@ l'immersion** (y porter le design immersif Dofus aujourd'hui dans `public/mainte
 - ✅ Bouton « Rejoindre » de la vitrine corrigé (contraste 1.02 → 6.67) : la règle
   `.header-nav a` (spécificité 0,1,1) écrasait la couleur de `.header-cta` (0,1,0) ;
   sélecteur monté en `.header-nav a.header-cta` (0,2,1). Concerne `public/maintenance.html`.
+- ✅ **Vitrine prod `sigilos.fr` déployée & saine (23/08)** : `/assets/*` servi en statique par Caddy
+  (`handle /assets/*` + mount `./public:/srv/static:ro`) → images en `200 image/png` (screenshot,
+  `logo-v2.png` = favicon + og:image). Cause racine = Caddyfile/compose VPS périmés, restaurés depuis
+  `origin/main` (fix chirurgical) + Caddy (`sigilos-gateway`) recréé. Détail : `MAINTENANCE.md` §3e.
+
 - ⏳ À faire plus tard : refonte immersive de la landing React (`page.tsx`) en y portant
   le design Dofus (hero `bg-guild.jpg`, frame navigateur, galerie, grille 6 modules, 3 étapes).

@@ -371,6 +371,31 @@ git pull origin main
   ```
 - ⚠️ Les tuiles (`public/game-data/tiles/...`) sont **ignorées par git** → un `git pull`/`deploy-cd.sh` ne les mettra **jamais** à jour. C'est `sync-assets.sh` qui les synchronise (volume bind-mount `ro`, lu directement par Caddy).
 - ⏳ **Prod (main)** : ajouter le même `handle /game-data/*` dans le bloc `sigilos.fr` quand le site sera lancé.
+#### 3e. Vitrine prod — assets `/assets/*` servis par Caddy (23/08)
+
+- **Symptôme** : sur `sigilos.fr`, les `/assets/*` (fond `bg-guild`, screenshots, logo, icônes)
+  renvoyaient du **HTML** (`maintenance.html`) au lieu des **images** → favicon / og:image / screenshots cassés.
+- **Cause racine** : `Caddyfile` et `docker-compose.prod.yml` **périmés sur le VPS** (arbre `dev` local
+  resté sale) → il manquait `handle /assets/*` (Caddy) et le mount `./public:/srv/static:ro`
+  (service `caddy`), pourtant présents dans `origin/main`.
+- **Fix appliqué (chirurgical, sans changement de branche)** :
+  `git restore --source=origin/main -- Caddyfile docker-compose.prod.yml` puis recréation du conteneur :
+  `docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --force-recreate --no-deps caddy`
+  → conteneur `sigilos-gateway` recréé.
+  ⚠️ **Ne pas** faire `git checkout -- .` / `git pull` / `checkout dev` maintenant : ça écraserait les
+  fichiers restaurés ou re-conflicterait (`public/game-data`).
+- **Vérifications passées** :
+  ```
+  GET /                                    → 200 text/html   (vitrine maintenance)
+  GET /assets/screenshots/screenshot1.png  → 200 image/png
+  GET /assets/ui/logo-v2.png               → 200 image/png   (favicon + og:image)
+  ```
+- **Faux positif `/assets/icons/favicon.svg`** : `maintenance.html` ne le référence pas (favicon réel =
+  `/assets/ui/logo-v2.png`) ; le chemin n'existe pas → le `404` est **sans impact**.
+- ⏳ **Repo VPS non migré** : toujours sur `dev` (arbre sale : stashes + `public/game-data` modifié).
+  Le passage à `main` et le nettoyage restent **à planifier** — avant tout switch de branche, faire
+  backup + nettoyage de `public/game-data` et des stashes.
+
 
 ---
 

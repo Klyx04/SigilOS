@@ -203,7 +203,7 @@ export function GalacticFooter({ variant = "compact", isMember: _isMember = fals
                             <Link href="/legal/cgu" className="hover:text-foreground transition-colors">CGU</Link>
                             <Link href="/legal/privacy" className="hover:text-foreground transition-colors">Confidentialité</Link>
                             <Link href="/legal/mentions" className="hover:text-foreground transition-colors">Mentions</Link>
-                            <Link href="/legal/faq" className="hover:text-foreground transition-colors">Aide</Link>
+                            <Link href="/legal/faq" className="hover:text-foreground transition-colors">FAQ</Link>
                         </div>
                         <p className="text-muted-foreground text-caption font-medium leading-relaxed max-w-xl opacity-60">
                             SigilOS est une plateforme indépendante. Dofus est une marque déposée d'Ankama Games. Données & ressources complémentaires par DofusDB (LPNC-IA 1.0) et Ganymède.

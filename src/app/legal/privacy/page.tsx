@@ -27,7 +27,7 @@ export default function PrivacyPage() {
                 <div>
                     <h3 className="text-success font-bold text-lg mb-2">Protection des Données</h3>
                     <p className="text-success/80 text-sm leading-relaxed">
-                        SigilOS est conçu selon le principe de la "minimisation des données". Nous ne collectons que les informations strictement nécessaires à l'authentification et au fonctionnement de vos outils de guilde.
+                        SigilOS est conçu selon le principe de la "minimisation des données". Il ne collecte que les informations strictement nécessaires à l'authentification et au fonctionnement de vos outils de guilde.
                     </p>
                 </div>
             </div>

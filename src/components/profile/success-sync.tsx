@@ -60,7 +60,9 @@ export function SuccessSync({
         
         const fetchPreview = async () => {
             setLoadingPreview(true);
-            const res = await getLadderPreview(guildId);
+            // #231 — Cible explicite : le God qui consulte le profil d'un membre ne doit pas
+            // récupérer SES propres données. On passe pseudo + serveur du membre consulté.
+            const res = await getLadderPreview(guildId, { pseudoDofus, dofusServerId });
             if (isMounted) {
                 if (res.success && res.data) {
                     setPreviewData(res.data);

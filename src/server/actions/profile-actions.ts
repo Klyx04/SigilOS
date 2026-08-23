@@ -2355,7 +2355,7 @@ export async function refreshUserSuccessPoints(guildId: string): Promise<ActionR
 /**
  * Fetch a preview of the external ladder data without saving to DB.
  */
-export async function getLadderPreview(guildId: string): Promise<ActionResponse<{ points: number, level: number, className?: string, rank?: number, guildRank?: number }>> {
+export async function getLadderPreview(guildId: string, target?: { pseudoDofus?: string | null, dofusServerId?: string | null }): Promise<ActionResponse<{ points: number, level: number, className?: string, rank?: number, guildRank?: number }>> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
@@ -2363,23 +2363,29 @@ export async function getLadderPreview(guildId: string): Promise<ActionResponse<
     if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
 
     try {
-        const profile = await db.userProfile.findFirst({
-            where: {
-                userId: session.user.id,
-                guild: { discordGuildId: guildId }
-            },
-            include: { guild: true }
-        });
+        // #231 — Le God qui consulte le profil d'un membre ne doit pas recevoir SES propres
+        // données de ladder. On cible explicitement le membre (pseudoDofus) passé par le composant ;
+        // à défaut (profil perso) on retombe sur le profil du session.user.
+        const profile = target?.pseudoDofus
+            ? await db.userProfile.findFirst({
+                where: { pseudoDofus: target.pseudoDofus, guild: { discordGuildId: guildId } },
+                include: { guild: true },
+            })
+            : await db.userProfile.findFirst({
+                where: { userId: session.user.id, guild: { discordGuildId: guildId } },
+                include: { guild: true },
+            });
 
-        if (!profile || !profile.pseudoDofus) return { success: false, error: "Pseudo manquant." };
+        const pseudo = target?.pseudoDofus || profile?.pseudoDofus;
+        if (!pseudo) return { success: false, error: "Pseudo manquant." };
 
         const workerUrl = process.env.DOFUS_LADDER_WORKER_URL;
         const workerSecret = process.env.DOFUS_LADDER_WORKER_KEY || process.env.DOFUS_LADDER_WORKER_SECRET;
 
         if (!workerUrl) return { success: false, error: "Service indisponible." };
 
-        const serverId = profile.guild.dofusServerId || "295";
-        const targetUrl = `${workerUrl}?server_id=${serverId}&name=${encodeURIComponent(profile.pseudoDofus)}`;
+        const serverId = target?.dofusServerId || profile?.guild?.dofusServerId || "295";
+        const targetUrl = `${workerUrl}?server_id=${serverId}&name=${encodeURIComponent(pseudo)}`;
 
         const response = await fetch(targetUrl, {
             headers: {
@@ -2425,18 +2431,18 @@ export async function getLadderPreview(guildId: string): Promise<ActionResponse<
         
         // Determine Class (Fallback to DB if Worker doesn't provide it)
         const workerClass = findValue(raw, ["className", "class", "character_class", "classe", "class_id"]);
-        const className = workerClass ? workerClass.toString() : (profile.classe || undefined);
+        const className = workerClass ? workerClass.toString() : (profile?.classe || undefined);
 
         // Calculate Guild Rank (comparing fresh Ankama points with last known guild points)
-        const guildRank = await db.userProfile.count({
-            where: {
-                guildId: profile.guildId,
-                status: "ACTIVE",
-                successPoints: {
-                    gt: points
+        const guildRank = profile
+            ? (await db.userProfile.count({
+                where: {
+                    guildId: profile.guildId,
+                    status: "ACTIVE",
+                    successPoints: { gt: points }
                 }
-            }
-        }) + 1;
+            })) + 1
+            : undefined;
 
         return {
             success: true,

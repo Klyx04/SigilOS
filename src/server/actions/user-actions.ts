@@ -52,6 +52,24 @@ export async function invalidateUserContextCache(userId: string, guildId: string
     profileCache.delete(`profile:${userId}:${guildId}`);
     if (discordGuildId) profileCache.delete(`profile:${userId}:${discordGuildId}`);
 
+    // 🔁 Auto-guérison : si `guildId` est un snowflake Discord (et non l'UUID interne),
+    // on résout l'UUID interne depuis la BDD pour purger AUSSI la clé mémoire
+    // `profile:{userId}:{internalGuildId}` — celle que getUserContext lit réellement.
+    // Sans ça, un changement de statut (archivage/réactivation) reste "périmé"
+    // jusqu'à expiration du TTL de 60s → accès non actualisé instantanément.
+    if (/^\d{17,20}$/.test(guildId)) {
+        try {
+            const config = await db.guildConfig.findFirst({
+                where: { OR: [{ id: guildId }, { discordGuildId: guildId }] },
+                select: { id: true },
+            });
+            if (config?.id) {
+                profileCache.delete(`profile:${userId}:${config.id}`);
+                await redis.del(`user:ctx:${userId}:${config.id}`).catch(() => { });
+            }
+        } catch { /* non bloquant */ }
+    }
+
     // 2. Clear Redis context cache (covers both potential key types)
     await redis.del(`user:ctx:${userId}:${guildId}`).catch(() => { });
     if (discordGuildId) await redis.del(`user:ctx:${userId}:${discordGuildId}`).catch(() => { });
@@ -1717,8 +1735,9 @@ export async function internalUpdateMemberProfileStatus(
         }
     });
 
-    // Invalidate Redis cache
-    await invalidateUserContextCache(updated.userId, profile.guild.discordGuildId);
+    // Invalidate Redis cache (⚠️ 2ᵉ arg = UUID interne de la guilde, sinon la clé mémoire
+    // `profile:{userId}:{internalGuildId}` que lit getUserContext reste périmée 60s)
+    await invalidateUserContextCache(updated.userId, profile.guildId, profile.guild.discordGuildId);
 
     // ── F-01 : Tombstone guild-scopé — le ban persiste même si le profil est purgé plus tard ──
     const banDiscordId = profile.user?.accounts?.find((a: any) => a.provider === "discord")?.providerAccountId;

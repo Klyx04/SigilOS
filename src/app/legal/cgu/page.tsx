@@ -36,7 +36,7 @@ export default function CGUPage() {
 
                 <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider text-foreground">3. Propriété Intellectuelle et Non-Affiliation</h2>
                 <p>
-                    <strong>SigilOS est un outil indépendant. Nous ne sommes en aucun cas affiliés, associés ou approuvés par Ankama Games.</strong>
+                    <strong>SigilOS est un outil indépendant. Il n'est en aucun cas affilié, associé ou approuvé par Ankama Games.</strong>
                 </p>
                 <p>
                     Tous les éléments graphiques, noms de personnages, serveurs, items et autres contenus issus du jeu Dofus sont la propriété exclusive d'Ankama Games. SigilOS utilise ces références uniquement à titre informatif et utilitaire pour les joueurs.

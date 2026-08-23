@@ -254,6 +254,30 @@ export default function DofusQuestGodManager() {
 );
 }
 
+// ─── Helpers Dofus Edit Dialog ────────────────────────────────────────────
+// Palette de couleurs (évite de taper un hex à la main)
+const DOFUS_COLOR_PALETTE = [
+    "#10b981", "#f59e0b", "#ef4444", "#3b82f6", "#8b5cf6",
+    "#ec4899", "#14b8a6", "#f97316", "#84cc16", "#64748b",
+    "#eab308", "#06b6d4", "#d946ef", "#f43f5e", "#0ea5e9",
+];
+
+// Transforme un nom en slug URL (sans accents) : "Dofus Émeraude" -> "dofus-emeraude"
+function slugifyDofus(input: string): string {
+    return (input || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+}
+
+// Nom court auto : retire le préfixe "Dofus " -> "Dofus Émeraude" -> "Émeraude"
+function shortNameFromDofus(name: string): string {
+    const t = (name || "").trim();
+    return t.toLowerCase().startsWith("dofus ") ? t.slice(6).trim() : t;
+}
+
 // ─── Dofus Edit Dialog ─────────────────────────────────────────────────────
 function DofusEditDialog({ open, onOpenChange, dofus, onSuccess }: any) {
     const [formData, setFormData] = useState<any>({ name: "", nameShort: "", slug: "", rarity: "MAJEUR", isPrimordial: false, levelRecommended: 1, color: "#ffffff", imageUrl: "", description: "" });
@@ -262,7 +286,31 @@ function DofusEditDialog({ open, onOpenChange, dofus, onSuccess }: any) {
         if (dofus) setFormData({ ...dofus });
         else setFormData({ name: "", nameShort: "", slug: "", rarity: "MAJEUR", isPrimordial: false, levelRecommended: 1, color: "#ffffff", imageUrl: "", description: "" });
     }, [dofus, open]);
-    async function handleSubmit(e: any) { e.preventDefault(); setLoading(true); const res = await upsertDofusItem(dofus?.id || null, formData); if (res.success) { toast.success("Dofus sauvegardé"); onOpenChange(false); onSuccess(); } else toast.error(res.error); setLoading(false); }
+    // Auto-remplit slug + nom court depuis le nom (tant qu'ils sont vides), pour simplifier la création
+    const handleNameChange = (v: string) => {
+        const next = { ...formData, name: v };
+        if (!(formData.slug || "").trim()) next.slug = slugifyDofus(v);
+        if (!(formData.nameShort || "").trim()) next.nameShort = shortNameFromDofus(v);
+        setFormData(next);
+    };
+    // Complète les champs requis dérivables avant l'envoi, puis valide côté client
+    const buildDofusPayload = () => {
+        const name = (formData.name || "").trim();
+        const nameShort = (formData.nameShort || "").trim() || shortNameFromDofus(name);
+        const slug = (formData.slug || "").trim() || slugifyDofus(name);
+        return { ...formData, name, nameShort, slug };
+    };
+    async function handleSubmit(e: any) {
+        e.preventDefault();
+        const payload = buildDofusPayload();
+        if (!payload.name) { toast.error("Le nom du Dofus est requis"); return; }
+        if (!payload.slug) { toast.error("Impossible de générer un slug : nom manquant"); return; }
+        setLoading(true);
+        const res = await upsertDofusItem(dofus?.id || null, payload);
+        if (res.success) { toast.success("Dofus sauvegardé"); onOpenChange(false); onSuccess(); }
+        else toast.error(res.error);
+        setLoading(false);
+    }
     async function handleDelete() { if (!confirm("Supprimer CE DOFUS et TOUTES SES QUÊTES ?")) return; setLoading(true); const res = await deleteDofusItem(dofus.id); if (res.success) { toast.success("Dofus supprimé"); onOpenChange(false); onSuccess(); } else toast.error(res.error); setLoading(false); }
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -270,10 +318,39 @@ function DofusEditDialog({ open, onOpenChange, dofus, onSuccess }: any) {
                 <DialogHeader className="mb-6"><DialogTitle className="text-2xl font-black italic uppercase tracking-tighter">{dofus ? "Modifier le Dofus" : "Créer un Dofus"}</DialogTitle></DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Nom</label><Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="bg-muted/40 border-border h-11 rounded-xl" /></div>
-                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Nom court</label><Input value={formData.nameShort} onChange={e => setFormData({...formData, nameShort: e.target.value})} className="bg-muted/40 border-border h-11 rounded-xl" /></div>
-                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Slug</label><Input value={formData.slug} onChange={e => setFormData({...formData, slug: e.target.value})} className="bg-muted/40 border-border h-11 rounded-xl" /></div>
-                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Couleur</label><Input value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} className="bg-muted/40 border-border h-11 rounded-xl font-mono" /></div>
+                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Nom</label><Input value={formData.name} onChange={e => handleNameChange(e.target.value)} placeholder="Ex : Dofus Émeraude" className="bg-muted/40 border-border h-11 rounded-xl" /></div>
+                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Nom court</label><Input value={formData.nameShort} onChange={e => setFormData({...formData, nameShort: e.target.value})} placeholder="Ex : Émeraude (auto-rempli)" className="bg-muted/40 border-border h-11 rounded-xl" /></div>
+                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Slug</label><Input value={formData.slug} onChange={e => setFormData({...formData, slug: e.target.value})} placeholder="Ex : emeraude (auto-rempli)" className="bg-muted/40 border-border h-11 rounded-xl" /></div>
+                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Couleur</label><Input value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} placeholder="#10b981" className="bg-muted/40 border-border h-11 rounded-xl font-mono" />
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                                {DOFUS_COLOR_PALETTE.map(c => (
+                                    <button key={c} type="button" aria-label={`Couleur ${c}`} onClick={() => setFormData({ ...formData, color: c })}
+                                        className={`w-7 h-7 rounded-lg border transition ${formData.color === c ? "border-foreground ring-2 ring-foreground/30" : "border-border hover:border-muted-foreground/60"}`}
+                                        style={{ backgroundColor: c }} />
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    {/* #225 — Icône / image du Dofus (module, page dédiée et cartes). Prévisualisation + URL. */}
+                    <div className="space-y-2">
+                        <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Icône / Image</label>
+                        <div className="flex items-center gap-4">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src={safeImageUrl(formData.imageUrl || "") || "/assets/icons/serie-de-quete.png"}
+                                alt="Aperçu de l'icône"
+                                className="w-14 h-14 rounded-xl object-contain bg-muted/30 border border-border p-1"
+                            />
+                            <Input
+                                value={formData.imageUrl || ""}
+                                onChange={e => setFormData({ ...formData, imageUrl: e.target.value })}
+                                placeholder="Chemin local (ex: /module-dofus/Dokille.png) ou URL https://…"
+                                className="bg-muted/40 border-border h-11 rounded-xl font-mono"
+                            />
+                        </div>
+                        <p className="text-caption text-muted-foreground leading-relaxed italic">
+                            Asset local <span className="font-mono text-foreground">/module-dofus/…</span> recommandé, ou URL https:// externe. Cette icône remplace la couleur sur le module, la page du Dofus et les cartes.
+                        </p>
                     </div>
                     <div className="flex justify-between pt-8 border-t border-border mt-8">
                         {dofus ? <Button type="button" variant="ghost" onClick={handleDelete} className="text-danger hover:bg-danger/10 rounded-xl"><Trash2 className="w-4 h-4 mr-2" /> Supprimer</Button> : <div />}

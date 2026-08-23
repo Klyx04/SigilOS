@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { toast } from "sonner";
+import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -167,6 +168,16 @@ export function PresentationForm({ guildId }: Props) {
     // Validation errors
     const [errors, setErrors] = useState<Record<string, string>>({});
 
+    // #228 — Snapshot initial (données chargées) → détection « sale ».
+    const [initialSnapshot, setInitialSnapshot] = useState<any>(null);
+
+    const currentState = () => ({
+        enabled, history, activities, founder, coLeaders, brasDroits, discord, recruiting,
+        recruitmentRequirements, server, bannerType, bannerUrl, photoUrl, foundedDate,
+        discordRequired, minLevel, minSuccesses, memberCount,
+    });
+    const dirty = isDirty(currentState(), initialSnapshot);
+
     // Load initial data
     useEffect(() => {
         async function loadData() {
@@ -197,6 +208,17 @@ export function PresentationForm({ guildId }: Props) {
                 setMinLevel(d.minLevel?.toString() || "");
                 setMinSuccesses(d.minSuccesses?.toString() || "");
                 setMemberCount(d.memberCount?.toString() || "");
+
+                // #228 — Snapshot de référence pour la garde anti-navigation.
+                setInitialSnapshot({
+                    enabled: d.enabled, history: d.history || "", activities: d.activities || [],
+                    founder: d.founder || "", coLeaders: d.coLeaders || [], brasDroits: d.team || [],
+                    discord: d.discord || "", recruiting: d.recruiting, recruitmentRequirements: d.recruitmentRequirements || "",
+                    server: d.server || "", bannerType: d.bannerType || "discord", bannerUrl: d.bannerUrl,
+                    photoUrl: d.photoUrl, foundedDate: d.foundedDate, discordRequired: d.discordRequired,
+                    minLevel: d.minLevel?.toString() || "", minSuccesses: d.minSuccesses?.toString() || "",
+                    memberCount: d.memberCount?.toString() || "",
+                });
             }
 
             if (membersResult.success && membersResult.members) {
@@ -275,6 +297,8 @@ export function PresentationForm({ guildId }: Props) {
 
             if (result.success) {
                 toast.success("Présentation mise à jour");
+                // La sauvegarde devient la nouvelle référence → plus rien de « sale ».
+                setInitialSnapshot(currentState());
             } else {
                 toast.error(result.error || "Erreur lors de la sauvegarde");
             }
@@ -1220,6 +1244,9 @@ export function PresentationForm({ guildId }: Props) {
                     Tout sauvegarder
                 </Button>
             </div>
+
+            {/* #228 — Garde anti-navigation : alerte si des modifications ne sont pas sauvegardées. */}
+            <UnsavedChangesGuard hasUnsavedChanges={dirty} />
         </div>
     );
 }

@@ -12,6 +12,7 @@ import { PublicHeader } from "@/components/layout/public-header";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { HowItWorks } from "@/components/landing/how-it-works";
+import { FaqSection } from "@/components/landing/faq-section";
 import { PreFooterCta } from "@/components/landing/pre-footer-cta";
 import { getPublicLandingScreens } from "@/server/actions/landing-screen-actions";
 import { getAppBaseUrl } from "@/lib/utils";
@@ -118,6 +119,9 @@ export default async function Home({
 
           {/* Comment ça marche */}
           <HowItWorks />
+
+          {/* FAQ courte — rassure avant le CTA final, renvoie vers /legal/faq */}
+          <FaqSection />
 
           {/* CTA final */}
           <PreFooterCta />

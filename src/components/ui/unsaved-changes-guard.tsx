@@ -60,6 +60,17 @@ export function UnsavedChangesGuard({
     hasUnsavedRef.current = hasUnsavedChanges;
 
     const pendingNavRef = useRef<(() => void) | null>(null);
+    // Références vers les méthodes ORIGINALES du router (avant patch) → évite la double-interception
+    // quand on confirme une navigation déclenchée par un clic / back / push programmatique.
+    const originalPushRef = useRef<typeof router.push | null>(null);
+    const originalReplaceRef = useRef<typeof router.replace | null>(null);
+
+    // #228 — Capture des méthodes originales (identité stable en App Router). À exécuter
+    // AVANT tout patch pour que la confirmation re-navigue via l'original (pas via le patch).
+    useEffect(() => {
+        originalPushRef.current = router.push;
+        originalReplaceRef.current = router.replace;
+    }, [router]);
 
     // 1. Refresh / fermeture d'onglet → modale native du navigateur
     useEffect(() => {
@@ -85,7 +96,7 @@ export function UnsavedChangesGuard({
             const attemptedUrl = window.location.href;
             // Re-pin : annule visuellement la navigation (l'URL reste sur la page courante)
             window.history.pushState(null, "", currentUrl);
-            pendingNavRef.current = () => router.push(attemptedUrl);
+            pendingNavRef.current = () => originalPushRef.current?.(attemptedUrl) ?? router.push(attemptedUrl);
             setOpen(true);
         };
         window.addEventListener("popstate", onPopState);
@@ -134,11 +145,58 @@ export function UnsavedChangesGuard({
             // Navigation interne → bloquer et demander confirmation
             e.preventDefault();
             e.stopPropagation();
-            pendingNavRef.current = () => router.push(href);
+            pendingNavRef.current = () => originalPushRef.current?.(href) ?? router.push(href);
             setOpen(true);
         };
         document.addEventListener("click", onClick, true);
         return () => document.removeEventListener("click", onClick, true);
+    }, [router, hasUnsavedChanges]);
+
+    // 4. Navigations programmatiques (`router.push` / `router.replace`) — best-effort.
+    //    Next App Router n'expose pas d'interception officielle ; on patche les méthodes du
+    //    router tant que le formulaire est sale. Si l'objet router est en lecture seule, on se
+    //    dégrade silencieusement (le cas dominant — clic sur un lien interne — reste couvert).
+    useEffect(() => {
+        if (!hasUnsavedChanges) return;
+
+        const makeGuarded = (original: typeof router.push) =>
+            ((href: string, ...rest: any[]) => {
+                if (!hasUnsavedRef.current) return original(href, ...rest);
+                // Schéma exécutable → ne jamais naviguer (XSS)
+                if (isExecutableScheme(href)) return;
+                if (typeof href === "string") {
+                    // Même page → pas une vraie navigation
+                    if (href === `${window.location.pathname}${window.location.search}`) return original(href, ...rest);
+                    // Liens externes → laisser faire (souvent nouvel onglet)
+                    try {
+                        const url = new URL(href, window.location.origin);
+                        if (url.origin !== window.location.origin) return original(href, ...rest);
+                    } catch { return original(href, ...rest); }
+                    // Ancre, mailto, tel → laisser faire
+                    if (href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) return original(href, ...rest);
+                }
+                // Navigation interne → demander confirmation puis re-naviguer via l'original.
+                pendingNavRef.current = () => original(href, ...rest);
+                setOpen(true);
+            }) as typeof router.push;
+
+        try {
+            const origPush = originalPushRef.current;
+            const origReplace = originalReplaceRef.current;
+            if (origPush) router.push = makeGuarded(origPush);
+            if (origReplace) router.replace = makeGuarded(origReplace);
+        } catch {
+            /* router non-mutable → best-effort */
+        }
+
+        return () => {
+            try {
+                if (originalPushRef.current) router.push = originalPushRef.current;
+                if (originalReplaceRef.current) router.replace = originalReplaceRef.current;
+            } catch {
+                /* ignore */
+            }
+        };
     }, [router, hasUnsavedChanges]);
 
     const handleConfirm = useCallback(() => {

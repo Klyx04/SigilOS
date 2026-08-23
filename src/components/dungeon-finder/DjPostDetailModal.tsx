@@ -143,7 +143,7 @@ export function DjPostDetailModal({
     return (
         <>
             <Sheet open={isOpen} onOpenChange={onClose}>
-                <SheetContent side="right" className="w-full sm:max-w-xl p-0 gap-0 overflow-y-auto border-border bg-background text-foreground custom-scrollbar">
+                <SheetContent side="right" className="w-full sm:max-w-xl p-0 gap-0 overflow-y-auto border-border bg-background text-foreground custom-scrollbar motion-reduce:animate-none">
 
                     {/* Hero Image / Banner */}
                     <div className="relative h-24 bg-surface border-b border-border overflow-hidden shrink-0">

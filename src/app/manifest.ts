@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     const baseUrl = getAppBaseUrl()
 
     return {
-        name: 'SigilOS - Guild Management',
+        name: 'SigilOS — Gestion de guilde Dofus',
         short_name: 'SigilOS',
         description: "Le système d'exploitation pour les guildes Dofus.",
         start_url: '/',

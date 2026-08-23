@@ -1,16 +1,15 @@
 #!/bin/bash
 # =============================================================================
-# 🚀 SigilOS — Déploiement CI/CD (v4) — produit pro, sortie lisible
+# 🚀 SigilOS — Déploiement CI/CD (v5) — « pro, vulgarisé, 2026 »
 # -----------------------------------------------------------------------------
 # Usage :
 #   ./scripts/deploy-cd.sh list beta|prod        → versions dispo sur GHCR
 #   ./scripts/deploy-cd.sh beta|prod [sha]       → déploie la version (défaut : latest)
 #   ./scripts/deploy-cd.sh --help                → aide
 #
-# Principe : les images sont buildées sur GitHub Actions et poussées vers GHCR
-# (.github/workflows/deploy.yml). Ce script pull les 4 images, les retag en
-# :latest local, puis fait `docker compose up -d --no-build`. AUCUN build sur
-# le VPS — déploiement ~30 s.
+# En clair : ce script met à jour l'app depuis des images déjà construites sur
+# GitHub (aucun build sur le serveur). Chaque étape est expliquée pour un humain,
+# avec des barres de progression, et sans les messages npm inutiles.
 # =============================================================================
 
 set -u
@@ -21,33 +20,53 @@ set -u
 if [[ -t 1 ]]; then
     C_RESET=$'\033[0m'; C_BOLD=$'\033[1m'; C_DIM=$'\033[2m'
     C_RED=$'\033[31m';  C_GREEN=$'\033[32m'; C_YELLOW=$'\033[33m'
-    C_CYAN=$'\033[36m'; C_MAGENTA=$'\033[35m'
+    C_CYAN=$'\033[36m'; C_MAGENTA=$'\033[35m'; C_BLUE=$'\033[34m'
 else
-    C_RESET=""; C_BOLD=""; C_DIM=""; C_RED=""; C_GREEN=""; C_YELLOW=""; C_CYAN=""; C_MAGENTA=""
+    C_RESET=""; C_BOLD=""; C_DIM=""; C_RED=""; C_GREEN=""; C_YELLOW=""
+    C_CYAN=""; C_MAGENTA=""; C_BLUE=""
 fi
 
 # -----------------------------------------------------------------------------
 # Helpers de log (message unique — jamais interprété comme format)
 # -----------------------------------------------------------------------------
-info()   { printf "${C_CYAN}%s${C_RESET}\n" "$*"; }
-ok()     { printf "${C_GREEN}✓ %s${C_RESET}\n" "$*"; }
-warn()   { printf "${C_YELLOW}⚠  %s${C_RESET}\n" "$*"; }
-err()    { printf "${C_RED}✗ %s${C_RESET}\n" "$*" >&2; }
-dim()    { printf "${C_DIM}%s${C_RESET}\n" "$*"; }
-hr()     { printf "${C_DIM}──────────────────────────────────────────────────────${C_RESET}\n"; }
-banner() { printf "\n${C_BOLD}%s${C_RESET}\n" "$*"; }
-section() { # $1 = numéro d'étape, $2 = titre
-    printf "\n${C_BOLD}── ÉTAPE %s/5 ── %s${C_RESET}\n" "$1" "$2"
-    printf "${C_DIM}──────────────────────────────────────────────${C_RESET}\n"
-}
+info() { printf "${C_CYAN}%s${C_RESET}\n" "$*"; }
+ok()   { printf "${C_GREEN}✓ %s${C_RESET}\n" "$*"; }
+warn() { printf "${C_YELLOW}⚠  %s${C_RESET}\n" "$*" >&2; }
+err()  { printf "${C_RED}✗ %s${C_RESET}\n" "$*" >&2; }
+dim()  { printf "${C_DIM}%s${C_RESET}\n" "$*"; }
+horiz(){ printf "${C_DIM}──────────────────────────────────────────────────────${C_RESET}\n"; }
+banner(){ printf "\n${C_BOLD}%s${C_RESET}\n" "$*"; }
 fail() { err "$1"; exit "${2:-1}"; }
+
+# Étape numérotée + titre + traduction humaine (vulgarisation).
+#   step "1" "Authentification GHCR" "Connexion au dépôt d'images..."
+step() {
+    echo ""
+    printf "${C_BOLD}${C_BLUE}── ÉTAPE %s/5 ── %s${C_RESET}\n" "$1" "$2"
+    printf "${C_DIM}   ${3}${C_RESET}\n"
+    horiz
+}
+
+# Barre de progression cosmétique (style 2026).
+#   bar <libellé> <fait> <total> <largeur=30>
+bar() {
+    local label="$1" done="$2" total="$3" width="${4:-30}"
+    local pct=0 filled=0
+    if (( total > 0 )); then pct=$(( done * 100 / total )); fi
+    filled=$(( pct * width / 100 ))
+    local left right
+    left="$(printf '█%.0s' $(seq 1 "$filled") 2>/dev/null)"
+    right="$(printf '░%.0s' $(seq 1 "$(( width - filled ))") 2>/dev/null)"
+    printf "\r  ${C_DIM}%-20s${C_RESET} [${C_GREEN}%s${C_DIM}%s${C_RESET}] ${C_BOLD}%3d%%${C_RESET}" "$label" "$left" "$right" "$pct"
+}
+
 # -----------------------------------------------------------------------------
 # Aide
 # -----------------------------------------------------------------------------
 usage() {
     local code="${1:-0}"
     cat <<'EOF'
-🚀 SigilOS — Déploiement CI/CD (v4)
+🚀 SigilOS — Déploiement CI/CD (v5)
 
 USAGE
   ./scripts/deploy-cd.sh list beta|prod        Affiche les versions dispo sur GHCR
@@ -68,26 +87,26 @@ EOF
 }
 
 # -----------------------------------------------------------------------------
-# Expiration du GHCR_TOKEN (affichage)
+# Expiration du GHCR_TOKEN (affichage vulgarisé)
 # -----------------------------------------------------------------------------
 show_token_expiry() {
     if [[ -z "${GHCR_TOKEN_EXPIRY:-}" ]]; then
         dim "GHCR_TOKEN : expiration non renseignée (GHCR_TOKEN_EXPIRY=AAAA-MM-JJ)."
         return
     fi
-    local EXPIRY_SECONDS NOW_SECONDS DAYS_LEFT
-    EXPIRY_SECONDS="$(date -d "$GHCR_TOKEN_EXPIRY" +%s 2>/dev/null)" || {
+    local EXP NOW DAYS
+    EXP="$(date -d "$GHCR_TOKEN_EXPIRY" +%s 2>/dev/null)" || {
         warn "GHCR_TOKEN_EXPIRY invalide : $GHCR_TOKEN_EXPIRY (attendu AAAA-MM-JJ)."
         return
     }
-    NOW_SECONDS="$(date +%s)"
-    DAYS_LEFT=$(( (EXPIRY_SECONDS - NOW_SECONDS) / 86400 ))
-    if (( DAYS_LEFT < 0 )); then
-        err "GHCR_TOKEN EXPIRÉ depuis $((-DAYS_LEFT)) jours — renouvelez-le (voir MAINTENANCE.md)."
-    elif (( DAYS_LEFT <= 14 )); then
-        warn "GHCR_TOKEN expire dans $DAYS_LEFT jours ($GHCR_TOKEN_EXPIRY) — pensez à le renouveler."
+    NOW="$(date +%s)"
+    DAYS=$(( (EXP - NOW) / 86400 ))
+    if (( DAYS < 0 )); then
+        err "GHCR_TOKEN EXPIRÉ depuis $((-DAYS)) jour(s) — renouvelez-le (voir MAINTENANCE.md)."
+    elif (( DAYS <= 14 )); then
+        warn "GHCR_TOKEN expire dans $DAYS jour(s) ($GHCR_TOKEN_EXPIRY) — pensez à le renouveler."
     else
-        ok "GHCR_TOKEN valide ($DAYS_LEFT jours restants)."
+        ok "GHCR_TOKEN valide ($DAYS jours restants)."
     fi
 }
 
@@ -110,7 +129,7 @@ list_handler() {
     fi
     [ -n "${GHCR_TOKEN:-}" ] || fail "GHCR_TOKEN non défini. Exportez : export GHCR_TOKEN=<token read:packages>"
     banner "Versions disponibles — $target ($GHCR_REG)"
-    hr
+    horiz
     printf "${C_BOLD}  %-32s %s${C_RESET}\n" "Image" "latest (digest)"
     for NAME in app worker ws discord-bot; do
         local IMG="${GHCR_REG}/sigilos-${NAME}-${target}"
@@ -122,16 +141,17 @@ list_handler() {
             printf "  %-32s %s\n" "sigilos-${NAME}-${target}" "$DIGEST"
         fi
     done
-    hr
+    horiz
     dim "Déployer une version précise : ./scripts/deploy-cd.sh ${target} <sha7>"
     exit 0
 }
+
 
 # -----------------------------------------------------------------------------
 # Récupération du code source (NON bloquante — le déploiement CD n'en dépend pas)
 # -----------------------------------------------------------------------------
 git_fetch() {
-    dim "Récupération du code source (étape non bloquante)..."
+    dim "Récupération du code source (non bloquant — le déploiement n'en dépend pas)..."
     local BRANCH DIRTY
     BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo dev)"
     DIRTY="$(git status --porcelain 2>/dev/null)"
@@ -148,6 +168,7 @@ git_fetch() {
     fi
     rm -f /tmp/sigilos-pull.log
 }
+
 # -----------------------------------------------------------------------------
 # Seeding conditionnel des données de jeu (si le hash de game-data.json change)
 # -----------------------------------------------------------------------------
@@ -179,103 +200,62 @@ run_conditional_seed() {
         dim "   Données de jeu inchangées — seed ignoré (gain de temps)."
     fi
 }
+
 # -----------------------------------------------------------------------------
-# Déploiement (beta|prod)
+# Téléchargement d'une image avec barre de progression (basée sur les couches).
+#   pull_image <image> <sha> <nom> <cible>
 # -----------------------------------------------------------------------------
-deploy() {
-    local TARGET="$1"
-    local SHA="$2"
-    [ -n "${GHCR_TOKEN:-}" ] || fail "GHCR_TOKEN non défini. Exportez : export GHCR_TOKEN=<token read:packages>"
-    local ENV_FILE; ENV_FILE=".env.prod"; [[ "$TARGET" == "beta" ]] && ENV_FILE=".env.beta"
-    local GIT_SHORT; GIT_SHORT="$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
-    local URL; URL="https://${TARGET}.sigilos.fr"
-    local MODE_LABEL; MODE_LABEL="bêta — branche dev"; [[ "$TARGET" == "prod" ]] && MODE_LABEL="production — branche main"
-
-    # ── Pré-vol : récapitulatif clair ────────────────────────────────────────
-    banner "SigilOS — Déploiement CI/CD (v4)"
-    hr
-    printf "${C_DIM}  Cible         :${C_RESET} %s (%s)\n" "$TARGET" "$MODE_LABEL"
-    printf "${C_DIM}  Environnement :${C_RESET} %s\n" "$ENV_FILE"
-    printf "${C_DIM}  Version       :${C_RESET} %s${C_DIM}  (SHA local : %s)${C_RESET}\n" "$SHA" "$GIT_SHORT"
-    printf "${C_DIM}  Images        :${C_RESET} app · worker · ws · discord-bot\n"
-    printf "${C_DIM}  Santé         :${C_RESET} %s/api/health\n" "$URL"
-    show_token_expiry
-    hr
-
-    git_fetch
-
-    # ── ÉTAPE 1/5 — Authentification GHCR ───────────────────────────────────
-    section "1" "Authentification GHCR"
-    if sudo docker login ghcr.io -u "$GHCR_USER_LOWER" --password-stdin <<<"$GHCR_TOKEN" >/tmp/sigilos-login.log 2>&1; then
-        ok "Connecté au registre $GHCR_REG"
-    else
-        err "Échec de connexion à GHCR :"
-        sed 's/^/     /' /tmp/sigilos-login.log | tail -5
-        rm -f /tmp/sigilos-login.log
-        exit 1
+pull_image() {
+    local IMG="$1" SHA="$2" NAME="$3" TARGET="$4"
+    local TOTAL=0 DONE=0
+    # Déjà présent localement ? → on re-tague et on passe (gain de temps).
+    if sudo docker image inspect "${IMG}:${SHA}" >/dev/null 2>&1; then
+        sudo docker tag "${IMG}:${SHA}" "sigilos-${NAME}-${TARGET}:latest"
+        printf "  ${C_DIM}%-20s${C_RESET} ${C_YELLOW}✓ déjà à jour${C_RESET}\n" "$NAME"
+        return
     fi
-    rm -f /tmp/sigilos-login.log
-
-    # ── ÉTAPE 2/5 — Pull des images (aucun build) ───────────────────────────
-    section "2" "Téléchargement des images (aucun build sur le VPS)"
-    echo ""
-    local PULL_OK=1
-    for NAME in app worker ws discord-bot; do
-        local IMG="${GHCR_REG}/sigilos-${NAME}-${TARGET}"
-        printf "     ⤓ %-30s :%s  " "sigilos-${NAME}-${TARGET}" "$SHA"
-        local PLOG; PLOG="$(mktemp)"
-        if sudo docker pull "${IMG}:${SHA}" >"$PLOG" 2>&1; then
-            if grep -qi "up to date" "$PLOG"; then
-                printf "${C_GREEN}✓ déjà à jour${C_RESET}\n"
-            else
-                printf "${C_GREEN}✓ téléchargée${C_RESET}\n"
-            fi
-            # Retag en :latest local (le compose utilise :latest avec --no-build)
-            sudo docker tag "${IMG}:${SHA}" "sigilos-${NAME}-${TARGET}:latest"
-        else
-            printf "${C_RED}✗ ÉCHEC${C_RESET}\n"
-            tail -8 "$PLOG" | sed 's/^/         /'
-            PULL_OK=0
-        fi
-        rm -f "$PLOG"
+    # Docker écrit sa progression avec des \r → on les transforme en \n pour
+    # compter les couches téléchargées et afficher un % lisible.
+    sudo docker pull "${IMG}:${SHA}" 2>&1 | tr '\r' '\n' | while IFS= read -r line; do
+        case "$line" in
+            *"Already exists"*)   TOTAL=$((TOTAL+1)); DONE=$((DONE+1)); bar "$NAME" "$DONE" "$TOTAL";;
+            *"Pulling fs layer"*) TOTAL=$((TOTAL+1)); bar "$NAME" "$DONE" "$TOTAL";;
+            *"Pull complete"*)    DONE=$((DONE+1)); bar "$NAME" "$DONE" "$TOTAL";;
+        esac
     done
-    echo ""
-    [[ "$PULL_OK" == "1" ]] || fail "Une ou plusieurs images n'ont pas pu être téléchargées."
-    # ── ÉTAPE 3/5 — Redémarrage des conteneurs ──────────────────────────────
-    section "3" "Redémarrage des conteneurs (attente santé)"
-    if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --no-build --wait app-${TARGET} worker-${TARGET} ws-${TARGET} discord-bot-${TARGET}; then
-        ok "Conteneurs démarrés et sains."
+    # Le code retour est perdu via le pipe → on vérifie que l'image est bien là.
+    if sudo docker image inspect "${IMG}:${SHA}" >/dev/null 2>&1; then
+        # Retag :latest local (le compose utilise :latest avec --no-build)
+        sudo docker tag "${IMG}:${SHA}" "sigilos-${NAME}-${TARGET}:latest" 2>/dev/null
+        printf "\r  ${C_DIM}%-20s${C_RESET} ${C_GREEN}✓ téléchargée${C_RESET}\n" "$NAME"
     else
-        fail "Échec au démarrage des conteneurs."
+        printf "\r  ${C_DIM}%-20s${C_RESET} ${C_RED}✗ ÉCHEC${C_RESET}\n" "$NAME"
+        PULL_OK=0
     fi
+}
 
-    # ── ÉTAPE 4/5 — Base de données ─────────────────────────────────────────
-    section "4" "Base de données"
-    info "   Migration des fichiers uploads..."
-    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} npm run migrate:uploads
-    info "   Application des migrations Prisma..."
-    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} npx --yes prisma migrate deploy
-    if [[ "$TARGET" == "beta" ]]; then
-        info "   Synchronisation du schéma (beta, db push)..."
-        sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} npx --yes prisma db push
-    fi
-    ok "Base de données synchronisée."
 
-    # ── ÉTAPE 5/5 — Données de jeu ──────────────────────────────────────────
-    section "5" "Données de jeu"
-    run_conditional_seed "app-${TARGET}"
-
-    # ── Récapitulatif final + santé ─────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Bandeau d'en-tête (pré-vol) — style 2026
+# -----------------------------------------------------------------------------
+title_banner() {
+    local TARGET="$1" MODE="$2" ENV="$3" SHA="$4" GIT="$5" URL="$6"
     echo ""
-    hr
-    printf "${C_GREEN}${C_BOLD}✅ Déploiement %s terminé${C_RESET}\n" "$TARGET"
-    printf "${C_DIM}   Version   :${C_RESET} %s${C_DIM}  (SHA local %s)${C_RESET}\n" "$SHA" "$GIT_SHORT"
-    printf "${C_DIM}   Santé     :${C_RESET} %s/api/health\n" "$URL"
-    printf "${C_DIM}   Rollback  :${C_RESET} ./scripts/rollback.sh %s\n" "$TARGET"
-    hr
+    printf "${C_BOLD}${C_BLUE}  ╔══════════════════════════════════════════════════════════════╗${C_RESET}\n"
+    printf "${C_BOLD}${C_BLUE}  ║${C_RESET}   ${C_CYAN}◆ SigilOS — Déploiement CI/CD${C_RESET}${C_BOLD}${C_BLUE}                                         ║${C_RESET}\n"
+    printf "${C_BOLD}${C_BLUE}  ╚══════════════════════════════════════════════════════════════╝${C_RESET}\n"
+    printf "${C_BOLD}  Cible      :${C_RESET} %s  ${C_DIM}(%s — %s)${C_RESET}\n" "$TARGET" "$MODE" "$ENV"
+    printf "${C_BOLD}  Version    :${C_RESET} %s  ${C_DIM}(SHA local %s)${C_RESET}\n" "$SHA" "$GIT"
+    printf "${C_BOLD}  Santé      :${C_RESET} %s/api/health\n" "$URL"
+    printf "${C_BOLD}  Images     :${C_RESET} app · worker · ws · discord-bot\n"
+}
 
+# -----------------------------------------------------------------------------
+# Vérification de santé post-déploiement
+# -----------------------------------------------------------------------------
+health_check() {
+    local URL="$1" HEALTH HTTP_CODE
     info "Vérification de la santé post-déploiement..."
-    local HEALTH HTTP_CODE
     HEALTH="$(curl -fsS -m 20 -w '\n%{http_code}' "$URL/api/health" 2>/dev/null)" || {
         warn "Le service ne répond pas encore — vérifier manuellement :"
         dim "   curl $URL/api/health"
@@ -290,6 +270,109 @@ deploy() {
 }
 
 # -----------------------------------------------------------------------------
+# Déploiement (beta|prod)
+# -----------------------------------------------------------------------------
+deploy() {
+    local TARGET="$1"
+    local SHA="${2:-latest}"
+    [ -n "${GHCR_TOKEN:-}" ] || fail "GHCR_TOKEN non défini. Exportez : export GHCR_TOKEN=<token read:packages>"
+    local ENV_FILE=".env.prod"; [[ "$TARGET" == "beta" ]] && ENV_FILE=".env.beta"
+    local GIT_SHORT; GIT_SHORT="$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
+    local URL="https://${TARGET}.sigilos.fr"
+    local MODE_LABEL="bêta — branche dev"; [[ "$TARGET" == "prod" ]] && MODE_LABEL="production — branche main"
+
+    # ── Pré-vol ──────────────────────────────────────────────────────────────
+    title_banner "$TARGET" "$MODE_LABEL" "$ENV_FILE" "$SHA" "$GIT_SHORT" "$URL"
+    show_token_expiry
+    horiz
+
+    git_fetch
+
+    step "1" "Authentification GHCR" "Connexion au «dépôt» d'images (ghcr.io) : la clé GHCR_TOKEN (lecture seule) permet de lire les images privées. Aucune donnée n'est exécutée ici."
+    if sudo docker login ghcr.io -u "$GHCR_USER_LOWER" --password-stdin <<<"$GHCR_TOKEN" >/tmp/sigilos-login.log 2>&1; then
+        ok "Connecté au registre $GHCR_REG"
+    else
+        err "Échec de connexion à GHCR :"
+        sed 's/^/     /' /tmp/sigilos-login.log | tail -5
+        rm -f /tmp/sigilos-login.log
+        exit 1
+    fi
+    rm -f /tmp/sigilos-login.log
+
+    step "2" "Téléchargement des images" "Récupère les 4 composants de l'app (app, worker, ws, bot) déjà «cuisinés» sur GitHub — aucun re-build sur le serveur."
+    local PULL_OK=1
+    for NAME in app worker ws discord-bot; do
+        local IMG="${GHCR_REG}/sigilos-${NAME}-${TARGET}"
+        pull_image "$IMG" "$SHA" "$NAME" "$TARGET"
+    done
+    echo ""
+    [[ "$PULL_OK" == "1" ]] || fail "Une ou plusieurs images n'ont pas pu être téléchargées."
+
+
+    step "3" "Redémarrage des conteneurs" "Relance les services avec les nouvelles images et attend qu'ils soient «Healthy» (prêts à servir les requêtes)."
+    if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --no-build --wait app-${TARGET} worker-${TARGET} ws-${TARGET} discord-bot-${TARGET}; then
+        ok "Conteneurs démarrés et sains."
+    else
+        fail "Échec au démarrage des conteneurs."
+    fi
+
+    step "4" "Base de données" "Met à jour la structure de la BDD (tables/colonnes), migre les fichiers uploads vers le stockage privé. Les messages npm inutiles sont masqués."
+    info "   Migration des fichiers uploads..."
+    if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent migrate:uploads'; then
+        ok "Uploads migrés."
+    else
+        err "Échec migration uploads."
+        exit 1
+    fi
+    info "   Application des migrations Prisma..."
+    local MIGRATE_LOG; MIGRATE_LOG="$(mktemp)"
+    if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npx --yes prisma migrate deploy' >"$MIGRATE_LOG" 2>&1; then
+        if grep -qi "no pending migrations" "$MIGRATE_LOG"; then
+            ok "Base à jour — aucune migration en attente."
+        else
+            ok "Migrations appliquées."
+        fi
+    else
+        err "Échec des migrations Prisma :"
+        tail -20 "$MIGRATE_LOG" | sed 's/^/     /'
+        rm -f "$MIGRATE_LOG"
+        exit 1
+    fi
+    rm -f "$MIGRATE_LOG"
+    if [[ "$TARGET" == "beta" ]]; then
+        info "   Synchronisation du schéma (beta, db push)..."
+        local PUSH_LOG; PUSH_LOG="$(mktemp)"
+        if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npx --yes prisma db push' >"$PUSH_LOG" 2>&1; then
+            if grep -qi "already in sync" "$PUSH_LOG"; then
+                ok "Schéma déjà à jour."
+            else
+                ok "Schéma synchronisé."
+            fi
+        else
+            err "Échec du db push :"
+            tail -20 "$PUSH_LOG" | sed 's/^/     /'
+            rm -f "$PUSH_LOG"
+            exit 1
+        fi
+        rm -f "$PUSH_LOG"
+    fi
+    ok "Base de données prête."
+
+    step "5" "Données de jeu" "Synchronise les données (cartes/sorts) si la version a changé — sinon ne fait rien pour aller plus vite."
+    run_conditional_seed "app-${TARGET}"
+
+    # ── Récapitulatif + santé ────────────────────────────────────────────────
+    horiz
+    printf "${C_GREEN}${C_BOLD}✅ Déploiement %s terminé${C_RESET}\n" "$TARGET"
+    printf "${C_DIM}   Version   :${C_RESET} %s${C_DIM}  (SHA local %s)${C_RESET}\n" "$SHA" "$GIT_SHORT"
+    printf "${C_DIM}   Santé     :${C_RESET} %s/api/health\n" "$URL"
+    printf "${C_DIM}   Rollback  :${C_RESET} ./scripts/rollback.sh %s\n" "$TARGET"
+    horiz
+
+    health_check "$URL"
+}
+
+# -----------------------------------------------------------------------------
 # Dispatch des commandes
 # -----------------------------------------------------------------------------
 COMMAND="${1:-}"
@@ -299,3 +382,4 @@ case "$COMMAND" in
     --help|-h)   usage 0 ;;
     *)           usage 1 ;;
 esac
+

@@ -14,8 +14,11 @@ import { redirect } from "next/navigation";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { PreFooterCta } from "@/components/landing/pre-footer-cta";
 import { getPublicLandingScreens } from "@/server/actions/landing-screen-actions";
+import { getAppBaseUrl } from "@/lib/utils";
 
 export const revalidate = 3600; // ISR 1h — page d'accueil publique (contenu stable), accélère le chargement & la performance SEO
+
+const baseUrl = getAppBaseUrl();
 
 const jsonLd = {
   "@context": "https://schema.org",
@@ -23,7 +26,7 @@ const jsonLd = {
   "name": "SigilOS",
   "applicationCategory": "GameApplication",
   "operatingSystem": "Web",
-  "url": "https://sigilos.fr",
+  "url": baseUrl,
   "description": "SigilOS réunit quêtes, sorties, membres et progression Dofus dans un espace partagé, relié à Discord. Gratuit pour les guildes.",
   "offers": {
     "@type": "Offer",
@@ -33,7 +36,7 @@ const jsonLd = {
   "creator": {
     "@type": "Organization",
     "name": "SigilOS",
-    "url": "https://sigilos.fr",
+    "url": baseUrl,
   },
 };
 

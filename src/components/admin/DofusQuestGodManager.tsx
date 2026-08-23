@@ -275,6 +275,27 @@ function DofusEditDialog({ open, onOpenChange, dofus, onSuccess }: any) {
                         <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Slug</label><Input value={formData.slug} onChange={e => setFormData({...formData, slug: e.target.value})} className="bg-muted/40 border-border h-11 rounded-xl" /></div>
                         <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Couleur</label><Input value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} className="bg-muted/40 border-border h-11 rounded-xl font-mono" /></div>
                     </div>
+                    {/* #225 — Icône / image du Dofus (module, page dédiée et cartes). Prévisualisation + URL. */}
+                    <div className="space-y-2">
+                        <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Icône / Image</label>
+                        <div className="flex items-center gap-4">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src={safeImageUrl(formData.imageUrl || "") || "/assets/icons/serie-de-quete.png"}
+                                alt="Aperçu de l'icône"
+                                className="w-14 h-14 rounded-xl object-contain bg-muted/30 border border-border p-1"
+                            />
+                            <Input
+                                value={formData.imageUrl || ""}
+                                onChange={e => setFormData({ ...formData, imageUrl: e.target.value })}
+                                placeholder="Chemin local (ex: /module-dofus/Dokille.png) ou URL https://…"
+                                className="bg-muted/40 border-border h-11 rounded-xl font-mono"
+                            />
+                        </div>
+                        <p className="text-caption text-muted-foreground leading-relaxed italic">
+                            Asset local <span className="font-mono text-foreground">/module-dofus/…</span> recommandé, ou URL https:// externe. Cette icône remplace la couleur sur le module, la page du Dofus et les cartes.
+                        </p>
+                    </div>
                     <div className="flex justify-between pt-8 border-t border-border mt-8">
                         {dofus ? <Button type="button" variant="ghost" onClick={handleDelete} className="text-danger hover:bg-danger/10 rounded-xl"><Trash2 className="w-4 h-4 mr-2" /> Supprimer</Button> : <div />}
                         <div className="flex gap-3 ml-auto">

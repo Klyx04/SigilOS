@@ -259,6 +259,32 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                 </div>
             )}
 
+            {/* Dokille — en-tête « Safari des Krokilles » (info siphonnée Dofus pour les Noobs) */}
+            {dofusSlug === "dokille" && (
+                <div
+                    className="rounded-3xl p-6 border transition-all duration-300"
+                    style={{
+                        background: `linear-gradient(135deg, ${color}10 0%, var(--foreground)/[0.05] 100%)`,
+                        border: `1px solid ${color}25`,
+                    }}
+                >
+                    <div className="text-caption font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <span style={{ color }}>🐾</span> Le Safari des Krokilles
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-4 text-sm text-foreground/80 leading-relaxed">
+                        <div className="space-y-1.5">
+                            <p><strong style={{ color }}>Prérequis :</strong> niveau 99+, chasse aux Krokilles.</p>
+                            <p><strong style={{ color }}>Départ :</strong> Vulkania, Village de Vulkania <span className="font-mono">[-47,42]</span> auprès de Nevark le Chasseur.</p>
+                            <p><strong style={{ color }}>Bonus :</strong> +10 Prospection.</p>
+                        </div>
+                        <div className="space-y-1.5">
+                            <p><strong style={{ color }}>Mécanique :</strong> 4 quêtes (Safari des âmes moniaques, hygdales, andalires puis nésiques) — capturer les <strong>archimonstres Krokilles</strong> de chaque zone de l&apos;archipel.</p>
+                            <p><strong style={{ color }}>Astuce :</strong> combattre un archi suffit pour obtenir son éclat ; le repop est rapide (~30 min-1h). Suivez la progression de la guilde ci-dessous et cochez vos captures.</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <DofusQuestManagerV3
                 guildId={guildId}
                 dofus={dofus}

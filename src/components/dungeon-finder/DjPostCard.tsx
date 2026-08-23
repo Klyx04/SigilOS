@@ -264,7 +264,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         <div className="flex gap-1.5 flex-wrap">
                             {post.dungeon.achievements
                                 .filter((a) => post.wantedAchievementIds.includes(a.id))
-                                .slice(0, 5)
+                                .slice(0, 3)
                                 .map((a) => (
                                     <div
                                         key={a.id}
@@ -276,9 +276,9 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                         )}
                                     </div>
                                 ))}
-                            {post.wantedAchievementIds.length > 5 && (
+                            {post.wantedAchievementIds.length > 3 && (
                                 <div className="w-7 h-7 rounded-lg bg-elevated flex items-center justify-center text-caption font-black text-muted-foreground border border-border shadow-inner">
-                                    +{post.wantedAchievementIds.length - 5}
+                                    +{post.wantedAchievementIds.length - 3}
                                 </div>
                             )}
                         </div>
@@ -308,7 +308,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                     {/* Multi-donjons : liste des donjons de la session (#26) */}
                     {isMulti && (
                         <div className="space-y-2">
-                            {multiDungeons.map((d: any, idx: number) => (
+                            {multiDungeons.slice(0, 3).map((d: any, idx: number) => (
                                 <div key={d.dungeonId ?? idx} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-background/40 border border-border">
                                     {d.imageUrl ? (
                                         <img src={d.imageUrl} alt="" className="w-9 h-9 rounded-lg object-contain bg-background border border-border shrink-0 p-0.5" />
@@ -328,6 +328,11 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                     <span className="text-caption font-black text-info/70 uppercase tracking-widest shrink-0">#{idx + 1}</span>
                                 </div>
                             ))}
+                            {multiDungeons.length > 3 && (
+                                <p className="text-caption font-bold text-muted-foreground px-1">
+                                    + {multiDungeons.length - 3} autres donjons
+                                </p>
+                            )}
                         </div>
                     )}
 
@@ -529,10 +534,11 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 variant="outline"
                                 onClick={() => setIsCloseModalOpen(true)}
                                 disabled={isPending}
-                                className="flex-1 min-w-[110px] h-10 text-xs font-bold uppercase tracking-wide whitespace-nowrap border-border text-muted-foreground hover:text-danger-foreground hover:bg-danger hover:border-danger transition-colors"
+                                title="Fermer le post (modération)"
+                                aria-label="Fermer le post"
+                                className="h-10 w-10 px-0 border-border text-muted-foreground hover:text-danger-foreground hover:bg-danger hover:border-danger transition-colors"
                             >
-                                <XCircle className="w-4 h-4 mr-2" />
-                                Fermer
+                                <XCircle className="w-4 h-4" />
                             </Button>
                         )}
                     </div>

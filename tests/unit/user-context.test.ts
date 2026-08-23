@@ -90,7 +90,7 @@ import {
 } from "@/server/discord";
 import { redis } from "@/lib/redis";
 import { isSuperAdmin, isGuildAllowed } from "@/server/actions/super-admin-actions";
-import { validateGuildOwnership, getUserContext, revalidateUserContext } from "@/server/actions/user-actions";
+import { validateGuildOwnership, getUserContext, revalidateUserContext, invalidateUserContextCache } from "@/server/actions/user-actions";
 import { invalidateRbacUsersMappingCache } from "@/lib/platform-rbac";
 import { PERMISSIONS } from "@/lib/permissions";
 
@@ -786,3 +786,47 @@ describe("revalidateUserContext — purge des caches (bouton Synchroniser)", () 
         expect(invalidateDiscordCache).not.toHaveBeenCalled();
     });
 });
+
+// ─────────────────────────────────────────────────────────────
+// BLOC 7 — invalidateUserContextCache (auto-résolution UUID interne)
+// FIX : lorsqu'un snowflake Discord est passé (et non l'UUID interne),
+// la clé mémoire `profile:{userId}:{internalGuildId}` que lit getUserContext
+// n'était jamais purgée → statut (archivé/réactivé) périmé 60s.
+// ─────────────────────────────────────────────────────────────
+describe("invalidateUserContextCache — auto-résolution de l'UUID interne", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockDb.guildConfig.findFirst.mockReset();
+    });
+
+    it("résout l'UUID interne et purge la clé mémoire/Redis quand on passe un snowflake Discord", async () => {
+        mockDb.guildConfig.findFirst.mockResolvedValue({ id: "guild-uuid-1" });
+
+        await invalidateUserContextCache("user-1", "111111111111111111");
+
+        // 1. Résout l'UUID interne depuis la BDD via la double forme id/discordGuildId
+        expect(mockDb.guildConfig.findFirst).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: { OR: [{ id: "111111111111111111" }, { discordGuildId: "111111111111111111" }] },
+                select: { id: true },
+            })
+        );
+
+        // 2. Purge la clé Redis interne (forme que getUserContext lit après résolution)
+        expect(redis.del).toHaveBeenCalledWith("user:ctx:user-1:guild-uuid-1");
+        // 3. Purge la clé Redis snowflake (forme principale utilisée par getUserContext)
+        expect(redis.del).toHaveBeenCalledWith("user:ctx:user-1:111111111111111111");
+    });
+
+    it("ne déclenche PAS de résolution si l'UUID interne (non-numérique) est déjà fourni", async () => {
+        mockDb.guildConfig.findFirst.mockResolvedValue({ id: "guild-uuid-1" });
+
+        await invalidateUserContextCache("user-1", "guild-uuid-1", "111111111111111111");
+
+        // L'UUID interne est déjà fourni → pas de requête BDD de résolution
+        expect(mockDb.guildConfig.findFirst).not.toHaveBeenCalled();
+        expect(redis.del).toHaveBeenCalledWith("user:ctx:user-1:guild-uuid-1");
+        expect(redis.del).toHaveBeenCalledWith("user:ctx:user-1:111111111111111111");
+    });
+});
+

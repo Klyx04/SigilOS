@@ -471,10 +471,12 @@ export async function reactivateProfileByAdmin(
         }
 
         // Invalidate Redis cache to ensure the user sees their restored access immediately
+        // (⚠️ 2ᵉ arg = UUID interne de la guilde, 3ᵉ = discordGuildId — sinon la clé mémoire
+        // `profile:{userId}:{internalGuildId}` que lit getUserContext reste périmée 60s)
         await invalidateUserContextCache(
-            updated.userId, 
-            guildId, 
-            profile.user.accounts[0]?.providerAccountId
+            updated.userId,
+            profile.guildId,
+            guildId
         );
 
         // Invalidate sessions so they must re-auth (picks up new ACTIVE status)

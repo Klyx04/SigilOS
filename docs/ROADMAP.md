@@ -80,7 +80,7 @@
 · #223 P0/P1/P2 · #127 audit RBAC · #85 blacklist embeds · #169 · #101 SEO almanax · #176 fiches boss
 · #181 privacy OCR · #96 README déploiement CD · #41bis circuit-breaker Dofusbook · #140 landing God → `page.tsx`
 · #232 legal (crédits Dofensive/DPLN) · #231 ladder RBAC profil membre · #230 transfert propriété durci
-· ✅ #228 garde anti-nav (4 formulaires + `router.push`/`replace` — interception validée + tests) · 🔸 #226 cartes dj/quêtes (P1/3/4, P5 drawer fermable) — RESTE : P2+P6 · 🔸 #225 édition image Dofus + pag. Dokille — RESTE : seed + trackeur krokille. (#207 FAQ · #23/#134 avatar · #26/#177 donjons : traités/poussés le 23/08.)
+· ✅ #228 garde anti-nav (4 formulaires + `router.push`/`replace` — interception validée + tests) · ✅ #226 cartes dj/quêtes (P1/3/4, P5 drawer → modale fermable, P2 hiérarchie créneau en tête, P6 transitions) · 🔸 #225 édition image Dofus + pag. Dokille — RESTE : seed + trackeur krokille. (#207 FAQ · #23/#134 avatar · #26/#177 donjons : traités/poussés le 23/08.)
 
 ---
 

@@ -55,20 +55,20 @@ export function InterestModal({
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="bg-slate-900 border-slate-700 text-white sm:max-w-md">
+            <DialogContent className="bg-surface border-border text-foreground sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-lg">
-                        <Users className="w-5 h-5 text-indigo-400" />
+                        <Users className="w-5 h-5 text-info" />
                         Intéressés
                     </DialogTitle>
-                    <p className="text-sm text-slate-400 mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                         {missionTitle}
                     </p>
                 </DialogHeader>
 
                 <div className="py-4">
                     {interests.length === 0 ? (
-                        <div className="text-center py-8 text-slate-500">
+                        <div className="text-center py-8 text-muted-foreground">
                             <Users className="w-10 h-10 mx-auto mb-2 opacity-30" />
                             <p className="text-sm">Personne n'est intéressé pour le moment.</p>
                             <p className="text-xs mt-1">Sois le premier !</p>
@@ -82,12 +82,12 @@ export function InterestModal({
                                         className={cn(
                                             "flex items-center gap-3 p-3 rounded-lg border transition-colors",
                                             interest.profile.userId === currentUserId
-                                                ? "bg-indigo-500/10 border-indigo-500/30"
-                                                : "bg-slate-800/50 border-slate-700/50"
+                                                ? "bg-info/10 border-info/30"
+                                                : "bg-elevated/50 border-border/50"
                                         )}
                                     >
                                         {/* Avatar Placeholder */}
-                                        <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center border border-slate-600 overflow-hidden">
+                                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border border-border overflow-hidden">
                                             {interest.profile.user?.image ? (
                                                 <img
                                                     src={interest.profile.user.image}
@@ -95,29 +95,29 @@ export function InterestModal({
                                                     className="w-full h-full object-cover"
                                                 />
                                             ) : (
-                                                <UserIcon className="w-5 h-5 text-slate-400" />
+                                                <UserIcon className="w-5 h-5 text-muted-foreground" />
                                             )}
                                         </div>
 
                                         {/* User Info */}
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                                <span className="font-medium text-white truncate">
+                                                <span className="font-medium text-foreground truncate">
                                                     {interest.profile.discordNickname || interest.profile.user?.name || interest.profile.pseudoDofus || "Agent Anonyme"}
                                                 </span>
                                                 {interest.profile.userId === currentUserId && (
-                                                    <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded">
+                                                    <span className="text-caption bg-info/20 text-info px-1.5 py-0.5 rounded">
                                                         Toi
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="text-xs text-slate-500">
+                                            <div className="text-xs text-muted-foreground">
                                                 {interest.profile.classe || "Classe inconnue"}
                                             </div>
                                         </div>
 
                                         {/* Star indicator */}
-                                        <Star className="w-4 h-4 text-indigo-400 fill-indigo-400" />
+                                        <Star className="w-4 h-4 text-info fill-indigo-400" />
                                     </div>
                                 ))}
                             </div>
@@ -126,10 +126,10 @@ export function InterestModal({
                 </div>
 
                 {/* Action buttons */}
-                <div className="flex gap-2 pt-2 border-t border-slate-800">
+                <div className="flex gap-2 pt-2 border-t border-border">
                     <Button
                         variant="ghost"
-                        className="flex-1 text-slate-400 hover:text-white"
+                        className="flex-1 text-muted-foreground hover:text-foreground"
                         onClick={onClose}
                     >
                         Fermer
@@ -138,8 +138,8 @@ export function InterestModal({
                         className={cn(
                             "flex-1 gap-2 transition-all",
                             isCurrentUserInterested
-                                ? "bg-red-500/20 text-red-300 hover:bg-red-500/30 border border-red-500/30"
-                                : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                                ? "bg-danger/20 text-danger hover:bg-danger/30 border border-danger/30"
+                                : "bg-info hover:bg-info text-info-foreground"
                         )}
                         onClick={handleToggleInterest}
                         disabled={isPending}

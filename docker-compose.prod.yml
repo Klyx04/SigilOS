@@ -7,6 +7,41 @@ x-logging: &default-logging
     max-size: "10m"
     max-file: "3"
 
+# ===========================================================================
+# 💓 HEALTHCHECKS SHARED (used by deploy.sh --wait)
+# ===========================================================================
+x-healthchecks:
+  app-healthcheck: &app-healthcheck
+    test: ["CMD", "curl", "-fsS", "http://localhost:3000/api/health"]
+    interval: 30s
+    timeout: 5s
+    retries: 5
+    start_period: 30s
+  worker-healthcheck: &worker-healthcheck
+    test: ["CMD-SHELL", "pgrep -f 'worker.js' || exit 1"]
+    interval: 30s
+    timeout: 5s
+    retries: 3
+    start_period: 20s
+  ws-healthcheck: &ws-healthcheck
+    test: ["CMD-SHELL", "pgrep -f 'ws-server.js' || exit 1"]
+    interval: 30s
+    timeout: 5s
+    retries: 3
+    start_period: 20s
+  db-healthcheck: &db-healthcheck
+    test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} || exit 1"]
+    interval: 30s
+    timeout: 5s
+    retries: 5
+    start_period: 30s
+  bot-healthcheck: &bot-healthcheck
+    test: ["CMD-SHELL", "pgrep -f 'discord' || exit 1"]
+    interval: 30s
+    timeout: 5s
+    retries: 3
+    start_period: 20s
+
 services:
   # ===========================================================================
   # 🔴 PRODUCTION ENVIRONMENT
@@ -36,9 +71,10 @@ services:
           cpus: '1.5'
           memory: 2G
     volumes:
-      - uploads-prod-data:/app/public/uploads # ✅ Persist uploaded images
+      - uploads-prod-data:/app/private_uploads # ✅ Persist private uploads
       - /home/sigiladmin/SigilOS/public/game-data:/app/public/game-data # ✅ Game assets (bind mount — updated by sync-assets.sh)
     logging: *default-logging
+    healthcheck: *app-healthcheck
 
   worker-prod:
     container_name: sigilos-worker-prod
@@ -65,6 +101,29 @@ services:
           cpus: '0.5'
           memory: 512M
     logging: *default-logging
+    healthcheck: *worker-healthcheck
+
+  ws-prod:
+    container_name: sigilos-ws-prod
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    env_file: .env.prod
+    environment:
+      - NODE_ENV=production
+    command: [ "npm", "run", "start:ws" ]
+    depends_on:
+      - redis
+    networks:
+      - prod-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    logging: *default-logging
+    healthcheck: *ws-healthcheck
 
   db-prod:
     image: postgres:15-alpine
@@ -81,6 +140,7 @@ services:
           cpus: '1.0'
           memory: 1G
     logging: *default-logging
+    healthcheck: *db-healthcheck
 
   discord-bot-prod:
     container_name: sigilos-discord-bot-prod
@@ -90,7 +150,6 @@ services:
     restart: always
     env_file: .env.prod
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-prod:5432/${POSTGRES_DB}
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
     depends_on:
       - db-prod
@@ -102,6 +161,7 @@ services:
           cpus: '0.3'
           memory: 256M
     logging: *default-logging
+    healthcheck: *bot-healthcheck
 
   # ===========================================================================
   # 🟡 BETA ENVIRONMENT
@@ -122,7 +182,7 @@ services:
       - AUTH_TRUST_HOST=true
     depends_on:
       - db-beta
-      - redis
+      - redis-beta
     networks:
       - beta-net
     deploy:
@@ -131,9 +191,10 @@ services:
           cpus: '1.5'
           memory: 2G
     volumes:
-      - uploads-beta-data:/app/public/uploads # ✅ Persist uploaded images
+      - uploads-beta-data:/app/private_uploads # ✅ Persist private uploads
       - /home/sigiladmin/SigilOS/public/game-data:/app/public/game-data # ✅ Game assets (bind mount — updated by sync-assets.sh)
     logging: *default-logging
+    healthcheck: *app-healthcheck
 
   worker-beta:
     container_name: sigilos-worker-beta
@@ -151,7 +212,7 @@ services:
     command: [ "node", "./worker.js" ]
     depends_on:
       - db-beta
-      - redis
+      - redis-beta
     networks:
       - beta-net
     deploy:
@@ -160,6 +221,29 @@ services:
           cpus: '0.5'
           memory: 512M
     logging: *default-logging
+    healthcheck: *worker-healthcheck
+
+  ws-beta:
+    container_name: sigilos-ws-beta
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    env_file: .env.beta
+    environment:
+      - NODE_ENV=production
+    command: [ "npm", "run", "start:ws" ]
+    depends_on:
+      - redis-beta
+    networks:
+      - beta-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    logging: *default-logging
+    healthcheck: *ws-healthcheck
 
   db-beta:
     image: postgres:15-alpine
@@ -176,6 +260,7 @@ services:
           cpus: '1.0'
           memory: 1G
     logging: *default-logging
+    healthcheck: *db-healthcheck
 
   discord-bot-beta:
     container_name: sigilos-discord-bot-beta
@@ -185,11 +270,6 @@ services:
     restart: always
     env_file: .env.beta
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-beta:5432/${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - DB_HOST=db-beta
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
     depends_on:
       - db-beta
@@ -201,12 +281,18 @@ services:
           cpus: '0.3'
           memory: 256M
     logging: *default-logging
+    healthcheck: *bot-healthcheck
 
   # ===========================================================================
   # 🌐 ROUTING
   # ===========================================================================
   caddy:
-    image: caddy:alpine
+    # SECURITY (F-14): image custom via xcaddy pour le module rate-limit
+    # (caddy:alpine officiel ne contient pas le plugin). Build sur le VPS.
+    build:
+      context: .
+      dockerfile: Dockerfile.caddy
+    image: sigilos-caddy:latest
     container_name: sigilos-gateway
     restart: always
     ports:
@@ -217,8 +303,10 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
-      - ./public/maintenance.html:/srv/static/maintenance.html:ro        # 🔴 Prod maintenance page
-      - ./public/maintenance-beta.html:/srv/static/maintenance-beta.html:ro  # 🟡 Beta maintenance page
+      # 🎨 Tous les assets publics de la vitrine (maintenance.html, bg-guild, screenshots,
+      #    icônes, logo, 429.html) montés pour le file_server de Caddy — corrige les images cassées.
+      - ./public:/srv/static:ro # 🎨 Assets publiques vitrine servis en statique par Caddy
+      - ./public/game-data:/srv/game-data:ro # 🗺️ Game assets (tuiles/maps) servis en statique par Caddy — mise à jour via sync-assets.sh
       # Uploads are served by Next.js API route — no Caddy volume needed
     env_file: .env.prod
     networks:
@@ -238,6 +326,19 @@ services:
       - redis_data:/data
     networks:
       - prod-net
+    logging: *default-logging
+
+  # ===========================================================================
+  # 🟡 REDIS BETA — isolé de la prod (I-07 : anti SPOF, anti collision de clés/jobs)
+  # ===========================================================================
+  redis-beta:
+    image: redis:7-alpine
+    container_name: sigilos-redis-beta
+    restart: always
+    command: redis-server --requirepass ${REDIS_PASSWORD_BETA}
+    volumes:
+      - redis-beta-data:/data
+    networks:
       - beta-net
     logging: *default-logging
 
@@ -278,7 +379,7 @@ services:
           cpus: '0.5'
           memory: 512M
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
       - GF_SERVER_ROOT_URL=https://monitor.sigilos.fr
       # 🛡️ GitHub OAUTH2
       - GF_AUTH_GITHUB_ENABLED=true
@@ -369,6 +470,7 @@ volumes:
   caddy_data:
   caddy_config:
   redis_data:
+  redis-beta-data:
   prometheus_data:
   grafana_data:
   uploads-prod-data: # ✅ Production uploads isolated

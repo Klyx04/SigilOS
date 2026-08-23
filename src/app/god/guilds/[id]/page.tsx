@@ -1,5 +1,5 @@
 import { redirect, notFound } from "next/navigation";
-import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { isSuperAdmin, canAccessBrick } from "@/server/actions/super-admin-actions";
 import { getGuildMembersForGod } from "@/server/actions/god-lifecycle-actions";
 import { MemberManagementTable } from "@/components/admin/member-management-table";
 import { Shield, ChevronLeft, Users } from "lucide-react";
@@ -12,8 +12,11 @@ interface GodGuildDetailsPageProps {
 
 export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPageProps) {
     const isAdmin = await isSuperAdmin();
+    // #108 — un sous-god avec la brique "guilds" accède à l'inspection (lecture seule :
+    // le tableau est rendu avec isSuperAdmin=false pour masquer les actions destructives).
+    const isGuildBrick = isAdmin ? true : await canAccessBrick("guilds");
 
-    if (!isAdmin) {
+    if (!isAdmin && !isGuildBrick) {
         redirect("/");
     }
 
@@ -64,7 +67,7 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
                         </div>
 
                         <div className="space-y-1">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-[10px] font-black text-violet-400 uppercase tracking-widest">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-caption font-black text-violet-400 uppercase tracking-widest">
                                 <Shield className="w-3 h-3" />
                                 Inspection God Mode
                             </div>
@@ -78,8 +81,8 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
                     </div>
 
                     <div className="px-6 py-4 bg-zinc-900/50 border border-white/5 rounded-2xl text-center min-w-[140px]">
-                        <div className="text-2xl font-black text-white tracking-tighter">{members.length}</div>
-                        <div className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Membres Totaux</div>
+                        <div className="text-2xl font-black text-white tracking-tighter">{members.members.length}</div>
+                        <div className="text-caption font-black text-zinc-600 uppercase tracking-widest">Membres Totaux</div>
                     </div>
                 </div>
             </div>
@@ -87,16 +90,18 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
             {/* Roster Table - Reusing the Admin component for consistency */}
             <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-1 shadow-2xl overflow-hidden">
                 <div className="p-8 border-b border-white/5 flex items-center justify-between">
-                    <h3 className="text-sm font-black text-zinc-500 uppercase tracking-[0.3em] flex items-center gap-3">
+                    <h3 className="text-sm font-black text-zinc-500 uppercase tracking-widest flex items-center gap-3">
                         <Users className="w-4 h-4 text-violet-500" />
                         Registre des Citoyens
                     </h3>
                 </div>
                 <div className="p-6">
                     <MemberManagementTable
-                        initialMembers={members as any}
-                        guildId={guildId as string}
+                        initialMembers={members.members as any}
+                        guildId={guild.discordGuildId}
                         welcomeBadgeName={guild.welcomeBadgeName}
+                        isSuperAdmin={isAdmin}
+                        ownerId={members.ownerId}
                     />
                 </div>
             </div>
@@ -104,8 +109,9 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
             <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-6">
                 <p className="text-xs text-amber-500/80 font-medium leading-relaxed">
                     <span className="font-black uppercase tracking-widest mr-2">Note :</span>
-                    En tant que Super-Admin, vous pouvez modifier les statuts des membres directement.
-                    Toute action effectuée ici sera enregistrée dans le journal d'audit de la guilde avec votre identité.
+                    {isAdmin
+                        ? "En tant que Super-Admin, vous pouvez modifier les statuts des membres directement. Toute action effectuée ici sera enregistrée dans le journal d'audit de la guilde avec votre identité."
+                        : "Vous consultez ce roster en lecture seule (accès sous-god). Toute action destructrice est masquée."}
                 </p>
             </div>
         </div>

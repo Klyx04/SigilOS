@@ -1,8 +1,10 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
 import { revalidatePath } from "next/cache";
+import { getDofusWeek } from "@/lib/date-utils";
 
 export type OnboardingProgress = {
     steps: {
@@ -10,12 +12,14 @@ export type OnboardingProgress = {
         title: string;
         description: string;
         status: "COMPLETED" | "IN_PROGRESS" | "TO_DO";
+        mandatory: boolean;
         points: number;
         href: string;
     }[];
     totalPoints: number;
     maxPoints: number;
     isFinished: boolean;
+    mandatoryComplete: boolean;
 };
 
 export async function getGettingStartedProgress(guildId: string): Promise<OnboardingProgress> {
@@ -33,8 +37,8 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
                     profiles: true,
                     missions: {
                         where: {
-                            weekNumber: getWeekNumber(new Date()),
-                            year: new Date().getFullYear(),
+                            weekNumber: getDofusWeek().week,
+                            year: getDofusWeek().year,
                         }
                     }
                 }
@@ -46,21 +50,49 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
         throw new Error("Guild not found");
     }
 
+    const rolesMapping = (guild.rolesMapping as Record<string, string[]>) || {};
+    const isRbacConfigured = Object.values(rolesMapping).some(perms => 
+        Array.isArray(perms) && perms.includes("dashboard:login")
+    );
+
     const steps: OnboardingProgress["steps"] = [
+        {
+            id: "dofus",
+            title: "Serveur de Jeu",
+            description: "Sélectionnez le serveur Dofus de votre guilde. Cela débloquera l'accès aux autres paramètres.",
+            status: guild.dofusServerId ? "COMPLETED" : "TO_DO",
+            mandatory: true,
+            points: 20,
+            href: `/dashboard/${guildId}/admin/settings?tab=dofus`,
+        },
+        {
+            id: "rbac",
+            title: "Rôles & Permissions",
+            description: "Définissez au moins un rôle Discord pour l'autorisation 'Accès Dashboard' afin de sécuriser l'accès.",
+            status: isRbacConfigured ? "COMPLETED" : "TO_DO",
+            mandatory: true,
+            points: 20,
+            href: `/dashboard/${guildId}/admin/permissions`,
+        },
         {
             id: "discord",
             title: "Lier le Bot Discord",
-            description: "Le cœur de SigilOS est son lien avec Discord. Assurez-vous d'avoir configuré un salon de notifications.",
-            status: guild.missionNotifyChannelId ? "COMPLETED" : "TO_DO",
-            points: 20,
-            href: `/dashboard/${guildId}/admin/settings`,
+            description: "Configurez au moins le salon de notifications principal (Lifecycle ou Missions).",
+            status: guild.missionNotifyChannelId || guild.lifecycleNotifyChannelId ? "COMPLETED" : "IN_PROGRESS",
+            mandatory: false,
+            points: 15,
+            href: `/dashboard/${guildId}/admin/settings?tab=annonces`,
         },
         {
             id: "modules",
             title: "Configurer les Modules",
             description: "Activez les fonctionnalités dont votre guilde a besoin (Missions, Songes, Ocre...).",
-            status: guild.modules && countEnabledModules(guild.modules) > 4 ? "COMPLETED" : "IN_PROGRESS",
-            points: 20,
+            // Step "modules" complète SEULEMENT si une VRAIE config existe en BDD
+            // (>= 1 module actif). Depuis l'état vierge (aucun module actif par
+            // défaut), la step reste IN_PROGRESS jusqu'à activation explicite.
+            status: guild.modules && countEnabledModules(guild.modules) >= 1 ? "COMPLETED" : "IN_PROGRESS",
+            mandatory: false,
+            points: 15,
             href: `/dashboard/${guildId}/admin/modules`,
         },
         {
@@ -68,7 +100,8 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
             title: "Page de Présentation",
             description: "Personnalisez votre page publique pour attirer de nouveaux membres.",
             status: guild.presentationEnabled && guild.presentationHistory ? "COMPLETED" : "IN_PROGRESS",
-            points: 20,
+            mandatory: false,
+            points: 15,
             href: `/dashboard/${guildId}/admin/presentation`,
         },
         {
@@ -76,27 +109,24 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
             title: "Premières Missions",
             description: "Lancez l'activité en publiant des missions hebdomadaires pour vos membres.",
             status: guild._count.missions > 0 ? "COMPLETED" : "TO_DO",
-            points: 20,
+            mandatory: false,
+            points: 15,
             href: `/dashboard/${guildId}/missions/manage`,
-        },
-        {
-            id: "members",
-            title: "Inviter les Membres",
-            description: "Partagez l'accès au Dashboard à vos membres pour qu'ils commencent à gagner de l'XP.",
-            status: guild._count.profiles > 1 ? "COMPLETED" : "IN_PROGRESS",
-            points: 20,
-            href: `/dashboard/${guildId}/admin/settings#membres`,
         },
     ];
 
     const totalPoints = steps.reduce((acc, step) => acc + (step.status === "COMPLETED" ? step.points : 0), 0);
     const maxPoints = steps.reduce((acc, step) => acc + step.points, 0);
+    const mandatoryComplete = steps
+        .filter(s => s.mandatory)
+        .every(s => s.status === "COMPLETED");
 
     return {
         steps,
         totalPoints,
         maxPoints,
         isFinished: totalPoints === maxPoints,
+        mandatoryComplete,
     };
 }
 
@@ -124,10 +154,14 @@ export async function markWelcomeAsSeen(guildId: string) {
             },
         });
 
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(user.id!, guildConfig.id, guildId);
+
         revalidatePath(`/dashboard/${guildId}`);
         return { success: true };
     } catch (e) {
-        console.error("Failed to mark welcome as seen", e);
+        logger.error("Failed to mark welcome as seen", e);
         return { success: false, error: "Database error" };
     }
 }
@@ -141,37 +175,51 @@ function countEnabledModules(modules: any): number {
     return count;
 }
 
-function getWeekNumber(d: Date) {
-    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-    return weekNo;
-}
 
 export async function sendWelcomeNotifications(guildConfig: any, profileId: string, displayName: string) {
     if (!guildConfig) return;
 
     // Helper to strip HTML tags
+    // CodeQL js/incomplete-multi-character-sanitization : le retrait des tags est appliqué
+    // EN BOUCLE jusqu'à stabilité — aucun tag ne peut se reformer depuis un résidu
+    // (ex. `<scri<script></script>pt>` → plus jamais de `<script>` dans la sortie).
     const stripHtml = (html: string) => {
         if (!html) return "";
-        return html
+        let clean = html
             .replace(/<p>/g, "")
             .replace(/<\/p>/g, "\n")
             .replace(/<br\s*\/?>/g, "\n")
             .replace(/<strong>/g, "**")
             .replace(/<\/strong>/g, "**")
             .replace(/<em>/g, "_")
-            .replace(/<\/em>/g, "_")
-            .replace(/<[^>]*>?/gm, "")
-            .trim();
+            .replace(/<\/em>/g, "_");
+        let previous: string;
+        do {
+            previous = clean;
+            clean = clean.replace(/<[^>]*>/g, "");
+        } while (clean !== previous);
+        return clean.trim();
     };
 
     // Fetch user profile to get Discord ID if needed for pinging
     const profile = await db.userProfile.findUnique({
         where: { id: profileId },
-        select: { userId: true, user: { select: { image: true } } },
+        select: {
+            userId: true,
+            user: {
+                select: {
+                    image: true,
+                    accounts: {
+                        where: { provider: "discord" },
+                        select: { providerAccountId: true },
+                        take: 1
+                    }
+                }
+            }
+        },
     });
+
+    const discordUserId = profile?.user?.accounts?.[0]?.providerAccountId;
 
     // 1. Dashboard Welcome Post
     if (guildConfig.welcomeDashboardEnabled) {
@@ -179,7 +227,9 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
         const content = template
             .replace(/{member}/g, `**${displayName}**`)
             .replace(/{user}/g, `**${displayName}**`)
-            .replace(/{guild}/g, `**${guildConfig.name || "la guilde"}**`);
+            .replace(/{nickname}/g, `**${displayName}**`)
+            .replace(/{guild}/g, `**${guildConfig.name || "la guilde"}**`)
+            .replace(/{server}/g, `**${guildConfig.name || "la guilde"}**`);
 
         try {
             await Promise.all([
@@ -200,7 +250,7 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
                 })
             ]);
         } catch (e) {
-            console.error("[Welcome] Failed to create welcome records", e);
+            logger.error("[Welcome] Failed to create welcome records", e);
         }
     }
 
@@ -227,7 +277,7 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
                     "SYSTEM_INFO",
                     notificationTitle,
                     notificationMessage,
-                    `/dashboard/${guildConfig.discordGuildId}/welcome`,
+                    `/dashboard/${guildConfig.discordGuildId}/guild-hub?tab=welcome`,
                     guildConfig.discordGuildId,
                     "SYSTEM"
                 )
@@ -239,7 +289,7 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
             }
         }
     } catch (e) {
-        console.error("[Welcome] Failed to send global notifications", e);
+        logger.error("[Welcome] Failed to send global notifications", e);
     }
 
     // 3. Discord Welcome Ping
@@ -249,13 +299,16 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
         const rawTemplate = guildConfig.welcomeDiscordMessageTemplate || guildConfig.welcomeMessageTemplate || "🎉 Bienvenue à {member} !";
         const template = stripHtml(rawTemplate);
 
-        const memberMention = profile?.userId ? `<@${profile.userId}>` : `**${displayName}**`;
+        const memberMention = discordUserId ? `<@${discordUserId}>` : `**${displayName}**`;
 
         const content = template
             .replace(/{member}/g, memberMention)
             .replace(/{user}/g, memberMention)
-            .replace(/{guild}/g, `**${guildConfig.name || "la guilde"}**`);
+            .replace(/{nickname}/g, memberMention)
+            .replace(/{guild}/g, `**${guildConfig.name || "la guilde"}**`)
+            .replace(/{server}/g, `**${guildConfig.name || "la guilde"}**`);
 
+        // Pings go outside the embed (trigger notification)
         let mentionContent = "";
         if (guildConfig.welcomeMentionRoleId) {
             mentionContent = guildConfig.welcomeMentionRoleId === "everyone"
@@ -263,16 +316,19 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
                 : `<@&${guildConfig.welcomeMentionRoleId}>`;
         }
 
+        // Combine role ping and user ping for maximum attention
+        const pings = [mentionContent, memberMention].filter(Boolean).join(" ");
+
         try {
-            await sendChannelMessage(guildConfig.welcomeNotifyChannelId, mentionContent, {
-                embedTitle: `🌟 Nouvelle Recrue Dashboard !`,
+            await sendChannelMessage(guildConfig.welcomeNotifyChannelId, pings, {
+                embedTitle: `🌟 NOUVELLE ARRIVÉE !`,
                 embedDescription: content,
                 embedColor: 0xf59e0b, // Amber 500
-                embedThumbnail: profile?.user?.image || "https://i.imgur.com/AfFp7pu.png",
+                embedThumbnail: profile?.user?.image || "https://beta.sigilos.fr/assets/ui/logo-v2.png",
                 embedFooter: "SigilOS Onboarding System"
             });
         } catch (e) {
-            console.error("[Welcome] Failed to send Discord welcome message", e);
+            logger.error("[Welcome] Failed to send Discord welcome message", e);
         }
     }
 }

@@ -1,26 +1,37 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { auth } from "@/auth";
+import { db } from "@/lib/prisma";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { TopNav } from "@/components/layout/top-nav";
 import { NebulaClientWrapper } from "@/components/layout/nebula-client-wrapper";
-import { getUserContext } from "@/server/actions/user-actions";
+import { GuildAccentStyle } from "@/components/layout/guild-accent-style";
+import { getUserContext, getUserGuilds } from "@/server/actions/user-actions";
 import { getGuildHeaderData } from "@/server/actions/guild-actions";
-import { getUserGuilds } from "@/server/actions/user-actions";
-import { isGuildAllowed } from "@/server/actions/super-admin-actions";
-import { AlmanaxWidget } from "@/components/layout/almanax-widget";
-import { GalacticFooter } from "@/components/layout/galactic-footer";
+
 import { getGuildModules } from "@/server/actions/module-actions";
 import { Suspense } from "react";
 import { PresenceHeartbeat } from "./_components/presence-heartbeat";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { AccessDenied } from "@/components/layout/access-denied";
+import { TelemetryTracker } from "@/components/telemetry/telemetry-tracker";
+
 
 import { ValidatorInbox } from "./_components/validator-inbox";
+import { PseudoWarningBanner } from "@/components/layout/pseudo-warning-banner";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { GuildActivityStream } from "@/components/layout/guild-activity-stream";
-import { ChatWidget } from "@/components/chat/ChatWidget";
 import { PresenceProvider } from "@/components/providers/PresenceProvider";
+import { GamesLiveWidget } from "@/components/shared/GamesLiveWidget";
 import { ChangelogModal } from "@/components/changelog/changelog-modal";
+import { ServiceReplyModal } from "@/components/services/service-reply-modal";
+import { CommandMenu } from "@/components/layout/command-menu";
+import { GalacticFooterGate } from "@/components/layout/galactic-footer-gate";
+import { GameProvider } from "@/components/providers/GameProvider";
+import { OnboardingWizard } from "@/components/dashboard/onboarding-wizard";
+import { TourProvider } from "@/components/tour/tour-provider";
+import { TourOverlay } from "@/components/tour/tour-overlay";
+import { TourCompletion } from "@/components/tour/tour-completion";
 
 export default async function DashboardLayout({
     children,
@@ -35,11 +46,39 @@ export default async function DashboardLayout({
     const session = await auth();
     if (!session?.user) redirect("/");
 
-    // --- SECURITY: GUILD WHITELIST (Database-based) ---
-    const allowed = await isGuildAllowed(guildId);
-    if (!allowed) {
+    // SECURITY FIX: Detect expired Discord OAuth token (sessions immortelles)
+    // The JWT callback marks sessions with error="DiscordTokenExpired" when token is expired
+    if ((session as any).error === "DiscordTokenExpired") {
+        redirect("/auth/signout?reason=token_expired");
+    }
+
+    const eventsPromise = import("@/server/actions/event-actions").then(mod => mod.getUpcomingGuildEvents(guildId));
+    
+    const [user, guildData, userGuilds, modules, configRes] = await Promise.all([
+        getUserContext(guildId),
+        getGuildHeaderData(guildId),
+        getUserGuilds(),
+        getGuildModules(guildId),
+        import("@/server/actions/god-roadmap-actions").then(mod => mod.getPlatformConfig())
+    ]);
+
+    const roadmapEnabled = configRes.success && configRes.data ? (configRes.data as any).roadmapEnabled : false;
+    const donationsEnabled = configRes.success && configRes.data ? (configRes.data as any).donationsEnabled : true;
+
+    // #5 — Couleur de guilde (teinte OKLCH) : le dashboard se teinte via --accent/--ring.
+    const accentHue = await db.guildConfig
+        .findUnique({ where: { discordGuildId: guildId }, select: { accentHue: true } })
+        .then(g => g?.accentHue ?? null)
+        .catch(() => null);
+
+    const headersList = await headers();
+    const pathname = headersList.get("x-pathname") || "";
+
+    // ── GUILD NOT WHITELISTED (getUserContext returns isAuthenticated:false for blocked guilds) ──
+    if (!user.isAuthenticated) {
         return (
             <AccessDenied
+                guildId={guildId}
                 title="Bêta Fermée"
                 message="L'accès à SigilOS est actuellement limité aux serveurs partenaires. Ce serveur n'est pas encore autorisé."
                 variant="lock"
@@ -48,14 +87,17 @@ export default async function DashboardLayout({
         );
     }
 
-
-    const [user, guildData, userGuilds, events, modules] = await Promise.all([
-        getUserContext(guildId),
-        getGuildHeaderData(guildId),
-        getUserGuilds(),
-        import("@/server/actions/event-actions").then(mod => mod.getUpcomingGuildEvents(guildId)),
-        getGuildModules(guildId),
-    ]);
+    // ── SERVER DELETED: specific message + signout button ──
+    if ((user as any).isServerDeleted) {
+        return (
+            <AccessDenied
+                title="Serveur Supprimé"
+                message={`Le serveur Discord "${user.guildName}" a été supprimé. SigilOS n'est plus accessible pour ce serveur. Vous allez être déconnecté.`}
+                variant="lock"
+                action={<SignOutButton />}
+            />
+        );
+    }
 
     // ── ARCHIVED: specific message to contact staff ──
     if ((user as any).isArchived) {
@@ -66,6 +108,7 @@ export default async function DashboardLayout({
                 variant="archive"
                 action={<SignOutButton variant="ghost" />}
                 countdownDate={(user as any).scheduledDeletion}
+                hasPendingReactivation={user.hasPendingReactivation}
             />
         );
     }
@@ -87,8 +130,21 @@ export default async function DashboardLayout({
     if (!user.isMember) {
         return (
             <AccessDenied
+                guildId={guildId}
                 title="Accès Restreint"
                 message={`Vous devez être membre du serveur Discord ${user.guildName} pour accéder à ce tableau de bord.`}
+                variant="lock"
+                action={<SignOutButton variant="ghost" />}
+            />
+        );
+    }
+
+    // ── ONBOARDING/CONFIGURATION COMPLIANCE GATEWAY ──
+    if (!user.isOnboardingComplete && !user.isAdmin) {
+        return (
+            <AccessDenied
+                title="Configuration en cours"
+                message={`Le tableau de bord de ${user.guildName || "votre guilde"} est en cours de configuration par les administrateurs. Revenez très bientôt !`}
                 variant="lock"
                 action={<SignOutButton variant="ghost" />}
             />
@@ -120,72 +176,82 @@ export default async function DashboardLayout({
 
     return (
         <NebulaClientWrapper>
-            <div className="flex h-screen h-[100dvh] overflow-hidden bg-zinc-950 font-sans selection:bg-primary/30 text-zinc-100 fixed inset-0">
+            <GameProvider>
+            <TelemetryTracker />
+            <TourProvider guildId={guildId} modules={modules} user={user}>
+                <div className="dashboard-tour">
+                    <TourOverlay />
+                    <TourCompletion guildId={guildId} />
+                </div>
+                {/* V2 Phase 0 — teinte de guilde posée sur le root EXISTANT du dashboard
+                    (pas de div empilé, ne casse pas le flex h-screen) :
+                    --guild-hue / --guild-chroma-* / --success-hue → --accent / --ring /
+                    --success recalculés par les tokens GROK. Un seul mécanisme d'injection. */}
+                <GuildAccentStyle
+                    hue={accentHue}
+                    className="flex h-screen h-[100dvh] overflow-hidden bg-background font-sans selection:bg-primary/20 text-foreground fixed inset-0 dashboard-layout"
+                >
+
 
                 {/* 1. DESKTOP SIDEBAR (Fixed) */}
-                <div className="hidden md:flex w-[280px] flex-col fixed inset-y-0 z-50">
+                <div data-tour="sidebar-root" className="dashboard-sidebar hidden lg:flex w-[280px] flex-col fixed inset-y-0 z-50">
                     <AppSidebar
                         guildId={guildId}
                         user={user}
                         guildData={guildData}
                         userGuilds={userGuilds}
                         modules={modules}
-                        className="h-full border-r border-white/5"
+                        roadmapEnabled={roadmapEnabled}
+                        className="h-full border-r border-border bg-surface"
                     />
                 </div>
 
                 {/* Silent Presence Update Hook */}
                 <PresenceHeartbeat guildId={guildId} />
 
-                {/* 2. MAIN CONTENT AREA (Offset by Sidebar width) */}
-                <div className="flex-1 flex flex-col md:pl-[280px] transition-all duration-300 ease-in-out h-full overflow-hidden bg-black">
-
+                {/* 2. MAIN CONTENT AREA */}
+                <div className="flex-1 flex flex-col lg:pl-[280px] h-full overflow-hidden">
                     {/* Top Navigation - Fixed at top of content area */}
-                    <div className="flex-shrink-0 z-50">
+                    <div className="dashboard-topnav flex-shrink-0 z-50 border-b border-border bg-background">
                         <TopNav
                             userId={user.id || ""}
                             sidebarProps={{ guildId, user, guildData, userGuilds, modules }}
-                            events={events}
-                        >
-                            <div className="relative">
-                                <Suspense fallback={<div className="h-8 w-8 bg-white/5 rounded-full animate-pulse" />}>
-                                    <AlmanaxWidget />
-                                </Suspense>
-                            </div>
-                        </TopNav>
+                            eventsPromise={eventsPromise}
+                            roadmapEnabled={roadmapEnabled}
+                        />
                     </div>
 
-                    {/* Scrollable Main Content - THE ONLY SCROLLABLE AREA */}
-                    <main className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                        {/* System Announcement Banner */}
-                        <Suspense fallback={null}>
-                            <AnnouncementBanner />
-                        </Suspense>
-                        <div className="container max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 min-h-full flex flex-col">
+                    {/* Scrollable Main Content area */}
+                    <main data-scroll-container="true" className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                        <div className="relative z-10">
+                            {/* System Announcement Banner */}
+                            <Suspense fallback={null}>
+                                <AnnouncementBanner />
+                            </Suspense>
 
-                            {/* Page Content */}
-                            <div className="flex-1 animate-in fade-in duration-500 slide-in-from-bottom-4">
-                                <Suspense fallback={<div className="h-full w-full bg-white/5 animate-pulse rounded-2xl min-h-[400px]" />}>
-                                    {children}
-                                </Suspense>
-                            </div>
+                            <div className="container max-w-[1536px] mx-auto p-4 sm:p-6 lg:p-8 pb-28 min-h-full flex flex-col">
+                                {/* Pseudo issues (sync) banner */}
+                                {user.hasPseudoIssue && (
+                                    <PseudoWarningBanner guildId={guildId} pseudoDofus={user.pseudoDofus} />
+                                )}
 
-                            {/* Footer at bottom of content - Increased pb to 32 (128px) for safe dock area */}
-                            <div className="mt-12 md:mt-24 pb-32">
-                                <GalacticFooter variant="compact" />
+                                {/* Page Content */}
+                                <div className="flex-1 animate-in fade-in duration-200">
+                                    <Suspense fallback={<div className="h-full w-full bg-surface animate-pulse rounded-2xl min-h-[400px]" />}>
+                                        {children}
+                                    </Suspense>
+                                </div>
                             </div>
                         </div>
                     </main>
                 </div>
 
                 {/* Validator Inbox - Fixed floating reminder for validators (all pages) */}
-                <div className="fixed top-[68px] right-8 z-40 hidden md:block">
+                <div className="fixed top-[76px] right-8 z-40 hidden md:block">
                     <Suspense fallback={null}>
                         <ValidatorInbox guildId={guildId} />
                     </Suspense>
                 </div>
-
-
 
                 {/* Guild Activity Stream — popup toasts only */}
                 <GuildActivityStream guildId={guildId} />
@@ -193,21 +259,31 @@ export default async function DashboardLayout({
                 {/* Changelog Modal (Global Platform Updates) */}
                 <ChangelogModal />
 
-                {/* Live Chat Widget — visible si module activé + permission RBAC */}
-                {modules.chat && user.canViewChat && (
-                    <ChatWidget
+                {/* Global Service Dialogue Modal — visible sur toute page / refresh */}
+                <ServiceReplyModal guildId={guildId} />
+
+                {/* Command Palette (Cmd+K) */}
+                <CommandMenu guildId={guildId} user={user} />
+
+                {/* 4. FLOATING FOOTER (Compact version) - hidden in game view */}
+                <div className="dashboard-footer">
+                    <GalacticFooterGate />
+                </div>
+
+                {/* Forced Onboarding Wizard (Missing character pseudo, class or preferred activities) */}
+                {!user.isAdmin && (user.hasPseudoIssue || !user.classe || !user.hasPreferredActivities) && (
+                    <OnboardingWizard
                         guildId={guildId}
-                        userId={user.id || ""}
-                        canModerate={user.canModerateChat}
-                        displayName={user.name}
-                        avatarUrl={user.image}
-                        userRoleName={user.roleName}
-                        userRoleNames={user.roleNames}
-                        userRoleIds={user.roles}
-                        userPseudo={user.pseudo}
+                        userName={user.name || "Aventurier"}
+                        show={true}
+                        initialStep={user.hasPseudoIssue ? 1 : !user.classe ? 2 : 3}
+                        initialPseudo={user.pseudoDofus || ""}
+                        requireActivities={!user.hasPreferredActivities}
                     />
                 )}
-            </div>
+            </GuildAccentStyle>
+            </TourProvider>
+            </GameProvider>
         </NebulaClientWrapper>
     );
 }

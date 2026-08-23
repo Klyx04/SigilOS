@@ -1,7 +1,8 @@
 "use client";
 
 import { LogOut, User, Sparkles } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -36,7 +37,7 @@ export function UserNav({ user }: { user: UserContext }) {
             <DropdownMenuTrigger asChild>
                 <Button id="user-nav-trigger" variant="ghost" className="relative h-10 w-10 rounded-full ring-2 ring-primary/20 hover:ring-primary/50 transition-all">
                     <Avatar className="h-10 w-10">
-                        <AvatarImage src={user.image} alt={user.name} />
+                        <DiscordAvatarImage src={user.image} alt={user.name} />
                         <AvatarFallback>{user.name?.slice(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                 </Button>
@@ -57,7 +58,7 @@ export function UserNav({ user }: { user: UserContext }) {
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
                     {user.isMember && (
-                        <DropdownMenuItem asChild>
+                        <DropdownMenuItem asChild className="focus:bg-surface focus:text-foreground data-[highlighted]:bg-surface data-[highlighted]:text-foreground cursor-pointer">
                             <Link href="/dashboard/profile" className="cursor-pointer">
                                 <User className="mr-2 h-4 w-4" />
                                 <span>Mon Profil</span>
@@ -65,10 +66,10 @@ export function UserNav({ user }: { user: UserContext }) {
                         </DropdownMenuItem>
                     )}
                     {user.isAdmin && (
-                        <DropdownMenuItem asChild>
+                        <DropdownMenuItem asChild className="focus:bg-surface focus:text-foreground data-[highlighted]:bg-surface data-[highlighted]:text-foreground cursor-pointer font-medium">
                             <Link href="/dashboard/admin" className="cursor-pointer font-medium">
-                                <Sparkles className="mr-2 h-4 w-4 text-purple-400 animate-pulse" />
-                                <span className="text-purple-100">Administration</span>
+                                <Sparkles className="mr-2 h-4 w-4 text-info text-info animate-pulse" />
+                                <span className="text-info text-info">Administration</span>
                             </Link>
                         </DropdownMenuItem>
                     )}

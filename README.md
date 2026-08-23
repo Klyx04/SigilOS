@@ -16,6 +16,8 @@
 - [Conventions](#-conventions)
 - [Déploiement](#-déploiement)
 - [Backup & Restore](#-backup--restore)
+- [Tests](#-tests)
+- [Documentation Complémentaire](#-documentation-complémentaire)
 
 ---
 
@@ -28,23 +30,25 @@
 - **Tailwind CSS 4** (avec animations)
 
 ### Backend & Data
-- **Prisma 7** (ORM avec PostgreSQL prod + SQLite dev)
-- **NextAuth v5** (Discord OAuth)
-- **Redis** (BullMQ pour jobs, rate-limiting)
+- **Prisma 7** (ORM — **PostgreSQL uniquement**, en prod comme en dev)
+- **Auth.js v5** (Discord OAuth, JWT)
+- **Redis** (BullMQ pour jobs, cache, rate-limiting)
 - **PostgreSQL** (backup chiffré daily vers Cloudflare R2)
 
 ### Discord Integration
-- **Discord.js v14** (webhook + interactions)
-- **Métam OB V2** (sync ladder externe)
+- **Discord.js v14** (Gateway events + interactions)
+- **Metamob** (sync ladder externe)
 
 ### AI & Processing
 - **TensorFlow.js** (NSFW detection)
 - **Sharp** (image processing + WebP optimization)
+- **Tesseract.js** (OCR)
 
 ### Security & Monitoring
 - **Sentry** (error tracking)
 - **Fail2Ban** (SSH protection en prod)
 - **GPG encryption** (DB backups)
+- **GitHub Actions** (npm audit, Semgrep, Trivy, Gitleaks, lockfile integrity)
 
 ---
 
@@ -71,11 +75,14 @@ PostgreSQL / Redis
 
 ### Sécurité
 - **Auth sur chaque action** : `await auth()` obligatoire
-- **Admin guards** : `checkAdmin()` avant mutations critiques
+- **RBAC** : `getUserContext(guildId)` → `ctx.isMember` / `ctx.isAdmin`
+- **GOD Dashboard** : `isSuperAdmin()` sur toutes les actions de cycle de vie
 - **Input validation** : Zod schemas sur toutes les entrées
 - **Guild scoping** : `where: { guildId }` systématique
+- **Fail-closed** : pas de fail-open sur erreur réseau (Discord, rate-limit)
+- **Secrets** : uniquement dans `.env` (jamais commités)
 
-Voir [SECURITY.md](./SECURITY.md) pour plus de détails.
+> ℹ️ **État de la posture sécurité :** un audit (OWASP/ASVS) a été réalisé — les trous critiques sont corrigés. Certains chantiers restent ouverts (auth WebSocket, chiffrement des tokens OAuth, CSP nonce, durée de session). Voir [SECURITY.md](./SECURITY.md) pour l'état précis.
 
 ---
 
@@ -83,8 +90,8 @@ Voir [SECURITY.md](./SECURITY.md) pour plus de détails.
 
 ### Prérequis
 - **Node.js ≥ 22.x**
-- **PostgreSQL ≥ 17** (prod) ou SQLite (dev)
-- **Redis ≥ 7.x** (prod seulement)
+- **PostgreSQL ≥ 17**
+- **Redis ≥ 7.x** (prod ; optionnel en dev)
 - **Git**
 
 ### Setup Local
@@ -117,7 +124,7 @@ npm run dev
 
 ---
 
-## � Workflows
+## 🔄 Workflows
 
 ### Dev Local → Beta → Prod
 
@@ -244,8 +251,12 @@ SigilOS/
 │   ├── server/
 │   │   ├── actions/            # Server Actions (main business logic)
 │   │   ├── discord.ts          # Discord API integration
-│   │   └── redis.ts            # Redis client
-│   └── lib/                    # Utilities, constants
+│   │   └── websocket/          # Socket.IO server
+│   ├── workers/                # BullMQ workers (metamob, ladder, cron)
+│   └── lib/                    # Utilities, constants, security
+├── cloudflare-workers/         # Cloudflare Workers (proxies ladder/dofusbook)
+├── services/
+│   └── discord-bot/            # Bot Discord (Gateway events)
 ├── prisma/
 │   ├── schema.prisma           # Database schema
 │   ├── migrations/             # Prisma migrations
@@ -286,16 +297,17 @@ import { cn } from "@/lib/utils";
 ```typescript
 "use server";
 
-export async function myAction(data: FormData) {
-  // 1. Auth
+export async function myAction(guildId: string, data: FormData) {
+  // 1. Auth + RBAC
   const ctx = await getUserContext(guildId);
-  if (!ctx.isAuthenticated) return { success: false, error: "..." };
+  if (!ctx.isAuthenticated) return { success: false, error: "Unauthorized" };
+  if (!ctx.isMember) return { success: false, error: "Forbidden" };
 
   // 2. Validation (Zod)
   const validated = schema.safeParse(data);
-  if (!validated.success) return { success: false, error: "..." };
+  if (!validated.success) return { success: false, error: "Données invalides" };
 
-  // 3. Business logic
+  // 3. Business logic (toujours scoped par guildId)
   const result = await prisma.xxx.create({ data: { guildId, ... } });
 
   // 4. Revalidate cache
@@ -330,7 +342,11 @@ export function MyComponent({ guildId }: Props) {
 ./scripts/secure_vps.sh     # SSH hardening, Fail2Ban
 ```
 
-### Deploy Beta/Prod
+### Déploiement automatique (recommandé)
+- **`dev`** → `beta.sigilos.fr` (auto via GitHub Actions)
+- **`main`** → `sigilos.fr` (auto via GitHub Actions)
+
+### Déploiement manuel (secours, sur le VPS)
 ```bash
 # SSH vers VPS
 ssh sigilos@vps
@@ -344,13 +360,21 @@ cd /opt/sigilos/production
 ./scripts/deploy.sh prod
 ```
 
-**Automatisation** : GitHub Actions déploie automatiquement :
-- `dev` → Beta
-- `main` → Prod
+### Déploiement CD (2026) — images GHCR
+Depuis 2026-08, le pipeline est **réindustrialisé** : le build se fait sur GitHub, l'image est poussée vers **GHCR**, et le VPS ne fait que `pull + up` (aucun build local, ~30s). Voir [MAINTENANCE.md](./MAINTENANCE.md).
+
+```bash
+# Sur le VPS (environnement concerné : beta | prod)
+./scripts/deploy-cd.sh            # pull image GHCR + docker compose up (standard)
+./scripts/deploy.sh beta|prod     # Fallback historique (build local)
+./scripts/rollback.sh             # Rollback en 1 commande (image précédente)
+```
+
+**Procédures de référence :** [MAINTENANCE.md](./MAINTENANCE.md) — maintenance quotidienne, migrations (`prisma migrate deploy`), healthchecks, rotation des secrets et expiration du `GHCR_TOKEN`.
 
 ---
 
-## � Backup & Restore
+## 📦 Backup & Restore
 
 ### Backup Automatique
 - **Fréquence** : Quotidienne (2h00 via cron)
@@ -375,12 +399,15 @@ cd /opt/sigilos/production
 
 ## 🔐 Secrets & Environment
 
-Variables critiques (`.env`) :
+Variables critiques (`.env` / `.env.local` — **jamais commités**) :
 
 ```bash
 # Database
 DATABASE_URL=postgresql://user:pass@localhost:5432/sigilos
-DATABASE_URL_BETA=postgresql://user:pass@vps:5432/sigilos_beta
+
+# Auth (Auth.js v5)
+AUTH_SECRET=                               # clé secrète obligatoire (>32 octets)
+AUTH_URL=http://localhost:3000
 
 # Discord
 DISCORD_CLIENT_ID=
@@ -390,15 +417,18 @@ DISCORD_BOT_TOKEN=
 # Redis
 REDIS_URL=redis://localhost:6379
 
+# Cloudflare Workers
+DOFUS_LADDER_WORKER_URL=
+DOFUS_LADDER_WORKER_KEY=
+
 # Backup
 R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
 R2_BUCKET_NAME=sigilos-backups
 BACKUP_ENCRYPTION_KEY=
 
-# NextAuth
-NEXTAUTH_SECRET=
-NEXTAUTH_URL=http://localhost:3000
+# Super-admin (Discord IDs, séparés par des virgules)
+SUPER_ADMIN_IDS=
 ```
 
 **Stockage** : Utiliser 1Password ou `.env.local` (jamais committé).
@@ -426,15 +456,14 @@ Tests importants :
 
 ## 📚 Documentation Complémentaire
 
-- **[SECURITY.md](./SECURITY.md)** : Politique de sécurité
-- **[CONTRIBUTING.md](./CONTRIBUTING.md)** : Guide de contribution (à créer)
-- **[DEPLOYMENT.md](./DEPLOYMENT.md)** : Guide de déploiement détaillé (à créer)
+- **[SECURITY.md](./SECURITY.md)** : Politique de sécurité (état réel + plan)
+- **[RULES.md](./RULES.md)** : Règles de développement (sécurité, conventions)
 - **[MAINTENANCE.md](./MAINTENANCE.md)** : Guide de maintenance VPS (Backup, Cleanup, Monitoring)
-- **[API.md](./API.md)** : Documentation des routes API (à créer)
+- **[REDIS-OCR-SETUP.md](./docs/REDIS-OCR-SETUP.md)** : Setup infra OCR & Redis (VPS)
 
 ---
 
-## � Troubleshooting
+## 🔧 Troubleshooting
 
 ### Build fails avec "sharp not found"
 ```bash
@@ -463,7 +492,7 @@ mkdir -p public/game-data/{monsters,achievements,dungeons}
 
 ---
 
-## � License
+## ©️ License
 
 Propriétaire - Tous droits réservés
 

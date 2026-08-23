@@ -8,29 +8,68 @@ import {
     ChevronRight,
     Menu,
     Home,
-    ScrollText
+    Rocket,
+    Shield,
+    MessageSquare
 } from "lucide-react";
 import { SmartBar } from "./smart-bar";
+import { HeaderEventChip } from "./header-event-chip";
+import { ThemeToggle } from "./ThemeToggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { FeedBell } from "@/components/notifications/feed-bell";
+import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { AppSidebar } from "./app-sidebar";
-import { EventTicker } from "@/components/layout/event-ticker";
 import { UpcomingEvent } from "@/server/actions/event-actions";
-import { CommandMenu } from "@/components/layout/command-menu";
-import { CircleHelp } from "lucide-react";
+import { LiveStreamBadge } from "@/components/notifications/live-stream-badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { signOut } from "next-auth/react";
+import { Users, Settings, LogOut } from "lucide-react";
+import { GamesLiveWidget } from "@/components/shared/GamesLiveWidget";
+import { Suspense, use, useState } from "react";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+// Helper to format breadcrumbs with friendly labels
+const MODULE_NAMES: Record<string, string> = {
+    members: "Membres",
+    missions: "Missions",
+    songes: "Songes Infinis",
+    "donjons-et-quetes": "Donjons & Quêtes",
+    "succes": "Succès",
+    "quete-ocre": "Quête Ocre",
+    ladder: "Classement",
+    services: "Services & Artisans",
+    ressources: "Ressources",
+    "stuff-hub": "Galerie de Stuff",
+    "guild-hub": "La Guilde",
+    worldmap: "Carte du Monde",
+    "mini-jeux": "Mini-Jeux",
+    profile: "Mon Profil",
+    admin: "Administration",
+    validation: "Validation",
+    settings: "Paramètres",
+    calendar: "Calendrier",
+    polls: "Sondages",
+};
 
-// Helper to format breadcrumbs
 const formatSegment = (segment: string) => {
-    // Detect CUIDs or long technical IDs (e.g. for runs, missions, etc)
-    // SigilOS IDs are typically cuids (starts with c, ~24-25 chars)
+    if (MODULE_NAMES[segment.toLowerCase()]) {
+        return MODULE_NAMES[segment.toLowerCase()];
+    }
+
     if (segment.length > 20) {
         return "Détails";
     }
 
-    return segment
+    return decodeURIComponent(segment)
         .replace(/-/g, " ")
         .replace(/^\w/, c => c.toUpperCase());
 };
@@ -38,39 +77,61 @@ const formatSegment = (segment: string) => {
 interface TopNavProps {
     // Props passed down for the mobile sidebar
     sidebarProps: React.ComponentProps<typeof AppSidebar>;
-    children?: React.ReactNode; // For Almanax Widget or other actions
     userId: string;
     events?: UpcomingEvent[];
+    eventsPromise?: Promise<UpcomingEvent[]>;
+    roadmapEnabled?: boolean;
 }
 
-export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavProps) {
+function DeferredEventChip({ eventsPromise, guildId, canViewCalendar }: {
+    eventsPromise: Promise<UpcomingEvent[]>;
+    guildId: string;
+    canViewCalendar: boolean;
+}) {
+    const events = use(eventsPromise);
+    return <HeaderEventChip events={events} guildId={guildId} canViewCalendar={canViewCalendar} />;
+}
+
+export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadmapEnabled = false }: TopNavProps) {
     const pathname = usePathname();
     const segments = pathname.split("/").filter(Boolean);
     // segments: ["dashboard", "guildId", "module", "subpage", ...]
     const breadcrumbSegments = segments.slice(2);
 
-    return (
-        <header className="sticky top-0 z-40 bg-zinc-950/60 backdrop-blur-[32px] backdrop-saturate-[180%] border-b border-white/[0.08] h-16 px-4 md:px-6 flex items-center justify-between gap-4 transition-all duration-500 shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+    const [isArcadeOpen, setIsArcadeOpen] = useState(false);
+    const [roomCount, setRoomCount] = useState(0);
 
-            {/* LEFT: Mobile Trigger & Breadcrumbs */}
+    return (
+        <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border h-14 px-4 lg:px-6 flex items-center justify-between gap-4 transition-colors duration-150">
+
+            {/* LEFT: Mobile Trigger & Clear Readable Breadcrumbs */}
             <div className="flex items-center gap-4 shrink-0">
 
                 {/* Mobile Sidebar Trigger */}
                 <Sheet>
                     <SheetTrigger asChild>
-                        <Button variant="ghost" size="icon" className="md:hidden -ml-2 text-zinc-300 hover:text-white">
+                        <Button variant="ghost" size="icon" className="lg:hidden -ml-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl">
                             <Menu className="h-5 w-5" />
                         </Button>
                     </SheetTrigger>
-                    <SheetContent side="left" className="p-0 w-[280px] border-r border-white/10 bg-zinc-950">
+                    <SheetContent side="left" className="p-0 w-[260px] border-r border-border bg-background shadow-2xl">
+                        <SheetTitle className="sr-only">Menu de Navigation Mobile</SheetTitle>
+                        <SheetDescription className="sr-only">Accédez aux différents modules et outils de votre guilde.</SheetDescription>
                         <AppSidebar {...sidebarProps} />
                     </SheetContent>
                 </Sheet>
 
-                {/* Breadcrumbs */}
-                <nav className="hidden sm:flex items-center text-sm font-black text-zinc-300">
-                    <Link href={`/dashboard/${sidebarProps.guildId}`} className="hover:text-white transition-all hover:scale-110 active:scale-95 flex items-center gap-1">
-                        <Home className="w-4 h-4" />
+                {/* Clear, High-Contrast Breadcrumbs */}
+                <nav className="hidden sm:flex items-center text-xs font-medium text-muted-foreground gap-1.5">
+                    <Link 
+                        href={`/dashboard/${sidebarProps.guildId}`} 
+                        className={cn(
+                            "flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors hover:text-foreground hover:bg-surface",
+                            breadcrumbSegments.length === 0 ? "text-foreground bg-surface" : "text-muted-foreground"
+                        )}
+                    >
+                        <Home className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span>Tableau de bord</span>
                     </Link>
 
                     {breadcrumbSegments.map((segment, index) => {
@@ -78,13 +139,15 @@ export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavPr
                         const isLast = index === breadcrumbSegments.length - 1;
 
                         return (
-                            <div key={href} className="flex items-center">
-                                <ChevronRight className="h-4 w-4 mx-1 text-zinc-600" />
+                            <div key={href} className="flex items-center gap-1.5">
+                                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                                 <Link
                                     href={href}
                                     className={cn(
-                                        "transition-colors truncate max-w-[120px] lg:max-w-[200px]",
-                                        isLast ? "text-zinc-100 font-semibold" : "hover:text-zinc-300"
+                                        "px-2 py-1 rounded-md transition-colors truncate max-w-[120px] lg:max-w-[200px]",
+                                        isLast 
+                                            ? "text-foreground bg-surface border border-border" 
+                                            : "text-muted-foreground hover:text-foreground hover:bg-surface font-medium"
                                     )}
                                 >
                                     {formatSegment(segment)}
@@ -95,99 +158,182 @@ export function TopNav({ sidebarProps, children, userId, events = [] }: TopNavPr
                 </nav>
             </div>
 
-            {/* CENTER: Event Ticker */}
-            <div className="flex-1 flex justify-center px-2 min-w-0 overflow-hidden">
-                <div className="w-full max-w-2xl flex justify-center">
-                    <EventTicker events={events} guildId={sidebarProps.guildId} canViewCalendar={sidebarProps.user.canViewCalendar} />
-                </div>
-            </div>
+            {/* CENTER: intentionally empty — calme par défaut (direction 2026 §9.2) */}
+            <div className="flex-1 min-w-0" />
 
-            {/* RIGHT: Super Island (Integrated Command Center) */}
-            <div className="flex items-center border border-white/10 rounded-xl bg-zinc-950/20 backdrop-blur-md relative overflow-hidden group/island shrink-0 shadow-lg">
-                {/* 1. Smart Bar (Time/Members/Almanax) */}
-                <div className="relative z-10 border-r border-white/10 px-1">
-                    <SmartBar
-                        almanax={children}
-                        memberCount={sidebarProps.guildData?.memberCount}
-                        onlineCount={sidebarProps.guildData?.activeCount}
-                    />
+            {/* RIGHT: Command Center (pilulier live + event, cloches, profil) */}
+            <div className="flex items-center gap-2">
+                {/* Live stream badge (déplacé hors du centre) */}
+                <div className="hidden md:flex items-center shrink-0">
+                    <LiveStreamBadge guildId={sidebarProps.guildId} />
                 </div>
 
-                {/* 1.5. Changelog */}
-                <div className="relative z-10 border-r border-white/10 flex">
-                    <Link
-                        href="/changelog"
-                        className="flex items-center gap-2 px-4 py-2 hover:bg-white/[0.05] transition-all group/changelog active:scale-95"
-                        title="Notes de Mise à Jour"
-                    >
-                        <ScrollText className="w-4 h-4 text-zinc-400 group-hover/changelog:text-amber-400 transition-colors" />
-                    </Link>
-                </div>
-
-                {/* 2. Context-Aware Help (Docs) */}
-                <div className="relative z-10 border-r border-white/10 flex">
-                    <Link
-                        href="/docs"
-                        target="_blank"
-                        className="flex items-center gap-2 px-4 py-2 hover:bg-white/[0.05] transition-all group/docs active:scale-95"
-                        title="Documentation Utilisateur"
-                    >
-                        <CircleHelp className="w-4 h-4 text-zinc-400 group-hover/docs:text-indigo-400 transition-colors" />
-                        <span className="text-[10px] font-black uppercase tracking-widest hidden lg:inline-block text-zinc-300">Docs</span>
-                    </Link>
-                </div>
-
-                {/* 3. Notification Bell */}
-                <div className="relative z-10 border-r border-white/10">
-                    <NotificationBell
-                        userId={userId}
+                {/* Events chip — OUTSIDE overflow-hidden pill so popover is not clipped */}
+                {eventsPromise ? (
+                    <Suspense fallback={null}>
+                        <DeferredEventChip
+                            eventsPromise={eventsPromise}
+                            guildId={sidebarProps.guildId}
+                            canViewCalendar={sidebarProps.user.canViewCalendar}
+                        />
+                    </Suspense>
+                ) : (
+                    <HeaderEventChip
+                        events={events}
                         guildId={sidebarProps.guildId}
-                        className="h-10 w-10 bg-transparent hover:bg-white/[0.05] text-zinc-400 hover:text-white rounded-none transition-all duration-300"
+                        canViewCalendar={sidebarProps.user.canViewCalendar}
                     />
+                )}
+
+                <div className="flex items-center h-9 border border-border rounded-xl bg-muted/50 dark:bg-foreground/[0.03] backdrop-blur-xl shrink-0 overflow-hidden">
+                    {/* 1. Smart Bar (Hidden on Mobile) */}
+                    <div className="hidden sm:block border-r border-border">
+                        <SmartBar
+                            memberCount={sidebarProps.guildData?.memberCount}
+                            onlineCount={sidebarProps.guildData?.activeCount}
+                            canSearch={sidebarProps.user?.canViewRoster}
+                        />
+                    </div>
+
+                    {/* Interactive Tools */}
+                    <div className="flex items-center px-1">
+                        {roadmapEnabled && (
+                            <Link href="/roadmap" className="p-2.5 text-muted-foreground hover:text-success transition-colors" title="Roadmap">
+                                <Rocket className="w-4 h-4" />
+                            </Link>
+                        )}
+
+                        {sidebarProps.user.isAdmin && (
+                            <Link href={`/dashboard/${sidebarProps.guildId}/admin/permissions`} className="p-2.5 text-muted-foreground hover:text-success transition-colors" title="RBAC / Permissions">
+                                <Shield className="w-4 h-4" />
+                            </Link>
+                        )}
+                        <div className="w-px h-4 bg-border/40 mx-1" />
+                        <FeedBell
+                            guildId={sidebarProps.guildId}
+                            className="h-9 w-9 bg-transparent hover:bg-foreground/5 text-muted-foreground hover:text-foreground rounded-xl transition-all"
+                        />
+                        <NotificationBell
+                            userId={userId}
+                            guildId={sidebarProps.guildId}
+                            className="h-9 w-9 bg-transparent hover:bg-foreground/5 text-muted-foreground hover:text-foreground rounded-xl transition-all"
+                        />
+                    </div>
+
+                    {/* 3. Arcade (Live Games) */}
+                    {roomCount > 0 && (
+                        <div className="border-l border-border/40 flex items-center">
+                            <Button
+                                variant="ghost"
+                                onClick={() => setIsArcadeOpen(!isArcadeOpen)}
+                                className={cn(
+                                    "h-10 px-4 bg-success/5 hover:bg-success/10 text-success rounded-none transition-all flex items-center gap-2",
+                                    isArcadeOpen && "bg-success/20"
+                                )}
+                            >
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
+                                </span>
+                                <span className="text-caption font-semibold uppercase tracking-tighter hidden xl:inline">Live</span>
+                                <span className="bg-success text-success-foreground text-caption font-semibold px-1.5 py-0.5 rounded-md">
+                                    {roomCount}
+                                </span>
+                            </Button>
+                            <GamesLiveWidget 
+                                isOpen={isArcadeOpen} 
+                                onOpenChange={setIsArcadeOpen} 
+                                onRoomCountChange={setRoomCount}
+                                guildId={sidebarProps.guildId}
+                            />
+                        </div>
+                    )}
                 </div>
 
-                {/* 4. User Profile (High Visibility) */}
-                <div className="relative z-10">
+                {/* Guild Chat Trigger */}
+                {((sidebarProps as any).modules?.chat) && (
+                    <button 
+                        onClick={() => window.dispatchEvent(new CustomEvent("sigilos:open-chat"))}
+                        className="h-9 px-3 flex items-center justify-center gap-2 text-success text-success bg-success/10 hover:bg-success/20 border border-success/20 rounded-xl transition-colors group relative mr-2 ring-1 ring-success/10 hover:ring-success/30"
+                        title="Chat de Guilde"
+                    >
+                        <MessageSquare className="w-4 h-4  transition-transform" />
+                        <span className="text-caption font-semibold uppercase tracking-wider hidden sm:inline">Chat Live</span>
+                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-success rounded-full animate-pulse border-[2px] border-background" />
+                    </button>
+                )}
+
+                {/* #16/V2 — Bascule clair / sombre (désactivée si kill-switch God actif) */}
+                <ThemeToggle />
+
+                {/* 4. User Profile (Standalone Dropdown) */}
+                <div className="flex items-center ml-2">
                     {sidebarProps.user.canViewProfile ? (
-                        <Link
-                            href={`/dashboard/${sidebarProps.guildId}/profile`}
-                            className="flex items-center gap-3 pr-5 pl-3 py-1.5 hover:bg-white/[0.05] transition-all group/profile active:scale-95"
-                        >
-                            <div className="relative">
-                                <Avatar className="h-8 w-8 border border-white/10 group-hover/profile:border-indigo-500/50 transition-all duration-300">
-                                    <AvatarImage src={sidebarProps.user.image} />
-                                    <AvatarFallback className="text-[10px] bg-indigo-500/20 text-indigo-300 font-bold">
-                                        {sidebarProps.user.name?.slice(0, 2).toUpperCase() || "??"}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-[#09090b] rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                            </div>
-                            <div className="flex flex-col items-start leading-none hidden xl:flex">
-                                <span className="text-[12px] font-black text-zinc-200 group-hover/profile:text-white transition-colors tracking-tight">
-                                    {sidebarProps.user.name}
-                                </span>
-                            </div>
-                        </Link>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button
+                                    className="flex items-center gap-3 px-2 py-1 rounded-xl hover:bg-surface transition-colors outline-none"
+                                >
+                                    <div className="flex flex-col items-end leading-tight hidden lg:flex">
+                                        <span className="text-xs font-bold text-foreground group-hover:text-foreground transition-colors">
+                                            {sidebarProps.user.name}
+                                        </span>
+                                        <span className="text-caption text-muted-foreground font-medium">
+                                            {sidebarProps.user.roleName || "Membre"}
+                                        </span>
+                                    </div>
+                                    <Avatar className="h-8 w-8 border border-border rounded-lg shrink-0">
+                                        <DiscordAvatarImage src={sidebarProps.user.image || undefined} />
+                                        <AvatarFallback className="text-xs font-bold bg-elevated text-foreground">
+                                            {sidebarProps.user.name?.slice(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent 
+                                className="w-52 bg-background border border-border shadow-2xl rounded-xl p-1 backdrop-blur-xl animate-in fade-in duration-150" 
+                                align="end" 
+                                sideOffset={8}
+                            >
+                                <DropdownMenuLabel className="px-3 py-2 text-caption font-bold text-muted-foreground uppercase tracking-wider">
+                                    Mon Compte
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator className="bg-surface" />
+                                <DropdownMenuItem asChild className="focus:bg-surface focus:text-foreground data-[highlighted]:bg-surface data-[highlighted]:text-foreground cursor-pointer rounded-lg px-3 py-2.5 transition-colors">
+                                    <Link href={`/dashboard/${sidebarProps.guildId}/profile`} className="flex items-center gap-2.5 text-xs font-medium text-foreground hover:text-foreground">
+                                        <Users className="w-4 h-4 text-muted-foreground" />
+                                        <span>Mon Profil</span>
+                                    </Link>
+                                </DropdownMenuItem>
+                                
+                                <DropdownMenuItem asChild className="focus:bg-surface focus:text-foreground data-[highlighted]:bg-surface data-[highlighted]:text-foreground cursor-pointer rounded-lg px-3 py-2.5 transition-colors">
+                                    <Link href={`/dashboard/${sidebarProps.guildId}/profile?tab=settings`} className="flex items-center gap-2.5 text-xs font-medium text-foreground hover:text-foreground">
+                                        <Settings className="w-4 h-4 text-muted-foreground" />
+                                        <span>Réglages</span>
+                                    </Link>
+                                </DropdownMenuItem>
+                                
+                                <DropdownMenuSeparator className="bg-surface" />
+                                
+                                <DropdownMenuItem 
+                                    onClick={() => signOut()} 
+                                    className="text-danger focus:text-danger focus:bg-danger/10 cursor-pointer rounded-lg px-3 py-2.5 transition-colors flex items-center gap-2.5 text-xs font-medium"
+                                >
+                                    <LogOut className="w-4 h-4" />
+                                    <span>Déconnexion</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     ) : (
-                        <div className="flex items-center gap-3 pr-5 pl-3 py-1.5">
-                            <div className="relative">
-                                <Avatar className="h-8 w-8 border border-white/10 opacity-80">
-                                    <AvatarImage src={sidebarProps.user.image} />
-                                    <AvatarFallback className="text-[10px] bg-zinc-800 text-zinc-400 font-bold">
-                                        {sidebarProps.user.name?.slice(0, 2).toUpperCase() || "??"}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-zinc-700 border-2 border-[#09090b] rounded-full" />
-                            </div>
-                            <div className="flex flex-col items-start leading-none hidden xl:flex">
-                                <span className="text-[12px] font-black text-zinc-500 tracking-tight">
-                                    {sidebarProps.user.name}
-                                </span>
-                            </div>
+                        <div className="h-9 w-9 rounded-xl bg-muted border border-border/40 flex items-center justify-center opacity-40">
+                             <Avatar className="h-7 w-7 opacity-50 grayscale">
+                                <DiscordAvatarImage src={sidebarProps.user.image || undefined} />
+                                <AvatarFallback>?</AvatarFallback>
+                            </Avatar>
                         </div>
                     )}
                 </div>
             </div>
-        </header >
+        </header>
     );
 }

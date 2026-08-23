@@ -60,18 +60,18 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'npm'
-          
+
       - name: Next.js Cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6.1.0
         with:
           path: |
             ~/.npm
@@ -79,16 +79,25 @@ jobs:
           key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/*.[jt]s', '**/*.[jt]sx') }}
           restore-keys: |
             ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
-          fetch-depth: 1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
 
       - name: Install Dependencies
         run: npm ci
+
+      - name: 🔒 Lockfile Integrity Check
+        run: |
+          # Verify lockfile wasn't tampered — npm ci should not modify it
+          if [ -n "$(git diff --name-only package-lock.json)" ]; then
+            echo "::error::package-lock.json was modified by npm ci — possible supply chain tampering!"
+            git diff package-lock.json
+            exit 1
+          fi
+          echo "✅ Lockfile integrity verified"
+
+      - name: 🪱 Shai-Hulud IOC Scan
+        # Détecte les implants du ver Shai-Hulud (keyv/cacheable, 2026-08) :
+        # Math_Symbol.js / math_init.js, hook preinstall "node setup.mjs" + signature execFileSync/bun.
+        # Logique 3 niveaux (combinaison de signatures) → zéro faux positif sur notre install saine.
+        run: bash scripts/check-ioc-shai-hulud.sh
 
       - name: 💎 Generate Prisma Client
         run: npx prisma generate
@@ -96,7 +105,24 @@ jobs:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/unused"
 
       - name: 🛡️ Security Audit
-        run: npm audit --audit-level=critical
+        run: npm audit --audit-level=high
+
+      - name: 🔬 SAST Scan (Semgrep)
+        uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1
+        with:
+          config: p/security-audit
+        env:
+          SEMGREP_RULES: p/security-audit
+
+      - name: 🐋 Dockerfile Config Scan (Trivy)
+        # F-22: pinned to a real tagged release (v0.36.0 exists) — @master could execute compromised code
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: 'config'
+          hide-progress: true
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+          format: 'table'
 
       - name: 🧹 Lint Check
         run: npm run lint
@@ -107,12 +133,18 @@ jobs:
       - name: 🚀 Run Tests
         run: npm run test:run
 
-      # Build only on PRs and protected branches (not every push)
+      # Build ONLY on pull_request (economy + coverage).
+      # - Sur push main/dev : le build de prod est DEJA garanti par deploy.yml
+      #   (docker buildx -> npm run build dans le Dockerfile l.41-46). Le refaire
+      #   ici = double build inutile (2x minutes Actions gratuites).
+      # - Sur PR : on garde la garantie "le build passe avant merge".
+      # SECURITY FIX (F-18): jamais d'AUTH_SECRET sur un runner pull_request —
+      # un PR malveillant pourrait l'exfiltrer via la sortie du build.
+      # Pre-requis valide : `npm run build` passe SANS AUTH_SECRET (testé 2026-08-05).
       - name: 🏗️ Production Build
-        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+        if: github.event_name == 'pull_request'
         run: npm run build
         env:
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           NEXT_PUBLIC_APP_URL: "http://localhost:3000"
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/unused"
 
@@ -125,19 +157,22 @@ jobs:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
     steps:
       - name: Checkout (full history for Gitleaks)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: 🔐 Secret Scanning (Gitleaks)
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'npm'
@@ -145,5 +180,40 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: 🔒 Lockfile Integrity Check
+        run: |
+          if [ -n "$(git diff --name-only package-lock.json)" ]; then
+            echo "::error::package-lock.json was modified by npm ci — possible supply chain tampering!"
+            git diff package-lock.json
+            exit 1
+          fi
+          echo "✅ Lockfile integrity verified"
+
+      - name: 🪱 Shai-Hulud IOC Scan (weekly deep)
+        # Idem job verify — scan complet des IOCs Shai-Hulud à chaque scan hebdo.
+        run: bash scripts/check-ioc-shai-hulud.sh
+
       - name: 🛡️ Full Security Audit
         run: npm audit --audit-level=high
+
+      - name: � Deep SAST Scan (Semgrep)
+        uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1
+        with:
+          config: >-
+            p/security-audit
+            p/secrets
+            p/owasp-top-ten
+        env:
+          SEMGREP_RULES: "p/security-audit p/secrets p/owasp-top-ten"
+
+      - name: �🛡️ Full Filesystem CVE Scan (Trivy)
+        # F-22: pinned to a real tagged release (v0.36.0 exists) — @master could execute compromised code
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          hide-progress: true
+          format: 'table'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          exit-code: '0' # Don't fail the weekly scan, just report
+          ignore-unfixed: true

@@ -1,7 +1,7 @@
 // prisma.config.js
 try {
     require('dotenv').config();
-} catch (e) {
+} catch (_e) {
     // Ignore, env vars are likely provided by Docker/Environment
 }
 
@@ -31,5 +31,6 @@ module.exports = {
     schema: "prisma/schema.prisma",
     datasource: {
         url,
+        shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL,
     },
 };

@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext } from "@/server/actions/user-actions";
@@ -54,6 +55,42 @@ interface CommunityStats {
     bonusByType: { type: string; count: number }[];
 }
 
+interface SocialStats {
+    totalMessages: number;
+    totalVoiceMinutes: number;
+    topTalkers: LeaderboardEntry[];
+    topVocal: LeaderboardEntry[];
+}
+
+interface QuestStats {
+    ownership: { slug: string; name: string; count: number; total: number }[];
+    topProgressors: LeaderboardEntry[];
+    bottlenecks: { questName: string; count: number }[];
+    guildCompletionRate: number;
+    recentDofus: { name: string; username: string; obtainedAt: Date }[];
+}
+
+interface MiniGameGlobalStats {
+    totalGamesPlayed: number;
+    totalPointsRanked: number;
+    records: {
+        bomb: { name: string; score: number };
+        geoguesser: { name: string; score: number };
+    };
+}
+
+interface AdminPerformance {
+    avgValidationHours: number;
+    totalValidations: number;
+    topValidatorsMonth: LeaderboardEntry[];
+}
+
+interface RetentionStats {
+    growth: { month: string; joins: number; leaves: number }[];
+    totalJoins: number;
+    avgTenureDays: number;
+}
+
 interface GuildRecord {
     label: string;
     value: string;
@@ -80,7 +117,9 @@ export interface GuildStats {
     // KPI
     activeMembers: number;
     totalXp: number;
-    totalGuildatons: number;
+    totalGuildatons: number; // Current balance
+    totalGuildatonsEarned: number; // Sum of rewards
+    totalKamasCollected: number; // Sum of kama donations
     totalMissionsValidated: number;
     validationRate: number;
     totalSongesCompleted: number;
@@ -91,12 +130,19 @@ export interface GuildStats {
     weeklyActivity: WeeklyActivity[];
     missionsByCategory: CategoryBreakdown[];
     topValidators: LeaderboardEntry[];
+    topDonors: LeaderboardEntry[];
+    topAchievers: LeaderboardEntry[];
 
     // Sections
     songes: SongesStats;
     events: EventsStats;
     community: CommunityStats;
     services: ServicesStats;
+    social: SocialStats;
+    miniGames: MiniGameGlobalStats;
+    performance: AdminPerformance;
+    retention: RetentionStats;
+    quests: QuestStats;
     records: GuildRecord[];
 }
 
@@ -104,11 +150,25 @@ export interface GuildStats {
 // MAIN ACTION
 // ============================================
 
+import { redis } from "@/lib/redis";
+
 export async function getGuildStats(guildId: string): Promise<{
     success: boolean;
     error?: string;
     stats?: GuildStats;
 }> {
+    const cacheKey = `guild:stats:${guildId}`;
+
+    // 1. Check Redis Cache (60s TTL)
+    try {
+        const cached = await redis.get(cacheKey).catch(() => null);
+        if (cached) {
+            return { success: true, stats: JSON.parse(cached) as GuildStats };
+        }
+    } catch (e) {
+        logger.error("[Stats] Redis error:", e);
+    }
+
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated || !ctx.isMember) {
         return { success: false, error: "Non autorisé" };
@@ -116,14 +176,18 @@ export async function getGuildStats(guildId: string): Promise<{
 
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
-        select: { id: true },
+        select: { id: true, missionVitrineMode: true },
     });
     if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
+    const vitrineMode = guildConfig.missionVitrineMode || false;
     const internalGuildId = guildConfig.id;
 
     try {
-        // ===== PARALLEL QUERIES =====
+        // ===== BATCHED PARALLEL QUERIES =====
+        // Split into 3 primary batches to avoid exhausting the DB connection pool.
+
+        // --- BATCH 1: Core KPIs & Member data ---
         const [
             activeMembers,
             xpAgg,
@@ -131,26 +195,9 @@ export async function getGuildStats(guildId: string): Promise<{
             totalSubmissions,
             validatedSubmissions,
             entraideAgg,
-            missionCategories,
             songesAll,
             songesFloorAvg,
-            candidatures,
-            allEvents,
-            eventParticipants,
-            helpCredits,
-            contributionAgg,
-            ocreAccepted,
-            pollsCreated,
-            pollVoters,
-            bonuses,
-            topXpMember,
-            oldestMember,
-            loansByStatus,
-            loansByLender,
-            vaultDeposits,
-            vaultWithdrawals,
-            vaultByProfile,
-            vaultTopItem,
+            candidaturesByStatus,
         ] = await Promise.all([
             db.userProfile.count({
                 where: { guildId: internalGuildId, status: "ACTIVE" },
@@ -173,11 +220,6 @@ export async function getGuildStats(guildId: string): Promise<{
                 where: { guildId: internalGuildId },
                 _sum: { points: true },
             }),
-            db.mission.groupBy({
-                by: ["category"],
-                where: { guildId: internalGuildId },
-                _count: true,
-            }),
             db.dreamRun.findMany({
                 where: { guildId },
                 select: { status: true, leaderId: true, currentFloor: true },
@@ -191,6 +233,10 @@ export async function getGuildStats(guildId: string): Promise<{
                 where: { run: { guildId } },
                 _count: true,
             }),
+        ]);
+
+        // --- BATCH 2: Events, Community & Leaderboards ---
+        const resultsBatch2 = await Promise.all([
             db.guildEvent.findMany({
                 where: { guildId: internalGuildId },
                 select: { id: true, type: true, creatorId: true, startDate: true },
@@ -237,7 +283,39 @@ export async function getGuildStats(guildId: string): Promise<{
                 orderBy: { discordJoinedAt: "asc" },
                 select: { discordNickname: true, pseudoDofus: true, discordJoinedAt: true, user: { select: { name: true } } },
             }),
-            // -- Services (loans + vault) --
+            // NEW: Social Stats (Bulk profiles)
+            db.userProfile.findMany({
+                where: { guildId: internalGuildId, status: "ACTIVE" },
+                select: { id: true, discordNickname: true, pseudoDofus: true, discordMessageCountWeekly: true, discordVoiceTimeWeekly: true, user: { select: { name: true } } },
+                orderBy: { discordMessageCountWeekly: "desc" },
+                take: 100, // For aggregation + top talkers
+            }),
+            db.bombScore.count({ where: { guildId } }),
+            db.geoguesserScore.count({ where: { guildId } }),
+        ]);
+
+        const [
+            allEvents,
+            eventParticipants,
+            helpCreditsAgg,
+            contributionAgg,
+            ocreAccepted,
+            pollsCreated,
+            pollVoters,
+            bonusesByStatus,
+            topXpMember,
+            oldestMember,
+        ] = resultsBatch2 as any[];
+
+        const socialProfiles = resultsBatch2[10] as any[];
+        const bombCount = resultsBatch2[11] as number;
+        const geoCount = resultsBatch2[12] as number;
+
+        // --- BATCH 3: Services, Kama & Top Achievers ---
+        // NOTE: missionsWithValidatedSubs replaces the old validatedMissionsWithRewards findMany.
+        // Instead of loading one row per submission (potentially thousands), we load one row
+        // per mission and multiply reward × validated_count. Much more efficient.
+        const resultsBatch3 = await Promise.all([
             db.guildLoan.groupBy({
                 by: ["status"],
                 where: { guildId: internalGuildId },
@@ -266,74 +344,221 @@ export async function getGuildStats(guildId: string): Promise<{
                 orderBy: { _count: { itemName: "desc" } },
                 take: 1,
             }),
+            db.kamaDonation.findMany({
+                where: { guildId: internalGuildId, status: "VALIDATED" },
+                select: { amount: true },
+            }),
+            // One row per mission with count of validated submissions — replaces full submission scan
+            db.mission.findMany({
+                where: { guildId: internalGuildId },
+                select: {
+                    guildatonsReward: true,
+                    _count: { select: { submissions: { where: { status: "VALIDATED" } } } },
+                },
+            }),
+            db.kamaDonation.groupBy({
+                by: ["profileId"],
+                where: { guildId: internalGuildId, status: "VALIDATED" },
+                _sum: { amount: true },
+                orderBy: { _sum: { amount: "desc" } },
+                take: 5,
+            }),
+            db.userProfile.findMany({
+                where: { guildId: internalGuildId, status: "ACTIVE", successPoints: { gt: 0 } },
+                orderBy: { successPoints: "desc" },
+                take: 5,
+                select: { id: true, discordNickname: true, pseudoDofus: true, successPoints: true, user: { select: { name: true } } },
+            }),
+            // NEW: Admin Performance (Validation time)
+            db.submission.findMany({
+                where: { mission: { guildId: internalGuildId }, status: "VALIDATED" },
+                select: { createdAt: true, updatedAt: true },
+                orderBy: { updatedAt: "desc" },
+                take: 100, // Recent average
+            }),
+            // NEW: Retention raw data (Joins last 6 mo)
+            db.userProfile.findMany({
+                where: { guildId: internalGuildId },
+                select: { createdAt: true, archivedAt: true },
+                orderBy: { createdAt: "asc" },
+            }),
+            // NEW: Mini Game Records
+            db.bombRank.findFirst({ where: { guildId }, orderBy: { bestScore: "desc" }, select: { userName: true, bestScore: true } }),
+            db.geoguesserRank.findFirst({ where: { guildId }, orderBy: { bestScore: "desc" }, select: { userName: true, bestScore: true } }),
+            // NEW: Quest Stats Batching
+            db.playerDofusProgress.groupBy({
+                by: ["dofusId"],
+                where: { guildId: internalGuildId, isObtained: true },
+                _count: true,
+            }),
+            db.playerDofusQuestProgress.groupBy({
+                by: ["questId"],
+                where: { guildId: internalGuildId, status: "IN_PROGRESS" },
+                _count: true,
+                orderBy: { _count: { questId: "desc" } },
+                take: 10,
+            }),
+            db.playerDofusProgress.findMany({
+                where: { guildId: internalGuildId, isObtained: true },
+                orderBy: { obtainedAt: "desc" },
+                take: 5,
+                select: {
+                    obtainedAt: true,
+                    dofus: { select: { name: true } },
+                    profile: { select: { discordNickname: true, pseudoDofus: true, user: { select: { name: true } } } }
+                }
+            }),
+            db.playerDofusProgress.groupBy({
+                by: ["profileId"],
+                where: { guildId: internalGuildId },
+                _avg: { completionPercent: true },
+                orderBy: { _avg: { completionPercent: "desc" } },
+                take: 10
+            })
         ]);
 
-        // ===== PROCESS RESULTS =====
+        const [
+            loansByStatus,
+            loansByLender,
+            vaultDeposits,
+            vaultWithdrawals,
+            vaultByProfile,
+            vaultTopItem,
+            validatedKamaDonations,
+            missionsWithValidatedSubs,
+            kamaDonorsAgg,
+            topAchieversProfiles,
+        ] = resultsBatch3 as any[];
 
-        const validationRate = totalSubmissions > 0
-            ? Math.round((validatedSubmissions / totalSubmissions) * 100)
-            : 0;
+        const performanceData = resultsBatch3[10] as { createdAt: Date, updatedAt: Date }[];
+        const retentionData = resultsBatch3[11] as { createdAt: Date, archivedAt: Date | null }[];
+        const recordBomb = resultsBatch3[12] as any;
+        const recordGeo = resultsBatch3[13] as any;
 
-        const weeklyActivity = await getWeeklyActivity(internalGuildId);
-        const missionsByCategory = await getMissionCategoryStats(internalGuildId, missionCategories);
-        const topValidators = await getTopValidators(internalGuildId);
+        // ===== PRE-PROCESS IN-MEMORY (no DB calls) =====
 
-        // -- Songes --
-        const songesCompleted = songesAll.filter(r => r.status === "COMPLETED").length;
-        const songesFailed = songesAll.filter(r => r.status === "FAILED").length;
-        const songesAbandoned = songesAll.filter(r => r.status === "ABANDONED").length;
+        const { KAMA_TRANCHE, REWARDS_PER_TRANCHE } = await import("@/lib/kama-constants");
+        const totalKamasCollected = validatedKamaDonations.reduce((acc: number, d: any) => acc + d.amount, 0);
+        const guildatonsFromKamas = validatedKamaDonations.reduce(
+            (acc: number, d: any) => acc + (Math.floor(d.amount / KAMA_TRANCHE) * REWARDS_PER_TRANCHE.guildatons),
+            0
+        );
+        // Compute guildatons from missions: reward × count of validated subs per mission
+        const guildatonsFromMissions = missionsWithValidatedSubs.reduce(
+            (acc: number, m: any) => acc + (m.guildatonsReward || 0) * m._count.submissions,
+            0
+        );
+        const totalGuildatonsEarned = guildatonsFromKamas + guildatonsFromMissions;
 
+        const validationRate = totalSubmissions > 0 ? Math.round((validatedSubmissions / totalSubmissions) * 100) : 0;
+
+        // Pre-compute leader/organizer counts (pure JS, instant)
         const leaderCounts: Record<string, number> = {};
-        songesAll.filter(r => r.status === "COMPLETED").forEach(r => {
+        songesAll.filter((r: any) => r.status === "COMPLETED").forEach((r: any) => {
             leaderCounts[r.leaderId] = (leaderCounts[r.leaderId] || 0) + 1;
         });
-        const topLeaders = await resolveLeaderboard(
-            Object.entries(leaderCounts).sort(([, a], [, b]) => b - a).slice(0, 5),
-            internalGuildId,
-            "userId"
-        );
 
-        const candidaturesTotal = candidatures.reduce((acc, c) => acc + c._count, 0);
-        const candidaturesAccepted = candidatures.find(c => c.status === "ACCEPTED")?._count || 0;
-
-        // -- Events --
         const eventsByType: Record<string, number> = {};
         const organizerCounts: Record<string, number> = {};
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         let eventsThisMonth = 0;
-
-        allEvents.forEach(e => {
+        allEvents.forEach((e: any) => {
             eventsByType[e.type] = (eventsByType[e.type] || 0) + 1;
             organizerCounts[e.creatorId] = (organizerCounts[e.creatorId] || 0) + 1;
             if (e.startDate >= startOfMonth) eventsThisMonth++;
         });
 
+        // --- BATCH 4: All leaderboard resolvers + helpers in parallel ---
+        // Previously these were 9 sequential DB calls. Now they run concurrently.
+        const resultsBatch4 = await Promise.all([
+            getWeeklyActivity(internalGuildId),
+            getMissionCategoryStats(internalGuildId),
+            getTopValidators(internalGuildId),
+            resolveLeaderboard(
+                kamaDonorsAgg.map((d: any) => [d.profileId, d._sum.amount || 0] as [string, number]),
+                internalGuildId,
+                "profileId"
+            ),
+            resolveLeaderboard(
+                Object.entries(leaderCounts).sort(([, a], [, b]) => b - a).slice(0, 5),
+                internalGuildId,
+                "userId"
+            ),
+            resolveLeaderboard(
+                Object.entries(organizerCounts).sort(([, a], [, b]) => b - a).slice(0, 5),
+                internalGuildId,
+                "userId"
+            ),
+            resolveLeaderboard(
+                helpCreditsAgg.map((h: any) => [h.toUserId, h._sum.points || 0] as [string, number]),
+                internalGuildId,
+                "userId"
+            ),
+            resolveLeaderboard(
+                loansByLender.map((l: any) => [l.lenderId, l._count] as [string, number]),
+                internalGuildId,
+                "profileId"
+            ),
+            resolveLeaderboard(
+                vaultByProfile.map((v: any) => [v.profileId, v._count] as [string, number]),
+                internalGuildId,
+                "profileId"
+            ),
+            // NEW: Dofus Meta Data Resolvers
+            db.dofusItem.findMany({
+                select: { id: true, slug: true, name: true }
+            }),
+            db.dofusQuestEntry.findMany({
+                where: { id: { in: (resultsBatch3[15] as any[]).map(q => q.questId) } },
+                select: { id: true, name: true }
+            })
+        ]);
+
+        const [
+            weeklyActivity,
+            missionsByCategory,
+            topValidators,
+            topDonors,
+            topSongeLeaders,
+            topOrganizers,
+            topHelpers,
+            topLenders,
+            topVaultContributors,
+            dofusTemplates,
+            questTemplates
+        ] = resultsBatch4 as any[];
+
+        // Destructure NEW parameters from BATCH 1 & 2
+        // Batch 1 extra results index: BATCH1 [9..12]
+        // Actually, let's re-access Batch results by index carefully.
+        // ===== PROCESS REMAINING RESULTS =====
+
+        const songesCompleted = songesAll.filter((r: any) => r.status === "COMPLETED").length;
+        const songesFailed = songesAll.filter((r: any) => r.status === "FAILED").length;
+        const songesAbandoned = songesAll.filter((r: any) => r.status === "ABANDONED").length;
+
+        const candidaturesTotal = candidaturesByStatus.reduce((acc: number, c: any) => acc + c._count, 0);
+        const candidaturesAccepted = candidaturesByStatus.find((c: any) => c.status === "ACCEPTED")?._count || 0;
+
         const avgParticipation = eventParticipants.length > 0
-            ? Math.round(eventParticipants.reduce((acc, p) => acc + p._count, 0) / eventParticipants.length)
+            ? Math.round(eventParticipants.reduce((acc: number, p: any) => acc + p._count, 0) / eventParticipants.length)
             : 0;
-
-        const topOrganizers = await resolveLeaderboard(
-            Object.entries(organizerCounts).sort(([, a], [, b]) => b - a).slice(0, 5),
-            internalGuildId,
-            "userId"
-        );
-
-        // -- Community --
-        const topHelpers = await resolveLeaderboard(
-            helpCredits.map(h => [h.toUserId, h._sum.points || 0] as [string, number]),
-            internalGuildId,
-            "userId"
-        );
 
         const pollParticipationRate = activeMembers > 0
             ? Math.round((pollVoters.length / activeMembers) * 100)
             : 0;
 
+        const topAchievers = topAchieversProfiles.map((p: any) => ({
+            name: getName(p),
+            value: p.successPoints || 0
+        }));
+
         // -- Records --
         const records: GuildRecord[] = [];
 
-        if (topXpMember) {
+        // Hide "Plus d'XP" record in vitrine mode (showcase)
+        if (topXpMember && !vitrineMode) {
             records.push({
                 label: "Plus d'XP",
                 value: `${getName(topXpMember)} — ${(topXpMember.xp || 0).toLocaleString("fr-FR")} XP`,
@@ -350,98 +575,158 @@ export async function getGuildStats(guildId: string): Promise<{
             });
         }
 
-        const longestRun = songesAll.reduce((max, r) => r.currentFloor > max ? r.currentFloor : max, 0);
+        const longestRun = songesAll.reduce((max: number, r: any) => r.currentFloor > max ? r.currentFloor : max, 0);
         if (longestRun > 0) {
             records.push({ label: "Plus haut étage Songes", value: `Étage ${longestRun}`, icon: "mountain" });
         }
 
         if (weeklyActivity.length > 0) {
-            const best = weeklyActivity.reduce((max, w) => w.submissions > max.submissions ? w : max, weeklyActivity[0]);
+            const best = weeklyActivity.reduce((max: any, w: any) => w.submissions > max.submissions ? w : max, weeklyActivity[0]);
             if (best.submissions > 0) {
                 records.push({ label: "Semaine la plus active", value: `${best.week} — ${best.submissions} soumissions`, icon: "flame" });
             }
         }
 
         // -- Services stats --
-        const loansTotal = loansByStatus.reduce((acc, s) => acc + s._count, 0);
-        const loansActive = loansByStatus.find(s => s.status === "ACTIVE")?._count ?? 0
-            + (loansByStatus.find(s => s.status === "PARTIAL")?._count ?? 0);
-        const loansReturned = loansByStatus.find(s => s.status === "RETURNED")?._count ?? 0;
-        const loansCancelled = loansByStatus.find(s => s.status === "CANCELLED")?._count ?? 0;
+        const loansTotal = loansByStatus.reduce((acc: number, s: any) => acc + s._count, 0);
+        const loansActive = loansByStatus.filter((s: any) => s.status === "ACTIVE" || s.status === "PARTIAL").reduce((acc: number, s: any) => acc + s._count, 0);
+        const loansReturned = loansByStatus.find((s: any) => s.status === "RETURNED")?._count ?? 0;
+        const loansCancelled = loansByStatus.find((s: any) => s.status === "CANCELLED")?._count ?? 0;
 
-        const topLenders = await resolveLeaderboard(
-            loansByLender.map(l => [l.lenderId, l._count] as [string, number]),
-            internalGuildId,
-            "profileId"
-        );
+        const stats: GuildStats = {
+            activeMembers,
+            totalXp: xpAgg._sum.xp || 0,
+            totalGuildatons: guildatonsAgg._sum.guildatons || 0,
+            totalGuildatonsEarned,
+            totalKamasCollected,
+            totalMissionsValidated: validatedSubmissions,
+            validationRate,
+            totalSongesCompleted: songesCompleted,
+            totalEvents: allEvents.length,
+            totalEntraidePoints: entraideAgg._sum.points || 0,
+            weeklyActivity,
+            missionsByCategory,
+            topValidators,
+            topDonors,
+            topAchievers,
+            songes: {
+                total: songesAll.length,
+                completed: songesCompleted,
+                failed: songesFailed,
+                abandoned: songesAbandoned,
+                successRate: songesAll.length > 0 ? Math.round((songesCompleted / songesAll.length) * 100) : 0,
+                avgFloor: Math.round(songesFloorAvg._avg.currentFloor || 0),
+                topLeaders: topSongeLeaders,
+                totalCandidatures: candidaturesTotal,
+                acceptedCandidatures: candidaturesAccepted,
+            },
+            events: {
+                total: allEvents.length,
+                byType: Object.entries(eventsByType).map(([type, count]) => ({ type, count })),
+                avgParticipation,
+                topOrganizers,
+                thisMonth: eventsThisMonth,
+            },
+            community: {
+                topHelpers,
+                totalContributionPoints: contributionAgg._sum.contributionPoints || 0,
+                ocreTradesAccepted: ocreAccepted,
+                pollsCreated,
+                pollParticipationRate,
+                bonusesPurchased: bonusesByStatus.reduce((acc: number, b: any) => acc + b._count, 0),
+                bonusByType: bonusesByStatus.map((b: any) => ({ type: b.bonusType, count: b._count })),
+            },
+            services: {
+                loans: {
+                    total: loansTotal,
+                    active: loansActive,
+                    returned: loansReturned,
+                    cancelled: loansCancelled,
+                    topLenders,
+                },
+                vault: {
+                    totalDeposits: vaultDeposits,
+                    totalWithdrawals: vaultWithdrawals,
+                    topContributors: topVaultContributors,
+                    topItem: vaultTopItem[0]?.itemName ?? null,
+                },
+            },
+            social: {
+                totalMessages: socialProfiles.reduce((acc: number, p: any) => acc + (p.discordMessageCountWeekly || 0), 0),
+                totalVoiceMinutes: socialProfiles.reduce((acc: number, p: any) => acc + (p.discordVoiceTimeWeekly || 0), 0),
+                topTalkers: socialProfiles.sort((a: any, b: any) => (b.discordMessageCountWeekly || 0) - (a.discordMessageCountWeekly || 0)).slice(0, 5).map((p: any) => ({
+                    name: getName(p),
+                    value: p.discordMessageCountWeekly || 0
+                })),
+                topVocal: socialProfiles.sort((a: any, b: any) => (b.discordVoiceTimeWeekly || 0) - (a.discordVoiceTimeWeekly || 0)).slice(0, 5).map((p: any) => ({
+                    name: getName(p),
+                    value: p.discordVoiceTimeWeekly || 0 // Keep raw minutes
+                })),
+            },
+            miniGames: {
+                totalGamesPlayed: bombCount + geoCount,
+                totalPointsRanked: 0, // Simplified for now
+                records: {
+                    bomb: { name: recordBomb?.userName || "N/A", score: recordBomb?.bestScore || 0 },
+                    geoguesser: { name: recordGeo?.userName || "N/A", score: recordGeo?.bestScore || 0 },
+                }
+            },
+            performance: {
+                avgValidationHours: performanceData.length > 0
+                    ? Math.round((performanceData.reduce((acc: number, s: any) => acc + (s.updatedAt.getTime() - s.createdAt.getTime()), 0) / performanceData.length) / (1000 * 60 * 60) * 10) / 10
+                    : 0,
+                totalValidations: validatedSubmissions,
+                topValidatorsMonth: topValidators,
+            },
+            retention: {
+                growth: [], // Calculated below if needed
+                totalJoins: retentionData.length,
+                avgTenureDays: retentionData.length > 0
+                    ? Math.round(
+                        retentionData.reduce((acc: number, r: any) => {
+                            const end = r.archivedAt ? r.archivedAt.getTime() : Date.now();
+                            return acc + (end - r.createdAt.getTime());
+                        }, 0) / retentionData.length / (1000 * 60 * 60 * 24)
+                    )
+                    : 0,
+            },
+            quests: {
+                ownership: dofusTemplates.map((t: any) => ({
+                    slug: t.slug,
+                    name: t.name,
+                    count: (resultsBatch3[14] as any[]).find((o: any) => o.dofusId === t.id)?._count?._all || 0,
+                    total: activeMembers
+                })).sort((a: any, b: any) => b.count - a.count),
+                topProgressors: await resolveLeaderboard(
+                    (resultsBatch3[17] as any[]).map((p: any) => [p.profileId, Math.round(p._avg.completionPercent || 0)] as [string, number]),
+                    internalGuildId,
+                    "profileId"
+                ),
+                bottlenecks: (resultsBatch3[15] as any[]).map((q: any) => ({
+                    questName: questTemplates.find((t: any) => t.id === q.questId)?.name || "Quête inconnue",
+                    count: q._count?._all || q._count
+                })),
+                guildCompletionRate: (resultsBatch3[17] as any[]).length > 0
+                    ? Math.round((resultsBatch3[17] as any[]).reduce((acc: number, p: any) => acc + (p._avg.completionPercent || 0), 0) / (resultsBatch3[17] as any[]).length)
+                    : 0,
+                recentDofus: (resultsBatch3[16] as any[]).map((rd: any) => ({
+                    name: rd.dofus.name,
+                    username: getName(rd.profile),
+                    obtainedAt: rd.obtainedAt
+                }))
+            },
+            records,
+        };
 
-        const topVaultContributors = await resolveLeaderboard(
-            vaultByProfile.map(v => [v.profileId, v._count] as [string, number]),
-            internalGuildId,
-            "profileId"
-        );
+        // Cache for next time (60s)
+        await redis.set(cacheKey, JSON.stringify(stats), "EX", 60).catch(() => {});
 
         return {
             success: true,
-            stats: {
-                activeMembers,
-                totalXp: xpAgg._sum.xp || 0,
-                totalGuildatons: guildatonsAgg._sum.guildatons || 0,
-                totalMissionsValidated: validatedSubmissions,
-                validationRate,
-                totalSongesCompleted: songesCompleted,
-                totalEvents: allEvents.length,
-                totalEntraidePoints: entraideAgg._sum.points || 0,
-                weeklyActivity,
-                missionsByCategory,
-                topValidators,
-                songes: {
-                    total: songesAll.length,
-                    completed: songesCompleted,
-                    failed: songesFailed,
-                    abandoned: songesAbandoned,
-                    successRate: songesAll.length > 0 ? Math.round((songesCompleted / songesAll.length) * 100) : 0,
-                    avgFloor: Math.round(songesFloorAvg._avg.currentFloor || 0),
-                    topLeaders,
-                    totalCandidatures: candidaturesTotal,
-                    acceptedCandidatures: candidaturesAccepted,
-                },
-                events: {
-                    total: allEvents.length,
-                    byType: Object.entries(eventsByType).map(([type, count]) => ({ type, count })),
-                    avgParticipation,
-                    topOrganizers,
-                    thisMonth: eventsThisMonth,
-                },
-                community: {
-                    topHelpers,
-                    totalContributionPoints: contributionAgg._sum.contributionPoints || 0,
-                    ocreTradesAccepted: ocreAccepted,
-                    pollsCreated,
-                    pollParticipationRate,
-                    bonusesPurchased: bonuses.reduce((acc, b) => acc + b._count, 0),
-                    bonusByType: bonuses.map(b => ({ type: b.bonusType, count: b._count })),
-                },
-                services: {
-                    loans: {
-                        total: loansTotal,
-                        active: loansActive,
-                        returned: loansReturned,
-                        cancelled: loansCancelled,
-                        topLenders,
-                    },
-                    vault: {
-                        totalDeposits: vaultDeposits,
-                        totalWithdrawals: vaultWithdrawals,
-                        topContributors: topVaultContributors,
-                        topItem: vaultTopItem[0]?.itemName ?? null,
-                    },
-                },
-                records,
-            },
+            stats
         };
     } catch (error) {
-        console.error("[getGuildStats] Error:", error);
+        logger.error("[getGuildStats] Error:", error);
         return { success: false, error: "Erreur lors du chargement des statistiques" };
     }
 }
@@ -459,17 +744,32 @@ async function resolveLeaderboard(
     internalGuildId: string,
     lookupBy: "userId" | "profileId"
 ): Promise<LeaderboardEntry[]> {
-    const result: LeaderboardEntry[] = [];
-    for (const [id, value] of entries) {
-        const profile = await db.userProfile.findFirst({
-            where: lookupBy === "userId"
-                ? { userId: id, guildId: internalGuildId }
-                : { id },
-            select: { discordNickname: true, pseudoDofus: true, user: { select: { name: true } } },
-        });
-        result.push({ name: getName(profile || {}), value });
-    }
-    return result;
+    if (entries.length === 0) return [];
+
+    const ids = entries.map(([id]) => id);
+    const profiles = await db.userProfile.findMany({
+        where: lookupBy === "userId"
+            ? { userId: { in: ids }, guildId: internalGuildId }
+            : { id: { in: ids } },
+        select: {
+            id: true,
+            userId: true,
+            discordNickname: true,
+            pseudoDofus: true,
+            user: { select: { name: true } }
+        },
+    });
+
+    const profileMap = new Map();
+    profiles.forEach(p => {
+        const key = lookupBy === "userId" ? p.userId : p.id;
+        profileMap.set(key, p);
+    });
+
+    return entries.map(([id, value]) => {
+        const profile = profileMap.get(id);
+        return { name: getName(profile || {}), value };
+    });
 }
 
 async function getWeeklyActivity(internalGuildId: string): Promise<WeeklyActivity[]> {
@@ -503,21 +803,29 @@ async function getWeeklyActivity(internalGuildId: string): Promise<WeeklyActivit
     return Object.entries(weeks).map(([week, data]) => ({ week, ...data }));
 }
 
-async function getMissionCategoryStats(
-    internalGuildId: string,
-    categories: { category: string; _count: number }[]
-): Promise<CategoryBreakdown[]> {
-    const result: CategoryBreakdown[] = [];
-    for (const cat of categories) {
-        const validated = await db.submission.count({
-            where: {
-                mission: { guildId: internalGuildId, category: cat.category as any },
-                status: "VALIDATED",
-            },
-        });
-        result.push({ category: cat.category, count: cat._count, validated });
-    }
-    return result;
+// Rewritten: one query per mission (not per submission).
+// Loads missions with their validated submission count — O(missions) instead of O(submissions).
+async function getMissionCategoryStats(internalGuildId: string): Promise<CategoryBreakdown[]> {
+    const missions = await db.mission.findMany({
+        where: { guildId: internalGuildId },
+        select: {
+            category: true,
+            _count: { select: { submissions: { where: { status: "VALIDATED" } } } },
+        },
+    });
+
+    const categoryMap: Record<string, { total: number; validated: number }> = {};
+    missions.forEach((m: any) => {
+        if (!categoryMap[m.category]) categoryMap[m.category] = { total: 0, validated: 0 };
+        categoryMap[m.category].total++;
+        categoryMap[m.category].validated += m._count.submissions;
+    });
+
+    return Object.entries(categoryMap).map(([category, data]) => ({
+        category,
+        count: data.total,
+        validated: data.validated,
+    }));
 }
 
 async function getTopValidators(internalGuildId: string): Promise<LeaderboardEntry[]> {

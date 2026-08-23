@@ -1,13 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Mock Redis for testing
+// The real rateLimit() pipeline is: multi().set(key,0,"PX",ttl,"NX").incr(key).pttl(key).exec()
+// exec returns an array of [error, value] per command. The code reads:
+//   results[1][1] = count (incr), results[2][1] = ttl (pttl)
 vi.mock("@/lib/redis", () => ({
     redis: {
         status: "ready",
         multi: vi.fn(() => ({
+            set: vi.fn().mockReturnThis(),
             incr: vi.fn().mockReturnThis(),
-            pexpire: vi.fn().mockReturnThis(),
-            exec: vi.fn().mockResolvedValue([["OK", 1], ["OK", 1]]),
+            pttl: vi.fn().mockReturnThis(),
+            exec: vi.fn().mockResolvedValue([
+                [null, 1],      // set (NX) → 1 = key created
+                [null, 1],      // incr → count
+                [null, 60000],  // pttl → remaining ms
+            ]),
         })),
         get: vi.fn().mockResolvedValue(null),
     },

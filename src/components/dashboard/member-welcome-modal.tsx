@@ -42,36 +42,36 @@ export function MemberWelcomeModal({ guildId, guildName, userName, show }: Membe
             icon: User,
             label: "Ton Profil",
             description: "Renseigne ton pseudo Dofus et ta classe pour être identifié dans la guilde.",
-            color: "text-blue-400",
-            bg: "bg-blue-500/10 border-blue-500/20",
+            color: "text-info",
+            bg: "bg-info/10 border-info/20",
         },
         {
             icon: ScrollText,
             label: "Missions",
             description: "Participe aux défis hebdomadaires pour gagner de l'XP et faire grimper la guilde.",
-            color: "text-emerald-400",
-            bg: "bg-emerald-500/10 border-emerald-500/20",
+            color: "text-success",
+            bg: "bg-success/10 border-success/20",
         },
         {
             icon: InfinityIcon,
             label: "Songes Infinis",
             description: "Forme des équipes et progresse ensemble dans les Songes Infinis.",
-            color: "text-purple-400",
-            bg: "bg-purple-500/10 border-purple-500/20",
+            color: "text-info",
+            bg: "bg-info/10 border-info/20",
         },
         {
             icon: Trophy,
             label: "Ladder XP",
             description: "Chaque action rapporte de l'XP. Grimpe le classement et montre ta contribution !",
-            color: "text-amber-400",
-            bg: "bg-amber-500/10 border-amber-500/20",
+            color: "text-warning",
+            bg: "bg-warning/10 border-warning/20",
         },
     ];
 
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
+                <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
                     {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}
@@ -87,36 +87,29 @@ export function MemberWelcomeModal({ guildId, guildName, userName, show }: Membe
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
                         transition={{ type: "spring", damping: 20, stiffness: 300 }}
-                        className="relative w-full max-w-xl glass-premium rounded-3xl border border-white/10 overflow-hidden shadow-[0_0_60px_rgba(20,184,166,0.15)]"
+                        className="relative w-full max-w-xl bg-surface rounded-3xl border border-border overflow-hidden "
                     >
-                        {/* Decorative background glows */}
-                        <div className="absolute -top-24 -left-24 w-64 h-64 bg-teal-500/10 rounded-full blur-[100px]" />
-                        <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-purple-500/8 rounded-full blur-[100px]" />
-
                         <div className="relative z-10 p-8 md:p-12 flex flex-col items-center text-center space-y-8">
                             {/* Close Button */}
                             <button
                                 onClick={handleClose}
-                                className="absolute top-5 right-5 p-2 rounded-full bg-white/5 border border-white/10 text-zinc-500 hover:text-white hover:bg-white/10 transition-all"
+                                className="absolute top-5 right-5 p-2 rounded-full bg-surface border border-border text-muted-foreground hover:text-foreground hover:bg-surface transition-all"
                             >
                                 <X className="w-4 h-4" />
                             </button>
 
                             {/* Icon Header */}
-                            <div className="relative">
-                                <div className="absolute inset-0 bg-teal-500 blur-2xl opacity-20 animate-pulse" />
-                                <div className="relative w-20 h-20 rounded-[2rem] bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center shadow-2xl">
-                                    <Compass className="w-10 h-10 text-white" />
-                                </div>
+                            <div className="relative w-20 h-20 rounded-[2rem] bg-success flex items-center justify-center">
+                                <Compass className="w-10 h-10 text-foreground" />
                             </div>
 
                             {/* Text Content */}
                             <div className="space-y-4">
-                                <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight">
-                                    Bienvenue, <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-400">{userName}</span> !
+                                <h2 className="text-3xl md:text-4xl font-black text-foreground tracking-tight">
+                                    Bienvenue, <span className="text-success">{userName}</span> !
                                 </h2>
-                                <p className="text-zinc-400 font-medium max-w-md mx-auto text-base md:text-lg leading-relaxed">
-                                    Tu viens de rejoindre <strong className="text-zinc-200">{guildName}</strong> sur SigilOS.
+                                <p className="text-muted-foreground font-medium max-w-md mx-auto text-base md:text-lg leading-relaxed">
+                                    Tu viens de rejoindre <strong className="text-foreground">{guildName}</strong> sur SigilOS.
                                     Voici les outils à ta disposition :
                                 </p>
                             </div>
@@ -132,23 +125,23 @@ export function MemberWelcomeModal({ guildId, guildName, userName, show }: Membe
                                             <feature.icon className={`w-5 h-5 ${feature.color}`} />
                                         </div>
                                         <div className="space-y-1">
-                                            <span className="text-sm font-black text-white block">{feature.label}</span>
-                                            <span className="text-xs text-zinc-400 font-medium leading-relaxed block">{feature.description}</span>
+                                            <span className="text-sm font-black text-foreground block">{feature.label}</span>
+                                            <span className="text-xs text-muted-foreground font-medium leading-relaxed block">{feature.description}</span>
                                         </div>
                                     </div>
                                 ))}
                             </div>
 
                             {/* Tip */}
-                            <p className="text-sm text-zinc-500 font-medium italic max-w-sm">
-                                💡 Commence par renseigner ton <strong className="text-zinc-300 not-italic">pseudo Dofus</strong> et ta <strong className="text-zinc-300 not-italic">classe</strong> pour que tes coéquipiers te reconnaissent.
+                            <p className="text-sm text-muted-foreground font-medium italic max-w-sm">
+                                💡 Commence par renseigner ton <strong className="text-foreground not-italic">pseudo Dofus</strong> et ta <strong className="text-foreground not-italic">classe</strong> pour que tes coéquipiers te reconnaissent.
                             </p>
 
                             {/* Actions */}
                             <div className="flex flex-col sm:flex-row items-center gap-4 w-full pt-2 max-w-md">
                                 <Button
                                     asChild
-                                    className="w-full h-14 bg-white text-black hover:bg-zinc-200 font-black uppercase tracking-[0.12em] text-sm rounded-2xl group"
+                                    className="w-full h-14 bg-background text-foreground hover:bg-surface font-black uppercase tracking-[0.12em] text-sm rounded-2xl group"
                                 >
                                     <Link href={`/dashboard/${guildId}/profile?edit=identity`} onClick={handleClose}>
                                         Compléter mon profil
@@ -158,7 +151,7 @@ export function MemberWelcomeModal({ guildId, guildName, userName, show }: Membe
                                 <Button
                                     variant="ghost"
                                     onClick={handleClose}
-                                    className="w-full h-14 text-zinc-500 hover:text-white hover:bg-white/5 font-bold text-sm rounded-2xl"
+                                    className="w-full h-14 text-muted-foreground hover:text-foreground hover:bg-surface font-bold text-sm rounded-2xl"
                                 >
                                     Explorer le dashboard
                                 </Button>
@@ -166,7 +159,7 @@ export function MemberWelcomeModal({ guildId, guildName, userName, show }: Membe
                         </div>
 
                         {/* Bottom decorative bar */}
-                        <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-teal-500 via-emerald-500 to-purple-500" />
+                        <div className="absolute bottom-0 left-0 w-full h-1 bg-success" />
                     </motion.div>
                 </div>
             )}

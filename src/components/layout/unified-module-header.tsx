@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { ChevronLeft, LucideIcon } from "lucide-react";
 import Image from "next/image";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ReactNode } from "react";
 
@@ -14,8 +15,10 @@ interface UnifiedModuleHeaderProps {
     backHref?: string;
     backLabel?: string;
     actions?: ReactNode;
+    middleContent?: ReactNode;
     className?: string;
     gradient?: boolean;
+    compact?: boolean;
 }
 
 export function UnifiedModuleHeader({
@@ -25,77 +28,104 @@ export function UnifiedModuleHeader({
     iconColor = "#fff",
     imageSrc,
     backHref,
-    backLabel = "Retour au Dashboard",
+    backLabel = "Dashboard",
     actions,
+    middleContent,
     className,
     gradient = true,
+    compact = false,
 }: UnifiedModuleHeaderProps) {
     return (
-        <div className={cn("relative space-y-4 mb-10", className)}>
-            {/* Back Button */}
+        <div className={cn(
+            "relative animate-in fade-in slide-in-from-top-2 duration-150",
+            compact ? "space-y-1 mb-2" : "space-y-4 mb-8 md:mb-12",
+            className
+        )}>
+            {/* 1. BACK BUTTON & BREADCRUMBS */}
             {backHref && (
-                <Link
-                    href={backHref}
-                    className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-zinc-500 hover:text-white transition-all group"
+                <Button
+                    asChild
+                    variant="ghost"
+                    className="inline-flex h-auto items-center gap-2.5 text-caption font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors group mb-2 p-0 bg-transparent hover:bg-transparent"
                 >
-                    <div className="h-7 w-7 rounded-full border border-white/5 bg-white/5 flex items-center justify-center group-hover:border-white/20 transition-all group-hover:scale-110">
-                        <ChevronLeft className="h-4 w-4" />
-                    </div>
-                    {backLabel}
-                </Link>
+                    <Link href={backHref}>
+                        <div className="h-8 w-8 rounded-xl border border-foreground/5 bg-foreground/[0.03] backdrop-blur-xl flex items-center justify-center group-hover:border-foreground/20 group-hover:bg-foreground/10 transition-colors">
+                            <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+                        </div>
+                        <span className="opacity-70 group-hover:opacity-100 transition-opacity">{backLabel}</span>
+                    </Link>
+                </Button>
             )}
 
-            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-                <div className="space-y-2">
-                    <div className="flex items-center gap-4 md:gap-6">
+            {/* 2. MAIN CONTENT LAYER */}
+            <div className={cn(
+                "flex flex-col lg:flex-row lg:items-center justify-between gap-3 lg:gap-6",
+                !compact && "lg:items-end gap-6 lg:gap-10"
+            )}>
+                <div className={cn("min-w-0 flex-1", compact ? "space-y-1" : "space-y-3")}>
+                    <div className={cn("flex items-center", compact ? "gap-3" : "gap-4 md:gap-7")}>
+                        {/* ICON / IMAGE SECTION */}
                         {imageSrc ? (
-                            <div className="relative h-12 w-12 md:h-14 md:w-14 drop-shadow-[0_0_20px_rgba(168,85,247,0.4)] group-hover:scale-110 transition-transform duration-500">
+                            <div className={cn(
+                                "relative shrink-0",
+                                compact ? "h-8 w-8 md:h-10 md:w-10" : "h-14 w-14 md:h-18 md:w-18"
+                            )}>
                                 <Image
                                     src={imageSrc}
                                     alt={title}
                                     fill
-                                    className="object-contain brightness-110"
-                                    priority
+                                    sizes="(max-width: 768px) 40px, 72px"
+                                    className="object-contain"
                                 />
-                                <div className="absolute -inset-4 bg-purple-500/5 rounded-full blur-2xl -z-10" />
                             </div>
                         ) : Icon ? (
-                            <div className="relative flex items-center justify-center p-3 bg-white/5 rounded-2xl border border-white/5 shadow-xl">
+                            <div className={cn(
+                                "relative shrink-0 flex items-center justify-center bg-foreground/[0.03] backdrop-blur-2xl rounded-xl border border-foreground/5 group transition-colors",
+                                compact ? "h-9 w-9 md:h-10 md:w-10 rounded-xl" : "h-14 w-14 md:h-16 md:w-16 rounded-2xl"
+                            )}>
                                 <Icon
-                                    className="h-8 w-8 transition-all duration-300"
-                                    style={{
-                                        color: iconColor,
-                                        filter: `drop-shadow(0 0 12px ${iconColor}80)`
-                                    }}
-                                    strokeWidth={2}
+                                    className={cn("transition-colors duration-150", compact ? "h-4 w-4 md:h-5 md:w-5" : "h-7 w-7 md:h-8 md:w-8")}
+                                    style={{ color: iconColor }}
+                                    strokeWidth={2.5}
                                 />
+                                <div className="absolute inset-0 bg-foreground/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
                         ) : null}
-                        <h1 className={cn(
-                            "text-3xl md:text-5xl font-black tracking-tighter text-white uppercase leading-none pr-8",
-                            gradient && "bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/80"
-                        )}>
-                            {title}
-                        </h1>
+
+                        {/* TITLE SECTION - Fluid Typography 2026 */}
+                        <div className="min-w-0">
+                            <h1 className={cn(
+                                compact ? "text-lg md:text-xl font-bold tracking-tight py-0" : "text-[clamp(1.75rem,8vw,3.5rem)] font-bold tracking-tight leading-[0.9] py-1",
+                                "uppercase text-foreground"
+                            )}>
+                                {title}
+                            </h1>
+                        </div>
                     </div>
-                    {description && (
-                        <p className="text-zinc-500 text-sm md:text-base font-medium max-w-2xl leading-relaxed opacity-80 pl-1">
+
+                    {description && !compact && (
+                        <p className="text-muted-foreground text-sm md:text-base font-medium max-w-3xl leading-relaxed opacity-70 border-l-2 border-foreground/5 pl-4 ml-1">
                             {description}
                         </p>
                     )}
                 </div>
 
-                {actions && (
-                    <div className="flex items-center gap-3 shrink-0 lg:pb-1">
-                        {actions}
+                {/* MIDDLE CONTENT - Responsive behavior */}
+                {middleContent && (
+                    <div className="flex justify-start lg:justify-center items-center py-1 lg:py-0">
+                        {middleContent}
                     </div>
                 )}
+                
+                {/* ACTIONS - Grouped & Pushed to right on desktop */}
+                <div className="flex flex-wrap items-center gap-3 shrink-0">
+                    {actions}
+                </div>
             </div>
 
-            {/* Premium 2026 Divider */}
-            <div className="relative h-px w-full overflow-hidden">
-                <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-white/20 via-white/10 to-transparent" />
-                <div className="absolute inset-y-0 left-0 w-12 h-[2px] bg-purple-500 blur-[1px] -translate-y-1/2" />
+            {/* 3. PREMIUM DIVIDER - Modern subtle aesthetic */}
+            <div className="relative h-px w-full overflow-hidden mt-2">
+                <div className="absolute inset-y-0 left-0 w-full bg-gradient-to-r from-border/40 via-border/20 to-transparent" />
             </div>
         </div>
     );

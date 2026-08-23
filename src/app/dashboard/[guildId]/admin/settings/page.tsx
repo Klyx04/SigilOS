@@ -3,21 +3,22 @@ import { redirect } from "next/navigation";
 import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import AccessDenied from "@/components/access-denied";
+import { cn } from "@/lib/utils";
+import { db } from "@/lib/prisma";
 import {
     Settings, Bell, Key, Moon, Users, Calendar, Sword, Target, BarChart3,
     HandCoins, ArrowLeft, ChevronRight, Loader2, Save, AlertTriangle, Hash, Megaphone,
-    ShieldAlert, UserCheck, Sparkles, Gem
+    ShieldAlert, UserCheck, Sparkles, Gem, Layout, Palette
 } from "lucide-react";
 import { AbsenceSettingsClient } from "../absence/_components/absence-settings-client";
-import { MetamobSettingsClient } from "../archimonstres/_components/metamob-settings-client";
 import { MetamobUnlocker } from "../archimonstres/_components/metamob-unlocker";
 import { OcreSettingsClient } from "../archimonstres/_components/ocre-settings-client";
 import { SongesSettingsClient } from "../songes/_components/songes-settings-client";
 import { CalendarSettingsClient } from "../calendar/_components/calendar-settings-client";
 import { MissionSettingsClient } from "../_components/mission-settings-client";
-import { OnboardingSettingsClient } from "../_components/onboarding-settings-client";
 import { MemberSyncButton } from "@/components/admin/member-sync-button";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
 import { DofusSettingsClient } from "@/components/admin/dofus-settings-client";
 import { MemberStatsOverview } from "@/components/admin/member-stats-overview";
 import { MemberManagementTable } from "@/components/admin/member-management-table";
@@ -26,9 +27,16 @@ import { PollSettingsClient } from "../_components/poll-settings-client";
 import { DjSettingsClient } from "../_components/dj-settings-client";
 import { LoansSettingsClient } from "../_components/loans-settings-client";
 import { SystemSettingsClient } from "../_components/system-settings-client";
-import { getOnboardingSettings } from "@/server/actions/onboarding-admin-actions";
 import { BonusSettingsClient } from "@/components/admin/bonus-settings-client";
+import { BlacklistSettingsClient } from "../_components/blacklist-settings-client";
+import { RelanceSettingsClient } from "../_components/relance-settings-client";
+import { GallerySettingsClient } from "../_components/gallery-settings-client";
+import { DirectorySettingsClient } from "../_components/directory-settings-client";
+import { ServicesSettingsClient } from "../_components/services-settings-client";
 import Link from "next/link";
+import { Trophy } from "lucide-react";
+import { GuildStorageCard } from "@/components/admin/guild-storage-card";
+import { GuildAppearanceSettingsClient } from "../_components/guild-appearance-settings-client";
 
 // ============================================================================
 // NAV ITEMS
@@ -42,35 +50,54 @@ type SettingsSection = {
     accent: string;
 };
 
-function buildNavItems(): SettingsSection[] {
+type SettingsGroup = {
+    title: string;
+    items: SettingsSection[];
+};
+
+function buildNavGroups(): SettingsGroup[] {
     return [
-        { id: "annonces", label: "Annonces Platform", icon: Megaphone, description: "Infos & Maintenances", accent: "indigo" },
-        { id: "absences", label: "Absences", icon: Bell, description: "Salon de notifications", accent: "cyan" },
-        { id: "songes", label: "Songes", icon: Moon, description: "Runs Songes Infinis", accent: "purple" },
-        { id: "calendrier", label: "Calendrier", icon: Calendar, description: "Événements guilde", accent: "green" },
-        { id: "donjons", label: "Donjons & Quêtes", icon: Sword, description: "DJ Finder & succès", accent: "blue" },
-        { id: "missions", label: "Missions", icon: Target, description: "Annonces hebdomadaires", accent: "amber" },
-        { id: "bonus", label: "Bonus de Guilde", icon: Gem, description: "Oracles & notifications", accent: "purple" },
-        { id: "prets", label: "Prêts & Coffre", icon: HandCoins, description: "Notifications internes", accent: "emerald" },
-        { id: "metamob", label: "Metamob", icon: Key, description: "API & Archimonstres", accent: "amber" },
-        { id: "dofus", label: "Dofus", icon: Sword, description: "Serveur de jeu", accent: "indigo" },
-        { id: "sondages", label: "Sondages", icon: BarChart3, description: "Sondages Discord", accent: "cyan" },
-        { id: "onboarding", label: "Accueil & Intro", icon: Sparkles, description: "Welcome & Badges", accent: "rose" },
-        { id: "membres", label: "Membres & Sync", icon: Users, description: "Gestion & synchronisation", accent: "violet" },
+        {
+            title: "Système & Canaux",
+            items: [
+                { id: "annonces", label: "Annonces Plateforme", icon: Megaphone, description: "Infos & Maintenances", accent: "emerald" },
+                { id: "absences", label: "Absences", icon: Bell, description: "Salon de notifications", accent: "emerald" },
+                { id: "sondages", label: "Sondages", icon: BarChart3, description: "Sondages Discord", accent: "emerald" },
+            ]
+        },
+        {
+            title: "Gestion de Guilde",
+            items: [
+                { id: "dofus", label: "Serveur Dofus", icon: Sword, description: "Configuration du serveur", accent: "emerald" },
+                { id: "annuaire", label: "Annuaire", icon: UserCheck, description: "Sollicitations de membres", accent: "emerald" },
+                { id: "blacklist", label: "Blacklist Sync", icon: ShieldAlert, description: "Synchro Discord Blacklist", accent: "emerald" },
+                { id: "relance", label: "Relances", icon: Bell, description: "Canal de diffusion des relances", accent: "emerald" },
+            ]
+        },
+        {
+            title: "Personnalisation",
+            items: [
+                { id: "apparence", label: "Apparence", icon: Palette, description: "Mode sombre & couleur de guilde", accent: "emerald" },
+            ]
+        },
+        {
+            title: "Modules de Jeu",
+            items: [
+                { id: "calendrier", label: "Calendrier", icon: Calendar, description: "Événements guilde", accent: "emerald" },
+                { id: "donjons", label: "Donjons & Songes", icon: Sword, description: "DJ Finder & Songes Infinis", accent: "emerald" },
+                { id: "missions", label: "Missions & Bonus", icon: Target, description: "Notifications, uploads & oracles", accent: "emerald" },
+                { id: "prets", label: "Prêts & Coffre", icon: HandCoins, description: "Notifications internes", accent: "emerald" },
+                { id: "metamob", label: "Quête Ocre", icon: Key, description: "Suivi & Échanges d'Archis", accent: "emerald" },
+                { id: "gallery", label: "Galerie", icon: Layout, description: "Salons Stuffs & Skins", accent: "emerald" },
+                { id: "services", label: "Services Guilde", icon: Trophy, description: "Salon de mention des passeurs", accent: "emerald" },
+            ]
+        }
     ];
 }
 
 const ACCENT: Record<string, { border: string; text: string; bg: string; pill: string }> = {
-    cyan: { border: "border-cyan-500/30", text: "text-cyan-400", bg: "bg-cyan-500/10", pill: "bg-cyan-500/20 text-cyan-400" },
-    purple: { border: "border-purple-500/30", text: "text-purple-400", bg: "bg-purple-500/10", pill: "bg-purple-500/20 text-purple-400" },
-    green: { border: "border-green-500/30", text: "text-green-400", bg: "bg-green-500/10", pill: "bg-green-500/20 text-green-400" },
-    blue: { border: "border-blue-500/30", text: "text-blue-400", bg: "bg-blue-500/10", pill: "bg-blue-500/20 text-blue-400" },
-    amber: { border: "border-amber-500/30", text: "text-amber-400", bg: "bg-amber-500/10", pill: "bg-amber-500/20 text-amber-400" },
-    emerald: { border: "border-emerald-500/30", text: "text-emerald-400", bg: "bg-emerald-500/10", pill: "bg-emerald-500/20 text-emerald-400" },
-    indigo: { border: "border-indigo-500/30", text: "text-indigo-400", bg: "bg-indigo-500/10", pill: "bg-indigo-500/20 text-indigo-400" },
-    violet: { border: "border-violet-500/30", text: "text-violet-400", bg: "bg-violet-500/10", pill: "bg-violet-500/20 text-violet-400" },
-    rose: { border: "border-rose-500/30", text: "text-rose-400", bg: "bg-rose-500/10", pill: "bg-rose-500/20 text-rose-400" },
-    slate: { border: "border-slate-500/30", text: "text-slate-400", bg: "bg-slate-500/10", pill: "bg-slate-500/20 text-slate-400" },
+    emerald: { border: "border-success/30", text: "text-success", bg: "bg-success/10", pill: "bg-success/20 text-success" },
+    slate: { border: "border-border/30", text: "text-muted-foreground", bg: "bg-muted/10", pill: "bg-muted/20 text-muted-foreground" },
 };
 
 // ============================================================================
@@ -89,142 +116,190 @@ export default async function FeatureSettingsPage({
 
     const { guildId } = await params;
     const { tab } = await searchParams;
-    const activeTab = tab || "absences";
+    
+    // Redirect old tabs
+    if (tab === "songes") redirect(`/dashboard/${guildId}/admin/settings?tab=donjons`);
+    if (tab === "bonus") redirect(`/dashboard/${guildId}/admin/settings?tab=missions`);
+    if (tab === "discord") redirect(`/dashboard/${guildId}/admin/settings?tab=annonces`);
+    if (tab === "onboarding") redirect(`/dashboard/${guildId}/admin/settings?tab=annonces`);
+    
+    const activeTab = tab || "annonces";
 
     const user = await getUserContext(guildId);
-    if (!user.isAdmin) {
+    if (!user.canViewSettings) {
         await logAdminAccessDenied(guildId, "/admin/settings");
         return <AccessDenied />;
     }
 
-    const memberStats = await getGuildMemberStats(guildId);
-    const members = await getGuildMembers(guildId);
-    const onboardingRes = await getOnboardingSettings(guildId);
-    const welcomeBadgeName = onboardingRes.success ? (onboardingRes.data as any).welcomeBadgeName : "Nouveau";
+    const guild = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { dofusServerId: true, accentHue: true }
+    });
+    const isDofusConfigured = !!guild?.dofusServerId;
 
-    const navItems = buildNavItems();
+    const navGroups = buildNavGroups();
+    const navItems = navGroups.flatMap(g => g.items);
     const activeItem = navItems.find(n => n.id === activeTab) ?? navItems[0];
     const a = ACCENT[activeItem.accent] ?? ACCENT.slate;
 
     return (
         <div className="space-y-6 pb-12 w-full max-w-[1600px] mx-auto">
-            <UnifiedModuleHeader
-                title="Paramètres"
-                description="Intégrations Discord, Metamob, Dofus et gestion des membres"
-                icon={Settings}
-                backHref={`/dashboard/${guildId}/admin`}
-            />
+            <div data-tour="admin-settings-header">
+                <UnifiedModuleHeader
+                    title="Paramètres"
+                    description="Intégrations Discord, Metamob, Dofus et gestion des membres"
+                    icon={Settings}
+                    backHref={`/dashboard/${guildId}/admin`}
+                    actions={<AdminTourReplay phase="adminSettings" />}
+                />
+            </div>
 
-            <div className="flex gap-6 items-start">
-                {/* ── SIDEBAR ── */}
-                <nav className="w-64 shrink-0 sticky top-4 space-y-1 rounded-2xl border border-white/8 bg-zinc-900/60 p-2">
-                    {navItems.map((item) => {
-                        const isActive = item.id === activeTab;
-                        const ac = ACCENT[item.accent] ?? ACCENT.slate;
-                        const Icon = item.icon;
-                        return (
-                            <Link
-                                key={item.id}
-                                href={`/dashboard/${guildId}/admin/settings?tab=${item.id}`}
-                                className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${isActive
-                                    ? `${ac.bg} ${ac.border} border`
-                                    : "border border-transparent hover:bg-white/[0.03] hover:border-white/8"
-                                    }`}
-                            >
-                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${isActive ? ac.bg : "bg-white/5 group-hover:bg-white/8"}`}>
-                                    <Icon className={`w-3.5 h-3.5 ${isActive ? ac.text : "text-zinc-500 group-hover:text-zinc-300"}`} />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <p className={`text-sm font-semibold truncate ${isActive ? ac.text : "text-zinc-300"}`}>{item.label}</p>
-                                    <p className="text-[10px] text-zinc-600 truncate">{item.description}</p>
-                                </div>
-                                {isActive && <ChevronRight className={`w-3.5 h-3.5 shrink-0 ${ac.text}`} />}
-                            </Link>
-                        );
-                    })}
+            {/* Quota & stockage visible par l'admin guilde */}
+            <GuildStorageCard guildId={guildId} />
+
+            <div className="flex flex-col lg:flex-row gap-8 items-start relative">
+                {/* ── SIDEBAR NAVIGATION ── */}
+                <nav data-tour="admin-settings-nav" className={cn(
+                    "w-full lg:w-72 shrink-0 lg:sticky lg:top-4 z-20 space-y-1 lg:space-y-1.5 p-2 rounded-2xl border border-white/8 bg-surface/40 backdrop-blur-xl",
+                    "flex lg:flex-col items-center lg:items-stretch overflow-x-auto lg:overflow-visible no-scrollbar hide-scrollbar"
+                )}>
+                    {/* Shadow indicators for mobile horizontal scroll (Standard 2026) */}
+                    <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background/50 to-transparent pointer-events-none lg:hidden z-30" />
+                    
+                    {navGroups.map((group, idx) => (
+                        <div key={idx} className="flex flex-row lg:flex-col items-center lg:items-stretch mb-0 lg:mb-4 lg:last:mb-0 shrink-0">
+                            <h3 className="hidden lg:block text-caption font-black uppercase tracking-widest text-muted-foreground px-4 mb-2 mt-1">{group.title}</h3>
+                            {group.items.map((item) => {
+                                const isActive = item.id === activeTab;
+                                const ac = ACCENT[item.accent] ?? ACCENT.slate;
+                                const Icon = item.icon;
+                                return (
+                                    <Link
+                                        key={item.id}
+                                        href={`/dashboard/${guildId}/admin/settings?tab=${item.id}`}
+                                        className={cn(
+                                            "group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 whitespace-nowrap lg:whitespace-normal shrink-0",
+                                            isActive
+                                                ? `${ac.bg} ${ac.border} border `
+                                                : "border border-transparent hover:bg-surface hover:border-white/8 text-muted-foreground hover:text-foreground"
+                                        )}
+                                    >
+                                        <div className={cn(
+                                            "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-300",
+                                            isActive ? ac.bg : "bg-surface group-hover:bg-surface group-"
+                                        )}>
+                                            <Icon className={cn("w-4 h-4", isActive ? ac.text : "text-muted-foreground group-hover:text-foreground")} />
+                                        </div>
+                                        <div className="min-w-0 flex-1 hidden lg:block">
+                                            <p className={cn("text-xs font-black uppercase tracking-widest leading-none mb-1", isActive ? ac.text : "text-muted-foreground group-hover:text-foreground")}>
+                                                {item.label}
+                                            </p>
+                                            <p className="text-caption text-muted-foreground truncate font-medium group-hover:text-muted-foreground transition-colors">
+                                                {item.description}
+                                            </p>
+                                        </div>
+                                        {/* Mobile display: only label */}
+                                        <span className={cn("text-xs font-black uppercase tracking-widest lg:hidden", isActive ? ac.text : "")}>
+                                            {item.label}
+                                        </span>
+                                        {isActive && <ChevronRight className={cn("w-4 h-4 shrink-0 hidden lg:block", ac.text)} />}
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    ))}
                 </nav>
 
-                {/* ── CONTENT ── */}
-                <div className="flex-1 min-w-0 animate-in fade-in slide-in-from-right-4 duration-300">
-                    {/* Section header */}
-                    <div className={`flex items-center gap-3 mb-6 p-4 rounded-2xl border ${a.border} ${a.bg}`}>
-                        <div className={`w-10 h-10 rounded-xl ${a.bg} border ${a.border} flex items-center justify-center shrink-0`}>
-                            {(() => { const Icon = activeItem.icon; return <Icon className={`w-5 h-5 ${a.text}`} />; })()}
+                {/* ── CONTENT AREA ── */}
+                <div data-tour="admin-settings-pane" className="flex-1 w-full min-w-0 animate-in fade-in slide-in-from-bottom-4 duration-300 delay-150">
+                    {/* Section visual header */}
+                    <div className={cn(
+                        "relative flex flex-col sm:flex-row sm:items-center gap-5 mb-8 p-6 rounded-3xl border overflow-hidden",
+                        a.border, a.bg
+                    )}>
+                        <div className={cn(
+                            "relative w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border transition-colors duration-200",
+                            a.bg, a.border
+                        )}>
+                            {(() => { const Icon = activeItem.icon; return <Icon className={cn("w-7 h-7", a.text)} />; })()}
                         </div>
-                        <div>
-                            <h2 className={`text-lg font-black tracking-tight ${a.text}`}>{activeItem.label}</h2>
-                            <p className="text-sm text-zinc-500">{activeItem.description}</p>
+                        <div className="space-y-1">
+                            <div className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-caption font-semibold uppercase tracking-widest mb-1", a.pill)}>
+                                Section Configuration
+                            </div>
+                            <h2 className={cn("text-title font-bold leading-tight", a.text)}>
+                                {activeItem.label}
+                            </h2>
+                            <p className="text-sm text-muted-foreground font-medium max-w-xl opacity-80">
+                                {activeItem.description} — Gérez les paramètres de ce module pour votre guilde.
+                            </p>
                         </div>
                     </div>
 
                     {/* Content pane */}
-                    {activeTab === "annonces" && <SystemSettingsClient guildId={guildId} />}
-                    {activeTab === "absences" && <AbsenceSettingsClient guildId={guildId} />}
-                    {activeTab === "songes" && <SongesSettingsClient guildId={guildId} />}
-                    {activeTab === "calendrier" && <CalendarSettingsClient guildId={guildId} />}
-                    {activeTab === "donjons" && <DjSettingsClient guildId={guildId} />}
-                    {activeTab === "missions" && <MissionSettingsClient guildId={guildId} />}
-                    {activeTab === "bonus" && <BonusSettingsClient guildId={guildId} />}
-                    {activeTab === "prets" && <LoansSettingsClient guildId={guildId} />}
-                    {activeTab === "metamob" && (
-                        <div className="space-y-8">
-                            <OcreSettingsClient guildId={guildId} />
-                            <div className="pt-8 border-t border-white/5">
-                                <MetamobSettingsClient guildId={guildId} />
+                    {!isDofusConfigured && activeTab !== "dofus" ? (
+                        <div className="p-6 rounded-2xl border border-warning/20 bg-warning/10 flex flex-col items-center justify-center text-center gap-4 animate-in fade-in slide-in-from-bottom-4 min-h-[300px]">
+                            <div className="p-4 rounded-full bg-warning/20 mb-2">
+                                <Sword className="w-8 h-8 text-warning" />
                             </div>
-                            <div className="pt-6 border-t border-white/5 max-w-4xl">
-                                <h3 className="text-base font-bold text-white mb-1 flex items-center gap-2">
-                                    <ShieldAlert className="w-4 h-4 text-amber-400" />
-                                    Zone de Maintenance
-                                </h3>
-                                <p className="text-sm text-zinc-500 mb-4">Outils de dépannage pour les cas particuliers.</p>
-                                <MetamobUnlocker guildId={guildId} />
-                            </div>
+                            <h3 className="text-xl font-black text-warning tracking-tight uppercase">Configuration Dofus Requise</h3>
+                            <p className="text-sm text-warning/80 max-w-md">
+                                Pour pouvoir utiliser et configurer les autres modules, vous devez d'abord lier votre guilde à un serveur Dofus.
+                            </p>
+                            <Link
+                                href={`/dashboard/${guildId}/admin/settings?tab=dofus`}
+                                className="mt-4 inline-flex items-center justify-center px-6 py-3 rounded-xl bg-warning text-warning-foreground text-sm font-bold uppercase tracking-wider hover:bg-warning transition-colors "
+                            >
+                                Configurer le Serveur
+                            </Link>
                         </div>
-                    )}
-                    {activeTab === "dofus" && <DofusSettingsClient guildId={guildId} />}
-                    {activeTab === "sondages" && <PollSettingsClient guildId={guildId} />}
-                    {activeTab === "onboarding" && <OnboardingSettingsClient guildId={guildId} />}
-                    {activeTab === "membres" && (
-                        <div className="space-y-8">
-                            <MemberStatsOverview stats={memberStats} />
-                            <div className="space-y-4">
-                                <div>
-                                    <h3 className="text-base font-bold text-white flex items-center gap-2 mb-1">
-                                        <UserCheck className="w-4 h-4 text-violet-400" />
-                                        Gestion Manuelle
-                                    </h3>
-                                    <p className="text-sm text-zinc-500">Contrôle direct sur l&apos;archivage et les bannissements SigilOS.</p>
-                                </div>
-                                <MemberManagementTable
-                                    initialMembers={members as never}
-                                    guildId={guildId}
-                                    welcomeBadgeName={welcomeBadgeName}
-                                />
-                            </div>
-                            <div className="max-w-4xl">
-                                <div className="p-6 rounded-2xl bg-zinc-900/40 border border-white/5 relative overflow-hidden group">
-                                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                                    <h3 className="text-base font-bold text-white mb-1 flex items-center gap-2">
-                                        <Users className="w-4 h-4 text-indigo-400" />
-                                        Synchronisation Discord
-                                    </h3>
-                                    <p className="text-sm text-zinc-500 mb-4">Outil de secours en cas de désynchronisation constatée. La sync automatique tourne chaque nuit à 04:00.</p>
-                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-                                        <MemberSyncButton guildId={guildId} />
-                                        <span className="text-[10px] text-zinc-600 font-black uppercase tracking-widest">Auto-sync: 04:00 AM</span>
-                                    </div>
-                                    <div className="mt-4 p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 flex items-start gap-3">
-                                        <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                                        <p className="text-xs text-zinc-500 leading-relaxed">
-                                            <span className="font-black text-amber-500 uppercase tracking-widest block mb-0.5">Fail-safe</span>
-                                            SigilOS détecte automatiquement les arrivées et départs via les événements Discord. Utilisez ce bouton uniquement en cas de désynchronisation.
-                                        </p>
+                    ) : (
+                        <>
+                            {activeTab === "annonces" && <SystemSettingsClient guildId={guildId} />}
+                            {activeTab === "absences" && <AbsenceSettingsClient guildId={guildId} />}
+                            {activeTab === "calendrier" && <CalendarSettingsClient guildId={guildId} />}
+                            {activeTab === "donjons" && (
+                                <div className="space-y-8">
+                                    <DjSettingsClient guildId={guildId} />
+                                    <div className="pt-8 border-t border-border">
+                                        <SongesSettingsClient guildId={guildId} />
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                            )}
+                            {activeTab === "missions" && (
+                                <div className="space-y-8">
+                                    <MissionSettingsClient guildId={guildId} />
+                                    <div className="pt-8 border-t border-border">
+                                        <BonusSettingsClient guildId={guildId} />
+                                    </div>
+                                </div>
+                            )}
+                            {activeTab === "prets" && <LoansSettingsClient guildId={guildId} />}
+                            {activeTab === "metamob" && (
+                                <div className="space-y-8">
+                                    <OcreSettingsClient guildId={guildId} />
+                                    <div className="pt-6 border-t border-border max-w-4xl">
+                                        <h3 className="text-base font-bold text-foreground mb-1 flex items-center gap-2">
+                                            <ShieldAlert className="w-4 h-4 text-warning" />
+                                            Zone de Maintenance
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground mb-4">Outils de dépannage pour les cas particuliers.</p>
+                                        <MetamobUnlocker guildId={guildId} />
+                                    </div>
+                                </div>
+                            )}
+                            {activeTab === "dofus" && <DofusSettingsClient guildId={guildId} />}
+                            {activeTab === "sondages" && <PollSettingsClient guildId={guildId} />}
+                            { activeTab === "blacklist" && <BlacklistSettingsClient guildId={guildId} /> }
+                            { activeTab === "relance" && <RelanceSettingsClient guildId={guildId} /> }
+                            { activeTab === "gallery" && <GallerySettingsClient guildId={guildId} /> }
+                            { activeTab === "annuaire" && <DirectorySettingsClient guildId={guildId} /> }
+                            { activeTab === "services" && <ServicesSettingsClient guildId={guildId} /> }
+                            { activeTab === "apparence" && <GuildAppearanceSettingsClient guildId={guildId} initialHue={guild?.accentHue ?? null} /> }
+                        </>
                     )}
+
+
                 </div>
             </div>
         </div>

@@ -5,14 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Download, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, Download, CheckCircle2, AlertCircle, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { LocalImagePicker } from "./LocalImagePicker";
 
 type Props = {
     imageUrl: string;
-    type: "monster" | "achievement" | "dungeon" | "item";
+    type: "monster" | "achievement" | "dungeon" | "item" | "legendary";
     identifier: string;
     onImageDownloaded: (localPath: string) => void;
     className?: string;
@@ -27,7 +27,9 @@ type DownloadResult = {
 
 export function ImageDownloader({ imageUrl, type, identifier, onImageDownloaded, className }: Props) {
     const [externalUrl, setExternalUrl] = useState("");
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [downloading, setDownloading] = useState(false);
+    const [uploading, setUploading] = useState(false);
     const [lastResult, setLastResult] = useState<DownloadResult | null>(null);
 
     const handleDownload = async () => {
@@ -80,6 +82,55 @@ export function ImageDownloader({ imageUrl, type, identifier, onImageDownloaded,
         }
     };
 
+    const handleUpload = async () => {
+        if (!selectedFile) {
+            toast.error("Veuillez sélectionner un fichier");
+            return;
+        }
+
+        const slug = identifier.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        if (!slug) {
+            toast.error("Identifiant invalide");
+            return;
+        }
+
+        setUploading(true);
+        setLastResult(null);
+
+        try {
+            const formData = new FormData();
+            formData.append("file", selectedFile);
+            formData.append("type", type);
+            formData.append("identifier", slug);
+
+            const res = await fetch("/api/god/upload-image", {
+                method: "POST",
+                body: formData
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                setLastResult({
+                    success: true,
+                    path: data.localPath,
+                    sizeReduction: data.sizeReduction
+                });
+                onImageDownloaded(data.localPath);
+                setSelectedFile(null);
+                toast.success(`Image envoyée ! ${data.sizeReduction || ""}`);
+            } else {
+                setLastResult({ success: false, error: data.error });
+                toast.error(data.error || "Échec de l'envoi");
+            }
+        } catch (error: any) {
+            setLastResult({ success: false, error: error.message });
+            toast.error("Erreur réseau");
+        } finally {
+            setUploading(false);
+        }
+    };
+
     // Map type to directory name for LocalImagePicker
     // const directory = type === "achievement" ? "achievements" : type === "dungeon" ? "dungeons" : "monsters";
 
@@ -88,12 +139,15 @@ export function ImageDownloader({ imageUrl, type, identifier, onImageDownloaded,
             <Label>Image</Label>
 
             <Tabs defaultValue="gallery" className="w-full">
-                <TabsList className="flex w-full bg-slate-800/50 p-1 h-auto">
-                    <TabsTrigger value="gallery" className="flex-1 py-3 data-[state=active]:bg-indigo-600 font-bold transition-all">
-                        🖼️ Galerie d'images
+                <TabsList className="flex flex-col sm:flex-row w-full bg-elevated/50 p-1 h-auto gap-1">
+                    <TabsTrigger value="gallery" className="flex-1 w-full sm:w-auto py-2.5 data-[state=active]:bg-info font-bold transition-all whitespace-nowrap">
+                        🖼️ Galerie
                     </TabsTrigger>
-                    <TabsTrigger value="download" className="flex-1 py-3 data-[state=active]:bg-indigo-600 font-bold transition-all">
-                        🌐 Télécharger via URL
+                    <TabsTrigger value="download" className="flex-1 w-full sm:w-auto py-2.5 data-[state=active]:bg-info font-bold transition-all whitespace-nowrap">
+                        🌐 Web (URL)
+                    </TabsTrigger>
+                    <TabsTrigger value="upload" className="flex-1 w-full sm:w-auto py-2.5 data-[state=active]:bg-info font-bold transition-all whitespace-nowrap">
+                        💻 Uploader
                     </TabsTrigger>
                 </TabsList>
 
@@ -117,14 +171,14 @@ export function ImageDownloader({ imageUrl, type, identifier, onImageDownloaded,
                             placeholder="https://doflex.fr/s/monsters/png/..."
                             value={externalUrl}
                             onChange={(e) => setExternalUrl(e.target.value)}
-                            className="flex-1 bg-slate-800/50 border-slate-600 text-white placeholder:text-slate-500"
+                            className="flex-1 bg-elevated/50 border-border text-foreground placeholder:text-muted-foreground"
                             disabled={downloading}
                         />
                         <Button
                             type="button"
                             onClick={handleDownload}
                             disabled={downloading || !externalUrl.trim() || !identifier.trim()}
-                            className="bg-indigo-600 hover:bg-indigo-500"
+                            className="bg-info hover:bg-info"
                             size="sm"
                         >
                             {downloading ? (
@@ -146,7 +200,61 @@ export function ImageDownloader({ imageUrl, type, identifier, onImageDownloaded,
                             "flex items-center gap-2 p-3 rounded-lg text-sm border",
                             lastResult.success
                                 ? "bg-green-900/20 border-green-500/30 text-green-400"
-                                : "bg-red-900/20 border-red-500/30 text-red-400"
+                                : "bg-danger/20 border-danger/30 text-danger"
+                        )}>
+                            {lastResult.success ? (
+                                <>
+                                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                                    <span className="flex-1 truncate">
+                                        {lastResult.path}
+                                    </span>
+                                </>
+                            ) : (
+                                <>
+                                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                                    <span>{lastResult.error}</span>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </TabsContent>
+
+                <TabsContent value="upload" className="space-y-3 mt-4">
+                    <div className="flex gap-2 items-center">
+                        <Input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                            className="flex-1 bg-elevated/50 border-border text-foreground cursor-pointer"
+                            disabled={uploading}
+                        />
+                        <Button
+                            type="button"
+                            onClick={handleUpload}
+                            disabled={uploading || !selectedFile || !identifier.trim()}
+                            className="bg-info hover:bg-info"
+                            size="sm"
+                        >
+                            {uploading ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Envoi...
+                                </>
+                            ) : (
+                                <>
+                                    <Upload className="w-4 h-4 mr-2" />
+                                    Uploader
+                                </>
+                            )}
+                        </Button>
+                    </div>
+
+                    {lastResult && (
+                        <div className={cn(
+                            "flex items-center gap-2 p-3 rounded-lg text-sm border",
+                            lastResult.success
+                                ? "bg-green-900/20 border-green-500/30 text-green-400"
+                                : "bg-danger/20 border-danger/30 text-danger"
                         )}>
                             {lastResult.success ? (
                                 <>
@@ -168,9 +276,9 @@ export function ImageDownloader({ imageUrl, type, identifier, onImageDownloaded,
 
             {/* Current Image Preview */}
             {imageUrl && (
-                <div className="flex items-center gap-2 p-2 bg-slate-800/30 rounded border border-slate-700">
-                    <img src={imageUrl} alt="Preview" className="w-8 h-8 rounded bg-slate-900 p-1" />
-                    <code className="text-xs text-slate-400 flex-1 truncate">{imageUrl}</code>
+                <div className="flex items-center gap-2 p-2 bg-elevated/30 rounded border border-border">
+                    <img src={imageUrl} alt="Preview" className="w-8 h-8 rounded bg-surface p-1" />
+                    <code className="text-xs text-muted-foreground flex-1 truncate">{imageUrl}</code>
                 </div>
             )}
         </div>

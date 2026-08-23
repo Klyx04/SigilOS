@@ -1,74 +1,142 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { siteConfig } from "@/config/site-config";
-import { BetaGate } from "./beta-gate";
+import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { Users } from "lucide-react";
+import { User } from "next-auth";
+import { ChevronRight } from "lucide-react";
+import { AccessRequestModal } from "./AccessRequestModal";
+import { loginWithDiscord } from "@/server/actions/auth-actions";
 
-export function HeroSection() {
+const DiscordIcon = ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 127.14 96.36" fill="currentColor">
+        <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.11,77.11,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.89,105.89,0,0,0,126.6,80.22c2.91-27.55-13.48-51.67-18.9-72.15ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
+    </svg>
+);
+
+interface HeroSectionProps {
+    user?: User;
+    userGuilds?: { id: string; name: string; iconUrl: string | null }[];
+    /** 🖼️ #140 — image du hero pilotée par le God (section "hero"), sinon capture par défaut. */
+    heroImageUrl?: string;
+}
+
+export function HeroSection({ user, userGuilds = [], heroImageUrl }: HeroSectionProps) {
+    const [showAccessModal, setShowAccessModal] = useState(false);
+    const [zoomOpen, setZoomOpen] = useState(false);
+
+    const heroSrc = heroImageUrl || "/assets/screenshots/screenshot1.png";
+
     return (
-        <section className="relative min-h-[95vh] flex flex-col items-center justify-center overflow-hidden px-4 md:px-6">
+        <section className="relative w-full border-b border-border overflow-hidden">
+            <div className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8 pt-32 pb-16 lg:pt-36 lg:pb-24">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
 
-            {/* Background Effects */}
-            <div className="absolute inset-0 z-0 pointer-events-none">
-                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/10 rounded-full blur-[120px] animate-pulse-slow" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-600/10 rounded-full blur-[100px] animate-pulse-slow delay-1000" />
-                <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-[0.03] mix-blend-overlay" />
+                    {/* Copy */}
+                    <div className="max-w-xl">
+                        <p className="text-caption font-semibold uppercase tracking-[0.14em] text-success mb-5">
+                            SigilOS · Dofus Unity
+                        </p>
+                        <h1 className="text-[clamp(2.1rem,4.6vw,3.5rem)] font-bold tracking-tight text-foreground leading-[1.08] mb-5">
+                            Votre guilde mérite mieux
+                            qu&apos;un <span className="text-success">tableur Discord.</span>
+                        </h1>
+                        <p className="text-[15px] md:text-base text-muted-foreground leading-relaxed mb-8 max-w-md">
+                            Quêtes, sorties, membres et progression Dofus réunis dans un espace partagé, relié à Discord.
+                        </p>
+
+                        {/* CTAs */}
+                        {user && userGuilds.length > 0 ? (
+                            <div className="flex flex-col items-start gap-3">
+                                <Link
+                                    href="/dashboard"
+                                    className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-success hover:bg-success text-success-foreground font-bold text-sm transition-colors"
+                                >
+                                    Accéder au Dashboard
+                                    <ChevronRight className="w-4 h-4" />
+                                </Link>
+                            </div>
+                        ) : user ? (
+                            <div className="flex flex-col items-start gap-3">
+                                <button
+                                    onClick={() => setShowAccessModal(true)}
+                                    className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-success hover:bg-success text-success-foreground font-bold text-sm transition-colors"
+                                >
+                                    Demander l&apos;accès pour ma guilde
+                                    <ChevronRight className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-start gap-4">
+                                <button
+                                    onClick={() => setShowAccessModal(true)}
+                                    className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-success hover:bg-success text-success-foreground font-bold text-sm transition-colors"
+                                >
+                                    Créer l&apos;espace de ma guilde
+                                    <ChevronRight className="w-4 h-4" />
+                                </button>
+                                <form action={loginWithDiscord}>
+                                    <button
+                                        type="submit"
+                                        className="inline-flex items-center gap-2 text-body-sm text-muted-foreground hover:text-success font-medium transition-colors"
+                                    >
+                                        <DiscordIcon className="w-4 h-4" />
+                                        Déjà membre ? Se connecter avec Discord
+                                    </button>
+                                </form>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Product visual */}
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setZoomOpen(true)}
+                            className="block w-full text-left rounded-2xl border border-border bg-surface overflow-hidden shadow-[0_24px_60px_-24px_rgba(0,0,0,0.6)] cursor-zoom-in transition-transform hover:scale-[1.01]"
+                            aria-label="Agrandir la capture d'écran"
+                        >
+                            <div className="h-9 border-b border-border flex items-center gap-1.5 px-4">
+                                <span className="w-2.5 h-2.5 rounded-full bg-muted" />
+                                <span className="w-2.5 h-2.5 rounded-full bg-muted" />
+                                <span className="w-2.5 h-2.5 rounded-full bg-success/70" />
+                            </div>
+                            <div className="relative aspect-[16/10]">
+                                <Image
+                                    src={heroSrc}
+                                    alt="Tableau de bord SigilOS : missions, sorties et progression de guilde"
+                                    fill
+                                    className="object-cover object-top"
+                                    sizes="(max-width: 1024px) 100vw, 560px"
+                                    priority
+                                />
+                            </div>
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8 w-full">
-
-
-                {/* Badge Info - Bêta Privée */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.3 }}
-                    className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-md mx-auto"
+            {/* 🖼️ #140 — zoom plein écran de l'image du hero */}
+            {zoomOpen && (
+                <div
+                    className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 cursor-zoom-out"
+                    onClick={() => setZoomOpen(false)}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Capture d'écran agrandie"
                 >
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-xs font-mono text-emerald-300 uppercase tracking-wider font-bold">
-                        Bêta Privée Ouverte
-                    </span>
-                </motion.div>
+                    <div className="relative w-full max-w-6xl max-h-[92vh]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={heroSrc}
+                            alt="Capture d'écran SigilOS agrandie"
+                            className="w-full h-full max-h-[92vh] object-contain rounded-xl border border-border shadow-2xl"
+                        />
+                    </div>
+                </div>
+            )}
 
-                {/* Main Title (SEO H1) */}
-                <motion.h1
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.7, delay: 0.4 }}
-                    className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tighter text-white font-heading"
-                >
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-amber-200 to-emerald-400">
-                        Arrêtez les fichiers Excel, <br /> Passez sur un outil <span className="italic">Professionnel</span> et <span className="italic">sécurisé</span>.
-                    </span>
-                </motion.h1>
-
-                {/* Subtitle */}
-                <motion.p
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.7, delay: 0.4 }}
-                    className="text-base md:text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed"
-                >
-                    SigilOS est le grimoire numérique ultime pour les chefs de guilde exigeants.
-                    Centralisez vos missions, suivez l'Ocre et gérez vos membres avec la précision d'un Xélor.
-                    <br className="hidden md:block" />
-                    Moins de tableurs, plus de victoires.
-                </motion.p>
-
-                {/* Beta Gate Component & Directory Link */}
-                <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.7, delay: 0.6 }}
-                    className="pt-8 w-full space-y-4"
-                >
-                    <BetaGate />
-                </motion.div>
-
-            </div>
+            <AccessRequestModal open={showAccessModal} onClose={() => setShowAccessModal(false)} />
         </section>
     );
 }

@@ -72,7 +72,7 @@ const CATEGORY_ENDPOINTS: Record<DofusItemCategory, string[]> = {
     equipment: ["/items/equipment/search"],
     resources: ["/items/resources/search"],
     consumables: ["/items/consumables/search"],
-    all: ["/items/equipment/search", "/items/resources/search"],
+    all: ["/items/equipment/search", "/items/resources/search", "/items/consumables/search"],
 };
 
 // Dofusdude image CDN base
@@ -169,8 +169,6 @@ export async function searchDofusItems(
 // QUEST SEARCH — api.dofusdb.fr
 // ---------------------------------------------------------------------------
 
-const DOFUSDB_BASE = "https://api.dofusdb.fr";
-
 interface DofusDBQuestRaw {
     id?: number;
     name?: { fr?: string };
@@ -178,6 +176,18 @@ interface DofusDBQuestRaw {
     levelMax?: number;
     isDungeonQuest?: boolean;
     slug?: { fr?: string };
+}
+
+/**
+ * Lien public DofusDB vers une quête.
+ * ⚠️ Le suffixe correct est SINGULIER "quest" (vérifié par curl le 05/08 : 
+ * `/database/quests/` renvoie 404, `/database/quest/` renvoie 200).
+ */
+export function getDofusDbQuestUrl(id: number, slugFr?: string): string {
+    const base = `https://www.dofusdb.fr/fr/database/quest/${id}`;
+    if (!slugFr) return base;
+    const clean = slugFr.trim().replace(/\s+/g, "-");
+    return clean ? `${base}-${clean}` : base;
 }
 
 const _questCache = new Map<string, { data: DofusQuest[]; expiresAt: number }>();
@@ -191,12 +201,12 @@ export async function searchDofusQuests(query: string, limit = 15): Promise<Dofu
 
     try {
         const encoded = encodeURIComponent(query.trim());
-        // DofusDB supports searching on the "name.fr" field with regex
-        const url = `${DOFUSDB_BASE}/quests?lang=fr&name.fr[$regex]=${encoded}&name.fr[$options]=i&$limit=${limit}&$select[]=id&$select[]=name&$select[]=levelMin&$select[]=levelMax&$select[]=isDungeonQuest&$select[]=slug`;
+        // Route proxy Next (server-side) → évite CORS/rate-limit côté navigateur
+        // (voir src/app/api/dofusdb/quests/route.ts).
+        const url = `/api/dofusdb/quests?q=${encoded}&limit=${limit}`;
         const res = await fetch(url, {
             signal: AbortSignal.timeout(8_000),
             headers: { Accept: "application/json" },
-            next: { revalidate: 300 },
         });
         if (!res.ok) return [];
 
@@ -207,9 +217,7 @@ export async function searchDofusQuests(query: string, limit = 15): Promise<Dofu
             levelMin: q.levelMin ?? null,
             levelMax: q.levelMax ?? null,
             isDungeonQuest: q.isDungeonQuest ?? false,
-            dofusdbUrl: q.slug?.fr
-                ? `https://www.dofusdb.fr/fr/database/quests/${q.id}-${q.slug.fr.replace(/\s+/g, "-")}`
-                : `https://www.dofusdb.fr/fr/database/quests/${q.id}`,
+            dofusdbUrl: getDofusDbQuestUrl(q.id ?? 0, q.slug?.fr),
         })).filter((q) => q.id > 0);
 
         _questCache.set(cacheKey, { data, expiresAt: Date.now() + TTL_MS });

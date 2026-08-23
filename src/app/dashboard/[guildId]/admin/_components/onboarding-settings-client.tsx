@@ -1,25 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
     Sparkles,
-    MessageSquare,
     Bell,
     Save,
     Loader2,
-    Settings2,
     Info,
-    Send,
-    ShieldAlert,
-    ShieldCheck,
-    UserCircle,
     LayoutDashboard,
-    CheckCircle2,
-    HelpCircle,
     Eye,
-    Type,
-    Code
+    ShieldCheck,
+    MessageSquareText,
+    HelpCircle,
+    Copy,
+    ChevronRight,
+    Trophy,
+    UserPlus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,10 +31,17 @@ import {
 } from "@/server/actions/onboarding-admin-actions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ReactMarkdown from "react-markdown";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { AdvancedEditor } from "@/components/editor/advanced-editor";
 import { RoleSelector } from "@/components/admin/role-selector";
+import { ChannelPreview } from "@/components/shared/ChannelPreview";
+import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface OnboardingSettingsClientProps {
     guildId: string;
@@ -63,18 +67,58 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
 
     const [welcomeBadgeName, setWelcomeBadgeName] = useState("Nouveau");
 
+    // — Détection « modifications non sauvegardées »
+    type OnboardingConfigSnapshot = {
+        welcomeEnabled: boolean;
+        welcomeChannelId: string;
+        welcomeTemplate: string;
+        welcomeDiscordTemplate: string;
+        welcomeMentionRoleId: string;
+        welcomeDashboardEnabled: boolean;
+        welcomeDiscordEnabled: boolean;
+        welcomeBadgeName: string;
+    };
+    const [initialConfig, setInitialConfig] = useState<OnboardingConfigSnapshot | null>(null);
+
+    const currentConfig: OnboardingConfigSnapshot = useMemo(() => ({
+        welcomeEnabled,
+        welcomeChannelId,
+        welcomeTemplate,
+        welcomeDiscordTemplate,
+        welcomeMentionRoleId,
+        welcomeDashboardEnabled,
+        welcomeDiscordEnabled,
+        welcomeBadgeName,
+    }), [
+        welcomeEnabled, welcomeChannelId, welcomeTemplate, welcomeDiscordTemplate,
+        welcomeMentionRoleId, welcomeDashboardEnabled, welcomeDiscordEnabled, welcomeBadgeName,
+    ]);
+
+    const hasUnsavedChanges = isDirty(currentConfig, initialConfig);
+
     useEffect(() => {
         const load = async () => {
             const res = await getOnboardingSettings(guildId);
             if (res.success && res.data) {
-                setWelcomeEnabled(res.data.enabled);
-                setWelcomeChannelId(res.data.channelId || "");
-                setWelcomeTemplate(res.data.template || "");
-                setWelcomeDiscordTemplate(res.data.discordTemplate || "");
-                setWelcomeMentionRoleId(res.data.mentionRoleId || "");
-                setWelcomeDashboardEnabled(res.data.dashboardEnabled);
-                setWelcomeDiscordEnabled(res.data.discordEnabled);
-                setWelcomeBadgeName(res.data.welcomeBadgeName || "Nouveau");
+                const loaded: OnboardingConfigSnapshot = {
+                    welcomeEnabled: res.data.enabled,
+                    welcomeChannelId: res.data.channelId || "",
+                    welcomeTemplate: res.data.template || "",
+                    welcomeDiscordTemplate: res.data.discordTemplate || "",
+                    welcomeMentionRoleId: res.data.mentionRoleId || "",
+                    welcomeDashboardEnabled: res.data.dashboardEnabled,
+                    welcomeDiscordEnabled: res.data.discordEnabled,
+                    welcomeBadgeName: res.data.welcomeBadgeName || "Nouveau",
+                };
+                setWelcomeEnabled(loaded.welcomeEnabled);
+                setWelcomeChannelId(loaded.welcomeChannelId);
+                setWelcomeTemplate(loaded.welcomeTemplate);
+                setWelcomeDiscordTemplate(loaded.welcomeDiscordTemplate);
+                setWelcomeMentionRoleId(loaded.welcomeMentionRoleId);
+                setWelcomeDashboardEnabled(loaded.welcomeDashboardEnabled);
+                setWelcomeDiscordEnabled(loaded.welcomeDiscordEnabled);
+                setWelcomeBadgeName(loaded.welcomeBadgeName);
+                setInitialConfig(loaded);
                 if (res.data.availableRoles) setAvailableRoles(res.data.availableRoles);
             }
             setLoading(false);
@@ -95,7 +139,10 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                 dashboardEnabled: welcomeDashboardEnabled,
                 discordEnabled: welcomeDiscordEnabled,
             });
-            if (res.success) toast.success("Paramètres de bienvenue mis à jour");
+            if (res.success) {
+                setInitialConfig(currentConfig);
+                toast.success("Paramètres d'accueil enregistrés");
+            }
             else toast.error(res.error || "Erreur");
         } catch (e) {
             toast.error("Erreur de communication");
@@ -111,7 +158,10 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                 guildId,
                 badgeName: welcomeBadgeName,
             });
-            if (res.success) toast.success("Nom du badge mis à jour");
+            if (res.success) {
+                setInitialConfig(currentConfig);
+                toast.success("Nom du badge mis à jour");
+            }
             else toast.error(res.error || "Erreur");
         } catch (e) {
             toast.error("Erreur de communication");
@@ -123,7 +173,7 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
     if (loading) {
         return (
             <div className="flex items-center justify-center p-12">
-                <Loader2 className="w-6 h-6 animate-spin text-zinc-500" />
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
         );
     }
@@ -131,197 +181,241 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
     const previewUser = "Voyageur";
     const previewGuild = "SigilOS";
 
+    const insertVariable = (variable: string, target: 'dash' | 'discord') => {
+        if (target === 'dash') {
+            setWelcomeTemplate(prev => prev + variable);
+        } else {
+            setWelcomeDiscordTemplate(prev => prev + variable);
+        }
+        toast.info(`Variable ${variable} ajoutée !`);
+    };
+
     const renderPreview = (content: string, isDiscord: boolean) => {
-        if (!content || !content.trim() || content === "<p></p>") {
-            return <p className="text-zinc-600 italic text-xs">Le message est vide...</p>;
+        if (!content || !content.trim()) {
+            return <p className="text-muted-foreground italic text-sm">Le message apparaîtra ici...</p>;
         }
 
-        // Simple HTML to Markdown conversion for preview purposes
         const processed = content
-            .replace(/<p>/g, "")
-            .replace(/<\/p>/g, "\n")
-            .replace(/<strong>/g, "**")
-            .replace(/<\/strong>/g, "**")
-            .replace(/<em>/g, "_")
-            .replace(/<\/em>/g, "_")
-            .replace(/<br\s*\/?>/g, "\n")
-            .replace(/<[^>]*>?/gm, "") // Strip any other tags
-            .replace(/{member}/g, isDiscord ? `**@${previewUser}**` : `**${previewUser}**`)
-            .replace(/{user}/g, isDiscord ? `**@${previewUser}**` : `**${previewUser}**`)
-            .replace(/{guild}/g, `**${previewGuild}**`);
+            .replace(/{member}|{user}|{nickname}/g, isDiscord ? `**@${previewUser}**` : `**${previewUser}**`)
+            .replace(/{guild}|{server}/g, `**${previewGuild}**`);
 
         return (
             <div className={cn(
-                "prose prose-invert prose-sm max-w-none text-zinc-300",
-                isDiscord ? "font-sans leading-relaxed" : "font-sans leading-relaxed text-sm"
+                "prose prose-invert max-w-none text-foreground",
+                isDiscord ? "font-sans leading-relaxed text-body-sm" : "font-sans leading-relaxed text-sm"
             )}>
                 <ReactMarkdown>{processed}</ReactMarkdown>
             </div>
         );
     };
 
-    const renderDiscordPreview = (content: string) => {
-        if (!content || !content.trim()) {
-            return <p className="text-zinc-600 italic text-xs">Le message Discord est vide...</p>;
-        }
-
-        const processed = content
-            .replace(/{member}/g, `**@${previewUser}**`)
-            .replace(/{user}/g, `**@${previewUser}**`)
-            .replace(/{guild}/g, `**${previewGuild}**`);
-
-        return (
-            <div className="prose prose-invert prose-sm max-w-none text-zinc-300 font-sans leading-relaxed">
-                <ReactMarkdown>{processed}</ReactMarkdown>
-            </div>
-        );
-    };
-
     return (
-        <div className="space-y-8 max-w-6xl">
-            {/* --- SECTION ACCUEIL --- */}
-            <Card className="p-8 bg-zinc-900/40 border-white/5 space-y-8 relative overflow-hidden group shadow-2xl">
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-2">
-                    <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shadow-inner">
-                            <Sparkles className="w-7 h-7 text-amber-500" />
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-black text-white tracking-widest uppercase italic">Orchestration d&apos;Accueil</h3>
-                            <p className="text-sm text-zinc-500 font-medium tracking-tight">Automatisez les présentations de vos nouveaux arrivants avec style.</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3 bg-black/40 p-2.5 rounded-2xl border border-white/5 self-start md:self-auto">
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 px-2">Focus Automatique</span>
-                        <div className="flex items-center gap-3 bg-zinc-900/50 p-1.5 rounded-xl border border-white/5">
-                            <span className={cn("text-[10px] font-bold uppercase tracking-widest", welcomeEnabled ? "text-amber-500" : "text-zinc-600")}>
-                                {welcomeEnabled ? "Actif" : "Veille"}
-                            </span>
-                            <Switch checked={welcomeEnabled} onCheckedChange={setWelcomeEnabled} />
-                        </div>
-                    </div>
+        <TooltipProvider>
+            <div className="space-y-10 max-w-6xl pb-20">
+                {/* --- HEADER --- */}
+                <div className="flex flex-col gap-1">
+                    <h2 className="text-3xl font-bold text-foreground tracking-tight flex items-center gap-3">
+                        <UserPlus className="w-8 h-8 text-info" /> Centre d&apos;Accueil
+                    </h2>
+                    <p className="text-muted-foreground text-sm">Configurez l&apos;arrivée de vos nouveaux membres et l&apos;automatisation des messages.</p>
                 </div>
 
-                <div className={cn("space-y-8 transition-all duration-500", !welcomeEnabled && "opacity-40 pointer-events-none grayscale blur-[1px]")}>
-                    {/* Canals Toggle */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className={cn(
-                            "p-5 rounded-3xl border transition-all cursor-pointer group/card self-stretch flex flex-col justify-between",
-                            welcomeDashboardEnabled ? "bg-amber-500/5 border-amber-500/20 shadow-[0_0_20px_rgba(245,158,11,0.05)]" : "bg-black/20 border-white/5 opacity-50"
-                        )} onClick={() => setWelcomeDashboardEnabled(!welcomeDashboardEnabled)}>
-                            <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center gap-3">
-                                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", welcomeDashboardEnabled ? "bg-amber-500/20" : "bg-zinc-800")}>
-                                        <LayoutDashboard className={cn("w-4 h-4", welcomeDashboardEnabled ? "text-amber-500" : "text-zinc-500")} />
-                                    </div>
-                                    <span className="text-sm font-black text-white uppercase tracking-wider">Dashboard SigilOS</span>
+                {/* --- AIDE AUX VARIABLES --- */}
+                <Card className="p-6 bg-info/5 border-info/20 relative overflow-hidden ring-1 ring-ring/10">
+                    <div className="space-y-4 relative z-10">
+                        <div className="flex items-center gap-2">
+                            <Info className="w-5 h-5 text-info" />
+                            <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Variables de personnalisation</h3>
+                        </div>
+                        
+                        <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
+                            Utilisez ces balises dans vos messages. Elles seront remplacées par les informations réelles du membre.
+                        </p>
+
+                        <div className="flex flex-wrap gap-4">
+                            <button 
+                                onClick={() => { navigator.clipboard.writeText("{nickname}"); toast.success("Copié !"); }}
+                                className="group flex items-center gap-4 p-4 rounded-2xl bg-background/60 border border-border hover:border-info/50 transition-all text-left"
+                            >
+                                <div className="w-10 h-10 rounded-xl bg-info/10 flex items-center justify-center shrink-0 group- transition-transform">
+                                    <Copy className="w-4 h-4 text-info" />
                                 </div>
-                                <Switch checked={welcomeDashboardEnabled} onCheckedChange={setWelcomeDashboardEnabled} onClick={(e) => e.stopPropagation()} className="data-[state=checked]:bg-amber-500" />
+                                <div>
+                                    <code className="text-lg font-bold text-info block">{`{nickname}`}</code>
+                                    <p className="text-caption text-muted-foreground font-medium uppercase tracking-tight">Nom du membre</p>
+                                </div>
+                            </button>
+
+                            <button 
+                                onClick={() => { navigator.clipboard.writeText("{server}"); toast.success("Copié !"); }}
+                                className="group flex items-center gap-4 p-4 rounded-2xl bg-background/60 border border-border hover:border-info/50 transition-all text-left"
+                            >
+                                <div className="w-10 h-10 rounded-xl bg-info/10 flex items-center justify-center shrink-0 group- transition-transform">
+                                    <Copy className="w-4 h-4 text-info" />
+                                </div>
+                                <div>
+                                    <code className="text-lg font-bold text-info block">{`{server}`}</code>
+                                    <p className="text-caption text-muted-foreground font-medium uppercase tracking-tight">Nom de la guilde</p>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </Card>
+
+                {/* --- BADGE SECTION --- */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
+                    <Card className="lg:col-span-2 p-6 bg-surface/40 border-border flex flex-col justify-between gap-6 relative overflow-hidden group">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center border border-warning/20">
+                                <Trophy className="w-5 h-5 text-warning" />
                             </div>
-                            <p className="text-[11px] text-zinc-500 leading-relaxed font-bold uppercase tracking-tight opacity-70">Publication dans le flux Social</p>
+                            <div>
+                                <h4 className="text-sm font-bold text-foreground uppercase tracking-wider">Badge Temporaire Automatique</h4>
+                                <p className="text-caption text-muted-foreground font-medium uppercase tracking-wider">Distinction visuelle sur SigilOS</p>
+                            </div>
                         </div>
 
-                        <div className={cn(
-                            "p-5 rounded-3xl border transition-all cursor-pointer group/card self-stretch flex flex-col justify-between",
-                            welcomeDiscordEnabled ? "bg-indigo-500/5 border-indigo-500/20 shadow-[0_0_20px_rgba(99,102,241,0.05)]" : "bg-black/20 border-white/5 opacity-50"
-                        )} onClick={() => setWelcomeDiscordEnabled(!welcomeDiscordEnabled)}>
-                            <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center gap-3">
-                                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", welcomeDiscordEnabled ? "bg-indigo-500/20" : "bg-zinc-800")}>
-                                        <Bell className={cn("w-4 h-4", welcomeDiscordEnabled ? "text-indigo-400" : "text-zinc-500")} />
-                                    </div>
-                                    <span className="text-sm font-black text-white uppercase tracking-wider">Alerte Discord</span>
+                        <div className="space-y-6">
+                            <div className="space-y-3">
+                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Nom du Badge (ex: Nouveau, Recrue, Test...)</label>
+                                <div className="flex gap-4">
+                                    <Input 
+                                        value={welcomeBadgeName}
+                                        onChange={(e) => setWelcomeBadgeName(e.target.value)}
+                                        className="bg-muted/40 border-border h-12 text-foreground font-bold uppercase tracking-wider text-center rounded-xl focus:ring-warning/20 text-md"
+                                    />
+                                    <Button onClick={handleSaveBadge} disabled={saving} className="bg-warning hover:bg-warning text-warning-foreground font-bold h-12 px-6 rounded-xl uppercase tracking-wider text-xs transition-all active:scale-95">
+                                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Appliquer"}
+                                    </Button>
                                 </div>
-                                <Switch checked={welcomeDiscordEnabled} onCheckedChange={setWelcomeDiscordEnabled} onClick={(e) => e.stopPropagation()} />
                             </div>
-                            <p className="text-[11px] text-zinc-500 leading-relaxed font-bold uppercase tracking-tight opacity-70">Alerte rich-embed dans un salon dédié</p>
+
+                            <div className="p-5 rounded-3xl bg-warning/5 border border-warning/10 flex items-start gap-4">
+                                <HelpCircle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+                                <div className="space-y-1">
+                                    <p className="text-caption text-foreground font-bold uppercase tracking-tight">À quoi ça sert ?</p>
+                                    <p className="text-caption text-muted-foreground font-medium leading-relaxed uppercase tracking-tight opacity-80">
+                                        Ce badge s&apos;affiche sur le profil SigilOS des membres à qui vous l&apos;attribuez manuellement (via l&apos;onglet Membres). Il disparaît automatiquement après la durée que vous aurez choisie. Très utile pour repérer les nouveaux sans toucher aux vrais rôles Discord.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+
+                    <Card className="p-6 bg-background/80 border-border flex flex-col items-center justify-center gap-4 relative overflow-hidden shadow-2xl rounded-3xl">
+                        <div className="absolute top-3 right-4 text-caption font-bold text-foreground uppercase tracking-widest">Aperçu Profil</div>
+                        <div className="relative">
+                            <Avatar className="w-20 h-20 border-2 border-border ring-4 ring-warning/10">
+                                <AvatarFallback className="bg-surface text-sm font-bold text-muted-foreground text-muted-foreground">USER</AvatarFallback>
+                            </Avatar>
+                            <div className="absolute -bottom-1 -right-1 bg-warning text-warning-foreground px-3 py-1 rounded-full text-caption font-bold uppercase tracking-wider shadow-lg border border-warning/20">
+                                <ShieldCheck className="w-3 h-3 inline mr-1" /> {welcomeBadgeName}
+                            </div>
+                        </div>
+                        <div className="text-center">
+                             <p className="text-md font-bold text-foreground italic tracking-tight uppercase">Voyageur X</p>
+                             <p className="text-caption text-muted-foreground font-bold uppercase tracking-wider">Membre</p>
+                        </div>
+                    </Card>
+                </div>
+
+                {/* --- MAIN MODULE BLOCK --- */}
+                <Card className="p-6 bg-surface/40 border-border space-y-8 relative overflow-hidden">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-border">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-info/10 border border-info/20 flex items-center justify-center">
+                                <Bell className="w-6 h-6 text-info" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-foreground tracking-wide uppercase italic">Notifications d&apos;arrivée</h3>
+                                <p className="text-caption text-muted-foreground font-medium uppercase tracking-[0.15em] opacity-80 flex items-center gap-2">
+                                    Automatisation Dashboard + Discord
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-4 p-2 pl-4 rounded-xl border border-border bg-black/40">
+                             <span className={cn("text-caption font-bold uppercase tracking-wider transition-colors", welcomeEnabled ? "text-green-500" : "text-muted-foreground")}>{welcomeEnabled ? "Actif" : "Inactif"}</span>
+                            <Switch checked={welcomeEnabled} onCheckedChange={setWelcomeEnabled} className="data-[state=checked]:bg-green-500" />
                         </div>
                     </div>
 
-                    <Tabs defaultValue="dashboard" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 bg-black/40 border border-white/5 p-1.5 rounded-2xl h-14">
-                            <TabsTrigger value="dashboard" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-500 font-black text-[10px] uppercase tracking-[0.2em] gap-2 rounded-xl transition-all">
-                                <LayoutDashboard className="w-3.5 h-3.5" /> Dashboard Engine
-                            </TabsTrigger>
-                            <TabsTrigger value="discord" className="data-[state=active]:bg-indigo-500/20 data-[state=active]:text-indigo-400 font-black text-[10px] uppercase tracking-[0.2em] gap-2 rounded-xl transition-all">
-                                <Bell className="w-3.5 h-3.5" /> Discord Orchestrator
-                            </TabsTrigger>
-                        </TabsList>
+                    <div className={cn("space-y-10 transition-all duration-300", !welcomeEnabled && "opacity-30 pointer-events-none grayscale blur-sm")}>
+                        <Tabs defaultValue="dashboard" className="w-full">
+                            <TabsList className="grid w-full grid-cols-2 bg-black/40 border border-border p-1 rounded-2xl h-14">
+                                <TabsTrigger value="dashboard" className="data-[state=active]:bg-info data-[state=active]:text-info-foreground font-bold text-xs uppercase tracking-wider gap-2 rounded-xl transition-all">
+                                    <LayoutDashboard className="w-4 h-4" /> Mur Social SigilOS
+                                </TabsTrigger>
+                                <TabsTrigger value="discord" className="data-[state=active]:bg-info data-[state=active]:text-info-foreground font-bold text-xs uppercase tracking-wider gap-2 rounded-xl transition-all">
+                                    <Bell className="w-4 h-4" /> Alerte Discord
+                                </TabsTrigger>
+                            </TabsList>
 
-                        <TabsContent value="dashboard" className="mt-8 space-y-6 animate-in fade-in slide-in-from-top-1">
-                            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                                <div className="lg:col-span-3 space-y-4">
-                                    <div className="flex items-center justify-between px-2">
-                                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-500 flex items-center gap-2">
-                                            <Type className="w-3 h-3" /> Contenu du Message
-                                        </label>
-                                        <div className="flex gap-3">
-                                            <button onClick={() => setWelcomeTemplate(prev => prev + " {member} ")} className="text-[10px] font-black text-zinc-600 hover:text-amber-500 transition-colors uppercase tracking-widest bg-zinc-950 px-2 py-1 rounded border border-white/5">+{`member`}</button>
-                                            <button onClick={() => setWelcomeTemplate(prev => prev + " {guild} ")} className="text-[10px] font-black text-zinc-600 hover:text-amber-500 transition-colors uppercase tracking-widest bg-zinc-950 px-2 py-1 rounded border border-white/5">+{`guild`}</button>
+                             {/* --- TAB DASHBOARD --- */}
+                             <TabsContent value="dashboard" className="mt-8 space-y-8 animate-in fade-in zoom-in-95 duration-300">
+                                <div className="flex flex-col md:flex-row items-center justify-between p-6 bg-surface rounded-3xl border border-border gap-6">
+                                    <div className="flex items-center gap-4 text-left mr-auto">
+                                        <Switch checked={welcomeDashboardEnabled} onCheckedChange={setWelcomeDashboardEnabled} className="data-[state=checked]:bg-info mr-2" />
+                                        <div>
+                                            <p className="text-sm font-bold uppercase tracking-wider text-foreground">Activer sur le Dashboard</p>
+                                            <p className="text-caption text-muted-foreground font-medium uppercase tracking-tight">Le message sera visible dans l&apos;onglet &quot;Bienvenue&quot;.</p>
                                         </div>
                                     </div>
-                                    <div className="min-h-[220px]">
-                                        <AdvancedEditor
-                                            initialContent={welcomeTemplate}
-                                            onChange={setWelcomeTemplate}
-                                            contentClassName="min-h-[180px] text-sm"
-                                        />
-                                    </div>
-                                    <div className="p-4 rounded-2xl bg-zinc-950/60 border border-white/5 flex gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
-                                            <Info className="w-5 h-5 text-amber-500" />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <p className="text-[11px] text-white font-black uppercase tracking-widest">Guide des Balises</p>
-                                            <p className="text-[10px] text-zinc-500 leading-relaxed font-bold italic">
-                                                Les tags <code className="text-amber-500 font-mono tracking-tighter">{`{member}`}</code> et <code className="text-amber-500 font-mono tracking-tighter">{`{guild}`}</code> injecteront dynamiquement le profil et le nom de la guilde. Le <strong>formatage Markdown</strong> est supporté pour mettre en page le texte.
-                                            </p>
-                                        </div>
+                                    <div className="flex gap-2">
+                                        <Button variant="outline" size="sm" onClick={() => insertVariable("{nickname}", "dash")} className="h-10 px-4 rounded-xl border-border bg-surface shadow-xl hover:bg-info/10 hover:border-info/40 text-caption font-bold uppercase tracking-wider text-info">
+                                            + {`nickname`}
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={() => insertVariable("{server}", "dash")} className="h-10 px-4 rounded-xl border-border bg-surface shadow-xl hover:bg-info/10 hover:border-info/40 text-caption font-bold uppercase tracking-wider text-info">
+                                            + {`server`}
+                                        </Button>
                                     </div>
                                 </div>
-                                <div className="lg:col-span-2 space-y-4">
-                                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 flex items-center gap-2 px-2">
-                                        <Eye className="w-3.5 h-3.5" /> Dashboard Render
-                                    </label>
-                                    <div className="bg-zinc-950/80 border border-white/5 rounded-[2rem] p-8 min-h-[220px] flex items-start justify-center relative overflow-hidden group/preview shadow-inner h-full">
-                                        <div className="absolute top-4 right-6 text-[9px] font-black text-zinc-800 uppercase tracking-widest">Twin_Render_V3</div>
-                                        <div className="flex gap-5 w-full">
-                                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500/20 to-transparent border border-amber-500/10 animate-pulse shrink-0" />
-                                            <div className="space-y-4 flex-1">
-                                                <div className="h-4 w-32 bg-zinc-900 rounded-lg overflow-hidden relative">
-                                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent animate-shimmer" />
-                                                </div>
-                                                <div className="p-6 rounded-[1.5rem] bg-white/5 border border-white/5 shadow-2xl backdrop-blur-sm">
-                                                    {renderPreview(welcomeTemplate, false)}
+                                
+                                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                                    <div className="lg:col-span-3 space-y-4">
+                                        <div className="flex items-center gap-2 ml-2">
+                                            <MessageSquareText className="w-4 h-4 text-info" />
+                                            <h4 className="text-caption font-bold uppercase tracking-widest text-info">Modèle du message</h4>
+                                        </div>
+                                        <Textarea
+                                            value={welcomeTemplate}
+                                            onChange={(e) => setWelcomeTemplate(e.target.value)}
+                                            placeholder="Tapez le message ici..."
+                                            className="min-h-[220px] bg-black/40 border-border font-sans text-md rounded-2xl p-6 resize-none focus:ring-ring/10"
+                                        />
+                                    </div>
+                                    <div className="lg:col-span-2 space-y-4">
+                                        <div className="flex items-center gap-2 ml-2">
+                                            <Eye className="w-4 h-4 text-muted-foreground" />
+                                            <h4 className="text-caption font-bold uppercase tracking-widest text-muted-foreground">Aperçu Dashboard</h4>
+                                        </div>
+                                        <div className="bg-background/90 border border-border rounded-3xl p-8 min-h-[220px] h-full shadow-inner relative flex flex-col justify-center">
+                                            <div className="flex gap-4">
+                                                <div className="w-12 h-12 rounded-full bg-info/10 shrink-0 border border-info/20" />
+                                                <div className="flex-1 space-y-3">
+                                                    <div className="h-3 w-1/2 bg-surface rounded-full" />
+                                                    <div className="p-5 rounded-2xl bg-surface border border-border backdrop-blur-xl">
+                                                        {renderPreview(welcomeTemplate, false)}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        </TabsContent>
+                            </TabsContent>
 
-                        <TabsContent value="discord" className="mt-8 space-y-6 animate-in fade-in slide-in-from-top-1">
-                            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                                <div className="lg:col-span-3 space-y-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-3">
-                                            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2">
-                                                <Bell className="w-3 h-3" /> Target Channel ID
-                                            </label>
-                                            <Input
-                                                value={welcomeChannelId}
-                                                onChange={(e) => setWelcomeChannelId(e.target.value)}
-                                                placeholder="ID du salon Discord..."
-                                                className="bg-black/40 border-white/10 h-12 font-mono text-xs rounded-xl focus:ring-indigo-500/20 transition-all"
-                                            />
+                             {/* --- TAB DISCORD --- */}
+                             <TabsContent value="discord" className="mt-8 space-y-8 animate-in fade-in zoom-in-95 duration-300 text-left">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-info/5 rounded-3xl border border-info/20">
+                                    <div className="flex items-center gap-4">
+                                        <Switch checked={welcomeDiscordEnabled} onCheckedChange={setWelcomeDiscordEnabled} className="data-[state=checked]:bg-info" />
+                                        <div>
+                                            <p className="text-sm font-bold uppercase tracking-wider text-foreground">Activer l&apos;Alerte Discord</p>
+                                            <p className="text-caption text-muted-foreground font-medium uppercase tracking-tight">Utilise le format Embed Premium automatiquement.</p>
                                         </div>
-                                        <div className="space-y-3">
-                                            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2">
-                                                <ShieldCheck className="w-3 h-3" /> Notification Mention
-                                            </label>
+                                    </div>
+                                    <div className="flex items-center gap-4 md:justify-end md:border-l border-border md:pl-8">
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-caption font-bold uppercase tracking-wider text-info mb-2">Pinger un rôle ?</span>
                                             <RoleSelector
                                                 value={welcomeMentionRoleId || null}
                                                 onChange={(val) => setWelcomeMentionRoleId(val || "")}
@@ -329,177 +423,105 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                             />
                                         </div>
                                     </div>
+                                </div>
 
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between px-2">
-                                            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2">
-                                                <Code className="w-3 h-3" /> Raw Markdown Template
-                                            </label>
-                                            <div className="flex gap-3">
-                                                <button onClick={() => setWelcomeDiscordTemplate(prev => prev + " {member} ")} className="text-[10px] font-black text-zinc-600 hover:text-indigo-400 transition-colors uppercase tracking-widest bg-zinc-950 px-2 py-1 rounded border border-white/5">+{`member`}</button>
-                                                <button onClick={() => setWelcomeDiscordTemplate(prev => prev + " {guild} ")} className="text-[10px] font-black text-zinc-600 hover:text-indigo-400 transition-colors uppercase tracking-widest bg-zinc-950 px-2 py-1 rounded border border-white/5">+{`guild`}</button>
-                                            </div>
+                                 <div className="space-y-3 max-w-xl">
+                                    <label className="text-caption font-bold uppercase tracking-[0.2em] text-info flex items-center gap-2 ml-2">
+                                         ID SALON DISCORD
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <HelpCircle className="w-3 h-3 text-muted-foreground hover:text-foreground cursor-help" />
+                                            </TooltipTrigger>
+                                            <TooltipContent className="bg-surface border-border-strong p-4 max-w-sm rounded-xl">
+                                                <p className="text-xs font-bold text-foreground mb-2 flex items-center gap-2">
+                                                    <Info className="w-3 h-3 text-info" /> Tuto Rapide
+                                                </p>
+                                                <ol className="text-caption text-muted-foreground space-y-1 list-decimal ml-4">
+                                                    <li>Active le <strong>Mode Développeur</strong> dans Discord.</li>
+                                                    <li>Fais un <strong>clic droit</strong> sur le salon.</li>
+                                                    <li>Clique sur <strong>Copier l&apos;identifiant</strong> et colle le ici.</li>
+                                                </ol>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </label>
+                                    <Input
+                                        value={welcomeChannelId}
+                                        onChange={(e) => setWelcomeChannelId(e.target.value)}
+                                        placeholder="Ex: 1234..."
+                                        className="bg-black/40 border-border h-12 font-mono text-md rounded-xl focus:ring-ring/20 px-6"
+                                    />
+                                    <ChannelPreview guildId={guildId} channelId={welcomeChannelId} color="indigo" />
+                                </div>
+
+                                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 pt-4">
+                                    <div className="lg:col-span-3 space-y-4">
+                                        <div className="flex justify-between items-center px-2">
+                                             <label className="text-caption font-bold uppercase tracking-widest text-info flex items-center gap-2">
+                                                <MessageSquareText className="w-4 h-4" /> Message Alerte
+                                             </label>
+                                             <div className="flex gap-2">
+                                                <button onClick={() => insertVariable("{nickname}", "discord")} className="text-caption font-bold bg-elevated hover:bg-muted px-3 py-1.5 rounded-xl border border-border transition-all shadow-lg active:scale-95">+ {`nickname`}</button>
+                                                <button onClick={() => insertVariable("{server}", "discord")} className="text-caption font-bold bg-elevated hover:bg-muted px-3 py-1.5 rounded-xl border border-border transition-all shadow-lg active:scale-95">+ {`server`}</button>
+                                             </div>
                                         </div>
                                         <Textarea
                                             value={welcomeDiscordTemplate}
                                             onChange={(e) => setWelcomeDiscordTemplate(e.target.value)}
-                                            placeholder="Tapez votre message Markdown Discord ici..."
-                                            className="min-h-[220px] bg-black/40 border-white/10 font-mono text-sm rounded-2xl resize-none focus:ring-indigo-500/20"
+                                            placeholder="Tapez le message ici..."
+                                            className="min-h-[200px] bg-black/40 border-border font-sans text-md rounded-2xl p-6 resize-none focus:ring-ring/10"
                                         />
-                                        <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 flex gap-4">
-                                            <ShieldAlert className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
-                                            <p className="text-[10px] text-zinc-500 leading-relaxed font-bold italic tracking-tight uppercase opacity-80">
-                                                Discord pinge le membre via <code className="text-indigo-400">{`{member}`}</code>. Si le template Discord est vide, la version Dashboard sera utilisée par défaut.
+                                        <div className="p-4 rounded-xl bg-info/5 border border-info/10 flex items-start gap-4">
+                                            <Sparkles className="w-5 h-5 text-info shrink-0 mt-0.5" />
+                                            <p className="text-caption text-muted-foreground leading-relaxed font-bold uppercase tracking-tight italic">
+                                                Le texte sera intégré dans un **Rich-Embed Premium** automatique (Avatar, Logo, Bannière...).
                                             </p>
                                         </div>
                                     </div>
-                                </div>
-
-                                <div className="lg:col-span-2 space-y-4">
-                                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 flex items-center gap-2 px-2">
-                                        <Eye className="w-3.5 h-3.5" /> Discord UI Twin
-                                    </label>
-                                    <div className="bg-[#1e1f22] rounded-[1.5rem] p-6 border-l-[6px] border-amber-500 space-y-5 shadow-2xl relative min-h-[300px] flex flex-col h-full group/discord">
-                                        <div className="absolute top-4 right-6 text-[8px] font-black text-white/5 uppercase tracking-[0.2em]">Embed_Orchestrator</div>
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500/30 to-zinc-950 flex items-center justify-center border border-indigo-500/20 shadow-lg">
-                                                <Sparkles className="w-6 h-6 text-indigo-400" />
-                                            </div>
-                                            <span className="font-black text-white text-xs uppercase tracking-widest italic tracking-tighter shadow-sm">Nouvelle Légende Dashboard !</span>
+                                    
+                                     <div className="lg:col-span-2 space-y-4">
+                                        <div className="flex items-center gap-2 ml-2">
+                                            <Eye className="w-4 h-4 text-muted-foreground" />
+                                            <h4 className="text-caption font-bold uppercase tracking-widest text-muted-foreground">Rendu Discord</h4>
                                         </div>
-                                        <div className="space-y-4 flex-1">
-                                            <div className="text-zinc-200 text-sm leading-relaxed px-1">
-                                                {renderDiscordPreview(welcomeDiscordTemplate || welcomeTemplate)}
+                                        <div className="bg-[#2b2d31] rounded-3xl p-8 border-l-[6px] border-warning shadow-3xl relative min-h-[300px] flex flex-col h-full group/discord">
+                                            <div className="flex items-center gap-4 mb-6">
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-info to-info flex items-center justify-center border border-border">
+                                                    <Sparkles className="w-5 h-5 text-foreground" />
+                                                </div>
+                                                <span className="font-bold text-foreground text-sm tracking-tight uppercase italic group-hover/discord:text-warning transition-colors">NOUVELLE ARRIVÉE !</span>
                                             </div>
-                                            <div className="mt-auto pt-6 flex items-center gap-3 border-t border-white/5 opacity-50">
-                                                <div className="w-6 h-6 rounded-full bg-zinc-800" />
-                                                <span className="text-[9px] text-zinc-400 uppercase font-black tracking-[0.3em]">Authored by SigilOS • 2026</span>
+                                            <div className="text-foreground text-sm leading-relaxed flex-1 px-1 mb-8">
+                                                {renderPreview(welcomeDiscordTemplate || welcomeTemplate, true)}
+                                            </div>
+                                            <div className="mt-auto pt-4 border-t border-border opacity-40 flex justify-between items-center">
+                                                <span className="text-caption font-bold uppercase tracking-widest text-muted-foreground italic">Authored by SigilOS Orchestrator</span>
+                                                <MessageSquareText className="w-3 h-3 text-foreground" />
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        </TabsContent>
-                    </Tabs>
-                </div>
-
-                <div className="flex justify-end pt-8 border-t border-white/5">
-                    <Button
-                        onClick={handleSaveWelcome}
-                        disabled={saving}
-                        className="bg-amber-600 hover:bg-amber-500 text-amber-950 font-black h-14 px-12 rounded-2xl gap-3 shadow-[0_10px_30px_rgba(245,158,11,0.2)] group/save transition-all hover:scale-[1.02] active:scale-95 overflow-hidden relative"
-                    >
-                        {saving ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6 group-hover/save:-translate-y-12 transition-transform duration-500 ease-in-out" />}
-                        <span className={cn("transition-all duration-500 uppercase tracking-widest text-[11px]", saving ? "opacity-100" : "group-hover/save:-translate-y-1.5")}>
-                            {saving ? "SYNCHRONISATION..." : "SÉCURISER LES TEMPLATES"}
-                        </span>
-                        {!saving && <Sparkles className="w-5 h-5 absolute bottom-[-30px] group-hover/save:bottom-[16px] transition-all duration-700 delay-100" />}
-                    </Button>
-                </div>
-            </Card>
-
-            {/* --- SECTION BADGE --- */}
-            <Card className="p-8 bg-zinc-900/40 border-white/5 space-y-8 relative overflow-hidden group shadow-2xl">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shadow-inner">
-                            <ShieldCheck className="w-7 h-7 text-indigo-400" />
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-black text-white tracking-widest uppercase italic">Badge de Bienvenue</h3>
-                            <p className="text-sm text-zinc-500 font-medium tracking-tight">Marqueur visuel premium pour l&apos;identification rapide des membres.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-start">
-                    <div className="lg:col-span-2 space-y-8">
-                        <div className="space-y-4">
-                            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2 px-1">
-                                <Settings2 className="w-3 h-3" /> Intitulé du Badge
-                            </label>
-                            <div className="flex flex-col md:flex-row gap-4">
-                                <Input
-                                    value={welcomeBadgeName}
-                                    onChange={(e) => setWelcomeBadgeName(e.target.value)}
-                                    placeholder="Ex: Nouveau, Recrue, Test..."
-                                    className="bg-black/40 border-white/10 h-14 text-white font-black uppercase tracking-widest focus:ring-indigo-500/20 text-center rounded-2xl md:flex-1"
-                                />
-                                <Button
-                                    onClick={handleSaveBadge}
-                                    disabled={saving}
-                                    className="bg-zinc-100 hover:bg-white text-zinc-950 font-black h-14 px-10 gap-3 shrink-0 rounded-2xl uppercase tracking-widest text-[10px] shadow-xl"
-                                >
-                                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                                    MISE À JOUR
-                                </Button>
-                            </div>
-                        </div>
-
-                        <div className="p-6 rounded-[2rem] bg-indigo-500/5 border border-indigo-500/10 space-y-6">
-                            <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400/80">
-                                <Info className="w-5 h-5" /> Orchestration des Badges
-                            </div>
-                            <ul className="space-y-4 text-[11px] text-zinc-500 leading-relaxed font-bold uppercase tracking-tight">
-                                <li className="flex gap-4">
-                                    <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0 mt-1 shadow-[0_0_10px_rgba(99,102,241,0.5)]" />
-                                    <span>Injection automatique d&apos;une **infobulle premium** sur le profil et l&apos;annuaire.</span>
-                                </li>
-                                <li className="flex gap-4">
-                                    <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0 mt-1 shadow-[0_0_10px_rgba(99,102,241,0.5)]" />
-                                    <span>Idéal pour les périodes d&apos;essai, les rôles temporaires ou le marketing interne.</span>
-                                </li>
-                                <li className="flex gap-4">
-                                    <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0 mt-1 shadow-[0_0_10px_rgba(99,102,241,0.5)]" />
-                                    <span>Pilotable à distance via l&apos;onglet <button onClick={() => switchTabParam("membres")} className="text-indigo-400 hover:text-indigo-300 underline decoration-indigo-500/30 underline-offset-4 font-black transition-colors">Membres & Sync</button>.</span>
-                                </li>
-                            </ul>
-                        </div>
+                            </TabsContent>
+                        </Tabs>
                     </div>
 
-                    <div className="space-y-4">
-                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 flex items-center gap-2 px-1">
-                            <Eye className="w-3.5 h-3.5" /> Profil Render Preview
-                        </label>
-                        <div className="bg-zinc-950/80 border border-white/5 rounded-[3rem] p-10 flex flex-col items-center justify-center gap-6 relative overflow-hidden group/badge shadow-2xl h-full min-h-[320px]">
-                            <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/10 to-transparent opacity-0 group-hover/badge:opacity-100 transition-opacity duration-700" />
-                            <div className="relative z-10">
-                                <Avatar className="w-28 h-28 border-[3px] border-white/10 group-hover/badge:border-indigo-500/50 transition-all duration-700 scale-110 shadow-2xl ring-8 ring-indigo-500/5">
-                                    <AvatarFallback className="bg-zinc-900 text-3xl font-black text-zinc-700 italic">SIG</AvatarFallback>
-                                </Avatar>
-                                <div className="absolute -bottom-2 right-0 flex items-center gap-2 bg-indigo-600 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.1em] shadow-[0_10px_20px_rgba(79,70,229,0.4)] border border-indigo-400/20 group-hover/badge:scale-110 transition-transform duration-500">
-                                    <ShieldCheck className="w-3 h-3" /> {welcomeBadgeName}
-                                </div>
-                            </div>
-                            <div className="text-center space-y-2 z-10">
-                                <p className="text-lg font-black text-white italic tracking-tight">Voyageur Éclairé</p>
-                                <p className="text-[10px] text-zinc-500 font-black tracking-[0.3em] uppercase opacity-40">Nouveau de la Semaine</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </Card>
-
-            {/* --- SECTION TEST --- */}
-            <div className="p-6 rounded-[2rem] border border-amber-500/20 bg-amber-500/5 flex items-center gap-6 group/test shadow-lg backdrop-blur-sm">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center shrink-0 border border-amber-500/20 group-hover/test:rotate-12 transition-transform">
-                    <HelpCircle className="w-6 h-6 text-amber-500" />
-                </div>
-                <div className="flex-1">
-                    <p className="text-xs text-zinc-400 leading-relaxed font-bold uppercase tracking-tight">
-                        <span className="text-amber-500 mr-2">Pro-Tip :</span> Envoyez manuellement une notification de bienvenue (test) à un membre via{" "}
-                        <button
-                            onClick={() => switchTabParam("membres")}
-                            className="text-amber-500 font-black hover:underline decoration-amber-500/30 underline-offset-4 transition-all"
+                     <div className="flex justify-end pt-8 border-t border-border">
+                        <Button
+                            onClick={handleSaveWelcome}
+                            disabled={saving}
+                            className="bg-info hover:bg-info text-info-foreground font-bold h-14 px-10 rounded-xl gap-3 shadow-lg transition-all active:scale-95 flex items-center group/save"
                         >
-                            Membres & Sync
-                        </button>{" "}
-                        pour vérifier vos templates en conditions réelles.
-                    </p>
-                </div>
+                            {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5 group-hover/save:rotate-12 transition-transform" />}
+                             <span className="text-md uppercase tracking-tight">Enregistrer la configuration</span>
+                        </Button>
+                    </div>
+                </Card>
             </div>
-        </div>
+
+            {/* Garde anti-navigation : avertit si des paramètres d'accueil ne sont pas sauvegardés */}
+            <UnsavedChangesGuard
+                hasUnsavedChanges={hasUnsavedChanges}
+                message="Vous avez des modifications des paramètres d'accueil non sauvegardées. Quitter cette page les perdra définitivement."
+            />
+        </TooltipProvider>
     );
 }

@@ -1,32 +1,33 @@
 import { NebulaClientWrapper } from "@/components/layout/nebula-client-wrapper";
+import Script from "next/script";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { HeroSection } from "@/components/landing/hero-section";
-import { SaasFeatures } from "@/components/landing/saas-features";
-import { HowItWorks } from "@/components/landing/how-it-works";
-import { LandingCarousel } from "@/components/landing/landing-carousel";
+import { ProblemSolution } from "@/components/landing/problem-solution";
+import { ProductStory } from "@/components/landing/product-story";
+import { ThreePillars } from "@/components/landing/three-pillars";
 import { auth } from "@/auth";
-import { redirect } from "next/navigation";
-import { getPublicGuilds } from "@/server/actions/presentation-actions";
-import { GuildDirectorySection } from "@/components/landing/guild-directory-section";
+import { getPublicGuildShowcase } from "@/server/actions/presentation-actions";
+import { GuildShowcaseSection } from "@/components/landing/guild-showcase-section";
 import { PublicHeader } from "@/components/layout/public-header";
-import { ChangelogWidget } from "@/components/changelog/changelog-widget";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { HowItWorks } from "@/components/landing/how-it-works";
 import { PreFooterCta } from "@/components/landing/pre-footer-cta";
-
+import { getPublicLandingScreens } from "@/server/actions/landing-screen-actions";
 import { getAppBaseUrl } from "@/lib/utils";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600; // ISR 1h — page d'accueil publique (contenu stable), accélère le chargement & la performance SEO
 
-// JSON-LD Structured Data for SEO
+const baseUrl = getAppBaseUrl();
+
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   "name": "SigilOS",
   "applicationCategory": "GameApplication",
   "operatingSystem": "Web",
-  "url": "https://sigilos.fr",
-  "description": "Plateforme de gestion de guilde Dofus tout-en-un : quêtes, Songes Infinis, Dungeon Finder, Ladder XP, bot Discord et outils communautaires.",
+  "url": baseUrl,
+  "description": "SigilOS réunit quêtes, sorties, membres et progression Dofus dans un espace partagé, relié à Discord. Gratuit pour les guildes.",
   "offers": {
     "@type": "Offer",
     "price": "0",
@@ -35,9 +36,8 @@ const jsonLd = {
   "creator": {
     "@type": "Organization",
     "name": "SigilOS",
-    "url": "https://sigilos.fr",
+    "url": baseUrl,
   },
-  "aggregateRating": undefined, // Will be added when we have reviews
 };
 
 export default async function Home({
@@ -45,77 +45,88 @@ export default async function Home({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const session = await auth();
-  const info = await searchParams;
-  const guilds = await getPublicGuilds();
+  const [session, info] = await Promise.all([auth(), searchParams]);
 
-  // Get user context for membership check
-  const { getUserContext } = await import("@/server/actions/user-actions");
-  const userContext = await getUserContext();
+  const { getUserContext, getUserGuilds } = await import("@/server/actions/user-actions");
+
+  const [userContext, userGuilds] = await Promise.all([
+    getUserContext(),
+    session?.user ? getUserGuilds() : Promise.resolve([]),
+  ]);
+
+  // Landing v3 — showcase mini-dashboards par guilde (stats réelles, cache Redis 5 min)
+  const showcaseGuilds = await getPublicGuildShowcase(6);
+
+  // 🖼️ #140 — screens de la landing pilotés par le God (fallback captures par défaut)
+  const [productScreensRes, heroScreensRes] = await Promise.all([
+      getPublicLandingScreens("product-story"),
+      getPublicLandingScreens("hero"),
+  ]);
+  const productScreens = (productScreensRes.success && productScreensRes.data) ? productScreensRes.data : [];
+  const heroScreens = (heroScreensRes.success && heroScreensRes.data) ? heroScreensRes.data : [];
+  const heroImageUrl = heroScreens[0]?.imageUrl;
 
   if (info.error) {
     redirect(`/auth/error?error=${info.error}`);
   }
 
+  // Un membre connecté disposant d'au moins une guilde accessible est aiguillé
+  // directement vers son QG (le portail /dashboard redirige déjà seul vers la
+  // 1ʳᵉ guilde s'il n'y en a qu'une). Évite de rester bloqué sur la landing
+  // après le login ("je ne peux pas entrer direct"). Les non-connectés et les
+  // membres sans guilde accessible voient toujours la page d'accueil publique.
+  if (session?.user) {
+    const { getGuildsSeparated } = await import("@/server/actions/user-actions");
+    const separated = await getGuildsSeparated();
+    if (separated.active.length > 0) {
+      redirect("/dashboard");
+    }
+  }
+
+  // [AUDIT 2026] Retrieve nonce for inline scripts
+  const headersList = await headers();
+  const nonce = headersList.get('x-nonce') ?? '';
+
   return (
     <NebulaClientWrapper>
-      <script
+      <Script
+        id="json-ld"
         type="application/ld+json"
+        nonce={nonce}
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <div className="min-h-screen landing-theme bg-background text-foreground selection:bg-accent-teal/30 font-sans flex flex-col overflow-x-hidden">
+      <div className="min-h-screen landing-theme bg-background text-foreground selection:bg-success/30 font-sans flex flex-col overflow-x-hidden">
 
         <PublicHeader user={session?.user} variant="hero" isMember={userContext.isMember} />
 
         <main className="flex-1 w-full relative z-10 flex flex-col">
-          <HeroSection />
 
+          {/* Hero */}
+          <HeroSection user={session?.user} userGuilds={userGuilds} heroImageUrl={heroImageUrl} />
+
+          {/* Problème / solution */}
+          <ProblemSolution />
+
+          {/* Démo produit narrative */}
+          <ProductStory screens={productScreens} />
+
+          {/* Showcase mini-dashboards par guilde (landing v3) */}
+          {showcaseGuilds.length > 0 && <GuildShowcaseSection guilds={showcaseGuilds} />}
+
+          {/* Trois piliers */}
+          <ThreePillars />
+
+          {/* Comment ça marche */}
           <HowItWorks />
 
-          <div className="pb-32 relative w-full max-w-[1400px] mx-auto px-6 fade-in-up duration-1000 delay-200">
-            <LandingCarousel />
-          </div>
-
-          <SaasFeatures />
-
-          <div className="bg-bg-secondary/50 py-32 border-t border-white/5 relative overflow-hidden">
-            {/* Ambient gold glow */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-accent-gold/5 blur-[120px] rounded-full pointer-events-none" />
-
-            <div className="container mx-auto px-6 relative z-10">
-              <div className="max-w-4xl mx-auto text-center mb-20">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-teal/10 border border-accent-teal/20 mb-6 font-mono text-[10px] text-accent-teal uppercase tracking-widest">
-                  Écosystème SigilOS
-                </div>
-                <h2 className="text-4xl md:text-6xl font-heading text-white mb-6">Un Écosystème d&apos;Élite pour vos <span className="text-accent-gold italic">Recrutements.</span></h2>
-                <p className="text-zinc-500 font-medium font-sans text-xl max-w-2xl mx-auto leading-relaxed">
-                  L&apos;annuaire Stellium offre une vitrine premium à votre guilde. Propulsez votre organisation au niveau supérieur et rejoignez le réseau des communautés d&apos;élite.
-                </p>
-              </div>
-              <GuildDirectorySection guilds={guilds} />
-
-
-            </div>
-          </div>
-
-          {/* Pre-Footer CTA */}
+          {/* CTA final */}
           <PreFooterCta />
 
-          {/* Changelog Widget Section */}
-          <div className="bg-bg-secondary border-t border-white/5 py-24 pb-32">
-            <div className="container mx-auto px-6 max-w-4xl">
-              <div className="text-center mb-16">
-                <div className="text-accent-gold font-mono text-[10px] uppercase tracking-widest mb-4">Mises à jour</div>
-                <h2 className="text-3xl font-heading text-white mb-4">Journal de Bord</h2>
-                <p className="text-zinc-500 font-medium font-sans">Découvrez les dernières évolutions de l'OS.</p>
-              </div>
-              <ChangelogWidget />
-            </div>
-          </div>
         </main>
 
-        <GalacticFooter isMember={userContext.isMember} />
+        {/* Floating pill footer — compact, moderne */}
+        <GalacticFooter variant="compact" isMember={userContext.isMember} />
       </div>
-    </NebulaClientWrapper >
+    </NebulaClientWrapper>
   );
 }

@@ -1,0 +1,8 @@
+name = "dofus-ladder-proxy"
+main = "worker.js"
+compatibility_date = "2024-03-14"
+
+[vars]
+# 🔐 I-09 / F-19: WORKER_SECRET retiré du repo (fichier commité = fuite).
+# Le secret est géré via `wrangler secret put WORKER_SECRET` côté Cloudflare.
+# NE PAS remettre de secret en clair ici.

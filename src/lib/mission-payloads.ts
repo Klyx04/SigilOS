@@ -27,8 +27,11 @@ export type RegulationPayload = {
 
 // === ANOMALIE ===
 export type AnomaliePayload = {
-    type: 'ZONE' | 'BOSS';
+    type: 'ZONE' | 'BOSS' | 'GARDIENS' | 'COLLECTE' | 'FRAGMENTS' | 'STABILISATION';
     levelRange: AnomalieLevelRange;
+    fragmentLevel?: 1 | 2 | 3; // Only for COLLECTE type (maj 3.5)
+    // 'uchronique' = Élixir uchronique sans niveau (ajout chantier #145)
+    elixir?: 'aucun' | 'uchronique' | 'mineur' | 'ameliore' | 'majeur';
 }
 
 // === SONGES ===
@@ -36,6 +39,12 @@ export type SongesPayload = {
     difficulty: 'Rêve' | 'Paradoxe' | 'Cauchemar';
     level: 'I' | 'II' | 'III' | 'IV';
     tier: 1 | 2 | 3 | 4 | 5;
+}
+
+// === ÉPREUVE SONGE (4 épreuves spéciales : Fonsocac, Nilezaff, Reversed, Sinjsonj) ===
+export type SongesEpreuvePayload = {
+    epreuve: 'Fonsocac' | 'Nilezaff' | 'Reversed' | 'Sinjsonj';
+    imageUrl?: string;
 }
 
 // === EXPEDITION ===
@@ -51,7 +60,25 @@ export type ExpeditionPayload = {
 
 // === EVENT ===
 export type EventPayload = {
-    description: string;
+    eventType?: 'REGULATION' | 'DONJON' | 'MONSTRE_SPECIAL' | 'OBJECTIF' | 'FRAGMENTS_ANOMALIE';
+    contextPreset?: 'VULKANIA' | 'NOWEL' | 'PWAK' | 'HALOUINE' | 'AUTRE';
+    contextManual?: string;
+    description?: string;
+    dungeonId?: string;
+    dungeonName?: string;
+    bossName?: string;
+    level?: number;
+    imageUrl?: string;
+    zoneId?: string;
+    zoneName?: string;
+    familyId?: string;
+    familyName?: string;
+    targetCount?: number;
+    monsterName?: string;
+    title?: string;
+    customObjective?: string;
+    // Notes / instructions libres (maj 2026-08) — missions spéciales
+    notes?: string;
 }
 
 // Union type for all payloads
@@ -60,6 +87,7 @@ export type MissionPayload =
     | RegulationPayload
     | AnomaliePayload
     | SongesPayload
+    | SongesEpreuvePayload
     | ExpeditionPayload
     | EventPayload;
 
@@ -72,6 +100,7 @@ export const SONGES_CONFIG = {
         'Cauchemar': ['I', 'II', 'III'] as const,
     },
     tiers: [1, 2, 3, 4, 5] as const,
+    epreuves: ['Fonsocac', 'Nilezaff', 'Reversed', 'Sinjsonj'] as const,
 };
 
 // Anomalie level ranges

@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
@@ -8,6 +9,7 @@ import { z } from "zod";
 import { ActionResponse } from "./admin-actions";
 import { sendChannelMessage, fetchGuildRoles, validateChannelBelongsToGuild } from "@/server/discord";
 import { emitGuildActivity } from "./activity-actions";
+import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
 
 const WelcomeSettingsSchema = z.object({
     guildId: z.string(),
@@ -32,8 +34,9 @@ const GrantBadgeSchema = z.object({
 });
 
 export async function getOnboardingSettings(guildId: string) {
-    const user = await getUserContext(guildId);
-    if (!user.isAdmin) return { success: false, error: "Unauthorized" };
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
 
     try {
         const guild = await db.guildConfig.findUnique({
@@ -70,18 +73,19 @@ export async function getOnboardingSettings(guildId: string) {
             }
         }));
     } catch (e) {
-        console.error("Failed to get onboarding settings", e);
+        logger.error("Failed to get onboarding settings", e);
         return { success: false, error: "Database error" };
     }
 }
 
 export async function updateWelcomeSettings(data: z.infer<typeof WelcomeSettingsSchema>) {
-    const user = await getUserContext(data.guildId);
-    if (!user.isAdmin) return { success: false, error: "Unauthorized" };
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(data.guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
 
     try {
         // SECURITY: Validate that the channel belongs to the guild
-        if (data.channelId && data.discordEnabled) {
+        if (data.channelId) {
             const isValid = await validateChannelBelongsToGuild(data.channelId, data.guildId);
             if (!isValid) {
                 return { success: false, error: "Le salon Discord saisi n'appartient pas à ce serveur." };
@@ -101,10 +105,14 @@ export async function updateWelcomeSettings(data: z.infer<typeof WelcomeSettings
             }
         });
 
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateGuildCache } = await import("./user-actions");
+        await invalidateGuildCache(data.guildId);
+
         revalidatePath(`/dashboard/${data.guildId}/admin/settings`);
         return { success: true };
     } catch (e) {
-        console.error("Failed to update welcome settings", e);
+        logger.error("Failed to update welcome settings", e);
         return { success: false, error: "Database error" };
     }
 }
@@ -141,11 +149,15 @@ export async function updateWelcomeBadgeName(data: z.infer<typeof WelcomeBadgeSc
             });
         }
 
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateGuildCache } = await import("./user-actions");
+        await invalidateGuildCache(data.guildId);
+
         revalidatePath(`/dashboard/${data.guildId}/admin/settings`);
         revalidatePath(`/dashboard/${data.guildId}/profile`);
         return { success: true };
     } catch (e) {
-        console.error("Failed to update welcome badge name", e);
+        logger.error("Failed to update welcome badge name", e);
         return { success: false, error: "Database error" };
     }
 }
@@ -205,7 +217,7 @@ export async function grantWelcomeBadge(data: z.infer<typeof GrantBadgeSchema>) 
         revalidatePath(`/dashboard/${data.guildId}/members`);
         return { success: true };
     } catch (e) {
-        console.error("Failed to grant welcome badge", e);
+        logger.error("Failed to grant welcome badge", e);
         return { success: false, error: "Database error" };
     }
 }
@@ -237,18 +249,20 @@ export async function sendWelcomeMessage(guildId: string, memberProfileId: strin
         await emitGuildActivity(
             guild.id,
             "NEW_MEMBER",
-            memberProfile.pseudoDofus || memberProfile.discordNickname || memberProfile.user.name || "Nouveau membre",
+            getDisplayName(memberProfile),
             memberProfile.user.image,
             { message: template.replace(/{member}/g, "").replace(/{user}/g, "").replace(/{guild}/g, guild.name) }
         );
 
         // 2. Publish to Dashboard if configured
         if (guild.welcomeDashboardEnabled) {
-            const memberName = memberProfile.pseudoDofus || memberProfile.discordNickname || memberProfile.user.name || "Nouveau membre";
+            const memberName = getDisplayName(memberProfile);
             const content = template
                 .replace(/{member}/g, `**${memberName}**`)
                 .replace(/{user}/g, `**${memberName}**`)
-                .replace(/{guild}/g, `**${guild.name}**`);
+                .replace(/{nickname}/g, `**${memberName}**`)
+                .replace(/{guild}/g, `**${guild.name}**`)
+                .replace(/{server}/g, `**${guild.name}**`);
 
             await db.memberWelcome.create({
                 data: {
@@ -266,14 +280,15 @@ export async function sendWelcomeMessage(guildId: string, memberProfileId: strin
                 where: { userId: memberProfile.userId, provider: "discord" }
             });
 
-            const memberName = memberProfile.pseudoDofus || memberProfile.discordNickname || memberProfile.user.name || "Nouveau membre";
-            const memberMention = discordAccount ? `<@${discordAccount.providerAccountId}>` : `**${memberName}**`;
+            const memberMention = discordAccount ? `<@${discordAccount.providerAccountId}>` : `**${getDisplayName(memberProfile)}**`;
 
             // Keep the welcome text clean for the embed description
             const welcomeDescription = discordTemplate
                 .replace(/{member}/g, memberMention)
                 .replace(/{user}/g, memberMention)
-                .replace(/{guild}/g, `**${guild.name}**`);
+                .replace(/{nickname}/g, memberMention)
+                .replace(/{guild}/g, `**${guild.name}**`)
+                .replace(/{server}/g, `**${guild.name}**`);
 
             // Pings go outside the embed (trigger notification)
             const mentionRoleId = guild.welcomeMentionRoleId;
@@ -298,7 +313,7 @@ export async function sendWelcomeMessage(guildId: string, memberProfileId: strin
         revalidatePath(`/dashboard/${guildId}`);
         return { success: true };
     } catch (e) {
-        console.error("Failed to send welcome message", e);
+        logger.error("Failed to send welcome message", e);
         return { success: false, error: "Database error" };
     }
 }
@@ -350,7 +365,7 @@ export async function saveMemberIntroduction(guildId: string, introduction: stri
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };
     } catch (e) {
-        console.error("Failed to save introduction", e);
+        logger.error("Failed to save introduction", e);
         return { success: false, error: "Erreur lors de la sauvegarde" };
     }
 }
@@ -361,7 +376,7 @@ export async function getWelcomePosts(guildId: string) {
             where: { discordGuildId: guildId },
             select: { id: true }
         });
-        if (!guild) return [];
+        if (!guild) return { posts: [], reactorNames: {} };
 
         const posts = await db.memberWelcome.findMany({
             where: { guildId: guild.id },
@@ -374,10 +389,38 @@ export async function getWelcomePosts(guildId: string) {
             take: 50
         });
 
-        return JSON.parse(JSON.stringify(posts));
+        // Collect names of all reactors for tooltips
+        const allReactorIds = new Set<string>();
+        posts.forEach(post => {
+            const reactions = (post.reactions as Record<string, string[]>) || {};
+            Object.values(reactions).flat().forEach(id => {
+                if (id) allReactorIds.add(id);
+            });
+        });
+
+        const reactorProfiles = await db.userProfile.findMany({
+            where: { id: { in: Array.from(allReactorIds) } },
+            select: { 
+                id: true, 
+                pseudoDofus: true, 
+                discordNickname: true,
+                user: { select: { name: true } } 
+            }
+        });
+
+        const reactorNames: Record<string, string> = {};
+        reactorProfiles.forEach(p => {
+            reactorNames[p.id] = getGameDisplayName(p);
+        });
+
+        return {
+            posts: JSON.parse(JSON.stringify(posts, (_, v) => typeof v === "bigint" ? v.toString() : v)),
+
+            reactorNames
+        };
     } catch (e) {
-        console.error("Failed to get welcome posts", e);
-        return [];
+        logger.error("Failed to get welcome posts", e);
+        return { posts: [], reactorNames: {} };
     }
 }
 
@@ -433,10 +476,11 @@ export async function toggleWelcomeReaction(welcomeId: string, emoji: string) {
             data: { reactions }
         });
 
+        revalidatePath(`/dashboard/${welcome.guild.discordGuildId}`);
         revalidatePath(`/dashboard/${welcome.guild.discordGuildId}/welcome`);
         return { success: true };
     } catch (e) {
-        console.error("[toggleWelcomeReaction] Failed", e);
+        logger.error("[toggleWelcomeReaction] Failed", e);
         return { success: false, error: "Erreur serveur, réessaie dans un instant." };
     }
 }

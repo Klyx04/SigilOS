@@ -1,5 +1,4 @@
-"use client";
-
+import { useState, useEffect } from "react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 
 interface ActivityChartProps {
@@ -7,17 +6,23 @@ interface ActivityChartProps {
 }
 
 export default function ActivityChart({ data }: ActivityChartProps) {
-    if (data.length === 0 || data.every(d => d.submissions === 0)) {
+    const [mounted, setMounted] = useState(false);
+    
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted || data.length === 0 || data.every(d => d.submissions === 0)) {
         return (
-            <div className="flex items-center justify-center h-64 text-zinc-500 text-sm">
-                Pas encore de données d'activité
+            <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
+                {!mounted ? "Chargement..." : "Pas encore de données d'activité"}
             </div>
         );
     }
 
     return (
         <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
                         <linearGradient id="gradientSubmissions" x1="0" y1="0" x2="0" y2="1">

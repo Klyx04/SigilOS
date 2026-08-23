@@ -1,0 +1,38 @@
+{
+  "dofus": "dolmanax",
+  "displayName": "Dolmanax",
+  "color": "#FFC300",
+  "successName": "L'année du dragon",
+  "recommendedLevel": 1,
+  "description": "Collecter les 365 pages du calendrier de l'Almanax.",
+  "dofusItemId": 8774,
+  "iconId": null,
+  "imageUrl": "/module-dofus/Dofus_Dolmanax.png",
+  "compiledAt": "2026-04-09T12:46:19.082Z",
+  "chains": [
+    {
+      "sectionName": "Calendrier de l'Almanax",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Le Sanctuaire de l'Almanax",
+      "description": "Quête de longue haleine demandant 365 offrandes quotidiennes.",
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "entries": [
+        {
+          "name": "L'année du dragon (365 pages)",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 0,
+          "requirements": []
+        }
+      ]
+    }
+  ]
+}

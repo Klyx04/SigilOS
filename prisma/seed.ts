@@ -4,6 +4,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import * as fs from 'fs';
 import * as path from 'path';
 import 'dotenv/config';
+import { legendaryItems } from './seed-data/legendary-items';
 
 // Clean helper for environment variables
 const cleanEnv = (val: string | undefined) => {
@@ -124,52 +125,58 @@ async function seed() {
         }
     });
 
-    // 0.3 Ensure Super Admin account exists in DB (User + Account)
-    // This allows the session to link correctly even after a hard reset
-    const account = await prisma.account.findFirst({
-        where: { provider: 'discord', providerAccountId: superAdminDiscordId }
-    });
+    // 0.3 Ensure Dev users account exists in DB (User + Account)
+    const devUsers = [
+        { id: '403000342167420929', name: 'Wylan (Dev)', role: 'Boss / Dev', color: 0xF59E0B },
+        { id: '1130064714001563718', name: 'Sigil-Member (Test)', role: 'Beta-Tester', color: 0x10B981 }
+    ];
 
-    let userId: string;
+    for (const devUser of devUsers) {
+        const account = await prisma.account.findFirst({
+            where: { provider: 'discord', providerAccountId: devUser.id }
+        });
 
-    if (!account) {
-        console.error('🛠️ Seeding Super Admin user/account...');
-        const newUser = await prisma.user.create({
-            data: {
-                name: 'Wylan (Dev)',
-                image: 'https://cdn.discordapp.com/embed/avatars/0.png',
-                accounts: {
-                    create: {
-                        provider: 'discord',
-                        type: 'oauth',
-                        providerAccountId: superAdminDiscordId,
+        let userId: string;
+
+        if (!account) {
+            console.error(`🛠️ Seeding dev user ${devUser.name}...`);
+            const newUser = await prisma.user.create({
+                data: {
+                    name: devUser.name,
+                    image: `https://cdn.discordapp.com/embed/avatars/${Math.floor(Math.random() * 5)}.png`,
+                    accounts: {
+                        create: {
+                            provider: 'discord',
+                            type: 'oauth',
+                            providerAccountId: devUser.id,
+                        }
                     }
                 }
+            });
+            userId = newUser.id;
+        } else {
+            userId = account.userId;
+        }
+
+        // 0.4 Link profile for immediate dashboard access
+        await prisma.userProfile.upsert({
+            where: {
+                userId_guildId: {
+                    userId: userId,
+                    guildId: guildConfig.id
+                }
+            },
+            update: { status: 'ACTIVE' },
+            create: {
+                userId: userId,
+                guildId: guildConfig.id,
+                status: 'ACTIVE',
+                discordNickname: devUser.name,
+                discordRoleName: devUser.role,
+                discordRoleColor: devUser.color
             }
         });
-        userId = newUser.id;
-    } else {
-        userId = account.userId;
     }
-
-    // 0.4 Link profile for immediate dashboard access
-    await prisma.userProfile.upsert({
-        where: {
-            userId_guildId: {
-                userId: userId,
-                guildId: guildConfig.id
-            }
-        },
-        update: { status: 'ACTIVE' },
-        create: {
-            userId: userId,
-            guildId: guildConfig.id,
-            status: 'ACTIVE',
-            discordNickname: 'Wylan (Dev)',
-            discordRoleName: 'Boss / Dev',
-            discordRoleColor: 0xF59E0B
-        }
-    });
 
     console.error(`✅ Dev environment authorized and configured`);
 
@@ -304,6 +311,17 @@ async function seed() {
         }
     }
     console.error(`✅ ${seedData.data.dungeons.length} dungeons seeded`);
+
+    // 5. Seed Legendary Items
+    console.error('✨ Seeding Legendary Items...');
+    for (const item of legendaryItems) {
+        await prisma.legendaryItem.upsert({
+            where: { name: item.name },
+            update: item,
+            create: item
+        });
+    }
+    console.error('✅ Legendary items seeded');
 
     console.error('');
     console.error('🎉 Database seeding completed successfully!');

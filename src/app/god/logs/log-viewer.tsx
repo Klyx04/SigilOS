@@ -63,10 +63,11 @@ const ACTION_OPTIONS = [
     { value: "all", label: "Toutes les actions" },
     { value: "SECURITY_ALERT", label: "🚨 Alertes de Sécurité" },
     { value: "RBAC_UPDATE,RBAC_ROLE_ADD,RBAC_ROLE_REMOVE", label: "Permissions" },
-    { value: "WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE", label: "🔄 Mouvements" },
+    { value: "GOD_GUILD_WHITELIST,GOD_USER_PLATFORM_BAN,GOD_CONFIG_OVERRIDE,GOD_DATABASE_SYNC", label: "🛡️ Actions God" },
+    { value: "WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE,WEBHOOK_MEMBER_UPDATE", label: "🔄 Mouvements" },
     { value: "USER_GDPR_DELETE", label: "🗑️ Suppressions RGPD" },
     { value: "CONFIG_UPDATED", label: "Configuration" },
-    { value: "ADMIN_ACCESS_DENIED", label: "Accès refusé" },
+    { value: "ADMIN_FULL_DENIED", label: "Accès refusé" },
 ];
 
 export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
@@ -145,8 +146,10 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
         if (action.includes("RBAC")) return "bg-amber-500/10 text-amber-400 border-amber-500/20";
         if (action.includes("SECURITY")) return "bg-red-500/10 text-red-400 border-red-500/20 animate-pulse";
         if (action.includes("CONFIG")) return "bg-blue-500/10 text-blue-400 border-blue-500/20";
+        if (action.startsWith("GOD_")) return "bg-violet-500/10 text-violet-400 border-violet-500/20 ";
         if (action === "WEBHOOK_MEMBER_ADD") return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
         if (action === "WEBHOOK_MEMBER_REMOVE") return "bg-zinc-500/10 text-zinc-400 border-white/10";
+        if (action === "WEBHOOK_MEMBER_UPDATE") return "bg-indigo-500/10 text-indigo-400 border-indigo-500/20";
         if (action === "USER_GDPR_DELETE") return "bg-red-500/10 text-red-400 border-red-500/50 hover:bg-red-500/20";
         return "bg-zinc-500/10 text-zinc-400 border-white/5";
     };
@@ -158,12 +161,14 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
         if (action.includes("MEMBER_ADD")) return <Plus className="w-3.5 h-3.5" />;
         if (action === "WEBHOOK_MEMBER_REMOVE") return <UserMinus className="w-3.5 h-3.5" />;
         if (action === "USER_GDPR_DELETE") return <Trash2 className="w-3.5 h-3.5" />;
+        if (action.startsWith("GOD_")) return <Terminal className="w-3.5 h-3.5 text-violet-400" />;
         return <Shield className="w-3.5 h-3.5" />;
     };
 
     const formatActionLabel = (action: string) => {
         if (action === "WEBHOOK_MEMBER_ADD") return "Arrivée Membre";
         if (action === "WEBHOOK_MEMBER_REMOVE") return "Départ Membre";
+        if (action === "WEBHOOK_MEMBER_UPDATE") return "MàJ Membre";
         return action.replace(/_/g, " ");
     };
 
@@ -178,11 +183,11 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
             <div className="flex flex-wrap items-center gap-3 bg-zinc-900/40 p-3 rounded-2xl border border-white/5 backdrop-blur-md">
                 <div className="flex items-center gap-2 px-2 border-r border-white/10 mr-2">
                     <Filter className="h-4 w-4 text-zinc-500" />
-                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Filtres</span>
+                    <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Filtres</span>
                 </div>
 
                 <Select value={actionFilter} onValueChange={setActionFilter}>
-                    <SelectTrigger className="w-[180px] h-9 text-[11px] font-bold bg-zinc-800/50 border-white/10 rounded-xl">
+                    <SelectTrigger className="w-[180px] h-9 text-caption font-bold bg-zinc-800/50 border-white/10 rounded-xl">
                         <SelectValue placeholder="Type d'action" />
                     </SelectTrigger>
                     <SelectContent className="bg-zinc-900 border-white/10">
@@ -201,7 +206,7 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
                         placeholder="Rechercher par acteur, guilde..."
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
-                        className="h-9 w-[260px] pl-9 text-[11px] font-bold bg-zinc-800/50 border-white/10 rounded-xl"
+                        className="h-9 w-[260px] pl-9 text-caption font-bold bg-zinc-800/50 border-white/10 rounded-xl"
                     />
                 </div>
 
@@ -210,7 +215,7 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
                         variant="ghost"
                         size="sm"
                         onClick={clearFilters}
-                        className="h-9 text-[10px] font-black text-zinc-500 hover:text-white uppercase tracking-widest"
+                        className="h-9 text-caption font-black text-zinc-500 hover:text-white uppercase tracking-widest"
                     >
                         <X className="h-3 w-3 mr-2" />
                         Réinitialiser
@@ -218,7 +223,7 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
                 )}
 
                 <div className="ml-auto flex items-center gap-4">
-                    <div className="flex items-center gap-2 text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                    <div className="flex items-center gap-2 text-caption font-black text-zinc-500 uppercase tracking-widest">
                         Page <span className="text-zinc-300">{page}</span> / <span className="text-zinc-300">{totalPages || 1}</span>
                     </div>
                     <div className="flex gap-1">
@@ -249,11 +254,11 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
                 <table className="w-full text-left border-collapse">
                     <thead className="bg-white/5">
                         <tr>
-                            <th className="px-6 py-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Événement</th>
-                            <th className="px-6 py-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Acteur</th>
-                            <th className="px-6 py-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Cible / Guilde</th>
-                            <th className="px-6 py-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Détails</th>
-                            <th className="px-6 py-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest text-right">Date</th>
+                            <th className="px-6 py-4 text-caption font-black text-zinc-500 uppercase tracking-widest">Événement</th>
+                            <th className="px-6 py-4 text-caption font-black text-zinc-500 uppercase tracking-widest">Acteur</th>
+                            <th className="px-6 py-4 text-caption font-black text-zinc-500 uppercase tracking-widest">Cible / Guilde</th>
+                            <th className="px-6 py-4 text-caption font-black text-zinc-500 uppercase tracking-widest">Détails</th>
+                            <th className="px-6 py-4 text-caption font-black text-zinc-500 uppercase tracking-widest text-right">Date</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -274,10 +279,10 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
                                             {getActionIcon(log.action)}
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-[11px] font-black uppercase tracking-tight text-white leading-none">
+                                            <span className="text-caption font-black uppercase tracking-tight text-white leading-none">
                                                 {formatActionLabel(log.action)}
                                             </span>
-                                            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-1">
+                                            <span className="text-caption font-bold text-zinc-500 uppercase tracking-widest mt-1">
                                                 {log.targetType}
                                             </span>
                                         </div>
@@ -298,7 +303,7 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
                                             <span className="text-sm font-medium text-zinc-400">{log.guild?.name || "Global / System"}</span>
                                         </div>
                                         {log.targetId && (
-                                            <span className="text-[10px] font-mono text-zinc-600 ml-5">{log.targetId}</span>
+                                            <span className="text-caption font-mono text-zinc-600 ml-5">{log.targetId}</span>
                                         )}
                                     </div>
                                 </td>
@@ -321,7 +326,7 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
             </div>
 
             {/* Bottom Info */}
-            <div className="flex items-center justify-between text-[10px] font-black text-zinc-600 uppercase tracking-widest px-2">
+            <div className="flex items-center justify-between text-caption font-black text-zinc-600 uppercase tracking-widest px-2">
                 <span>Affichage de <span className="text-zinc-400">{logs.length}</span> entrées sur un total de <span className="text-zinc-400">{total}</span></span>
             </div>
         </div>

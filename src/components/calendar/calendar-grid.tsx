@@ -1,11 +1,15 @@
 "use client";
 
 /**
- * CalendarGrid V5 - BIGGER & CLEARER
+ * CalendarGrid V6 - BIGGER & CLEARER
  * Everything sized for comfortable reading
+ * - Smart sorting (priority types first, then by time)
+ * - Scrollable week day cells
+ * - Clickable "+N" badge → opens day modal
+ * - "Terminé" watermark stamp for completed events
  */
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import {
     format,
     startOfWeek,
@@ -18,24 +22,19 @@ import {
     startOfMonth,
     endOfMonth,
     addMonths,
-    subMonths
+    subMonths,
+    isBefore,
+    startOfDay
 } from "date-fns";
-import { fr } from "date-fns/locale";
 import {
-    ChevronLeft,
-    ChevronRight,
-    Plus,
-    Calendar as CalendarIcon,
     Users,
     Swords,
     PartyPopper,
     Target,
     Wheat,
-    CalendarDays,
-    LayoutGrid,
-    Eye
+    Eye,
+    CheckCircle2
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
     Tooltip,
     TooltipContent,
@@ -61,34 +60,34 @@ const TYPE_CONFIG: Record<string, TypeConfig> = {
     RAID_OFFICIAL: {
         label: "Raid 3.6",
         icon: Swords,
-        color: "text-red-400",
-        bg: "bg-red-500/15",
-        border: "border-red-500/40",
-        dot: "bg-red-500"
+        color: "text-danger",
+        bg: "bg-danger/15",
+        border: "border-danger/40",
+        dot: "bg-danger"
     },
     EVENT_GUILD: {
         label: "Event Guilde",
         icon: PartyPopper,
-        color: "text-purple-400",
-        bg: "bg-purple-500/15",
-        border: "border-purple-500/40",
-        dot: "bg-purple-500"
+        color: "text-info",
+        bg: "bg-info/15",
+        border: "border-info/40",
+        dot: "bg-info"
     },
     SESSION_MISSIONS: {
         label: "Missions Guilde",
         icon: Target,
-        color: "text-amber-400",
-        bg: "bg-amber-500/15",
-        border: "border-amber-500/40",
-        dot: "bg-amber-500"
+        color: "text-warning",
+        bg: "bg-warning/15",
+        border: "border-warning/40",
+        dot: "bg-warning"
     },
     SORTIE_FARM: {
         label: "Sortie Farm",
         icon: Wheat,
-        color: "text-emerald-400",
-        bg: "bg-emerald-500/15",
-        border: "border-emerald-500/40",
-        dot: "bg-emerald-500"
+        color: "text-success",
+        bg: "bg-success/15",
+        border: "border-success/40",
+        dot: "bg-success"
     },
     KRALAMOURE: {
         label: "Kralamoure",
@@ -99,6 +98,29 @@ const TYPE_CONFIG: Record<string, TypeConfig> = {
         dot: "bg-pink-500"
     },
 };
+
+/**
+ * Visual priority for sorting events within a day.
+ * Lower number = displayed first (higher in the cell).
+ */
+const TYPE_PRIORITY: Record<string, number> = {
+    RAID_OFFICIAL: 0,
+    KRALAMOURE: 1,
+    EVENT_GUILD: 2,
+    SORTIE_FARM: 3,
+    SESSION_MISSIONS: 4,
+};
+
+/**
+ * Sort events for a given day: priority type first, then by start time.
+ */
+const sortEventsForDay = (events: CalendarEvent[]): CalendarEvent[] =>
+    [...events].sort((a, b) => {
+        const pa = TYPE_PRIORITY[a.type] ?? 99;
+        const pb = TYPE_PRIORITY[b.type] ?? 99;
+        if (pa !== pb) return pa - pb;
+        return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+    });
 
 // ============================================
 // INTERFACES
@@ -123,8 +145,10 @@ interface CalendarGridProps {
     onDateChange: (date: Date) => void;
     onEventClick: (eventId: string) => void;
     onDayClick?: (date: Date) => void;
+    onDayEventsClick?: (date: Date, events: CalendarEvent[]) => void;
     canManage?: boolean;
-    onCreateClick?: () => void;
+    viewMode: ViewMode;
+    onViewModeChange: (mode: ViewMode) => void;
 }
 
 // ============================================
@@ -137,18 +161,11 @@ export function CalendarGrid({
     onDateChange,
     onEventClick,
     onDayClick,
+    onDayEventsClick,
     canManage = false,
-    onCreateClick
+    viewMode,
+    onViewModeChange
 }: CalendarGridProps) {
-    const [viewMode, setViewMode] = useState<ViewMode>("week");
-    const [activeFilter, setActiveFilter] = useState<string | null>(null);
-
-    // Filter events
-    const filteredEvents = useMemo(() => {
-        if (!activeFilter) return events;
-        return events.filter(e => e.type === activeFilter);
-    }, [events, activeFilter]);
-
     // Calendar days
     const calendarDays = useMemo(() => {
         if (viewMode === "week") {
@@ -164,23 +181,20 @@ export function CalendarGrid({
         }
     }, [currentDate, viewMode]);
 
-    // Events by day
+    // Events by day (sorted by priority then time)
     const eventsByDay = useMemo(() => {
         const map = new Map<string, CalendarEvent[]>();
-        filteredEvents.forEach(event => {
+        events.forEach(event => {
             const eventDate = new Date(event.startDate);
+            if (isNaN(eventDate.getTime())) return;
             const key = format(eventDate, "yyyy-MM-dd");
             const existing = map.get(key) || [];
             map.set(key, [...existing, event]);
         });
+        for (const [key, dayEvents] of map) {
+            map.set(key, sortEventsForDay(dayEvents));
+        }
         return map;
-    }, [filteredEvents]);
-
-    // Type counts
-    const typeCounts = useMemo(() => {
-        const counts: Record<string, number> = {};
-        events.forEach(e => { counts[e.type] = (counts[e.type] || 0) + 1; });
-        return counts;
     }, [events]);
 
     const handlePrev = () => {
@@ -197,152 +211,16 @@ export function CalendarGrid({
     const currentWeek = getWeek(currentDate, { weekStartsOn: 1 });
 
     return (
-        <div className="space-y-5">
-            {/* ============ BIG HEADER ============ */}
-            <div className="flex items-center justify-between p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800/50">
-                {/* Left - Big Title */}
-                <div className="flex items-center gap-4">
-                    <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-600/20 flex items-center justify-center border border-amber-500/30">
-                        <CalendarIcon className="h-7 w-7 text-amber-400" />
-                    </div>
-                    <div>
-                        <h2 className="text-2xl font-bold text-zinc-100">
-                            {viewMode === "week"
-                                ? `Semaine ${currentWeek}`
-                                : format(currentDate, "MMMM yyyy", { locale: fr })
-                            }
-                        </h2>
-                        <p className="text-base text-zinc-400">
-                            {format(startOfWeek(currentDate, { weekStartsOn: 1 }), "d", { locale: fr })}
-                            {" - "}
-                            {format(endOfWeek(currentDate, { weekStartsOn: 1 }), "d MMMM yyyy", { locale: fr })}
-                        </p>
-                    </div>
-                </div>
-
-                {/* Right - Big Controls */}
-                <div className="flex items-center gap-3">
-                    {/* View Toggle */}
-                    <div className="flex items-center bg-zinc-950 border border-zinc-700 rounded-xl p-1">
-                        <button
-                            onClick={() => setViewMode("week")}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all",
-                                viewMode === "week"
-                                    ? "bg-amber-500 text-zinc-950"
-                                    : "text-zinc-400 hover:text-zinc-200"
-                            )}
-                        >
-                            <CalendarDays className="h-5 w-5" />
-                            Semaine
-                        </button>
-                        <button
-                            onClick={() => setViewMode("month")}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all",
-                                viewMode === "month"
-                                    ? "bg-amber-500 text-zinc-950"
-                                    : "text-zinc-400 hover:text-zinc-200"
-                            )}
-                        >
-                            <LayoutGrid className="h-5 w-5" />
-                            Mois
-                        </button>
-                    </div>
-
-                    {/* Navigation */}
-                    <div className="flex items-center bg-zinc-950 border border-zinc-700 rounded-xl">
-                        <button
-                            onClick={handlePrev}
-                            className="p-3 hover:bg-zinc-800 rounded-l-xl transition-colors"
-                        >
-                            <ChevronLeft className="h-5 w-5 text-zinc-300" />
-                        </button>
-                        <button
-                            onClick={() => onDateChange(new Date())}
-                            className="px-4 py-2.5 text-sm font-semibold text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors"
-                        >
-                            Aujourd'hui
-                        </button>
-                        <button
-                            onClick={handleNext}
-                            className="p-3 hover:bg-zinc-800 rounded-r-xl transition-colors"
-                        >
-                            <ChevronRight className="h-5 w-5 text-zinc-300" />
-                        </button>
-                    </div>
-
-                    {/* Create Button */}
-                    {canManage && onCreateClick && (
-                        <Button
-                            onClick={onCreateClick}
-                            size="lg"
-                            className="h-12 px-5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 font-bold text-base shadow-lg shadow-amber-500/25"
-                        >
-                            <Plus className="h-5 w-5 mr-2" />
-                            Créer
-                        </Button>
-                    )}
-                </div>
-            </div>
-
-            {/* ============ FILTER BAR (BIG PILLS) ============ */}
-            <div className="flex items-center gap-3 flex-wrap">
-                <button
-                    onClick={() => setActiveFilter(null)}
-                    className={cn(
-                        "flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold transition-all border-2",
-                        !activeFilter
-                            ? "bg-zinc-100 text-zinc-900 border-zinc-100"
-                            : "bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-zinc-600 hover:text-zinc-200"
-                    )}
-                >
-                    Tous
-                    <span className={cn(
-                        "px-2 py-0.5 rounded-md text-xs font-bold",
-                        !activeFilter ? "bg-zinc-800 text-zinc-100" : "bg-zinc-800 text-zinc-400"
-                    )}>
-                        {events.length}
-                    </span>
-                </button>
-
-                {Object.entries(TYPE_CONFIG).map(([type, config]) => {
-                    const count = typeCounts[type] || 0;
-                    const Icon = config.icon;
-                    const isActive = activeFilter === type;
-
-                    return (
-                        <button
-                            key={type}
-                            onClick={() => setActiveFilter(isActive ? null : type)}
-                            className={cn(
-                                "flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold transition-all border-2",
-                                isActive
-                                    ? cn(config.bg, config.color, config.border)
-                                    : "bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-zinc-600"
-                            )}
-                        >
-                            <Icon className="h-5 w-5" />
-                            {config.label}
-                            <span className={cn(
-                                "px-2 py-0.5 rounded-md text-xs font-bold",
-                                isActive ? "bg-white/10" : "bg-zinc-800"
-                            )}>
-                                {count}
-                            </span>
-                        </button>
-                    );
-                })}
-            </div>
-
+        <div className="space-y-6">
             {/* ============ CALENDAR GRID ============ */}
-            <div className="rounded-2xl border border-zinc-800/50 bg-zinc-900/40 overflow-hidden">
-                {/* Days Header - BIGGER */}
-                <div className="grid grid-cols-7 bg-zinc-900 border-b border-zinc-800">
+            {/* #129 : grille 7 colonnes scrollable horizontalement sur mobile (min-w) au lieu de s'écraser */}
+            <div className="rounded-2xl border border-border bg-surface overflow-x-auto overscroll-x-contain relative">
+                {/* Days Header - CONTRASTE ÉPURÉ (plus de glow ambre) */}
+                <div className="grid grid-cols-7 min-w-[840px] md:min-w-full bg-muted border-b border-border">
                     {weekDays.map((day, i) => (
                         <div key={day} className={cn(
-                            "py-4 text-center text-sm font-bold tracking-wider",
-                            i >= 5 ? "text-zinc-600" : "text-zinc-400"
+                            "py-3.5 text-center text-xs font-semibold tracking-wide uppercase",
+                            i >= 5 ? "text-muted-foreground" : "text-foreground"
                         )}>
                             {day}
                         </div>
@@ -350,90 +228,165 @@ export function CalendarGrid({
                 </div>
 
                 {/* Days Grid */}
-                <div className="grid grid-cols-7">
+                <div className="grid grid-cols-7 min-w-[840px] md:min-w-full bg-surface">
                     {calendarDays.map((day, index) => {
                         const dayKey = format(day, "yyyy-MM-dd");
                         const dayEvents = eventsByDay.get(dayKey) || [];
                         const isCurrentDay = isToday(day);
+                        const isPastDay = isBefore(startOfDay(day), startOfDay(new Date()));
                         const isWeekend = index % 7 >= 5;
-                        const minHeight = viewMode === "week" ? "min-h-[180px]" : "min-h-[120px]";
-                        const maxEvents = viewMode === "week" ? 4 : 2;
+                        const minHeight = viewMode === "week" ? "min-h-[210px]" : "min-h-[140px]";
+                        // Week view: show ALL events (scrollable). Month view: cap + "+N" badge.
+                        const maxEvents = viewMode === "week" ? dayEvents.length + 1 : 2;
+                        const visibleEvents = dayEvents.slice(0, viewMode === "week" ? undefined : maxEvents);
 
                         return (
                             <div
                                 key={dayKey}
                                 className={cn(
-                                    "relative border-b border-r border-zinc-800/40 p-3 transition-all cursor-pointer",
+                                    "group relative border-b border-r border-border p-0 transition-colors duration-150 flex flex-col",
                                     minHeight,
-                                    isWeekend ? "bg-zinc-950/50" : "bg-zinc-900/40 hover:bg-zinc-800/40",
+                                    canManage && !isPastDay ? "cursor-pointer" : "cursor-default",
+                                    isWeekend
+                                        ? "bg-muted hover:bg-elevated"
+                                        : "bg-muted hover:bg-elevated",
                                     index % 7 === 6 && "border-r-0"
                                 )}
-                                onClick={() => onDayClick?.(day)}
+                                onClick={(e) => {
+                                    // Only trigger if we clicked the cell itself, not an event button, and the day is not in the past
+                                    if (canManage && !isPastDay && onDayClick) {
+                                        onDayClick(day);
+                                    }
+                                }}
                             >
-                                {/* Day Number - BIG */}
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className={cn(
-                                        "h-8 w-8 flex items-center justify-center rounded-full text-base font-bold",
-                                        isCurrentDay
-                                            ? "bg-amber-500 text-zinc-950 shadow-lg shadow-amber-500/30"
-                                            : "text-zinc-300"
-                                    )}>
-                                        {format(day, "d")}
-                                    </span>
-                                    {dayEvents.length > maxEvents && (
-                                        <span className="text-sm text-zinc-400 font-semibold">
-                                            +{dayEvents.length - maxEvents}
+                                {/* Jour du jour — surlignage plat (emerald, plus de glow ambre) */}
+                                {isCurrentDay && (
+                                    <div className="absolute inset-0 border border-success/60 bg-success/[0.05] pointer-events-none z-10" />
+                                )}
+
+                                <div className="p-3.5 flex-1 flex flex-col relative z-20 min-h-0">
+                                    {/* Day Number */}
+                                    <div className="flex items-center justify-between mb-3 shrink-0">
+                                        <span className={cn(
+                                            "h-9 w-9 flex items-center justify-center rounded-xl text-sm font-semibold transition-colors duration-150",
+                                            isCurrentDay
+                                                ? "bg-success text-success-foreground"
+                                                : "text-foreground group-hover:text-success"
+                                        )}>
+                                            {format(day, "d")}
                                         </span>
-                                    )}
-                                </div>
+                                        {dayEvents.length > maxEvents && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onDayEventsClick?.(day, dayEvents);
+                                                }}
+                                                className={cn(
+                                                    "text-xs font-semibold bg-surface border px-2 py-0.5 rounded-full transition-colors",
+                                                    "border-border text-foreground hover:border-success/50 hover:text-success "
+                                                )}
+                                                title={`Voir les ${dayEvents.length} événements de ce jour`}
+                                            >
+                                                +{dayEvents.length - maxEvents}
+                                            </button>
+                                        )}
+                                    </div>
 
-                                {/* Events - BIGGER PILLS */}
-                                <div className="space-y-1.5">
-                                    {dayEvents.slice(0, maxEvents).map((event) => {
-                                        const config = TYPE_CONFIG[event.type] || TYPE_CONFIG.EVENT_GUILD;
-                                        const Icon = config.icon;
-                                        const time = format(new Date(event.startDate), "HH:mm");
+                                    {/* Events - BIGGER PILLS (scrollable) */}
+                                    <div className={cn(
+                                        "space-y-2 mt-auto overflow-y-auto no-scrollbar",
+                                        viewMode === "week" ? "max-h-[calc(210px-3.5rem-2.5rem)]" : "max-h-[calc(140px-3.5rem-2.5rem)]"
+                                    )}>
+                                        {visibleEvents.map((event) => {
+                                            const start = event.startDate ? new Date(event.startDate) : null;
+                                            if (!start || isNaN(start.getTime())) return null;
 
-                                        return (
-                                            <TooltipProvider key={event.id}>
-                                                <Tooltip delayDuration={100}>
-                                                    <TooltipTrigger asChild>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                onEventClick(event.id);
-                                                            }}
-                                                            className={cn(
-                                                                "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all text-left border",
-                                                                config.bg, config.color, config.border,
-                                                                "hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
-                                                            )}
+                                            const config = TYPE_CONFIG[event.type] || TYPE_CONFIG.EVENT_GUILD;
+                                            const Icon = config.icon;
+                                            const time = format(start, "HH:mm");
+                                            const isCompleted = event.status === "COMPLETED";
+
+                                            return (
+                                                <TooltipProvider key={event.id}>
+                                                    <Tooltip delayDuration={100}>
+                                                        <TooltipTrigger asChild>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    onEventClick(event.id);
+                                                                }}
+                                                                className={cn(
+                                                                    "w-full group/btn relative flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors text-left",
+                                                                    "bg-background/70 border",
+                                                                    "hover:bg-muted",
+                                                                    isCompleted
+                                                                        ? "border-border opacity-60 grayscale-[0.8] hover:border-border"
+                                                                        : "border-border hover:border-border-strong"
+                                                                )}
+                                                            >
+                                                                {/* Side Accent Line */}
+                                                                <div className={cn(
+                                                                    "absolute left-0 top-1.5 bottom-1.5 w-0.75 rounded-r-full transition-colors",
+                                                                    isCompleted ? "bg-success/70" : config.dot
+                                                                )} />
+
+                                                                <div className={cn(
+                                                                    "h-7 w-7 rounded-lg flex items-center justify-center shrink-0 border border-border",
+                                                                    isCompleted ? "bg-success/10" : config.bg
+                                                                )}>
+                                                                    {isCompleted ? (
+                                                                        <CheckCircle2 className="h-3.5 w-3.5 text-success/80" />
+                                                                    ) : (
+                                                                        <Icon className={cn("h-3.5 w-3.5", config.color)} />
+                                                                    )}
+                                                                </div>
+
+                                                                <div className="flex flex-col min-w-0">
+                                                                    <span className="text-caption font-semibold uppercase tracking-wide opacity-60 leading-none mb-0.5">
+                                                                        {time}
+                                                                    </span>
+                                                                    <span className="truncate text-foreground group-hover/btn:text-foreground transition-colors">
+                                                                        {event.title}
+                                                                    </span>
+                                                                </div>
+
+                                                                {/* Completed watermark stamp */}
+                                                                {isCompleted && (
+                                                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                                        <span className="rotate-[-12deg] border border-success/50 bg-success/10 text-success/90 text-caption font-semibold uppercase tracking-wide px-2 py-0.5 rounded-sm">
+                                                                            ✓ Terminé
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent
+                                                            side="right"
+                                                            className="bg-popover border-border p-3.5 max-w-[240px] rounded-xl"
                                                         >
-                                                            <Icon className="h-4 w-4 shrink-0" />
-                                                            <span className="font-bold">{time}</span>
-                                                            <span className="truncate">{event.title}</span>
-                                                        </button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent
-                                                        side="right"
-                                                        className="bg-zinc-900 border-zinc-700 p-3 max-w-[220px]"
-                                                    >
-                                                        <p className="font-bold text-zinc-100">{event.title}</p>
-                                                        <p className="text-sm text-zinc-400 mt-1">
-                                                            {time} → {format(new Date(event.endDate), "HH:mm")}
-                                                        </p>
-                                                        {event._count && (
-                                                            <div className="flex items-center gap-1.5 mt-2 text-sm text-zinc-500">
-                                                                <Users className="h-4 w-4" />
-                                                                {event._count.participants}
-                                                                {event.maxParticipants && ` / ${event.maxParticipants}`}
-                                                            </div>
-                                                        )}
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                        );
-                                    })}
+                                                            <p className="font-bold text-foreground text-sm">{event.title}</p>
+                                                            <p className="text-xs text-muted-foreground mt-1 font-medium">
+                                                                {time} → {format(new Date(event.endDate), "HH:mm")}
+                                                            </p>
+                                                            {isCompleted && (
+                                                                <span className="mt-2 inline-flex items-center gap-1.5 text-success font-bold text-xs">
+                                                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                                                    Terminé
+                                                                </span>
+                                                            )}
+                                                            {event._count && (
+                                                                <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground font-bold">
+                                                                    <Users className="h-3.5 w-3.5" />
+                                                                    {event._count.participants}
+                                                                    {event.maxParticipants && ` / ${event.maxParticipants}`}
+                                                                </div>
+                                                            )}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             </div>
                         );
@@ -441,14 +394,19 @@ export function CalendarGrid({
                 </div>
             </div>
 
-            {/* ============ LEGEND (BIG) ============ */}
-            <div className="flex items-center justify-center gap-8 py-4">
+            {/* ============ LÉGENDE ============ */}
+            <div className="flex flex-wrap items-center justify-center gap-2 py-3 bg-surface/40 border border-border rounded-xl px-4">
                 {Object.entries(TYPE_CONFIG).map(([type, config]) => (
-                    <div key={type} className="flex items-center gap-3">
-                        <div className={cn("h-4 w-4 rounded-full", config.dot)} />
-                        <span className="text-base font-medium text-zinc-400">{config.label}</span>
+                    <div key={type} className="flex items-center gap-2 px-2.5 py-1 rounded-lg">
+                        <div className={cn("h-2 w-2 rounded-full", config.dot)} />
+                        <span className="text-xs font-medium text-muted-foreground">{config.label}</span>
                     </div>
                 ))}
+                {/* Les événements terminés sont grisés avec un tampon « Terminé » dans la grille */}
+                <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg">
+                    <CheckCircle2 className="h-3 w-3 text-success/80" />
+                    <span className="text-xs font-medium text-muted-foreground">Terminé</span>
+                </div>
             </div>
         </div>
     );

@@ -1,40 +1,41 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { AccessRequestModal } from "./AccessRequestModal";
 import { loginWithDiscord } from "@/server/actions/auth-actions";
 
 export function PreFooterCta() {
+    const [showAccessModal, setShowAccessModal] = useState(false);
+
     return (
-        <section className="py-32 bg-background relative overflow-hidden">
-            <div className="container px-6 mx-auto">
-                <div className="relative group p-12 md:p-20 rounded-[3rem] bg-gradient-to-br from-bg-secondary to-bg-primary border border-white/10 overflow-hidden text-center shadow-2xl">
-                    {/* Decorative Teal Beam */}
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent-teal/50 to-transparent" />
-
-                    <div className="relative z-10 max-w-2xl mx-auto">
-                        <h2 className="text-4xl md:text-6xl font-heading text-white mb-8 leading-tight">
-                            Prêt à passer à <br />
-                            <span className="text-accent-teal italic text-5xl md:text-7xl">la version supérieure ?</span>
-                        </h2>
-                        <p className="text-zinc-400 text-lg mb-12 font-medium font-sans">
-                            Gagnez des dizaines d'heures de gestion chaque mois. Centralisez, automatisez, gagnez.
-                        </p>
-                        <Button
-                            size="lg"
-                            className="h-16 px-12 rounded-2xl bg-white text-black hover:scale-105 active:scale-95 font-black uppercase tracking-[0.2em] transition-all shadow-2xl shadow-white/10 text-[10px]"
-                            onClick={() => loginWithDiscord()}
+        <section className="w-full border-t border-border py-24">
+            <div className="mx-auto max-w-[1100px] px-4 sm:px-6 lg:px-8">
+                <div className="rounded-3xl border border-border bg-surface px-6 py-14 md:p-16 text-center">
+                    <h2 className="text-2xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
+                        Prêt à réunir votre guilde au même endroit ?
+                    </h2>
+                    <p className="text-muted-foreground text-[15px] max-w-md mx-auto mb-8 leading-relaxed">
+                        Commencez avec Discord. Configurez vos modules ensuite. Le reste se construit avec votre communauté.
+                    </p>
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                        <button
+                            onClick={() => setShowAccessModal(true)}
+                            className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-success hover:bg-success text-success-foreground font-bold text-sm transition-colors"
                         >
-                            Démarrer l&apos;Aventure SigilOS
-                        </Button>
-                        <p className="mt-8 text-zinc-600 text-[10px] font-bold uppercase tracking-[0.2em]">
-                            Intégration Discord instantanée
-                        </p>
+                            Créer l&apos;espace de ma guilde
+                        </button>
+                        <form action={loginWithDiscord}>
+                            <button
+                                type="submit"
+                                className="h-12 px-6 rounded-xl border border-border hover:border-success/40 text-foreground font-semibold text-sm transition-colors"
+                            >
+                                Déjà membre ? Se connecter
+                            </button>
+                        </form>
                     </div>
-
-                    {/* Background Texture */}
-                    <div className="absolute inset-0 noise-overlay opacity-[0.05] pointer-events-none" />
                 </div>
             </div>
+            <AccessRequestModal open={showAccessModal} onClose={() => setShowAccessModal(false)} />
         </section>
     );
 }

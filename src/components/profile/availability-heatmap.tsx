@@ -34,33 +34,33 @@ const TIME_SLOT_ICONS: Record<TimeSlot, React.ReactNode> = {
     matin: <Sunrise className="w-4 h-4" />,
     midi: <Sun className="w-4 h-4" />,
     soir: <Moon className="w-4 h-4" />,
-    nuit: <Moon className="w-4 h-4 text-indigo-400" />
+    nuit: <Moon className="w-4 h-4 text-info" />
 };
 
 const TIME_SLOT_COLORS: Record<TimeSlot, { bg: string; border: string; glow: string; text: string }> = {
     matin: {
-        bg: "bg-orange-500/20",
-        border: "border-orange-500/50",
-        glow: "shadow-[0_0_10px_rgba(249,115,22,0.3)]",
-        text: "text-orange-400",
+        bg: "bg-warning/20",
+        border: "border-warning/50",
+        glow: "",
+        text: "text-warning",
     },
     midi: {
-        bg: "bg-amber-400/20",
-        border: "border-amber-400/50",
-        glow: "shadow-[0_0_10px_rgba(251,191,36,0.3)]",
-        text: "text-amber-400",
+        bg: "bg-warning/20",
+        border: "border-warning/50",
+        glow: "",
+        text: "text-warning",
     },
     soir: {
         bg: "bg-violet-500/20",
         border: "border-violet-500/50",
-        glow: "shadow-[0_0_10px_rgba(139,92,246,0.3)]",
+        glow: "",
         text: "text-violet-400",
     },
     nuit: {
-        bg: "bg-indigo-500/20",
-        border: "border-indigo-500/50",
-        glow: "shadow-[0_0_10px_rgba(99,102,241,0.3)]",
-        text: "text-indigo-400",
+        bg: "bg-info/20",
+        border: "border-info/50",
+        glow: "",
+        text: "text-info",
     },
 };
 
@@ -219,34 +219,34 @@ export function AvailabilityHeatmap({
     };
 
     return (
-        <div className="p-6 bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 h-full flex flex-col relative overflow-hidden">
+        <div className="p-6 bg-black/20 backdrop-blur-md rounded-2xl border border-border h-full flex flex-col relative overflow-hidden">
 
             {/* Header Controls */}
             <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
                 <div className="flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-zinc-400" />
+                    <Clock className="w-5 h-5 text-muted-foreground" />
                     <div>
-                        <h3 className="text-sm font-medium text-zinc-300">Disponibilités</h3>
-                        <p className="text-xs text-zinc-500">
+                        <h3 className="text-sm font-medium text-foreground">Disponibilités</h3>
+                        <p className="text-xs text-muted-foreground">
                             Semaine {getISOWeek(currentMonday)} • Année {getYear(currentMonday)}
                         </p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 bg-zinc-950/50 p-1 rounded-lg border border-white/5">
+                <div className="flex items-center gap-2 bg-background/50 p-1 rounded-lg border border-border">
                     <button
                         onClick={() => setWeekOffset(prev => prev - 1)}
-                        className="p-1.5 hover:bg-white/5 rounded-md text-zinc-400 hover:text-white transition-colors"
+                        className="p-1.5 hover:bg-surface rounded-md text-muted-foreground hover:text-foreground transition-colors"
                     >
                         <ChevronLeft className="w-4 h-4" />
                     </button>
-                    <div className="px-2 text-xs font-medium text-zinc-300 min-w-[140px] text-center flex items-center justify-center gap-2">
+                    <div className="px-2 text-xs font-medium text-foreground min-w-[140px] text-center flex items-center justify-center gap-2">
                         <CalendarDays className="w-3.5 h-3.5 opacity-70" />
                         {weekOffset === 0 ? "Cette semaine" : format(currentMonday, "d MMMM", { locale: fr }) + " - " + format(endOfWeek(currentMonday, { weekStartsOn: 1 }), "d MMMM", { locale: fr })}
                     </div>
                     <button
                         onClick={() => setWeekOffset(prev => prev + 1)}
-                        className="p-1.5 hover:bg-white/5 rounded-md text-zinc-400 hover:text-white transition-colors"
+                        className="p-1.5 hover:bg-surface rounded-md text-muted-foreground hover:text-foreground transition-colors"
                     >
                         <ChevronRight className="w-4 h-4" />
                     </button>
@@ -275,13 +275,13 @@ export function AvailabilityHeatmap({
                                             )}>
                                                 <span className={cn(
                                                     "text-xs font-semibold uppercase tracking-wider",
-                                                    isToday(day) ? "text-primary" : "text-zinc-500"
+                                                    isToday(day) ? "text-primary" : "text-muted-foreground"
                                                 )}>
                                                     {DAY_LABELS[day]}
                                                 </span>
                                                 <span className={cn(
                                                     "text-lg font-bold",
-                                                    isToday(day) ? "text-primary" : "text-zinc-600"
+                                                    isToday(day) ? "text-primary" : "text-muted-foreground"
                                                 )}>
                                                     {date.getDate()}
                                                 </span>
@@ -289,7 +289,7 @@ export function AvailabilityHeatmap({
 
                                             {/* Vacation Indicator Badge */}
                                             {isVacationDay && (
-                                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-cyan-500/90 text-[9px] text-zinc-950 font-bold px-1.5 py-0.5 rounded-full z-10 flex items-center gap-1 shadow-lg">
+                                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-info/90 text-caption text-info-foreground font-bold px-1.5 py-0.5 rounded-full z-10 flex items-center gap-1 shadow-lg">
                                                     <Plane className="w-2.5 h-2.5" />
                                                 </div>
                                             )}
@@ -309,10 +309,10 @@ export function AvailabilityHeatmap({
                                                     {TIME_SLOT_ICONS[slot]}
                                                 </span>
                                                 <div className="flex flex-col">
-                                                    <span className="text-xs font-medium text-zinc-400">
+                                                    <span className="text-xs font-medium text-muted-foreground">
                                                         {TIME_SLOT_LABELS[slot]}
                                                     </span>
-                                                    <span className="text-[10px] text-zinc-600">
+                                                    <span className="text-caption text-muted-foreground">
                                                         {TIME_SLOT_HOURS[slot]}
                                                     </span>
                                                 </div>
@@ -336,17 +336,17 @@ export function AvailabilityHeatmap({
                                                             // Normal State (Active Future)
                                                             !isVacationDay && !isPastDay && isActive
                                                                 ? cn(colors.bg, colors.border, "shadow-sm")
-                                                                : "bg-white/10 border-white/5",
+                                                                : "bg-surface border-border",
 
                                                             // Hover States (Active Future)
-                                                            !readOnly && !isVacationDay && !isPastDay && isHovered && !isActive && "scale-105 bg-white/20 border-white/20",
+                                                            !readOnly && !isVacationDay && !isPastDay && isHovered && !isActive && "scale-105 bg-elevated border-border-strong",
                                                             !readOnly && !isVacationDay && !isPastDay && isHovered && isActive && cn("scale-105", colors.bg, colors.border),
 
                                                             // Past State
                                                             isPastDay && "cursor-not-allowed opacity-30 grayscale brightness-50 border-transparent",
 
                                                             // Vacation State (High Contrast Fix)
-                                                            isVacationDay && !isPastDay && "cursor-not-allowed opacity-70 bg-red-900/10 border-red-500/20 grayscale-0",
+                                                            isVacationDay && !isPastDay && "cursor-not-allowed opacity-70 bg-danger/10 border-danger/20 grayscale-0",
                                                             readOnly && "cursor-default"
                                                         )}
                                                     >
@@ -357,17 +357,17 @@ export function AvailabilityHeatmap({
                                                         )}>
                                                             <div className={cn(
                                                                 "w-2.5 h-2.5 rounded-full shadow-sm",
-                                                                slot === "matin" && "bg-orange-400",
-                                                                slot === "midi" && "bg-amber-400",
+                                                                slot === "matin" && "bg-warning",
+                                                                slot === "midi" && "bg-warning",
                                                                 slot === "soir" && "bg-violet-400",
-                                                                slot === "nuit" && "bg-indigo-400"
+                                                                slot === "nuit" && "bg-info"
                                                             )} />
                                                         </div>
 
                                                         {/* Vacation Strikethrough (Brighter Red) */}
                                                         {isVacationDay && (
                                                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                                <div className="w-[140%] h-[2px] bg-red-500/60 rotate-45 transform shadow-[0_0_4px_rgba(239,68,68,0.4)]" />
+                                                                <div className="w-[140%] h-[2px] bg-danger/60 rotate-45 transform " />
                                                             </div>
                                                         )}
                                                     </button>
@@ -383,12 +383,12 @@ export function AvailabilityHeatmap({
             </div>
 
             {/* Minimal Legend */}
-            <div className="flex items-center justify-center gap-4 mt-6 pt-4 border-t border-white/5 text-[10px] text-zinc-500">
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-orange-400" /> Matin</div>
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400" /> Midi</div>
+            <div className="flex items-center justify-center gap-4 mt-6 pt-4 border-t border-border text-caption text-muted-foreground">
+                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-warning" /> Matin</div>
+                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-warning" /> Midi</div>
                 <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-violet-400" /> Soir</div>
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-indigo-400" /> Nuit</div>
-                <div className="flex items-center gap-1.5 ml-4 text-cyan-500/50"><Plane className="w-3 h-3" /> Absent (Congés)</div>
+                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-info" /> Nuit</div>
+                <div className="flex items-center gap-1.5 ml-4 text-info/50"><Plane className="w-3 h-3" /> Absent (Congés)</div>
             </div>
         </div>
     );

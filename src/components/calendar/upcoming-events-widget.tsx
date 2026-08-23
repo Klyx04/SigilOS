@@ -55,26 +55,26 @@ const TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; colo
     RAID_OFFICIAL: {
         label: "Raid 3.6",
         icon: Swords,
-        color: "text-red-400",
-        bg: "bg-red-500/15 border-red-500/30"
+        color: "text-danger",
+        bg: "bg-danger/15 border-danger/30"
     },
     EVENT_GUILD: {
         label: "Event Guilde",
         icon: PartyPopper,
-        color: "text-purple-400",
-        bg: "bg-purple-500/15 border-purple-500/30"
+        color: "text-info",
+        bg: "bg-info/15 border-info/30"
     },
     SESSION_MISSIONS: {
         label: "Missions Guilde",
         icon: Target,
-        color: "text-amber-400",
-        bg: "bg-amber-500/15 border-amber-500/30"
+        color: "text-warning",
+        bg: "bg-warning/15 border-warning/30"
     },
     SORTIE_FARM: {
         label: "Sortie Farm",
         icon: Wheat,
-        color: "text-emerald-400",
-        bg: "bg-emerald-500/15 border-emerald-500/30"
+        color: "text-success",
+        bg: "bg-success/15 border-success/30"
     },
 };
 
@@ -114,18 +114,18 @@ export function UpcomingEventsWidget({
 
     return (
         <div className={cn(
-            "rounded-xl border border-zinc-800/50 overflow-hidden",
-            compact ? "bg-zinc-900/40" : "bg-gradient-to-br from-zinc-900/80 to-zinc-950/80"
+            "rounded-xl border border-border/50 overflow-hidden",
+            compact ? "bg-surface/40" : "bg-gradient-to-br from-surface/80 to-background/80"
         )}>
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800/30 bg-zinc-900/60">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 bg-surface/60">
                 <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                        <Calendar className="h-4 w-4 text-amber-400" />
+                    <div className="h-8 w-8 rounded-lg bg-warning/10 flex items-center justify-center">
+                        <Calendar className="h-4 w-4 text-warning" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-bold text-zinc-100">À venir</h3>
-                        <p className="text-xs text-zinc-500">{upcomingEvents.length} événement{upcomingEvents.length > 1 ? "s" : ""}</p>
+                        <h3 className="text-sm font-bold text-foreground">À venir</h3>
+                        <p className="text-xs text-muted-foreground">{upcomingEvents.length} événement{upcomingEvents.length > 1 ? "s" : ""}</p>
                     </div>
                 </div>
                 {onViewAll && (
@@ -133,7 +133,7 @@ export function UpcomingEventsWidget({
                         variant="ghost"
                         size="sm"
                         onClick={onViewAll}
-                        className="h-8 px-2 text-xs text-zinc-400 hover:text-amber-400"
+                        className="h-8 px-2 text-xs text-muted-foreground hover:text-warning"
                     >
                         Voir tout
                         <ChevronRight className="h-3 w-3 ml-1" />
@@ -142,7 +142,7 @@ export function UpcomingEventsWidget({
             </div>
 
             {/* Events List */}
-            <div className="divide-y divide-zinc-800/30">
+            <div className="divide-y divide-border/30">
                 {upcomingEvents.map((event) => (
                     <EventRow
                         key={event.id}
@@ -197,7 +197,7 @@ function EventRow({
         <button
             onClick={onClick}
             className={cn(
-                "w-full flex items-center gap-3 p-3 text-left transition-all hover:bg-zinc-800/30 group",
+                "w-full flex items-center gap-3 p-3 text-left transition-all hover:bg-elevated/30 group",
                 compact && "p-2.5"
             )}
         >
@@ -214,18 +214,18 @@ function EventRow({
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                     <span className={cn(
-                        "font-semibold text-zinc-100 truncate text-sm",
+                        "font-semibold text-foreground truncate text-sm",
                         compact && "text-xs"
                     )}>
                         {event.title}
                     </span>
                     {isUrgent && (
-                        <Flame className="h-3.5 w-3.5 text-orange-500 animate-pulse shrink-0" />
+                        <Flame className="h-3.5 w-3.5 text-warning animate-pulse shrink-0" />
                     )}
                 </div>
                 <div className={cn(
-                    "flex items-center gap-2 text-xs text-zinc-500 mt-0.5",
-                    compact && "text-[10px]"
+                    "flex items-center gap-2 text-xs text-muted-foreground mt-0.5",
+                    compact && "text-caption"
                 )}>
                     <Clock className="h-3 w-3" />
                     {isTodays ? (
@@ -235,7 +235,7 @@ function EventRow({
                     )}
                     {event._count && (
                         <>
-                            <span className="text-zinc-600">•</span>
+                            <span className="text-muted-foreground">•</span>
                             <Users className="h-3 w-3" />
                             <span>
                                 {event._count.participants}
@@ -252,17 +252,17 @@ function EventRow({
                 className={cn(
                     "shrink-0 font-bold text-xs",
                     isUrgent
-                        ? "bg-orange-500/10 border-orange-500/30 text-orange-400"
+                        ? "bg-warning/10 border-warning/30 text-warning"
                         : isTodays
-                            ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
-                            : "bg-zinc-800 border-zinc-700 text-zinc-400"
+                            ? "bg-warning/10 border-warning/30 text-warning"
+                            : "bg-elevated border-border text-muted-foreground"
                 )}
             >
                 {countdown}
             </Badge>
 
             {/* Arrow */}
-            <ChevronRight className="h-4 w-4 text-zinc-600 group-hover:text-zinc-400 transition-colors shrink-0" />
+            <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-muted-foreground transition-colors shrink-0" />
         </button>
     );
 }
@@ -301,8 +301,8 @@ export function UpcomingEventsBadge({
             className={cn(
                 "flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all",
                 isUrgent
-                    ? "bg-orange-500/10 border-orange-500/30 text-orange-400 animate-pulse"
-                    : "bg-zinc-900/60 border-zinc-700/50 text-zinc-400 hover:border-zinc-600"
+                    ? "bg-warning/10 border-warning/30 text-warning animate-pulse"
+                    : "bg-surface/60 border-border/50 text-muted-foreground hover:border-border"
             )}
         >
             <Icon className="h-4 w-4" />
@@ -312,8 +312,8 @@ export function UpcomingEventsBadge({
             <Badge
                 variant="outline"
                 className={cn(
-                    "h-5 text-[10px] font-bold",
-                    isUrgent ? "border-orange-500/50 text-orange-300" : "border-zinc-600 text-zinc-400"
+                    "h-5 text-caption font-bold",
+                    isUrgent ? "border-warning/50 text-warning" : "border-border text-muted-foreground"
                 )}
             >
                 {hoursUntil < 1 ? `${Math.max(1, differenceInMinutes(startDate, now))}min` : `${hoursUntil}h`}

@@ -1,34 +1,42 @@
 import { auth } from "@/auth";
 import { getUserProfile, getProfileStats } from "@/server/actions/profile-actions";
 import { getUserContext } from "@/server/actions/user-actions";
+import { db } from "@/lib/prisma";
 import { ProfileBentoGrid } from "@/components/profile/profile-bento-grid";
 import { redirect } from "next/navigation";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import type { AvailabilityMap } from "@/lib/dofus-assets";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { ProfileTourReplayButton } from "@/components/profile/profile-tour-replay-button";
 import { UserCircle } from "lucide-react";
 
-export default async function ProfilePage({ params }: { params: Promise<{ guildId: string }> }) {
+export default async function ProfilePage({ params, searchParams }: {
+    params: Promise<{ guildId: string }>;
+    searchParams: Promise<{ tab?: string }>;
+}) {
     const session = await auth();
     if (!session?.user) redirect("/");
 
     const { guildId } = await params;
+    const { tab: initialTab } = await searchParams;
 
-    // Fetch user context for Discord info + RBAC
-    const userContext = await getUserContext(guildId);
+    // Fetch all data in parallel to avoid waterfalls
+    const [userContext, profileResponse, statsResponse, guildConfig] = await Promise.all([
+        getUserContext(guildId),
+        getUserProfile(guildId),
+        getProfileStats(guildId),
+        db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { absenceChannelId: true } })
+    ]);
 
     // RBAC: Must be authenticated member of the guild with profile view permission
     if (!userContext.isAuthenticated || !userContext.isMember || !userContext.canViewProfile) {
         return <AccessDenied />;
     }
 
-    // Fetch profile
-    const profileResponse = await getUserProfile(guildId);
-
     if (!profileResponse.success || !profileResponse.data) {
         return (
-            <div className="p-8 text-center text-red-400">
+            <div className="p-8 text-center text-danger">
                 <h2 className="text-xl font-bold">Erreur de chargement</h2>
                 <p>{profileResponse.error}</p>
             </div>
@@ -36,13 +44,11 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
     }
 
     const profile = profileResponse.data;
-
-    // Fetch stats
-    const statsResponse = await getProfileStats(guildId);
     const stats = statsResponse.success && statsResponse.data
         ? {
             ...statsResponse.data,
-            joinedAt: (userContext.joinedAt ?? statsResponse.data.joinedAt) as string | null
+            joinedAt: (userContext.joinedAt ?? statsResponse.data.joinedAt) as string | null,
+            totalGuildMissions: (statsResponse.data as any).totalGuildMissions ?? 0
         }
         : {
             xp: profile.xp || 0,
@@ -53,6 +59,14 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
             lastActivity: null as { description: string; date: string | Date } | null,
             joinedAt: (userContext.joinedAt || null) as string | null,
             isTopContributor: false,
+            weeklyActivity: [],
+            missionsByCategory: [],
+            totalGuildMissions: 0,
+            discordStats: statsResponse.success && (statsResponse.data as any).discordStats ? (statsResponse.data as any).discordStats : {
+                weekly: { messages: 0, voice: 0 },
+                monthly: { messages: 0, voice: 0 },
+                total: { messages: 0, voice: 0 }
+            }
         };
 
     return (
@@ -67,7 +81,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                     backHref={`/dashboard/${guildId}`}
                 />
 
+                <div className="flex justify-end">
+                    <ProfileTourReplayButton />
+                </div>
+
                 <ProfileBentoGrid
+                    initialTab={initialTab}
                     profile={{
                         id: profile.id,
                         userId: profile.userId,
@@ -89,10 +108,21 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                         altPseudos: (profile.altPseudos as string[]) || [],
                         dofusBookLinks: (profile.dofusBookLinks as any) || [],
                         introduction: profile.introduction,
+                        objectifs: profile.objectifs,
+                        preferredActivities: (profile.preferredActivities as string[]) || [],
+                        discordContact: profile.discordContact,
+                        activeServices: profile.activeServices || [],
+                        lastSeen: profile.lastSeen,
+                        lastActivityAt: profile.lastActivityAt,
                         notificationPrefs: profile.notificationPrefs as any,
                         successPoints: profile.successPoints,
                         lastLadderUpdate: profile.lastLadderUpdate ? new Date(profile.lastLadderUpdate) : null,
                         roleGrants: profile.roleGrants || [],
+                        skins: profile.skins || [],
+                        alignment: profile.alignment,
+                        alignmentOrder: profile.alignmentOrder,
+                        alignmentLevel: profile.alignmentLevel,
+                        hasLegendaryPet: profile.hasLegendaryPet ?? false,
                     }}
                     user={{
                         name: profile.user.name,
@@ -105,15 +135,20 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                     discordNickname={userContext.name}
                     isAdmin={userContext.isAdmin}
                     permissions={{
-                        canViewArchis: userContext.canViewArchis,
+                        canViewOcre: userContext.canViewOcre,
                         canViewSonges: userContext.canViewSonges,
                         canViewLadder: userContext.canViewLadder,
+                        canSyncLadder: userContext.canSyncLadder,
+                        canManualSyncLadder: userContext.canManualSyncLadder,
                         canViewMissions: userContext.canViewMissions,
+                        missionVitrineMode: !!userContext.missionVitrineMode,
                     }}
                     roleName={userContext.roleName}
                     roleColor={userContext.roleColor}
                     readOnly={false}
                     isSuperAdmin={userContext.isSuperAdmin}
+                    hasAbsenceChannel={!!guildConfig?.absenceChannelId}
+                    canViewPlanning={!!userContext.canViewAvailability}
                 />
             </div>
         </div>

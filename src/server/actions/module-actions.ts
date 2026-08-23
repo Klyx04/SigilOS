@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
@@ -25,6 +26,8 @@ const UpdateModulesSchema = z.object({
     profile: z.boolean(),
     docs: z.boolean(),
     polls: z.boolean(),
+    // Planning
+    availability: z.boolean(),
     // Admin
     logs: z.boolean(),
     admin: z.boolean(),
@@ -33,7 +36,11 @@ const UpdateModulesSchema = z.object({
     worldmap: z.boolean(),
     resources: z.boolean(),
     // Nouveau
-    chat: z.boolean(),
+    gallery: z.boolean(),
+    ladderSync: z.boolean(),
+    manualLadderSync: z.boolean(),
+    minigames: z.boolean(),
+    succes: z.boolean(),
 });
 
 type ActionResponse<T = undefined> = {
@@ -42,50 +49,76 @@ type ActionResponse<T = undefined> = {
     data?: T;
 };
 
-// ============================================================================
-// QUERIES
-// ============================================================================
+import { cache } from "react";
 
-export async function getGuildModules(
-    discordGuildId: string
-): Promise<GuildModulesState> {
+// In-memory cache for module states (30s TTL)
+const moduleCache = new Map<string, { data: GuildModulesState, expiresAt: number }>();
+const MODULE_CACHE_TTL = 30_000;
+
+/**
+ * Invalidate modules cache for a guild
+ */
+export async function invalidateModuleCache(discordGuildId: string) {
+    moduleCache.delete(discordGuildId);
+}
+
+export const getGuildModules = cache(async (discordGuildId: string): Promise<GuildModulesState> => {
+    const now = Date.now();
+    const cached = moduleCache.get(discordGuildId);
+
+    if (cached && cached.expiresAt > now) {
+        return cached.data;
+    }
+
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId },
             include: { modules: true },
         });
 
-        if (!guildConfig?.modules) {
+        const dbModules = guildConfig?.modules as any;
+        
+        // If no modules record at all, return defaults
+        if (!dbModules) {
+            moduleCache.set(discordGuildId, { data: DEFAULT_MODULES, expiresAt: now + MODULE_CACHE_TTL });
             return DEFAULT_MODULES;
         }
 
-        const m = guildConfig.modules;
-        return {
-            presentation: m.presentation,
-            roster: m.roster,
-            stats: m.stats,
-            calendar: m.calendar,
-            missions: m.missions,
-            songes: m.songes,
-            ocre: m.ocre,
-            ladder: m.ladder,
-            services: m.services,
-            donjons: m.donjons,
-            profile: m.profile,
-            docs: m.docs,
-            polls: m.polls,
-            logs: m.logs,
-            admin: m.admin,
-            quests: m.quests,
-            worldmap: m.worldmap,
-            resources: m.resources,
-            chat: m.chat,
+        // Merge defaults with DB values, ensuring boolean conversion and fallback
+        const data: GuildModulesState = {
+            ...DEFAULT_MODULES,
+            presentation: dbModules.presentation ?? DEFAULT_MODULES.presentation,
+            roster: dbModules.roster ?? DEFAULT_MODULES.roster,
+            stats: dbModules.stats ?? DEFAULT_MODULES.stats,
+            calendar: dbModules.calendar ?? DEFAULT_MODULES.calendar,
+            missions: dbModules.missions ?? DEFAULT_MODULES.missions,
+            songes: dbModules.songes ?? DEFAULT_MODULES.songes,
+            ocre: dbModules.ocre ?? DEFAULT_MODULES.ocre,
+            ladder: dbModules.ladder ?? DEFAULT_MODULES.ladder,
+            services: dbModules.services ?? DEFAULT_MODULES.services,
+            donjons: dbModules.donjons ?? DEFAULT_MODULES.donjons,
+            profile: dbModules.profile ?? DEFAULT_MODULES.profile,
+            docs: dbModules.docs ?? DEFAULT_MODULES.docs,
+            polls: dbModules.polls ?? DEFAULT_MODULES.polls,
+            availability: dbModules.availability ?? DEFAULT_MODULES.availability,
+            logs: dbModules.logs ?? DEFAULT_MODULES.logs,
+            admin: dbModules.admin ?? DEFAULT_MODULES.admin,
+            quests: dbModules.quests ?? DEFAULT_MODULES.quests,
+            worldmap: dbModules.worldmap ?? DEFAULT_MODULES.worldmap,
+            resources: dbModules.resources ?? DEFAULT_MODULES.resources,
+            gallery: dbModules.gallery ?? DEFAULT_MODULES.gallery,
+            ladderSync: dbModules.ladderSync ?? DEFAULT_MODULES.ladderSync,
+            manualLadderSync: dbModules.manualLadderSync ?? DEFAULT_MODULES.manualLadderSync,
+            minigames: dbModules.minigames ?? DEFAULT_MODULES.minigames,
+            succes: dbModules.succes ?? DEFAULT_MODULES.succes,
         };
+
+        moduleCache.set(discordGuildId, { data, expiresAt: now + MODULE_CACHE_TTL });
+        return data;
     } catch {
-        // Fail open — if we can't read modules, assume all enabled
         return DEFAULT_MODULES;
     }
-}
+});
 
 export async function isModuleEnabled(
     discordGuildId: string,
@@ -135,6 +168,14 @@ export async function updateGuildModules(
             },
         });
 
+        // 🛡️ CRITICAL: Invalidate Server-side memory caches
+        await invalidateModuleCache(discordGuildId);
+        const { invalidateGuildCache, flushGuildUserContextCache } = await import("./user-actions");
+        await invalidateGuildCache(discordGuildId);
+        // BUGFIX: Flush all user context Redis caches so module changes take effect immediately
+        // (without this, members see stale permissions for up to 60s after a module toggle)
+        await flushGuildUserContextCache(discordGuildId);
+
         await createAuditLog({
             guildId: discordGuildId,
             actorUserId: session.user.id,
@@ -147,11 +188,13 @@ export async function updateGuildModules(
         });
 
         revalidatePath(`/dashboard/${discordGuildId}/admin/modules`);
-        revalidatePath(`/dashboard/${discordGuildId}`);
+        // BUGFIX: Invalider le layout pour répercuter les changements de modules sur tout le dashboard
+        revalidatePath(`/dashboard/${discordGuildId}`, "layout");
+
 
         return { success: true };
     } catch (error) {
-        console.error("[updateGuildModules] Error:", error);
+        logger.error("[updateGuildModules] Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }

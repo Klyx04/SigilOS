@@ -12,6 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import AccessDenied from "@/components/access-denied";
+import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -34,6 +35,7 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
 
     return (
         <div className="space-y-6 pb-12">
+            <div data-tour="presentation-header">
             <UnifiedModuleHeader
                 title="Présentation de la Guilde"
                 description="Informations visibles par les membres et le public."
@@ -46,16 +48,16 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <div className={cn(
-                                        "flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest transition-all",
+                                        "flex items-center gap-2 px-3 py-1.5 rounded-full border text-caption font-black uppercase tracking-widest transition-all",
                                         guild.isRecruiting
-                                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                                            : "bg-zinc-500/10 border-white/10 text-zinc-500"
+                                            ? "bg-success/10 border-success/20 text-success"
+                                            : "bg-muted/10 border-border text-muted-foreground"
                                     )}>
-                                        <div className={cn("w-1.5 h-1.5 rounded-full", guild.isRecruiting ? "bg-emerald-500 animate-pulse" : "bg-zinc-600")} />
+                                        <div className={cn("w-1.5 h-1.5 rounded-full", guild.isRecruiting ? "bg-success animate-pulse" : "bg-muted")} />
                                         {guild.isRecruiting ? "Public" : "Désactivé"}
                                     </div>
                                 </TooltipTrigger>
-                                <TooltipContent className="bg-zinc-900 border-white/10 text-[10px] font-medium text-zinc-300">
+                                <TooltipContent className="bg-surface border-border text-caption font-medium text-foreground">
                                     {guild.isRecruiting
                                         ? "Visible dans l'annuaire public"
                                         : "Caché. Activez-le dans la configuration."}
@@ -63,15 +65,16 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
                             </Tooltip>
                         </TooltipProvider>
 
-                        <Link href={`/guilds/${guildId}`} target="_blank">
-                            <Button variant="outline" size="sm" className="gap-2 border-white/10 hover:bg-white/5 h-9">
+                        <Link href={`/guilds/${guildId}`} target="_blank" data-tour="presentation-public">
+                            <Button variant="outline" size="sm" className="gap-2 border-border hover:bg-surface h-9">
                                 <ExternalLink className="w-4 h-4" />
                                 <span className="hidden md:inline">Voir page publique</span>
                             </Button>
                         </Link>
+                        <ModuleTourReplayButton phase="presentation" />
                         {canEdit && (
                             <Link href={`/dashboard/${guildId}/admin/presentation`}>
-                                <Button size="sm" className="gap-2 bg-indigo-600 hover:bg-indigo-700 font-black h-9">
+                                <Button size="sm" className="gap-2 bg-info hover:bg-info font-black h-9">
                                     <Edit className="w-4 h-4" />
                                     Modifier
                                 </Button>
@@ -80,9 +83,10 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
                     </div>
                 }
             />
+            </div>
 
             {!guild.history && (
-                <Alert className="bg-indigo-500/5 border-indigo-500/20 text-indigo-400">
+                <Alert className="bg-info/5 border-info/20 text-info">
                     <Sparkles className="h-4 w-4" />
                     <AlertTitle className="text-xs font-black uppercase tracking-widest">Page non configurée</AlertTitle>
                     <AlertDescription className="text-sm font-medium opacity-80">
@@ -91,11 +95,11 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
                 </Alert>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" data-tour="presentation-board">
                 {/* Main Info Column */}
                 <div className="lg:col-span-2 space-y-6">
                     {/* Banner & Logo */}
-                    <Card className="overflow-hidden border-zinc-800 bg-zinc-900/50">
+                    <Card className="overflow-hidden border-border bg-surface/50">
                         <div className="relative h-48 md:h-64 w-full">
                             {guild.bannerType === "custom" && guild.bannerUrl ? (
                                 <Image
@@ -105,16 +109,16 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
                                     className="object-cover"
                                 />
                             ) : (
-                                <div className="w-full h-full bg-linear-to-r from-zinc-800 to-zinc-900 flex items-center justify-center">
-                                    <Globe className="w-12 h-12 text-zinc-700" />
+                                <div className="w-full h-full bg-linear-to-r from-elevated to-surface flex items-center justify-center">
+                                    <Globe className="w-12 h-12 text-muted-foreground" />
                                 </div>
                             )}
                         </div>
                         <div className="pt-6 px-6 pb-6">
-                            <h2 className="text-2xl font-bold text-white mb-2">{guild.name}</h2>
+                            <h2 className="text-2xl font-bold text-foreground mb-2">{guild.name}</h2>
 
                             {/* Meta Info */}
-                            <div className="flex flex-wrap gap-4 text-sm text-zinc-400 mb-4">
+                            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
                                 {guild.server && (
                                     <div className="flex items-center gap-1.5">
                                         <Server className="w-4 h-4" />
@@ -131,7 +135,7 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
 
                             <div className="flex flex-wrap gap-2">
                                 {guild.activities?.map((activity) => (
-                                    <Badge key={activity} variant="secondary" className="bg-zinc-800 text-zinc-300">
+                                    <Badge key={activity} variant="secondary" className="bg-elevated text-foreground">
                                         {activity}
                                     </Badge>
                                 ))}
@@ -141,34 +145,34 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
 
                     {/* History */}
                     {guild.history ? (
-                        <Card className="border-zinc-800 bg-zinc-900/50">
+                        <Card className="border-border bg-surface/50">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
-                                    <Globe className="w-5 h-5 text-indigo-400" />
+                                    <Globe className="w-5 h-5 text-info" />
                                     Histoire
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <div className="prose prose-invert prose-zinc max-w-none">
-                                    <p className="whitespace-pre-wrap text-zinc-300 leading-relaxed">
+                                    <p className="whitespace-pre-wrap break-words text-foreground leading-relaxed">
                                         {guild.history}
                                     </p>
                                 </div>
                             </CardContent>
                         </Card>
                     ) : (
-                        <Card className="border-zinc-800 border-dashed bg-zinc-900/20 py-12 flex flex-col items-center justify-center text-center px-6">
-                            <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                                <BookOpen className="w-6 h-6 text-zinc-600" />
+                        <Card className="border-border border-dashed bg-surface/20 py-12 flex flex-col items-center justify-center text-center px-6">
+                            <div className="w-12 h-12 rounded-full bg-surface flex items-center justify-center mb-4">
+                                <BookOpen className="w-6 h-6 text-muted-foreground" />
                             </div>
-                            <h3 className="text-sm font-bold text-zinc-400 mb-1">Aucune histoire racontée</h3>
-                            <p className="text-xs text-zinc-500 max-w-xs">Partagez l'épopée de votre guilde avec le monde.</p>
+                            <h3 className="text-sm font-bold text-muted-foreground mb-1">Aucune histoire racontée</h3>
+                            <p className="text-xs text-muted-foreground max-w-xs">Partagez l'épopée de votre guilde avec le monde.</p>
                         </Card>
                     )}
 
                     {/* Guild Photo */}
                     {guild.photoUrl && (
-                        <Card className="overflow-hidden border-zinc-800 bg-zinc-900/50">
+                        <Card className="overflow-hidden border-border bg-surface/50">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
                                     <span className="text-xl">🖼️</span>
@@ -190,31 +194,31 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
                 {/* Sidebar Info Column */}
                 <div className="space-y-6">
                     {/* Organization */}
-                    <Card className="border-zinc-800 bg-zinc-900/50">
+                    <Card className="border-border bg-surface/50">
                         <CardHeader>
                             <CardTitle className="text-lg flex items-center gap-2">
-                                <Users className="w-5 h-5 text-indigo-400" />
+                                <Users className="w-5 h-5 text-info" />
                                 Organisation
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {guild.founder && (
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                                <div className="flex items-center gap-3 p-3 rounded-lg bg-warning/10 border border-warning/20">
                                     <span className="text-xl">👑</span>
                                     <div>
-                                        <p className="text-xs font-medium text-amber-500 uppercase tracking-wider">Fondateur</p>
-                                        <p className="font-medium text-white">{guild.founder}</p>
+                                        <p className="text-xs font-medium text-warning uppercase tracking-wider">Fondateur</p>
+                                        <p className="font-medium text-foreground">{guild.founder}</p>
                                     </div>
                                 </div>
                             )}
 
                             {(guild.coLeaders ?? []).length > 0 && (
                                 <div className="space-y-2">
-                                    <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider pl-1">Co-leaders</p>
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider pl-1">Co-leaders</p>
                                     {guild.coLeaders?.map((leader, i) => (
-                                        <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-yellow-500/5 border border-yellow-500/10">
+                                        <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-warning/5 border border-warning/10">
                                             <span className="text-sm">⭐</span>
-                                            <p className="text-sm font-medium text-zinc-200">{leader}</p>
+                                            <p className="text-sm font-medium text-foreground">{leader}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -222,11 +226,11 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
 
                             {(guild.team ?? []).length > 0 && (
                                 <div className="space-y-2">
-                                    <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider pl-1">Bras Droits</p>
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider pl-1">Bras Droits</p>
                                     {guild.team?.map((member, i) => (
-                                        <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-indigo-500/5 border border-indigo-500/10">
+                                        <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-info/5 border border-info/10">
                                             <span className="text-sm">🛡️</span>
-                                            <p className="text-sm font-medium text-zinc-200">{member}</p>
+                                            <p className="text-sm font-medium text-foreground">{member}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -235,7 +239,7 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
                     </Card>
 
                     {/* Recruitment Info */}
-                    <Card className="border-zinc-800 bg-zinc-900/50">
+                    <Card className="border-border bg-surface/50" data-tour="presentation-recrutement">
                         <CardHeader>
                             <CardTitle className="text-lg flex items-center gap-2">
                                 <Swords className="w-5 h-5 text-pink-400" />
@@ -243,24 +247,24 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/50">
-                                <span className="text-sm text-zinc-400">État</span>
-                                <Badge variant={guild.isRecruiting ? "default" : "secondary"} className={guild.isRecruiting ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20" : ""}>
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-elevated/50">
+                                <span className="text-sm text-muted-foreground">État</span>
+                                <Badge variant={guild.isRecruiting ? "default" : "secondary"} className={guild.isRecruiting ? "bg-success/20 text-success hover:bg-success/20" : ""}>
                                     {guild.isRecruiting ? "Ouvert" : "Fermé"}
                                 </Badge>
                             </div>
 
                             {guild.minLevel && (
-                                <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/50">
-                                    <span className="text-sm text-zinc-400">Niveau min.</span>
-                                    <span className="font-mono font-medium text-white">{guild.minLevel}</span>
+                                <div className="flex items-center justify-between p-3 rounded-lg bg-elevated/50">
+                                    <span className="text-sm text-muted-foreground">Niveau min.</span>
+                                    <span className="font-mono font-medium text-foreground">{guild.minLevel}</span>
                                 </div>
                             )}
 
                             {guild.minSuccesses && (
-                                <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/50">
-                                    <span className="text-sm text-zinc-400">Succès min.</span>
-                                    <span className="font-mono font-medium text-white">{guild.minSuccesses}</span>
+                                <div className="flex items-center justify-between p-3 rounded-lg bg-elevated/50">
+                                    <span className="text-sm text-muted-foreground">Succès min.</span>
+                                    <span className="font-mono font-medium text-foreground">{guild.minSuccesses}</span>
                                 </div>
                             )}
                         </CardContent>
@@ -268,16 +272,16 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
 
                     {/* Socials */}
                     {guild.discord && (
-                        <Card className="border-zinc-800 bg-zinc-900/50">
+                        <Card className="border-border bg-surface/50" data-tour="presentation-communication">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
-                                    <MessageSquare className="w-5 h-5 text-blue-400" />
+                                    <MessageSquare className="w-5 h-5 text-info" />
                                     Communication
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <Link href={guild.discord} target="_blank" className="block">
-                                    <Button variant="outline" className="w-full gap-2 border-indigo-500/20 hover:bg-indigo-500/10 hover:text-indigo-400">
+                                    <Button variant="outline" className="w-full gap-2 border-info/20 hover:bg-info/10 hover:text-info">
                                         Rejoindre le Discord
                                         <ExternalLink className="w-3 h-3" />
                                     </Button>

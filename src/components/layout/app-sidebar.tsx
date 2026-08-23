@@ -3,7 +3,9 @@
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
     LayoutDashboard,
     BookOpen,
@@ -13,22 +15,38 @@ import {
     Sparkles,
     Crown,
     Trophy,
+    Award,
     Key,
     Compass,
     Shield,
-    Settings,
     Gavel,
     Swords,
     FileText,
     ChevronDown,
-    LogOut,
     ChevronsUpDown,
     Plus,
     Hammer,
-    Activity
+    Activity,
+    TrendingUp,
+    Bell,
+    Search,
+    Gamepad2,
+    SunMoon,
+    Star,
+    X,
+    Eye,
+    EyeOff,
+    Settings,
+    CheckCircle,
+    Rocket,
+    History,
+    Bug,
+    Coins,
+    Map,
+    CalendarClock
 } from "lucide-react";
+import { SidebarSearch } from "./sidebar-search";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { type UserContext } from "@/server/actions/user-actions";
 import { type GuildHeaderData } from "@/server/actions/guild-actions";
 import { type GuildModulesState, DEFAULT_MODULES } from "@/lib/module-types";
@@ -43,6 +61,9 @@ import {
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { togglePinnedNavItem, toggleHiddenNavItem } from "@/server/actions/profile-actions";
+import { toast } from "sonner";
+import { getUnreadNotifications } from "@/server/actions/notification-actions";
 
 interface AppSidebarProps {
     guildId: string;
@@ -51,6 +72,7 @@ interface AppSidebarProps {
     modules?: GuildModulesState;
     userGuilds?: { id: string; name: string; iconUrl: string | null }[];
     className?: string;
+    roadmapEnabled?: boolean;
 }
 
 export function AppSidebar({
@@ -59,405 +81,968 @@ export function AppSidebar({
     guildData,
     userGuilds = [],
     modules = DEFAULT_MODULES,
+    roadmapEnabled = false,
     className
 }: AppSidebarProps) {
+    const [mounted, setMounted] = useState(false);
+    const [localPinnedHrefs, setLocalPinnedHrefs] = useState<string[]>(user.pinnedNavItems || []);
+    const [localHiddenHrefs, setLocalHiddenHrefs] = useState<string[]>(user.hiddenNavItems || []);
+    const [notifications, setNotifications] = useState<any[]>([]);
     const pathname = usePathname();
+    const searchParams = useSearchParams();
 
-    const isActive = (href: string, exact = false) => {
-        return exact ? pathname === href : pathname.startsWith(href);
+    // #62 — garde anti-race : quand un changement local (pin/hide) est en vol,
+    // on N'ÉCRASE PAS l'état optimiste avec des props serveur potentiellement
+    // obsolètes. Sans cela, un pin récent « clignote » ou saute (perçu comme
+    // « les onglets se mettent en favoris tout seuls »).
+    const localPinMutations = useRef(0);
+
+    useEffect(() => {
+        setMounted(true);
+        const fetchNotifs = async () => {
+            try {
+                const res = await getUnreadNotifications(guildId);
+                if (res.success && res.data) {
+                    setNotifications(res.data);
+                }
+            } catch (e) {
+                console.error("Failed to fetch sidebar notifications", e);
+            }
+        };
+        fetchNotifs();
+        const interval = setInterval(fetchNotifs, 10000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const getUnreadCount = (href: string) => {
+        if (href.endsWith("/missions")) return notifications.filter(n => n.category === "MISSION").length;
+        if (href.endsWith("/songes")) return notifications.filter(n => n.category === "SONGES").length;
+        if (href.endsWith("/calendar")) return notifications.filter(n => n.category === "EVENT").length;
+        if (href.endsWith("/sondages")) return notifications.filter(n => n.category === "POLL").length;
+        if (href.endsWith("/donjons-et-quetes")) return notifications.filter(n => n.category === "DONJONS").length;
+        if (href.endsWith("/ladder")) return notifications.filter(n => n.category === "SUCCESS").length;
+        if (href.endsWith("/quete-ocre")) return notifications.filter(n => n.category === "OCRE").length;
+        return 0;
     };
 
-    // --- NAVIGATION GROUPS ---
+    // Sync local state when user prop changes (after server revalidation)
+    // Stabilize synchronization from server props
+    const pinnedHrefsString = JSON.stringify(user.pinnedNavItems || []);
+    const hiddenHrefsString = JSON.stringify(user.hiddenNavItems || []);
+
+    useEffect(() => {
+        // #62 — on ne resynchronise l'état local QUE si aucun changement local
+        // n'est en vol (compteur de mutations). Sinon, une révalidation serveur
+        // avec des props obsolètes écraserait le pin optimiste → « les onglets se
+        // mettent en favoris tout seuls » (ou au contraire disparaissent).
+        if (localPinMutations.current > 0) return;
+        setLocalPinnedHrefs(user.pinnedNavItems || []);
+        setLocalHiddenHrefs(user.hiddenNavItems || []);
+    }, [pinnedHrefsString, hiddenHrefsString]);
+
+    const checkIsActive = (href: string, exact = false, aliases?: string[]) => {
+        if (exact) return pathname === href;
+        if (pathname.startsWith(href)) return true;
+        if (aliases) {
+            return aliases.some(alias => pathname.startsWith(alias));
+        }
+        // Lien vers un onglet (ex : /profile?tab=planning) : actif si pathname + query correspondent
+        if (href.includes("?")) {
+            const [base, query] = href.split("?");
+            if (pathname !== base) return false;
+            const params = new URLSearchParams(query);
+            for (const [key, value] of params) {
+                if (searchParams.get(key) !== value) return false;
+            }
+            return true;
+        }
+        return false;
+    };
+
+    const [progressionOpen, setProgressionOpen] = useState(
+        true
+    );
+
+    const [toolsOpen, setToolsOpen] = useState(
+        true
+    );
+
+    const [infoOpen, setInfoOpen] = useState(
+        true
+    );
+
+    const [othersOpen, setOthersOpen] = useState(
+        true
+    );
+
+    const [adminOpen, setAdminOpen] = useState(
+        true
+    );
+
+    const [pinnedOpen, setPinnedOpen] = useState(true);
 
     // --- NAVIGATION GROUPS ---
-    const NAV_INFO = [
-        { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, color: "text-violet-400", visible: user.isMember && user.canViewDashboard },
-        { name: "Bienvenue", href: `/dashboard/${guildId}/welcome`, icon: Sparkles, color: "text-emerald-400", visible: user.canViewWelcome },
-        { name: "Présentation", href: `/dashboard/${guildId}/presentation`, icon: BookOpen, color: "text-violet-400", visible: user.isMember && user.canViewPresentation && modules.presentation },
-        { name: "Stats Guilde", href: `/dashboard/${guildId}/stats`, icon: Hammer, color: "text-violet-400", visible: user.isMember && user.canViewStats && modules.stats },
-        { name: "Documentation", href: `/docs`, icon: BookOpen, color: "text-violet-400", visible: user.isMember && user.canViewDocs && modules.docs },
+    // #66bis/#72 : reflète l'ensemble des cartes du Centre Admin — inclut les RBAC
+    // déléguables (points, validation, relances). Sans cela, un membre autorisé
+    // accédait à sa page admin en URL directe sans voir le « Centre Admin ».
+    const hasAnyAdminPermission = user.isAdmin || user.canManageMembers || user.canManageRelance || user.canManageMissions || user.canValidateMissions || user.canEditPresentation || user.canViewAuditLogs || user.canViewSettings || user.canManageRBAC || user.canManagePoints || false;
+
+    // 1. HORS SECTION
+    const NAV_GLOBAL = [
+        { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, color: "indigo", visible: user.isMember && user.canViewDashboard, isDashboard: true },
     ];
 
-    const NAV_ACTIVITIES = [
-        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "text-emerald-400", visible: user.isMember && user.canViewCalendar && modules.calendar },
-        { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "text-emerald-400", visible: user.canViewMissions && modules.missions },
-        { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "text-emerald-400", visible: user.canViewSonges && modules.songes },
-        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Crown, color: "text-emerald-400", visible: user.canViewArchis && modules.ocre },
-        { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "text-emerald-400", visible: user.canViewLadder && modules.ladder },
+    // 3. PROGRESSION
+    const NAV_PROGRESSION = [
+        { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "amber", tourKey: "missions", visible: user.canViewMissions && modules.missions },
+        { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "amber", tourKey: "ladder", visible: user.canViewLadder && modules.ladder },
+        { name: "Succès", href: `/dashboard/${guildId}/succes`, icon: Award, color: "amber", tourKey: "succes", visible: user.canViewSucces && modules.succes },
+        { name: "Les Dofus", href: `/dashboard/${guildId}/quetes-dofus`, imgSrc: "/module-dofus/Dofus_Sylvestre.png", color: "amber", tourKey: "quetes", visible: user.canViewQuests && modules.quests },
+        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, imgSrc: "/assets/icons/ocre.png", color: "amber", tourKey: "ocre", visible: user.canViewOcre && modules.ocre },
     ];
 
-    const NAV_TOOLS = [
-        { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Compass, color: "text-cyan-400", visible: user.isMember && user.canViewFinder && modules.donjons },
-        { name: "Services Guilde", href: `/dashboard/${guildId}/passages`, icon: Key, color: "text-cyan-400", visible: user.isMember && user.canViewServices && modules.services },
-        { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Activity, color: "text-cyan-400", visible: user.isMember && user.canViewPolls && modules.polls },
-        { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "text-cyan-400", visible: user.isMember && user.canViewRoster && modules.roster },
-        { name: "Mon Profil", href: `/dashboard/${guildId}/profile`, icon: Users, color: "text-cyan-400", visible: user.isMember && user.canViewProfile && modules.profile },
+    // 4. OUTILS
+    const NAV_TOOLS: any[] = [
+        { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "indigo", tourKey: "songes", visible: user.canViewSonges && modules.songes },
+        { name: "Galerie Guilde", href: `/dashboard/${guildId}/galerie-stuff`, icon: Star, color: "indigo", tourKey: "galerie", visible: user.canViewStuffGallery && modules.gallery },
+        { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Swords, color: "indigo", tourKey: "donjons", visible: user.canViewQuests && modules.donjons },
+        { name: "Services Guilde", href: `/dashboard/${guildId}/services`, icon: Activity, color: "indigo", tourKey: "services", visible: user.canViewServices && modules.services },
+        { name: "Planning", href: `/dashboard/${guildId}/planning`, icon: CalendarClock, color: "indigo", tourKey: "availability", visible: user.canViewAvailability && modules.availability },
     ];
 
-    const NAV_COMING_SOON = [
-        { name: "Quêtes Dofus", href: `/dashboard/${guildId}/quetes-dofus`, icon: BookOpen, color: "text-amber-400", visible: user.isMember && user.canViewQuests && modules.quests },
-        { name: "Carte & Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Compass, color: "text-cyan-400", visible: user.isMember && user.canViewWorldmap && modules.worldmap },
-        { name: "Ressources", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "text-violet-400", visible: user.isMember && user.canViewResources && modules.resources },
+    // 5. AUTRES
+    const NAV_OTHERS = [
+        { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Gamepad2, color: "cyan", tourKey: "minigames", visible: user.canViewMiniGames },
+        { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Gavel, color: "cyan", tourKey: "polls", visible: user.canViewPolls && modules.polls },
+        { name: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, color: "cyan", visible: user.canViewWorldmap && modules.worldmap },
+        { name: "Roadmap", href: "/roadmap", icon: Rocket, color: "amber", visible: roadmapEnabled },
     ];
 
-    const NAV_ADMIN_TOP = { name: "Centre Admin", href: `/dashboard/${guildId}/admin`, icon: Shield, exact: true, color: "text-rose-500", visible: user.isAdmin };
+    const NAV_ADMIN_TOP = { 
+        name: "Centre Admin", 
+        href: `/dashboard/${guildId}/admin`, 
+        icon: Shield, 
+        exact: true, 
+        color: "rose", 
+        visible: hasAnyAdminPermission,
+        prefetch: false,
+        aliases: [
+            `/dashboard/${guildId}/admin/permissions`,
+            `/dashboard/${guildId}/admin/settings`,
+            `/dashboard/${guildId}/admin/modules`,
+            `/dashboard/${guildId}/admin/presentation`,
+            `/dashboard/${guildId}/admin/validation`,
+            `/dashboard/${guildId}/admin/members`,
+            `/dashboard/${guildId}/admin/points`,
+            `/dashboard/${guildId}/missions/manage`,
+            `/dashboard/${guildId}/admin/logs`,
+        ]
+    };
 
-    const NAV_ADMIN_SUB = [
-        { name: "ADM Permissions", href: `/dashboard/${guildId}/admin/permissions`, icon: Shield, visible: user.isAdmin },
-        { name: "ADM Paramètres", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, visible: user.isAdmin },
-        { name: "ADM Page Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, visible: user.isAdmin || user.canEditPresentation },
-        { name: "ADM Valid-Screens", href: `/dashboard/${guildId}/admin/validation`, icon: Gavel, visible: user.canValidateMissions || user.isAdmin },
-        { name: "ADM Conf-Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, visible: user.canManageMissions },
-        { name: "ADM Chat", href: `/dashboard/${guildId}/admin/chat`, icon: Activity, visible: user.isAdmin || user.canModerateChat },
-        { name: "ADM Logs", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, visible: user.isAdmin && modules.logs },
+    // 5. REGISTRY FOR PINNED ITEMS
+    // We register all items that can be pinned
+    const NAV_REGISTRY = [
+        ...NAV_GLOBAL,
+        ...NAV_PROGRESSION,
+        ...NAV_TOOLS,
+        ...NAV_OTHERS,
+        NAV_ADMIN_TOP,
+        { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "emerald", visible: user.canViewRoster },
+        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "emerald", visible: user.canViewCalendar },
+        { name: "Ressources Dofus", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "emerald", visible: user.canViewResources && modules.resources },
+        { 
+            name: "La guilde", 
+            href: `/dashboard/${guildId}/guild-hub`, 
+            icon: Sparkles, 
+            color: "emerald",
+            visible: (user.canViewWelcome || user.canViewPresentation || user.canViewStats),
+            aliases: [
+                `/dashboard/${guildId}/welcome`,
+                `/dashboard/${guildId}/presentation`,
+                `/dashboard/${guildId}/stats`,
+            ]
+        },
+
+        // ADMIN SUB-ROUTES (Searchable & Pinnable)
+        { name: "Paramètres Généraux", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, color: "amber", visible: user.canViewSettings },
+        { name: "Rôles & Permissions", href: `/dashboard/${guildId}/admin/permissions`, icon: Shield, color: "zinc", visible: user.canManageRBAC },
+        { name: "Gestion des Modules", href: `/dashboard/${guildId}/admin/modules`, icon: Hammer, color: "indigo", visible: user.isDiscordAdmin },
+        { name: "Identité de Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, color: "emerald", visible: user.canEditPresentation },
+        { name: "Gestion des Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, color: "emerald", visible: user.canManageMissions },
+        { name: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: CheckCircle, color: "emerald", visible: user.canValidateMissions },
+        { name: "Gestion des Membres", href: `/dashboard/${guildId}/admin/members`, icon: Users, color: "cyan", visible: user.canManageMembers || user.canManageRelance },
+        { name: "Points de Contribution", href: `/dashboard/${guildId}/admin/points`, icon: Coins, color: "amber", visible: user.canManagePoints },
+        { name: "Audit Logs", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, color: "zinc", visible: user.canViewAuditLogs },
+        { name: "Mises à jour", href: "/changelog", icon: History, color: "indigo", visible: true },
+        { name: "Tracker de Bugs", href: `/dashboard/${guildId}/tracker`, icon: Bug, color: "amber", visible: true },
     ];
 
-    const hasAnyAdminPermission = user.isAdmin || user.canManageMissions || user.canValidateMissions || user.canEditPresentation;
+    // --- NAVIGATION GROUPS ---
+
+    // Permissions helpers — computed once
+    const showProgressionGroup = Boolean(
+        (user.canViewMissions && modules.missions && !localPinnedHrefs.includes(`/dashboard/${guildId}/missions`) && !localHiddenHrefs.includes(`/dashboard/${guildId}/missions`)) ||
+        (user.canViewSonges && modules.songes && !localPinnedHrefs.includes(`/dashboard/${guildId}/songes`) && !localHiddenHrefs.includes(`/dashboard/${guildId}/songes`)) ||
+        (user.canViewLadder && modules.ladder && !localPinnedHrefs.includes(`/dashboard/${guildId}/ladder`) && !localHiddenHrefs.includes(`/dashboard/${guildId}/ladder`)) ||
+        (user.isMember && user.canViewQuests && modules.quests && !localPinnedHrefs.includes(`/dashboard/${guildId}/quetes-dofus`) && !localHiddenHrefs.includes(`/dashboard/${guildId}/quetes-dofus`)) ||
+        (user.canViewOcre && modules.ocre && !localPinnedHrefs.includes(`/dashboard/${guildId}/quete-ocre`) && !localHiddenHrefs.includes(`/dashboard/${guildId}/quete-ocre`))
+    );
+
+    const showAdminGroup = hasAnyAdminPermission && !localPinnedHrefs.includes(NAV_ADMIN_TOP.href) && !localHiddenHrefs.includes(NAV_ADMIN_TOP.href);
+
+    const pinnedItems = localPinnedHrefs
+        .filter(href => !localHiddenHrefs.includes(href))
+        .map(href => NAV_REGISTRY.find(item => item.href === href))
+        .filter(item => item && item.visible !== false) as any[];
+
+    const hiddenItems = localHiddenHrefs
+        .map(href => NAV_REGISTRY.find(item => item.href === href))
+        .filter(item => item && item.visible !== false) as any[];
+
+    const [hiddenOpen, setHiddenOpen] = useState(true);
+
+    const handleTogglePin = async (href: string) => {
+        // Optimistic Update
+        localPinMutations.current++;
+        setLocalPinnedHrefs(prev => 
+            prev.includes(href) ? prev.filter(h => h !== href) : [...prev, href]
+        );
+
+        try {
+            const res = await togglePinnedNavItem({ guildId, href });
+            if (!res.success) {
+                toast.error("Erreur lors du changement de favori");
+                setLocalPinnedHrefs(user.pinnedNavItems || []);
+            }
+        } catch (error) {
+            toast.error("Erreur serveur");
+            setLocalPinnedHrefs(user.pinnedNavItems || []);
+        } finally {
+            localPinMutations.current--;
+        }
+    };
+
+    const handleToggleHide = async (href: string) => {
+        // Optimistic Update
+        localPinMutations.current++;
+        setLocalHiddenHrefs(prev => 
+            prev.includes(href) ? prev.filter(h => h !== href) : [...prev, href]
+        );
+
+        try {
+            const res = await toggleHiddenNavItem({ guildId, href });
+            if (!res.success) {
+                toast.error("Erreur lors du changement de visibilité");
+                setLocalHiddenHrefs(user.hiddenNavItems || []);
+            }
+        } catch (error) {
+            toast.error("Erreur serveur");
+            setLocalHiddenHrefs(user.hiddenNavItems || []);
+        } finally {
+            localPinMutations.current--;
+        }
+    };
 
     return (
-        <div className={cn("flex flex-col h-full bg-zinc-950 border-r border-white/5 shadow-[4px_0_24px_rgba(0,0,0,0.5)]", className)}>
+        <div className={cn("flex flex-col h-full bg-background border-r border-border", className)}>
 
             {/* 1. HEADER: BRAND & GUILD SWITCHER */}
             <div className="p-4 pb-2 space-y-4">
                 {/* Logo */}
-                <Link href="/" className="flex items-center gap-3 px-2 group/brand hover:opacity-80 transition-opacity">
-                    <div className="relative h-8 w-8">
+                <Link href="/" className="flex items-center gap-4 px-1 group transition-all">
+                    <div className="relative h-9 w-9 transition-colors duration-150  ">
                         <Image
                             src="/assets/ui/logo-v2.png"
                             alt="SigilOS"
                             fill
-                            className="object-contain"
+                            sizes="36px"
+                            className="object-contain transition-all"
                         />
                     </div>
-                    <span className="text-lg font-black tracking-[0.2em] text-white leading-none font-heading">
-                        SIGIL<span className="text-primary">OS</span>
+                    <span className="text-lg font-bold tracking-[0.2em] text-foreground/90 uppercase transition-all group-hover:text-foreground">
+                        SIGIL<span className="text-primary tracking-[0.18em]">OS</span>
                     </span>
                 </Link>
 
-                {/* Guild Switcher */}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            variant="outline"
-                            className="w-full justify-between h-12 bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-left px-3 group"
-                        >
-                            <div className="flex items-center gap-3 min-w-0">
-                                <Avatar className="h-6 w-6 rounded-md border border-white/10">
-                                    <AvatarImage src={guildData.iconUrl || undefined} />
-                                    <AvatarFallback className="text-[9px] bg-zinc-900 text-zinc-400">
-                                        {guildData.name?.substring(0, 2).toUpperCase()}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <div className="flex flex-col min-w-0">
-                                    <span className="text-xs font-bold text-zinc-200 truncate group-hover:text-white transition-colors">
-                                        {guildData.name}
-                                    </span>
-                                    <span className="text-[9px] text-zinc-500 font-medium uppercase tracking-wider">
-                                        Guilde Active
-                                    </span>
-                                </div>
-                            </div>
-                            <ChevronsUpDown className="h-4 w-4 text-zinc-500 shrink-0" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                        className="w-64 bg-zinc-950 border-zinc-500/20 text-zinc-200 shadow-[0_0_40px_rgba(0,0,0,0.8)] p-1 backdrop-blur-3xl"
-                        align="start"
-                        sideOffset={8}
-                    >
-                        <DropdownMenuLabel className="px-3 py-2 text-[10px] text-zinc-500 uppercase tracking-[0.3em] font-black">
-                            Changer de guilde
-                        </DropdownMenuLabel>
-                        <DropdownMenuSeparator className="bg-white/5 mx-1" />
-                        <div className="space-y-0.5 p-1">
-                            {userGuilds.map((g) => (
-                                <DropdownMenuItem key={g.id} asChild>
-                                    <Link
-                                        href={`/dashboard/${g.id}`}
-                                        className={cn(
-                                            "flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200",
-                                            g.id === guildId
-                                                ? "bg-primary/10 border border-primary/20 text-white"
-                                                : "hover:bg-white/5 text-zinc-400 hover:text-zinc-100"
-                                        )}
-                                    >
-                                        <Avatar className="h-6 w-6 rounded-md border border-white/10">
-                                            <AvatarImage src={g.iconUrl || undefined} />
-                                            <AvatarFallback className="text-[9px] bg-zinc-900 text-zinc-500">
-                                                {g.name?.substring(0, 2).toUpperCase()}
+                {/* Guild Switcher - Only if multiple guilds */}
+                {userGuilds.length > 1 && (
+                    !mounted ? (
+                        <div className="w-full h-10 bg-muted/60 border border-border/50 rounded-xl animate-pulse" />
+                    ) : (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    className="w-full justify-between h-11 bg-muted/40 border border-border/40 hover:bg-muted/60 hover:border-border/60 text-left px-2 rounded-xl group transition-all"
+                                >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <Avatar className="h-6 w-6 rounded-lg border border-border/20 shrink-0">
+                                            <AvatarImage src={guildData.iconUrl || undefined} />
+                                            <AvatarFallback className="text-caption bg-muted text-muted-foreground">
+                                                {guildData.name?.substring(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <div className="flex flex-col min-w-0">
-                                            <span className={cn("text-xs font-black truncate", g.id === guildId ? "text-primary" : "")}>
-                                                {g.name}
-                                            </span>
-                                            {g.id === guildId && <span className="text-[8px] font-bold text-primary/60 uppercase tracking-widest">Connecté</span>}
-                                        </div>
-                                        {g.id === guildId && (
-                                            <div className="ml-auto w-1 h-4 bg-primary rounded-full shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]" />
-                                        )}
-                                    </Link>
-                                </DropdownMenuItem>
-                            ))}
-                        </div>
-                        <DropdownMenuSeparator className="bg-white/5 mx-1" />
-                        <DropdownMenuItem className="flex items-center gap-3 px-3 py-2 text-[10px] text-zinc-600 font-bold uppercase tracking-widest cursor-not-allowed opacity-50">
-                            <Plus className="h-3.5 w-3.5" />
-                            Rejoindre une guilde
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
-
-            {/* 2. SCROLLABLE NAVIGATION */}
-            <ScrollArea className="flex-1 px-3 py-4 overflow-hidden">
-                <nav className="space-y-8">
-
-                    {/* INFORMATION */}
-                    {NAV_INFO.some(i => i.visible !== false) && (
-                        <div className="space-y-1.5 peer">
-                            <div className="flex items-center gap-2 px-2 mb-3">
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-500/80 to-transparent shadow-[0_0_8px_rgba(139,92,246,0.3)]" />
-                                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-violet-400 whitespace-nowrap">Information</h4>
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-500/80 to-transparent shadow-[0_0_8px_rgba(139,92,246,0.3)]" />
-                            </div>
-                            {NAV_INFO.filter(i => i.visible !== false).map((item) => (
-                                <NavItem key={item.href} item={item} isActive={isActive(item.href, item.exact)} />
-                            ))}
-                        </div>
-                    )}
-
-                    {/* ACTIVITES */}
-                    {NAV_ACTIVITIES.some(i => i.visible !== false) && (
-                        <div className="space-y-1.5">
-                            <div className="flex items-center gap-2 px-2 mb-3">
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-emerald-500/80 to-transparent shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
-                                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400 whitespace-nowrap">Activités</h4>
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-emerald-500/80 to-transparent shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
-                            </div>
-                            {NAV_ACTIVITIES.filter(i => i.visible !== false).map((item) => (
-                                <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
-                            ))}
-                        </div>
-                    )}
-
-                    {/* OUTILS */}
-                    {NAV_TOOLS.some(i => i.visible !== false) && (
-                        <div className="space-y-1.5">
-                            <div className="flex items-center gap-2 px-2 mb-3">
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-cyan-500/80 to-transparent shadow-[0_0_8px_rgba(6,182,212,0.3)]" />
-                                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-400 whitespace-nowrap">Outils</h4>
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-cyan-500/80 to-transparent shadow-[0_0_8px_rgba(6,182,212,0.3)]" />
-                            </div>
-                            {NAV_TOOLS.filter(i => i.visible !== false).map((item) => (
-                                <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
-                            ))}
-                        </div>
-                    )}
-
-                    {/* BIENTÔT (Coming Soon) */}
-                    {NAV_COMING_SOON.some(i => i.visible !== false) && (
-                        <div className="space-y-1.5">
-                            <div className="flex items-center gap-2 px-2 mb-3">
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
-                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400/60 flex items-center gap-2 whitespace-nowrap">
-                                    <Sparkles className="w-3 h-3" />
-                                    Bientôt
-                                </h4>
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
-                            </div>
-                            {NAV_COMING_SOON.filter(i => i.visible !== false).map((item) => (
-                                <NavItem key={item.href} item={item} isActive={isActive(item.href)} />
-                            ))}
-                        </div>
-                    )}
-
-                    {/* ADMIN */}
-                    {hasAnyAdminPermission && (
-                        <div className="space-y-1">
-                            <div className="flex items-center justify-center gap-2 px-2 mb-2">
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-rose-500/40 to-transparent" />
-                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500/60 flex items-center gap-2 whitespace-nowrap">
-                                    <Shield className="w-3 h-3" />
-                                    Admin
-                                </h4>
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-rose-500/40 to-transparent" />
-                            </div>
-
-                            {/* Centre Admin — item principal */}
-                            {NAV_ADMIN_TOP.visible && (
-                                <NavItem item={{ ...NAV_ADMIN_TOP, color: "text-rose-500" }} isActive={isActive(NAV_ADMIN_TOP.href, true)} />
-                            )}
-
-                            {/* Sous-items ADM */}
-                            {NAV_ADMIN_SUB.some(i => i.visible) && (
-                                <div className="ml-2 mt-1 pl-3 border-l border-rose-500/20 space-y-0.5">
-                                    {NAV_ADMIN_SUB.filter(i => i.visible).map((item) => (
-                                        <AdminSubItem
-                                            key={item.href}
-                                            item={item}
-                                            isActive={isActive(item.href)}
-                                        />
+                                        <span className="text-body-sm font-semibold text-muted-foreground group-hover:text-foreground transition-colors truncate w-[130px]">
+                                            {guildData.name}
+                                        </span>
+                                    </div>
+                                    <ChevronsUpDown className="h-3 w-3 text-muted-foreground/50 shrink-0" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                                className="w-64 bg-background/98 border border-border shadow-2xl p-1 backdrop-blur-3xl animate-in fade-in zoom-in-95 duration-150"
+                                align="start"
+                                sideOffset={8}
+                            >
+                                <DropdownMenuLabel className="px-3 py-2 text-caption font-semibold uppercase tracking-wider text-muted-foreground">
+                                    Changer de guilde
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator className="bg-border mx-1 mb-2" />
+                                <div className="space-y-0.5 p-1">
+                                    {userGuilds.map((g) => (
+                                        <DropdownMenuItem key={g.id} asChild>
+                                            <Link
+                                                href={`/dashboard/${g.id}`}
+                                                className={cn(
+                                                    "flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors duration-150",
+                                                    g.id === guildId
+                                                        ? "bg-primary/10 border border-primary/20 text-foreground"
+                                                        : "hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                                                )}
+                                            >
+                                                <Avatar className="h-6 w-6 rounded-md border border-border/20">
+                                                    <AvatarImage src={g.iconUrl || undefined} />
+                                                    <AvatarFallback className="text-caption bg-muted/60 text-muted-foreground/60">
+                                                        {g.name?.substring(0, 2).toUpperCase()}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className={cn("text-sm font-semibold truncate", g.id === guildId ? "text-foreground" : "")}>
+                                                        {g.name}
+                                                    </span>
+                                                    {g.id === guildId && <span className="text-caption font-medium text-muted-foreground">Connecté</span>}
+                                                </div>
+                                                {g.id === guildId && (
+                                                    <div className="ml-auto w-1 h-4 bg-primary/80 rounded-full" />
+                                                )}
+                                            </Link>
+                                        </DropdownMenuItem>
                                     ))}
                                 </div>
-                            )}
-                        </div>
-                    )}
+                                <DropdownMenuSeparator className="bg-border mx-1" />
+                                <DropdownMenuItem className="flex items-center gap-3 px-3 py-2 text-caption text-muted-foreground font-bold uppercase tracking-widest cursor-not-allowed opacity-50">
+                                    <Plus className="h-3.5 w-3.5" />
+                                    Rejoindre une guilde
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    )
+                )}
 
-                </nav>
-            </ScrollArea>
+                {userGuilds.length === 1 && (
+                    <div
+                        className="w-full flex items-center gap-2 h-11 px-2 rounded-xl bg-muted/40 border border-border/40"
+                        title={guildData.name}
+                    >
+                        <Avatar className="h-6 w-6 rounded-lg border border-border/20 shrink-0">
+                            <AvatarImage src={guildData.iconUrl || undefined} />
+                            <AvatarFallback className="text-caption bg-muted text-muted-foreground">
+                                {guildData.name?.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                        </Avatar>
+                        <span className="text-body-sm font-semibold text-muted-foreground truncate min-w-0 flex-1">
+                            {guildData.name}
+                        </span>
+                        <Shield className="h-3 w-3 text-primary/60 shrink-0" />
+                    </div>
+                )}
 
-            {/* 3. FOOTER: USER ISLAND */}
-            <div className="p-4 mt-auto">
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            variant="ghost"
-                            className="w-full justify-start h-auto p-2 bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 rounded-xl transition-all duration-300 group/island"
-                        >
-                            <div className="flex items-center gap-3 w-full">
-                                <Avatar className="h-8 w-8 rounded-lg border border-white/10 group-hover/island:border-primary/50 transition-all duration-500 shadow-xl group-hover/island:shadow-primary/10">
-                                    <AvatarImage src={user.image || ""} />
-                                    <AvatarFallback className="bg-zinc-800 text-zinc-400 text-[10px] font-black">{(user.name || "U").slice(0, 2).toUpperCase()}</AvatarFallback>
-                                </Avatar>
-                                <div className="flex flex-col items-start min-w-0 flex-1 text-left">
-                                    <span className="text-xs font-black text-zinc-200 truncate w-full group-hover/island:text-white transition-colors">
-                                        {user.name || "Compte"}
-                                    </span>
-                                    <span className="text-[10px] font-bold text-zinc-500 truncate w-full uppercase tracking-tighter">
-                                        {user.roleName || "Membre"}
-                                    </span>
+
+            </div>
+
+            {/* 2. SCROLLABLE NAVIGATION — Fixed for responsiveness */}
+            <div className="flex-1 relative min-h-0 overflow-hidden">
+                <div className="h-full px-3 py-6 overflow-y-auto overscroll-contain custom-scrollbar">
+                    <nav className="space-y-8 pb-10">
+                        <AnimatePresence mode="popLayout" initial={false}>
+
+                        {/* SECTION: FAVORI / PINNED */}
+                        {pinnedItems.length > 0 && (
+                                <div key="section-favorites" className="space-y-1 relative group/section">
+                                    <SectionTitle 
+                                        label="Favoris" 
+                                        collapsible 
+                                        isOpen={pinnedOpen} 
+                                        onToggle={() => setPinnedOpen(!pinnedOpen)} 
+                                    />
+                                    {pinnedOpen && (
+                                        <motion.div 
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: "auto", opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.2, ease: "easeInOut" }}
+                                            className="space-y-1 px-1 overflow-hidden"
+                                        >
+                                            {pinnedItems.map((item) => (
+                                                <NavItem 
+                                                    key={`pin-${item.href}`} 
+                                                    item={item} 
+                                                    isActive={checkIsActive(item.href, (item as any).exact, (item as any).aliases)} 
+                                                    isPinned={true}
+                                                    onPin={handleTogglePin}
+                                                    onHide={handleToggleHide}
+                                                    unreadCount={getUnreadCount(item.href)}
+                                                />
+                                            ))}
+                                        </motion.div>
+                                    )}
+                                    <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-300" />
                                 </div>
-                                <ChevronsUpDown className="h-4 w-4 text-zinc-500 group-hover/island:text-white transition-all shrink-0" />
-                            </div>
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-200 shadow-2xl" align="end" side="right" sideOffset={12}>
-                        <div className="px-2 py-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 bg-white/5 rounded-md mb-1 mx-1 mt-1">
-                            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span>Session Active</span>
-                        </div>
-                        <DropdownMenuSeparator className="bg-white/10" />
-                        {user.canViewProfile && (
-                            <>
-                                <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer">
-                                    <Link href={`/dashboard/${guildId}/profile`}>
-                                        <LayoutDashboard className="mr-2 h-4 w-4 text-zinc-500" />
-                                        <span className="font-bold">Mon Profil</span>
-                                    </Link>
-                                </DropdownMenuItem>
-
-                                <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer">
-                                    <Link href={`/dashboard/${guildId}/profile?tab=settings`}>
-                                        <Settings className="mr-2 h-4 w-4 text-zinc-500" />
-                                        <span className="font-bold">Paramètres</span>
-                                    </Link>
-                                </DropdownMenuItem>
-                            </>
                         )}
 
-                        <DropdownMenuSeparator className="bg-white/10" />
-                        <DropdownMenuItem onClick={() => signOut()} className="text-rose-400 focus:text-rose-400 focus:bg-rose-500/10 cursor-pointer">
-                            <LogOut className="mr-2 h-4 w-4" />
-                            <span className="font-black">Déconnexion</span>
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                        {/* SECTION: GLOBAL (DASHBOARD CARD) */}
+                        <div key="section-global" className="mb-10 px-1">
+                            <div className="space-y-1">
+                                {NAV_GLOBAL.filter(i => i.visible !== false && !localPinnedHrefs.includes(i.href) && !localHiddenHrefs.includes(i.href)).map((item) => (
+                                <NavItem 
+                                    key={item.href} 
+                                    item={item} 
+                                    isActive={checkIsActive(item.href, (item as any).exact)} 
+                                    isPinned={false}
+                                    onPin={handleTogglePin}
+                                    unreadCount={getUnreadCount(item.href)}
+                                />
+                            ))}
+                            </div>
+                        </div>
+
+                        <div key="section-informations" className="relative group/section" data-tour-section="informations">
+                            <SectionTitle 
+                                label="Informations" 
+                                collapsible 
+                                isOpen={infoOpen} 
+                                onToggle={() => setInfoOpen(!infoOpen)} 
+                            />
+                            {infoOpen && (
+                                <motion.div 
+                                    key="motion-info"
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.2, ease: "easeInOut" }}
+                                    className="space-y-1 px-1 overflow-hidden"
+                                >
+                                    {/* La guilde - Hub Link */}
+                                    {(user.canViewWelcome || user.canViewPresentation || user.canViewStats) && 
+                                    !localPinnedHrefs.includes(`/dashboard/${guildId}/guild-hub`) && 
+                                    !localHiddenHrefs.includes(`/dashboard/${guildId}/guild-hub`) && (
+                                            <NavItem 
+                                                key={`nav-hub`}
+                                                item={{ 
+                                                    name: "La guilde", 
+                                                    href: `/dashboard/${guildId}/guild-hub`, 
+                                                    icon: Sparkles, 
+                                                    color: "emerald",
+                                                    tourKey: "la-guilde",
+                                                    aliases: [
+                                                        `/dashboard/${guildId}/welcome`,
+                                                        `/dashboard/${guildId}/presentation`,
+                                                        `/dashboard/${guildId}/stats`,
+                                                    ]
+                                                }} 
+                                                isActive={checkIsActive(`/dashboard/${guildId}/guild-hub`, false, [
+                                                    `/dashboard/${guildId}/welcome`,
+                                                    `/dashboard/${guildId}/presentation`,
+                                                    `/dashboard/${guildId}/stats`,
+                                                ])} 
+                                                isPinned={false}
+                                                onPin={handleTogglePin}
+                                                onHide={handleToggleHide}
+                                                unreadCount={getUnreadCount(`/dashboard/${guildId}/guild-hub`)}
+                                            />
+                                    )}
+
+                                    {/* Annuaire - Direct Link */}
+                                    {user.canViewRoster && 
+                                    !localPinnedHrefs.includes(`/dashboard/${guildId}/members`) && 
+                                    !localHiddenHrefs.includes(`/dashboard/${guildId}/members`) && (
+                                        <NavItem 
+                                            key={`nav-roster`}
+                                            item={{ name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "emerald", tourKey: "annuaire" }} 
+                                            isActive={checkIsActive(`/dashboard/${guildId}/members`)} 
+                                            isPinned={false}
+                                            onPin={handleTogglePin}
+                                            onHide={handleToggleHide}
+                                            unreadCount={getUnreadCount(`/dashboard/${guildId}/members`)}
+                                        />
+                                    )}
+                                    
+                                    {/* Calendrier - Direct Link */}
+                                    {user.canViewCalendar && 
+                                    !localPinnedHrefs.includes(`/dashboard/${guildId}/calendar`) && 
+                                    !localHiddenHrefs.includes(`/dashboard/${guildId}/calendar`) && (
+                                        <NavItem 
+                                            key={`nav-calendar`}
+                                            item={{ name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "emerald", tourKey: "calendar" }} 
+                                            isActive={checkIsActive(`/dashboard/${guildId}/calendar`)} 
+                                            isPinned={false}
+                                            onPin={handleTogglePin}
+                                            onHide={handleToggleHide}
+                                            unreadCount={getUnreadCount(`/dashboard/${guildId}/calendar`)}
+                                        />
+                                    )}
+
+                                    {/* Ressources - Direct Link */}
+                                    {user.canViewResources && modules.resources && 
+                                    !localPinnedHrefs.includes(`/dashboard/${guildId}/ressources`) && 
+                                    !localHiddenHrefs.includes(`/dashboard/${guildId}/ressources`) && (
+                                        <NavItem 
+                                            key={`nav-resources`}
+                                            item={{ name: "Ressources Dofus", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "emerald", tourKey: "ressources" }} 
+                                            isActive={checkIsActive(`/dashboard/${guildId}/ressources`)} 
+                                            isPinned={false}
+                                            onPin={handleTogglePin}
+                                            onHide={handleToggleHide}
+                                            unreadCount={getUnreadCount(`/dashboard/${guildId}/ressources`)}
+                                        />
+                                    )}
+                                </motion.div>
+                            )}
+                            <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-150" />
+                        </div>
+
+                        {/* SECTION: PROGRESSION */}
+                        {showProgressionGroup && (
+                            <div key="section-progression" className="relative group/section" data-tour-section="progression">
+                                <SectionTitle 
+                                    label="Progression" 
+                                    collapsible 
+                                    isOpen={progressionOpen} 
+                                    onToggle={() => setProgressionOpen(!progressionOpen)} 
+                                />
+                                {progressionOpen && (
+                                    <motion.div 
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.2, ease: "easeInOut" }}
+                                        className="space-y-1 px-1 overflow-hidden"
+                                    >
+                                        {NAV_PROGRESSION.filter(i => i.visible !== false && !localPinnedHrefs.includes(i.href) && !localHiddenHrefs.includes(i.href)).map((item) => (
+                                            <NavItem 
+                                                key={item.href} 
+                                                item={item} 
+                                                isActive={checkIsActive(item.href)} 
+                                                isPinned={false}
+                                                onPin={handleTogglePin}
+                                                onHide={handleToggleHide}
+                                                unreadCount={getUnreadCount(item.href)}
+                                            />
+                                        ))}
+                                    </motion.div>
+                                )}
+                                <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-300" />
+                            </div>
+                        )}
+
+                        <div key="section-tools" className="relative group/section">
+                            <SectionTitle 
+                                label="Outils" 
+                                collapsible 
+                                isOpen={toolsOpen} 
+                                onToggle={() => setToolsOpen(!toolsOpen)} 
+                            />
+                            {toolsOpen && (
+                                <motion.div 
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.2, ease: "easeInOut" }}
+                                    className="space-y-1 px-1 overflow-hidden"
+                                >
+                                    {NAV_TOOLS.filter(i => i.visible !== false && !localPinnedHrefs.includes(i.href) && !localHiddenHrefs.includes(i.href)).map((item) => (
+                                        <NavItem 
+                                            key={item.href} 
+                                            item={item} 
+                                            isActive={checkIsActive(item.href, (item as any).exact, (item as any).aliases)} 
+                                            isPinned={false}
+                                            onPin={handleTogglePin}
+                                            onHide={handleToggleHide}
+                                            unreadCount={getUnreadCount(item.href)}
+                                        />
+                                    ))}
+                                </motion.div>
+                            )}
+                            <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-300" />
+                        </div>
+
+                        <div key="section-others" className="relative group/section">
+                            <SectionTitle 
+                                label="Autres" 
+                                collapsible 
+                                isOpen={othersOpen} 
+                                onToggle={() => setOthersOpen(!othersOpen)} 
+                            />
+                            {othersOpen && (
+                                <motion.div 
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.2, ease: "easeInOut" }}
+                                    className="space-y-1 px-1 overflow-hidden"
+                                >
+                                    {NAV_OTHERS.filter(i => i.visible !== false && !localPinnedHrefs.includes(i.href) && !localHiddenHrefs.includes(i.href)).map((item) => (
+                                        <NavItem 
+                                            key={item.href} 
+                                            item={item} 
+                                            isActive={checkIsActive(item.href, (item as any).exact, (item as any).aliases)} 
+                                            isPinned={false}
+                                            onPin={handleTogglePin}
+                                            onHide={handleToggleHide}
+                                            unreadCount={getUnreadCount(item.href)}
+                                        />
+                                    ))}
+                                </motion.div>
+                            )}
+                            <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-300" />
+                        </div>
+
+                        {/* SECTION: SUPERVISION (ADMIN) */}
+                        {showAdminGroup && (
+                            <div key="section-supervision" className="relative group/section">
+                                <SectionTitle 
+                                    label="Supervision" 
+                                    collapsible 
+                                    isOpen={adminOpen} 
+                                    onToggle={() => setAdminOpen(!adminOpen)} 
+                                />
+                                {adminOpen && (
+                                    <motion.div 
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.2, ease: "easeInOut" }}
+                                        className="space-y-1 px-1 overflow-hidden"
+                                    >
+                                        <NavItem 
+                                            item={NAV_ADMIN_TOP} 
+                                            isActive={checkIsActive(NAV_ADMIN_TOP.href, NAV_ADMIN_TOP.exact, NAV_ADMIN_TOP.aliases)} 
+                                            isPinned={false}
+                                            onPin={handleTogglePin}
+                                            onHide={handleToggleHide}
+                                            unreadCount={getUnreadCount(NAV_ADMIN_TOP.href)}
+                                        />
+                                    </motion.div>
+                                )}
+                                <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-300" />
+                            </div>
+                        )}
+
+                        {/* SECTION: MASQUÉS */}
+                        {hiddenItems.length > 0 && (
+                            <div className="space-y-0.5 pt-4">
+                                <Separator className="bg-border mb-6" />
+                                <SectionTitle 
+                                    label="Éléments Masqués" 
+                                    collapsible 
+                                    isOpen={hiddenOpen} 
+                                    onToggle={() => setHiddenOpen(!hiddenOpen)} 
+                                />
+                                {hiddenOpen && (
+                                    <div className="space-y-0.5 animate-in slide-in-from-top-1 duration-150">
+                                        {hiddenItems.map((item) => (
+                                            <NavItem 
+                                                key={`hidden-${item.href}`} 
+                                                item={item} 
+                                                isActive={checkIsActive(item.href, (item as any).exact, (item as any).aliases)} 
+                                                isHidden={true}
+                                                onHide={handleToggleHide}
+                                                unreadCount={getUnreadCount(item.href)}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        </AnimatePresence>
+                    </nav>
+                </div>
+            </div>
+
+            {/* 3. FOOTER: COMMAND CENTER HUD */}
+            <div className="p-4 bg-surface/40 border-t border-border space-y-4 relative">
+                
+                {!mounted ? (
+                    <div className="w-full h-24 bg-surface animate-pulse rounded-2xl" />
+                ) : (
+                    <div className="space-y-4">
+                        {/* Search Module */}
+                        <div className="relative group/search">
+                            <SidebarSearch guildId={guildId} />
+                            {/* Decorative Corner Accents */}
+                            <div className="absolute top-0 left-0 w-1 h-1 " />
+                            <div className="absolute top-0 right-0 w-1 h-1 border-t border-r border-border-strong rounded-tr-[2px]" />
+                        </div>
+
+                        {/* Quick Access Grid */}
+                        <div className="flex items-center gap-1">
+                            <Link href="/docs" className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface transition-colors duration-150" title="Documentation">
+                                <BookOpen className="w-4 h-4" />
+                                <span className="text-caption font-medium">Docs</span>
+                            </Link>
+                            <Link href="/changelog" className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface transition-colors duration-150" title="Changelog">
+                                <History className="w-4 h-4" />
+                                <span className="text-caption font-medium">Maj</span>
+                            </Link>
+                            <Link href={`/dashboard/${guildId}/tracker`} className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface transition-colors duration-150" title="Tracker de bugs">
+                                <Bug className="w-4 h-4" />
+                                <span className="text-caption font-medium">Bugs</span>
+                            </Link>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
 }
 
-function NavItem({ item, isActive }: { item: any; isActive: boolean }) {
+function SectionTitle({ label, collapsible: _collapsible, isOpen: _isOpen, onToggle: _onToggle }: { label: string; collapsible?: boolean; isOpen?: boolean; onToggle?: () => void }) {
+    const isSupervision = label === "Supervision";
+    const isInfo = label.includes("Info");
+    const isOutils = label.includes("Outil");
+    const isProgression = label.includes("Progression");
+    const isAutres = label.includes("Autre");
+    const isPinned = label.includes("Favori");
+
+    return (
+        <div className="flex items-center gap-3 px-4 py-1 mb-1 mt-2.5 group/title select-none relative">
+            {/* Background Pill - UI 2026 */}
+            <div className="absolute inset-x-2 inset-y-0 bg-surface bg-surface rounded-2xl -z-10 group-hover/title:bg-surface transition-colors duration-150" />
+            
+            <div className={cn(
+                "h-5 w-[2.5px] rounded-full transition-colors duration-150  flex shrink-0",
+                isSupervision ? "bg-success " : 
+                isInfo ? "bg-success " :
+                isOutils ? "bg-success " :
+                isAutres ? "bg-success " :
+                isPinned ? "bg-success " :
+                "bg-success "
+            )} />
+            
+            <h4 className="text-caption font-semibold uppercase tracking-wider text-muted-foreground/80 transition-colors duration-150 whitespace-nowrap group-hover/title:text-foreground">
+                {label}
+            </h4>
+            
+            <div className={cn(
+                "flex-1 h-[1px] transition-all duration-150 opacity-20 group-hover:opacity-40",
+                isSupervision ? "bg-gradient-to-r from-success via-success/50 to-transparent" : 
+                isInfo ? "bg-gradient-to-r from-success via-success/50 to-transparent" :
+                isOutils ? "bg-gradient-to-r from-success via-success/50 to-transparent" :
+                isAutres ? "bg-gradient-to-r from-success via-success/50 to-transparent" :
+                "bg-gradient-to-r from-success via-success/50 to-transparent"
+            )} />        </div>
+    );
+}
+
+function NavItem({ 
+    item, 
+    isActive, 
+    isSubItem, 
+    isPinned, 
+    onPin,
+    isHidden,
+    onHide,
+    unreadCount
+}: { 
+    item: any; 
+    isActive: boolean; 
+    isSubItem?: boolean;
+    isPinned?: boolean;
+    onPin?: (href: string) => void;
+    isHidden?: boolean;
+    onHide?: (href: string) => void;
+    unreadCount?: number;
+}) {
+    const colorMap: Record<string, { text: string, bg: string, border: string, glow: string, muted: string, accent: string }> = {
+        emerald: { text: "text-success", bg: "bg-success/10", border: "border-success/20", glow: "", muted: "text-success/40", accent: "bg-success" },
+        amber: { text: "text-success", bg: "bg-success/10", border: "border-success/20", glow: "", muted: "text-success/40", accent: "bg-success" },
+        indigo: { text: "text-success", bg: "bg-success/10", border: "border-success/20", glow: "", muted: "text-success/40", accent: "bg-success" },
+        rose: { text: "text-success", bg: "bg-success/10", border: "border-success/20", glow: "", muted: "text-success/40", accent: "bg-success" },
+        cyan: { text: "text-success", bg: "bg-success/10", border: "border-success/20", glow: "", muted: "text-success/40", accent: "bg-success" },
+        zinc: { text: "text-foreground", bg: "bg-surface", border: "border-border", glow: "", muted: "text-muted-foreground", accent: "bg-muted" },
+    };
+
+    const scheme = colorMap[item.color || "emerald"];
+
+    const tourKey = item.tourKey;
     return (
         <Link
             href={item.href}
+            prefetch={item.prefetch ?? true}
+            data-tour={
+                tourKey
+                    ? `sidebar-${tourKey}`
+                    : item.isDashboard 
+                        ? "sidebar-dashboard" 
+                        : item.href?.endsWith("/missions") 
+                            ? "sidebar-missions" 
+                            : item.href?.endsWith("/ladder") 
+                                ? "sidebar-ladder" 
+                                : item.href?.endsWith("/members") 
+                                    ? "sidebar-members" 
+                                    : item.href?.endsWith("/calendar") 
+                                        ? "sidebar-calendar" 
+                                        : undefined
+            }
             className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 group relative overflow-hidden",
-                isActive
-                    ? "bg-white/[0.05] text-white shadow-[0_4px_20px_rgba(0,0,0,0.4)] ring-1 ring-inset ring-white/10"
-                    : "text-zinc-200 hover:text-white hover:bg-white/[0.02]"
+                "group relative flex items-center gap-2.5 transition-colors duration-150 rounded-xl border outline-none mx-2 mb-0.5 overflow-hidden",
+                "px-3 py-1",
+                isActive 
+                    ? cn(
+                        "z-10 bg-surface border-border",
+                        scheme.glow
+                    )
+                    : "text-muted-foreground/70 border-transparent hover:text-foreground hover:bg-surface hover:border-border  "
             )}
         >
-            {/* Active Glow Indicator */}
+            {/* Glassmorphism Shine Effect */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-white/[0.02] opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none" />
+
+            {/* Framer Motion Indicator */}
             {isActive && (
-                <div className={cn(
-                    "absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full animate-pulse shadow-[0_0_12px_currentColor]",
-                    item.color ? item.color.replace("text-", "bg-") : "bg-primary"
-                )} />
+                <motion.div
+                    layoutId="sidebar-active-pill"
+                    className={cn(
+                        "absolute left-0 top-0 bottom-0 w-[3px]",
+                        scheme.accent
+                    )}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                />
             )}
 
-            <item.icon
-                className={cn(
-                    "h-4 w-4 shrink-0 transition-all duration-300",
-                    isActive
-                        ? cn(item.color || "text-primary", "scale-110 drop-shadow-[0_0_8px_currentColor]")
-                        : cn(item.color ? `${item.color} opacity-70 group-hover:opacity-100` : "text-zinc-500 group-hover:text-zinc-300", "group-hover:scale-110 group-hover:rotate-3 group-hover:drop-shadow-[0_0_8px_currentColor]")
-                )}
-            />
-            <span className={cn(
-                "text-sm transition-all duration-300",
-                isActive ? "font-black tracking-tight" : "font-bold"
+            {/* Icon Container */}
+            <div className={cn(
+                "relative transition-colors duration-150 shrink-0 flex items-center justify-center rounded-xl z-20",
+                "p-1.5 bg-surface border border-border group-hover:border-border-strong",
+                isActive 
+                    ? cn(scheme.bg, scheme.text, scheme.border, "shadow-inner shadow-black/20") 
+                    : (!item.imgSrc ? cn(scheme.text, "opacity-70 group-hover:opacity-100") : "text-muted-foreground group-hover:text-foreground")
             )}>
-                {item.name}
-            </span>
+                {/* Neon Icon Glow */}
+                {isActive && (
+                    <div className={cn(
+                        "absolute inset-0  opacity-40 -z-10",
+                        scheme.accent
+                    )} />
+                )}
 
-            {/* Subtle glow behind text on active */}
-            {isActive && (
-                <div className={cn(
-                    "absolute inset-0 opacity-[0.03] pointer-events-none bg-gradient-to-r from-transparent via-current to-transparent",
-                    item.color ? item.color : "text-primary"
-                )} />
+                {item.imgSrc ? (
+                    <div className={cn("relative transition-transform duration-150", 
+                        "h-5 w-5",
+                        ""
+                    )}>
+                        <Image 
+                            src={item.imgSrc} 
+                            alt={item.name} 
+                            fill 
+                            sizes="24px"
+                            className={cn("object-contain transition-colors duration-150", 
+                                !isActive && "opacity-80 saturate-100 group-hover:opacity-100",
+                                isActive && ""
+                            )} 
+                        />
+                    </div>
+                ) : (
+                    <item.icon className={cn(
+                        "h-5 w-5", 
+                        "transition-colors duration-150 ",
+                        (isActive || !item.imgSrc) && ""
+                    )} />
+                )}
+            </div>
+
+            <div className="flex flex-col min-w-0 z-10 transition-transform duration-150 ">
+                <span className={cn(
+                    "text-body-sm leading-tight font-medium transition-colors duration-150",
+                    isActive ? "text-foreground " : "text-muted-foreground/90 group-hover:text-foreground"
+                )}>
+                    {item.name}
+                </span>
+            </div>
+
+            {/* Notification Badge */}
+            {unreadCount !== undefined && unreadCount > 0 && (
+                <div className="flex shrink-0 items-center justify-center min-w-[20px] h-5 px-1 ml-auto mr-1 bg-danger rounded-full  z-20 animate-in zoom-in">
+                    <span className="text-caption font-semibold text-foreground">{unreadCount > 9 ? "9+" : unreadCount}</span>
+                </div>
             )}
 
-            {/* Subtle light effect on hover */}
-            {!isActive && (
-                <div className="absolute inset-0 bg-gradient-to-r from-white/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-            )}
+            {/* Actions Container */}
+            <div className={cn("flex items-center gap-1", unreadCount && unreadCount > 0 ? "" : "ml-auto")}>
+                {/* Pin Toggle */}
+                {!isHidden && onPin && (
+                    <button
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onPin(item.href);
+                        }}
+                        className={cn(
+                            "p-2 rounded-xl transition-colors duration-150 group/pin flex items-center justify-center relative z-20",
+                            isPinned 
+                                ? "text-success bg-success/10 opacity-100 border border-success/20" 
+                                : "opacity-0 group-hover:opacity-100 text-muted-foreground/30 hover:text-success hover:bg-success/10 hover:border-success/20"
+                        )}
+                    >
+                        {isPinned ? (
+                            <div className="relative">
+                                <Star className="w-3.5 h-3.5 fill-current group-hover/pin:opacity-0 transition-colors duration-150" />
+                                <X className="w-3.5 h-3.5 absolute inset-0 opacity-0 group-hover/pin:opacity-100 transition-colors duration-150" />
+                            </div>
+                        ) : (
+                            <Star className="w-3.5 h-3.5 transition-colors duration-150 " />
+                        )}
+                    </button>
+                )}
+            </div>
         </Link>
     );
 }
 
-function AdminSubItem({ item, isActive }: { item: any; isActive: boolean }) {
-    // Split "ADM Permissions" → prefix "ADM" + label "Permissions"
-    const [prefix, ...rest] = item.name.split(" ");
-    const label = rest.join(" ");
 
+
+function AdminSubItem({ item, isActive }: { item: any; isActive: boolean }) {
     return (
         <Link
             href={item.href}
+            prefetch={false}
             className={cn(
-                "flex items-center gap-2 px-2 py-1.5 rounded-md transition-all duration-200 group relative overflow-hidden",
-                isActive
-                    ? "bg-rose-500/10 text-rose-300 ring-1 ring-inset ring-rose-500/20"
-                    : "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.03]"
+                "group flex items-center gap-3 px-3 py-1.5 rounded-xl transition-all relative overflow-hidden",
+                isActive ? "text-success text-success bg-success/5" : "text-muted-foreground hover:text-success hover:bg-foreground/[0.02]"
             )}
         >
-            {/* Active dot */}
+            {/* Active Glow Background */}
             {isActive && (
-                <div className="absolute left-0 top-2 bottom-2 w-0.5 rounded-r-full bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
+                <div className="absolute inset-0 bg-success/5  pointer-events-none" />
             )}
 
-            <item.icon className={cn(
-                "h-3 w-3 shrink-0 transition-all duration-200",
-                isActive ? "text-rose-400" : "text-zinc-600 group-hover:text-zinc-400"
+            <div className={cn(
+                "w-1.5 h-1.5 rounded-full border border-success/30 transition-all shrink-0 z-10",
+                isActive ? "bg-success " : "bg-muted-foreground/30 group-hover:bg-success group-hover:border-success"
             )} />
-
             <span className={cn(
-                "font-mono text-[10px] font-black tracking-widest px-1 py-0.5 rounded shrink-0",
-                isActive
-                    ? "text-rose-400 bg-rose-500/15"
-                    : "text-zinc-600 bg-zinc-800/60 group-hover:text-rose-400/70"
+                "text-body-sm font-medium z-10",
+                isActive ? "text-success text-success" : "text-muted-foreground/60 group-hover:text-success"
             )}>
-                {prefix}
+                {item.name}
             </span>
 
-            <span className={cn(
-                "text-xs transition-all duration-200 truncate",
-                isActive ? "font-black text-rose-200" : "font-medium group-hover:text-zinc-200"
-            )}>
-                {label}
-            </span>
+            {isActive && (
+                <div className="ml-auto h-1 w-1 rounded-full bg-success  z-10" />
+            )}
         </Link>
     );
 }

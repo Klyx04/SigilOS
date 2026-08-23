@@ -1,0 +1,2662 @@
+[
+  {
+    "_id": "69a716cb96df4304dfe0af5b",
+    "id": 1,
+    "origineX": 6480,
+    "origineY": 4944,
+    "mapWidth": 69.5,
+    "mapHeight": 49.70000076293945,
+    "minScale": 0.20000000298023224,
+    "maxScale": 1,
+    "startScale": 0.6000000238418579,
+    "totalWidth": 10000,
+    "totalHeight": 8000,
+    "zoom": [
+      1,
+      0.800000011920929,
+      0.6000000238418579,
+      0.4000000059604645,
+      0.20000000298023224
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "868482",
+      "de": "Die Welt der Zwölf",
+      "en": "World of Twelve",
+      "es": "Mundo de los Doce",
+      "fr": "Monde des Douze",
+      "pt": "Mundo dos Doze"
+    },
+    "className": "WorldMapData",
+    "m_id": 1,
+    "customScales": [
+      {
+        "x": 17.323741007194243,
+        "y": 17.3038226719966,
+        "name": "custom17"
+      },
+      {
+        "x": 15.283273381294963,
+        "y": 15.265844837997024,
+        "name": "custom15"
+      },
+      {
+        "x": 12.222571942446042,
+        "y": 12.208878086997661,
+        "name": "custom12"
+      },
+      {
+        "x": 9.161870503597122,
+        "y": 9.1519113359983,
+        "name": "custom9"
+      },
+      {
+        "x": 7.121402877697841,
+        "y": 7.113933501998725,
+        "name": "custom7"
+      },
+      {
+        "x": 5.080935251798561,
+        "y": 5.07595566799915,
+        "name": "custom5"
+      },
+      {
+        "x": 4.060701438848921,
+        "y": 4.056966750999362,
+        "name": "custom4"
+      },
+      {
+        "x": 3.0404676258992804,
+        "y": 3.037977833999575,
+        "name": "custom3"
+      },
+      {
+        "x": 2.02023381294964,
+        "y": 2.0189889169997874,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.8,
+        "y": 0.8,
+        "name": "0.8"
+      },
+      {
+        "x": 0.6,
+        "y": 0.6,
+        "name": "0.6"
+      },
+      {
+        "x": 0.4,
+        "y": 0.4,
+        "name": "0.4"
+      },
+      {
+        "x": 0.2,
+        "y": 0.2,
+        "name": "0.2"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af5c",
+    "id": 2,
+    "origineX": 1800,
+    "origineY": 1940,
+    "mapWidth": 380,
+    "mapHeight": 260,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.25,
+    "totalWidth": 4750,
+    "totalHeight": 3904,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "460805",
+      "de": "Incarnam",
+      "en": "Incarnam",
+      "es": "Incarnam",
+      "fr": "Incarnam",
+      "pt": "Incarnam"
+    },
+    "className": "WorldMapData",
+    "m_id": 2,
+    "customScales": [
+      {
+        "x": 3.168421052631579,
+        "y": 3.3076923076923075,
+        "name": "custom3"
+      },
+      {
+        "x": 2.0842105263157897,
+        "y": 2.1538461538461537,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af5d",
+    "id": 3,
+    "origineX": 362,
+    "origineY": 3383,
+    "mapWidth": 222,
+    "mapHeight": 158,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.25,
+    "totalWidth": 2980,
+    "totalHeight": 3558,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "460804",
+      "de": "Untergrund von Astrub",
+      "en": "Astrub Tunnels",
+      "es": "Subterráneos de Astrub",
+      "fr": "Souterrain d'Astrub",
+      "pt": "Túneis subterrâneos de Astrub"
+    },
+    "className": "WorldMapData",
+    "m_id": 3,
+    "customScales": [
+      {
+        "x": 5.423423423423423,
+        "y": 5.443037974683544,
+        "name": "custom5"
+      },
+      {
+        "x": 4.3175675675675675,
+        "y": 4.332278481012658,
+        "name": "custom4"
+      },
+      {
+        "x": 3.2117117117117115,
+        "y": 3.221518987341772,
+        "name": "custom3"
+      },
+      {
+        "x": 2.1058558558558556,
+        "y": 2.1107594936708862,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af5e",
+    "id": 4,
+    "origineX": 9130,
+    "origineY": 2980,
+    "mapWidth": 210,
+    "mapHeight": 150,
+    "minScale": 0.3700000047683716,
+    "maxScale": 1,
+    "startScale": 1,
+    "totalWidth": 2463,
+    "totalHeight": 1820,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": false,
+    "name": {
+      "id": "460803",
+      "de": "Labyrinth des Minotorors",
+      "en": "Labyrinth of the Minotoror",
+      "es": "Laberinto del Minotauroro",
+      "fr": "Labyrinthe du Minotoror",
+      "pt": "Labirinto do Minotoror"
+    },
+    "className": "WorldMapData",
+    "m_id": 4,
+    "customScales": [
+      {
+        "x": 5.733333333333333,
+        "y": 5.733333333333333,
+        "name": "custom5"
+      },
+      {
+        "x": 4.55,
+        "y": 4.55,
+        "name": "custom4"
+      },
+      {
+        "x": 3.3666666666666667,
+        "y": 3.3666666666666667,
+        "name": "custom3"
+      },
+      {
+        "x": 2.1833333333333336,
+        "y": 2.1833333333333336,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af5f",
+    "id": 5,
+    "origineX": 900,
+    "origineY": -4330,
+    "mapWidth": 211,
+    "mapHeight": 150,
+    "minScale": 0.3499999940395355,
+    "maxScale": 1,
+    "startScale": 1,
+    "totalWidth": 3200,
+    "totalHeight": 2000,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": false,
+    "name": {
+      "id": "460801",
+      "de": "Labyrinth des Schweinedrachens",
+      "en": "The Dragon Pig's Maze",
+      "es": "Laberinto del Dragocerdo",
+      "fr": "Labyrinthe du Dragon Cochon",
+      "pt": "Labirinto do Dragão-Porco"
+    },
+    "className": "WorldMapData",
+    "m_id": 5,
+    "customScales": [
+      {
+        "x": 5.706161137440758,
+        "y": 5.733333333333333,
+        "name": "custom5"
+      },
+      {
+        "x": 4.529620853080568,
+        "y": 4.55,
+        "name": "custom4"
+      },
+      {
+        "x": 3.353080568720379,
+        "y": 3.3666666666666667,
+        "name": "custom3"
+      },
+      {
+        "x": 2.1765402843601898,
+        "y": 2.1833333333333336,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af60",
+    "id": 6,
+    "origineX": 3770,
+    "origineY": 9900,
+    "mapWidth": 210,
+    "mapHeight": 150,
+    "minScale": 0.3700000047683716,
+    "maxScale": 1,
+    "startScale": 1,
+    "totalWidth": 2100,
+    "totalHeight": 2100,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": false,
+    "name": {
+      "id": "460802",
+      "de": "Meister Rabs Bibliothek",
+      "en": "Lord Crow's Library",
+      "es": "Biblioteca del Maestro Cuerbok",
+      "fr": "Bibliothèque du Maître Corbac",
+      "pt": "Biblioteca do Mestre Corvoc"
+    },
+    "className": "WorldMapData",
+    "m_id": 6,
+    "customScales": [
+      {
+        "x": 5.733333333333333,
+        "y": 5.733333333333333,
+        "name": "custom5"
+      },
+      {
+        "x": 4.55,
+        "y": 4.55,
+        "name": "custom4"
+      },
+      {
+        "x": 3.3666666666666667,
+        "y": 3.3666666666666667,
+        "name": "custom3"
+      },
+      {
+        "x": 2.1833333333333336,
+        "y": 2.1833333333333336,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af61",
+    "id": 7,
+    "origineX": 17214,
+    "origineY": 11845,
+    "mapWidth": 210,
+    "mapHeight": 150,
+    "minScale": 0.5,
+    "maxScale": 1,
+    "startScale": 1,
+    "totalWidth": 1800,
+    "totalHeight": 1400,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": false,
+    "name": {
+      "id": "868483",
+      "de": "Eisfux-Höhlen",
+      "en": "Snowfoux Caverns",
+      "es": "Cavernas de los gélifux",
+      "fr": "Cavernes des Givrefoux",
+      "pt": "Cavernas dos Gelifox"
+    },
+    "className": "WorldMapData",
+    "m_id": 7,
+    "customScales": [
+      {
+        "x": 5.733333333333333,
+        "y": 5.733333333333333,
+        "name": "custom5"
+      },
+      {
+        "x": 4.55,
+        "y": 4.55,
+        "name": "custom4"
+      },
+      {
+        "x": 3.3666666666666667,
+        "y": 3.3666666666666667,
+        "name": "custom3"
+      },
+      {
+        "x": 2.1833333333333336,
+        "y": 2.1833333333333336,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af62",
+    "id": 8,
+    "origineX": 9860,
+    "origineY": 11200,
+    "mapWidth": 260,
+    "mapHeight": 184,
+    "minScale": 0.5,
+    "maxScale": 1,
+    "startScale": 1,
+    "totalWidth": 2840,
+    "totalHeight": 2162,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "962154",
+      "de": "Übelriechende Kanäle",
+      "en": "Foul-Smelling Canals",
+      "es": "Canales mefíticos",
+      "fr": "Canaux Méphitiques",
+      "pt": "Canais Pestilentos"
+    },
+    "className": "WorldMapData",
+    "m_id": 8,
+    "customScales": [
+      {
+        "x": 4.630769230769231,
+        "y": 4.673913043478261,
+        "name": "custom4"
+      },
+      {
+        "x": 3.420512820512821,
+        "y": 3.4492753623188404,
+        "name": "custom3"
+      },
+      {
+        "x": 2.2102564102564104,
+        "y": 2.22463768115942,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af63",
+    "id": 9,
+    "origineX": 7454,
+    "origineY": -5652,
+    "mapWidth": 257,
+    "mapHeight": 182,
+    "minScale": 0.5,
+    "maxScale": 1,
+    "startScale": 1,
+    "totalWidth": 2840,
+    "totalHeight": 2162,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "962155",
+      "de": "Schoß von Brâkmar",
+      "en": "Bowels of Brakmar",
+      "es": "Entrañas de Brakmar",
+      "fr": "Entrailles de Brâkmar",
+      "pt": "Entranhas de Brakmar"
+    },
+    "className": "WorldMapData",
+    "m_id": 9,
+    "customScales": [
+      {
+        "x": 4.684824902723736,
+        "y": 4.725274725274725,
+        "name": "custom4"
+      },
+      {
+        "x": 3.456549935149157,
+        "y": 3.4835164835164836,
+        "name": "custom3"
+      },
+      {
+        "x": 2.2282749675745785,
+        "y": 2.241758241758242,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af64",
+    "id": 10,
+    "origineX": 12855,
+    "origineY": -1225,
+    "mapWidth": 209,
+    "mapHeight": 150,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 1,
+    "totalWidth": 3559,
+    "totalHeight": 2804,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "460807",
+      "de": "Dorf im Blätterdach",
+      "en": "Canopy Village",
+      "es": "Pueblo de la canopea",
+      "fr": "Village de la Canopée",
+      "pt": "Vilarejo do Dossel"
+    },
+    "className": "WorldMapData",
+    "m_id": 10,
+    "customScales": [
+      {
+        "x": 5.760765550239235,
+        "y": 5.733333333333333,
+        "name": "custom5"
+      },
+      {
+        "x": 4.570574162679426,
+        "y": 4.55,
+        "name": "custom4"
+      },
+      {
+        "x": 3.3803827751196174,
+        "y": 3.3666666666666667,
+        "name": "custom3"
+      },
+      {
+        "x": 2.1901913875598087,
+        "y": 2.1833333333333336,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af65",
+    "id": 11,
+    "origineX": 0,
+    "origineY": 0,
+    "mapWidth": 207,
+    "mapHeight": 148,
+    "minScale": 0.44999998807907104,
+    "maxScale": 1,
+    "startScale": 1,
+    "totalWidth": 2120,
+    "totalHeight": 1530,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": false,
+    "name": {
+      "id": "460808",
+      "de": "Duty free",
+      "en": "Duty Free",
+      "es": "Duty free",
+      "fr": "Duty free",
+      "pt": "Duty free"
+    },
+    "className": "WorldMapData",
+    "m_id": 11,
+    "customScales": [
+      {
+        "x": 5.816425120772947,
+        "y": 5.8108108108108105,
+        "name": "custom5"
+      },
+      {
+        "x": 4.61231884057971,
+        "y": 4.608108108108108,
+        "name": "custom4"
+      },
+      {
+        "x": 3.4082125603864735,
+        "y": 3.4054054054054053,
+        "name": "custom3"
+      },
+      {
+        "x": 2.204106280193237,
+        "y": 2.2027027027027026,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af66",
+    "id": 12,
+    "origineX": 7240,
+    "origineY": 6440,
+    "mapWidth": 91,
+    "mapHeight": 65,
+    "minScale": 0.5,
+    "maxScale": 1,
+    "startScale": 0.5,
+    "totalWidth": 3274,
+    "totalHeight": 2498,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "868480",
+      "de": "Schloss von Graf Primzahl",
+      "en": "Harebourg Castle",
+      "es": "Castillo de Kontatrás",
+      "fr": "Château de Harebourg",
+      "pt": "Castelo Traspafrent"
+    },
+    "className": "WorldMapData",
+    "m_id": 12,
+    "customScales": [
+      {
+        "x": 13.23076923076923,
+        "y": 13.23076923076923,
+        "name": "custom13"
+      },
+      {
+        "x": 12.21153846153846,
+        "y": 12.21153846153846,
+        "name": "custom12"
+      },
+      {
+        "x": 9.153846153846153,
+        "y": 9.153846153846153,
+        "name": "custom9"
+      },
+      {
+        "x": 7.115384615384615,
+        "y": 7.115384615384615,
+        "name": "custom7"
+      },
+      {
+        "x": 5.076923076923077,
+        "y": 5.076923076923077,
+        "name": "custom5"
+      },
+      {
+        "x": 4.0576923076923075,
+        "y": 4.0576923076923075,
+        "name": "custom4"
+      },
+      {
+        "x": 3.0384615384615383,
+        "y": 3.0384615384615383,
+        "name": "custom3"
+      },
+      {
+        "x": 2.019230769230769,
+        "y": 2.019230769230769,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af67",
+    "id": 13,
+    "origineX": 2678,
+    "origineY": 1925,
+    "mapWidth": 204,
+    "mapHeight": 147,
+    "minScale": 0.5,
+    "maxScale": 1,
+    "startScale": 0.5,
+    "totalWidth": 4089,
+    "totalHeight": 2589,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "460811",
+      "de": "Enutrosor",
+      "en": "Enurado",
+      "es": "Anutropía",
+      "fr": "Enutrosor",
+      "pt": "Enutropia"
+    },
+    "className": "WorldMapData",
+    "m_id": 13,
+    "customScales": [
+      {
+        "x": 5.901960784313726,
+        "y": 5.850340136054422,
+        "name": "custom5"
+      },
+      {
+        "x": 4.676470588235294,
+        "y": 4.637755102040817,
+        "name": "custom4"
+      },
+      {
+        "x": 3.450980392156863,
+        "y": 3.425170068027211,
+        "name": "custom3"
+      },
+      {
+        "x": 2.2254901960784315,
+        "y": 2.2125850340136055,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af68",
+    "id": 14,
+    "origineX": 1050,
+    "origineY": 1440,
+    "mapWidth": 204,
+    "mapHeight": 147,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.5,
+    "totalWidth": 4750,
+    "totalHeight": 3904,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "460809",
+      "de": "Srambad",
+      "en": "Srambad",
+      "es": "Sramvil",
+      "fr": "Srambad",
+      "pt": "Sramvil"
+    },
+    "className": "WorldMapData",
+    "m_id": 14,
+    "customScales": [
+      {
+        "x": 5.901960784313726,
+        "y": 5.850340136054422,
+        "name": "custom5"
+      },
+      {
+        "x": 4.676470588235294,
+        "y": 4.637755102040817,
+        "name": "custom4"
+      },
+      {
+        "x": 3.450980392156863,
+        "y": 3.425170068027211,
+        "name": "custom3"
+      },
+      {
+        "x": 2.2254901960784315,
+        "y": 2.2125850340136055,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af69",
+    "id": 15,
+    "origineX": 1248,
+    "origineY": 1543,
+    "mapWidth": 204,
+    "mapHeight": 147,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.5,
+    "totalWidth": 4171,
+    "totalHeight": 3576,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "470194",
+      "de": "Xélorium",
+      "en": "Xelorium",
+      "es": "Xelorium",
+      "fr": "Xélorium",
+      "pt": "Xelorium"
+    },
+    "className": "WorldMapData",
+    "m_id": 15,
+    "customScales": [
+      {
+        "x": 5.901960784313726,
+        "y": 5.850340136054422,
+        "name": "custom5"
+      },
+      {
+        "x": 4.676470588235294,
+        "y": 4.637755102040817,
+        "name": "custom4"
+      },
+      {
+        "x": 3.450980392156863,
+        "y": 3.425170068027211,
+        "name": "custom3"
+      },
+      {
+        "x": 2.2254901960784315,
+        "y": 2.2125850340136055,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af6a",
+    "id": 16,
+    "origineX": 3200,
+    "origineY": 4200,
+    "mapWidth": 203,
+    "mapHeight": 146,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.5,
+    "totalWidth": 5069,
+    "totalHeight": 5584,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "611315",
+      "de": "Ecaflipus",
+      "en": "Ecaflipus",
+      "es": "Zurcalia",
+      "fr": "Ecaflipus",
+      "pt": "Ecafliperama"
+    },
+    "className": "WorldMapData",
+    "m_id": 16,
+    "customScales": [
+      {
+        "x": 5.931034482758621,
+        "y": 5.890410958904109,
+        "name": "custom5"
+      },
+      {
+        "x": 4.698275862068966,
+        "y": 4.667808219178082,
+        "name": "custom4"
+      },
+      {
+        "x": 3.4655172413793105,
+        "y": 3.4452054794520546,
+        "name": "custom3"
+      },
+      {
+        "x": 2.2327586206896552,
+        "y": 2.2226027397260273,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af6b",
+    "id": 17,
+    "origineX": -1810,
+    "origineY": -2950,
+    "mapWidth": 150,
+    "mapHeight": 122,
+    "minScale": 0.3700000047683716,
+    "maxScale": 1,
+    "startScale": 1,
+    "totalWidth": 3333,
+    "totalHeight": 1719,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "868479",
+      "de": "Tiefen von Sufokia",
+      "en": "Depths of Sufokia",
+      "es": "Profundidades de Sufokia",
+      "fr": "Profondeurs de Sufokia",
+      "pt": "Profundezas de Sufokia"
+    },
+    "className": "WorldMapData",
+    "m_id": 17,
+    "customScales": [
+      {
+        "x": 8.026666666666667,
+        "y": 7.049180327868853,
+        "name": "custom8"
+      },
+      {
+        "x": 7.022857142857143,
+        "y": 6.1850117096018735,
+        "name": "custom7"
+      },
+      {
+        "x": 5.015238095238096,
+        "y": 4.456674473067916,
+        "name": "custom5"
+      },
+      {
+        "x": 4.011428571428572,
+        "y": 3.5925058548009368,
+        "name": "custom4"
+      },
+      {
+        "x": 3.007619047619048,
+        "y": 2.728337236533958,
+        "name": "custom3"
+      },
+      {
+        "x": 2.003809523809524,
+        "y": 1.864168618266979,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af6c",
+    "id": 18,
+    "origineX": -3000,
+    "origineY": 17820,
+    "mapWidth": 415,
+    "mapHeight": 225,
+    "minScale": 0.3700000047683716,
+    "maxScale": 1,
+    "startScale": 1,
+    "totalWidth": 3529,
+    "totalHeight": 2357,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "868478",
+      "de": "Verfluchte Pyramide",
+      "en": "Cursed Pyramid",
+      "es": "Pirámide maldita",
+      "fr": "Pyramide Maudite",
+      "pt": "Pirâmide Maldita"
+    },
+    "className": "WorldMapData",
+    "m_id": 18,
+    "customScales": [
+      {
+        "x": 2.9012048192771083,
+        "y": 3.8222222222222224,
+        "name": "custom3"
+      },
+      {
+        "x": 1.9506024096385541,
+        "y": 2.4111111111111114,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af6d",
+    "id": 19,
+    "origineX": 0,
+    "origineY": 0,
+    "mapWidth": 91.5,
+    "mapHeight": 65.5,
+    "minScale": 0.5,
+    "maxScale": 1,
+    "startScale": 0.5,
+    "totalWidth": 2500,
+    "totalHeight": 1904,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": false,
+    "name": {
+      "id": "734790",
+      "de": "Weltkarten",
+      "en": "World Maps",
+      "es": "Mapamundis",
+      "fr": "Mappemondes",
+      "pt": "Mapas do mundo"
+    },
+    "className": "WorldMapData",
+    "m_id": 19,
+    "customScales": [
+      {
+        "x": 13.158469945355192,
+        "y": 13.129770992366412,
+        "name": "custom13"
+      },
+      {
+        "x": 12.145264116575593,
+        "y": 12.118956743002544,
+        "name": "custom12"
+      },
+      {
+        "x": 9.105646630236794,
+        "y": 9.086513994910941,
+        "name": "custom9"
+      },
+      {
+        "x": 7.079234972677596,
+        "y": 7.064885496183206,
+        "name": "custom7"
+      },
+      {
+        "x": 5.052823315118397,
+        "y": 5.043256997455471,
+        "name": "custom5"
+      },
+      {
+        "x": 4.039617486338798,
+        "y": 4.0324427480916025,
+        "name": "custom4"
+      },
+      {
+        "x": 3.0264116575591986,
+        "y": 3.0216284987277353,
+        "name": "custom3"
+      },
+      {
+        "x": 2.0132058287795993,
+        "y": 2.0108142493638677,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af6e",
+    "id": 20,
+    "origineX": 8385,
+    "origineY": 10700,
+    "mapWidth": 150,
+    "mapHeight": 122,
+    "minScale": 0.3700000047683716,
+    "maxScale": 1,
+    "startScale": 1,
+    "totalWidth": 3333,
+    "totalHeight": 1719,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "868477",
+      "de": "Stille Wracks",
+      "en": "Silent Wrecks",
+      "es": "Restos silenciosos",
+      "fr": "Épaves Silencieuses",
+      "pt": "Destroços Silenciosos"
+    },
+    "className": "WorldMapData",
+    "m_id": 20,
+    "customScales": [
+      {
+        "x": 8.026666666666667,
+        "y": 7.049180327868853,
+        "name": "custom8"
+      },
+      {
+        "x": 7.022857142857143,
+        "y": 6.1850117096018735,
+        "name": "custom7"
+      },
+      {
+        "x": 5.015238095238096,
+        "y": 4.456674473067916,
+        "name": "custom5"
+      },
+      {
+        "x": 4.011428571428572,
+        "y": 3.5925058548009368,
+        "name": "custom4"
+      },
+      {
+        "x": 3.007619047619048,
+        "y": 2.728337236533958,
+        "name": "custom3"
+      },
+      {
+        "x": 2.003809523809524,
+        "y": 1.864168618266979,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af6f",
+    "id": 21,
+    "origineX": 2268,
+    "origineY": 2565,
+    "mapWidth": 286,
+    "mapHeight": 205,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.5,
+    "totalWidth": 3560,
+    "totalHeight": 2802,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "868476",
+      "de": "Ostewinsel",
+      "en": "Fleaster Island",
+      "es": "Isla de Pazcuak",
+      "fr": "Île de Pwâk",
+      "pt": "Ilha de Paskwak"
+    },
+    "className": "WorldMapData",
+    "m_id": 21,
+    "customScales": [
+      {
+        "x": 4.20979020979021,
+        "y": 4.195121951219512,
+        "name": "custom4"
+      },
+      {
+        "x": 3.13986013986014,
+        "y": 3.1300813008130084,
+        "name": "custom3"
+      },
+      {
+        "x": 2.06993006993007,
+        "y": 2.0650406504065044,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af70",
+    "id": 22,
+    "origineX": 14604,
+    "origineY": 2635,
+    "mapWidth": 164,
+    "mapHeight": 114,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.5,
+    "totalWidth": 2016,
+    "totalHeight": 1719,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "868475",
+      "de": "Crocuzko",
+      "en": "Crocuzko",
+      "es": "Cocuzko",
+      "fr": "Crocuzko",
+      "pt": "Crocuzko"
+    },
+    "className": "WorldMapData",
+    "m_id": 22,
+    "customScales": [
+      {
+        "x": 7.341463414634147,
+        "y": 7.543859649122808,
+        "name": "custom7"
+      },
+      {
+        "x": 5.227642276422764,
+        "y": 5.362573099415205,
+        "name": "custom5"
+      },
+      {
+        "x": 4.170731707317073,
+        "y": 4.271929824561404,
+        "name": "custom4"
+      },
+      {
+        "x": 3.113821138211382,
+        "y": 3.1812865497076026,
+        "name": "custom3"
+      },
+      {
+        "x": 2.056910569105691,
+        "y": 2.090643274853801,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af71",
+    "id": 24,
+    "origineX": 790,
+    "origineY": 1165,
+    "mapWidth": 289,
+    "mapHeight": 195,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.5,
+    "totalWidth": 2840,
+    "totalHeight": 2170,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "868491",
+      "de": "Kriegs Wunden",
+      "en": "War's Wounds",
+      "es": "Heridas de Guerra",
+      "fr": "Blessures de Guerre",
+      "pt": "Feridas de Guerra"
+    },
+    "className": "WorldMapData",
+    "m_id": 24,
+    "customScales": [
+      {
+        "x": 4.166089965397924,
+        "y": 4.410256410256411,
+        "name": "custom4"
+      },
+      {
+        "x": 3.110726643598616,
+        "y": 3.273504273504274,
+        "name": "custom3"
+      },
+      {
+        "x": 2.055363321799308,
+        "y": 2.136752136752137,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af72",
+    "id": 25,
+    "origineX": 775,
+    "origineY": 718,
+    "mapWidth": 260,
+    "mapHeight": 182,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.5,
+    "totalWidth": 2840,
+    "totalHeight": 2162,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "868490",
+      "de": "Verdorbenes Königreich",
+      "en": "Corruption's Kingdom",
+      "es": "Reino de Corrupción",
+      "fr": "Royaume Corrompu",
+      "pt": "Reino Corrompido"
+    },
+    "className": "WorldMapData",
+    "m_id": 25,
+    "customScales": [
+      {
+        "x": 4.630769230769231,
+        "y": 4.725274725274725,
+        "name": "custom4"
+      },
+      {
+        "x": 3.420512820512821,
+        "y": 3.4835164835164836,
+        "name": "custom3"
+      },
+      {
+        "x": 2.2102564102564104,
+        "y": 2.241758241758242,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af73",
+    "id": 26,
+    "origineX": 770,
+    "origineY": 717,
+    "mapWidth": 258,
+    "mapHeight": 185,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.5,
+    "totalWidth": 2840,
+    "totalHeight": 2170,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "868489",
+      "de": "Elends Wüste",
+      "en": "Misery's Desert",
+      "es": "Desierto de Miseria",
+      "fr": "Désert de Misère",
+      "pt": "Deserto de Miséria"
+    },
+    "className": "WorldMapData",
+    "m_id": 26,
+    "customScales": [
+      {
+        "x": 4.666666666666667,
+        "y": 4.648648648648648,
+        "name": "custom4"
+      },
+      {
+        "x": 3.4444444444444446,
+        "y": 3.432432432432432,
+        "name": "custom3"
+      },
+      {
+        "x": 2.2222222222222223,
+        "y": 2.216216216216216,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af74",
+    "id": 27,
+    "origineX": 775,
+    "origineY": 1266,
+    "mapWidth": 257,
+    "mapHeight": 183,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.5,
+    "totalWidth": 2840,
+    "totalHeight": 2162,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "868488",
+      "de": "Knechtschafts Galeere",
+      "en": "Servitude's Galley",
+      "es": "Galera de Servidumbre",
+      "fr": "Galère de Servitude",
+      "pt": "Galé de Servidão"
+    },
+    "className": "WorldMapData",
+    "m_id": 27,
+    "customScales": [
+      {
+        "x": 4.684824902723736,
+        "y": 4.699453551912568,
+        "name": "custom4"
+      },
+      {
+        "x": 3.456549935149157,
+        "y": 3.466302367941712,
+        "name": "custom3"
+      },
+      {
+        "x": 2.2282749675745785,
+        "y": 2.2331511839708558,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af75",
+    "id": 28,
+    "origineX": 1960,
+    "origineY": 1390,
+    "mapWidth": 352,
+    "mapHeight": 251.6999969482422,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.5,
+    "totalWidth": 4000,
+    "totalHeight": 2900,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "877836",
+      "de": "Wukin und Wukang",
+      "en": "Wukin and Wukang",
+      "es": "Wukin y wukang",
+      "fr": "Wukin et Wukang",
+      "pt": "Wukin e Wukang"
+    },
+    "className": "WorldMapData",
+    "m_id": 28,
+    "customScales": [
+      {
+        "x": 3.4204545454545454,
+        "y": 3.416766032686303,
+        "name": "custom3"
+      },
+      {
+        "x": 2.2102272727272725,
+        "y": 2.2083830163431513,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af76",
+    "id": 29,
+    "origineX": 422,
+    "origineY": 880,
+    "mapWidth": 210,
+    "mapHeight": 150,
+    "minScale": 0.5,
+    "maxScale": 1,
+    "startScale": 1,
+    "totalWidth": 1800,
+    "totalHeight": 1400,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": false,
+    "name": {
+      "id": "893852",
+      "de": "Ecaflip City",
+      "en": "Ecaflip City",
+      "es": "Zurcarák City",
+      "fr": "Ecaflip City",
+      "pt": "Ecaflip City"
+    },
+    "className": "WorldMapData",
+    "m_id": 29,
+    "customScales": [
+      {
+        "x": 5.733333333333333,
+        "y": 5.733333333333333,
+        "name": "custom5"
+      },
+      {
+        "x": 4.55,
+        "y": 4.55,
+        "name": "custom4"
+      },
+      {
+        "x": 3.3666666666666667,
+        "y": 3.3666666666666667,
+        "name": "custom3"
+      },
+      {
+        "x": 2.1833333333333336,
+        "y": 2.1833333333333336,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af77",
+    "id": 30,
+    "origineX": 773,
+    "origineY": 532,
+    "mapWidth": 257,
+    "mapHeight": 183,
+    "minScale": 0.5,
+    "maxScale": 1,
+    "startScale": 1,
+    "totalWidth": 2840,
+    "totalHeight": 2162,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "927158",
+      "de": "Alptraum",
+      "en": "Nightmare",
+      "es": "Pesadilla",
+      "fr": "Cauchemar",
+      "pt": "Pesadelo"
+    },
+    "className": "WorldMapData",
+    "m_id": 30,
+    "customScales": [
+      {
+        "x": 4.684824902723736,
+        "y": 4.699453551912568,
+        "name": "custom4"
+      },
+      {
+        "x": 3.456549935149157,
+        "y": 3.466302367941712,
+        "name": "custom3"
+      },
+      {
+        "x": 2.2282749675745785,
+        "y": 2.2331511839708558,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af78",
+    "id": 31,
+    "origineX": -6953,
+    "origineY": 13663,
+    "mapWidth": 257.5,
+    "mapHeight": 185,
+    "minScale": 0.5,
+    "maxScale": 1,
+    "startScale": 1,
+    "totalWidth": 2840,
+    "totalHeight": 2881,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "980753",
+      "de": "Ereboria-Schächte",
+      "en": "Ereboria Tunnels",
+      "es": "Galerías de Ereboria",
+      "fr": "Galeries d'Ereboria",
+      "pt": "Galerias de Ereboria"
+    },
+    "className": "WorldMapData",
+    "m_id": 31,
+    "customScales": [
+      {
+        "x": 4.675728155339806,
+        "y": 4.648648648648648,
+        "name": "custom4"
+      },
+      {
+        "x": 3.4504854368932043,
+        "y": 3.432432432432432,
+        "name": "custom3"
+      },
+      {
+        "x": 2.2252427184466024,
+        "y": 2.216216216216216,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af79",
+    "id": 32,
+    "origineX": 4432,
+    "origineY": -5250,
+    "mapWidth": 279,
+    "mapHeight": 199,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.25,
+    "totalWidth": 2840,
+    "totalHeight": 2162,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "1129816",
+      "de": "Pilz-Höhlen",
+      "en": "Fungus Cavern",
+      "es": "Caverna de los fongos",
+      "fr": "Caverne des Fungus",
+      "pt": "Caverna dos Fungos"
+    },
+    "className": "WorldMapData",
+    "m_id": 32,
+    "customScales": [
+      {
+        "x": 4.315412186379929,
+        "y": 4.321608040201005,
+        "name": "custom4"
+      },
+      {
+        "x": 3.2102747909199523,
+        "y": 3.2144053601340032,
+        "name": "custom3"
+      },
+      {
+        "x": 2.105137395459976,
+        "y": 2.107202680067002,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af7a",
+    "id": 33,
+    "origineX": -5028,
+    "origineY": -1932,
+    "mapWidth": 280,
+    "mapHeight": 198,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.25,
+    "totalWidth": 2649,
+    "totalHeight": 5396,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "1129821",
+      "de": "Tiefseebasis",
+      "en": "Sunktuary",
+      "es": "Base abisal",
+      "fr": "Base Abyssale",
+      "pt": "Base Abissal"
+    },
+    "className": "WorldMapData",
+    "m_id": 33,
+    "customScales": [
+      {
+        "x": 4.3,
+        "y": 4.343434343434343,
+        "name": "custom4"
+      },
+      {
+        "x": 3.1999999999999997,
+        "y": 3.228956228956229,
+        "name": "custom3"
+      },
+      {
+        "x": 2.0999999999999996,
+        "y": 2.114478114478114,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af7b",
+    "id": 34,
+    "origineX": 1284,
+    "origineY": 1532,
+    "mapWidth": 148,
+    "mapHeight": 106,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.5,
+    "totalWidth": 6350,
+    "totalHeight": 5898,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "1141028",
+      "de": "Osavora",
+      "en": "Osavora",
+      "es": "Osavora",
+      "fr": "Osavora",
+      "pt": "Osavora"
+    },
+    "className": "WorldMapData",
+    "m_id": 34,
+    "customScales": [
+      {
+        "x": 8.135135135135135,
+        "y": 8.11320754716981,
+        "name": "custom8"
+      },
+      {
+        "x": 7.115830115830116,
+        "y": 7.097035040431265,
+        "name": "custom7"
+      },
+      {
+        "x": 5.077220077220077,
+        "y": 5.064690026954177,
+        "name": "custom5"
+      },
+      {
+        "x": 4.057915057915058,
+        "y": 4.048517520215633,
+        "name": "custom4"
+      },
+      {
+        "x": 3.0386100386100385,
+        "y": 3.0323450134770886,
+        "name": "custom3"
+      },
+      {
+        "x": 2.019305019305019,
+        "y": 2.0161725067385445,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af7c",
+    "id": 35,
+    "origineX": 320,
+    "origineY": 185,
+    "mapWidth": 508,
+    "mapHeight": 369,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.5,
+    "totalWidth": 3461,
+    "totalHeight": 4096,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "1160341",
+      "de": "Dunkeldimension",
+      "en": "Lost Dimension",
+      "es": "Dimensión obscura",
+      "fr": "Dimension Obscure",
+      "pt": "Dimensão Obscura"
+    },
+    "className": "WorldMapData",
+    "m_id": 35,
+    "customScales": [
+      {
+        "x": 2.37007874015748,
+        "y": 2.330623306233062,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "69a716cb96df4304dfe0af7d",
+    "id": 36,
+    "origineX": 1568,
+    "origineY": -2665,
+    "mapWidth": 183,
+    "mapHeight": 130,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.5,
+    "totalWidth": 1842,
+    "totalHeight": 1585,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "1160275",
+      "de": "Heiligtum der Dracheier",
+      "en": "The Dreggons' Sanctuary",
+      "es": "Santuario de los Dragohuevos",
+      "fr": "Sanctuaire des Dragoeufs",
+      "pt": "Santuário dos Dragovos"
+    },
+    "className": "WorldMapData",
+    "m_id": 36,
+    "customScales": [
+      {
+        "x": 6.579234972677596,
+        "y": 6.615384615384615,
+        "name": "custom6"
+      },
+      {
+        "x": 5.463387978142077,
+        "y": 5.492307692307692,
+        "name": "custom5"
+      },
+      {
+        "x": 4.3475409836065575,
+        "y": 4.36923076923077,
+        "name": "custom4"
+      },
+      {
+        "x": 3.2316939890710383,
+        "y": 3.246153846153846,
+        "name": "custom3"
+      },
+      {
+        "x": 2.115846994535519,
+        "y": 2.123076923076923,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-03-03T17:13:47.123Z",
+    "updatedAt": "2026-03-03T17:13:47.123Z"
+  },
+  {
+    "_id": "6a3a7301cf287e5b73621344",
+    "id": 38,
+    "origineX": 9908,
+    "origineY": 9402,
+    "mapWidth": 510,
+    "mapHeight": 366,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.5,
+    "totalWidth": 4085,
+    "totalHeight": 2861,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "1183119",
+      "de": "Dorf der Brigandiner",
+      "en": "Imp Village",
+      "es": "Pueblo de los salteadorillos",
+      "fr": "Village des Brigandins",
+      "pt": "Vilarejo dos Diabretes"
+    },
+    "className": "WorldMapData",
+    "m_id": 38,
+    "customScales": [
+      {
+        "x": 2.3607843137254902,
+        "y": 2.349726775956284,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-06-23T11:50:25.606Z",
+    "updatedAt": "2026-06-23T11:50:25.606Z"
+  }
+]

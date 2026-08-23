@@ -2,64 +2,146 @@
 
 import { MultiSelect, type Option } from "@/components/ui/multi-select";
 import { type PermissionId, PERMISSION_DETAILS } from "@/lib/permissions";
-import { Check } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Lock } from "lucide-react";
 
 type Props = {
     permissionId: PermissionId;
     allRoles: Option[];
+    allUsers: Option[];
     selectedRoleIds: string[];
+    selectedUserIds: string[];
     onRolesChange: (roles: string[]) => void;
+    onUsersChange: (users: string[]) => void;
     onSave: () => void;
     moduleColor?: string;
+    locked?: boolean;    // grise la carte tant que DASHBOARD_ACCESS n'est pas configuré
+    hideUsers?: boolean; // cache la section "Membres Spécifiques"
 };
 
-export function PermissionCard({ permissionId, allRoles, selectedRoleIds, onRolesChange, moduleColor }: Props) {
+export function PermissionCard({
+    permissionId,
+    allRoles,
+    allUsers,
+    selectedRoleIds,
+    selectedUserIds,
+    onRolesChange,
+    onUsersChange,
+    moduleColor,
+    locked = false,
+    hideUsers = false,
+}: Props) {
     const details = PERMISSION_DETAILS[permissionId];
-    const hasRoles = selectedRoleIds.length > 0;
+    const isConfigured = selectedRoleIds.length > 0 || selectedUserIds.length > 0;
 
     return (
         <div
-            className={`group flex items-center gap-4 px-4 py-2.5 rounded-lg border transition-all ${hasRoles
-                    ? "bg-emerald-500/[0.03] border-emerald-500/20"
-                    : "border-transparent hover:border-white/8 hover:bg-white/[0.02]"
-                }`}
+            className={cn(
+                "group relative flex flex-col gap-5 p-5 rounded-2xl border transition-colors duration-200",
+                locked
+                    ? "bg-surface/40 border-border opacity-50 cursor-not-allowed select-none"
+                    : isConfigured
+                        ? "bg-elevated/60 border-border-strong"
+                        : "bg-elevated/20 border-border hover:bg-elevated/40"
+            )}
+            style={{
+                borderColor: !locked && isConfigured ? `${moduleColor}50` : undefined
+            }}
         >
-            {/* Status dot */}
-            <div className="shrink-0 flex items-center justify-center w-4">
-                {hasRoles ? (
-                    <div
-                        className="w-3 h-3 rounded-full flex items-center justify-center"
-                        style={{ backgroundColor: `${moduleColor}30` }}
-                    >
-                        <Check className="w-2 h-2" style={{ color: moduleColor }} />
+            {/* Locked overlay */}
+            {locked && (
+                <div className="absolute inset-0 rounded-2xl z-20 flex flex-col items-center justify-center gap-2 pointer-events-auto cursor-not-allowed">
+                    <Lock className="w-5 h-5 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground font-medium text-center px-4">
+                        Configurez d&apos;abord<br />🚪 Accès Dashboard
+                    </p>
+                </div>
+            )}
+
+            <div className="flex items-start justify-between gap-3 relative z-10">
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2.5">
+                        <div
+                            className="w-2.5 h-2.5 rounded-full"
+                            style={{
+                                backgroundColor: isConfigured && !locked ? moduleColor : '#52525b'
+                            }}
+                        />
+                        <h3 className="text-sm font-semibold text-foreground tracking-tight leading-none">
+                            {details.label}
+                        </h3>
+                        {details.sensitive && (
+                            <span
+                                className="px-2 py-0.5 rounded-md text-caption font-bold uppercase tracking-wide border"
+                                style={{
+                                    color: moduleColor,
+                                    borderColor: `${moduleColor}50`,
+                                    backgroundColor: `${moduleColor}15`,
+                                }}
+                                title="Réservée aux administrateurs Discord : un gestionnaire délégué ne peut ni l'octroyer ni la révoquer."
+                            >
+                                🔐 Sensible
+                            </span>
+                        )}
                     </div>
-                ) : (
-                    <div className="w-2 h-2 rounded-full bg-zinc-700 group-hover:bg-zinc-600 transition-colors" />
+                    <p className="text-xs text-foreground leading-relaxed max-w-[240px]">
+                        {details.description}
+                    </p>
+                    
+                    {/* Modules / paramètres débloqués (#66) */}
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        <span className="text-xs font-medium text-muted-foreground">Débloque :</span>
+                        {details.modules.map((mod, i) => (
+                            <span 
+                                key={i}
+                                className="px-2 py-0.5 rounded-md bg-surface border border-border text-xs text-foreground"
+                            >
+                                {mod}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+
+                {isConfigured && !locked && (
+                    <div
+                        className="px-2.5 py-1 rounded-lg text-xs font-semibold border shrink-0"
+                        style={{ color: 'white', borderColor: `${moduleColor}60`, backgroundColor: moduleColor }}
+                    >
+                        Active
+                    </div>
                 )}
             </div>
 
-            {/* Label + description */}
-            <div className="w-56 shrink-0">
-                <p className="text-sm font-semibold text-white leading-tight">{details.label}</p>
-                <p className="text-[11px] text-zinc-500 leading-tight mt-0.5 line-clamp-1">{details.description}</p>
+            <div className="grid gap-4 relative z-10">
+                <div className="space-y-2">
+                    <label className="text-xs font-semibold text-foreground/60 uppercase tracking-wide ml-1 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-muted" />
+                        Rôles Discord
+                    </label>
+                    <MultiSelect
+                        options={allRoles}
+                        selected={selectedRoleIds}
+                        onChange={locked ? () => {} : onRolesChange}
+                        placeholder="Public (Tous les membres)"
+                        className="bg-muted/50 border-border hover:border-border-strong transition-colors text-foreground"
+                    />
+                </div>
+                {!hideUsers && (
+                    <div className="space-y-2">
+                        <label className="text-xs font-semibold text-foreground/60 uppercase tracking-wide ml-1 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-muted" />
+                            Membres Spécifiques
+                        </label>
+                        <MultiSelect
+                            options={allUsers}
+                            selected={selectedUserIds}
+                            onChange={locked ? () => {} : onUsersChange}
+                            placeholder="Aucun membre assigné"
+                            className="bg-muted/50 border-border hover:border-border-strong transition-colors text-foreground"
+                        />
+                    </div>
+                )}
             </div>
-
-            {/* Role selector — fills remaining space */}
-            <div className="flex-1 min-w-0">
-                <MultiSelect
-                    options={allRoles}
-                    selected={selectedRoleIds}
-                    onChange={onRolesChange}
-                    placeholder="Aucun rôle"
-                />
-            </div>
-
-            {/* Role count badge */}
-            {hasRoles && (
-                <span className="shrink-0 text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
-                    {selectedRoleIds.length}
-                </span>
-            )}
         </div>
     );
 }

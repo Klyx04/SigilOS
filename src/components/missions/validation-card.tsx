@@ -15,6 +15,7 @@ import {
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { MissionCategory } from "@prisma/client";
+import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
 import { SubmissionCountdown } from "./submission-countdown";
 
 // Shared category config (same as mission-card.tsx)
@@ -28,17 +29,17 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
 }> = {
     DONJON: {
         icon: Swords,
-        color: "text-rose-400",
-        bgColor: "bg-rose-950/40",
-        borderColor: "border-rose-500/40",
+        color: "text-danger",
+        bgColor: "bg-danger/40",
+        borderColor: "border-danger/40",
         headerGradient: "from-[#a11a21]/90 via-[#d32f2f]/80 to-[#6b0f14]/90",
         bannerImage: "/banners/donjon.png",
     },
     REGULATION: {
         icon: Skull,
-        color: "text-emerald-400",
-        bgColor: "bg-emerald-950/40",
-        borderColor: "border-emerald-500/40",
+        color: "text-success",
+        bgColor: "bg-success/40",
+        borderColor: "border-success/40",
         headerGradient: "from-[#4b6b1a]/90 via-[#7cb342]/80 to-[#2d4010]/90",
         bannerImage: "/banners/regulation.png",
     },
@@ -52,25 +53,25 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
     },
     SONGES: {
         icon: InfinityIcon,
-        color: "text-cyan-400",
-        bgColor: "bg-cyan-950/40",
-        borderColor: "border-cyan-500/40",
+        color: "text-info",
+        bgColor: "bg-info/40",
+        borderColor: "border-info/40",
         headerGradient: "from-[#1a6b7d]/90 via-[#26c6da]/80 to-[#10404d]/90",
         bannerImage: "/banners/songes.png",
     },
     EXPEDITION: {
         icon: Clock,
-        color: "text-amber-400",
-        bgColor: "bg-amber-950/40",
-        borderColor: "border-amber-500/40",
+        color: "text-warning",
+        bgColor: "bg-warning/40",
+        borderColor: "border-warning/40",
         headerGradient: "from-[#7d5b1a]/90 via-[#ffa000]/80 to-[#4d3810]/90",
         bannerImage: "/banners/expedition.png",
     },
     EVENT: {
         icon: Sparkles,
-        color: "text-yellow-300",
-        bgColor: "bg-yellow-950/40",
-        borderColor: "border-yellow-500/40",
+        color: "text-warning",
+        bgColor: "bg-warning/40",
+        borderColor: "border-warning/40",
         headerGradient: "from-[#7d6b1a]/90 via-[#fbc02d]/80 to-[#4d4010]/90",
         bannerImage: "/banners/event.png",
     },
@@ -127,13 +128,13 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
 
     return (
         <Card className={cn(
-            "flex flex-col relative overflow-hidden transition-all duration-500 group border-white/5 bg-[#121417] shadow-2xl",
-            "hover:border-white/10 hover:shadow-[0_0_30px_rgba(0,0,0,0.5)]"
+            "flex flex-col relative overflow-hidden transition-all duration-300 group border-border bg-surface",
+            "hover:border-border "
         )}>
             {/* ----------------- HEADER BAR (Full Width) ----------------- */}
             <div className={cn(
-                "relative z-20 flex items-center gap-4 px-4 py-2.5 shadow-inner border-b border-white/5",
-                "overflow-hidden transition-all duration-500"
+                "relative z-20 flex flex-wrap items-center gap-3 sm:gap-4 px-4 py-2.5 border-b border-border",
+                "overflow-hidden transition-all duration-300"
             )}>
                 {/* AI BACKGROUND BANNER */}
                 <div className="absolute inset-0 z-0">
@@ -142,6 +143,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                         alt="Banner"
                         fill
                         className="object-cover opacity-60 mix-blend-luminosity grayscale-[0.2]"
+                        unoptimized={true}
                     />
                     <div className={cn(
                         "absolute inset-0 bg-gradient-to-r mix-blend-multiply opacity-90",
@@ -150,106 +152,98 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                 </div>
 
                 {/* Noise texture overlay */}
-                <div className="absolute inset-0 opacity-[0.12] mix-blend-overlay pointer-events-none bg-[url('/noise.svg')] bg-repeat z-10" />
-
-                {/* Visual indicator (Lueur) */}
-                <div className="absolute inset-x-0 bottom-0 h-[1px] bg-white/20 blur-[1px] z-10" />
+                <div className="absolute inset-0 opacity-[0.12] mix-blend-overlay pointer-events-none bg-[url(/noise.svg)] bg-repeat z-10" />
 
                 <div className="relative shrink-0 z-10">
-                    <div className="absolute inset-0 bg-white/20 blur-[8px] rounded-full scale-75 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-black/40 backdrop-blur-md border border-white/10 shadow-lg relative transition-transform group-hover:scale-105">
-                        <Icon className={cn("w-4 h-4 text-white")} />
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-surface border border-border relative">
+                        <Icon className={cn("w-4 h-4 text-foreground")} />
                     </div>
                 </div>
 
-                <div className="flex-1 relative z-10 break-words pr-2">
-                    <h3 className="font-black text-sm sm:text-base text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-tight uppercase leading-tight">
+                <div className="min-w-0 flex-1 relative z-10 break-words pr-2">
+                    <h3 className="font-black text-xs sm:text-base text-foreground tracking-tight uppercase leading-tight">
                         {submission.mission.title || "Mission Sans Titre"}
                     </h3>
                 </div>
 
                 {/* Rank, Level + Countdown */}
-                <div className="ml-auto flex items-center gap-2 relative z-10">
+                <div className="ml-auto flex items-center gap-2 relative z-10 shrink-0">
                     <SubmissionCountdown createdAt={submission.createdAt} />
-                    <div className="flex items-center bg-black/60 rounded px-2 h-6 border border-white/10">
-                        <span className="text-[9px] font-black text-zinc-400 uppercase tracking-wider mr-1.5">RANG</span>
-                        <span className="text-xs font-black text-white">{submission.mission.rank || 1}</span>
+                    <div className="flex items-center bg-black/60 rounded px-2 h-6 border border-border shrink-0">
+                        <span className="text-caption font-black text-muted-foreground uppercase tracking-wider mr-1.5">RANG</span>
+                        <span className="text-xs font-black text-foreground">{submission.mission.rank || 1}</span>
                     </div>
-                    <div className="h-4 w-[1px] bg-white/10" />
-                    <span className="text-zinc-300 font-bold italic text-xs tracking-tight">
+                    <div className="h-4 w-[1px] bg-surface shrink-0" />
+                    <span className="text-foreground font-bold italic text-xs tracking-tight shrink-0">
                         Niv. {displayLevel}
                     </span>
                 </div>
             </div>
 
             {/* ----------------- USER INFO BAR ----------------- */}
-            <div className="relative z-10 px-4 py-2 bg-zinc-950/50 border-b border-zinc-800/50 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden relative shrink-0 border border-white/10">
+            <div className="relative z-10 px-4 py-2 bg-background/50 border-b border-border/50 flex flex-wrap items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-elevated overflow-hidden relative shrink-0 border border-border">
                     {submission.profile.user.image ? (
                         <Image
                             src={submission.profile.user.image}
-                            alt={submission.profile.user.name || "User"}
+                            alt={getDisplayName(submission.profile)}
                             fill
                             className="object-cover"
+                            unoptimized={true}
                         />
                     ) : (
-                        <div className="flex items-center justify-center h-full w-full text-zinc-600">
+                        <div className="flex items-center justify-center h-full w-full text-muted-foreground">
                             <UserIcon className="w-4 h-4" />
                         </div>
                     )}
                 </div>
                 <div className="flex flex-col min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-white truncate">
-                            {submission.profile.discordNickname || submission.profile.user.name || "Membre Inconnu"}
+                        <span className="text-xs font-semibold text-foreground truncate max-w-[120px]">
+                            {getDisplayName(submission.profile) || "Membre Inconnu"}
                         </span>
                         {submission.profile.isAdmin && (
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <ShieldCheck className="w-3 h-3 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.4)] shrink-0" />
+                                        <ShieldCheck className="w-3 h-3 text-info shrink-0" />
                                     </TooltipTrigger>
-                                    <TooltipContent side="top" className="bg-zinc-900 border-purple-500/30 text-purple-200 text-[10px] font-bold uppercase tracking-wider">
+                                    <TooltipContent side="top" className="bg-surface border-info/30 text-info text-caption font-bold uppercase tracking-wider">
                                         Administration
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
                         )}
                     </div>
-                    <span className="text-[10px] text-zinc-500">
-                        Soumis le {new Date(submission.createdAt).toLocaleDateString()} à {new Date(submission.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
                 </div>
-                {submission.profile.pseudoDofus && (
-                    <Badge variant="secondary" className="text-[10px] h-5 px-2 bg-zinc-800 text-zinc-400 font-normal">
-                        {submission.profile.pseudoDofus}
-                    </Badge>
-                )}
-                {submission.profile.classe && (
-                    <Badge variant="outline" className="text-[10px] h-5 px-2 border-zinc-700 text-zinc-500 font-normal">
-                        {submission.profile.classe}
-                    </Badge>
-                )}
+                
+                <div className="flex flex-wrap items-center gap-2 ml-auto">
+                    {submission.profile.pseudoDofus && (
+                        <Badge variant="secondary" className="text-caption h-5 px-2 bg-elevated text-muted-foreground font-normal shrink-0">
+                            {submission.profile.pseudoDofus}
+                        </Badge>
+                    )}
+                    {submission.profile.classe && (
+                        <Badge variant="outline" className="text-caption h-5 px-2 border-border text-muted-foreground font-normal shrink-0">
+                            {submission.profile.classe}
+                        </Badge>
+                    )}
+                </div>
             </div>
 
             {/* ----------------- CONTENT BODY ----------------- */}
-            <CardContent className="p-4 space-y-3 flex-1 relative bg-gradient-to-b from-[#1a1c20] to-[#121417]">
-                {/* Sub-Atmosphere Glow */}
-                <div className={cn(
-                    "absolute -bottom-10 -left-10 w-40 h-40 rounded-full opacity-10 blur-3xl pointer-events-none transition-all duration-1000 group-hover:scale-150",
-                    config.bgColor
-                )} />
+            <CardContent className="p-4 space-y-3 flex-1 relative bg-surface">
 
                 {/* Mission Rewards */}
                 <div className="flex items-center gap-3 text-xs">
                     {submission.mission.xpReward && (
-                        <div className="flex items-center gap-1 text-amber-400">
+                        <div className="flex items-center gap-1 text-warning">
                             <Trophy className="w-3 h-3" />
                             <span className="font-mono">{submission.mission.xpReward} XP</span>
                         </div>
                     )}
                     {submission.mission.payload?.kamas && (
-                        <div className="flex items-center gap-1 text-yellow-400">
+                        <div className="flex items-center gap-1 text-warning">
                             <Target className="w-3 h-3" />
                             <span className="font-mono">{submission.mission.payload.kamas}k</span>
                         </div>
@@ -258,29 +252,29 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
 
                 {/* Contributors */}
                 {submission.helpers && submission.helpers.length > 0 && (
-                    <div className="flex items-center gap-2 pt-2 border-t border-zinc-800/50">
-                        <Users className="w-3.5 h-3.5 text-indigo-400" />
-                        <span className="text-[10px] text-zinc-500 font-medium">Contributeurs:</span>
+                    <div className="flex items-center gap-2 pt-2 border-t border-border/50">
+                        <Users className="w-3.5 h-3.5 text-info" />
+                        <span className="text-caption text-muted-foreground font-medium">Contributeurs:</span>
                         <div className="flex items-center -space-x-2">
                             {submission.helpers.slice(0, 5).map((helper) => (
                                 <TooltipProvider key={helper.id}>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <Avatar className="w-6 h-6 border-2 border-zinc-900 ring-1 ring-indigo-500/30">
+                                            <Avatar className="w-6 h-6 border-2 border-border ring-1 ring-ring/30">
                                                 <AvatarImage src={helper.user.image || undefined} />
-                                                <AvatarFallback className="text-[8px] bg-zinc-800">
-                                                    {(helper.pseudoDofus || helper.user.name || "?").slice(0, 2).toUpperCase()}
+                                                <AvatarFallback className="text-caption bg-elevated">
+                                                    {(getGameDisplayName(helper) || "?").slice(0, 2).toUpperCase()}
                                                 </AvatarFallback>
                                             </Avatar>
                                         </TooltipTrigger>
                                         <TooltipContent side="top" className="text-xs">
-                                            {helper.pseudoDofus || helper.user.name || "Membre"}
+                                            {getGameDisplayName(helper) || "Membre"}
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
                             ))}
                             {submission.helpers.length > 5 && (
-                                <div className="w-6 h-6 rounded-full bg-zinc-800 border-2 border-zinc-900 flex items-center justify-center text-[8px] text-zinc-400 font-bold">
+                                <div className="w-6 h-6 rounded-full bg-elevated border-2 border-border flex items-center justify-center text-caption text-muted-foreground font-bold">
                                     +{submission.helpers.length - 5}
                                 </div>
                             )}
@@ -290,7 +284,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
 
                 {/* Proof Image Preview */}
                 <div
-                    className="relative aspect-video rounded-lg bg-black overflow-hidden border border-zinc-800 group mt-2 cursor-zoom-in"
+                    className="relative aspect-video rounded-lg bg-background overflow-hidden border border-border group mt-2 cursor-zoom-in"
                     onClick={onZoom}
                 >
                     <Image
@@ -301,7 +295,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                         unoptimized={true}
                     />
 
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-medium gap-2">
+                    <div className="absolute inset-0 bg-muted/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-foreground text-xs font-medium gap-2">
                         <ExternalLink className="w-4 h-4" />
                         Agrandir
                     </div>
@@ -309,23 +303,21 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
             </CardContent>
 
             {/* ----------------- FOOTER: ACTIONS ----------------- */}
-            <CardFooter className="p-3 bg-zinc-950/30 border-t border-zinc-800/50 grid grid-cols-2 gap-3">
+            <CardFooter className="p-3 bg-background/30 border-t border-border/50 grid grid-cols-2 gap-3">
                 <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full border-red-900/30 hover:bg-red-950/50 hover:text-red-400 text-red-500"
+                    variant="sigil-destructive"
                     onClick={onReject}
                     disabled={isProcessing}
+                    className="h-10"
                 >
                     <X className="w-4 h-4 mr-2" />
                     Refuser
                 </Button>
                 <Button
-                    variant="default"
-                    size="sm"
-                    className="w-full bg-green-600 hover:bg-green-500 text-white"
+                    variant="sigil-emerald"
                     onClick={onValidate}
                     disabled={isProcessing}
+                    className="h-10"
                 >
                     <Check className="w-4 h-4 mr-2" />
                     Valider

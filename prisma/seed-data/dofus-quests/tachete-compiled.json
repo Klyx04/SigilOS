@@ -1,0 +1,522 @@
+{
+  "dofus": "tachete",
+  "displayName": "Dofus Tacheté",
+  "color": "#8B4513",
+  "successName": "Un rêve en clair-obscur",
+  "recommendedLevel": 200,
+  "description": "Terminer la série des quêtes du Dofus Tacheté. Nécessite de posséder un Domakuro ET un Dorigami.",
+  "dofusItemId": 23238,
+  "iconId": 23238,
+  "imageUrl": "/module-dofus/Dofus_Tachete.png",
+  "compiledAt": "2026-04-09T23:00:42.124Z",
+  "compilerVersion": "3.0",
+  "chains": [
+    {
+      "sectionName": "Un rêve en clair-obscur",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Pandala / Dimensions",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Main dans la main",
+          "dofusdbId": 2200,
+          "level": 200,
+          "zone": "Salle des prières",
+          "npcName": "Le Grandapan",
+          "npcSubArea": "Salle des prières",
+          "coords": {
+            "x": 22,
+            "y": -31,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 23179,
+              "name": "Pandazahi",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/79179.png"
+            },
+            {
+              "id": 7055,
+              "name": "Pandneken",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/79179.png"
+            },
+            {
+              "id": 1977,
+              "name": "Épices",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/15378.png"
+            },
+            {
+              "id": 23482,
+              "name": "Alcool à 99%",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/174001.png"
+            },
+            {
+              "id": 23237,
+              "name": "Domakuro",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23032.png"
+            },
+            {
+              "id": 23408,
+              "name": "Dorigami",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23033.png"
+            },
+            {
+              "id": 23733,
+              "name": "Bière forte",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164789.png"
+            },
+            {
+              "id": 7018,
+              "name": "Riz",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/34010.png"
+            },
+            {
+              "id": 7014,
+              "name": "Bois de Bambou Sacré",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/38671.png"
+            },
+            {
+              "id": 24056,
+              "name": "Pwimen",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/42111.png"
+            },
+            {
+              "id": 23311,
+              "name": "Artefact Pandawushu Bois",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/164660.png"
+            },
+            {
+              "id": 7225,
+              "name": "Artefact Pandawushu Feu",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/164663.png"
+            },
+            {
+              "id": 7222,
+              "name": "Artefact Pandawushu Eau",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/164659.png"
+            },
+            {
+              "id": 7223,
+              "name": "Artefact Pandawushu Vent",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/164661.png"
+            },
+            {
+              "id": 7224,
+              "name": "Artefact Pandawushu Roc",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/164662.png"
+            },
+            {
+              "id": 24007,
+              "name": "Bière Tsingtawo",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/164789.png"
+            },
+            {
+              "id": 23972,
+              "name": "Pizwa",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/164788.png"
+            },
+            {
+              "id": 23731,
+              "name": "Limo d'Grobe",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164776.png"
+            },
+            {
+              "id": 23957,
+              "name": "Pétale de Papier",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164861.png"
+            },
+            {
+              "id": 23965,
+              "name": "Pétale d'encre",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164854.png"
+            },
+            {
+              "id": 23150,
+              "name": "Umeshushu",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/79180.png"
+            },
+            {
+              "id": 23806,
+              "name": "Gnôle de Grobe",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164786.png"
+            },
+            {
+              "id": 24021,
+              "name": "Bière forte légère",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164789.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Le Grandapan",
+            "Découvrir la carte : Intérieur de la Taverne interdite",
+            "Aller voir le Grandapan pour dialoguer avec la déesse Pandawa par son intermédiaire",
+            "Aller voir Prêtre de Pandawa",
+            "Aller voir Le Grandapan",
+            "Convaincre les prêtres de Pandawa d'administrer de la limonade de Grobe au Grandapan",
+            "Aller voir Le Grandapan",
+            "Obtenir la recette de la bière forte auprès d'un prêtre de Pandawa",
+            "Découvrir la carte : Brasserie",
+            "Vaincre x1 {monster,6515} en un seul combat",
+            "Essayer de fabriquer de la bière forte dans la brasserie",
+            "Chercher des indices pour localiser Sumowa",
+            "Suivre la tortue sur les traces de Sumowa",
+            "Continuer à suivre la tortue sur les traces de Sumowa",
+            "Aller voir Tortue ninjawa",
+            "Débusquer la tierce personne et la forcer à se dévoiler",
+            "Découvrir ce que cache l'individu suspect",
+            "Vaincre x1 {monster,6516} en un seul combat",
+            "Réparer la machine de la brasserie",
+            "Fabriquer 1 Bière forte et fermer l'interface",
+            "Ramener à Le Grandapan : x1 Bière forte",
+            "S'entretenir avec la déesse Pandawa par l'intermédiaire du Grandapan",
+            "Trouver les deux souffles du Wukin et du Wukang pour amener Pandawa à se manifester",
+            "Aller voir Déesse Pandawa",
+            "Écouter l'argumentaire de Keltra Ekazumi",
+            "Convaincre Pandawa de vous confier sa Main"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Deux souffles, une inspiration",
+          "dofusdbId": 2201,
+          "level": 200,
+          "zone": "Atelier de calligraphie",
+          "npcName": "Shufamukin",
+          "npcSubArea": "Atelier de calligraphie",
+          "coords": {
+            "x": 23,
+            "y": -32,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 23237,
+              "name": "Domakuro",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23032.png"
+            },
+            {
+              "id": 23408,
+              "name": "Dorigami",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23033.png"
+            },
+            {
+              "id": 24067,
+              "name": "Cordelettes nouées",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164805.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 133,
+              "name": "Mémoire d'Orukam",
+              "level": null,
+              "bossName": "Roi Imagami",
+              "img": "https://api.dofusdb.fr/img/monsters/2121.png",
+              "idoleName": null
+            },
+            {
+              "id": 134,
+              "name": "Souvenir d'Imagiro",
+              "level": null,
+              "bossName": "Reine Amirukam",
+              "img": "https://api.dofusdb.fr/img/monsters/2127.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Shufamukin",
+            "Se rendre à la bibliothèque pour parler à Chochi",
+            "Trouver le possesseur du dernier manuscrit de Myamowa Musashwan",
+            "Vaincre les spectres terrassés par Musashwan",
+            "Aller voir Tareo Dokodo",
+            "Explorer Terrdala à la recherche d'une œuvre de Tanukang Jei",
+            "Éloigner les Tsukumogami du vase antique",
+            "Examiner le vase antique",
+            "Survivre à l'embuscade des shinobi",
+            "Recopier le caractère tracé sur un vase antique",
+            "Montrer les deux caractères à Shufamukin",
+            "Aller voir Daimya Hikomi",
+            "Découvrir l'un des temples du Wukin et du Wukang sur l'île de Pandala",
+            "Parler à Daoh et quitter l'un des temples pour entrer dans les Royaumes célestes d'encre et de papier",
+            "Explorer la Mémoire d'Orukam",
+            "Vaincre x1 {monster,6472} en un seul combat",
+            "Décrypter le sens des mots-esprits dans la dernière salle de la Mémoire d'Orukam",
+            "Trouver le Yokianzhi du Wukin dans le Royaume d'encre",
+            "Survivre à l'attaque de la Paume du chtigre pour obtenir la silhouette du Wukin",
+            "Parler au dragon Orukam dans sa caverne",
+            "Explorer le Souvenir d'Imagiro",
+            "Vaincre x1 {monster,6478} en un seul combat",
+            "Décrypter le sens des mots-esprits dans la dernière salle du Souvenir d'Imagiro",
+            "Trouver le Yokianzhi du Wukang dans le royaume de papier",
+            "Parler au dragon Imagiro dans sa caverne",
+            "Se rendre au pied du Mont Noir et Blanc",
+            "Vaincre les chtigres de papier",
+            "Faire des offrandes aux éléments sur le Mont Noir et Blanc",
+            "Calmer les esprits",
+            "Parler aux trois Kozaru",
+            "Explorer le rêve du taciturne",
+            "Rompre le silence pour obtenir l'héritage de Kian Zhi",
+            "Parler au maître des rêves",
+            "Montrer à Shufamukin : 1 Cordelettes nouées",
+            "Se rendre au Palais de bambou pour s'entretenir avec la Daimya",
+            "Vaincre l'exécuteur de la Paume avec l'aide de Wulan",
+            "Aller voir Daimya Hikomi",
+            "Retourner voir le Grandapan dans le temple de la Taverne interdite"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2200
+            }
+          ]
+        },
+        {
+          "name": "En ce jardin qui nous unit",
+          "dofusdbId": 2202,
+          "level": 200,
+          "zone": "Temple Pandawa",
+          "npcName": "Pandiwan Kenobi",
+          "npcSubArea": "Temple Pandawa",
+          "coords": {
+            "x": 4,
+            "y": -2,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Se rendre au temple de Pandawa en Amakna",
+            "Aller voir Pandiwan Kenobi",
+            "Se préparer pour le rituel de la Main de Pandawa",
+            "Affronter Keltra Ekazumi et terminer vos préparatifs",
+            "Créer la Main de Pandawa grâce à la volonté de la déesse",
+            "Retourner sur Pandala et découvrir le jardin secret",
+            "Parler à Imagiro et à Orukam dans le jardin secret",
+            "Se concentrer sur le rocher et les deux Dofus",
+            "Aller voir Keltra Ekazumi",
+            "Affronter le reflet du dragon",
+            "Aller voir Imagirorukam"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2201
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "globalSummary": {
+    "totalQuests": 3,
+    "totalItems": 24,
+    "totalDungeons": 2,
+    "items": [
+      {
+        "id": 7018,
+        "name": "Riz",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/34010.png"
+      },
+      {
+        "id": 7014,
+        "name": "Bois de Bambou Sacré",
+        "totalAmount": 20,
+        "img": "https://api.dofusdb.fr/img/items/38671.png"
+      },
+      {
+        "id": 24056,
+        "name": "Pwimen",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/42111.png"
+      },
+      {
+        "id": 23311,
+        "name": "Artefact Pandawushu Bois",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/164660.png"
+      },
+      {
+        "id": 7225,
+        "name": "Artefact Pandawushu Feu",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/164663.png"
+      },
+      {
+        "id": 7222,
+        "name": "Artefact Pandawushu Eau",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/164659.png"
+      },
+      {
+        "id": 7223,
+        "name": "Artefact Pandawushu Vent",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/164661.png"
+      },
+      {
+        "id": 7224,
+        "name": "Artefact Pandawushu Roc",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/164662.png"
+      },
+      {
+        "id": 24007,
+        "name": "Bière Tsingtawo",
+        "totalAmount": 5,
+        "img": "https://api.dofusdb.fr/img/items/164789.png"
+      },
+      {
+        "id": 23179,
+        "name": "Pandazahi",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/79179.png"
+      },
+      {
+        "id": 7055,
+        "name": "Pandneken",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/79179.png"
+      },
+      {
+        "id": 1977,
+        "name": "Épices",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/15378.png"
+      },
+      {
+        "id": 23482,
+        "name": "Alcool à 99%",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/174001.png"
+      },
+      {
+        "id": 23237,
+        "name": "Domakuro",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/23032.png"
+      },
+      {
+        "id": 23408,
+        "name": "Dorigami",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/23033.png"
+      },
+      {
+        "id": 23972,
+        "name": "Pizwa",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/164788.png"
+      },
+      {
+        "id": 23733,
+        "name": "Bière forte",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164789.png"
+      },
+      {
+        "id": 23731,
+        "name": "Limo d'Grobe",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164776.png"
+      },
+      {
+        "id": 23957,
+        "name": "Pétale de Papier",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164861.png"
+      },
+      {
+        "id": 23965,
+        "name": "Pétale d'encre",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164854.png"
+      },
+      {
+        "id": 23150,
+        "name": "Umeshushu",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/79180.png"
+      },
+      {
+        "id": 23806,
+        "name": "Gnôle de Grobe",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164786.png"
+      },
+      {
+        "id": 24021,
+        "name": "Bière forte légère",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164789.png"
+      },
+      {
+        "id": 24067,
+        "name": "Cordelettes nouées",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164805.png"
+      }
+    ],
+    "dungeons": [
+      {
+        "id": 133,
+        "name": "Mémoire d'Orukam",
+        "level": null,
+        "bossName": "Roi Imagami",
+        "img": "https://api.dofusdb.fr/img/monsters/2121.png",
+        "idoleName": null
+      },
+      {
+        "id": 134,
+        "name": "Souvenir d'Imagiro",
+        "level": null,
+        "bossName": "Reine Amirukam",
+        "img": "https://api.dofusdb.fr/img/monsters/2127.png",
+        "idoleName": null
+      }
+    ]
+  }
+}

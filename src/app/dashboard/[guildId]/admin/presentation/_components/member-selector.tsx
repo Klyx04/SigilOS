@@ -74,9 +74,9 @@ export function MemberSelector({
                     role="combobox"
                     aria-expanded={open}
                     className={cn(
-                        "w-full justify-between bg-zinc-900/50 border-white/10 hover:bg-zinc-800 hover:text-white",
-                        !value && "text-zinc-500",
-                        error && "border-red-500/50 text-red-400",
+                        "w-full justify-between bg-surface/50 border-border hover:bg-elevated hover:text-foreground",
+                        !value && "text-muted-foreground",
+                        error && "border-danger/50 text-danger",
                         className
                     )}
                 >
@@ -85,7 +85,7 @@ export function MemberSelector({
                             <>
                                 <Avatar className="h-5 w-5">
                                     <AvatarImage src={selectedMember.avatar || undefined} />
-                                    <AvatarFallback className="text-[10px] bg-indigo-500/20 text-indigo-300">
+                                    <AvatarFallback className="text-caption bg-info/20 text-info">
                                         {(selectedMember.name || "??").substring(0, 2).toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
@@ -100,12 +100,12 @@ export function MemberSelector({
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[300px] p-0 bg-zinc-950 border-white/10" align="start">
+            <PopoverContent className="w-[calc(100vw-2rem)] sm:w-[300px] p-0 bg-background border-border" align="start">
                 <Command shouldFilter={false}>
-                    <div className="flex items-center border-b border-white/10 px-3" cmdk-input-wrapper="">
+                    <div className="flex items-center border-b border-border px-3" cmdk-input-wrapper="">
                         <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                         <input
-                            className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-zinc-500 disabled:cursor-not-allowed disabled:opacity-50 text-white"
+                            className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 text-foreground"
                             placeholder="Rechercher ou saisir un pseudo..."
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
@@ -117,27 +117,27 @@ export function MemberSelector({
                         />
                     </div>
                     <CommandList>
-                        <CommandEmpty className="py-2 px-2 text-sm text-zinc-500 text-center">
+                        <CommandEmpty className="py-2 px-2 text-sm text-muted-foreground text-center">
                             {inputValue ? (
                                 !/[<>"'&]/.test(inputValue) ? (
                                     <button
                                         type="button"
-                                        className="w-full text-left p-3 rounded-xl hover:bg-white/5 text-indigo-400 flex items-center gap-3 transition-colors border border-dashed border-indigo-500/20"
+                                        className="w-full text-left p-3 rounded-xl hover:bg-surface text-info flex items-center gap-3 transition-colors border border-dashed border-info/20"
                                         onClick={(e) => {
                                             e.preventDefault();
                                             handleCustomInput();
                                         }}
                                     >
-                                        <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center">
+                                        <div className="w-8 h-8 rounded-full bg-info/10 flex items-center justify-center">
                                             <User className="h-4 w-4" />
                                         </div>
                                         <div className="flex flex-col">
                                             <span className="text-sm font-bold">Utiliser "{inputValue}"</span>
-                                            <span className="text-[10px] text-zinc-500 uppercase tracking-widest">Saisie manuelle</span>
+                                            <span className="text-caption text-muted-foreground uppercase tracking-widest">Saisie manuelle</span>
                                         </div>
                                     </button>
                                 ) : (
-                                    <span className="text-red-400 text-xs flex items-center gap-2 justify-center py-2">
+                                    <span className="text-danger text-xs flex items-center gap-2 justify-center py-2">
                                         <X className="h-3 w-3" />
                                         Caractères HTML interdits (&lt; &gt; " ' &amp;)
                                     </span>
@@ -157,11 +157,11 @@ export function MemberSelector({
                                         key={member.id}
                                         value={member.name}
                                         onSelect={handleSelect}
-                                        className="gap-2 cursor-pointer aria-selected:bg-zinc-900 aria-selected:text-white"
+                                        className="gap-2 cursor-pointer aria-selected:bg-surface aria-selected:text-foreground"
                                     >
                                         <Avatar className="h-6 w-6">
                                             <AvatarImage src={member.avatar || undefined} />
-                                            <AvatarFallback className="text-[10px] bg-indigo-500/20 text-indigo-300">
+                                            <AvatarFallback className="text-caption bg-info/20 text-info">
                                                 {(member.name || "??").substring(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>

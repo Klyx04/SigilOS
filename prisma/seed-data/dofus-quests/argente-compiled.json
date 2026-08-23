@@ -1,0 +1,3097 @@
+{
+  "dofus": "argente",
+  "displayName": "Dofus Argenté",
+  "color": "#C0C0C0",
+  "successName": "Astrub et Incarnam",
+  "recommendedLevel": 20,
+  "description": null,
+  "dofusItemId": 19629,
+  "iconId": null,
+  "imageUrl": "/module-dofus/Dofus_Argente.png",
+  "compiledAt": "2026-04-10T16:28:46.361Z",
+  "compilerVersion": "3.0",
+  "chains": [
+    {
+      "sectionName": "En route pour l'aventure",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Incarnam",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "L'anneau de tous les dangers",
+          "dofusdbId": 1629,
+          "level": 2,
+          "zone": "Salle des métiers",
+          "npcName": "Maître Hoboulo",
+          "npcSubArea": "Salle des métiers",
+          "coords": {
+            "x": -3,
+            "y": -3,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 289,
+              "name": "Blé",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/34009.png"
+            },
+            {
+              "id": 303,
+              "name": "Bois de Frêne",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/38017.png"
+            },
+            {
+              "id": 312,
+              "name": "Fer",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/39024.png"
+            },
+            {
+              "id": 421,
+              "name": "Ortie",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/36642.png"
+            },
+            {
+              "id": 1782,
+              "name": "Goujon",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/41294.png"
+            },
+            {
+              "id": 19622,
+              "name": "Anneau de l'Audacieux",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/9332.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Entrer dans la salle des métiers",
+            "Aller voir Maître Hoboulo",
+            "Récolter du blé",
+            "Cueillir de l'ortie",
+            "Couper du frêne",
+            "Extraire du fer",
+            "Pêcher un goujon",
+            "Fabriquer 1 Anneau de l'Audacieux et fermer l'interface",
+            "Aller voir Maître Hoboulo",
+            "Retourner voir Ganymède"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
+        },
+        {
+          "name": "Sous le regard des dieux",
+          "dofusdbId": 1630,
+          "level": 2,
+          "zone": "Salle de combat",
+          "npcName": "Maître Darm",
+          "npcSubArea": "Salle de combat",
+          "coords": {
+            "x": -3,
+            "y": -3,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Entrer dans la salle de combat",
+            "Aller voir Maître Darm",
+            "Vaincre x2 {monster,4111} en un seul combat",
+            "Vaincre x1 {monster,4104} en un seul combat",
+            "Retourner voir Maître Darm",
+            "Retourner voir Ganymède"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1629
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Réponses à tout",
+          "dofusdbId": 1631,
+          "level": 2,
+          "zone": "Incarnam",
+          "npcName": "Ganymède",
+          "npcSubArea": null,
+          "coords": {
+            "x": -3,
+            "y": -3,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "En savoir plus sur votre identité",
+            "En savoir plus sur votre objectif",
+            "En savoir plus sur votre destination",
+            "Retourner voir Ganymède"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1630
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Le village dans les nuages",
+          "dofusdbId": 1632,
+          "level": 3,
+          "zone": "Incarnam",
+          "npcName": "Ternette Nhin",
+          "npcSubArea": null,
+          "coords": {
+            "x": -1,
+            "y": -3,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Ternette Nhin",
+            "Aller voir Berb Nhin",
+            "Aller voir Grobid",
+            "Aller voir Capitaine des Kerubims",
+            "Aller voir Hollie Brok",
+            "Retourner voir Ternette Nhin",
+            "Aller voir Fécaline la Sage"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1631
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Espoirs et tragédies",
+          "dofusdbId": 1634,
+          "level": 5,
+          "zone": "Incarnam - Rocher du Phénix",
+          "npcName": "Fécaline la Sage",
+          "npcSubArea": "Incarnam - Rocher du Phénix",
+          "coords": {
+            "x": 2,
+            "y": -3,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Lire le livre contant la légende de Rykke Errel",
+            "Retourner voir Fécaline la Sage",
+            "Parler à un vieux de la vieille",
+            "Parler à une féline pantouflarde",
+            "Parler à un voleur malchanceux",
+            "Retourner voir Fécaline la Sage"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1632
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Dans la gueule du Milimilou",
+          "dofusdbId": 1635,
+          "level": 8,
+          "zone": "Crypte du Milimilou",
+          "npcName": "Klasmor le fossoyeur",
+          "npcSubArea": "Crypte du Milimilou",
+          "coords": {
+            "x": 5,
+            "y": -1,
+            "worldId": 2
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 90,
+              "name": "Crypte de Kardorim",
+              "level": null,
+              "bossName": "Kardorim",
+              "img": "https://api.dofusdb.fr/img/monsters/1287.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Klasmor le fossoyeur",
+            "Pénétrer dans l'antre du Milimilou",
+            "Vaincre le Milimilou",
+            "Aller voir Hargnok",
+            "Retourner voir Fécaline la Sage"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1634
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Destination Astrub",
+          "dofusdbId": 2004,
+          "level": 10,
+          "zone": "Incarnam - Aire de l'envol",
+          "npcName": "Maître Anemo",
+          "npcSubArea": "Incarnam - Aire de l'envol",
+          "coords": {
+            "x": 4,
+            "y": -3,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Maître Anemo",
+            "Utiliser le portail pour se rendre à Astrub sur le Monde des Douze",
+            "Aller voir Envoyée des Douze"
+          ],
+          "stepOrder": 6,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1635
+            }
+          ],
+          "notes": null
+        }
+      ]
+    },
+    {
+      "sectionName": "Poussé par le vent",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Incarnam",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 1,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Transport peu commun",
+          "dofusdbId": 1639,
+          "level": 3,
+          "zone": "Incarnam",
+          "npcName": "Xélora Fistol",
+          "npcSubArea": null,
+          "coords": {
+            "x": 2,
+            "y": -5,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Xélora Fistol",
+            "Examiner le zaap des pâturages",
+            "Retourner voir Ternette Nhin"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
+        },
+        {
+          "name": "Des vestiges de légende",
+          "dofusdbId": 1640,
+          "level": 5,
+          "zone": "Incarnam",
+          "npcName": "Ternette Nhin",
+          "npcSubArea": null,
+          "coords": {
+            "x": -1,
+            "y": -3,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Examiner la stèle d'un vestige sur la route des âmes",
+            "Examiner la stèle d'un vestige dans les champs",
+            "Examiner la stèle d'un vestige près du lac",
+            "Examiner la stèle d'un vestige dans les pâturages",
+            "Examiner la stèle d'un vestige dans la forêt",
+            "Retourner voir Ternette Nhin"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1639
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Vu du ciel",
+          "dofusdbId": 1641,
+          "level": 6,
+          "zone": "Incarnam",
+          "npcName": "Matu Vuh",
+          "npcSubArea": null,
+          "coords": {
+            "x": -1,
+            "y": -6,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Matu Vuh",
+            "Utiliser la longue-vue de Matu Vuh",
+            "Aller voir Galilea",
+            "Utiliser la longue-vue de Galilea",
+            "Retourner voir Ternette Nhin"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1640
+            }
+          ],
+          "notes": null
+        }
+      ]
+    },
+    {
+      "sectionName": "Service dans la milice",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Incarnam",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 2,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Mise à l'épreuve",
+          "dofusdbId": 1642,
+          "level": 3,
+          "zone": "Incarnam",
+          "npcName": "Caporale Mynerve",
+          "npcSubArea": null,
+          "coords": {
+            "x": 0,
+            "y": -4,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Caporale Mynerve",
+            "Vaincre x1 {monster,4098} en un seul combat",
+            "Aller voir Caporale Mynerve",
+            "Retourner voir Capitaine des Kerubims"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
+        },
+        {
+          "name": "Champs de bataille",
+          "dofusdbId": 1643,
+          "level": 5,
+          "zone": "Incarnam",
+          "npcName": "Capitaine des Kerubims",
+          "npcSubArea": null,
+          "coords": {
+            "x": 0,
+            "y": -4,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Vaincre x1 {monster,970} en un seul combat",
+            "Vaincre x1 {monster,979} en un seul combat",
+            "Vaincre x1 {monster,980} en un seul combat",
+            "Vaincre x1 {monster,981} en un seul combat",
+            "Retourner voir Capitaine des Kerubims"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1642
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Coups d'épée dans l'eau",
+          "dofusdbId": 1644,
+          "level": 6,
+          "zone": "Incarnam",
+          "npcName": "Capitaine des Kerubims",
+          "npcSubArea": null,
+          "coords": {
+            "x": 0,
+            "y": -4,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Vaincre x2 {monster,4109}",
+            "Vaincre x2 {monster,4108}",
+            "Vaincre x1 {monster,4110} en un seul combat",
+            "Retourner voir Capitaine des Kerubims"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1643
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Décime-moi des bouftous",
+          "dofusdbId": 1645,
+          "level": 7,
+          "zone": "Incarnam",
+          "npcName": "Capitaine des Kerubims",
+          "npcSubArea": null,
+          "coords": {
+            "x": 0,
+            "y": -4,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Vaincre x1 {monster,972} en un seul combat",
+            "Vaincre x1 {monster,973} en un seul combat",
+            "Vaincre x1 {monster,971} en un seul combat",
+            "Vaincre x1 {monster,984} en un seul combat",
+            "Retourner voir Capitaine des Kerubims"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1644
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Chasse aux chapardams",
+          "dofusdbId": 1646,
+          "level": 8,
+          "zone": "Incarnam",
+          "npcName": "Capitaine des Kerubims",
+          "npcSubArea": null,
+          "coords": {
+            "x": 0,
+            "y": -4,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Vaincre x2 {monster,4105}",
+            "Vaincre x2 {monster,4106}",
+            "Vaincre x2 {monster,982}",
+            "Retourner voir Capitaine des Kerubims"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1645
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Leçon d'humilité",
+          "dofusdbId": 1647,
+          "level": 8,
+          "zone": "Incarnam",
+          "npcName": "Capitaine des Kerubims",
+          "npcSubArea": null,
+          "coords": {
+            "x": 1,
+            "y": 0,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Vaincre x1 {monster,4097} en un seul combat",
+            "Retourner voir Capitaine des Kerubims"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1646
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Des chafers qui marchent",
+          "dofusdbId": 1648,
+          "level": 9,
+          "zone": "Incarnam",
+          "npcName": "Capitaine des Kerubims",
+          "npcSubArea": null,
+          "coords": {
+            "x": 4,
+            "y": 0,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 16540,
+              "name": "Sac de Bijoux",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/139000.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Vaincre x1 {monster,4046} en un seul combat",
+            "Vaincre x1 {monster,4047} en un seul combat",
+            "Vaincre x1 {monster,4048} en un seul combat",
+            "Vaincre x1 {monster,4049} en un seul combat",
+            "Découvrir la carte : Tombeau de Percy Klop",
+            "Fouiller la tombe",
+            "Vaincre x1 {monster,4053} en un seul combat",
+            "Ramener à Capitaine des Kerubims : x1 Sac de Bijoux"
+          ],
+          "stepOrder": 6,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1647
+            }
+          ],
+          "notes": null
+        }
+      ]
+    },
+    {
+      "sectionName": "C'est le métier qui rentre",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Incarnam",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 3,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Produits naturels",
+          "dofusdbId": 1649,
+          "level": 5,
+          "zone": "Incarnam",
+          "npcName": "Berb Nhin",
+          "npcSubArea": null,
+          "coords": {
+            "x": -1,
+            "y": -4,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 289,
+              "name": "Blé",
+              "amount": 8,
+              "img": "https://api.dofusdb.fr/img/items/34009.png"
+            },
+            {
+              "id": 1782,
+              "name": "Goujon",
+              "amount": 8,
+              "img": "https://api.dofusdb.fr/img/items/41294.png"
+            },
+            {
+              "id": 421,
+              "name": "Ortie",
+              "amount": 8,
+              "img": "https://api.dofusdb.fr/img/items/36642.png"
+            },
+            {
+              "id": 468,
+              "name": "Pain d'Incarnam",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/33013.png"
+            },
+            {
+              "id": 1813,
+              "name": "Goujon en Tranche",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/49083.png"
+            },
+            {
+              "id": 1182,
+              "name": "Potion de Mini Soin",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/12016.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Fabriquer 1 Pain d'Incarnam et fermer l'interface",
+            "Fabriquer 1 Goujon en Tranche et fermer l'interface",
+            "Fabriquer 1 Potion de Mini Soin et fermer l'interface",
+            "Montrer à Berb Nhin : 1 Pain d'Incarnam",
+            "Montrer à Berb Nhin : 1 Goujon en Tranche",
+            "Montrer à Berb Nhin : 1 Potion de Mini Soin"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
+        },
+        {
+          "name": "La hache et la pioche",
+          "dofusdbId": 1650,
+          "level": 6,
+          "zone": "Incarnam",
+          "npcName": "Berb Nhin",
+          "npcSubArea": null,
+          "coords": {
+            "x": 2,
+            "y": -2,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 303,
+              "name": "Bois de Frêne",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/38017.png"
+            },
+            {
+              "id": 312,
+              "name": "Fer",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/39024.png"
+            },
+            {
+              "id": 16489,
+              "name": "Planche Agglomérée",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/95093.png"
+            },
+            {
+              "id": 16440,
+              "name": "Ferrite",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/40712.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Fabriquer 1 Planche Agglomérée et fermer l'interface",
+            "Fabriquer 1 Ferrite et fermer l'interface",
+            "Montrer à Berb Nhin : 1 Planche Agglomérée",
+            "Montrer à Berb Nhin : 1 Ferrite"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1649
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Boune un jour, boune toujours",
+          "dofusdbId": 1651,
+          "level": 7,
+          "zone": "Incarnam",
+          "npcName": "Berb Nhin",
+          "npcSubArea": null,
+          "coords": {
+            "x": 1,
+            "y": -4,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 16512,
+              "name": "Plume Chimérique",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/53661.png"
+            },
+            {
+              "id": 1782,
+              "name": "Goujon",
+              "amount": 8,
+              "img": "https://api.dofusdb.fr/img/items/41294.png"
+            },
+            {
+              "id": 16518,
+              "name": "Feu Intérieur",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/164067.png"
+            },
+            {
+              "id": 289,
+              "name": "Blé",
+              "amount": 8,
+              "img": "https://api.dofusdb.fr/img/items/34009.png"
+            },
+            {
+              "id": 16513,
+              "name": "Pétale Diaphane",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/35642.png"
+            },
+            {
+              "id": 16522,
+              "name": "Peau de Gloot",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/164066.png"
+            },
+            {
+              "id": 421,
+              "name": "Ortie",
+              "amount": 8,
+              "img": "https://api.dofusdb.fr/img/items/36642.png"
+            },
+            {
+              "id": 1984,
+              "name": "Cendres Éternelles",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/48671.png"
+            },
+            {
+              "id": 16511,
+              "name": "Laine Céleste",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/57662.png"
+            },
+            {
+              "id": 8538,
+              "name": "Le S'Mesme",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/1120.png"
+            },
+            {
+              "id": 8537,
+              "name": "Le Plussain",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/9125.png"
+            },
+            {
+              "id": 8535,
+              "name": "Les Incrustes",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/11099.png"
+            },
+            {
+              "id": 8536,
+              "name": "La Spamette",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/10114.png"
+            },
+            {
+              "id": 8534,
+              "name": "La Cape S'loque",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/17130.png"
+            },
+            {
+              "id": 8533,
+              "name": "Le Floude",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/16169.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Fabriquer 1 Le S'Mesme et fermer l'interface",
+            "Fabriquer 1 Le Plussain et fermer l'interface",
+            "Fabriquer 1 Les Incrustes et fermer l'interface",
+            "Fabriquer 1 La Spamette et fermer l'interface",
+            "Fabriquer 1 La Cape S'loque et fermer l'interface",
+            "Fabriquer 1 Le Floude et fermer l'interface",
+            "Montrer à Berb Nhin : 1 Le S'Mesme",
+            "Montrer à Berb Nhin : 1 Le Plussain",
+            "Montrer à Berb Nhin : 1 Les Incrustes",
+            "Montrer à Berb Nhin : 1 La Spamette",
+            "Montrer à Berb Nhin : 1 La Cape S'loque",
+            "Montrer à Berb Nhin : 1 Le Floude"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1650
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Le choix des armes",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [],
+          "stepOrder": 3,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1651
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Ramdam sur Incarnam",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Incarnam",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 4,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "La galette secrète",
+          "dofusdbId": 1637,
+          "level": 7,
+          "zone": "Incarnam",
+          "npcName": "Anta Brok",
+          "npcSubArea": null,
+          "coords": {
+            "x": -1,
+            "y": -4,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 289,
+              "name": "Blé",
+              "amount": 40,
+              "img": "https://api.dofusdb.fr/img/items/34009.png"
+            },
+            {
+              "id": 519,
+              "name": "Poudre de Perlinpainpain",
+              "amount": 16,
+              "img": "https://api.dofusdb.fr/img/items/48002.png"
+            },
+            {
+              "id": 28256,
+              "name": "Œuf Chimérique",
+              "amount": 8,
+              "img": "https://api.dofusdb.fr/img/items/105651.png"
+            },
+            {
+              "id": 6765,
+              "name": "Lailait",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/79001.png"
+            },
+            {
+              "id": 385,
+              "name": "Bave de Bouftou",
+              "amount": 16,
+              "img": "https://api.dofusdb.fr/img/items/15057.png"
+            },
+            {
+              "id": 1984,
+              "name": "Cendres Éternelles",
+              "amount": 16,
+              "img": "https://api.dofusdb.fr/img/items/48671.png"
+            },
+            {
+              "id": 421,
+              "name": "Ortie",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/36642.png"
+            },
+            {
+              "id": 16520,
+              "name": "Galette d'Incarnam",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/126042.png"
+            },
+            {
+              "id": 16509,
+              "name": "Pot de Confiture Maison",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/126040.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Lire la recette de la galette d'Incarnam",
+            "Fabriquer 1 Galette d'Incarnam et fermer l'interface",
+            "Montrer à Anta Brok : 1 Galette d'Incarnam",
+            "Aller voir Pipelette",
+            "Ramener à Pipelette : x5 Ortie",
+            "Montrer à Anta Brok : 1 Pot de Confiture Maison"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
+        },
+        {
+          "name": "Mort au rat !",
+          "dofusdbId": 1633,
+          "level": 7,
+          "zone": "Incarnam",
+          "npcName": "Grobid",
+          "npcSubArea": null,
+          "coords": {
+            "x": 0,
+            "y": -3,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Inspecter la cave.",
+            "Faire sortir le rat de sa cachette",
+            "Vaincre x1 {monster,4113} en un seul combat",
+            "Aller voir Grobid"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1637
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Cryptologie",
+          "dofusdbId": 1638,
+          "level": 10,
+          "zone": "Crypte de Kardorim - Tombe de Kardorim",
+          "npcName": "Kardorim",
+          "npcSubArea": "Crypte de Kardorim - Tombe de Kardorim",
+          "coords": {
+            "x": 5,
+            "y": -1,
+            "worldId": 2
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 90,
+              "name": "Crypte de Kardorim",
+              "level": null,
+              "bossName": "Kardorim",
+              "img": "https://api.dofusdb.fr/img/monsters/1287.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Découvrir la carte : Salle du tombeau de Kardorim",
+            "Vaincre x1 {monster,4051} en un seul combat",
+            "Aller voir Kardorim"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1633
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Un peu de pigment",
+          "dofusdbId": 1655,
+          "level": 6,
+          "zone": "Incarnam",
+          "npcName": "Marylork",
+          "npcSubArea": null,
+          "coords": {
+            "x": 3,
+            "y": -5,
+            "worldId": 2
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 16999,
+              "name": "Poudre d'Aminite",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/48670.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Ramener à Marylork : x3 Poudre d'Aminite"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1638
+            }
+          ],
+          "notes": null
+        }
+      ]
+    },
+    {
+      "sectionName": "Un citoyen modèle",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Astrub",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 5,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Les principes d'Archie m'aident",
+          "dofusdbId": 1958,
+          "level": 15,
+          "zone": "Temple des Douze",
+          "npcName": "Envoyée des Douze",
+          "npcSubArea": "Temple des Douze",
+          "coords": {
+            "x": 6,
+            "y": -19,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Envoyée des Douze",
+            "Entrer dans la Tour du Conseil d'Astrub",
+            "Aller voir Conseillère Archie"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
+        },
+        {
+          "name": "On marche sur des oeufs",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [],
+          "stepOrder": 1,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1958
+            }
+          ]
+        },
+        {
+          "name": "Conseil de classe",
+          "dofusdbId": 2009,
+          "level": 20,
+          "zone": "Taverne d'Astrub",
+          "npcName": "Allisteria",
+          "npcSubArea": "Taverne d'Astrub",
+          "coords": {
+            "x": 4,
+            "y": -15,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Allisteria",
+            "Aller voir Abrazelon Sixgriffe",
+            "Aller voir Gasdaure",
+            "Aller voir Jim Fleps",
+            "Aller voir Montrakwartz",
+            "Aller voir Meow Moew",
+            "Aller voir Nepra Lido",
+            "Aller voir Rok Elreuss",
+            "Aller voir Setsinbol",
+            "Aller voir Sadadi Sama",
+            "Aller voir Saketsu",
+            "Aller voir Sel Dawa",
+            "Aller voir Bapapa",
+            "Aller voir Hibaba",
+            "Aller voir Alberta Borida",
+            "Aller voir Lester",
+            "Aller voir Hazel Ementaire",
+            "Aller voir Sidèle Laffie",
+            "Aller voir Yvain Dykt"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1958
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Tournée d'inspection",
+          "dofusdbId": 1963,
+          "level": 20,
+          "zone": "Astrub",
+          "npcName": "Allisteria",
+          "npcSubArea": null,
+          "coords": {
+            "x": 1,
+            "y": -16,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Parler au mercenaire en faction devant l'épicerie",
+            "Parler à la mercenaire en faction devant l'atelier des tailleurs",
+            "Parler à la mercenaire en faction sur la place de Brutas",
+            "Parler à la mercenaire en faction près de l'étang",
+            "Parler au mercenaire au nord de la bibliothèque",
+            "Montrer au mercenaire que les pious ne sont pas dangereux",
+            "Retourner voir Allisteria"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2009
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Ça sent le gaz",
+          "dofusdbId": 1960,
+          "level": 25,
+          "zone": "Tour du Conseil",
+          "npcName": "Conseillère Archie",
+          "npcSubArea": "Tour du Conseil",
+          "coords": {
+            "x": 4,
+            "y": -19,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Conseillère Archie",
+            "Rencontrer Fallanster",
+            "Aller voir Paule Amploa",
+            "Se rendre dans les égouts pour rencontrer les Rats Strubiens",
+            "Vaincre x3 {monster,5248} en un seul combat",
+            "Aller voir Ramane Hitoo",
+            "Explorer la mine de la carrière afin de trouver ce que cachent les Sidoas",
+            "Créer une diversion dans une galerie proche des Gardoas",
+            "Espionner les Gardoas en se cachant afin de pouvoir écouter leur conversation",
+            "Découvrir ce qu'il y a derrière la porte",
+            "Libérer Rathrosk",
+            "Sortir de la salle de la machine avec Rathrosk",
+            "Affronter les Gardoas vétérans",
+            "Escorter Rathrosk jusqu'à la salle du Conseil",
+            "Présenter Rathrosk à Fallanster",
+            "Aller voir Fallanster",
+            "Aller voir Aisling",
+            "Aller voir Recrue Mercenaire"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1963
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Balade en forêt",
+          "dofusdbId": 1962,
+          "level": 30,
+          "zone": "Tour de la Milice",
+          "npcName": "Recrue Mercenaire",
+          "npcSubArea": "Tour de la Milice",
+          "coords": {
+            "x": -1,
+            "y": -23,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller au rendez-vous fixé par Badufron",
+            "Aller voir Recrue Mercenaire",
+            "Vaincre les Pandawas dans la forêt d'Astrub",
+            "Aller voir Badufron",
+            "Aller voir Fallanster"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1960
+            }
+          ],
+          "notes": null
+        }
+      ]
+    },
+    {
+      "sectionName": "L'occasion fait le larron",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Astrub",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 6,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Ça tombe à l'eau",
+          "dofusdbId": 1975,
+          "level": 15,
+          "zone": "Tour du Conseil",
+          "npcName": "Didier Jean",
+          "npcSubArea": "Tour du Conseil",
+          "coords": {
+            "x": 2,
+            "y": -20,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Découvrir la carte : Étang d'Astrub",
+            "Chercher l'origine des troubles",
+            "Discuter avec les mercenaires",
+            "Aller voir Didier Jean",
+            "Aller voir Conseillère Archie",
+            "Aller voir Didier Jean",
+            "Aller voir Tek Abir",
+            "Chercher Camille Démouleur",
+            "Vaincre les gredins",
+            "Aller voir Camille Démouleur",
+            "Aller voir Al Etsop",
+            "Aller voir Delcour Vitt",
+            "Aller voir Aisling",
+            "Aller voir Rodrigue Olpa",
+            "Aller voir Kaulysse Himo"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
+        },
+        {
+          "name": "Six pieds sous terre",
+          "dofusdbId": 1976,
+          "level": 20,
+          "zone": "Boutique de Kerubim",
+          "npcName": "Gasdaure",
+          "npcSubArea": "Boutique de Kerubim",
+          "coords": {
+            "x": 5,
+            "y": -18,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Interroger les glandeurs du zaap",
+            "Aller voir Gasdaure",
+            "Chercher les touristes",
+            "Aller voir Joséphine",
+            "Défendre les touristes",
+            "Escorter les touristes à l'extérieur",
+            "Aller voir Joséphine",
+            "Aller voir Kerubim Crépin"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1975
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Tel est pris qui croyait prendre",
+          "dofusdbId": 1977,
+          "level": 25,
+          "zone": "Bibliothèque d'Astrub",
+          "npcName": "Prim",
+          "npcSubArea": "Bibliothèque d'Astrub",
+          "coords": {
+            "x": 7,
+            "y": -19,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 19728,
+              "name": "Bourse de Kerubim",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/100056.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Ramener à Prim : x1 Bourse de Kerubim",
+            "Aller voir Sel Dawa",
+            "Aller voir Alberta Borida",
+            "Aller voir Shani Sings",
+            "Chercher des personnes à la recherche de l'escroc",
+            "Attendre près du temple",
+            "Aller voir Hippolyte Hique",
+            "Discuter avec les investigateurs",
+            "Escorter Hippolyte Hique à la prison",
+            "Aller voir Hippolyte Hique"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1976
+            }
+          ],
+          "notes": null
+        }
+      ]
+    },
+    {
+      "sectionName": "La grande biblioquête",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Astrub",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 7,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "L'histoire en mouvement",
+          "dofusdbId": 1988,
+          "level": 25,
+          "zone": "Bibliothèque d'Astrub",
+          "npcName": "Oz Dralett",
+          "npcSubArea": "Bibliothèque d'Astrub",
+          "coords": {
+            "x": 7,
+            "y": -19,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 19681,
+              "name": "Livre calciné",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/25144.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Oz Dralett",
+            "Aller voir Nacf Virgil",
+            "Récupérer le manuscrit avant qu'il ne soit détruit",
+            "Montrer à Aisling : 1 Livre calciné"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
+        },
+        {
+          "name": "Restauration rapide",
+          "dofusdbId": 1989,
+          "level": 30,
+          "zone": "Bibliothèque d'Astrub",
+          "npcName": "Mage Ax",
+          "npcSubArea": "Bibliothèque d'Astrub",
+          "coords": {
+            "x": 3,
+            "y": -21,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 19681,
+              "name": "Livre calciné",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/25144.png"
+            },
+            {
+              "id": 19686,
+              "name": "Écorce enchantée",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/25142.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Montrer à Mage Ax : 1 Livre calciné",
+            "Récupérer un morceau d'écorce centenaire",
+            "Récupérer du lailait de boufette",
+            "Rapporter le lailait et l'écorce au Mage Ax",
+            "Ramener à Prim : x1 Écorce enchantée",
+            "Aller voir Aisling"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1988
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "De vrais rats de bibliothèque",
+          "dofusdbId": 1990,
+          "level": 35,
+          "zone": "Bibliothèque d'Astrub",
+          "npcName": "Ramane Hitoo",
+          "npcSubArea": "Bibliothèque d'Astrub",
+          "coords": {
+            "x": 6,
+            "y": -13,
+            "worldId": 3
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 19690,
+              "name": "Étui en cuir ouvragé",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/25141.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Affronter des rats de bibliothèque pour retrouver le parchemin",
+            "Aller voir Ramane Hitoo",
+            "Montrer à Aisling : 1 Étui en cuir ouvragé",
+            "Aller voir Prim"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1989
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Légende d'automne",
+          "dofusdbId": 1991,
+          "level": 40,
+          "zone": "Bibliothèque d'Astrub",
+          "npcName": "Aisling",
+          "npcSubArea": "Bibliothèque d'Astrub",
+          "coords": {
+            "x": 7,
+            "y": -19,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Lire l'ouvrage créé par Prim",
+            "Aller voir Aisling",
+            "Lire le parchemin traduit",
+            "Aller voir Rathrosk",
+            "Escorter le dragon jusqu'au cimetière d'Astrub",
+            "Retrouver Rathrosk dans la partie sud-est du cimetière",
+            "Aller voir Rathrosk",
+            "Trouver le vieillard près de l'oiseau de feu",
+            "Aller voir Nistracolamus",
+            "Ramasser de la terre près de la crypte de Brutas",
+            "Récupérer une relique en combattant des spectres de l'Aurore Pourpre",
+            "Arracher 3 ceintures aux Gargrouilles et les placer dans l'urne avec la terre et la relique",
+            "Enterrer l'urne près de la tombe du chevalier de l'automne",
+            "Aller voir Rathrosk"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1990
+            }
+          ],
+          "notes": null
+        }
+      ]
+    },
+    {
+      "sectionName": "Mercenaire d'acier",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Astrub",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 8,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Bière qui roule n'amasse pas mousse",
+          "dofusdbId": 1978,
+          "level": 15,
+          "zone": "Taverne d'Astrub",
+          "npcName": "Tek Abir",
+          "npcSubArea": "Taverne d'Astrub",
+          "coords": {
+            "x": 6,
+            "y": -18,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 19623,
+              "name": "Bière Mousseuse d'Astrub",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/37004.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Tek Abir",
+            "Ramener à Badufron : x1 Bière Mousseuse d'Astrub"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
+        },
+        {
+          "name": "Combat de rue",
+          "dofusdbId": 1979,
+          "level": 20,
+          "zone": "Tour de la Milice",
+          "npcName": "Badufron",
+          "npcSubArea": "Tour de la Milice",
+          "coords": {
+            "x": 11,
+            "y": -24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Régler le problème de Bart Cousti",
+            "Régler le problème de Vaiguy",
+            "Régler le problème de Jeffrey Baratourte",
+            "Régler le problème de Cindy Cah",
+            "Aller voir Badufron"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1978
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Comme un pichon hors de l'eau",
+          "dofusdbId": 1980,
+          "level": 20,
+          "zone": "Astrub",
+          "npcName": "Bart Cousti",
+          "npcSubArea": null,
+          "coords": {
+            "x": 11,
+            "y": -24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Vaincre x3 {monster,922}",
+            "Vaincre x3 {monster,921}",
+            "Vaincre x3 {monster,920}",
+            "Vaincre x3 {monster,923}",
+            "Aller voir Bart Cousti"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1979
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Déjeuner à la fourchette",
+          "dofusdbId": 1981,
+          "level": 20,
+          "zone": "Astrub",
+          "npcName": "Vaiguy",
+          "npcSubArea": null,
+          "coords": {
+            "x": 5,
+            "y": -22,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 19624,
+              "name": "Poire de Pissenlit",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/63495.png"
+            },
+            {
+              "id": 19625,
+              "name": "Poire de Rose",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/63495.png"
+            },
+            {
+              "id": 19626,
+              "name": "Poire de Tournesol",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/63495.png"
+            },
+            {
+              "id": 19627,
+              "name": "Poire d'Épouvanteur",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/63495.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Ramener à Vaiguy : x2 Poire de Pissenlit",
+            "Ramener à Vaiguy : x2 Poire de Rose",
+            "Ramener à Vaiguy : x2 Poire de Tournesol",
+            "Ramener à Vaiguy : x2 Poire d'Épouvanteur",
+            "Vaincre la poupée champêtre",
+            "Aller voir Vaiguy"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1980
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "La coupe des vices",
+          "dofusdbId": 1982,
+          "level": 30,
+          "zone": "Astrub",
+          "npcName": "Jeffrey Baratourte",
+          "npcSubArea": null,
+          "coords": {
+            "x": 2,
+            "y": -31,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Vaincre x4 {monster,134}",
+            "Vaincre x4 {monster,149}",
+            "Vaincre x3 {monster,101}",
+            "Vaincre x1 {monster,148} en un seul combat",
+            "Aller voir Jeffrey Baratourte"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1981
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Les as de la cambriole",
+          "dofusdbId": 1983,
+          "level": 40,
+          "zone": "Astrub",
+          "npcName": "Cindy Cah",
+          "npcSubArea": null,
+          "coords": {
+            "x": 5,
+            "y": -17,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 19630,
+              "name": "Caissette de Babioles",
+              "amount": 15,
+              "img": "https://api.dofusdb.fr/img/items/24044.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Ramener à Cindy Cah : x15 Caissette de Babioles"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1982
+            }
+          ],
+          "notes": null
+        }
+      ]
+    },
+    {
+      "sectionName": "Pas le temps de chômer",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Astrub",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 9,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Crise sanitaire",
+          "dofusdbId": 1984,
+          "level": 20,
+          "zone": "Mine d'Astrub",
+          "npcName": "Emia Elliesol",
+          "npcSubArea": "Mine d'Astrub",
+          "coords": {
+            "x": 7,
+            "y": -24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Emia Elliesol",
+            "Aller voir Unterix Unter",
+            "Prélever des échantillons contaminés dans Astrub et ses environs",
+            "Apporter les cinq échantillons contaminés à Nibé Lulle",
+            "Aller voir Chipo Atufe",
+            "Aller voir Feldz Paffe",
+            "Prendre les explosifs",
+            "Utiliser les explosifs",
+            "Découvrir la carte : Galerie abandonnée",
+            "Aller voir Fidel Gastro",
+            "Aller voir Nibé Lulle",
+            "Aller voir Paule Amploa"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
+        },
+        {
+          "name": "Livraison par intérim",
+          "dofusdbId": 1985,
+          "level": 20,
+          "zone": "Tour du Conseil",
+          "npcName": "Julie Lescroc",
+          "npcSubArea": "Tour du Conseil",
+          "coords": {
+            "x": 9,
+            "y": -11,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 19635,
+              "name": "Caisse de Julie Lescroc",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/15056.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Julie Lescroc",
+            "Vaincre les brutes menaçantes",
+            "Aller voir Julie Lescroc",
+            "Prendre les caisses",
+            "Ramener à René Gossian : x3 Caisse de Julie Lescroc",
+            "Aller voir Paule Amploa"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1984
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Golémancien",
+          "dofusdbId": 1986,
+          "level": 25,
+          "zone": "Tour de la Milice",
+          "npcName": "Deudoiné",
+          "npcSubArea": "Tour de la Milice",
+          "coords": {
+            "x": 7,
+            "y": -16,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 19636,
+              "name": "Minerai enchanté",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/51267.png"
+            },
+            {
+              "id": 16440,
+              "name": "Ferrite",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/40712.png"
+            },
+            {
+              "id": 19638,
+              "name": "Support métallique",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/107737.png"
+            },
+            {
+              "id": 304,
+              "name": "Cuir de Scélérat Strubien",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/25157.png"
+            },
+            {
+              "id": 19640,
+              "name": "Fil enchanté",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/20004.png"
+            },
+            {
+              "id": 13487,
+              "name": "Serviette de Plage",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/55130.png"
+            },
+            {
+              "id": 19642,
+              "name": "Crème à bois",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/15814.png"
+            },
+            {
+              "id": 16490,
+              "name": "Planche Contreplaquée",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/95001.png"
+            },
+            {
+              "id": 19637,
+              "name": "Fléau d'armes",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/7748.png"
+            },
+            {
+              "id": 19639,
+              "name": "Écu Rikulome",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/82001.png"
+            },
+            {
+              "id": 19641,
+              "name": "Tabard Nak",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/17356.png"
+            },
+            {
+              "id": 19643,
+              "name": "Corps de Quintaine",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/24044.png"
+            },
+            {
+              "id": 19644,
+              "name": "Quintaine",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24044.png"
+            },
+            {
+              "id": 19645,
+              "name": "Quintaine animée",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24044.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Deudoiné",
+            "Fabriquer 1 Fléau d'armes et fermer l'interface",
+            "Aller voir Daniel Pavois",
+            "Fabriquer 1 Écu Rikulome et fermer l'interface",
+            "Aller voir Alit Elfminate",
+            "Fabriquer 1 Tabard Nak et fermer l'interface",
+            "Aller voir Oli Venders",
+            "Fabriquer 1 Corps de Quintaine et fermer l'interface",
+            "Aller voir Sylvie Lebrekin",
+            "Fabriquer 1 Quintaine et fermer l'interface",
+            "Ramener à Mage Ax : x1 Quintaine",
+            "Ramener à Badufron : x1 Quintaine animée",
+            "Aller voir Paule Amploa"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1985
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Le rebelle de la forêt",
+          "dofusdbId": 1987,
+          "level": 30,
+          "zone": "Tour de la Milice",
+          "npcName": "Badufron",
+          "npcSubArea": "Tour de la Milice",
+          "coords": {
+            "x": 5,
+            "y": -19,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Badufron",
+            "Découvrir la carte : Signalement de ruffians",
+            "Interroger les enfants",
+            "Chercher Vangey en direction du nord",
+            "Aller voir Fée Brèze",
+            "Chercher Vangey",
+            "Suivre les traces",
+            "Fouiller la charrette",
+            "Aller voir Vangey",
+            "Vaincre les ruffians",
+            "Aller voir Vangey",
+            "Accompagner Vangey à la Tour du Conseil",
+            "Aller voir Vangey",
+            "Aller voir Paule Amploa",
+            "Aller voir Vangey"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1986
+            }
+          ],
+          "notes": null
+        }
+      ]
+    },
+    {
+      "sectionName": "L'habitat urbain",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Astrub",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 10,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Chacha Blues",
+          "dofusdbId": 1992,
+          "level": 15,
+          "zone": "Astrub",
+          "npcName": "Soki",
+          "npcSubArea": null,
+          "coords": {
+            "x": 7,
+            "y": -20,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 19763,
+              "name": "Sousouris",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15282.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Donner à boire et à manger à Soki",
+            "Promener Soki sur la place du temple des Douze",
+            "Promener Soki près de l'hôtel de vente des consommables",
+            "Promener Soki près de la boutique de Kerubim",
+            "Promener Soki près de l'hôtel de vente des équipements",
+            "Ramener Soki au nord de la bibliothèque",
+            "Vérifier que le chacha se porte bien",
+            "Trouver des sousouris aux alentours de la bibliothèque",
+            "Ramener à Soki : x1 Sousouris"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
+        },
+        {
+          "name": "Les deux font l'impair",
+          "dofusdbId": 1994,
+          "level": 30,
+          "zone": "Astrub",
+          "npcName": "Milicienne de Bonta",
+          "npcSubArea": null,
+          "coords": {
+            "x": 1,
+            "y": -18,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Milicienne de Bonta",
+            "Aller voir Milicienne de Brâkmar"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1992
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Attention à la Bête !",
+          "dofusdbId": 718,
+          "level": 20,
+          "zone": "Tour de la Milice",
+          "npcName": "Badufron",
+          "npcSubArea": "Tour de la Milice",
+          "coords": {
+            "x": 5,
+            "y": -19,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 12401,
+              "name": "Boîte de Plasmogrine",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24937.png"
+            },
+            {
+              "id": 12399,
+              "name": "Piège du maître chasseur",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24044.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Badufron",
+            "Aller voir Acidrik Fenlapanse",
+            "Aller voir Dan Gevo",
+            "Retourner voir Apprenti d'Otomaï",
+            "Aller voir Unterix Unter",
+            "Ramener à Apprenti d'Otomaï : x1 Piège du maître chasseur",
+            "Placer le premier appât",
+            "Placer le deuxième appât",
+            "Placer le troisième appât",
+            "Placer le quatrième appât",
+            "Placer le cinquième appât",
+            "Placer le sixième appât, à l'intérieur de la mine",
+            "Retourner voir Apprenti d'Otomaï",
+            "Découvrir la carte : Salle du piège",
+            "Aller voir Apprenti d'Otomaï",
+            "Vaincre x1 {monster,3140} en un seul combat",
+            "Aller voir Apprenti d'Otomaï",
+            "Aller voir Jykel",
+            "Aller voir Apprenti d'Otomaï",
+            "Aller voir Jykel",
+            "Aller voir Apprenti d'Otomaï"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1994
+            }
+          ],
+          "notes": null
+        }
+      ]
+    },
+    {
+      "sectionName": "Escapades et embuscades",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Astrub",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 11,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "La petite mission dans la prairie",
+          "dofusdbId": 1996,
+          "level": 20,
+          "zone": "Astrub",
+          "npcName": "Mercenaire d'Astrub",
+          "npcSubArea": null,
+          "coords": {
+            "x": 3,
+            "y": -14,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Tuer une dizaine de larves autour de l'endroit où travaillent les Gobelins",
+            "Aller voir Mercenaire d'Astrub",
+            "Surveiller les gobelins",
+            "Retrouver les fugitifs",
+            "Vaincre les trois gobelins",
+            "Aller voir Mercenaire d'Astrub"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
+        },
+        {
+          "name": "Qui sème le vent récolte l'Artempeth",
+          "dofusdbId": 1998,
+          "level": 20,
+          "zone": "Astrub",
+          "npcName": "Erty Trapchet",
+          "npcSubArea": null,
+          "coords": {
+            "x": 1,
+            "y": -21,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 306,
+              "name": "Fleur de Pissenlit Diabolique",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/35018.png"
+            },
+            {
+              "id": 309,
+              "name": "Pétale de Rose Démoniaque",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/35020.png"
+            },
+            {
+              "id": 2659,
+              "name": "Pétale de Tournesol Sauvage",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/35632.png"
+            },
+            {
+              "id": 374,
+              "name": "Langue d'Épouvanteur",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/36555.png"
+            },
+            {
+              "id": 19656,
+              "name": "Mélange de Vermifuge",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/43039.png"
+            },
+            {
+              "id": 19654,
+              "name": "Vermifuge de Nibé Lulle",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15130.png"
+            },
+            {
+              "id": 19655,
+              "name": "Fleur de Rose Artempeth",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24106.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Découvrir la carte : Maison d'Erty Trapchet",
+            "Arroser les plantes",
+            "Aller voir Erty Trapchet",
+            "Aller voir Mawy Ingalsse",
+            "Aller voir Emia Elliesol",
+            "Aller voir Nibé Lulle",
+            "Montrer à Nibé Lulle : 1 Fleur de Pissenlit Diabolique",
+            "Montrer à Nibé Lulle : 1 Pétale de Rose Démoniaque",
+            "Montrer à Nibé Lulle : 1 Pétale de Tournesol Sauvage",
+            "Montrer à Nibé Lulle : 1 Langue d'Épouvanteur",
+            "Fabriquer 1 Vermifuge de Nibé Lulle et fermer l'interface",
+            "Aller voir Emia Elliesol",
+            "Utiliser le vermifuge dans le grenier",
+            "Vaincre les parasites",
+            "Ramener à Nibé Lulle : x1 Vermifuge de Nibé Lulle",
+            "Aller voir Erty Trapchet",
+            "Vaincre x1 {monster,482} sur la carte {map,192676868::Maison d'Erty Trapchet} en un seul combat",
+            "Ramener à Erty Trapchet : x1 Fleur de Rose Artempeth",
+            "Aller voir Raymond Santho",
+            "Aller voir Erty Trapchet"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1996
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Bûcherons en détresse",
+          "dofusdbId": 2000,
+          "level": 30,
+          "zone": "Epicerie d'Astrub",
+          "npcName": "Disciple de Sêpt",
+          "npcSubArea": "Epicerie d'Astrub",
+          "coords": {
+            "x": 0,
+            "y": -25,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 19707,
+              "name": "Griffe non identifiée",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15107.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Vaincre x5 {monster,159}",
+            "Retourner voir Disciple de Sêpt",
+            "Discuter avec un bûcheron qui a survécu à l'attaque de la bête féroce",
+            "Montrer à Unterix Unter : 1 Griffe non identifiée",
+            "Acheter du miel à l'épicerie d'Astrub",
+            "Parler à l'Ecaflip",
+            "Découvrir la carte : Campement de l'Homme-Ours",
+            "Faire sortir l'Homme-Ours de sa cachette",
+            "Aller voir Homme-Ours",
+            "Vaincre l'Homme-Ours avec l'aide d'Artand",
+            "Aller voir Artand",
+            "Retourner voir Disciple de Sêpt"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1998
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Le génie se meut",
+          "dofusdbId": 1999,
+          "level": 30,
+          "zone": "Astrub",
+          "npcName": "Nibé Lulle",
+          "npcSubArea": null,
+          "coords": {
+            "x": 3,
+            "y": -21,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 19633,
+              "name": "Prélèvement de chef de guerre bouftou",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/15050.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Ramener à Nibé Lulle : x5 Prélèvement de chef de guerre bouftou",
+            "Aller voir Éléanor Mande",
+            "Chercher des indices",
+            "Suivre les traces",
+            "Aller voir Éléanor Mande",
+            "Aller voir Unterix Unter",
+            "Aller voir Éléanor Mande",
+            "Aller voir Khalil Moris",
+            "Aller voir Éléanor Mande",
+            "Aller voir Khalil Moris",
+            "Vaincre les voleurs Porkass",
+            "Aller voir Éléanor Mande",
+            "Aller voir Éléanor Mande"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2000
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "L'invasion des profanateurs de sépultures",
+          "dofusdbId": 2007,
+          "level": 40,
+          "zone": "Astrub",
+          "npcName": "Becky Gorr",
+          "npcSubArea": null,
+          "coords": {
+            "x": -3,
+            "y": -12,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Trouver la Gargrouille en colère",
+            "Vaincre x1 {monster,5243} en un seul combat",
+            "Examiner les tombes",
+            "Trouver la Garglyphe en colère",
+            "Vaincre x1 {monster,5242} en un seul combat",
+            "Trouver la Ouassingue en colère",
+            "Vaincre x1 {monster,5244} en un seul combat",
+            "Retourner voir Becky Gorr",
+            "Prendre Finney avec vous pour suivre la piste du profanateur",
+            "Retourner avec Finney sur la tombe où vous avez trouvé l'indice",
+            "Suivre la direction indiquée par Finney",
+            "Examiner le caveau indiqué par Finney",
+            "Retourner voir Becky Gorr",
+            "Rejoindre Becky devant le caveau",
+            "Retourner voir Becky Gorr",
+            "Se rendre à la cabane de Becky",
+            "Récupérer les outils de crochetage",
+            "Retourner au caveau",
+            "Aller voir Finney",
+            "Tenter de crocheter la grille grâce aux outils",
+            "Aller voir Becky Gorr",
+            "Aller voir Selim Llenneb",
+            "Vaincre x1 {monster,5246} en un seul combat",
+            "Aller voir Selim Llenneb",
+            "Aller voir Becky Gorr"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1999
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Le repos est dans le champ",
+          "dofusdbId": 2008,
+          "level": 40,
+          "zone": "Astrub",
+          "npcName": "Nistracolamus",
+          "npcSubArea": null,
+          "coords": {
+            "x": 2,
+            "y": -14,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 428,
+              "name": "Sauge",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/36643.png"
+            },
+            {
+              "id": 395,
+              "name": "Trèfle à 5 feuilles",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/36067.png"
+            },
+            {
+              "id": 311,
+              "name": "Eau Potable",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/15026.png"
+            },
+            {
+              "id": 421,
+              "name": "Ortie",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/36642.png"
+            },
+            {
+              "id": 519,
+              "name": "Poudre de Perlinpainpain",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/48002.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Ramener à Nistracolamus : x3 Poudre de Perlinpainpain",
+            "Ramener à Nistracolamus : x3 Ortie",
+            "Ramener à Nistracolamus : x3 Sauge",
+            "Ramener à Nistracolamus : x3 Trèfle à 5 feuilles",
+            "Ramener à Nistracolamus : x3 Eau Potable",
+            "Trouver le premier esprit",
+            "Utiliser l'eau bénite",
+            "Aller voir Judas Narschi",
+            "Trouver le deuxième esprit",
+            "Aller voir Guy Denoudeu",
+            "Trouver Guy Al'Eudroi près de l'étang d'Astrub",
+            "Retourner voir Guy Denoudeu",
+            "Trouver le troisième esprit",
+            "Aller voir Klaüs Konbah",
+            "Vaincre x1 {monster,5287} en un seul combat",
+            "Aller voir Klaüs Konbah",
+            "Retourner voir Nistracolamus"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2007
+            }
+          ],
+          "notes": null
+        }
+      ]
+    }
+  ],
+  "globalSummary": {
+    "totalQuests": 57,
+    "totalItems": 70,
+    "totalDungeons": 1,
+    "items": [
+      {
+        "id": 289,
+        "name": "Blé",
+        "totalAmount": 58,
+        "img": "https://api.dofusdb.fr/img/items/34009.png"
+      },
+      {
+        "id": 421,
+        "name": "Ortie",
+        "totalAmount": 34,
+        "img": "https://api.dofusdb.fr/img/items/36642.png"
+      },
+      {
+        "id": 303,
+        "name": "Bois de Frêne",
+        "totalAmount": 22,
+        "img": "https://api.dofusdb.fr/img/items/38017.png"
+      },
+      {
+        "id": 312,
+        "name": "Fer",
+        "totalAmount": 22,
+        "img": "https://api.dofusdb.fr/img/items/39024.png"
+      },
+      {
+        "id": 519,
+        "name": "Poudre de Perlinpainpain",
+        "totalAmount": 22,
+        "img": "https://api.dofusdb.fr/img/items/48002.png"
+      },
+      {
+        "id": 1984,
+        "name": "Cendres Éternelles",
+        "totalAmount": 20,
+        "img": "https://api.dofusdb.fr/img/items/48671.png"
+      },
+      {
+        "id": 1782,
+        "name": "Goujon",
+        "totalAmount": 18,
+        "img": "https://api.dofusdb.fr/img/items/41294.png"
+      },
+      {
+        "id": 385,
+        "name": "Bave de Bouftou",
+        "totalAmount": 16,
+        "img": "https://api.dofusdb.fr/img/items/15057.png"
+      },
+      {
+        "id": 19630,
+        "name": "Caissette de Babioles",
+        "totalAmount": 15,
+        "img": "https://api.dofusdb.fr/img/items/24044.png"
+      },
+      {
+        "id": 28256,
+        "name": "Œuf Chimérique",
+        "totalAmount": 8,
+        "img": "https://api.dofusdb.fr/img/items/105651.png"
+      },
+      {
+        "id": 306,
+        "name": "Fleur de Pissenlit Diabolique",
+        "totalAmount": 6,
+        "img": "https://api.dofusdb.fr/img/items/35018.png"
+      },
+      {
+        "id": 309,
+        "name": "Pétale de Rose Démoniaque",
+        "totalAmount": 6,
+        "img": "https://api.dofusdb.fr/img/items/35020.png"
+      },
+      {
+        "id": 2659,
+        "name": "Pétale de Tournesol Sauvage",
+        "totalAmount": 6,
+        "img": "https://api.dofusdb.fr/img/items/35632.png"
+      },
+      {
+        "id": 374,
+        "name": "Langue d'Épouvanteur",
+        "totalAmount": 6,
+        "img": "https://api.dofusdb.fr/img/items/36555.png"
+      },
+      {
+        "id": 428,
+        "name": "Sauge",
+        "totalAmount": 6,
+        "img": "https://api.dofusdb.fr/img/items/36643.png"
+      },
+      {
+        "id": 395,
+        "name": "Trèfle à 5 feuilles",
+        "totalAmount": 6,
+        "img": "https://api.dofusdb.fr/img/items/36067.png"
+      },
+      {
+        "id": 311,
+        "name": "Eau Potable",
+        "totalAmount": 6,
+        "img": "https://api.dofusdb.fr/img/items/15026.png"
+      },
+      {
+        "id": 19633,
+        "name": "Prélèvement de chef de guerre bouftou",
+        "totalAmount": 5,
+        "img": "https://api.dofusdb.fr/img/items/15050.png"
+      },
+      {
+        "id": 16440,
+        "name": "Ferrite",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/40712.png"
+      },
+      {
+        "id": 16512,
+        "name": "Plume Chimérique",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/53661.png"
+      },
+      {
+        "id": 16518,
+        "name": "Feu Intérieur",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/164067.png"
+      },
+      {
+        "id": 16513,
+        "name": "Pétale Diaphane",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/35642.png"
+      },
+      {
+        "id": 16522,
+        "name": "Peau de Gloot",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/164066.png"
+      },
+      {
+        "id": 16511,
+        "name": "Laine Céleste",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/57662.png"
+      },
+      {
+        "id": 6765,
+        "name": "Lailait",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/79001.png"
+      },
+      {
+        "id": 19656,
+        "name": "Mélange de Vermifuge",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/43039.png"
+      },
+      {
+        "id": 16999,
+        "name": "Poudre d'Aminite",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/48670.png"
+      },
+      {
+        "id": 19635,
+        "name": "Caisse de Julie Lescroc",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/15056.png"
+      },
+      {
+        "id": 19637,
+        "name": "Fléau d'armes",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/7748.png"
+      },
+      {
+        "id": 19639,
+        "name": "Écu Rikulome",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/82001.png"
+      },
+      {
+        "id": 19641,
+        "name": "Tabard Nak",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/17356.png"
+      },
+      {
+        "id": 19643,
+        "name": "Corps de Quintaine",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/24044.png"
+      },
+      {
+        "id": 468,
+        "name": "Pain d'Incarnam",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/33013.png"
+      },
+      {
+        "id": 1813,
+        "name": "Goujon en Tranche",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/49083.png"
+      },
+      {
+        "id": 1182,
+        "name": "Potion de Mini Soin",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/12016.png"
+      },
+      {
+        "id": 16489,
+        "name": "Planche Agglomérée",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/95093.png"
+      },
+      {
+        "id": 8538,
+        "name": "Le S'Mesme",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/1120.png"
+      },
+      {
+        "id": 8537,
+        "name": "Le Plussain",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/9125.png"
+      },
+      {
+        "id": 8535,
+        "name": "Les Incrustes",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/11099.png"
+      },
+      {
+        "id": 8536,
+        "name": "La Spamette",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/10114.png"
+      },
+      {
+        "id": 8534,
+        "name": "La Cape S'loque",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/17130.png"
+      },
+      {
+        "id": 8533,
+        "name": "Le Floude",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/16169.png"
+      },
+      {
+        "id": 19681,
+        "name": "Livre calciné",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/25144.png"
+      },
+      {
+        "id": 19624,
+        "name": "Poire de Pissenlit",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/63495.png"
+      },
+      {
+        "id": 19625,
+        "name": "Poire de Rose",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/63495.png"
+      },
+      {
+        "id": 19626,
+        "name": "Poire de Tournesol",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/63495.png"
+      },
+      {
+        "id": 19627,
+        "name": "Poire d'Épouvanteur",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/63495.png"
+      },
+      {
+        "id": 19636,
+        "name": "Minerai enchanté",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/51267.png"
+      },
+      {
+        "id": 19638,
+        "name": "Support métallique",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/107737.png"
+      },
+      {
+        "id": 304,
+        "name": "Cuir de Scélérat Strubien",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/25157.png"
+      },
+      {
+        "id": 19640,
+        "name": "Fil enchanté",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/20004.png"
+      },
+      {
+        "id": 13487,
+        "name": "Serviette de Plage",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/55130.png"
+      },
+      {
+        "id": 19642,
+        "name": "Crème à bois",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/15814.png"
+      },
+      {
+        "id": 16490,
+        "name": "Planche Contreplaquée",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/95001.png"
+      },
+      {
+        "id": 19622,
+        "name": "Anneau de l'Audacieux",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/9332.png"
+      },
+      {
+        "id": 16540,
+        "name": "Sac de Bijoux",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/139000.png"
+      },
+      {
+        "id": 16520,
+        "name": "Galette d'Incarnam",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/126042.png"
+      },
+      {
+        "id": 16509,
+        "name": "Pot de Confiture Maison",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/126040.png"
+      },
+      {
+        "id": 19728,
+        "name": "Bourse de Kerubim",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/100056.png"
+      },
+      {
+        "id": 19686,
+        "name": "Écorce enchantée",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/25142.png"
+      },
+      {
+        "id": 19690,
+        "name": "Étui en cuir ouvragé",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/25141.png"
+      },
+      {
+        "id": 19623,
+        "name": "Bière Mousseuse d'Astrub",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/37004.png"
+      },
+      {
+        "id": 19644,
+        "name": "Quintaine",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24044.png"
+      },
+      {
+        "id": 19645,
+        "name": "Quintaine animée",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24044.png"
+      },
+      {
+        "id": 19763,
+        "name": "Sousouris",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15282.png"
+      },
+      {
+        "id": 12401,
+        "name": "Boîte de Plasmogrine",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24937.png"
+      },
+      {
+        "id": 12399,
+        "name": "Piège du maître chasseur",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24044.png"
+      },
+      {
+        "id": 19654,
+        "name": "Vermifuge de Nibé Lulle",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15130.png"
+      },
+      {
+        "id": 19655,
+        "name": "Fleur de Rose Artempeth",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24106.png"
+      },
+      {
+        "id": 19707,
+        "name": "Griffe non identifiée",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15107.png"
+      }
+    ],
+    "dungeons": [
+      {
+        "id": 90,
+        "name": "Crypte de Kardorim",
+        "level": null,
+        "bossName": "Kardorim",
+        "img": "https://api.dofusdb.fr/img/monsters/1287.png",
+        "idoleName": null
+      }
+    ]
+  }
+}

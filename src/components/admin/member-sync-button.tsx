@@ -72,7 +72,7 @@ export function MemberSyncButton({ guildId }: SyncButtonProps) {
                 </Button>
 
                 {result && (
-                    <div className={`flex items-center gap-2 text-sm ${result.success ? "text-green-500" : "text-red-500"}`}>
+                    <div className={`flex items-center gap-2 text-sm ${result.success ? "text-green-500" : "text-danger"}`}>
                         {result.success ? (
                             <CheckCircle2 className="h-4 w-4" />
                         ) : (

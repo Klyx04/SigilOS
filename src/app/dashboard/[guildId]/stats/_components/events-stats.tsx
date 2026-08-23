@@ -1,5 +1,4 @@
-"use client";
-
+import { useState, useEffect } from "react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 import { CalendarDays, Users, Medal } from "lucide-react";
 
@@ -30,6 +29,9 @@ const EVENT_LABELS: Record<string, string> = {
 const COLORS = ["#06b6d4", "#8b5cf6", "#f59e0b", "#22c55e", "#ef4444", "#ec4899", "#71717a"];
 
 export default function EventsStats({ events }: EventsStatsProps) {
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => { setMounted(true); }, []);
+    
     const pieData = events.byType.map(e => ({
         name: EVENT_LABELS[e.type] || e.type,
         value: e.count,
@@ -39,74 +41,82 @@ export default function EventsStats({ events }: EventsStatsProps) {
         <div className="space-y-5">
             {/* Quick stats */}
             <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-lg bg-white/5 p-3 text-center">
-                    <CalendarDays className="w-5 h-5 text-cyan-400 mx-auto mb-1" />
-                    <p className="text-2xl font-bold text-white">{events.thisMonth}</p>
-                    <p className="text-xs text-zinc-500">Ce mois</p>
+                <div className="rounded-lg bg-surface p-3 text-center">
+                    <CalendarDays className="w-5 h-5 text-info mx-auto mb-1" />
+                    <p className="text-2xl font-bold text-foreground">{events.thisMonth}</p>
+                    <p className="text-xs text-muted-foreground">Ce mois</p>
                 </div>
-                <div className="rounded-lg bg-white/5 p-3 text-center">
+                <div className="rounded-lg bg-surface p-3 text-center">
                     <Users className="w-5 h-5 text-violet-400 mx-auto mb-1" />
-                    <p className="text-2xl font-bold text-white">{events.avgParticipation}</p>
-                    <p className="text-xs text-zinc-500">Moy. participants</p>
+                    <p className="text-2xl font-bold text-foreground">{events.avgParticipation}</p>
+                    <p className="text-xs text-muted-foreground">Moy. participants</p>
                 </div>
-                <div className="rounded-lg bg-white/5 p-3 text-center">
-                    <Medal className="w-5 h-5 text-amber-400 mx-auto mb-1" />
-                    <p className="text-2xl font-bold text-white">{events.total}</p>
-                    <p className="text-xs text-zinc-500">Total events</p>
+                <div className="rounded-lg bg-surface p-3 text-center">
+                    <Medal className="w-5 h-5 text-warning mx-auto mb-1" />
+                    <p className="text-2xl font-bold text-foreground">{events.total}</p>
+                    <p className="text-xs text-muted-foreground">Total events</p>
                 </div>
             </div>
 
             {/* Donut */}
             {pieData.length > 0 && (
                 <div className="h-44">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <PieChart style={{ background: "transparent" }}>
-                            <Pie
-                                data={pieData}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={40}
-                                outerRadius={65}
-                                paddingAngle={3}
-                                dataKey="value"
-                                stroke="none"
-                            >
-                                {pieData.map((_, i) => (
-                                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                                ))}
-                            </Pie>
-                            <Tooltip
-                                contentStyle={{
-                                    backgroundColor: "rgba(24,24,27,0.95)",
-                                    border: "1px solid rgba(255,255,255,0.1)",
-                                    borderRadius: "8px",
-                                    color: "#fff",
-                                    fontSize: "13px",
-                                }}
-                            />
-                        </PieChart>
-                    </ResponsiveContainer>
-                    <div className="flex flex-wrap gap-3 justify-center">
-                        {pieData.map((d, i) => (
-                            <div key={d.name} className="flex items-center gap-1.5 text-xs text-zinc-400">
-                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                                {d.name}
-                            </div>
-                        ))}
-                    </div>
+                    {!mounted ? (
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-caption italic bg-surface rounded-xl border border-dashed border-border">
+                            Chargement du graphique...
+                        </div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                            <PieChart style={{ background: "transparent" }}>
+                                <Pie
+                                    data={pieData}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={40}
+                                    outerRadius={65}
+                                    paddingAngle={3}
+                                    dataKey="value"
+                                    stroke="none"
+                                >
+                                    {pieData.map((_, i) => (
+                                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: "rgba(24,24,27,0.95)",
+                                        border: "1px solid rgba(255,255,255,0.1)",
+                                        borderRadius: "8px",
+                                        color: "#fff",
+                                        fontSize: "13px",
+                                    }}
+                                />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    )}
+                    {mounted && (
+                        <div className="flex flex-wrap gap-3 justify-center">
+                            {pieData.map((d, i) => (
+                                <div key={d.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                                    {d.name}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 
             {/* Top Organizers */}
             {events.topOrganizers.length > 0 && (
                 <div>
-                    <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Top Organisateurs</h4>
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Top Organisateurs</h4>
                     <div className="space-y-1.5">
                         {events.topOrganizers.map((org, i) => (
                             <div key={org.name} className="flex items-center gap-2 text-sm">
-                                <span className="text-zinc-600 w-4 font-mono">{i + 1}.</span>
-                                <span className="text-white font-medium truncate flex-1">{org.name}</span>
-                                <span className="text-cyan-400 font-bold">{org.value}</span>
+                                <span className="text-muted-foreground w-4 font-mono">{i + 1}.</span>
+                                <span className="text-foreground font-medium truncate flex-1">{org.name}</span>
+                                <span className="text-info font-bold">{org.value}</span>
                             </div>
                         ))}
                     </div>

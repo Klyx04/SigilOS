@@ -1,0 +1,21 @@
+# Dependency directories
+node_modules
+.next
+.pnpm-store
+
+# Git
+.git
+.gitignore
+
+# Game Assets (Served via Volume or directly on host, DO NOT include in image)
+# These are the 30,000+ files causing slow builds
+public/game-data/tiles/
+public/game-data/hd_maps/
+
+# Logs and temp files
+*.log
+*.debug.json
+temp_map.jpg
+utf8_map.tsx
+potable_map.tsx
+old_map*.tsx

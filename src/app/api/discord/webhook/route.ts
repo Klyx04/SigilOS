@@ -1,299 +1,124 @@
 /**
- * Discord Webhook Handler
- * Handles Discord Gateway Events for Guild & Member Lifecycle Management
- * 
- * Events handled:
- * - GUILD_CREATE: Bot added to server → Auto-whitelist
- * - GUILD_DELETE: Bot removed from server → Soft-delete guild
- * - GUILD_MEMBER_REMOVE: User left or was kicked → Archive profile
- * - GUILD_BAN_ADD: User was banned → Anonymize profile
- * 
- * Security:
- * - Ed25519 signature verification required
- * - All actions logged to AuditLog for transparency
+ * Discord Webhook Events — entrée HTTP sortante de Discord (outgoing webhook).
+ *
+ * #223 P1 (résilience long terme) : ce canal du portail développeur Discord
+ * n'envoie QUE des « Webhook Events » :
+ *   - PING (`type: 0`, ou `type: 1` sans `event`) → réponse 204 vide (< 3 s) ;
+ *   - `APPLICATION_AUTHORIZED`   → tracé (installation de l'app) ;
+ *   - `APPLICATION_DEAUTHORIZED` → tracé + lookup du compte (hygiène de compte).
+ *
+ * Discord n'envoie JAMAIS d'events Gateway (`GUILD_*`, `MESSAGE_*`,
+ * `CHANNEL_*`) vers ce canal : les anciens handlers Gateway de cette route
+ * étaient du code mort au format erroné (et auto-whitelistaient les guildes en
+ * `isActive:true`, divergent du bot) et ont été SUPPRIMÉS. Le Gateway
+ * (`services/discord-bot/index.ts`) reste la source de vérité du lifecycle.
+ *
+ * Sécurité : signature Ed25519 obligatoire (`X-Signature-Ed25519` +
+ * `X-Signature-Timestamp`, anti-replay ±5 min) via `verifyDiscordSignature`
+ * (`src/server/discord.ts`). Échec → 401 (fail-closed). Discord envoie
+ * volontairement de mauvaises signatures en check périodique : les accepter
+ * ferait retirer l'URL.
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { logger } from "@/lib/logger";
+import { verifyDiscordSignature } from "@/server/discord";
+import { revokeDiscordAccountSession } from "@/lib/discord-account-hygiene";
 
-// Discord uses Ed25519 for webhook signatures
-// We'll use the Web Crypto API for verification
-async function verifyDiscordSignature(
-    request: NextRequest,
-    body: string
-): Promise<boolean> {
-    const signature = request.headers.get("X-Signature-Ed25519");
-    const timestamp = request.headers.get("X-Signature-Timestamp");
-    const publicKey = process.env.DISCORD_APPLICATION_PUBLIC_KEY || process.env.DISCORD_PUBLIC_KEY;
+type DiscordWebhookEventData = {
+    type?: string;
+    timestamp?: string;
+    data?: { user?: { id?: string } };
+};
 
-    if (!signature || !timestamp || !publicKey) {
-        console.warn("[Discord Webhook] Missing signature headers or public key");
-        return false;
+type DiscordWebhookPayload = {
+    version?: number;
+    application_id?: string;
+    type?: number;
+    event?: DiscordWebhookEventData;
+};
+
+/** Réponse attendue par Discord : 204 No Content, sans corps. */
+function respondNoContent(): NextResponse {
+    return new NextResponse(null, { status: 204 });
+}
+
+async function handleApplicationAuthorized(payload: DiscordWebhookPayload): Promise<void> {
+    logger.info("[Discord Webhook] APPLICATION_AUTHORIZED", {
+        applicationId: payload.application_id ?? null,
+    });
+}
+
+async function handleApplicationDeauthorized(payload: DiscordWebhookPayload): Promise<void> {
+    const discordUserId = payload.event?.data?.user?.id;
+    if (!discordUserId) {
+        logger.warn("[Discord Webhook] APPLICATION_DEAUTHORIZED sans user id (payload ignoré)");
+        return;
     }
 
+    // #223 P3.2 — Hygiène de compte branchée : dé-liaison OAuth + invalidation des sessions.
+    // Best-effort (ne throw jamais) : l'ACK 204 doit toujours partir.
+    const result = await revokeDiscordAccountSession(discordUserId);
+
+    logger.warn("[Discord Webhook] APPLICATION_DEAUTHORIZED", {
+        discordUserId,
+        revoked: result.revoked,
+        userId: result.revoked ? result.userId : null,
+        reason: result.revoked ? null : result.reason,
+    });
+
+    // Traçage God (audit système, sans session utilisateur).
+    if (result.revoked) {
+        try {
+            const { createSystemAuditLog } = await import("@/lib/dofensive-sync");
+            await createSystemAuditLog({
+                action: "DISCORD_DEAUTHORIZED",
+                targetType: "USER",
+                targetId: result.userId,
+                discordUserId,
+                sessionRevoked: true,
+            });
+        } catch (auditErr) {
+            logger.warn("[Discord Webhook] createSystemAuditLog échoué:", { error: String(auditErr) });
+        }
+    }
+}
+
+export async function POST(request: NextRequest): Promise<NextResponse> {
+    const bodyText = await request.text();
+
+    // Signature Ed25519 unifiée (anti-replay ±5 min). Fail-closed → 401.
+    const isValid = await verifyDiscordSignature(request, bodyText);
+    if (!isValid) {
+        logger.warn("[Discord Webhook] Signature invalide — requête rejetée (401)");
+        return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
+
+    let payload: DiscordWebhookPayload;
     try {
-        // Import the public key
-        const keyData = hexToUint8Array(publicKey);
-        const key = await crypto.subtle.importKey(
-            "raw",
-            keyData.buffer as ArrayBuffer,
-            { name: "Ed25519" },
-            false,
-            ["verify"]
-        );
-
-        // Verify the signature
-        const message = new TextEncoder().encode(timestamp + body);
-        const sig = hexToUint8Array(signature);
-
-        return await crypto.subtle.verify("Ed25519", key, sig.buffer as ArrayBuffer, message);
-    } catch (error) {
-        console.error("[Discord Webhook] Signature verification error:", error);
-        return false;
-    }
-}
-
-function hexToUint8Array(hex: string): Uint8Array {
-    const matches = hex.match(/.{1,2}/g);
-    if (!matches) return new Uint8Array();
-    return new Uint8Array(matches.map(byte => parseInt(byte, 16)));
-}
-
-// Auto-whitelist a new guild when bot is added
-async function handleGuildCreate(guildId: string, guildName: string) {
-    // Check if already in AllowedGuild
-    const existing = await db.allowedGuild.findUnique({
-        where: { discordGuildId: guildId }
-    });
-
-    if (existing) {
-        return;
+        payload = JSON.parse(bodyText);
+    } catch {
+        return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
 
-    // Auto-add to whitelist with BETA tier
-    await db.allowedGuild.create({
-        data: {
-            discordGuildId: guildId,
-            name: guildName,
-            tier: "BETA",
-            isActive: true,
-            addedBy: "SYSTEM", // System-generated
-            notes: "Auto-added via webhook (bot invited)"
-        }
-    });
-}
-
-// Soft-delete a guild when bot is removed
-async function handleGuildDelete(guildId: string) {
-    const guild = await db.guildConfig.findUnique({
-        where: { discordGuildId: guildId },
-        select: { id: true, name: true }
-    });
-
-    if (!guild) {
-        return;
+    // PING : `type: 0` (convention snapshot #223) ; fallback `type: 1` sans event.
+    if (payload.type === 0 || (payload.type === 1 && !payload.event)) {
+        return respondNoContent();
     }
 
-    // Soft-delete the guild (same logic as god-lifecycle-actions)
-    const scheduledDeletion = new Date();
-    scheduledDeletion.setDate(scheduledDeletion.getDate() + 30); // 30 days grace period
-
-    await db.guildConfig.update({
-        where: { id: guild.id },
-        data: {
-            isActive: false,
-            deletedAt: new Date(),
-            deletionReason: "BOT_REMOVED",
-            scheduledDeletion
+    if (payload.type === 1 && payload.event?.type) {
+        switch (payload.event.type) {
+            case "APPLICATION_AUTHORIZED":
+                await handleApplicationAuthorized(payload);
+                break;
+            case "APPLICATION_DEAUTHORIZED":
+                await handleApplicationDeauthorized(payload);
+                break;
+            default:
+                logger.debug("[Discord Webhook] Event hors périmètre ignoré", { eventType: payload.event.type });
+                break;
         }
-    });
-
-    // Soft-delete all profiles in this guild
-    await db.userProfile.updateMany({
-        where: { guildId: guild.id },
-        data: {
-            status: "ARCHIVED",
-            archivedAt: new Date(),
-            archiveReason: "GUILD_DELETED",
-            scheduledDeletion
-        }
-    });
-
-    // Log to audit trail
-    await db.auditLog.create({
-        data: {
-            guildId: guild.id,
-            actorUserId: "SYSTEM",
-            actorName: "Discord Webhook",
-            action: "WEBHOOK_GUILD_DELETE",
-            targetType: "GUILD",
-            targetId: guild.id,
-            oldValue: { isActive: true },
-            newValue: { isActive: false, deletionReason: "BOT_REMOVED" },
-            metadata: { discordGuildId: guildId }
-        }
-    });
-}
-
-// Archive a user profile when they leave or are kicked
-async function handleMemberRemove(guildId: string, userId: string, reason: "LEFT" | "KICKED") {
-
-    // Find the guild config
-    const guild = await db.guildConfig.findUnique({
-        where: { discordGuildId: guildId },
-        select: { id: true }
-    });
-
-    if (!guild) {
-        return;
     }
 
-    // Find user by Discord ID (need to look up via Account)
-    const account = await db.account.findFirst({
-        where: { provider: "discord", providerAccountId: userId },
-        select: { userId: true }
-    });
-
-    if (!account) {
-        return;
-    }
-
-    // Update the profile
-    const result = await db.userProfile.updateMany({
-        where: {
-            userId: account.userId,
-            guildId: guild.id,
-            status: "ACTIVE" // Only archive if currently active
-        },
-        data: {
-            status: "ARCHIVED",
-            archivedAt: new Date(),
-            archiveReason: reason
-        }
-    });
-
-    if (result.count > 0) {
-        // Log to audit trail
-        await db.auditLog.create({
-            data: {
-                guildId: guild.id,
-                actorUserId: "SYSTEM",
-                actorName: "Discord Webhook",
-                action: "WEBHOOK_MEMBER_REMOVE",
-                targetType: "PROFILE",
-                targetId: userId,
-                oldValue: { status: "ACTIVE" },
-                newValue: { status: "ARCHIVED", archiveReason: reason },
-                metadata: { discordUserId: userId, reason }
-            }
-        });
-    }
-}
-
-// Anonymize a user profile when they are banned
-async function handleBan(guildId: string, userId: string) {
-
-    const guild = await db.guildConfig.findUnique({
-        where: { discordGuildId: guildId },
-        select: { id: true }
-    });
-
-    if (!guild) return;
-
-    const account = await db.account.findFirst({
-        where: { provider: "discord", providerAccountId: userId },
-        select: { userId: true }
-    });
-
-    if (!account) return;
-
-    // Anonymize + Ban the profile
-    const result = await db.userProfile.updateMany({
-        where: {
-            userId: account.userId,
-            guildId: guild.id
-        },
-        data: {
-            status: "BANNED",
-            archivedAt: new Date(),
-            archiveReason: "BANNED",
-            // Anonymize personal data
-            pseudoDofus: "[Membre Banni]",
-            discordNickname: null,
-            metamobPseudo: null,
-            altPseudos: Prisma.JsonNull,
-            availability: Prisma.JsonNull,
-            dofusBookLinks: Prisma.JsonNull
-        }
-    });
-
-    if (result.count > 0) {
-    }
-}
-
-export async function POST(request: NextRequest) {
-    try {
-        const body = await request.text();
-
-        // 1. Verify Discord signature (CRITICAL for security)
-        const isValid = await verifyDiscordSignature(request, body);
-        if (!isValid) {
-            console.warn("[Discord Webhook] Invalid signature");
-            return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-        }
-
-        const payload = JSON.parse(body);
-
-        // 2. Handle Discord's PING verification (required for webhook setup)
-        if (payload.type === 1) {
-            return NextResponse.json({ type: 1 });
-        }
-
-        // 3. Handle Gateway Events (type 0)
-        if (payload.type === 0) {
-            const event = payload.t;
-            const data = payload.d;
-
-            // Check guild whitelist (if configured)
-            const whitelistVar = process.env.ALLOWED_GUILD_IDS;
-            if (whitelistVar !== undefined) {
-                const allowedGuilds = whitelistVar.split(",").map(id => id.trim()).filter(Boolean);
-                if (!allowedGuilds.includes(data.guild_id)) {
-                    return NextResponse.json({ status: "ignored" });
-                }
-            }
-
-            switch (event) {
-                case "GUILD_CREATE":
-                    // Bot was added to a new server
-                    await handleGuildCreate(data.id, data.name);
-                    break;
-
-                case "GUILD_DELETE":
-                    // Bot was removed from a server
-                    await handleGuildDelete(data.id);
-                    break;
-
-                case "GUILD_MEMBER_REMOVE":
-                    // Note: Discord doesn't distinguish between leave and kick in this event
-                    // We treat all as "LEFT" unless we have audit log access
-                    await handleMemberRemove(data.guild_id, data.user.id, "LEFT");
-                    break;
-
-                case "GUILD_BAN_ADD":
-                    await handleBan(data.guild_id, data.user.id);
-                    break;
-
-                default:
-                    // Ignore other events
-                    break;
-            }
-        }
-
-        return NextResponse.json({ status: "ok" });
-    } catch (error) {
-        console.error("[Discord Webhook] Error:", error);
-        return NextResponse.json({ error: "Internal error" }, { status: 500 });
-    }
+    return respondNoContent();
 }

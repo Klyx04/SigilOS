@@ -91,10 +91,12 @@ export async function POST(request: NextRequest) {
                 });
             }
 
-            const [prefix, action, entityId] = custom_id.split(":");
+            const [prefix, action, entityId, extra] = custom_id.split(":");
+            // #26 multi-donjons : custom_id = dj:join:{postId}:{idx} → index du donjon
+            const dungeonIndex = extra !== undefined && extra !== "" ? Number(extra) : undefined;
 
             const account = await findUserByDiscordId(member.user.id);
-            if (!account) {
+            if (!account && prefix !== "ticket") {
                 return NextResponse.json({
                     type: 4,
                     data: { content: "❌ Tu dois t'être connecté au moins une fois sur le site pour utiliser ce bouton.", flags: 64 },
@@ -115,11 +117,14 @@ export async function POST(request: NextRequest) {
             const { PERMISSIONS } = await import("@/lib/permissions");
 
             const DISCORD_PERM_MAP: Record<string, string> = {
-                calendar: PERMISSIONS.CALENDAR_VIEW,
-                songes: PERMISSIONS.SONGES_JOIN,
-                dj: PERMISSIONS.FINDER_VIEW,
-                poll: PERMISSIONS.POLLS_VIEW,
-                svc: PERMISSIONS.SERVICES_VIEW,
+                calendar: PERMISSIONS.COMMUNITY_ACCESS,   // Calendrier = participation sociale
+                songes: PERMISSIONS.GAME_OPERATIONS,      // Songes = organisation d'activités
+                dj: PERMISSIONS.GAME_OPERATIONS,          // Donjons = organisation d'activités
+                // NOTE: 'poll' is intentionally NOT in this map.
+                // Poll vote security is enforced downstream via SigilOS profile check
+                // (db.userProfile lookup). The Discord API gate can false-negative
+                // on rate limits or temporary API failures, blocking valid members.
+                svc: PERMISSIONS.GAME_OPERATIONS,         // Services = organisation d'activités
             };
 
             const requiredPerm = DISCORD_PERM_MAP[prefix];
@@ -141,10 +146,10 @@ export async function POST(request: NextRequest) {
             if (prefix === "calendar") {
                 if (action === "join") {
                     const { processRegistration } = await import("@/server/calendar-service");
-                    result = await processRegistration(guild_id, entityId, account.userId);
+                    result = await processRegistration(guild_id, entityId, account!.userId);
                 } else if (action === "leave") {
                     const { processUnregistration } = await import("@/server/calendar-service");
-                    result = await processUnregistration(guild_id, entityId, account.userId);
+                    result = await processUnregistration(guild_id, entityId, account!.userId);
                 }
             } else if (prefix === "songes") {
                 if (action === "join") {
@@ -189,15 +194,28 @@ export async function POST(request: NextRequest) {
                     });
                 } else if (action === "leave") {
                     const { processRunLeave } = await import("@/server/songes-service");
-                    result = await processRunLeave(guild_id, entityId, account.userId);
+                    result = await processRunLeave(guild_id, entityId, account!.userId);
                 }
             } else if (prefix === "poll") {
                 if (action === "vote") {
+                    // Find the internal guild config by discordGuildId (guild_id)
                     const { processPollVote } = await import("@/server/actions/poll-actions");
+                    const guild = await (db as any).guildConfig.findFirst({
+                        where: {
+                            OR: [{ id: guild_id }, { discordGuildId: guild_id }],
+                        },
+                        select: { id: true },
+                    });
 
-                    // RBAC already checked by centralized gate above (PERMISSIONS.POLLS_VIEW)
+                    if (!guild) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Guilde introuvable sur SigilOS.", flags: 64 },
+                        });
+                    }
+
                     const profile = await db.userProfile.findUnique({
-                        where: { userId_guildId: { userId: account.userId, guildId: guild_id } }
+                        where: { userId_guildId: { userId: account!.userId, guildId: guild.id } }
                     });
 
                     if (!profile) {
@@ -228,6 +246,50 @@ export async function POST(request: NextRequest) {
                     });
                 }
 
+                if (action === "apply") {
+                    // #169 — bouton « S'inscrire » : ouvre une modal Discord avec choix de classe.
+                    // Le submit reviendra en type 5 avec custom_id dj:join:{postId}[:{idx}].
+                    const modalCustomId = `dj:join:${entityId}${dungeonIndex !== undefined ? `:${dungeonIndex}` : ""}`;
+                    return NextResponse.json({
+                        type: 9, // MODAL
+                        data: {
+                            custom_id: modalCustomId,
+                            title: "⚔️ Inscription au groupe",
+                            components: [
+                                {
+                                    type: 1,
+                                    components: [
+                                        {
+                                            type: 4, // Text Input
+                                            custom_id: "classe",
+                                            label: "Ta classe Dofus",
+                                            style: 1, // Short
+                                            placeholder: "Ex: Cra, Iop, Eniripsa...",
+                                            required: true,
+                                            min_length: 2,
+                                            max_length: 30,
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: 1,
+                                    components: [
+                                        {
+                                            type: 4,
+                                            custom_id: "message",
+                                            label: "Message (optionnel)",
+                                            style: 2, // Paragraph
+                                            placeholder: "Ex: Cra opti dispo ce soir",
+                                            required: false,
+                                            max_length: 200,
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    });
+                }
+
                 if (action === "join" || action === "leave") {
                     // Récupérer le post pour obtenir le guildId Prisma interne (≠ Discord guild_id snowflake)
                     const post = await (db as any).djSearchPost.findUnique({
@@ -251,7 +313,7 @@ export async function POST(request: NextRequest) {
 
                     // Chercher le profil via post.guildId (CUID Prisma), PAS via guild_id (Discord snowflake)
                     const profile = await db.userProfile.findFirst({
-                        where: { userId: account.userId, guildId: post.guildId },
+                        where: { userId: account!.userId, guildId: post.guildId },
                     });
 
                     if (!profile) {
@@ -263,7 +325,7 @@ export async function POST(request: NextRequest) {
 
                     if (action === "join") {
                         const { internalJoinDjPost } = await import("@/server/actions/dungeon-finder-actions");
-                        result = await internalJoinDjPost(entityId, profile.id, account.userId);
+                        result = await internalJoinDjPost(entityId, profile.id, account!.userId, dungeonIndex);
 
                         if (result?.success) {
                             return NextResponse.json({
@@ -286,7 +348,7 @@ export async function POST(request: NextRequest) {
             } else if (prefix === "svc") {
                 if (action === "contact") {
                     const { internalContactService } = await import("@/server/actions/service-actions");
-                    result = await internalContactService(entityId, "", account.userId);
+                    result = await internalContactService(entityId, "", account!.userId);
 
                     if (result?.success && result.data) {
                         const lines = [`📩 **Prestataire :** ${result.data.pseudo}`];
@@ -297,6 +359,474 @@ export async function POST(request: NextRequest) {
                             data: { content: lines.join("\n"), flags: 64 },
                         });
                     }
+                } else if (action === "reply") {
+                    const parts = custom_id.split(":");
+                    const requesterUserId = parts[2];
+                    const listingId = parts[3];
+
+                    const listing = await db.serviceListing.findUnique({
+                        where: { id: listingId },
+                        select: { profile: { select: { userId: true } } }
+                    });
+
+                    if (!listing) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Ce service n'existe plus.", flags: 64 },
+                        });
+                    }
+
+                    if (listing.profile.userId !== account!.userId) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Seul le prestataire de ce service peut répondre à la demande.", flags: 64 },
+                        });
+                    }
+
+                    return NextResponse.json({
+                        type: 9, // MODAL
+                        data: {
+                            custom_id: `svc:submit_reply:${requesterUserId}:${listingId}`,
+                            title: "💬 Répondre au client",
+                            components: [
+                                {
+                                    type: 1,
+                                    components: [
+                                        {
+                                            type: 4,
+                                            custom_id: "reply_message",
+                                            label: "Votre message",
+                                            style: 2, // Paragraph style
+                                            placeholder: "Ex: Salut ! C'est d'accord pour ce soir 21h ! MP moi en jeu.",
+                                            required: true,
+                                            min_length: 5,
+                                            max_length: 500,
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    });
+                }
+            } else if (prefix === "userreq") {
+                if (action === "reply") {
+                    // Sollicitation : ouvrir une modale de réponse — réservée au membre sollicité.
+                    const notificationId = entityId;
+                    const notif = await db.notification.findUnique({ where: { id: notificationId } });
+                    const gcfg = await db.guildConfig.findUnique({ where: { discordGuildId: guild_id }, select: { id: true } });
+
+                    if (!notif || !gcfg || notif.guildId !== gcfg.id || notif.userId !== account!.userId) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Seul le membre sollicité peut répondre à cette demande.", flags: 64 },
+                        });
+                    }
+
+                    return NextResponse.json({
+                        type: 9, // MODAL
+                        data: {
+                            custom_id: `userreq:submit_reply:${notificationId}`,
+                            title: "💬 Répondre à la sollicitation",
+                            components: [
+                                {
+                                    type: 1,
+                                    components: [
+                                        {
+                                            type: 4,
+                                            custom_id: "reply_message",
+                                            label: "Votre message",
+                                            style: 2, // Paragraph style
+                                            placeholder: "Ex: Salut ! Je suis dispo ce soir, envoie-moi un MP en jeu.",
+                                            required: true,
+                                            min_length: 5,
+                                            max_length: 500,
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    });
+                }
+            } else if (prefix === "validate") {
+                // =========================================================
+                // VALIDATE / REJECT — Mission, Achievement, KamaDonation
+                // custom_id: validate:{type}:{entityId}:{discordGuildId}
+                //         or validate:{type}_reject:{entityId}:{discordGuildId}
+                // =========================================================
+                const isReject = action.endsWith("_reject");
+                const entityType = isReject ? action.replace("_reject", "") : action; // "mission" | "achievement" | "kama"
+                // custom_id format: validate:{type}[:_reject]:{entityId}:{discordGuildId}
+                const parts = custom_id.split(":");
+                const entityId = parts[2];
+                const targetGuildId = parts[3];
+
+                // Permission check (MISSIONS_VALIDATE required)
+                const { internalCheckPermission } = await import("@/server/actions/user-actions");
+                const { PERMISSIONS } = await import("@/lib/permissions");
+                const isValidator = await internalCheckPermission(targetGuildId, member.user.id, PERMISSIONS.MISSIONS_OFFICER);
+                if (!isValidator) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "🚫 Tu n'as pas la permission de valider des preuves.", flags: 64 },
+                    });
+                }
+
+                // ACK immediately (defer update) — gives us 15 min to respond
+                // We'll use type 7 (update message) after processing
+
+                const { internalValidateMissionSubmission, internalReviewKamaDonation } =
+                    await import("@/server/actions/discord-validation-actions");
+
+                let resultMsg = "";
+                const adminTag = `${member.user.username}`;
+
+                if (entityType === "mission") {
+                    const status = isReject ? "REJECTED" : "VALIDATED";
+                    const res = await internalValidateMissionSubmission(entityId, status, targetGuildId, member.user.id);
+                    if (res.success) {
+                        resultMsg = isReject
+                            ? `❌ Mission **refusée** par ${adminTag} — Membre: **${res.memberName}** — **${res.missionTitle}**`
+                            : `✅ Mission **validée** par ${adminTag} — Membre: **${res.memberName}** — **${res.missionTitle}**`;
+                    } else {
+                        return NextResponse.json({ type: 4, data: { content: `❌ Erreur: ${res.error}`, flags: 64 } });
+                    }
+                } else if (entityType === "kama") {
+                    const action_kama = isReject ? "REJECT" : "VALIDATE";
+                    const res = await internalReviewKamaDonation(entityId, action_kama, targetGuildId, member.user.id);
+                    if (res.success) {
+                        const amountStr = res.amount?.toLocaleString("fr-FR") ?? "?";
+                        resultMsg = isReject
+                            ? `❌ Don **refusé** par ${adminTag} — Membre: **${res.memberName}** — ${amountStr} kamas`
+                            : `✅ Don **validé** par ${adminTag} — Membre: **${res.memberName}** — ${amountStr} kamas`;
+                    } else {
+                        return NextResponse.json({ type: 4, data: { content: `❌ Erreur: ${res.error}`, flags: 64 } });
+                    }
+                } else if (entityType === "reactivation") {
+                    // custom_id format: validate:reactivation:{action}:{profileId}:{guildId}
+                    // where action is "approve" or "reject"
+                    // The standard parts[2] = "approve"|"reject" (not the entity ID)
+                    // For reactivation, entityId is at parts[3] and guildId at parts[4]
+                    const reactivationProfileId = parts[3];
+                    const reactivationGuildId = parts[4];
+                    
+                    const status = isReject ? "ARCHIVED" : "ACTIVE";
+                    const { internalUpdateMemberProfileStatus } = await import("@/server/actions/user-actions");
+                    
+                    try {
+                        await internalUpdateMemberProfileStatus(
+                            reactivationProfileId, 
+                            status, 
+                            isReject ? "REACTIVATION_REJECTED" : "REACTIVATION_APPROVED",
+                            undefined,
+                            undefined,
+                            member.user.id
+                        );
+
+                        // Also 🔔 send lifecycle notification if approved
+                        if (!isReject) {
+                            try {
+                                const { reactivateProfileByAdmin } = await import("@/server/actions/lifecycle-actions");
+                                await reactivateProfileByAdmin(reactivationGuildId, reactivationProfileId, "Approbation via Discord");
+                            } catch (_) { /* notification is best-effort */ }
+                        }
+
+                        resultMsg = isReject
+                            ? `❌ Demande de **réintégration refusée** par ${adminTag}`
+                            : `✅ Demande de **réintégration validée** par ${adminTag}`;
+                    } catch (err: any) {
+                        return NextResponse.json({ type: 4, data: { content: `❌ Erreur: ${err.message}`, flags: 64 } });
+                    }
+                } else if (entityType === "achievement") {
+                    const action_ach = isReject ? "REJECT" : "VALIDATE";
+                    const { internalReviewAchievementSubmission } = await import("@/server/actions/discord-validation-actions");
+                    const res = await internalReviewAchievementSubmission(entityId, action_ach, targetGuildId, member.user.id);
+                    if (res.success) {
+                        const pointsStr = res.points?.toLocaleString("fr-FR") ?? "?";
+                        resultMsg = isReject
+                            ? `❌ Succès **refusé** par ${adminTag} — Membre: **${res.memberName}** — ${pointsStr} pts`
+                            : `✅ Succès **validé** par ${adminTag} — Membre: **${res.memberName}** — ${pointsStr} pts`;
+                    } else {
+                        return NextResponse.json({ type: 4, data: { content: `❌ Erreur: ${res.error}`, flags: 64 } });
+                    }
+                } else {
+                    return NextResponse.json({ type: 4, data: { content: "Type de validation inconnu.", flags: 64 } });
+                }
+
+                // Réponse éphémère à l'admin (l'embed a été supprimé par internalValidate*)
+                return NextResponse.json({
+                    type: 4, // CHANNEL_MESSAGE_WITH_SOURCE (éphémère)
+                    data: {
+                        content: resultMsg,
+                        flags: 64, // EPHEMERAL — visible uniquement par l'admin qui a cliqué
+                        components: [],
+                    },
+                });
+
+            } else if (prefix === "ticket") {
+                // =========================================================
+                // TICKET SYSTEM V2 — 2-step flow: Select Menu → Adapted Modal
+                // =========================================================
+                if (action === "open") {
+                    // RATE LIMIT: 1 ticket every 10 seconds per user
+                    const waitSec = getRateLimitRemaining(`ticket:${member.user.id}`, 1, 10_000);
+                    if (waitSec > 0) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: `⏳ Vous avez atteint la limite. Réessayez dans **${waitSec}s**.`, flags: 64 },
+                        });
+                    }
+                    // Step 1: Send ephemeral message with category Select Menu
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            content: "🎫 **Ouvrir un ticket** — Choisissez la catégorie qui correspond à votre demande :",
+                            flags: 64, // EPHEMERAL
+                            components: [
+                                {
+                                    type: 1, // ACTION_ROW
+                                    components: [
+                                        {
+                                            type: 3, // STRING_SELECT
+                                            custom_id: `ticket:select:${entityId}`,
+                                            placeholder: "Sélectionnez une catégorie...",
+                                            min_values: 1,
+                                            max_values: 1,
+                                            options: [
+                                                {
+                                                    label: "Demande d'accès",
+                                                    value: "ACCESS_REQUEST",
+                                                    description: "Rejoindre SigilOS pour votre guilde",
+                                                    emoji: { name: "🔑" },
+                                                },
+                                                {
+                                                    label: "Signaler un bug",
+                                                    value: "BUG_REPORT",
+                                                    description: "Un problème sur le dashboard ou le bot",
+                                                    emoji: { name: "🐛" },
+                                                },
+                                                {
+                                                    label: "Proposer une feature",
+                                                    value: "FEATURE_REQUEST",
+                                                    description: "Suggérer une amélioration",
+                                                    emoji: { name: "💡" },
+                                                },
+                                                {
+                                                    label: "Autre / Question",
+                                                    value: "OTHER",
+                                                    description: "Question générale",
+                                                    emoji: { name: "📩" },
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    });
+                } else if (action === "select") {
+                    // Step 2: User selected a category from dropdown → open adapted modal
+                    const selectedCategory = payload.data?.values?.[0] || "OTHER";
+
+                    const categoryLabels: Record<string, string> = {
+                        ACCESS_REQUEST: "🔑 Demande d'accès",
+                        BUG_REPORT: "🐛 Signaler un bug",
+                        FEATURE_REQUEST: "💡 Proposer une feature",
+                        OTHER: "📩 Autre demande",
+                    };
+
+                    // [DUP-CHECK] Verify user doesn't have an active ticket in this category
+                    const existingTicket = await db.supportTicket.findFirst({
+                        where: {
+                            creatorDiscordId: member.user.id,
+                            category: selectedCategory as any,
+                            status: { not: "CLOSED" },
+                        },
+                        select: { ticketNumber: true }
+                    });
+
+                    if (existingTicket) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { 
+                                content: `⚠️ Tu as déjà un ticket ouvert pour la catégorie **${categoryLabels[selectedCategory] || selectedCategory}**.\n\nFerme ton ticket **#${existingTicket.ticketNumber}** avant d'en ouvrir un nouveau.`, 
+                                flags: 64 
+                            },
+                        });
+                    }
+
+                    // Build modal fields based on category
+                    const modalComponents: any[] = [];
+
+                    if (selectedCategory === "ACCESS_REQUEST") {
+                        // Discord modals allow max 5 action rows
+                        modalComponents.push(
+                            {
+                                type: 1,
+                                components: [{
+                                    type: 4, custom_id: "discord_guild_id",
+                                    label: "ID de votre serveur Discord",
+                                    style: 1, placeholder: "Ex: 1234567890123456789 (17-20 chiffres)",
+                                    required: true, min_length: 17, max_length: 20,
+                                }],
+                            },
+                            {
+                                type: 1,
+                                components: [{
+                                    type: 4, custom_id: "guild_name",
+                                    label: "Nom de votre guilde Dofus",
+                                    style: 1, placeholder: "Uniquement des lettres (Ex: Les Gardiens)",
+                                    required: true, min_length: 2, max_length: 50,
+                                }],
+                            },
+                            {
+                                type: 1,
+                                components: [{
+                                    type: 4, custom_id: "pseudo_dofus",
+                                    label: "Votre pseudo Dofus",
+                                    style: 1, placeholder: "Uniquement des lettres (Ex: Klyx)",
+                                    required: true, min_length: 2, max_length: 30,
+                                }],
+                            },
+                            {
+                                type: 1,
+                                components: [{
+                                    type: 4, custom_id: "member_count",
+                                    label: "Nombre de membres",
+                                    style: 1, placeholder: "Entre 1 et 350 (chiffres uniquement)",
+                                    required: true, min_length: 1, max_length: 3,
+                                }],
+                            },
+                            {
+                                type: 1,
+                                components: [{
+                                    type: 4, custom_id: "description",
+                                    label: "Pourquoi souhaitez-vous utiliser SigilOS ?",
+                                    style: 2, placeholder: "Décrivez brièvement votre guilde et vos besoins...",
+                                    required: true, min_length: 10, max_length: 1000,
+                                }],
+                            },
+                        );
+                    } else if (selectedCategory === "BUG_REPORT") {
+                        modalComponents.push(
+                            {
+                                type: 1,
+                                components: [{
+                                    type: 4, custom_id: "subject",
+                                    label: "Description courte du bug",
+                                    style: 1, placeholder: "Ex: Les missions ne s'affichent plus",
+                                    required: true, min_length: 5, max_length: 100,
+                                }],
+                            },
+                            {
+                                type: 1,
+                                components: [{
+                                    type: 4, custom_id: "page",
+                                    label: "Page / Fonctionnalité concernée",
+                                    style: 1, placeholder: "Ex: Dashboard > Missions, Bot Discord, Landing page...",
+                                    required: true, min_length: 3, max_length: 100,
+                                }],
+                            },
+                            {
+                                type: 1,
+                                components: [{
+                                    type: 4, custom_id: "description",
+                                    label: "Étapes pour reproduire + détails",
+                                    style: 2, placeholder: "1. Je clique sur...\n2. Je vois...\n3. Comportement attendu vs réel",
+                                    required: true, min_length: 10, max_length: 1500,
+                                }],
+                            },
+                        );
+                    } else if (selectedCategory === "FEATURE_REQUEST") {
+                        modalComponents.push(
+                            {
+                                type: 1,
+                                components: [{
+                                    type: 4, custom_id: "subject",
+                                    label: "Titre de la fonctionnalité",
+                                    style: 1, placeholder: "Ex: Système de classement PvP",
+                                    required: true, min_length: 5, max_length: 100,
+                                }],
+                            },
+                            {
+                                type: 1,
+                                components: [{
+                                    type: 4, custom_id: "description",
+                                    label: "Description détaillée de votre idée",
+                                    style: 2, placeholder: "Décrivez la fonctionnalité, son utilité, et comment vous l'imaginez...",
+                                    required: true, min_length: 10, max_length: 1500,
+                                }],
+                            },
+                        );
+                    } else {
+                        // OTHER
+                        modalComponents.push(
+                            {
+                                type: 1,
+                                components: [{
+                                    type: 4, custom_id: "subject",
+                                    label: "Sujet",
+                                    style: 1, placeholder: "De quoi s'agit-il ?",
+                                    required: true, min_length: 3, max_length: 100,
+                                }],
+                            },
+                            {
+                                type: 1,
+                                components: [{
+                                    type: 4, custom_id: "description",
+                                    label: "Votre message",
+                                    style: 2, placeholder: "Détaillez votre demande...",
+                                    required: true, min_length: 10, max_length: 1500,
+                                }],
+                            },
+                        );
+                    }
+
+                    const categoryTitles: Record<string, string> = {
+                        ACCESS_REQUEST: "🔑 Demande d'accès",
+                        BUG_REPORT: "🐛 Signaler un bug",
+                        FEATURE_REQUEST: "💡 Proposer une feature",
+                        OTHER: "📩 Autre demande",
+                    };
+
+                    return NextResponse.json({
+                        type: 9, // MODAL
+                        data: {
+                            custom_id: `ticket:create:${entityId}:${selectedCategory}`,
+                            title: categoryTitles[selectedCategory] || "📩 Ticket",
+                            components: modalComponents,
+                        },
+                    });
+                } else if (action === "close") {
+                    // ACK immediately (Deferred update) — nécessaire dans les 3s
+                    const response = NextResponse.json({ type: 6 });
+
+                    const { editInteractionMessage } = await import("@/server/discord");
+                    const { closeSupportTicket } = await import("@/server/actions/ticket-actions");
+
+                    // Exécution en arrière-plan MAIS avec follow-up : l'échec n'est plus silencieux,
+                    // le cliqueur voit le résultat (fermé et archivé, ou l'erreur).
+                    closeSupportTicket(
+                        entityId,
+                        member.user.id,
+                        member.user.global_name || member.user.username
+                    )
+                        .then((result) => {
+                            const content = result?.success
+                                ? "✅ Ticket fermé — fil Discord archivé."
+                                : `❌ ${result?.error || "Échec de la fermeture du ticket."}`;
+                            return editInteractionMessage(payload.application_id, payload.token, content);
+                        })
+                        .catch(async (err) => {
+                            const { logger } = await import("@/lib/logger");
+                            logger.error("[Tickets] Discord close error", { error: err, ticketId: entityId });
+                            return editInteractionMessage(
+                                payload.application_id,
+                                payload.token,
+                                "❌ Une erreur est survenue lors de la fermeture du ticket."
+                            );
+                        });
+
+                    return response;
                 }
             } else {
                 return NextResponse.json({ type: 4, data: { content: "Interaction inconnue", flags: 64 } });
@@ -325,7 +855,7 @@ export async function POST(request: NextRequest) {
             const { custom_id, components } = payload.data;
             const { member, guild_id } = payload;
 
-            const [prefix, action, entityId] = custom_id.split(":");
+            const [prefix, action, entityId, extra] = custom_id.split(":");
 
             // Rate limit: 5 modal submits per 5min per discord user
             if (!checkRateLimit(`modal:${member.user.id}`, 5, 5 * 60_000)) {
@@ -347,7 +877,7 @@ export async function POST(request: NextRequest) {
                 // RBAC check for modal submits (same gate as button clicks)
                 const { internalCheckPermission } = await import("@/server/actions/user-actions");
                 const { PERMISSIONS } = await import("@/lib/permissions");
-                const canJoinSonges = await internalCheckPermission(guild_id, member.user.id, PERMISSIONS.SONGES_JOIN);
+                const canJoinSonges = await internalCheckPermission(guild_id, member.user.id, PERMISSIONS.GAME_OPERATIONS);
                 if (!canJoinSonges) {
                     return NextResponse.json({
                         type: 4,
@@ -401,6 +931,301 @@ export async function POST(request: NextRequest) {
                     return NextResponse.json({
                         type: 4,
                         data: { content: `❌ ${result?.error || "Erreur inconnue"}`, flags: 64 },
+                    });
+                }
+            } else if (prefix === "dj" && action === "join") {
+                // #169 — Submit de la modal d'inscription DJ (choix de classe + message optionnel).
+                // custom_id: dj:join:{postId}[:{idx}]
+                const account = await findUserByDiscordId(member.user.id);
+                if (!account) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "❌ Tu dois t'être connecté au moins une fois sur le site.", flags: 64 },
+                    });
+                }
+
+                // RBAC check identique au bouton (GAME_OPERATIONS pour DJ)
+                const { internalCheckPermission } = await import("@/server/actions/user-actions");
+                const { PERMISSIONS } = await import("@/lib/permissions");
+                const canJoinDj = await internalCheckPermission(guild_id, member.user.id, PERMISSIONS.GAME_OPERATIONS);
+                if (!canJoinDj) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "🚫 Tes rôles Discord ne t'autorisent pas à rejoindre ces groupes. Contacte un admin de ta guilde.", flags: 64 },
+                    });
+                }
+
+                // Extraire les champs de la modal
+                let classe = "";
+                let message = "";
+                for (const row of components) {
+                    for (const comp of row.components) {
+                        if (comp.custom_id === "classe") classe = comp.value?.trim() || "";
+                        if (comp.custom_id === "message") message = comp.value?.trim() || "";
+                    }
+                }
+
+                // Valider la classe (case-insensitive)
+                const matchedClass = VALID_CLASSES.find((c) => c.toLowerCase() === classe.toLowerCase());
+                if (!matchedClass) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: `❌ Classe « ${classe} » non reconnue.\n\n**Classes disponibles :** ${VALID_CLASSES.join(", ")}`, flags: 64 },
+                    });
+                }
+
+                const dungeonIndex = extra !== undefined && extra !== "" ? Number(extra) : undefined;
+
+                // Résoudre le post → guildId Prisma interne (≠ guild_id Discord snowflake)
+                const post = await (db as any).djSearchPost.findUnique({
+                    where: { id: entityId },
+                    select: { id: true, status: true, guildId: true },
+                });
+                if (!post) {
+                    return NextResponse.json({ type: 4, data: { content: "❌ Ce groupe n'existe plus ou a expiré.", flags: 64 } });
+                }
+                if (post.status !== "OPEN" && post.status !== "FULL") {
+                    return NextResponse.json({ type: 4, data: { content: "❌ Ce groupe est fermé.", flags: 64 } });
+                }
+
+                const profile = await db.userProfile.findFirst({
+                    where: { userId: account.userId, guildId: post.guildId },
+                });
+                if (!profile) {
+                    return NextResponse.json({ type: 4, data: { content: "❌ Tu n'es pas membre de cette guilde sur SigilOS.", flags: 64 } });
+                }
+
+                const { internalJoinDjPost } = await import("@/server/actions/dungeon-finder-actions");
+                const res = await internalJoinDjPost(entityId, profile.id, account.userId, dungeonIndex, matchedClass, message);
+
+                if (res.success) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: `✅ Tu as rejoint le groupe ! Classe: **${matchedClass}**${message ? `\nMessage: *${message}*` : ""}`, flags: 64 },
+                    });
+                }
+                return NextResponse.json({ type: 4, data: { content: `❌ ${res.error || "Impossible de rejoindre le groupe."}`, flags: 64 } });
+            } else if (prefix === "svc" && action === "submit_reply") {
+                const account = await findUserByDiscordId(member.user.id);
+                if (!account) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "❌ Tu dois t'être connecté au moins une fois sur le site.", flags: 64 },
+                    });
+                }
+
+                const parts = custom_id.split(":");
+                const requesterUserId = parts[2];
+                const listingId = parts[3];
+
+                let replyMessage = "";
+                for (const row of components) {
+                    for (const comp of row.components) {
+                        if (comp.custom_id === "reply_message") {
+                            replyMessage = comp.value?.trim() || "";
+                        }
+                    }
+                }
+
+                const { internalServiceReply } = await import("@/server/actions/service-actions");
+                const res = await internalServiceReply(guild_id, requesterUserId, listingId, replyMessage, account.userId);
+
+                if (res.success) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "✅ Votre réponse a été envoyée au client !", flags: 64 },
+                    });
+                } else {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: `❌ ${res.error || "Impossible d'envoyer la réponse."}`, flags: 64 },
+                    });
+                }
+            } else if (prefix === "userreq" && action === "submit_reply") {
+                const account = await findUserByDiscordId(member.user.id);
+                if (!account) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "❌ Tu dois t'être connecté au moins une fois sur le site.", flags: 64 },
+                    });
+                }
+
+                let replyMessage = "";
+                for (const row of components) {
+                    for (const comp of row.components) {
+                        if (comp.custom_id === "reply_message") {
+                            replyMessage = comp.value?.trim() || "";
+                        }
+                    }
+                }
+
+                const { replyToUserRequestAction } = await import("@/server/actions/user-request-actions");
+                const res = await replyToUserRequestAction(guild_id, entityId, replyMessage);
+
+                if (res.success) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "✅ Votre réponse a été envoyée au demandeur !", flags: 64 },
+                    });
+                }
+                return NextResponse.json({
+                    type: 4,
+                    data: { content: `❌ ${res.error || "Impossible d'envoyer la réponse."}`, flags: 64 },
+                });
+            }
+
+            // =========================================================
+            // TICKET CREATION V2 (from category-adapted modal submit)
+            // custom_id format: ticket:create:{guildId}:{category}
+            // =========================================================
+            if (prefix === "ticket" && action === "create") {
+                // V2: Category is in the 4th part of custom_id
+                const parts = custom_id.split(":");
+                const ticketGuildId = parts[2] || guild_id;
+                const ticketCategory = (parts[3] || "OTHER") as "ACCESS_REQUEST" | "BUG_REPORT" | "FEATURE_REQUEST" | "OTHER";
+
+                // Extract all possible fields from modal
+                const fields: Record<string, string> = {};
+                for (const row of components) {
+                    for (const comp of row.components) {
+                        if (comp.custom_id && comp.value) {
+                            fields[comp.custom_id] = comp.value.trim();
+                        }
+                    }
+                }
+
+                // Build subject and description based on category
+                let targetMeta: any = {};
+                let subject = "";
+                let description = "";
+
+                if (ticketCategory === "ACCESS_REQUEST") {
+                    // 1. Validate Discord Guild ID
+                    const discordGuildIdInput = fields.discord_guild_id || "";
+                    if (!/^\d{17,20}$/.test(discordGuildIdInput)) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: {
+                                content: "❌ L'ID de serveur Discord est invalide (17-20 chiffres).\n💡 Clic droit sur votre serveur -> Copier l'identifiant.",
+                                flags: 64,
+                            },
+                        });
+                    }
+
+                    // 2. Validate Names & Pseudo (Nomenclature Dofus SigilOS : lettres, espaces, tirets et crochets, pas de chiffres)
+                    const dofusPseudoRegex = /^[a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\-\s\[\]]+$/;
+                    const guildName = fields.guild_name || "";
+                    const pseudoDofus = fields.pseudo_dofus || "";
+
+                    if (!dofusPseudoRegex.test(guildName)) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Le nom de guilde ne doit contenir que des lettres, espaces, tirets ou crochets (pas de chiffres).", flags: 64 },
+                        });
+                    }
+                    if (!dofusPseudoRegex.test(pseudoDofus)) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Le pseudo Dofus ne doit contenir que des lettres, espaces, tirets ou crochets (pas de chiffres).", flags: 64 },
+                        });
+                    }
+
+                    // 3. Validate Member Count (Max 350 - Quota SigilOS)
+                    const memberCountRaw = fields.member_count || "";
+                    const count = parseInt(memberCountRaw, 10);
+                    if (isNaN(count) || count < 1 || count > 350) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Le nombre de membres doit être un chiffre entre 1 et 350 (quota max SigilOS).", flags: 64 },
+                        });
+                    }
+
+                    targetMeta = {
+                        targetGuildId: discordGuildIdInput,
+                        targetGuildName: guildName,
+                        targetGuildMemberCount: count,
+                    };
+
+                    subject = `Accès — ${guildName} (${pseudoDofus})`;
+                    description = [
+                        `🔹 **Serveur Discord :** \`${discordGuildIdInput}\``,
+                        `🏰 **Guilde :** ${guildName}`,
+                        `👤 **Leader :** ${pseudoDofus}`,
+                        `👥 **Membres :** ${count}`,
+                        "",
+                        `📝 **Message :**`,
+                        fields.description || "Aucune description",
+                    ].join("\n");
+                } else if (ticketCategory === "BUG_REPORT") {
+                    subject = fields.subject || "Bug sans titre";
+                    description = [
+                        `📍 **Page/Feature :** ${fields.page || "Non précisé"}`,
+                        "",
+                        `🔍 **Détails :**`,
+                        fields.description || "Aucune description",
+                    ].join("\n");
+                } else {
+                    subject = fields.subject || "Ticket sans titre";
+                    description = fields.description || "Aucune description";
+                }
+
+                // Get channel for thread creation
+                const channelId = payload.channel_id || payload.channel?.id;
+                if (!channelId) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "❌ Impossible de déterminer le salon.", flags: 64 },
+                    });
+                }
+
+                const { createSupportTicket } = await import("@/server/actions/ticket-actions");
+                const ticketResult = await createSupportTicket({
+                    channelId,
+                    discordGuildId: ticketGuildId,
+                    category: ticketCategory,
+                    subject,
+                    description,
+                    creatorDiscordId: member.user.id,
+                    creatorDiscordName: member.user.global_name || member.user.username,
+                    ...targetMeta,
+                });
+
+                if (ticketResult.success) {
+                    // AUTO-PROVISION: For ACCESS_REQUEST, auto-create AllowedGuild as PENDING
+                    if (ticketCategory === "ACCESS_REQUEST" && fields.discord_guild_id) {
+                        try {
+                            const existingGuild = await db.allowedGuild.findUnique({
+                                where: { discordGuildId: fields.discord_guild_id },
+                            });
+                            if (!existingGuild) {
+                                await db.allowedGuild.create({
+                                    data: {
+                                        discordGuildId: fields.discord_guild_id,
+                                        name: fields.guild_name || null,
+                                        tier: "PENDING",
+                                        isActive: false,
+                                        addedBy: member.user.id,
+                                        notes: `[AUTO] Ticket #${ticketResult.ticketNumber} — ${fields.pseudo_dofus || "?"} — En attente d'approbation`,
+                                    },
+                                });
+                            }
+                        } catch (e) {
+                            // Non-blocking: if auto-provision fails, ticket is still created
+                            console.error("[Tickets] Auto-provision AllowedGuild failed:", e);
+                        }
+                    }
+
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            content: `✅ Ticket **#${ticketResult.ticketNumber}** créé ! Un fil privé a été ouvert — regarde dans tes fils.`,
+                            flags: 64,
+                        },
+                    });
+                } else {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: `❌ ${ticketResult.error}`, flags: 64 },
                     });
                 }
             }

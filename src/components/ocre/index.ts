@@ -12,3 +12,5 @@ export { KralamoureWidget } from "./kralamoure-widget";
 export { NotLinkedState } from "./not-linked-state";
 export { OcreSyncButton } from "./ocre-sync-button";
 export { OcreTradeInbox } from "./ocre-trade-inbox";
+export { OcreGuildDirectory } from "./ocre-guild-directory";
+

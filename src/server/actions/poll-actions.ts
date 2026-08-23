@@ -13,7 +13,13 @@ type PollCategory = "SUGGESTION" | "AMELIORATION" | "EVENT" | "MISSION" | "AUTRE
 type PollStatus = "DRAFT" | "ACTIVE" | "CLOSED" | "CANCELLED";
 import { sendChannelMessage, deleteChannelMessage, validateChannelBelongsToGuild } from "@/server/discord";
 import { createAuditLog } from "@/server/actions/audit-actions";
+import { getGameDisplayName } from "@/lib/display-name";
 import { sanitizeHtml, sanitizeName } from "@/lib/security";
+import { rateLimit } from "@/lib/ratelimit";
+
+// Durée max d'un sondage : 30 jours (au-delà, valeur plafonnée côté serveur).
+// Un sondage « sans date » (expiresAt null) est fermé automatiquement par le cron close-old-polls après 30 jours.
+const MAX_POLL_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
  * Generates a visual progress bar for Discord embeds.
@@ -39,19 +45,19 @@ export type ActionResponse<T = unknown> = {
 
 export async function getPollSettings(guildId: string): Promise<ActionResponse<{
     pollsNotifyChannelId: string | null;
-    pollsNotifyRoleId: string | null;
+    pollsPingRoleIds?: string[];
 }>> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId, "Lecture des paramètres de Sondage");
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
         const config = await (db.guildConfig as any).findUnique({
             where: { discordGuildId: guildId },
-            select: { pollsNotifyChannelId: true, pollsNotifyRoleId: true }
+            select: { pollsNotifyChannelId: true, pollsPingRoleIds: true }
         });
 
         if (!config) return { success: false, error: "Guilde introuvable" };
@@ -60,24 +66,62 @@ export async function getPollSettings(guildId: string): Promise<ActionResponse<{
             success: true,
             data: {
                 pollsNotifyChannelId: config.pollsNotifyChannelId,
-                pollsNotifyRoleId: config.pollsNotifyRoleId
+                pollsPingRoleIds: config.pollsPingRoleIds || []
             }
         };
     } catch (error) {
-        console.error("Get Poll Settings Error:", error);
+        logger.error("Get Poll Settings Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
 
+/**
+ * Public (member-accessible) poll config.
+ * Only exposes what members need: the configured publish channel and whitelisted ping roles.
+ * Does NOT expose sensitive admin settings.
+ */
+export async function getPollPublicConfig(guildId: string): Promise<ActionResponse<{
+    pollsNotifyChannelId: string | null;
+    pollsPingRoleIds: string[];
+}>> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    // Any authenticated member can call this — we only expose public-safe fields
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated || !ctx.isMember) return { success: false, error: "Accès refusé" };
+
+    try {
+        const config = await (db.guildConfig as any).findUnique({
+            where: { discordGuildId: guildId },
+            select: { pollsNotifyChannelId: true, pollsPingRoleIds: true }
+        });
+
+        if (!config) return { success: false, error: "Guilde introuvable" };
+
+        return {
+            success: true,
+            data: {
+                pollsNotifyChannelId: config.pollsNotifyChannelId,
+                pollsPingRoleIds: config.pollsPingRoleIds || []
+            }
+        };
+    } catch (error) {
+        logger.error("Get Poll Public Config Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+
 export async function updatePollSettings(
     guildId: string,
-    data: { pollsNotifyChannelId: string | null; pollsNotifyRoleId: string | null }
+    data: { pollsNotifyChannelId: string | null }
 ): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId, "Mise à jour des paramètres de Sondage");
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
@@ -93,15 +137,14 @@ export async function updatePollSettings(
         await (db as any).guildConfig.update({
             where: { discordGuildId: guildId },
             data: {
-                pollsNotifyChannelId: data.pollsNotifyChannelId,
-                pollsNotifyRoleId: data.pollsNotifyRoleId
+                pollsNotifyChannelId: data.pollsNotifyChannelId
             }
         });
 
         revalidatePath(`/dashboard/${guildId}/admin/settings`);
         return { success: true };
     } catch (error) {
-        console.error("Update Poll Settings Error:", error);
+        logger.error("Update Poll Settings Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -125,6 +168,9 @@ const CreatePollSchema = z.object({
     discordChannelId: z.string().optional(),
     mentionEveryone: z.boolean().default(false),
     mentionRoleId: z.string().optional(),
+    // Multi-role pings (CSV stocké dans mentionRoleId côté BDD, pattern DJ/songes)
+    mentionRoleIds: z.array(z.string()).max(10).default([]),
+    externalUrl: z.string().url().optional().nullable().or(z.literal("")),
 }).strict();
 
 const UpdatePollSchema = z.object({
@@ -136,40 +182,36 @@ const UpdatePollSchema = z.object({
     allowMultipleVotes: z.boolean().optional(),
     isAnonymous: z.boolean().optional(),
     expiresAt: z.string().datetime().optional().nullable(),
+    externalUrl: z.string().url().optional().nullable().or(z.literal("")),
 }).strict();
 
 // --- Category Config ---
 
-const POLL_CATEGORY_CONFIG: Record<PollCategory, { label: string; color: number; emoji: string; imageUrl: string }> = {
+const POLL_CATEGORY_CONFIG: Record<PollCategory, { label: string; color: number; emoji: string }> = {
     SUGGESTION: {
         label: "💡 Suggestion",
         color: 0x06b6d4,
         emoji: "💡",
-        imageUrl: "/assets/sondages/suggestion.png"
     },
     AMELIORATION: {
         label: "🔧 Amélioration",
         color: 0x10b981,
         emoji: "🔧",
-        imageUrl: "/assets/sondages/amelioration.png"
     },
     EVENT: {
         label: "🎉 Événement",
         color: 0xf59e0b,
         emoji: "🎉",
-        imageUrl: "/assets/sondages/evenement.png"
     },
     MISSION: {
         label: "🎯 Mission",
         color: 0xef4444,
         emoji: "🎯",
-        imageUrl: "/assets/sondages/mission.png"
     },
     AUTRE: {
         label: "📋 Autres",
         color: 0x8b5cf6,
         emoji: "📋",
-        imageUrl: "/assets/sondages/autres.png"
     },
 };
 
@@ -178,7 +220,7 @@ const POLL_CATEGORY_CONFIG: Record<PollCategory, { label: string; color: number;
 async function canCreatePoll(guildId: string, userId: string): Promise<boolean> {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated || !ctx.isMember) return false;
-    if (ctx.isAdmin || ctx.canManagePolls) return true;
+    if (ctx.isAdmin || ctx.isAdmin) return true;
 
     // Check SigilOS custom roles
     if (!ctx.profileId) return false;
@@ -210,7 +252,7 @@ export async function checkUserHasPollRole(guildId: string, userId: string): Pro
  */
 async function checkPollCooldown(guildId: string, profileId: string, category: PollCategory): Promise<{ onCooldown: boolean; resetAt?: Date }> {
     const ctx = await getUserContext(guildId);
-    if (ctx.isAdmin || ctx.canManagePolls) return { onCooldown: false };
+    if (ctx.isAdmin || ctx.isAdmin) return { onCooldown: false };
 
     const lastPoll = await db.poll.findFirst({
         where: {
@@ -236,7 +278,10 @@ async function lazyClosePollsForGuild(guildConfigId: string): Promise<void> {
             where: {
                 guildId: guildConfigId,
                 status: "ACTIVE",
-                expiresAt: { lt: new Date() },
+                OR: [
+                    { expiresAt: { lt: new Date() } },
+                    { expiresAt: null, createdAt: { lt: new Date(Date.now() - MAX_POLL_DURATION_MS) } },
+                ],
             },
             data: {
                 status: "CLOSED",
@@ -248,6 +293,42 @@ async function lazyClosePollsForGuild(guildConfigId: string): Promise<void> {
     }
 }
 
+/**
+ * Cron close-old-polls : clôture des sondages expirés et des sondages « sans date » 
+ * de plus de 30 jours (idempotent, sécurisé côté route par verifyCronSecret).
+ */
+export async function autoCloseExpiredPolls(): Promise<{ closed: number; deletedEmbeds: number }> {
+    const now = new Date();
+    const cutoff = new Date(Date.now() - MAX_POLL_DURATION_MS);
+
+    const targets = await db.poll.findMany({
+        where: {
+            status: "ACTIVE",
+            OR: [
+                { expiresAt: { lt: now } },
+                { expiresAt: null, createdAt: { lt: cutoff } },
+            ],
+        },
+        select: { id: true, discordChannelId: true, discordMessageId: true },
+    });
+
+    if (targets.length === 0) return { closed: 0, deletedEmbeds: 0 };
+
+    await db.poll.updateMany({
+        where: { id: { in: targets.map((t) => t.id) } },
+        data: { status: "CLOSED", closedAt: now },
+    });
+
+    let deletedEmbeds = 0;
+    for (const t of targets) {
+        if (t.discordChannelId && t.discordMessageId) {
+            await deleteChannelMessage(t.discordChannelId, t.discordMessageId).catch(() => null);
+            deletedEmbeds++;
+        }
+    }
+    return { closed: targets.length, deletedEmbeds };
+}
+
 // --- Actions ---
 
 export async function getPolls(
@@ -255,7 +336,7 @@ export async function getPolls(
     filters?: { status?: PollStatus; category?: PollCategory }
 ): Promise<ActionResponse> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.POLLS_VIEW);
+    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.COMMUNITY_ACCESS);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     try {
@@ -284,7 +365,7 @@ export async function getPolls(
             orderBy: { createdAt: "desc" },
         });
 
-        return { success: true, data: JSON.parse(JSON.stringify(polls)) };
+        return { success: true, data: JSON.parse(JSON.stringify(polls, (_, v) => typeof v === 'bigint' ? v.toString() : v)) };
     } catch (error) {
         logger.error("[Polls] getPolls error", { error, discordGuildId });
         return { success: false, error: "Failed to fetch polls" };
@@ -296,7 +377,7 @@ export async function getPoll(
     pollId: string
 ): Promise<ActionResponse> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.POLLS_VIEW);
+    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.COMMUNITY_ACCESS);
     if (!guard.allowed) return { success: false, error: guard.error };
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
@@ -357,7 +438,7 @@ export async function getPoll(
             totalVotes: poll.options.reduce((sum: number, o: any) => sum + o._count.votes, 0),
         };
 
-        return { success: true, data: JSON.parse(JSON.stringify(sanitizedPoll)) };
+        return { success: true, data: JSON.parse(JSON.stringify(sanitizedPoll, (_, v) => typeof v === 'bigint' ? v.toString() : v)) };
     } catch (error) {
         logger.error("[Polls] getPoll error", { error, pollId });
         return { success: false, error: "Failed to fetch poll" };
@@ -376,6 +457,12 @@ export async function createPoll(
 
     const canCreate = await canCreatePoll(data.guildId, session.user.id);
     if (!canCreate) return { success: false, error: "Vous n'avez pas la permission de créer des sondages." };
+
+    // #55 — rate-limit création de sondages (spam anti-discord).
+    const rateLimitResult = await rateLimit(`poll:create:${session.user.id}`, 5, 60_000);
+    if (!rateLimitResult.success) {
+        return { success: false, error: "Trop de sondages créés, réessaie dans une minute." };
+    }
 
     try {
         const guildConfig = await db.guildConfig.findUniqueOrThrow({
@@ -396,14 +483,50 @@ export async function createPoll(
             };
         }
 
-        const creatorName = profile.pseudoDofus || profile.discordNickname || session.user.name || "Membre";
+        const ctx = await getUserContext(data.guildId);
+        const creatorName = ctx.name || "Membre";
+        const isAdmin = ctx.isAdmin || ctx.isSuperAdmin;
+
+        // 🔒 SECURITY: Enforce channel restriction for non-admins.
+        // Members can only publish to the admin-configured channel.
+        const adminChannelId = (guildConfig as any).pollsNotifyChannelId as string | null;
+        if (data.publishToDiscord && data.discordChannelId && !isAdmin) {
+            if (data.discordChannelId !== adminChannelId) {
+                logger.error(`[Security] Non-admin tried to publish poll to unauthorized channel. User: ${session.user.id}, channel: ${data.discordChannelId}`);
+                return { success: false, error: "Salon non autorisé. Seul l'admin peut choisir un autre salon." };
+            }
+        }
+
+        // 🔒 SECURITY: Only admins can use @everyone or @here.
+        let safeMentionEveryone = data.mentionEveryone;
+        if (safeMentionEveryone && !isAdmin) {
+            logger.error(`[Security] Non-admin tried to mention @everyone in poll. User: ${session.user.id}`);
+            safeMentionEveryone = false;
+        }
+
+        // 🔒 SECURITY: Whitelist des rôles de ping appliquée de façon IDENTIQUE
+        // aux admins et aux membres (fail-closed, pattern DJ/songes). Chaque rôle
+        // doit appartenir à pollsPingRoleIds configuré par l'admin.
+        const allowedRoleIds: string[] = (guildConfig as any).pollsPingRoleIds || [];
+        const combinedRoleIds = [
+            ...(data.mentionRoleIds || []),
+            ...(data.mentionRoleId ? [data.mentionRoleId] : []),
+        ];
+        const uniqueRoleIds = [...new Set(combinedRoleIds)];
+        const invalidRoles = uniqueRoleIds.filter((id) => !allowedRoleIds.includes(id));
+        if (invalidRoles.length > 0) {
+            logger.error(`[Security] Ping de rôle(s) non whitelisté(s) ${invalidRoles.join(", ")}. User: ${session.user.id}`);
+        }
+        const safeMentionRoleIds = uniqueRoleIds.filter((id) => allowedRoleIds.includes(id));
+        // Stocké CSV pour supporter plusieurs rôles (pattern DJ/songes)
+        const safeMentionRoleId = safeMentionRoleIds.length > 0 ? safeMentionRoleIds.join(",") : null;
 
         // Create poll + options in transaction
         const poll = await db.$transaction(async (tx) => {
-            // Default expiry: 7 days if not provided
+            // Durée max 30 jours ; « sans date » (null) = fermé par le cron après 30 jours.
             const finalExpiresAt = data.expiresAt
-                ? new Date(data.expiresAt)
-                : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+                ? new Date(Math.min(new Date(data.expiresAt).getTime(), Date.now() + MAX_POLL_DURATION_MS))
+                : null;
 
             const newPoll = await tx.poll.create({
                 data: {
@@ -417,8 +540,9 @@ export async function createPoll(
                     allowMultipleVotes: data.allowMultipleVotes,
                     isAnonymous: data.isAnonymous,
                     expiresAt: finalExpiresAt,
-                    mentionEveryone: data.mentionEveryone,
-                    mentionRoleId: data.mentionRoleId || null,
+                    mentionEveryone: safeMentionEveryone,
+                    mentionRoleId: safeMentionRoleId || null,
+                    externalUrl: data.externalUrl || null,
                 },
             });
 
@@ -436,8 +560,10 @@ export async function createPoll(
         });
 
         // Publish to Discord if requested
-        const channelToUse = data.discordChannelId || (guildConfig as any).pollsNotifyChannelId;
-        const roleToUse = data.mentionEveryone ? undefined : (guildConfig as any).pollsNotifyRoleId;
+        const channelToUse = data.discordChannelId || adminChannelId;
+        // #102 — le « rôle à mentionner par défaut » est supprimé : seuls les rôles
+        // explicitement choisis (et whitelistés) sont mentionnés à la publication.
+        const roleToUse = safeMentionEveryone ? undefined : (safeMentionRoleId || undefined);
 
         if (data.publishToDiscord && !channelToUse) {
             return {
@@ -452,7 +578,7 @@ export async function createPoll(
                 data.guildId,
                 poll.id,
                 channelToUse,
-                data.mentionEveryone,
+                safeMentionEveryone,
                 roleToUse || undefined
             );
         }
@@ -495,6 +621,12 @@ export async function updatePoll(rawData: unknown): Promise<ActionResponse> {
         });
 
         if (!poll) return { success: false, error: "Sondage introuvable" };
+        
+        // 🔒 SECURITY: Multi-tenant isolation check
+        if (poll.guildId !== guildConfig.id) {
+            logger.error(`[Security] Cross-guild poll update attempt! User ${session.user.id} tried to update poll ${poll.id} from Guild ${guildConfig.id} but poll belongs to ${poll.guildId}`);
+            return { success: false, error: "Accès refusé" };
+        }
 
         const ctx = await getUserContext(data.guildId);
         const profile = await db.userProfile.findUnique({
@@ -507,7 +639,7 @@ export async function updatePoll(rawData: unknown): Promise<ActionResponse> {
         const isCreator = poll.creatorId === profile.id;
         const hasMicro = await checkUserHasPollRole(data.guildId, session.user.id);
 
-        if (!ctx.isAdmin && !ctx.canManagePolls) {
+        if (!ctx.isAdmin) {
             if (!isCreator || !hasMicro) {
                 return { success: false, error: "Vous devez avoir le micro pour modifier votre sondage." };
             }
@@ -526,7 +658,8 @@ export async function updatePoll(rawData: unknown): Promise<ActionResponse> {
                 category: data.category as PollCategory,
                 allowMultipleVotes: data.allowMultipleVotes,
                 isAnonymous: data.isAnonymous,
-                expiresAt: data.expiresAt ? new Date(data.expiresAt) : data.expiresAt === null ? null : poll.expiresAt,
+                expiresAt: data.expiresAt ? new Date(Math.min(new Date(data.expiresAt).getTime(), Date.now() + MAX_POLL_DURATION_MS)) : data.expiresAt === null ? null : poll.expiresAt,
+                externalUrl: data.externalUrl !== undefined ? (data.externalUrl || null) : undefined,
             }
         });
 
@@ -534,7 +667,7 @@ export async function updatePoll(rawData: unknown): Promise<ActionResponse> {
         await createAuditLog({
             guildId: data.guildId,
             actorUserId: session.user.id,
-            actorName: profile.pseudoDofus || session.user.name || "Membre",
+            actorName: ctx.name || "Membre",
             action: "POLL_UPDATED" as any,
             targetType: "POLL",
             targetId: poll.id,
@@ -569,8 +702,14 @@ export async function castVote(
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
-    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.POLLS_VIEW);
+    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.COMMUNITY_ACCESS);
     if (!guard.allowed) return { success: false, error: guard.error };
+
+    // #55 — rate-limit vote (anti-spam de clics, sync WS).
+    const rateLimitResult = await rateLimit(`poll:vote:${session.user.id}:${discordGuildId}`, 30, 60_000);
+    if (!rateLimitResult.success) {
+        return { success: false, error: "Trop de votes, réessaie dans une minute." };
+    }
 
     try {
         const guildConfig = await db.guildConfig.findUniqueOrThrow({
@@ -719,7 +858,7 @@ export async function closePoll(
         await createAuditLog({
             guildId: discordGuildId,
             actorUserId: session.user.id,
-            actorName: session.user.name || "Admin",
+            actorName: ctx.name || "Admin",
             action: "POLL_CLOSED",
             targetType: "POLL",
             targetId: pollId,
@@ -772,7 +911,6 @@ async function sendPollOutcomeToDiscord(
     await sendChannelMessage(poll.discordChannelId, description, {
         embedTitle: `🏁 SONDAGE TERMINÉ : ${poll.title.toUpperCase()}`,
         embedColor: catConfig.color,
-        embedImage: `${appUrl}${catConfig.imageUrl}`,
         embedFooter: `SigilOS • Résultat acté par un admin`,
         embedUrl: voteUrl,
     });
@@ -814,7 +952,7 @@ export async function deletePoll(
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
-    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.POLLS_MANAGE);
+    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.SYSTEM_CONFIG);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     try {
@@ -833,7 +971,7 @@ export async function deletePoll(
         await createAuditLog({
             guildId: discordGuildId,
             actorUserId: session.user.id,
-            actorName: session.user.name || "Admin",
+            actorName: (await getUserContext(discordGuildId)).name || "Admin",
             action: "POLL_DELETED",
             targetType: "POLL",
             targetId: pollId,
@@ -874,7 +1012,15 @@ async function publishPollToDiscord(
             where: { id: pollId },
             include: {
                 options: {
-                    include: { _count: { select: { votes: true } } },
+                    include: {
+                        _count: { select: { votes: true } },
+                        votes: {
+                            select: {
+                                voter: { select: { pseudoDofus: true, discordNickname: true } },
+                            },
+                            take: 5, // récupère les 5 premiers pour le preview embed
+                        },
+                    },
                     orderBy: { order: "asc" }
                 },
                 creator: { include: { user: { select: { image: true } } } }
@@ -890,12 +1036,28 @@ async function publishPollToDiscord(
         const totalVotes = poll.options.reduce((acc, opt) => acc + (opt._count.votes || 0), 0);
 
         // Build options list with progress bars
+        // Each option gets a numbered label (e.g. 1️⃣) matching the button below
+        const NUMBER_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
+
         const optionsList = poll.options
             .map((o: any, i: number) => {
                 const votes = o._count.votes || 0;
                 const pct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
                 const bar = getProgressBar(pct, 10);
-                return `${o.emoji || `**${i + 1}**`} — **${o.label}**\n${bar} \`${pct}%\` (${votes})`;
+                const prefix = o.emoji ? o.emoji : (NUMBER_EMOJIS[i] || `${i + 1}.`);
+
+                // Affiche les noms des votants pour les sondages non-anonymes
+                let votersLine = "";
+                if (!poll.isAnonymous && o.votes && o.votes.length > 0) {
+                    const names = (o.votes as any[]).slice(0, 3).map((v: any) =>
+                        v.voter.pseudoDofus || v.voter.discordNickname || "Membre"
+                    );
+                    const remaining = votes - (o.votes as any[]).length;
+                    const suffix = remaining > 0 ? ` +${remaining} autres` : "";
+                    votersLine = `\n👥 *${names.join(", ")}${suffix}*`;
+                }
+
+                return `${prefix} **${o.label}**\n${bar} \`${pct}%\` (${votes} vote${votes !== 1 ? 's' : ''})${votersLine}`;
             })
             .join("\n\n");
 
@@ -905,22 +1067,25 @@ async function publishPollToDiscord(
             descriptionParts.push(`> *${poll.description}*`);
         }
 
-        descriptionParts.push(`\n**📌 Options :**\n${optionsList}`);
+        if (poll.externalUrl) {
+            descriptionParts.push(`🔗 **Source externe :** [Ouvrir le lien ↗](${poll.externalUrl})`);
+        }
+
+        descriptionParts.push(`\n**📊 Choix :**\n${optionsList}`);
 
         const metadata = [];
         if (poll.expiresAt) {
             metadata.push(`⏰ **Expire** — <t:${Math.floor(poll.expiresAt.getTime() / 1000)}:R>`);
         }
-        metadata.push(poll.allowMultipleVotes ? "✅ **Votes multiples** — Autorisés" : "👆 **Votes multiples** — Un seul choix");
+        metadata.push(poll.allowMultipleVotes ? "✅ **Votes multiples** — Autorisés" : "👆 **Vote unique** — Un seul choix");
 
         if (poll.isAnonymous) {
-            metadata.push("🕵️ **Anonymat** — Activé (voters masqués)");
+            metadata.push("🕵️ **Anonymat** — Activé");
         }
 
-        descriptionParts.push(`\n---\n${metadata.join("\n")}`);
-
-        // Permission notice
-        descriptionParts.push(`\n*Seuls les membres de la guilde peuvent voter sur [SigilOS](${voteUrl})*`);
+        descriptionParts.push(`\n---\n${metadata.join(" · ")}`);
+        descriptionParts.push(`\n*👉 Clique sur le bouton correspondant à ton choix pour voter !*`);
+        descriptionParts.push(`*Seuls les membres de la guilde peuvent voter via [SigilOS](${voteUrl})*`);
 
         const description = descriptionParts.join("\n");
 
@@ -928,42 +1093,80 @@ async function publishPollToDiscord(
         let mentionContent: string | undefined;
         if (!isUpdate) {
             if (mentionEveryone) {
-                mentionContent = "@everyone";
+                mentionContent = "Bonjour @everyone !";
             } else if (mentionRoleId) {
-                mentionContent = `<@&${mentionRoleId}>`;
+                if (mentionRoleId === "here") {
+                    mentionContent = "Bonjour @here !";
+                } else {
+                    // Multi-rôles stockés CSV (pattern DJ/songes)
+                    const roleMentions = mentionRoleId.split(",").map(id => `<@&${id.trim()}>`).join(" ");
+                    mentionContent = `Bonjour ${roleMentions} !`;
+                }
             }
+        }
+
+        // === BUTTONS ===
+        // Discord allows max 5 ActionRows with max 5 buttons each.
+        // Strategy: group vote buttons 2 per row → max 5 rows for 10 options.
+        // Reserve the last row for the Link button.
+        const discordComponents: any[] = [];
+
+        // Build vote buttons — always 2 per ActionRow for visual clarity
+        const optionButtons = poll.options.map((o: any, i: number) => {
+            const prefix = o.emoji ? o.emoji : (NUMBER_EMOJIS[i] || `${i + 1}.`);
+            // Truncate label for Discord button (max 80 chars)
+            const rawLabel = `${o.emoji ? '' : (NUMBER_EMOJIS[i] ? '' : `${i + 1}. `)}${o.label}`;
+            const truncated = rawLabel.length > 75 ? rawLabel.substring(0, 72) + "..." : rawLabel;
+            return {
+                type: 2, // Button
+                style: 1, // Primary (blurple)
+                label: truncated,
+                emoji: o.emoji ? { name: o.emoji } : (NUMBER_EMOJIS[i] ? { name: NUMBER_EMOJIS[i] } : undefined),
+                custom_id: `poll:vote:${o.id}`,
+            };
+        });
+
+        // Chunk into rows of 2 buttons each
+        const buttonRows: any[] = [];
+        for (let i = 0; i < optionButtons.length; i += 2) {
+            buttonRows.push({
+                type: 1, // ActionRow
+                components: optionButtons.slice(i, i + 2)
+            });
+        }
+
+        // We have max 4 button rows for options + 1 row for link button = 5 total
+        // If we overflow (> 4 vote rows), compress last row with link button together
+        const linkButton = {
+            type: 2,
+            style: 5, // Link
+            label: "🌐 Résultats & Détails",
+            url: voteUrl,
+        };
+
+        if (buttonRows.length < 5) {
+            // Room for a dedicated link row
+            buttonRows.forEach(row => discordComponents.push(row));
+            discordComponents.push({ type: 1, components: [linkButton] });
+        } else {
+            // Overflow: append link button to the last row (it will have ≤2+1=3 buttons — within Discord's limit of 5)
+            buttonRows.forEach(row => discordComponents.push(row));
+            discordComponents[discordComponents.length - 1].components.push(linkButton);
         }
 
         const embedOptions = {
             embedTitle: `📊 ${poll.title.toUpperCase()}`,
             embedColor: catConfig.color,
-            embedImage: `${appUrl}${catConfig.imageUrl}`,
             embedFooter: `SigilOS • ${catConfig.label}`,
             embedAuthor: {
                 name: `Sondage lancé par ${poll.creatorName}`,
                 iconUrl: (poll.creator as any)?.user?.image || undefined
             },
-            embedUrl: voteUrl,
+            // embedUrl intentionnellement absent : évite que le titre de l'embed
+            // soit cliquable (confusion avec le lien externe du sondage).
+            // La navigation vers le dashboard se fait via le bouton "Résultats & Détails".
             mentionContent,
-            components: [
-                {
-                    type: 1, // ActionRow
-                    components: [
-                        ...poll.options.slice(0, 4).map((o: any, idx: number) => ({
-                            type: 2, // Button
-                            style: 1, // Primary (Blur)
-                            label: `${o.emoji || idx + 1}`,
-                            custom_id: `poll:vote:${o.id}`,
-                        })),
-                        {
-                            type: 2, // Button
-                            style: 5, // Link
-                            label: "🌐 Voter / Détails",
-                            url: voteUrl,
-                        },
-                    ],
-                },
-            ],
+            components: discordComponents,
         };
 
         if (isUpdate && poll.discordMessageId && poll.discordChannelId) {
@@ -1053,7 +1256,7 @@ export async function getMicroStatus(discordGuildId: string): Promise<ActionResp
             data: {
                 holder: {
                     id: activeGrant.profileId,
-                    name: activeGrant.profile.pseudoDofus || activeGrant.profile.discordNickname || activeGrant.profile.user.name || "Membre",
+                    name: getGameDisplayName(activeGrant.profile),
                     image: activeGrant.profile.user.image || undefined
                 },
                 expiresAt: activeGrant.expiresAt?.toISOString(),
@@ -1177,7 +1380,7 @@ export async function acquirePollCreatorRole(discordGuildId: string): Promise<Ac
         });
 
         // Audit Log
-        const actorName = ctx.name || session.user.name || "Membre";
+        const actorName = ctx.name || "Membre";
         await createAuditLog({
             guildId: discordGuildId,
             actorUserId: session.user.id,
@@ -1229,7 +1432,7 @@ export async function releasePollCreatorRole(discordGuildId: string): Promise<Ac
         await createAuditLog({
             guildId: discordGuildId,
             actorUserId: session.user.id,
-            actorName: ctx.name || session.user.name || "Membre",
+            actorName: ctx.name || "Membre",
             action: "POLL_CREATOR_ROLE_RELEASED" as any,
             targetType: "ROLE",
             targetId: "poll-creator",

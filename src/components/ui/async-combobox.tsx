@@ -36,6 +36,8 @@ interface AsyncComboboxProps {
     renderItem?: (item: ComboboxItem) => React.ReactNode
     disabled?: boolean
     className?: string
+    // Libellé affiché pour une valeur existante introuvable dans les résultats (ex. zone saisie manuellement).
+    initialLabel?: string
 }
 
 export function AsyncCombobox({
@@ -47,7 +49,8 @@ export function AsyncCombobox({
     emptyText = "Aucun résultat.",
     renderItem,
     disabled = false,
-    className
+    className,
+    initialLabel
 }: AsyncComboboxProps) {
     const [open, setOpen] = React.useState(false)
     const [inputValue, setInputValue] = React.useState("")
@@ -88,18 +91,20 @@ export function AsyncCombobox({
             const item = items.find(i => i.value === value)
             if (item) {
                 setSelectedLabel(item.label)
+            } else if (initialLabel) {
+                // Valeur existante hors résultats de recherche (ex. zone saisie manuellement) → libellé stable.
+                setSelectedLabel(initialLabel)
             } else if (!selectedLabel) {
                 // If we have a value but no label (initial load), we might want to fetch the specific item
-                // For now, we'll just show the value or rely on the parent to pass the initial label 
+                // For now, we'll just show the value or rely on the parent to pass the initial label
                 // effectively, this component assumes 'fetcher' returns relevant items including the selected one if hinted
                 // or simplistic approach:
                 // Currently do nothing, label will be empty until user searches or parent handles it.
-                // IMPROVEMENT: Add an `initialLabel` prop if needed.
             }
         } else {
             setSelectedLabel("")
         }
-    }, [value, items])
+    }, [value, items, initialLabel])
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
@@ -108,14 +113,14 @@ export function AsyncCombobox({
                     variant="outline"
                     role="combobox"
                     aria-expanded={open}
-                    className={cn("justify-between bg-zinc-950 border-zinc-800 text-zinc-300 w-full hover:bg-zinc-900 hover:text-white", className)}
+                    className={cn("justify-between bg-background border-border text-foreground w-full hover:bg-surface hover:text-foreground", className)}
                     disabled={disabled}
                 >
                     {selectedLabel || value ? (selectedLabel || "Chargement...") : placeholder}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="p-0 bg-zinc-950 border-zinc-800 text-zinc-300" align="start">
+            <PopoverContent className="p-0 bg-background border-border text-foreground" align="start">
                 <Command shouldFilter={false}>
                     <CommandInput
                         placeholder={searchPlaceholder}
@@ -126,7 +131,7 @@ export function AsyncCombobox({
                     <CommandList>
                         {loading && (
                             <div className="flex items-center justify-center p-4">
-                                <Loader2 className="h-4 w-4 animate-spin text-zinc-500" />
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                             </div>
                         )}
                         {!loading && items.length === 0 && (
@@ -143,7 +148,7 @@ export function AsyncCombobox({
                                             setSelectedLabel(item.label)
                                             setOpen(false)
                                         }}
-                                        className="aria-selected:bg-zinc-900 aria-selected:text-white hover:bg-zinc-900 cursor-pointer"
+                                        className="aria-selected:bg-surface aria-selected:text-foreground hover:bg-surface cursor-pointer"
                                     >
                                         <Check
                                             className={cn(
@@ -154,7 +159,7 @@ export function AsyncCombobox({
                                         {renderItem ? renderItem(item) : (
                                             <div className="flex flex-col">
                                                 <span>{item.label}</span>
-                                                {item.subLabel && <span className="text-xs text-zinc-500">{item.subLabel}</span>}
+                                                {item.subLabel && <span className="text-xs text-muted-foreground">{item.subLabel}</span>}
                                             </div>
                                         )}
                                     </CommandItem>

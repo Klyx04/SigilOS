@@ -4,12 +4,16 @@ import { signIn } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
-import { AuroraBackground } from "@/components/ui/aurora-background";
 import { Shield, LogIn } from "lucide-react";
+import { Metadata } from "next";
 
-export const metadata = {
+export const metadata: Metadata = {
     title: "Connexion — SigilOS",
     description: "Connectez-vous à SigilOS via Discord pour accéder à votre tableau de bord de guilde.",
+    robots: {
+        index: false,
+        follow: false,
+    },
 };
 
 // SECURITY: This page is the custom signIn page for NextAuth.
@@ -19,7 +23,7 @@ export const metadata = {
 export default async function LoginPage({
     searchParams,
 }: {
-    searchParams: Promise<{ callbackUrl?: string }>;
+    searchParams: Promise<{ callbackUrl?: string; info?: string }>;
 }) {
     const session = await auth();
 
@@ -28,43 +32,50 @@ export default async function LoginPage({
         redirect("/");
     }
 
-    const { callbackUrl } = await searchParams;
+    const { callbackUrl, info } = await searchParams;
 
     // SECURITY: Only allow relative callbackUrls to prevent Open Redirect
     const safeCallbackUrl =
         callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/";
 
+    const isSessionExpired = info === "session_expired";
+
     return (
-        <div className="min-h-screen bg-black text-white selection:bg-violet-500/30 font-sans flex flex-col relative overflow-hidden landing-theme">
+        <div className="min-h-screen bg-background text-foreground selection:bg-violet-500/30 font-sans flex flex-col relative overflow-hidden landing-theme">
             {/* Ambient Background */}
-            <div className="fixed inset-0 z-0">
-                <AuroraBackground className="h-full w-full pointer-events-none opacity-20" />
-            </div>
             <div className="absolute inset-0 z-0 pointer-events-none">
                 <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-violet-500/5 rounded-full blur-[120px] animate-pulse-slow" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-900/10 rounded-full blur-[100px] animate-pulse-slow delay-1000" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-info/10 rounded-full blur-[100px] animate-pulse-slow delay-1000" />
             </div>
 
             <PublicHeader variant="standard" backHref="/" backLabel="Accueil" />
 
             <main className="flex-1 flex items-center justify-center p-4 relative z-10 pt-20">
                 <div className="relative z-10 max-w-md w-full group">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-violet-500/20 via-indigo-500/20 to-violet-500/20 rounded-3xl blur-xl opacity-50 group-hover:opacity-100 transition duration-1000" />
+                    <div className="absolute -inset-1 bg-gradient-to-r from-violet-500/20 via-info/20 to-violet-500/20 rounded-3xl blur-xl opacity-50 group-hover:opacity-100 transition duration-300" />
 
-                    <div className="relative bg-zinc-950/80 backdrop-blur-3xl border border-violet-500/20 rounded-3xl p-10 text-center shadow-2xl">
+                    <div className="relative bg-background/80 backdrop-blur-3xl border border-violet-500/20 rounded-3xl p-10 text-center shadow-2xl">
                         {/* Icon */}
                         <div className="w-20 h-20 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mx-auto mb-8 shadow-inner">
                             <Shield className="w-10 h-10 text-violet-400 drop-shadow-[0_0_15px_rgba(139,92,246,0.4)]" />
                         </div>
 
                         <div className="space-y-3 mb-10">
-                            <h1 className="text-3xl font-black text-white tracking-tighter">
+                            <h1 className="text-3xl font-black text-foreground tracking-tighter">
                                 Connexion requise
                             </h1>
-                            <p className="text-zinc-400 font-medium leading-relaxed">
+                            <p className="text-muted-foreground font-medium leading-relaxed">
                                 Connectez-vous via Discord pour accéder au tableau de bord de votre guilde.
                             </p>
                         </div>
+
+                        {/* Session expired notice */}
+                        {isSessionExpired && (
+                            <div className="mb-6 bg-warning/10 border border-warning/20 rounded-xl p-4 text-left">
+                                <p className="text-warning text-sm font-semibold">⏰ Session expirée</p>
+                                <p className="text-muted-foreground text-xs mt-1">Votre session Discord a expiré. Reconnectez-vous pour continuer.</p>
+                            </div>
+                        )}
 
                         {/* Server Action Sign In */}
                         <form
@@ -75,14 +86,14 @@ export default async function LoginPage({
                         >
                             <Button
                                 type="submit"
-                                className="w-full h-14 bg-[#5865F2] hover:bg-[#4752C4] text-white font-black text-lg rounded-2xl transition-all hover:scale-[1.02] active:scale-95 shadow-xl gap-3"
+                                className="w-full h-14 bg-[#5865F2] hover:bg-[#4752C4] text-foreground font-black text-lg rounded-2xl transition-all hover:scale-[1.02] active:scale-95 shadow-xl gap-3"
                             >
                                 <LogIn className="w-5 h-5" />
                                 Se connecter avec Discord
                             </Button>
                         </form>
 
-                        <p className="mt-6 text-[10px] text-zinc-600 font-mono uppercase tracking-widest">
+                        <p className="mt-6 text-caption text-muted-foreground font-mono uppercase tracking-widest">
                             Seuls les membres des guildes partenaires peuvent accéder au Dashboard.
                         </p>
                     </div>

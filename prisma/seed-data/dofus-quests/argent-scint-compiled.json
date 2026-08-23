@@ -1,0 +1,200 @@
+{
+  "dofus": "argent-scint",
+  "displayName": "Dofus Argenté Scintillant",
+  "color": "#E0E0FF",
+  "successName": null,
+  "recommendedLevel": null,
+  "description": null,
+  "dofusItemId": 20286,
+  "iconId": 23027,
+  "imageUrl": "https://api.dofusdb.fr/img/items/23027.png",
+  "compiledAt": "2026-04-04T13:10:39.445Z",
+  "chains": [
+    {
+      "sectionName": "Prérequis - Quatre sur six",
+      "sectionType": "PREREQUISITE",
+      "zone": "unknown",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Les couts du sort",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 0,
+          "requirements": []
+        },
+        {
+          "name": "Une ombre au tableau",
+          "dofusdbId": 1785,
+          "level": 190,
+          "zone": "Pyramide d'Ombre - Cinquième Salle",
+          "npcName": null,
+          "npcSubArea": "Pyramide d'Ombre - Cinquième Salle",
+          "coords": {
+            "x": 38,
+            "y": -20,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Aller voir {npc,2978}",
+            "Parler à Nabrisa sur l'île de Rok",
+            "Escorter Nabrisa jusqu'à la Pyramide d'Ombre",
+            "Vaincre x1 {monster,3564} en un seul combat",
+            "Aller voir {npc,3445}",
+            "Capturer l'âme d'Ombre avec l'aide de Nabrisa",
+            "Aller voir {npc,3446}",
+            "Écouter la voix pour dissiper l'obscurité",
+            "Aller voir {npc,2205}",
+            "Aller voir {npc,914}"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Un remede draconien",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 2,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1785
+            }
+          ]
+        },
+        {
+          "name": "Le dragon des vents",
+          "dofusdbId": 1788,
+          "level": 190,
+          "zone": "Tente de la voyante",
+          "npcName": null,
+          "npcSubArea": "Tente de la voyante",
+          "coords": {
+            "x": -9,
+            "y": -40,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Trouver un signe de la présence d'Aerafal dans les Hauts du Kramdam",
+            "Trouver un signe de la présence d'Aerafal sur les hauteurs des Routes Rocailleuses",
+            "Trouver un signe de la présence d'Aerafal au sommet de l'arbre Hakam",
+            "Aller voir {npc,393}",
+            "Explorer les hauteurs du pic des truches",
+            "S'approcher du courant d'air ascendant",
+            "Aller voir {npc,3481}",
+            "Ramener à {npc,3481} : x1 {item,18283}",
+            "Ramener à {npc,3481} : x1 {item,18284}",
+            "Vaincre x1 {monster,4648} en un seul combat",
+            "Découvrir la carte : Promontoire d'Aerafal",
+            "Aller voir {npc,3482}",
+            "Aller voir {npc,389}",
+            "Aller voir {npc,3483}",
+            "Trouver Nobir chez les bworks du massif de Cania",
+            "Aller voir {npc,2956}",
+            "Aller voir {npc,3400}",
+            "Aller voir {npc,3369}",
+            "Récupérer une feuille de rozberk",
+            "Ramener à {npc,2956} : x1 {item,18286}",
+            "Ramener à {npc,3483} : x1 {item,18287}",
+            "Ramener à {npc,3483} : x1 {item,18288}",
+            "Ramener à {npc,3483} : x1 {item,18289}",
+            "Suivre Violette jusqu'à la plate-forme des orages",
+            "Capturer la foudre de l'orage avec le patatonnerre",
+            "Ramener à {npc,3482} : x1 {item,18291}"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1785
+            }
+          ]
+        },
+        {
+          "name": "Le dragon des flammes",
+          "dofusdbId": 1789,
+          "level": 190,
+          "zone": "Tente de la voyante",
+          "npcName": null,
+          "npcSubArea": "Tente de la voyante",
+          "coords": {
+            "x": -9,
+            "y": -40,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Trouver un signe de la présence d'Ignemikhal dans la zone de Feudala",
+            "Trouver un signe de la présence d'Ignemikhal près de la bordure de Brâkmar",
+            "Trouver un signe de la présence d'Ignemikhal sur la presqu'île des Dragoeufs",
+            "Aller voir {npc,393}",
+            "Explorer l'Hypogée de l'Obsidiantre",
+            "S'approcher du courant brûlant",
+            "Aller voir {npc,3489}",
+            "Ramener à {npc,3489} : x1 {item,18292}",
+            "Ramener à {npc,3489} : x1 {item,18293}",
+            "Vaincre x1 {monster,4650} en un seul combat",
+            "Découvrir la carte : Caverne d'Ignemikhal",
+            "Aller voir {npc,3490}",
+            "Purifier Bonta de la présence des adeptes du dieu cornu",
+            "Purifier Brâkmar de la présence des adeptes du dieu cornu",
+            "Purifier Astrub de la présence des adeptes du dieu cornu",
+            "Purifier Sufokia de la présence des adeptes du dieu cornu",
+            "Purifier la Bourgade de la présence des adeptes du dieu cornu",
+            "Purifier Pandala de la présence des adeptes du dieu cornu",
+            "Purifier Amakna de la présence des adeptes du dieu cornu",
+            "Retourner voir {npc,3490}"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1788
+            }
+          ]
+        },
+        {
+          "name": "Le destin de kalisthe",
+          "dofusdbId": null,
+          "level": null,
+          "zone": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [],
+          "stepOrder": 5,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1789
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

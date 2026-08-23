@@ -27,7 +27,7 @@ export function SyncPurgeCard({ guildId }: SyncPurgeCardProps) {
             if (result.success) {
                 toast.success("Synchronisation Militarisée terminée", {
                     description: result.message,
-                    icon: <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                    icon: <ShieldCheck className="w-5 h-5 text-success" />
                 });
             } else {
                 toast.error(result.error || "Une erreur est survenue.");
@@ -40,14 +40,14 @@ export function SyncPurgeCard({ guildId }: SyncPurgeCardProps) {
     };
 
     return (
-        <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="bg-surface/30 border border-border/50 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 shrink-0">
-                    <RefreshCcw className="w-5 h-5 text-indigo-400" />
+                <div className="w-10 h-10 rounded-full bg-info/10 flex items-center justify-center border border-info/20 shrink-0">
+                    <RefreshCcw className="w-5 h-5 text-info" />
                 </div>
                 <div>
-                    <h3 className="text-sm font-bold text-zinc-200">Actualisation des Membres</h3>
-                    <p className="text-[11px] text-zinc-500 leading-tight max-w-md">
+                    <h3 className="text-sm font-bold text-foreground">Actualisation des Membres</h3>
+                    <p className="text-caption text-muted-foreground leading-tight max-w-md">
                         Synchronise votre liste SigilOS avec Discord pour archiver les membres ayant quitté le serveur.
                     </p>
                 </div>
@@ -57,7 +57,7 @@ export function SyncPurgeCard({ guildId }: SyncPurgeCardProps) {
                 onClick={handleSync}
                 disabled={isLoading}
                 size="sm"
-                className="bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 font-semibold h-9 px-4 shrink-0 transition-all hover:scale-[1.02]"
+                className="bg-info/10 hover:bg-info/20 text-info border border-info/30 font-semibold h-9 px-4 shrink-0 transition-all hover:scale-[1.02]"
             >
                 {isLoading ? (
                     <>

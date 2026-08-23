@@ -5,9 +5,12 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Save, AlertTriangle, Hash, Handshake } from "lucide-react";
+import { Loader2, Save, AlertTriangle, Hash, Handshake, ExternalLink, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { getOcreConfig, updateOcreChannel } from "@/server/actions/admin-actions";
+import { cn } from "@/lib/utils";
+import { Label } from "@/components/ui/label";
+import { ChannelPreview } from "@/components/shared/ChannelPreview";
 
 interface OcreSettingsClientProps {
     guildId: string;
@@ -59,143 +62,149 @@ export function OcreSettingsClient({ guildId }: OcreSettingsClientProps) {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <Loader2 className="w-8 h-8 animate-spin text-success" />
             </div>
         );
     }
 
     return (
-        <div className="space-y-8">
-
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300 text-left">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Configuration Panel */}
-                <Card className="lg:col-span-2 bg-zinc-900/60 border-white/5">
-                    <CardHeader>
-                        <div className="flex items-center justify-between">
-                            <CardTitle className="flex items-center gap-2">
-                                <span className="bg-emerald-500/20 text-emerald-400 p-2 rounded-lg">
-                                    <Hash className="w-5 h-5" />
-                                </span>
-                                Salon Discord
-                            </CardTitle>
-                            {isConfigured ? (
-                                <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20">
-                                    Actif
-                                </Badge>
-                            ) : (
-                                <Badge variant="outline" className="text-zinc-500">
-                                    Inactif
-                                </Badge>
-                            )}
-                        </div>
-                        <CardDescription>
-                            Configurez le salon où seront publiées les demandes d'échange Ocre via Discord.
-                        </CardDescription>
-                    </CardHeader>
-
-                    <CardContent className="space-y-6">
-                        {/* Step 1 */}
-                        <div className="relative pl-6 border-l-2 border-white/5 pb-6 last:pb-0">
-                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-zinc-800 border-2 border-zinc-950 flex items-center justify-center">
-                                <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
-                            </div>
-                            <h3 className="text-sm font-medium text-white mb-2">1. Récupérer l'ID du salon</h3>
-                            <p className="text-xs text-zinc-500 mb-3">
-                                Activez le mode développeur Discord, puis faites <span className="text-zinc-300">Clic Droit</span> sur le salon voulu {'>'} <span className="text-zinc-300">Copier l'identifiant</span>.
-                            </p>
-                        </div>
-
-                        {/* Step 2 */}
-                        <div className="relative pl-6 border-l-2 border-emerald-500/50">
-                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
-                            <h3 className="text-sm font-medium text-white mb-4">2. Coller l'identifiant</h3>
-
-                            <div className="space-y-4">
-                                <div className="flex gap-2">
-                                    <Input
-                                        value={channelId}
-                                        onChange={(e) => setChannelId(e.target.value)}
-                                        placeholder="Ex: 123456789012345678"
-                                        className="font-mono bg-black/20 border-white/10"
-                                    />
-                                    <Button onClick={handleSave} disabled={isPending} className="min-w-[120px] bg-emerald-600 hover:bg-emerald-500">
-                                        {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                                        Sauvegarder
-                                    </Button>
-                                </div>
-                                {isConfigured && (
-                                    <div className="flex justify-end">
-                                        <Button variant="ghost" size="sm" onClick={handleClear} disabled={isPending} className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-auto py-1 px-3 text-xs">
-                                            Désactiver l'intégration
-                                        </Button>
-                                    </div>
+                <div className="lg:col-span-2 space-y-6">
+                    <Card className="bg-surface/60 border-border overflow-hidden group relative">
+                        <div className="absolute inset-0 bg-gradient-to-br from-success/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                        <CardHeader>
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="flex items-center gap-2 text-foreground font-black uppercase tracking-tighter">
+                                    <span className="bg-success/20 text-success p-2 rounded-lg">
+                                        <Hash className="w-5 h-5" />
+                                    </span>
+                                    Salon des Échanges Ocre
+                                </CardTitle>
+                                {isConfigured ? (
+                                    <Badge className="bg-success/10 text-success border-success/20">Actif</Badge>
+                                ) : (
+                                    <Badge variant="outline" className="text-muted-foreground border-border uppercase text-caption font-black tracking-widest">Inactif</Badge>
                                 )}
                             </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Preview Panel */}
-                <div className="space-y-6">
-                    <Card className="bg-zinc-900/60 border-white/5 overflow-hidden">
-                        <CardHeader className="bg-white/5 pb-4">
-                            <CardTitle className="text-sm text-zinc-300">Aperçu du message</CardTitle>
+                            <CardDescription className="text-xs font-medium text-muted-foreground">
+                                Centralisez les demandes d'échange d'archimonstres de vos membres.
+                            </CardDescription>
                         </CardHeader>
-                        <CardContent className="pt-6 relative">
-                            {/* Discord Message Mockup */}
-                            <div className="flex items-start gap-4">
-                                <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
-                                    <Handshake className="w-5 h-5 text-zinc-950" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-baseline gap-2 mb-1">
-                                        <span className="font-medium text-emerald-400">SigilOS</span>
-                                        <span className="bg-emerald-500/20 text-emerald-300 text-[10px] px-1 rounded">BOT</span>
-                                        <span className="text-xs text-zinc-500">Maintenant</span>
+                        <CardContent className="space-y-8">
+                            <div className="space-y-6">
+                                <div className="relative pl-6 border-l-2 border-border pb-6 last:pb-0">
+                                    <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-border flex items-center justify-center">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-muted" />
                                     </div>
+                                    <h3 className="text-sm font-medium text-foreground mb-2 text-left">1. Récupérer l'ID du salon</h3>
+                                    <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+                                        Créez un salon dédié (ex: <span className="text-success">🤝┊échanges-ocre</span>) pour que le bot puisse avertir les membres quand ils peuvent s'entraider.
+                                    </p>
+                                </div>
 
-                                    {/* Embed */}
-                                    <div className="bg-[#2b2d31] rounded border-l-4 border-emerald-400 p-4 max-w-sm">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <span className="text-lg">🤝</span>
-                                            <h4 className="font-semibold text-white text-sm">Demande d'échange</h4>
-                                        </div>
+                                <div className="relative pl-6 border-l-2 border-success/50">
+                                    <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-success border-2 border-border " />
+                                    <h3 className="text-sm font-medium text-foreground mb-4 text-left">2. Coller l'identifiant</h3>
 
-                                        <p className="text-zinc-300 text-sm mb-4">
-                                            <span className="text-emerald-400 font-medium hover:underline cursor-pointer">Wylan</span> recherche <span className="font-semibold text-white">Abrakne</span> (Archi).
-                                        </p>
-
-                                        <div className="flex gap-6">
-                                            <div>
-                                                <div className="text-[#b5bac1] text-xs font-bold uppercase tracking-wider mb-1">Membre Contacté</div>
-                                                <div className="text-zinc-200 text-sm">Tourte</div>
+                                    <div className="space-y-4">
+                                        <div className="flex flex-col sm:flex-row gap-3">
+                                            <div className="relative flex-1 group/input">
+                                                <Input
+                                                    value={channelId}
+                                                    onChange={(e) => setChannelId(e.target.value)}
+                                                    placeholder="ID du salon (ex: 123...)"
+                                                    className="font-mono bg-black/20 border-border h-11 pl-10 focus:border-success/50 transition-colors"
+                                                />
+                                                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-hover/input:text-success transition-colors" />
                                             </div>
-                                            <div>
-                                                <div className="text-[#b5bac1] text-xs font-bold uppercase tracking-wider mb-1">Action</div>
-                                                <div className="text-zinc-200 text-sm">Allez sur le Dashboard</div>
+                                            <Button onClick={handleSave} disabled={isPending} className="min-w-[140px] bg-success hover:bg-success h-11 font-bold shadow-lg shadow-emerald-600/20">
+                                                {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                                                SAUVEGARDER
+                                            </Button>
+                                        </div>
+                                        <ChannelPreview guildId={guildId} channelId={channelId} color="emerald" />
+                                        
+                                        {isConfigured ? (
+                                            <div className="flex justify-end">
+                                                <Button variant="ghost" size="sm" onClick={handleClear} disabled={isPending} className="text-danger hover:text-danger hover:bg-danger/20 h-auto py-1 px-3 text-caption font-black uppercase tracking-widest">
+                                                    Désactiver l'intégration
+                                                </Button>
                                             </div>
-                                        </div>
-
-                                        <div className="mt-3 pt-3 border-t border-[#3f4147] flex items-center gap-2">
-                                            <div className="w-4 h-4 rounded-full bg-zinc-700" />
-                                            <span className="text-[#949ba4] text-xs">SigilOS • Quête Ocre</span>
-                                        </div>
+                                        ) : (
+                                            <div className="p-3 rounded-xl bg-warning/5 border border-warning/10 flex items-start gap-3">
+                                                <AlertTriangle className="w-3.5 h-3.5 text-warning mt-0.5 shrink-0" />
+                                                <p className="text-caption text-muted-foreground leading-relaxed italic">
+                                                    Aucun salon configuré. Les demandes d'échange ne seront pas relayées sur Discord.
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-blue-500/5 border-blue-500/10">
-                        <CardContent className="p-4 flex gap-3">
-                            <div className="p-2 bg-blue-500/20 rounded-lg shrink-0 h-fit">
-                                <AlertTriangle className="w-4 h-4 text-blue-400" />
+                    <Card className="bg-info/5 border-info/10 overflow-hidden">
+                        <CardContent className="p-5 flex gap-4">
+                            <div className="p-2.5 bg-info/20 rounded-xl shrink-0 h-fit">
+                                <ShieldCheck className="w-5 h-5 text-info" />
                             </div>
                             <div className="space-y-1">
-                                <h4 className="text-sm font-medium text-blue-200">Permissions requises</h4>
-                                <p className="text-xs text-blue-300/70 leading-relaxed">
-                                    Le bot <strong>SigilOS</strong> doit avoir les droits "Voir le salon" et "Envoyer des messages".
+                                <h4 className="text-sm font-bold text-info uppercase tracking-tight">Vérification des Permissions</h4>
+                                <p className="text-xs text-info/70 leading-relaxed">
+                                    Assurez-vous que le bot <strong>SigilOS</strong> possède les permissions <span className="text-info font-bold">Voir le salon</span> et <span className="text-info font-bold">Envoyer des messages</span> dans le salon choisi.
                                 </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Preview Panel */}
+                <div className="space-y-6">
+                    <Card className="bg-surface/60 border-border overflow-hidden">
+                        <CardHeader className="bg-surface pb-3 px-4 py-3">
+                            <CardTitle className="text-caption font-black uppercase tracking-widest text-muted-foreground text-left">Aperçu : Demande d'Échange</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-6 relative px-4 text-left">
+                            <div className="flex items-start gap-3">
+                                <div className="w-8 h-8 rounded-full bg-success flex items-center justify-center shrink-0">
+                                    <Handshake className="w-4 h-4 text-foreground" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-baseline gap-2 mb-1">
+                                        <span className="font-medium text-success text-xs">SigilOS</span>
+                                        <span className="bg-success/20 text-success text-caption px-1 rounded uppercase font-black">Bot</span>
+                                    </div>
+
+                                    <div className="bg-[#2b2d31] rounded border-l-4 border-success p-3 max-w-sm shadow-xl">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="text-sm">🤝</span>
+                                            <h4 className="font-semibold text-foreground text-caption">Demande d'Échange</h4>
+                                        </div>
+
+                                        <p className="text-foreground text-caption leading-relaxed mb-3">
+                                            <span className="text-success font-medium">@Wylan</span> recherche <span className="text-foreground font-bold">Abrakne le Miséricordieux</span>.
+                                        </p>
+
+                                        <div className="grid grid-cols-2 gap-3 p-2 bg-black/20 rounded border border-border">
+                                            <div>
+                                                <div className="text-[#b5bac1] text-caption font-bold uppercase tracking-wider mb-0.5">Contacté</div>
+                                                <div className="text-foreground text-caption truncate">Tourte</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-[#b5bac1] text-caption font-bold uppercase tracking-wider mb-0.5">Dispo</div>
+                                                <div className="text-warning text-caption font-bold">En Double</div>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-3 pt-2 border-t border-[#3f4147] flex items-center justify-between">
+                                            <span className="text-[#949ba4] text-caption">Quête Ocre • SigilOS</span>
+                                            <ExternalLink className="w-2.5 h-2.5 text-muted-foreground" />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>

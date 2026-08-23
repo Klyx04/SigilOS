@@ -1,123 +1,191 @@
 export const PERMISSIONS = {
-    // Admin & Core
-    ADMIN_ACCESS: "admin:access",
-    DASHBOARD_VIEW: "dashboard:view",
-    STATS_VIEW: "stats:view",
+    // ⬇️  ACCÈS PLATEFORME — PRIORITAIRE
+    DASHBOARD_LOGIN: "dashboard:login",
 
-    // Members & Profiles
-    PROFILE_VIEW: "profile:view",
-    PROFILE_VIEW_ALL: "profile:view_all", // Full guild roster
-    MEMBER_MANAGE: "admin:member_manage", // Lifecycle (Archive, Ban)
+    // System & Global Admin
+    SYSTEM_GOD: "system:god",
+    SYSTEM_CONFIG: "system:config",
+    SYSTEM_RBAC: "system:rbac",
 
-    // Missions & Bonus
-    MISSIONS_VIEW: "missions:view",
-    MISSIONS_CREATE: "missions:create",
-    MISSIONS_VALIDATE: "missions:validate",
-    BONUS_MANAGE: "missions:bonus_manage",
+    // Staff & Supervision
+    STAFF_MEMBER_MGMT: "staff:member_mgmt",
+    STAFF_CONTENT: "staff:content",
+    STAFF_AUDIT: "staff:audit",
 
-    // Game Features
-    SONGES_VIEW: "songes:view",
-    SONGES_CREATE: "songes:create",
-    SONGES_JOIN: "songes:join",
-    ARCHIS_VIEW: "archis:view",
-    LADDER_VIEW: "ladder:view",
-    FINDER_VIEW: "donjons:view",
-    SERVICES_VIEW: "services:view",
-    SERVICES_CREATE: "services:create",
-    POLLS_VIEW: "polls:view",
-    POLLS_MANAGE: "polls:manage",
-
-    // Guild Info & Presentation
+    // Modules & Information
     PRESENTATION_VIEW: "presentation:view",
-    PRESENTATION_EDIT: "presentation:edit",
-    WELCOME_VIEW: "welcome:view",
-    DOCS_VIEW: "docs:view",
-    DOCS_VIEW_ADMIN: "docs:view_admin",
 
-    // Coming Soon Modules
-    QUESTS_VIEW: "quests:view",
-    QUESTS_MANAGE: "quests:manage",
-    WORLDMAP_VIEW: "worldmap:view",
-    WORLDMAP_MANAGE: "worldmap:manage",
-    RESOURCES_VIEW: "resources:view",
+    // Community
+    COMMUNITY_ACCESS: "community:access",
+    COMMUNITY_MOD: "community:mod",
+    AVAILABILITY_VIEW: "availability:view",
     RESOURCES_MANAGE: "resources:manage",
 
-    // Calendar
-    CALENDAR_VIEW: "calendar:view",
-    CALENDAR_MANAGE: "calendar:manage",
+    // Missions
+    MISSIONS_PLAY: "missions:play",
+    MISSIONS_OFFICER: "missions:officer",
 
-    // Chat
-    CHAT_VIEW: "chat:view",         // Lire + écrire dans le chat guilde
-    CHAT_MODERATE: "chat:moderate", // Muter des membres, vider l'historique
+    // Game & Activities
+    GAME_VIEW: "game:view",
+    GAME_OPERATIONS: "game:operations",
+    SUCCESS_VIEW: "success:view",
+    RAID_OFFICER: "game:raid_officer",
+    RAID_MEMBER: "game:raid_member",
+    POINTS_MANAGE: "points:manage",
 } as const;
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
-export type PermissionModule = "admin" | "missions" | "profile" | "songes" | "features" | "tools" | "info" | "calendar" | "chat";
+export type PermissionModule = "access" | "admin" | "missions" | "game" | "community" | "info";
+
+export const MODULE_ORDER: PermissionModule[] = ["access", "admin", "missions", "game", "community", "info"];
 
 export const PERMISSION_MODULES: Record<PermissionModule, { label: string; icon: string; color: string }> = {
-    admin: { label: "Administration", icon: "🛡️", color: "#f59e0b" },
+    access: { label: "Accès & Identité", icon: "🚪", color: "#22c55e" },
+    admin: { label: "Système & Staff", icon: "🛡️", color: "#f59e0b" },
     missions: { label: "Missions", icon: "📜", color: "#3b82f6" },
-    profile: { label: "Profils", icon: "👤", color: "#ec4899" },
-    songes: { label: "Songes Infinis", icon: "🌙", color: "#8b5cf6" },
-    features: { label: "Activités", icon: "🎮", color: "#10b981" },
-    tools: { label: "Outils", icon: "🧩", color: "#06b6d4" },
+    // Ordre aligné sur MODULE_ORDER (access, admin, missions, game, community, info)
+    game: { label: "Activités Dofus", icon: "🎮", color: "#10b981" },
+    community: { label: "Communauté", icon: "🤝", color: "#6366f1" },
     info: { label: "Information", icon: "📖", color: "#a855f7" },
-    calendar: { label: "Calendrier", icon: "📅", color: "#10b981" },
-    chat: { label: "Chat Live", icon: "💬", color: "#6366f1" },
 };
 
-export const PERMISSION_DETAILS: Record<PermissionId, { label: string; description: string; module: PermissionModule }> = {
-    // Core & Access (Grouped in Info/Tools depending on use)
-    [PERMISSIONS.ADMIN_ACCESS]: { label: "Accès Admin Complet", description: "Accès total à l'administration.", module: "admin" },
-    [PERMISSIONS.DASHBOARD_VIEW]: { label: "Voir Dashboard", description: "Accès à l'accueil du dashboard.", module: "info" },
-    [PERMISSIONS.STATS_VIEW]: { label: "Voir Stats Guilde", description: "Accès aux statistiques globales.", module: "info" },
+export const PERMISSION_DETAILS: Record<PermissionId, { label: string; description: string; module: PermissionModule; modules: string[]; sensitive?: boolean }> = {
+    // Access
+    [PERMISSIONS.DASHBOARD_LOGIN]: { 
+        label: "Accès Dashboard", 
+        description: "Accès de base au Cockpit. Permet la connexion et la consultation des ressources fondamentales.", 
+        module: "access",
+        modules: ["Accueil", "Docs", "Wiki Membre", "Resources", "Stats Guilde"]
+    },
+    
+    // Info
+    [PERMISSIONS.PRESENTATION_VIEW]: { 
+        label: "Voir Présentation", 
+        description: "Consulter la page de présentation, de recrutement et lire les objectifs de la guilde en jeu.", 
+        module: "info",
+        modules: ["Présentation", "Objectifs"]
+    },
 
-    // Profiles
-    [PERMISSIONS.PROFILE_VIEW]: { label: "Voir Mon Profil", description: "S'autoriser à voir son propre profil.", module: "profile" },
-    [PERMISSIONS.PROFILE_VIEW_ALL]: { label: "Voir l'Annuaire", description: "Consulter la liste des membres.", module: "profile" },
-    [PERMISSIONS.MEMBER_MANAGE]: { label: "Gérer les Membres", description: "Archiver ou bannir des membres.", module: "admin" },
+    // Admin
+    [PERMISSIONS.STAFF_MEMBER_MGMT]: { 
+        label: "Ressources Humaines", 
+        description: "Gestion globale du Roster, synchronisation des données, archivage et relances d'inactivité.", 
+        module: "admin",
+        modules: ["Annuaire (Admin)", "Synchronisation", "Relances", "Vacances"]
+    },
+    [PERMISSIONS.STAFF_CONTENT]: { 
+        label: "Communication Interne", 
+        description: "Droit d'édition totale sur le contenu de la page de présentation et accès au Wiki Officier.", 
+        module: "admin",
+        modules: ["Édition Présentation", "Wiki Officier", "Admin Docs"]
+    },
+    [PERMISSIONS.STAFF_AUDIT]: { 
+        label: "Supervision & Analytics", 
+        description: "Accès aux Audit Logs administrateurs (actions sensibles, historique des modifications).", 
+        module: "admin",
+        modules: ["Audit Logs"]
+    },
+    [PERMISSIONS.SYSTEM_CONFIG]: { 
+        label: "Paramétrage Technique", 
+        description: "Configuration des intégrations Discord (rôles/webhooks), Metamob, Dofus et modules.", 
+        module: "admin",
+        modules: ["Réglages", "Intégrations", "Webhooks", "Metamob"]
+    },
+    [PERMISSIONS.SYSTEM_RBAC]: { 
+        label: "Gestion des Accès", 
+        description: "Gérer le mapping des permissions pour les utilisateurs et attribuer des droits RBAC.",
+        module: "admin",
+        modules: ["Matrice RBAC", "Permissions Individuelles"],
+        sensitive: true,
+    },
+    [PERMISSIONS.SYSTEM_GOD]: { 
+        label: "Administrateur Suprême", 
+        description: "Bypass absolu de sécurité. Autorisation inconditionnelle et totale sur toutes les fonctionnalités.", 
+        module: "admin",
+        modules: ["TOUS LES MODULES (Full Access)"],
+        sensitive: true,
+    },
+
+    // Community
+    [PERMISSIONS.COMMUNITY_ACCESS]: { 
+        label: "Participation Sociale", 
+        description: "Accès sans restriction à l'Annuaire, au Calendrier de guilde et aux sondages actifs.", 
+        module: "community",
+        modules: ["Annuaire", "Calendrier", "Sondages"]
+    },
+    [PERMISSIONS.COMMUNITY_MOD]: { 
+        label: "Modération & Animation", 
+        description: "Droit de créer, de modifier et de supprimer des événements dans le calendrier de guilde.", 
+        module: "community",
+        modules: ["Gestion Calendrier"]
+    },
+    [PERMISSIONS.AVAILABILITY_VIEW]: {
+        label: "Voir les Disponibilités",
+        description: "Consulter les disponibilités et absences des membres dans l'annuaire et remplir son planning perso (module Disponibilités).",
+        module: "community",
+        modules: ["Annuaire (Disponibilités)", "Profil (Planning)"]
+    },
+    [PERMISSIONS.RESOURCES_MANAGE]: {
+        label: "Gérer les Ressources",
+        description: "#127 — Créer, modifier et supprimer les liens, catégories et créateurs de contenu de la page Ressources Dofus (délégation aux officiers, sans passer par le God).",
+        module: "community",
+        modules: ["Ressources Dofus (édition)"]
+    },
+
 
     // Missions
-    [PERMISSIONS.MISSIONS_VIEW]: { label: "Voir les Missions", description: "Consulter les missions hebdo.", module: "missions" },
-    [PERMISSIONS.MISSIONS_CREATE]: { label: "Gérer les Missions", description: "Créer et modifier les missions.", module: "missions" },
-    [PERMISSIONS.MISSIONS_VALIDATE]: { label: "Valider Preuves", description: "Valider les screenshots soumis.", module: "missions" },
-    [PERMISSIONS.BONUS_MANAGE]: { label: "Gérer les Bonus", description: "Acheter des bonus de guilde.", module: "missions" },
+    [PERMISSIONS.MISSIONS_PLAY]: { 
+        label: "Joueur de Missions", 
+        description: "Accès aux missions de la semaine, consultation des objectifs et progression.", 
+        module: "missions",
+        modules: ["Missions (Joueur)", "Progression"]
+    },
+    [PERMISSIONS.MISSIONS_OFFICER]: { 
+        label: "Officier de Missions", 
+        description: "Configuration des objectifs, création de missions, validation des preuves et boutique.", 
+        module: "missions",
+        modules: ["Gestion Missions", "Validation", "Boutique", "Bonus"]
+    },
 
-    // Game Features
-    [PERMISSIONS.SONGES_VIEW]: { label: "Songes Infinis", description: "Accès au module Songes.", module: "songes" },
-    [PERMISSIONS.SONGES_CREATE]: { label: "Créer Runs Songes", description: "Gérer ses propres runs.", module: "songes" },
-    [PERMISSIONS.SONGES_JOIN]: { label: "Rejoindre Runs Songes", description: "Demander à rejoindre une run.", module: "songes" },
-    [PERMISSIONS.ARCHIS_VIEW]: { label: "Bourse aux Archis", description: "Accès à l'échange d'archis.", module: "features" },
-    [PERMISSIONS.LADDER_VIEW]: { label: "Classements", description: "Accès aux ladders de guilde.", module: "features" },
-    [PERMISSIONS.FINDER_VIEW]: { label: "Donjons & Quêtes", description: "Accès au chercheur d'activités.", module: "tools" },
-    [PERMISSIONS.SERVICES_VIEW]: { label: "Services Guilde", description: "Accès à la marketplace.", module: "tools" },
-    [PERMISSIONS.SERVICES_CREATE]: { label: "Créer Services/Prêts/Coffre", description: "Publier des annonces, enregistrer des prêts et dépôts coffre.", module: "tools" },
-    [PERMISSIONS.POLLS_VIEW]: { label: "Voir Sondages", description: "Consulter et voter aux sondages.", module: "tools" },
-    [PERMISSIONS.POLLS_MANAGE]: { label: "Gérer Sondages", description: "Créer et modifier les sondages.", module: "admin" },
-
-    // Guild Info
-    [PERMISSIONS.PRESENTATION_VIEW]: { label: "Voir Présentation", description: "Accès à la page de guilde.", module: "info" },
-    [PERMISSIONS.PRESENTATION_EDIT]: { label: "Éditer Présentation", description: "Modifier la page publique.", module: "admin" },
-    [PERMISSIONS.WELCOME_VIEW]: { label: "Voir Bienvenue", description: "Accès au canal Bienvenue des nouveaux membres.", module: "info" },
-    [PERMISSIONS.DOCS_VIEW]: { label: "Voir Documentation", description: "Accès au Wiki public.", module: "info" },
-    [PERMISSIONS.DOCS_VIEW_ADMIN]: { label: "Voir Documentation Admin", description: "Accès au Wiki réservé.", module: "admin" },
-    [PERMISSIONS.RESOURCES_VIEW]: { label: "Voir Ressources", description: "Accès au hub des ressources Dofus.", module: "info" },
-    [PERMISSIONS.RESOURCES_MANAGE]: { label: "Gérer Ressources", description: "Gérer les ressources communautaires.", module: "admin" },
-
-    // Coming Soon Modules (placed in tools for now)
-    [PERMISSIONS.QUESTS_VIEW]: { label: "Voir Quêtes Dofus", description: "Suivre et trouver des partenaires de quêtes.", module: "tools" },
-    [PERMISSIONS.QUESTS_MANAGE]: { label: "Gérer Quêtes Dofus", description: "Gérer les arbres de progression.", module: "admin" },
-    [PERMISSIONS.WORLDMAP_VIEW]: { label: "Voir Carte & Mini-Jeux", description: "Accès à la carte du monde et jeux.", module: "tools" },
-    [PERMISSIONS.WORLDMAP_MANAGE]: { label: "Gérer Carte & Mini-Jeux", description: "Gérer les marqueurs de la carte.", module: "admin" },
-
-    // Calendar
-    [PERMISSIONS.CALENDAR_VIEW]: { label: "Voir le Calendrier", description: "Consulter l'agenda.", module: "calendar" },
-    [PERMISSIONS.CALENDAR_MANAGE]: { label: "Gérer le Calendrier", description: "Créer des événements.", module: "calendar" },
-
-    // Chat
-    [PERMISSIONS.CHAT_VIEW]: { label: "Accès Chat Live", description: "Lire et envoyer des messages dans le chat guilde.", module: "chat" },
-    [PERMISSIONS.CHAT_MODERATE]: { label: "Modérer le Chat", description: "Muter des membres et vider l'historique.", module: "chat" },
+    // Game
+    [PERMISSIONS.GAME_VIEW]: { 
+        label: "Encyclopédie de Jeu", 
+        description: "Accès global au tracker Ocre, ladders, quêtes, mini-jeux et carte interactive.", 
+        module: "game",
+        modules: ["Ocre", "Ladder", "Quêtes", "Worldmap", "Mini-Jeux", "Galerie Stuff"]
+    },
+    [PERMISSIONS.GAME_OPERATIONS]: { 
+        label: "Organisation d'Activités", 
+        description: "Organisation des runs de Songes, services VIP et gestion du module Donjons & Quêtes.", 
+        module: "game",
+        modules: ["Songes", "Services VIP", "Donjons & Quêtes (Finder)"]
+    },
+    // #138 — module Succès dédié (Mes Succès + Succès Commun), indépendant du finder DJ.
+    [PERMISSIONS.SUCCESS_VIEW]: {
+        label: "Succès",
+        description: "Consulter sa checklist de succès de donjons, cocher sa progression et voir l'annuaire « qui a quoi » dans la guilde.",
+        module: "game",
+        modules: ["Mes Succès", "Succès Commun"]
+    },
+    [PERMISSIONS.RAID_OFFICER]: { 
+        label: "Gestion des Raids", 
+        description: "Autorisation de créer, modifier et clôturer des Raids Officiels 3.6.", 
+        module: "game",
+        modules: ["Création Raid", "Clôture Raid", "Gestion Points"]
+    },
+    [PERMISSIONS.RAID_MEMBER]: { 
+        label: "Participation aux Raids", 
+        description: "Autorisation de s'inscrire et de participer aux Raids Officiels (Dashboard & Discord).", 
+        module: "game",
+        modules: ["Inscription Raid", "Canaux Raid"]
+    },
+    [PERMISSIONS.POINTS_MANAGE]: {
+        label: "Gestion des Points de Contribution",
+        description: "Personnaliser les points attribués à la clôture des posts DJ / quêtes et des runs Songes.",
+        module: "game",
+        modules: ["Points de Contribution"]
+    },
 };
 
 export const PERMISSION_LABELS: Record<PermissionId, string> =
@@ -130,4 +198,3 @@ export function getPermissionsByModule(module: PermissionModule): PermissionId[]
         .filter(([, details]) => details.module === module)
         .map(([permId]) => permId);
 }
-

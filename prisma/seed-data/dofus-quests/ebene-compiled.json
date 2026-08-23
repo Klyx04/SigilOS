@@ -1,0 +1,644 @@
+{
+  "dofus": "ebene",
+  "displayName": "Dofus Ébène",
+  "color": "#1a1a1a",
+  "successName": "Noir d'ébène",
+  "recommendedLevel": 200,
+  "description": "Obtenir le Dofus Ébène en terminant la série de quêtes épiques du dragon noir Terrakourial. Requiert métiers paysan (niv 80) et mineur (niv 20), accès à Frigost III, Xélorium et Srambad.",
+  "dofusItemId": 7114,
+  "iconId": null,
+  "imageUrl": "/module-dofus/Dofus_Ebene.png",
+  "compiledAt": "2026-04-11T17:56:38.402Z",
+  "chains": [
+    {
+      "sectionName": "Préréquis d'Alignement",
+      "sectionType": "PREREQUISITE",
+      "zone": "Bonta / Brakmar",
+      "description": "Nécessite l'alignement niveau 100 et les quêtes d'alignement jusqu'à L'épée du rocher.",
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "entries": [
+        {
+          "name": "L'épée du rocher",
+          "dofusdbId": 2035,
+          "level": 120,
+          "zone": "Repaire de Skeunk - Sortie",
+          "npcName": null,
+          "npcSubArea": "Repaire de Skeunk - Sortie",
+          "coords": {
+            "x": -6,
+            "y": -3,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 20210,
+              "name": "Crocobur",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/6739.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 46,
+              "name": "Repaire de Skeunk",
+              "bossId": 780,
+              "img": "https://api.dofusdb.fr/img/monsters/431.png"
+            },
+            {
+              "id": 85,
+              "name": "Mégalithe de Fraktale",
+              "bossId": 3852,
+              "img": "https://api.dofusdb.fr/img/monsters/1224.png"
+            }
+          ],
+          "objectives": [
+            "Lire l'ouvrage sur la légende de Crocoburio",
+            "Retourner voir {npc,2205}",
+            "Découvrir la carte : Rocher de l'épée",
+            "Tenter de retirer l'épée du rocher",
+            "Examiner le rocher",
+            "Récupérer de la poudre scintillante dans la bouate à maquillage de Skeunk",
+            "Fabriquer la poudre d'Oubn-Ghazou dans le creuset de Mériana",
+            "Utiliser la poudre magique sur le rocher de l'épée",
+            "Montrer à {npc,2205} : 1 {item,20207}",
+            "Trouver le magicien nommé Merlan",
+            "Se rendre dans la dimension du Xélorium",
+            "Vaincre x1 {monster,3852} en un seul combat",
+            "Ramener à {npc,6365} : x1 {item,20208}",
+            "Vaincre un craqueleur de verre dans la Montagne des Craqueleurs",
+            "Vaincre un craqueleur de verre dans les Plaines Rocheuses",
+            "Vaincre un craqueleur de verre dans les Plaines Herbeuses",
+            "Ramener à {npc,6365} : x3 {item,20209}",
+            "Placer les fragments pour briser le lien entre le rocher et l'épée",
+            "Aller voir {npc,4633}",
+            "Vaincre x1 {monster,5381} en un seul combat",
+            "Retirer l'épée Crocobur du rocher",
+            "Montrer à {npc,2205} : 1 {item,20210}"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        }
+      ]
+    },
+    {
+      "sectionName": "Noir d'ébène",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Pandala / Monde des Douze",
+      "description": "La série principale du Dofus Ébène.",
+      "isSynergyCandidate": true,
+      "chainOrder": 1,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Le forgeur de légende",
+          "dofusdbId": 2036,
+          "level": 120,
+          "zone": "Antre de Crocabulia - Cinquième salle",
+          "npcName": null,
+          "npcSubArea": "Antre de Crocabulia - Cinquième salle",
+          "coords": {
+            "x": -29,
+            "y": 25,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 20210,
+              "name": "Crocobur",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/6739.png"
+            },
+            {
+              "id": 11110,
+              "name": "Obsidienne",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/51163.png"
+            },
+            {
+              "id": 7033,
+              "name": "Dolomite",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/51151.png"
+            },
+            {
+              "id": 17995,
+              "name": "Écume de mer",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/83151.png"
+            },
+            {
+              "id": 20162,
+              "name": "Métal abyssal",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/101019.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 46,
+              "name": "Repaire de Skeunk",
+              "bossId": 780,
+              "img": "https://api.dofusdb.fr/img/monsters/431.png"
+            },
+            {
+              "id": 7,
+              "name": "Antre de Crocabulia",
+              "bossId": 854,
+              "img": "https://api.dofusdb.fr/img/monsters/479.png"
+            }
+          ],
+          "objectives": [
+            "Rencontrer un forgeron capable de réparer Crocobur",
+            "Aller voir {npc,3923}",
+            "Tremper l'épée dans le lac gelé de Frigost",
+            "Tremper l'épée dans la fournaise de Feudala",
+            "Tremper l'épée dans un cratère acide de la Désolation",
+            "Montrer à {npc,3923} : 1 {item,20210}",
+            "Placer l'épée sur l'enclume de Volkaragnar",
+            "Assister Volkaragnar pendant qu'il reforge la lame de l'épée",
+            "Aller voir {npc,3922}",
+            "Trouver une source de magie dans les Lacs Enchantés",
+            "Remplir une fiole avec de l'eau de la source de magie",
+            "Ramener à {npc,3923} : x1 {item,20211}",
+            "Interroger la bijoutière d'Astrub",
+            "Trouver Crocopale",
+            "Vaincre les gardiens de l'épée",
+            "Aller voir {npc,4651}",
+            "Faire sertir une pierre de jade dans la garde de Crocobur",
+            "Retourner voir {npc,3923}",
+            "Découvrir la carte : Portail du Donjon des Dragoeufs",
+            "Vaincre x1 {monster,854} en un seul combat",
+            "Tremper l'épée dans le sang de Crocabulia",
+            "Aller voir {npc,4634}"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": true,
+          "requirements": []
+        },
+        {
+          "name": "Jusqu'au bout du rêve",
+          "dofusdbId": 2037,
+          "level": 130,
+          "zone": "Pandala / Monde des Douze",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 0,
+            "y": 0,
+            "worldId": 19
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 85,
+              "name": "Mégalithe de Fraktale",
+              "bossId": 3852,
+              "img": "https://api.dofusdb.fr/img/monsters/1224.png"
+            }
+          ],
+          "objectives": [
+            "Entrer dans le Plan Astral",
+            "Aller voir {npc,4638}",
+            "Progresser si nécessaire et explorer le puits jusqu'à trouver le premier songe de Crocobur",
+            "Progresser si nécessaire et explorer le puits jusqu'à trouver le deuxième songe de Crocobur",
+            "Progresser si nécessaire et explorer le puits jusqu'à trouver le troisième songe de Crocobur",
+            "Progresser si nécessaire et explorer le puits jusqu'à trouver le quatrième songe de Crocobur",
+            "Progresser si nécessaire et explorer le puits jusqu'à trouver le cinquième songe de Crocobur",
+            "Progresser si nécessaire et explorer le puits jusqu'à trouver le sixième songe de Crocobur",
+            "Trouver le septième songe de Crocobur dans les Pensées oniriques (ou au-delà) d'un rêve intense (difficulté 3 ou plus)",
+            "Trouver le huitième songe de Crocobur au cours des Balades fantastiques (ou au-delà) dans les méandres d'un rêve intense (difficulté 3 ou plus)",
+            "Trouver le neuvième songe de Crocobur dans les Espaces imaginaires (ou au-delà) d'un rêve intense (difficulté 3 ou plus)",
+            "Trouver le dixième songe de Crocobur dans les Concepts brumeux (ou au-delà) d'un rêve intense (difficulté 3 ou plus)",
+            "Trouver le onzième songe de Crocobur dans les Abstractions chimériques d'un rêve intense (difficulté 3 ou plus)",
+            "Affronter la vague de gardiens chimériques d'un rêve intense (difficulté 3 ou plus) pour trouver le dernier songe de Crocobur",
+            "Montrer l'épée éveillée à Volkaragnar",
+            "Retourner voir {npc,2205}"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2036
+            }
+          ]
+        },
+        {
+          "name": "À la recherche de Crocoburio",
+          "dofusdbId": 2038,
+          "level": 200,
+          "zone": "Tour de Bethel - Cinquième salle",
+          "npcName": null,
+          "npcSubArea": "Tour de Bethel - Cinquième salle",
+          "coords": {
+            "x": -48,
+            "y": -78,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 108,
+              "name": "Tour de Bethel",
+              "bossId": 5110,
+              "img": "https://api.dofusdb.fr/img/monsters/1670.png"
+            }
+          ],
+          "objectives": [
+            "Trouver Sramsara",
+            "Aller voir {npc,4566}",
+            "Affronter Bethel dans sa tour",
+            "Ramener à {npc,4566} : x1 {item,20078}",
+            "Chasser le fantôme crocodaille",
+            "Lire le parchemin magique",
+            "Trouver l'endroit où Crocoburio s'est réincarné",
+            "Découvrir des informations sur la famille de Crocoburio réincarné",
+            "Trouver l'endroit où a déménagé la famille de bûcherons",
+            "Découvrir de nouvelles informations sur la famille de Crocoburio réincarné",
+            "Trouver qui a recueilli les trois orphelins",
+            "Parler à l'aîné des orphelins",
+            "Trouver le plus jeune des orphelins",
+            "Se débarrasser des créatures qui importunent le jeune garçon",
+            "Aller voir {npc,4615}",
+            "Retourner voir {npc,4616}",
+            "Donner une bonne leçon à Bruce Epett",
+            "Trouver quelqu'un qui aurait aperçu la petite fille",
+            "Trouver l'endroit où s'est réfugiée la petite fille",
+            "Se débarrasser des boiboites de Yan Chenap",
+            "Aller voir {npc,4617}",
+            "Escorter la petite fille jusqu'à Mériana",
+            "Aller voir {npc,2205}"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2037
+            }
+          ]
+        },
+        {
+          "name": "Le creuset de Mériana",
+          "dofusdbId": 2039,
+          "level": 200,
+          "zone": "Pandala / Monde des Douze",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -6,
+            "y": -3,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 20162,
+              "name": "Métal abyssal",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/107737.png"
+            },
+            {
+              "id": 17995,
+              "name": "Écume de mer",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/39399.png"
+            },
+            {
+              "id": 7033,
+              "name": "Dolomite",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/39110.png"
+            },
+            {
+              "id": 11110,
+              "name": "Obsidienne",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/39112.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 98,
+              "name": "Temple de Koutoulou",
+              "bossId": 4453,
+              "img": "https://api.dofusdb.fr/img/monsters/1423.png"
+            },
+            {
+              "id": 110,
+              "name": "Brasserie du Roi Dazak",
+              "bossId": 5319,
+              "img": "https://api.dofusdb.fr/img/monsters/1771.png"
+            }
+          ],
+          "objectives": [
+            "Consulter la page du grimoire pour obtenir des informations sur les composants",
+            "Montrer à {npc,2205} : 3 {item,20159}",
+            "Montrer à {npc,2205} : 3 {item,20160}",
+            "Montrer à {npc,2205} : 1 {item,20161}",
+            "Montrer à {npc,2205} : 1 {item,20163}",
+            "Montrer à {npc,2205} : 7 {item,20165}",
+            "Montrer à {npc,2205} : 1 {item,20167}",
+            "Trouver un alchimiste ayant accompli le Grand Œuvre",
+            "Retrouver l'alchimiste et lui prouver votre détermination",
+            "Parler à l'alchimiste",
+            "Montrer à {npc,2205} : 1 {item,20164}",
+            "Placer les composants dans le creuset",
+            "Montrer le résultat de la transmutation à Mériana"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2038
+            }
+          ]
+        },
+        {
+          "name": "Une douloureuse séparation",
+          "dofusdbId": 2040,
+          "level": 200,
+          "zone": "Larmes de Grougalorasalar",
+          "npcName": null,
+          "npcSubArea": "Larmes de Grougalorasalar",
+          "coords": {
+            "x": -25,
+            "y": -52,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 109,
+              "name": "Tour de Solar",
+              "bossId": 5100,
+              "img": "https://api.dofusdb.fr/img/monsters/1661.png"
+            }
+          ],
+          "objectives": [
+            "Trouver l'accès aux larmes de Grougalorasalar",
+            "Descendre dans la crevasse",
+            "Explorer la caverne des larmes de Grougalorasalar",
+            "Purifier la caverne",
+            "Sortir de la caverne pour découvrir d'où viennent les éclats de voix",
+            "Parler aux miliciens bontariens",
+            "Tenter de s'expliquer auprès du capitaine bontarien",
+            "Faire comprendre à Strig que vous avez besoin d'aide",
+            "Inspecter la cellule pour passer le temps",
+            "Parler au capitaine bontarien",
+            "Se renseigner sur les formalités à remplir pour ne plus être inquiété",
+            "Vaincre les miliciens avec l'aide de Joris",
+            "Parler à Joris dans la salle de la milice",
+            "Se rendre au palais du roi de Bonta en compagnie de Joris",
+            "Aller voir {npc,2933}",
+            "Retourner dans la caverne des larmes de Grougalorasalar",
+            "Aller voir {npc,2205}",
+            "Accomplir le rituel avec l'aide de Mériana",
+            "Vaincre l'âme de Crocoburio",
+            "Aller voir {npc,4617}"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2039
+            }
+          ]
+        },
+        {
+          "name": "Le dragon noir",
+          "dofusdbId": 2041,
+          "level": 200,
+          "zone": "Brasserie du roi Dazak - Sortie",
+          "npcName": null,
+          "npcSubArea": "Brasserie du roi Dazak - Sortie",
+          "coords": {
+            "x": -62,
+            "y": -70,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 17205,
+              "name": "Saucisse Fumée",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/69820.png"
+            },
+            {
+              "id": 19954,
+              "name": "Barbarbe",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/37004.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 107,
+              "name": "Belvédère d'Ilyzaelle",
+              "bossId": 4967,
+              "img": "https://api.dofusdb.fr/img/monsters/1628.png"
+            },
+            {
+              "id": 110,
+              "name": "Brasserie du roi Dazak",
+              "bossId": 5319,
+              "img": "https://api.dofusdb.fr/img/monsters/1771.png"
+            }
+          ],
+          "objectives": [
+            "Passer la porte du royaume des Nimbos de Frigost",
+            "Obtenir une entrevue avec le roi Dazak Martegel",
+            "Trouver un cordonnier capable de travailler une peau de crocodaille gelée",
+            "Parler à une magicienne nimbos capable de voir au-delà des apparences",
+            "Ramener à {npc,4622} : x10 {item,17205}",
+            "Ramener à {npc,4622} : x2 {item,20444}",
+            "Ramener à {npc,4622} : x5 {item,19954}",
+            "Découvrir la carte : Environs de la porte des marais",
+            "Dissiper l'illusion qui cache la porte des marais",
+            "Passer la porte des marais",
+            "Entrer dans le fort Vert-de-gris",
+            "Parler à un officier du clan Vert-de-gris",
+            "Rencontrer la reine Tressa Vert-de-gris",
+            "Parler au guide nimbos pour partir vers la Jungle Dévorante",
+            "Traverser la Jungle Dévorante",
+            "Explorer la cité de Tikoltenak",
+            "Trouver un moyen d'entrer dans le temple",
+            "Explorer le temple à la recherche de Grougalorasalar",
+            "Aller voir {npc,4621}"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2040
+            }
+          ]
+        },
+        {
+          "name": "La vengeance du dernier empereur",
+          "dofusdbId": 2042,
+          "level": 200,
+          "zone": "Pandala / Monde des Douze",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -82,
+            "y": 6,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 83,
+              "name": "Salons Privés de Klime",
+              "bossId": 3726,
+              "img": "https://api.dofusdb.fr/img/monsters/1141.png"
+            }
+          ],
+          "objectives": [
+            "Trouver d'où vient la voix sépulcrale qui murmure votre nom",
+            "Aller voir {npc,4623}",
+            "Aller voir {npc,4626}",
+            "Explorer les marécages près de la montagne des Koalaks",
+            "Trouver un dictionnaire pour mieux comprendre le langage de l'étranger masqué",
+            "Aller voir {npc,4627}",
+            "Chercher des traces de l'aventurier près de la porte des marais",
+            "Obtenir des informations sur l'aventurier assoiffé de sang à Brâkmar",
+            "Découvrir la carte : Tour de Gisgoul",
+            "Trouver les Brâkmariens",
+            "Aller voir {npc,4628}",
+            "Suivre la piste des shushus",
+            "Tenter de parlementer avec les shushus",
+            "Apprendre la politesse aux shushus",
+            "Discuter un peu plus calmement avec les shushus",
+            "Explorer la baie de Cania à la recherche du possédé",
+            "Aller voir {npc,4629}",
+            "Vaincre Bulak",
+            "Retourner voir {npc,4626}",
+            "Retourner voir {npc,2205}"
+          ],
+          "stepOrder": 6,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2041
+            }
+          ]
+        },
+        {
+          "name": "L'œuf de Crocabulia",
+          "dofusdbId": 2043,
+          "level": 200,
+          "zone": "Temple Osamodas",
+          "npcName": null,
+          "npcSubArea": "Temple Osamodas",
+          "coords": {
+            "x": 8,
+            "y": 2,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 89,
+              "name": "Trône de la Cour Sombre",
+              "bossId": 3996,
+              "img": "https://api.dofusdb.fr/img/monsters/1267.png"
+            },
+            {
+              "id": 83,
+              "name": "Trône de la Cour Sombre",
+              "bossId": 3726,
+              "img": "https://api.dofusdb.fr/img/monsters/1141.png"
+            }
+          ],
+          "objectives": [
+            "Se rendre au temple d'Osamodas",
+            "Aller voir {npc,42}",
+            "Se rendre à la banque d'Amakna pour récupérer l'œuf",
+            "Enquêter du côté du repaire des Roublards",
+            "Aller voir {npc,58}",
+            "Rejoindre Srambad, la cité des voleurs",
+            "Prendre contact avec les Smisse de Srambad",
+            "Résoudre le conflit entre Blak et Sissipie",
+            "Passer un marché avec les Smisse",
+            "Récupérer l'objet détenu par la Reine des Voleurs",
+            "Montrer le coffret aux Smisse",
+            "Forcer les Smisse de Srambad à tenir leur parole",
+            "Montrer à {npc,2205} : 1 {item,20205}"
+          ],
+          "stepOrder": 7,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2042
+            }
+          ]
+        },
+        {
+          "name": "Un nouvel héritier",
+          "dofusdbId": 2044,
+          "level": 200,
+          "zone": "Tour de Solar - Cinquième salle",
+          "npcName": null,
+          "npcSubArea": "Tour de Solar - Cinquième salle",
+          "coords": {
+            "x": -29,
+            "y": 25,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 109,
+              "name": "Tour de Solar",
+              "bossId": 5100,
+              "img": "https://api.dofusdb.fr/img/monsters/1661.png"
+            }
+          ],
+          "objectives": [
+            "Aller voir {npc,3923}",
+            "Assouvir la soif de Crocobur en combattant des Calcinés dans les Marches Magmatiques",
+            "Calmer la faim de Crocobur en lui faisant goûter à l'âme de Solar",
+            "Retourner voir {npc,3923}",
+            "Trouver le doyen des Aigles Célestes",
+            "Aller voir {npc,4631}",
+            "Libérer l'âme de Crocoburio pour qu'elle entre dans l'œuf de Crocabulia",
+            "Déposer l'œuf dans un endroit propice à son éclosion",
+            "Protéger l'œuf jusqu'à l'éclosion de Crocoburio",
+            "Demander au petit Crocoburio à peine sorti de l'œuf de vous accompagner",
+            "Rendre l'épée Crocobur à Volkaragnar",
+            "Escorter Crocoburio jusqu'à son père Grougalorasalar",
+            "Convaincre Grougalorasalar de respecter sa part du marché",
+            "Devenir le nouveau gardien du Dofus Ébène"
+          ],
+          "stepOrder": 8,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2043
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

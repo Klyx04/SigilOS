@@ -9,11 +9,59 @@
     header Referrer-Policy "strict-origin-when-cross-origin"
 }
 
+# ─── Rate-limit (F-14) — dernier rempart anti-DoS au niveau proxy ─────────────
+# ⚠️ Borne HAUTE par IP + exemption des assets statiques. Ce n'est PAS une
+# limitation fine du dashboard authentifié (la régulation par utilisateur est
+# déjà faite dans l'app via Redis). Le rate-limit au proxy sert de filet de
+# sécurité grossier, il ne doit JAMAIS bloquer la navigation légitime :
+#  - assets statiques / monde (tuiles webp, worldmap.json, _next, uploads)
+#    → EXEMPTS (un dashboard/monde chargé = centaines de requêtes en rafale).
+#  - reste (pages, RSC, API) → limite haute 3000 req/min + burst 500 req/s/IP.
+# Correctif 2026-08-10 : anciens seuils (300/min + burst 60/s) déclenchaient des
+# 429 en pagaille sur le monde/tuiles et le prefetch RSC d'un utilisateur normal.
+# Recalibrage 2026-08-10 (suite) : + `/assets/*` (logo-ui, icônes, images Dofus)
+# et `/uploads/*` (preuves/guides) dans l'exemption — ces ressources légitimes
+# ne doivent JAMAIS être limitées.
+(rate_limit_base) {
+    @rl_exempt not path /game-data/* /_next/* /manifest.webmanifest /images/* /icons/* /fonts/* /assets/* /uploads/* /api/storage/*
+
+    rate_limit @rl_exempt {
+        zone public_ip {
+            key {remote_host}
+            events 3000
+            window 1m
+        }
+        zone burst {
+            key {remote_host}
+            events 500
+            window 1s
+        }
+    }
+}
+
+# ─── Page d'erreur 429 personnalisée (rate-limit) ────────────────────────────
+# Le module caddy-ratelimit émet la 429 via caddyhttp.Error(429) → interceptée
+# par handle_errors (confirmé dans le code du module). `file_server` préserve le
+# code 429 tout en servant notre vraie page (body + Content-Type: text/html) →
+# fini la page Chrome générique / le "MIME type non exécutable" / l'erreur React.
+(error_page_429) {
+    handle_errors 429 {
+        root * /srv/static
+        rewrite * /429.html
+        file_server
+    }
+}
+
 # =============================================================================
-# 🔴 PRODUCTION — Page d'attente premium (pas encore lancée)
+# 🔴 PRODUCTION — Vitrine maintenance immersive (page d'attente, pas encore ouverte)
+# =============================================================================
+# La vitrine refaite (bg-guild, screenshots, modules). Les assets /assets/* sont
+# servis par file_server AVANT le rewrite maintenance pour que les images s'affichent.
 # =============================================================================
 sigilos.fr {
     import security_headers
+    import rate_limit_base
+    import error_page_429
 
     @google path /google*.html
     handle @google {
@@ -21,6 +69,14 @@ sigilos.fr {
         respond "google-site-verification: google77dc76da1868d7bd.html" 200
     }
 
+    # 🎨 Assets de la vitrine (fond bg-guild, screenshots, icônes, logo) — file_server
+    # ⚠️ Le rewrite maintenance ne doit JAMAIS avaler /assets/* (sinon images cassées).
+    handle /assets/* {
+        root * /srv/static
+        file_server
+    }
+
+    # 🛠️ Vitrine maintenance : tout le reste → maintenance.html
     handle {
         root * /srv/static
         rewrite * /maintenance.html
@@ -37,6 +93,8 @@ sigilos.fr {
 # =============================================================================
 beta.sigilos.fr {
     import security_headers
+    import rate_limit_base
+    import error_page_429
 
     # If maintenance flag file exists, serve the maintenance page
     @maintenance_on expression `file("/srv/maintenance-beta-on")`
@@ -47,8 +105,31 @@ beta.sigilos.fr {
     }
 
     # Normal operation: proxy to Next.js
+    handle /socket.io/* {
+        reverse_proxy sigilos-ws-beta:3001 {
+            header_up X-Real-IP {remote_host}
+            header_up -X-Forwarded-For
+            header_up X-Forwarded-For {remote_host}
+        }
+    }
+
+    # 🗺️ Assets monde (tuiles webp, worldmap.json, maps HD) servis en STATIQUE
+    # directement par Caddy — évite de faire transiter 2.18G par Node (Next.js
+    # en mode standalone ne sert pas de façon fiable le dossier public bind-mounté).
+    # Le dossier est monté dans le conteneur Caddy via docker-compose
+    # (./public/game-data:/srv/game-data:ro), mis à jour par sync-assets.sh.
+    handle /game-data/* {
+        root * /srv/game-data
+        uri strip_prefix /game-data
+        file_server
+    }
+
     handle {
-        reverse_proxy sigilos-beta:3000
+        reverse_proxy sigilos-beta:3000 {
+            header_up X-Real-IP {remote_host}
+            header_up -X-Forwarded-For
+            header_up X-Forwarded-For {remote_host}
+        }
     }
 }
 
@@ -57,5 +138,7 @@ beta.sigilos.fr {
 # =============================================================================
 monitor.sigilos.fr {
     import security_headers
+    import rate_limit_base
+    import error_page_429
     reverse_proxy sigilos-grafana:3000
 }

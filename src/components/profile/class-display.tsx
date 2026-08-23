@@ -4,34 +4,48 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogDescription } from "@/components/ui/dialog";
-import { Pencil, Info, Plus, UserCircle } from "lucide-react";
 import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
-import { cn } from "@/lib/utils";
+import { cn, formatDofusPseudo } from "@/lib/utils";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { verifyDofusPseudo, isLadderManualFallbackEnabled } from "@/server/actions/profile-actions";
+import { Loader2, Search, UserCheck, AlertTriangle, Pencil, Info, Plus, UserCircle } from "lucide-react";
 
 interface ClassDisplayProps {
     pseudoDofus?: string | null;
     mainClass?: string | null;
-    secondaryClasses?: string[];
-    onSave?: (mainClass: string, secondaryClasses: string[], pseudoDofus: string) => void;
+    onSave?: (mainClass: string, pseudoDofus: string) => void;
     readOnly?: boolean;
+    guildId?: string;
 }
 
 export function ClassDisplay({
     pseudoDofus,
     mainClass,
-    secondaryClasses = [],
     onSave,
     readOnly = false,
+    guildId,
 }: ClassDisplayProps) {
     const searchParams = useSearchParams();
     const [isOpen, setIsOpen] = useState(false);
     const [selectedMain, setSelectedMain] = useState<string>(mainClass || "");
-    const [selectedSecondary, setSelectedSecondary] = useState<string[]>(secondaryClasses);
     const [localPseudo, setLocalPseudo] = useState<string>(pseudoDofus || "");
+    const [isVerifying, setIsVerifying] = useState(false);
+    const [verifyStatus, setVerifyStatus] = useState<"idle" | "success" | "error">("idle");
+    // Toggle God « Fallback Pseudo Manuel » : si ON, on autorise la saisie du
+    // pseudo SANS vérification ladder Ankama (sanitisation conservée via
+    // formatDofusPseudo + schéma Zod côté serveur).
+    const [manualFallback, setManualFallback] = useState(false);
+
+    useEffect(() => {
+        let active = true;
+        isLadderManualFallbackEnabled().then((enabled) => {
+            if (active) setManualFallback(enabled);
+        });
+        return () => { active = false; };
+    }, []);
 
     // Auto-open if redirected with ?edit=identity (Security: check readOnly)
     useEffect(() => {
@@ -43,42 +57,72 @@ export function ClassDisplay({
 
     const mainClassData = getClass(mainClass || "");
 
-    const toggleSecondary = (classId: string) => {
-        if (classId === selectedMain) return;
-
-        if (selectedSecondary.includes(classId)) {
-            setSelectedSecondary(prev => prev.filter(c => c !== classId));
-        } else {
-            if (selectedSecondary.length >= 10) {
-                toast.error("Vous ne pouvez pas sélectionner plus de 10 classes secondaires.");
-                return;
-            }
-            setSelectedSecondary(prev => [...prev, classId]);
-        }
-    };
-
     const handleSave = () => {
-        onSave?.(selectedMain, selectedSecondary, localPseudo);
+        if (!localPseudo) {
+            toast.error("Le pseudo est obligatoire");
+            return;
+        }
+
+        if (localPseudo !== (pseudoDofus || "") && verifyStatus !== "success" && !manualFallback) {
+            toast.error("Veuillez vérifier votre pseudo avec la loupe avant de confirmer.");
+            return;
+        }
+
+        onSave?.(selectedMain, localPseudo);
         setIsOpen(false);
     };
 
     const handleOpen = () => {
         setSelectedMain(mainClass || "");
-        setSelectedSecondary(secondaryClasses);
         setLocalPseudo(pseudoDofus || "");
+        setVerifyStatus("idle");
+    };
+
+    const handleVerify = async () => {
+        if (!localPseudo || localPseudo.length < 2 || !guildId) return;
+        setIsVerifying(true);
+        setVerifyStatus("idle");
+        try {
+            const res = await verifyDofusPseudo(localPseudo, guildId);
+            if (res.success) {
+                setVerifyStatus("success");
+                toast.success("Pseudo trouvé sur le ladder !");
+            } else {
+                setVerifyStatus("error");
+                toast.error(res.error || "Pseudo introuvable");
+            }
+        } catch (e) {
+            setVerifyStatus("error");
+        } finally {
+            setIsVerifying(false);
+        }
     };
 
     return (
-        <div className="p-4 bg-zinc-900/40 backdrop-blur-md rounded-xl border border-white/10 transition-all hover:border-white/20 group">
+        <div className="p-6 bg-background/80 rounded-3xl border border-border transition-all hover:border-warning/30 group space-y-4">
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-semibold text-zinc-200 flex items-center gap-2">
-                        Identité de Combat
-                    </h3>
+                <div className="flex items-center justify-between border-b border-border pb-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-warning/15 border border-warning/30 flex items-center justify-center">
+                            <UserCheck className="w-5 h-5 text-warning" />
+                        </div>
+                        <div>
+                            <h3 className="text-base font-black text-foreground uppercase tracking-wider">
+                                Identité de Combat
+                            </h3>
+                            <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold">Pseudo Dofus officiel & Classe</p>
+                        </div>
+                    </div>
                     {!readOnly && (
                         <DialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={handleOpen}>
-                                <Pencil className="w-3 h-3" />
+                            <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-9 px-3 text-xs font-black uppercase tracking-wider text-warning hover:text-warning hover:bg-warning/10 border border-warning/20 rounded-xl transition-all cursor-pointer"
+                                onClick={handleOpen}
+                            >
+                                <Pencil className="w-3.5 h-3.5 mr-1.5" strokeWidth={2.5} />
+                                Modifier
                             </Button>
                         </DialogTrigger>
                     )}
@@ -86,35 +130,29 @@ export function ClassDisplay({
 
                 {/* Main Class Display - Premium Card COMPACT */}
                 {mainClassData ? (
-                    <div className="relative overflow-hidden rounded-lg border border-white/5 bg-gradient-to-br from-zinc-900 to-black p-4 mb-3 group-hover:border-white/10 transition-colors">
-                        {/* Background Glow - Reduced blur/size */}
-                        <div className="absolute -top-10 -right-10 w-24 h-24 rounded-full blur-[50px] opacity-15 pointer-events-none"
-                            style={{ backgroundColor: mainClassData.color }}
-                        />
-
+                    <div className="relative rounded-2xl border border-border bg-surface p-5 group-hover:border-warning/40 transition-colors">
                         <div className="relative flex items-center gap-4">
-                            <div className="relative flex items-center justify-center w-14 h-14 rounded-xl bg-zinc-950 border border-white/10 shadow-lg shrink-0">
-                                <ClassIcon classId={mainClassData.id} size={36} className="drop-shadow-[0_0_10px_rgba(0,0,0,0.5)]" />
-                                <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/5" />
+                            <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-elevated border border-border shrink-0" style={{ borderColor: `${mainClassData.color}50` }}>
+                                <ClassIcon classId={mainClassData.id} size={38} />
                             </div>
 
-                            <div className="flex-1 space-y-1.5">
-                                <div className="flex items-baseline gap-2">
-                                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest shrink-0">Pseudo en jeu</span>
+                            <div className="flex-1 space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-caption font-black text-muted-foreground uppercase tracking-widest shrink-0">Pseudo Dofus :</span>
                                     {pseudoDofus ? (
-                                        <span className="text-lg font-black text-amber-500 italic tracking-tight drop-shadow-[0_0_8px_rgba(245,158,11,0.3)]">
+                                        <span className="text-lg font-black text-warning tracking-wide">
                                             {pseudoDofus}
                                         </span>
                                     ) : (
-                                        <span className="text-xs font-black text-amber-500/80 animate-pulse uppercase tracking-widest">
+                                        <span className="text-xs font-black text-warning/80 uppercase tracking-widest">
                                             Non renseigné
                                         </span>
                                     )}
                                 </div>
 
-                                <div className="flex items-baseline gap-2">
-                                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest shrink-0">Classe principale</span>
-                                    <span className="text-base font-black text-white tracking-wide" style={{ textShadow: `0 0 15px ${mainClassData.color}50` }}>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-caption font-black text-muted-foreground uppercase tracking-widest shrink-0">Classe principale :</span>
+                                    <span className="text-sm font-black text-foreground uppercase tracking-wider" style={{ color: mainClassData.color }}>
                                         {mainClassData.name}
                                     </span>
                                 </div>
@@ -127,218 +165,169 @@ export function ClassDisplay({
                             <DialogTrigger asChild>
                                 <button
                                     onClick={handleOpen}
-                                    className="w-full p-6 text-center border-2 border-dashed border-zinc-800 hover:border-amber-500/50 hover:bg-amber-500/5 rounded-xl mb-4 transition-all group/cta relative overflow-hidden"
+                                    className="w-full p-6 text-center border-2 border-dashed border-border hover:border-warning/50 hover:bg-warning/5 rounded-xl mb-4 transition-colors group/cta relative overflow-hidden"
                                 >
-                                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/0 via-amber-500/0 to-amber-500/5 opacity-0 group-hover/cta:opacity-100 transition-opacity" />
                                     <div className="relative z-10 flex flex-col items-center gap-2">
-                                        <div className="w-10 h-10 rounded-full bg-zinc-900 border border-white/5 flex items-center justify-center group-hover/cta:scale-110 transition-transform">
-                                            <Plus className="w-5 h-5 text-amber-500" />
+                                        <div className="w-10 h-10 rounded-full bg-surface border border-border flex items-center justify-center group-hover/cta:scale-110 transition-transform">
+                                            <Plus className="w-5 h-5 text-warning" />
                                         </div>
-                                        <p className="text-sm font-black text-zinc-300 uppercase tracking-widest">Configurer mon Identité</p>
-                                        <p className="text-xs text-zinc-500 font-bold uppercase tracking-tighter">Pseudo Dofus & Classe requis</p>
+                                        <p className="text-sm font-black text-foreground uppercase tracking-widest">Configurer mon Identité</p>
+                                        <p className="text-xs text-muted-foreground font-bold uppercase tracking-tighter">Pseudo Dofus & Classe requis</p>
                                     </div>
                                 </button>
                             </DialogTrigger>
                         ) : (
-                            <div className="w-full p-6 text-center border-2 border-zinc-800/50 rounded-xl mb-4 bg-zinc-900/10">
-                                <p className="text-sm font-black text-zinc-600 uppercase tracking-widest italic">Profil non configuré</p>
+                            <div className="w-full p-6 text-center border-2 border-border/50 rounded-xl mb-4 bg-surface/10">
+                                <p className="text-sm font-black text-muted-foreground uppercase tracking-widest italic">Profil non configuré</p>
                             </div>
                         )}
                     </div>
                 )}
 
-                <DialogContent className="max-w-4xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0 bg-zinc-950 border-zinc-800 rounded-3xl overflow-hidden shadow-2xl">
-                    <DialogHeader className="p-8 pb-4 border-b border-white/5 shrink-0">
+                <DialogContent className="max-w-4xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0 bg-background border-border rounded-3xl overflow-hidden">
+                    <DialogHeader className="p-8 pb-4 border-b border-border shrink-0">
                         <DialogTitle className="text-2xl font-black">Modifier votre profil</DialogTitle>
-                        <DialogDescription className="text-base text-zinc-400">Définissez votre identité en jeu et vos spécialisations.</DialogDescription>
+                        <DialogDescription className="text-base text-muted-foreground">Définissez votre identité en jeu.</DialogDescription>
                     </DialogHeader>
 
                     <div className="px-8 pt-6 pb-2 shrink-0">
                         <div className="space-y-3">
-                            <label className="text-sm font-bold text-zinc-300 uppercase tracking-widest flex items-center gap-2 pl-1">
+                            <label className="text-sm font-bold text-foreground uppercase tracking-widest flex items-center gap-2 pl-1">
                                 <UserCircle className="w-5 h-5" />
                                 Pseudo Dofus Exact
                             </label>
                             <div className="relative">
-                                <Input
-                                    value={localPseudo}
-                                    onChange={(e) => {
-                                        const val = e.target.value.replace(/[^a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\-\s]/g, "");
-                                        setLocalPseudo(val);
-                                    }}
-                                    placeholder="Votre pseudo en jeu..."
-                                    className="bg-zinc-900/50 border-white/10 h-14 focus:ring-primary/20 pr-16 text-lg font-semibold"
-                                    maxLength={50}
-                                />
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-mono text-zinc-500">
-                                    {localPseudo.length}/50
+                                <div className="flex gap-2">
+                                    <div className="relative flex-1">
+                                        <Input
+                                            value={localPseudo}
+                                            onChange={(e) => {
+                                                setLocalPseudo(formatDofusPseudo(e.target.value));
+                                                setVerifyStatus("idle");
+                                            }}
+                                            placeholder="Votre pseudo en jeu..."
+                                            className={cn(
+                                                "bg-surface/50 border-border h-14 focus:ring-primary/20 pr-12 text-lg font-semibold transition-all",
+                                                verifyStatus === "success" && "border-success/50",
+                                                verifyStatus === "error" && "border-danger/50"
+                                            )}
+                                            maxLength={50}
+                                        />
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-mono text-muted-foreground">
+                                            {localPseudo.length}/50
+                                        </div>
+                                        {verifyStatus === "success" && (
+                                            <div className="absolute left-[-2px] top-[-2px] bottom-[-2px] w-1 bg-success rounded-l-md" />
+                                        )}
+                                    </div>
+                                    <Button 
+                                        variant="outline"
+                                        className={cn(
+                                            "h-14 w-14 shrink-0 bg-surface/50 border-border transition-all",
+                                            verifyStatus === "success" && "text-success border-success/30 bg-success/10"
+                                        )}
+                                        onClick={handleVerify}
+                                        disabled={isVerifying || localPseudo.length < 2}
+                                    >
+                                        {isVerifying ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+                                    </Button>
                                 </div>
+                                <p className="text-caption leading-relaxed text-muted-foreground pl-1 mt-3">
+                                    {verifyStatus === "success" ? (
+                                        <span className="text-success font-bold italic flex items-center gap-2">
+                                            <UserCheck className="w-3.5 h-3.5" />
+                                            Pseudo trouvé et validé sur le ladder officiel.
+                                        </span>
+                                    ) : manualFallback ? (
+                                        <span className="text-warning/90 font-semibold flex items-center gap-2">
+                                            <Info className="w-3.5 h-3.5" />
+                                            Saisie manuelle autorisée (fallback actif) — la vérification Ankama est désactivée. Le pseudo doit rester EXACT (Majuscules, tirets, etc.).
+                                        </span>
+                                    ) : (
+                                        <>
+                                            <strong className="text-foreground uppercase tracking-tighter">Vérification requise :</strong> cliquez sur la loupe <Search className="inline w-3 h-3 mb-0.5" /> pour valider le pseudo sur le ladder Ankama avant de confirmer. Il doit être <strong className="text-foreground uppercase tracking-tighter">EXACT</strong> (Majuscules, tirets, etc.).
+                                        </>
+                                    )}
+                                </p>
                             </div>
-                            <p className="text-sm text-zinc-500 pl-1">
-                                Ce pseudo doit être <strong className="text-zinc-300">unique</strong> dans la guilde. Caractères autorisés : lettres, espaces et tirets (-).
+                        </div>
+                    </div>
+
+                    <div className="flex-1 min-h-0 overflow-hidden px-8 flex flex-col">
+                        <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-6 mb-2 pl-1">Classe Principale</h4>
+                        <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+                            <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 py-4 pb-24">
+                                {DOFUS_CLASSES.map(c => {
+                                    const isSelected = selectedMain === c.id;
+                                    return (
+                                        <button
+                                            key={c.id}
+                                            onClick={() => setSelectedMain(c.id)}
+                                            className={cn(
+                                                "group relative flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-300 aspect-square overflow-hidden",
+                                                isSelected
+                                                    ? "border-border-strong "
+                                                    : "border-border bg-surface/30 hover:border-border hover:bg-surface/60"
+                                            )}
+                                            style={isSelected ? {
+                                                borderColor: c.color,
+                                                backgroundColor: `${c.color}25`
+                                            } : undefined}
+                                        >
+                                            <div className={cn("mb-2 transform transition-transform duration-200", isSelected ? "scale-110" : "")}>
+                                                <ClassIcon classId={c.id} size={36} />
+                                            </div>
+                                            <span className={cn("w-full px-1 text-caption sm:text-xs font-black uppercase tracking-tight sm:tracking-wider transition-colors truncate text-center", isSelected ? "text-foreground" : "text-muted-foreground")}
+                                                style={isSelected ? { color: c.color } : undefined}
+                                            >
+                                                {c.name}
+                                            </span>
+
+                                            {isSelected && (
+                                                <>
+                                                    <div className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-background flex items-center justify-center "
+                                                        style={{ backgroundColor: c.color }}
+                                                    >
+                                                        <div className="w-1 h-1 rounded-full bg-background" />
+                                                    </div>
+                                                    <div className="absolute inset-0 rounded-xl ring-2 ring-inset ring-white/20" />
+                                                </>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-6 border-t border-border bg-surface/40 flex flex-col gap-2 shrink-0">
+                        {(!localPseudo.trim() || !selectedMain) && (
+                            <p className="text-caption text-muted-foreground text-right">
+                                {!localPseudo.trim() && !selectedMain
+                                    ? "Étapes à faire : renseigne ton pseudo Dofus (1) puis choisis ta classe (2)."
+                                    : !localPseudo.trim()
+                                        ? "Étape 1 à faire : renseigne ton pseudo Dofus."
+                                        : "Étape 2 à faire : choisis ta classe."}
                             </p>
-                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
-                                <p className="text-sm text-amber-200 flex gap-2 items-start">
-                                    <Info className="w-5 h-5 shrink-0 mt-0.5" />
-                                    Si vous utilisez Metamob, mettez le même pseudo ici pour faciliter la liaison automatique dans le module Quête Ocre.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex-1 min-h-0 overflow-hidden px-8">
-                        <Tabs defaultValue="main" className="h-full flex flex-col">
-                            <TabsList className="grid w-full grid-cols-2 mb-6 bg-zinc-900/50 shrink-0">
-                                <TabsTrigger value="main">Classe Principale</TabsTrigger>
-                                <TabsTrigger value="secondary">Classes Secondaires ({selectedSecondary.length})</TabsTrigger>
-                            </TabsList>
-
-                            <TabsContent value="main" className="flex-1 min-h-0 flex flex-col m-0 data-[state=inactive]:hidden shadow-inner overflow-hidden">
-                                <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
-                                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 py-4 pb-24">
-                                        {DOFUS_CLASSES.map(c => {
-                                            const isSelected = selectedMain === c.id;
-                                            return (
-                                                <button
-                                                    key={c.id}
-                                                    onClick={() => setSelectedMain(c.id)}
-                                                    className={cn(
-                                                        "group relative flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-300 aspect-square overflow-hidden",
-                                                        isSelected
-                                                            ? "border-white/40 shadow-[0_0_20px_-5px_rgba(255,255,255,0.2)]"
-                                                            : "border-zinc-800 bg-zinc-900/30 hover:border-zinc-700 hover:bg-zinc-900/60"
-                                                    )}
-                                                    style={isSelected ? {
-                                                        borderColor: c.color,
-                                                        backgroundColor: `${c.color}25`,
-                                                        boxShadow: `0 0 20px -5px ${c.color}60`
-                                                    } : undefined}
-                                                >
-                                                    <div className={cn("mb-2 transform transition-transform group-hover:scale-110 duration-300", isSelected ? "scale-110" : "")}>
-                                                        <ClassIcon classId={c.id} size={36} />
-                                                    </div>
-                                                    <span className={cn("w-full px-1 text-[10px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wider transition-colors truncate text-center", isSelected ? "text-white" : "text-zinc-500")}
-                                                        style={isSelected ? { color: 'white', textShadow: `0 0 10px ${c.color}` } : undefined}
-                                                    >
-                                                        {c.name}
-                                                    </span>
-
-                                                    {isSelected && (
-                                                        <>
-                                                            <div className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-white flex items-center justify-center shadow-[0_0_10px_rgba(255,255,255,0.5)]"
-                                                                style={{ backgroundColor: c.color }}
-                                                            >
-                                                                <div className="w-1 h-1 rounded-full bg-white" />
-                                                            </div>
-                                                            <div className="absolute inset-0 rounded-xl ring-2 ring-inset ring-white/20" />
-                                                        </>
-                                                    )}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            </TabsContent>
-
-                            <TabsContent value="secondary" className="flex-1 min-h-0 flex flex-col m-0 data-[state=inactive]:hidden shadow-inner overflow-hidden">
-                                <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-start gap-3 text-sm text-blue-300 shrink-0">
-                                    <Info className="w-5 h-5 shrink-0 mt-0.5" />
-                                    <p>Sélectionnez vos classes secondaires. Votre classe principale ({DOFUS_CLASSES.find(c => c.id === selectedMain)?.name || "non selectionnée"}) est bloquée ici.</p>
-                                </div>
-                                <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
-                                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 pb-24">
-                                        {DOFUS_CLASSES.map(c => {
-                                            const isSelected = selectedSecondary.includes(c.id);
-                                            const isMain = selectedMain === c.id;
-                                            const classData = getClass(c.id);
-
-                                            return (
-                                                <button
-                                                    key={c.id}
-                                                    onClick={() => toggleSecondary(c.id)}
-                                                    disabled={isMain}
-                                                    className={cn(
-                                                        "group relative flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-300 aspect-square overflow-hidden",
-                                                        isMain ? "opacity-20 cursor-not-allowed border-zinc-900 bg-zinc-950 grayscale" : "",
-                                                        !isMain && isSelected
-                                                            ? "border-white/40 shadow-[0_0_20px_-5px_rgba(255,255,255,0.2)]"
-                                                            : "border-zinc-800 bg-zinc-900/30 hover:border-zinc-700 hover:bg-zinc-900/60"
-                                                    )}
-                                                    style={!isMain && isSelected && classData ? {
-                                                        borderColor: classData.color,
-                                                        backgroundColor: `${classData.color}25`,
-                                                        boxShadow: `0 0 20px -5px ${classData.color}60`
-                                                    } : undefined}
-                                                >
-                                                    <div className={cn("mb-2 transform transition-transform group-hover:scale-110 duration-300", isSelected ? "scale-110" : "")}>
-                                                        <ClassIcon classId={c.id} size={32} />
-                                                    </div>
-                                                    <span className={cn("w-full px-1 text-[10px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wider transition-colors truncate text-center", isSelected ? "text-white" : "text-zinc-500")}
-                                                        style={isSelected && classData ? { color: 'white', textShadow: `0 0 10px ${classData.color}` } : undefined}
-                                                    >
-                                                        {c.name}
-                                                    </span>
-
-                                                    {isSelected && (
-                                                        <>
-                                                            <div className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-white flex items-center justify-center shadow-[0_0_10px_rgba(255,255,255,0.5)]"
-                                                                style={classData ? { backgroundColor: classData.color } : undefined}
-                                                            >
-                                                                <div className="w-1 h-1 rounded-full bg-white" />
-                                                            </div>
-                                                            <div className="absolute inset-0 rounded-xl ring-2 ring-inset ring-white/20" />
-                                                        </>
-                                                    )}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            </TabsContent>
-                        </Tabs>
-                    </div>
-
-                    <div className="p-6 border-t border-white/5 bg-zinc-900/40 flex justify-end gap-3 shrink-0">
-                        <div className="flex-1 flex items-center">
-                            {selectedSecondary.length > 0 && (
-                                <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest bg-zinc-950/50 px-3 py-1.5 rounded-full border border-white/5">
-                                    {selectedSecondary.length} / 10 <span className="text-zinc-600">classes sélectionnées</span>
-                                </p>
-                            )}
-                        </div>
-                        <DialogClose asChild>
-                            <Button variant="ghost" className="text-zinc-400 hover:text-white">
-                                Annuler
+                        )}
+                        <div className="flex justify-end gap-3">
+                            <DialogClose asChild>
+                                <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
+                                    Annuler
+                                </Button>
+                            </DialogClose>
+                            <Button
+                                onClick={handleSave}
+                                variant="sigil"
+                                size="xl"
+                                disabled={!localPseudo.trim() || !selectedMain}
+                            >
+                                Confirmer les changements
                             </Button>
-                        </DialogClose>
-                        <Button onClick={handleSave} className="px-8 font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20">
-                            Confirmer les changements
-                        </Button>
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>
-
-            {/* Secondary Classes - Chips */}
-            {secondaryClasses.length > 0 && (
-                <div className="mt-3">
-                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2 pl-1">Classes Secondaires</p>
-                    <div className="flex flex-wrap gap-1.5">
-                        {secondaryClasses.map(classId => {
-                            const data = getClass(classId);
-                            if (!data) return null;
-                            return (
-                                <div
-                                    key={classId}
-                                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 hover:border-white/10 transition-colors h-9"
-                                >
-                                    <ClassIcon classId={data.id} size={20} />
-                                    <span className="text-sm font-medium text-zinc-200">{data.name}</span>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

@@ -6,12 +6,24 @@
 // New features: Native matching, zones, quest templates, Kralamoure events
 
 import { z } from "zod";
+import { redis } from "./redis";
+import { CircuitBreaker } from "./circuit-breaker";
+import { logger } from "./logger";
 
 // -----------------------------------------------------------------------------
 // CONFIGURATION
 // -----------------------------------------------------------------------------
 
 const METAMOB_API_BASE = "https://www.metamob.fr/api";
+const CACHE_TTL = 86400; // 24 hours fallback cache
+
+// I-15: disjoncteur dédié à l'API Metamob (incrément sur échec, reset sur succès,
+// états closed/open/half-open). Instance partagée sur tout le process.
+const metamobBreaker = new CircuitBreaker({
+    name: "metamob",
+    failureThreshold: 5,
+    recoveryTimeoutMs: 30_000,
+});
 
 // -----------------------------------------------------------------------------
 // ZOD SCHEMAS - API V2 Response Formats
@@ -100,6 +112,15 @@ const QuestMonsterSchema = z.object({
         quantite: z.coerce.number().optional().nullable(),
         amount: z.coerce.number().optional().nullable(),
     }).optional(),
+    // Zone data — present on quest template monsters, stripped without this field
+    zones: z.array(z.object({
+        id: z.number(),
+        name: LocalizedNameSchema,
+        subzones: z.array(z.object({
+            id: z.number(),
+            name: LocalizedNameSchema,
+        })).optional(),
+    })).optional(),
 });
 
 const QuestTemplateSchema = z.object({
@@ -143,6 +164,11 @@ const QuestDetailsSchema = z.object({
     quest_template: QuestTemplateSchema,
     monsters: z.array(QuestMonsterSchema),
     pagination: PaginationSchema,
+    // Expert Settings
+    trade_mode: z.number().optional(),
+    trade_offer_threshold: z.number().nullable().optional(),
+    trade_want_threshold: z.number().nullable().optional(),
+    show_trades: z.boolean().optional(),
 });
 
 const MatchMonsterSchema = z.object({
@@ -206,6 +232,22 @@ const KralamoureEventDetailsSchema = KralamoureEventSchema.extend({
     })).optional(),
 });
 
+const QuestSettingsSchema = z.object({
+    character_name: z.string().max(200).optional(),
+    parallel_quests: z.number().min(1).max(20).optional(),
+    current_step: z.number().min(1).max(34).optional(),
+    show_trades: z.boolean().optional(),
+    trade_mode: z.number().min(0).max(1).optional(),
+    trade_offer_threshold: z.number().min(0).max(30).nullable().optional(),
+    trade_want_threshold: z.number().min(0).max(30).nullable().optional(),
+    never_offer_normal: z.boolean().optional(),
+    never_want_normal: z.boolean().optional(),
+    never_offer_boss: z.boolean().optional(),
+    never_want_boss: z.boolean().optional(),
+    never_offer_arch: z.boolean().optional(),
+    never_want_arch: z.boolean().optional(),
+});
+
 // -----------------------------------------------------------------------------
 // EXPORTED TYPES
 // -----------------------------------------------------------------------------
@@ -225,6 +267,7 @@ export type MatchMonster = z.infer<typeof MatchMonsterSchema>;
 export type Zone = z.infer<typeof ZoneSchema>;
 export type KralamoureEvent = z.infer<typeof KralamoureEventSchema>;
 export type KralamoureEventDetails = z.infer<typeof KralamoureEventDetailsSchema>;
+export type QuestSettings = z.infer<typeof QuestSettingsSchema>;
 export type MonsterState = "MANQUANT" | "POSSEDE" | "DOUBLON";
 
 /** Legacy Compatibility Types */
@@ -262,6 +305,8 @@ export interface OcreMonster {
     state: MonsterState;
     zone?: string;
     subzone?: string;
+    trade_offer?: number | null;
+    trade_want?: number | null;
 }
 
 // -----------------------------------------------------------------------------
@@ -286,6 +331,7 @@ export interface FetchOptions {
     tags?: string[];
     revalidate?: number;
     offset?: number;
+    cacheFirst?: boolean; // If true, return from Redis immediately if available
 }
 
 export class MetamobApiError extends Error {
@@ -294,6 +340,85 @@ export class MetamobApiError extends Error {
         super(message);
         this.code = code;
     }
+}
+
+// I-08: Retry with exponential backoff on transient errors (429/5xx).
+// The original 3s timeout was too short under load and there was no retry,
+// causing intermittent failures and empty dashboards when Metamob is slow.
+// Note: timeout is per-attempt, so a 2-retry flow can take up to ~15s worst case.
+const METAMOB_TIMEOUT_MS = 5000;
+const METAMOB_MAX_RETRIES = 2;
+const METAMOB_BACKOFF_MS = 800;
+
+async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+    let attempt = 0;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+        const res = await fetch(url, { ...init, signal: AbortSignal.timeout(METAMOB_TIMEOUT_MS) });
+        // Success or a definitive client error we don't retry (4xx except 429)
+        if (res.status < 500 && res.status !== 429) return res;
+        if (attempt >= METAMOB_MAX_RETRIES) return res;
+        // Transient → backoff with jitter
+        const backoff = METAMOB_BACKOFF_MS * Math.pow(2, attempt) + Math.floor(Math.random() * 400);
+        await new Promise(r => setTimeout(r, backoff));
+        attempt++;
+    }
+}
+
+/** I-15 : détecte une ressource utilisateur (privée) depuis l'URL complète. */
+function isUserResourceFromUrl(url: string): boolean {
+    return url.includes("/quests/") || url.includes("/users/");
+}
+
+/**
+ * I-15 : fetch avec disjoncteur.
+ *  - Circuit OUVERT → fail fast : renvoie "OPEN" (le caller gère cache/fail-closed)
+ *    au lieu de marteler une API en panne.
+ *  - Échec réseau ou 5xx/429 → onFailure() (incrémente le compteur).
+ *  - 2xx → onSuccess() (reset du compteur, referme le circuit).
+ *  - 4xx = réponse LÉGITIME du client (404/401/403…) → ne compte PAS comme échec
+ *    de disponibilité (ne doit pas ouvrir le circuit pour une vraie réponse).
+ */
+async function fetchWithBreaker(
+    url: string,
+    fetchOptions: RequestInit
+): Promise<Response | "OPEN"> {
+    if (!metamobBreaker.allowCall()) {
+        logger.warn(`[Metamob] Circuit breaker OPEN — fail fast sur ${url}`);
+        return "OPEN";
+    }
+    let res: Response;
+    try {
+        res = await fetchWithRetry(url, fetchOptions);
+    } catch (err) {
+        metamobBreaker.onFailure();
+        throw err;
+    }
+    if (res.ok) {
+        metamobBreaker.onSuccess();
+    } else if (res.status >= 500 || res.status === 429) {
+        metamobBreaker.onFailure();
+    }
+    return res;
+}
+
+/** Helpers partagés du fail-fast "circuit ouvert" (cache public ou fail-closed). */
+async function circuitOpenFallback<T>(
+    url: string,
+    cacheKey: string,
+    publicFallback: T
+): Promise<T> {
+    const isUserResource = isUserResourceFromUrl(url);
+    if (!isUserResource) {
+        try {
+            const cached = await redis.get(cacheKey);
+            if (cached) return JSON.parse(cached) as T;
+        } catch {
+            /* ignore — on retombe sur le fallback public */
+        }
+        return publicFallback;
+    }
+    throw new MetamobApiError("CIRCUIT_OPEN", "Metamob.fr est temporairement indisponible.");
 }
 
 async function fetchApi<T>(
@@ -310,6 +435,22 @@ async function fetchApi<T>(
         headers["Authorization"] = `Bearer ${apiKey}`;
     }
 
+    const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
+    const cacheKey = `metamob:cache:${endpoint}`;
+
+    // 1. [PERF] Cache-First Strategy
+    // For non-user resources (public), we prioritize speed.
+    if (!isUserResource && options.cacheFirst !== false && options.revalidate !== 0) {
+        try {
+            const cached = await redis.get(cacheKey);
+            if (cached) {
+                return JSON.parse(cached);
+            }
+        } catch (e) {
+            console.error("[Metamob] Cache-First lookup failed:", e);
+        }
+    }
+
     const fetchOptions: RequestInit = {
         headers,
         next: {
@@ -319,24 +460,22 @@ async function fetchApi<T>(
     };
 
     try {
-        const response = await fetch(`${METAMOB_API_BASE}${endpoint}`, {
-            ...fetchOptions,
-            signal: AbortSignal.timeout(10_000), // FAIL-02: 10s timeout
-        });
+        const breakerUrl = `${METAMOB_API_BASE}${endpoint}`;
+        const response = await fetchWithBreaker(breakerUrl, fetchOptions);
+        if (response === "OPEN") {
+            return await circuitOpenFallback<T>(breakerUrl, cacheKey, null as any);
+        }
 
         // [Robustness] Handle 401/403 gracefully
         if (response.status === 401 || response.status === 403) {
+            // ... (keep logic same)
             const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
 
             if (apiKey) {
-                // If it's a user resource, DO NOT fallback to anonymous.
-                // Anonymous requests to private quests return success:true but [] monsters, which is misleading.
                 if (isUserResource) {
                     throw new MetamobApiError("UNAUTHORIZED", "Accès refusé : Ce compte Metamob est privé ou la clé API est invalide.");
                 }
 
-                // For global resources (templates, etc), try once more WITHOUT the key
-                // in case a bad Guild/Global key is blocking public data.
                 console.warn(`[Metamob] ${response.status} with key on global resource. Retrying without Authorization...`);
                 const pHeaders = { ...headers };
                 delete pHeaders["Authorization"];
@@ -346,7 +485,12 @@ async function fetchApi<T>(
                 if (retryResponse.ok) {
                     const json = await retryResponse.json();
                     const data = json.data !== undefined ? json.data : json;
-                    return schema.parse(data);
+                    const parsed = schema.parse(data);
+                    // Cache successful public result
+                    if (!isUserResource) {
+                        await redis.set(`metamob:cache:${endpoint}`, JSON.stringify(parsed), "EX", CACHE_TTL).catch(() => {});
+                    }
+                    return parsed;
                 }
 
                 if (retryResponse.status === 401 || retryResponse.status === 403) {
@@ -364,16 +508,46 @@ async function fetchApi<T>(
 
         const json = await response.json();
         const data = json.data !== undefined ? json.data : json;
-        return schema.parse(data);
+        const result = schema.parse(data);
+
+        // Cache successful public result
+        const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
+        if (!isUserResource) {
+            await redis.set(`metamob:cache:${endpoint}`, JSON.stringify(result), "EX", CACHE_TTL).catch(() => {});
+        }
+
+        return result;
     } catch (error) {
         if (error instanceof MetamobApiError) throw error;
+        
+        // --- FALLBACK CACHE LOGIC ---
+        const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
+        if (!isUserResource && options.revalidate !== 0) {
+            try {
+                const cached = await redis.get(`metamob:cache:${endpoint}`);
+                if (cached) {
+                    console.warn(`[Metamob] API Timeout/Error. Using Redis cache for ${endpoint}`);
+                    return JSON.parse(cached);
+                }
+            } catch (cacheErr) {
+                console.error("[Metamob] Redis fallback failed:", cacheErr);
+            }
+        }
+
         if (error instanceof z.ZodError) {
             console.error("[Metamob] Schema validation failed:", error.errors);
             throw new MetamobApiError("API_ERROR", "Format de réponse API invalide");
         }
-        // FAIL-02: Network errors (timeout, DNS, ECONNREFUSED) → user-friendly message
+        
         console.error("[Metamob] Network error:", error);
-        throw new MetamobApiError("API_UNAVAILABLE", "Metamob.fr est temporairement indisponible. Vos données en cache restent accessibles.");
+        
+        // Final fallback: If not a user resource, return null instead of throwing to avoid blocking UI
+        if (!isUserResource) {
+            console.warn(`[Metamob] Silent fail for public resource: ${endpoint}`);
+            return null as any;
+        }
+        
+        throw new MetamobApiError("API_UNAVAILABLE", "Metamob.fr est temporairement indisponible.");
     }
 }
 
@@ -396,6 +570,19 @@ async function fetchPaginatedApi<T>(
         headers["Authorization"] = `Bearer ${apiKey}`;
     }
 
+    const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
+    const cacheKey = `metamob:cache:${fullEndpoint}`;
+
+    // 1. [PERF] Cache-First Strategy
+    if (!isUserResource && options.cacheFirst !== false && options.revalidate !== 0) {
+        try {
+            const cached = await redis.get(cacheKey);
+            if (cached) return JSON.parse(cached);
+        } catch (e) {
+            console.error("[Metamob] Cache-First paginated lookup failed:", e);
+        }
+    }
+
     const fetchOptions: RequestInit = {
         headers,
         next: {
@@ -405,10 +592,15 @@ async function fetchPaginatedApi<T>(
     };
 
     try {
-        const response = await fetch(`${METAMOB_API_BASE}${fullEndpoint}`, {
-            ...fetchOptions,
-            signal: AbortSignal.timeout(10_000), // FAIL-02: 10s timeout
-        });
+        const breakerUrl = `${METAMOB_API_BASE}${fullEndpoint}`;
+        const response = await fetchWithBreaker(breakerUrl, fetchOptions);
+        if (response === "OPEN") {
+            return await circuitOpenFallback(
+                breakerUrl,
+                cacheKey,
+                { data: [], pagination: { total: 0, limit: 50, offset: 0 } }
+            );
+        }
 
         // [Robustness] 401/403 handling for paginated
         if ((response.status === 401 || response.status === 403) && apiKey) {
@@ -426,11 +618,12 @@ async function fetchPaginatedApi<T>(
                     const json = await retryResponse.json();
                     const items = z.array(itemSchema).parse(json.data || []);
                     const pagination = PaginationSchema.parse(json.pagination || { total: items.length, limit: 50, offset: 0 });
-                    return { data: items, pagination };
+                    const result = { data: items, pagination };
+                    await redis.set(`metamob:cache:${fullEndpoint}`, JSON.stringify(result), "EX", CACHE_TTL).catch(() => {});
+                    return result;
                 }
             }
 
-            // If we reach here, either retry failed or it's a private user resource
             const message = isUserResource
                 ? "Accès refusé : Ce compte Metamob est privé."
                 : "Accès refusé : Clé API invalide ou accès restreint.";
@@ -451,13 +644,44 @@ async function fetchPaginatedApi<T>(
         const json = await response.json();
         const items = z.array(itemSchema).parse(json.data || []);
         const pagination = PaginationSchema.parse(json.pagination || { total: items.length, limit: 50, offset: 0 });
+        const result = { data: items, pagination };
 
-        return { data: items, pagination };
+        // Cache successful public result
+        const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
+        if (!isUserResource) {
+            await redis.set(`metamob:cache:${fullEndpoint}`, JSON.stringify(result), "EX", CACHE_TTL).catch(() => {});
+        }
+
+        return result;
     } catch (error) {
         if (error instanceof MetamobApiError) throw error;
-        // FAIL-02: Network errors (timeout, DNS, ECONNREFUSED) → user-friendly message
+
+        // --- FALLBACK CACHE LOGIC ---
+        const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
+        if (!isUserResource && options.revalidate !== 0) {
+            try {
+                const cached = await redis.get(`metamob:cache:${fullEndpoint}`);
+                if (cached) {
+                    console.warn(`[Metamob] API Timeout/Error (paginated). Using Redis cache for ${fullEndpoint}`);
+                    return JSON.parse(cached);
+                }
+            } catch (cacheErr) {
+                console.error("[Metamob] Redis fallback failed (paginated):", cacheErr);
+            }
+        }
+
         console.error("[Metamob] Network error (paginated):", error);
-        throw new MetamobApiError("API_UNAVAILABLE", "Metamob.fr est temporairement indisponible. Vos données en cache restent accessibles.");
+
+        // Final fallback for public resources: Return empty items instead of throwing
+        if (!isUserResource) {
+            console.warn(`[Metamob] Silent fail for public paginated resource: ${fullEndpoint}`);
+            return { 
+                data: [], 
+                pagination: { total: 0, limit: 50, offset: 0 } 
+            };
+        }
+
+        throw new MetamobApiError("API_UNAVAILABLE", "Metamob.fr est temporairement indisponible.");
     }
 }
 
@@ -487,7 +711,12 @@ export async function getQuestDetails(username: string, slug: string, options?: 
     if (options?.offset) params.set("offset", options.offset.toString());
     const query = params.toString() ? `?${params}` : '';
 
-    return fetchApi(`/v1/users/${encodeURIComponent(username)}/quests/${encodeURIComponent(slug)}${query}`, QuestDetailsSchema, options);
+    return fetchApi(`/v1/users/${encodeURIComponent(username)}/quests/${encodeURIComponent(slug)}${query}`, QuestDetailsSchema, {
+        ...options,
+        // Tag the request so that revalidateTag(`metamob-user-${username}`) properly busts
+        // the Next.js Data Cache when forceRefreshOcre() is called.
+        tags: [...(options?.tags || []), `metamob-user-${username.toLowerCase()}`]
+    });
 }
 
 export async function getQuestZones(slug: string, options?: FetchOptions): Promise<z.infer<typeof ZoneSchema>[]> {
@@ -504,14 +733,20 @@ export async function getQuestTemplateMonsters(templateId: number, options?: Fet
 
     const result = await fetchApi(endpoint, QuestTemplateDetailsSchema, options);
 
-    let allMonsters = [...result.monsters];
-    let offset = allMonsters.length;
+    // I-12: Use a mutable accumulator instead of re-spreading the array on each
+    // page (avoids O(n²) copies as the list grows).
+    const allMonsters: QuestMonster[] = [];
+    let offset = 0;
+
+    // First page is already fetched via fetchApi(endpoint) above
+    allMonsters.push(...result.monsters);
+    offset = allMonsters.length;
 
     while (allMonsters.length < result.pagination.total) {
         params.set("offset", offset.toString());
         const more = await fetchApi(`/v1/quest-templates/${templateId}?${params}`, QuestTemplateDetailsSchema, options);
         if (more.monsters.length === 0) break;
-        allMonsters = [...allMonsters, ...more.monsters];
+        allMonsters.push(...more.monsters);
         offset += more.monsters.length;
     }
 
@@ -613,6 +848,93 @@ export async function getKralamoureEventDetails(eventId: number, options?: Fetch
     };
 }
 
+export async function updateQuestSettings(
+    slug: string,
+    settings: QuestSettings,
+    options: FetchOptions & { guildApiKey: string }
+): Promise<QuestSettings> {
+    if (!options.guildApiKey) {
+        throw new MetamobApiError("UNAUTHORIZED", "Une clé API personnelle est requise pour modifier les paramètres.");
+    }
+
+    const headers: Record<string, string> = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${options.guildApiKey}`
+    };
+
+    try {
+        const response = await fetch(`${METAMOB_API_BASE}/v1/quests/${encodeURIComponent(slug)}`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify(settings)
+        });
+
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                throw new MetamobApiError("UNAUTHORIZED", "Accès refusé. Vérifiez votre clé API personnelle.");
+            }
+            throw new MetamobApiError("API_ERROR", `Erreur ${response.status} lors de la mise à jour des paramètres`);
+        }
+
+        const json = await response.json();
+        return QuestSettingsSchema.parse(json.data || json);
+    } catch (error) {
+        if (error instanceof MetamobApiError) throw error;
+        throw new MetamobApiError("API_ERROR", "Erreur réseau lors de la mise à jour des paramètres");
+    }
+}
+
+export async function updateMonsterTradeParams(
+    slug: string,
+    monsterId: number,
+    params: { trade_offer?: number | null; trade_want?: number | null },
+    options: FetchOptions & { guildApiKey: string }
+): Promise<void> {
+    if (!options.guildApiKey) {
+        throw new MetamobApiError("UNAUTHORIZED", "Une clé API personnelle est requise.");
+    }
+
+    const headers: Record<string, string> = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${options.guildApiKey}`
+    };
+
+    // #180 — Toujours envoyer le couple (trade_offer + trade_want) COMPLET et borné :
+    // un body partiel pouvait être interprété côté API comme un patch global
+    // (« un trade patch TOUS les archis »). Ici le patch reste scopé au monsterId
+    // ET contient toujours les deux clés (0 par défaut).
+    const clamp = (v: number | null | undefined, fallback: number) => {
+        if (v === null || v === undefined || Number.isNaN(v)) return fallback;
+        return Math.min(30, Math.max(0, Math.trunc(v)));
+    };
+    const trade_offer = clamp(params.trade_offer, 0);
+    const trade_want = clamp(params.trade_want, 0);
+    // Trade réciproque : un archi ne peut pas être à la fois offert ET voulu par le même joueur.
+    const body = trade_offer > 0 && trade_want > 0
+        ? { trade_offer, trade_want: 0 }
+        : { trade_offer, trade_want };
+
+    try {
+        const response = await fetch(`${METAMOB_API_BASE}/v1/quests/${encodeURIComponent(slug)}/monsters/${monsterId}/trade`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                throw new MetamobApiError("UNAUTHORIZED", "Accès refusé.");
+            }
+            throw new MetamobApiError("API_ERROR", `Erreur ${response.status} lors de la mise à jour du trade`);
+        }
+    } catch (error) {
+        if (error instanceof MetamobApiError) throw error;
+        throw new MetamobApiError("API_ERROR", "Erreur réseau");
+    }
+}
+
 export async function updateMonsterQuantity(
     username: string,
     questSlug: string,
@@ -620,19 +942,19 @@ export async function updateMonsterQuantity(
     quantity: number,
     options: FetchOptions & { guildApiKey: string }
 ): Promise<void> {
+    return bulkUpdateMonsters(questSlug, [{ monster_id: monsterId, quantity }], options);
+}
+
+export async function bulkUpdateMonsters(
+    questSlug: string,
+    monsters: { monster_id: number; quantity: number }[],
+    options: FetchOptions & { guildApiKey: string }
+): Promise<void> {
     if (!options.guildApiKey) {
         throw new MetamobApiError("UNAUTHORIZED", "Une clé API personnelle est requise pour modifier les quantités.");
     }
-    // We use the bulk endpoint because the single-monster endpoint throws a 404
-    // if the user doesn't own any of this monster yet. The bulk endpoint handles upserts.
-    const payload = {
-        monsters: [
-            {
-                monster_id: monsterId,
-                quantity: quantity
-            }
-        ]
-    };
+    
+    const payload = { monsters };
 
     const headers: Record<string, string> = {
         "Accept": "application/json",
@@ -654,18 +976,16 @@ export async function updateMonsterQuantity(
                 throw new MetamobApiError("UNAUTHORIZED", "Accès refusé. Vérifiez votre clé API personnelle.");
             }
             if (response.status === 404) {
-                throw new MetamobApiError("NOT_FOUND", "Monstre introuvable dans cette quête.");
+                throw new MetamobApiError("NOT_FOUND", "Quête introuvable.");
             }
             if (response.status === 429) {
                 throw new MetamobApiError("RATE_LIMIT", "Trop de requêtes. Veuillez patienter.");
             }
-            throw new MetamobApiError("API_ERROR", `Erreur ${response.status} lors de la mise à jour du monstre`);
+            throw new MetamobApiError("API_ERROR", `Erreur ${response.status} lors de la mise à jour bulk`);
         }
-
-        // Success: 204 No Content usually, or 200 OK
     } catch (error) {
         if (error instanceof MetamobApiError) throw error;
-        throw new MetamobApiError("API_ERROR", "Erreur réseau lors de la mise à jour du monstre");
+        throw new MetamobApiError("API_ERROR", "Erreur réseau lors de la mise à jour bulk");
     }
 }
 
@@ -795,7 +1115,8 @@ export function normalizeQuestMonster(monster: QuestMonster, parallelQuests: num
         ? (monster.image.startsWith('http') ? monster.image : `https://www.metamob.fr/img/monsters/${monster.image}`)
         : "";
 
-    const zoneName = (monster as any).zones?.[0]?.name?.fr || undefined;
+    const zones = (monster as any).zones?.map((z: any) => z.name?.fr).filter(Boolean) || [];
+    const zoneName = zones.length > 0 ? zones.join(", ") : undefined;
 
     return {
         id: monster.monster_id ?? m.monster?.id ?? monster.reference?.id ?? monster.id,
@@ -812,6 +1133,8 @@ export function normalizeQuestMonster(monster: QuestMonster, parallelQuests: num
         status: monster.status ?? 0,
         state: computeMonsterState(owned, pq),
         zone: zoneName,
+        trade_offer: monster.offer,
+        trade_want: monster.want,
     };
 }
 

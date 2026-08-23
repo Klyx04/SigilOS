@@ -1,14 +1,24 @@
 // Script to convert monsters.yaml to JSON
-// Uses simple line-by-line parsing since the YAML is straightforward
-import { readFileSync, writeFileSync, mkdirSync } from 'fs';
+// Integrated troll filtering and new field support (Mechanic, MechanicShort)
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { join } from 'path';
 
-const raw = readFileSync('Songes_Pour_Les_Noobs/wwwroot/Data/monsters.yaml', 'utf8').replace(/^\uFEFF/, '');
+const YAML_PATH = 'a:/SigilOS/Songes_Pour_Les_Noobs/wwwroot/Data/monsters.yaml';
+
+if (!existsSync(YAML_PATH)) {
+    console.error(`❌ File not found: ${YAML_PATH}`);
+    process.exit(1);
+}
+
+const raw = readFileSync(YAML_PATH, 'utf8').replace(/^\uFEFF/, '');
 const lines = raw.split('\n');
 
 const monsters = [];
 let current = null;
 let currentField = null;
 let multiline = '';
+
+const NUMERIC_FIELDS = ['Difficulty', 'ImmediateFocus', 'Evasion', 'Tanking', 'Id'];
 
 function flush() {
     if (currentField && current) {
@@ -24,7 +34,9 @@ for (const rawLine of lines) {
     // New monster
     if (line.startsWith('- Id:')) {
         flush();
-        if (current) monsters.push(current);
+        if (current && current.Id < 1000000) { // Filter out troll bosses (Id >= 1,000,000)
+            monsters.push(current);
+        }
         current = { Id: parseInt(line.split(':')[1].trim()) };
         currentField = null;
         continue;
@@ -37,7 +49,7 @@ for (const rawLine of lines) {
     if (simpleMatch && !line.endsWith('|')) {
         flush();
         const [, key, val] = simpleMatch;
-        if (['Difficulty', 'ImmediateFocus', 'Evasion', 'Tanking'].includes(key)) {
+        if (NUMERIC_FIELDS.includes(key)) {
             current[key] = parseInt(val);
         } else {
             current[key] = val;
@@ -62,7 +74,7 @@ for (const rawLine of lines) {
         continue;
     }
 
-    // Multiline content
+    // Multiline content (indented 4 spaces)
     if (currentField && (line.startsWith('    ') || line.trim() === '')) {
         multiline += line.replace(/^    /, '') + '\n';
         continue;
@@ -73,9 +85,13 @@ for (const rawLine of lines) {
         flush();
     }
 }
+
+// Last monster
 flush();
-if (current) monsters.push(current);
+if (current && current.Id < 1000000) monsters.push(current);
 
 mkdirSync('public/data', { recursive: true });
 writeFileSync('public/data/songes-bosses.json', JSON.stringify(monsters, null, 2));
-console.log(`✅ ${monsters.length} boss exportés vers public/data/songes-bosses.json`);
+
+console.log(`✅ Conversion terminée : ${monsters.length} boss officiels exportés.`);
+console.log(`🚀 Trolls filtrés : Crocus, Diddy, Epstein retirés.`);

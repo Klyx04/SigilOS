@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
@@ -11,6 +12,8 @@ import { ALL_DOFUS_SERVERS, AVAILABLE_ACTIVITIES } from "@/lib/presentation-cons
 // SANITIZATION UTILITIES
 // ============================================================================
 import { sanitizeHtml, sanitizeDiscordLink, sanitizeName } from "@/lib/security";
+import { buildDiscordAvatarUrl } from "@/lib/discord-avatars";
+import { listGuildMembers } from "@/server/discord";
 
 // Local validation helpers
 function validateServerName(server: string | null): string | null {
@@ -48,6 +51,138 @@ export type PublicGuildSummary = {
     bannerUrl: string | null;
 };
 
+export type PublicGuildShowcase = PublicGuildSummary & {
+    memberCount: number;
+    missionsValidated: number;
+    songesCompleted: number;
+    dofusCompletionRate: number;
+};
+
+/**
+ * Landing v3 — "showcase mini-dashboards par guilde".
+ * Agrège des mini-KPI publics par guilde (membres actifs, missions validées,
+ * songes complétés, progression Dofus moyenne). Léger :
+ *  - limité aux 6 premières guildes publiques,
+ *  - cache Redis 5 min,
+ *  - agrégats groupés (pas une requête par guilde).
+ * Aucune donnée sensible : stats globales de guilde uniquement.
+ */
+export async function getPublicGuildShowcase(limit = 6): Promise<PublicGuildShowcase[]> {
+    try {
+        const redisKey = `public:guilds:showcase:${limit}`;
+        const cached = await (await import("@/lib/redis")).redis.get(redisKey).catch(() => null);
+        if (cached) return JSON.parse(cached) as PublicGuildShowcase[];
+
+        // #80 — refonte landing : filtre qualité côté serveur.
+        // On agrège les stats de TOUTES les guildes publiques, puis on ne retient
+        // que celles avec une activité réelle avant de tronquer au `limit`.
+        const guilds = await getPublicGuilds();
+        if (guilds.length === 0) return [];
+
+        // Récupère les IDs internes des guildes publiques
+        const guildConfigs = await db.guildConfig.findMany({
+            where: { discordGuildId: { in: guilds.map(g => g.discordGuildId) } },
+            select: { id: true, discordGuildId: true },
+        });
+        const internalIds = guildConfigs.map(g => g.id);
+        if (internalIds.length === 0) return [];
+
+        // Agrégats groupés (une requête par type, pas par guilde)
+        const [memberCounts, missionsCount, songesCount, dofusStats] = await Promise.all([
+            db.userProfile.groupBy({
+                by: ["guildId"],
+                where: { guildId: { in: internalIds }, status: "ACTIVE" },
+                _count: true,
+            }),
+            db.submission.groupBy({
+                by: ["missionId"],
+                where: { status: "VALIDATED", mission: { guildId: { in: internalIds } } },
+                _count: true,
+            }),
+            db.dreamRun.groupBy({
+                by: ["guildId"],
+                where: { guildId: { in: internalIds }, status: "COMPLETED" },
+                _count: true,
+            }),
+            db.playerDofusQuestProgress.groupBy({
+                by: ["guildId"],
+                where: { guildId: { in: internalIds }, status: "COMPLETED" },
+                _count: true,
+            }),
+        ]);
+
+        const memberMap = new Map<string, number>(memberCounts.map(m => [m.guildId, m._count]));
+        const songesMap = new Map<string, number>(songesCount.map(s => [s.guildId, s._count]));
+        const dofusMap = new Map<string, number>(dofusStats.map(d => [d.guildId, d._count]));
+
+        // Total de missions par guilde pour calculer un taux (requête légère groupée)
+        const missionTotal = await db.mission.groupBy({
+            by: ["guildId"],
+            where: { guildId: { in: internalIds } },
+            _count: true,
+        });
+        const missionTotalMap = new Map<string, number>(missionTotal.map(m => [m.guildId, m._count]));
+
+        // Validations groupées par guilde (join mission.guildId)
+        const missionsForValidation = await db.mission.findMany({
+            where: { guildId: { in: internalIds } },
+            select: { id: true, guildId: true },
+        });
+        const missionGuildByMission = new Map<string, string>(missionsForValidation.map(m => [m.id, m.guildId]));
+        const validatedMap = new Map<string, number>();
+        for (const s of missionsCount) {
+            const gid = missionGuildByMission.get(s.missionId);
+            if (!gid) continue;
+            validatedMap.set(gid, (validatedMap.get(gid) || 0) + s._count);
+        }
+
+        const all: PublicGuildShowcase[] = guilds.map(g => {
+            const internalId = guildConfigs.find(c => c.discordGuildId === g.discordGuildId)?.id;
+            const members = internalId ? (memberMap.get(internalId) || 0) : 0;
+            const validated = internalId ? (validatedMap.get(internalId) || 0) : 0;
+            const totalMissions = internalId ? (missionTotalMap.get(internalId) || 0) : 0;
+            const songes = internalId ? (songesMap.get(internalId) || 0) : 0;
+            const dofusCompleted = internalId ? (dofusMap.get(internalId) || 0) : 0;
+            const dofusTotal = totalMissions > 0 ? totalMissions : 1;
+            const dofusRate = Math.min(100, Math.round((dofusCompleted / dofusTotal) * 100));
+
+            return {
+                ...g,
+                memberCount: members,
+                missionsValidated: validated,
+                songesCompleted: songes,
+                dofusCompletionRate: dofusRate,
+            };
+        });
+
+        // #80 — filtre qualité : garde les guildes avec au moins 3 membres actifs OU
+        // une activité réelle (missions/songes validés), sinon repli sur >= 1 membre.
+        const withActivity = all.filter(
+            (g) => g.memberCount >= 3 || g.missionsValidated + g.songesCompleted > 0
+        );
+        const pool = withActivity.length > 0
+            ? withActivity
+            : all.filter((g) => g.memberCount >= 1);
+        const candidates = pool.length > 0 ? pool : all;
+
+        const result = candidates
+            .sort((a, b) => {
+                const scoreA = a.missionsValidated + a.songesCompleted + a.memberCount * 2;
+                const scoreB = b.missionsValidated + b.songesCompleted + b.memberCount * 2;
+                return scoreB - scoreA;
+            })
+            .slice(0, limit);
+
+        const { redis } = await import("@/lib/redis");
+        await redis.set(redisKey, JSON.stringify(result), "EX", 300).catch(() => { });
+        return result;
+    } catch (error) {
+        logger.error("Error fetching public guild showcase:", error);
+        return [];
+    }
+}
+
+
 /**
  * Get all guilds that have enabled their public presentation
  */
@@ -79,10 +214,10 @@ export async function getPublicGuilds(): Promise<PublicGuildSummary[]> {
             server: g.presentationServer,
             isRecruiting: g.presentationRecruiting,
             bannerType: g.presentationBannerType as any,
-            bannerUrl: g.presentationBannerUrl,
+            bannerUrl: g.presentationBannerUrl ? g.presentationBannerUrl.replace(/^\/uploads\//, "/api/storage/") : null,
         }));
     } catch (error) {
-        console.error("Error fetching public guilds:", error);
+        logger.error("Error fetching public guilds:", error);
         return [];
     }
 }
@@ -107,6 +242,7 @@ export type GuildPresentation = {
     bannerUrl: string | null;
     photoUrl: string | null;
     foundedDate: string | null;
+    memberCount: number | null;
     // Recruitment specific
     discordRequired: boolean;
     minLevel: number | null;
@@ -156,6 +292,7 @@ export async function getGuildPresentation(
             presentationMinLevel: true,
             presentationMinSuccesses: true,
             presentationFoundedDate: true,
+            presentationMemberCount: true,
         },
     });
 
@@ -185,9 +322,10 @@ export async function getGuildPresentation(
         recruitmentRequirements: g.presentationRecruitReq,
         server: g.presentationServer,
         bannerType: g.presentationBannerType,
-        bannerUrl: g.presentationBannerUrl,
-        photoUrl: g.presentationPhotoUrl,
+        bannerUrl: g.presentationBannerUrl ? g.presentationBannerUrl.replace(/^\/uploads\//, "/api/storage/") : null,
+        photoUrl: g.presentationPhotoUrl ? g.presentationPhotoUrl.replace(/^\/uploads\//, "/api/storage/") : null,
         foundedDate: g.presentationFoundedDate ? (g.presentationFoundedDate as Date).toISOString() : null,
+        memberCount: g.presentationMemberCount as number | null,
         discordRequired: g.presentationDiscordReq,
         minLevel: g.presentationMinLevel,
         minSuccesses: g.presentationMinSuccesses,
@@ -249,29 +387,16 @@ export async function getDiscordMembersForSelection(
     }
 
     try {
-        const token = process.env.DISCORD_BOT_TOKEN;
-        const res = await fetch(
-            `https://discord.com/api/v10/guilds/${guildId}/members?limit=1000`,
-            {
-                headers: { Authorization: `Bot ${token}` },
-                next: { revalidate: 60 },
-            }
-        );
-
-        if (!res.ok) {
-            return { success: false, error: "Impossible de récupérer les membres" };
-        }
-
-        const members = await res.json();
+        // #223 P1 — Fetch centralisé dans la couche Discord (v10 + SSRF guard + UA + cache).
+        const members = await listGuildMembers(guildId);
 
         const humanMembers: DiscordMemberOption[] = members
             .filter((m: any) => !m.user?.bot)
             .map((m: any) => ({
                 id: m.user.id,
                 name: m.nick || m.user.global_name || m.user.username,
-                avatar: m.user.avatar
-                    ? `https://cdn.discordapp.com/avatars/${m.user.id}/${m.user.avatar}.png`
-                    : null,
+                // #23 — avatar Discord borné en taille (webp 256px) → chargement fiable.
+                avatar: buildDiscordAvatarUrl(m.user.id, m.user.avatar),
             }))
             .sort((a: DiscordMemberOption, b: DiscordMemberOption) =>
                 a.name.localeCompare(b.name)
@@ -279,7 +404,7 @@ export async function getDiscordMembersForSelection(
 
         return { success: true, members: humanMembers };
     } catch (error) {
-        console.error("Discord members fetch error:", error);
+        logger.error("Discord members fetch error:", error);
         return { success: false, error: "Erreur lors de la récupération" };
     }
 }
@@ -299,6 +424,7 @@ export type PresentationUpdateData = {
     bannerUrl: string | null;
     photoUrl: string | null;
     foundedDate: Date | null;
+    memberCount: number | null;
     discordRequired: boolean;
     minLevel: number | null;
     minSuccesses: number | null;
@@ -320,7 +446,7 @@ export async function updateGuildPresentation(
 
     if (!user.isAdmin && !user.canEditPresentation) {
         // Log unauthorized access
-        await logAdminAccessDenied(guildId, "/admin/presentation");
+        await logAdminAccessDenied(guildId, "Modification de la Présentation");
         return { success: false, error: "Permission insuffisante" };
     }
 
@@ -368,6 +494,7 @@ export async function updateGuildPresentation(
                 presentationBannerUrl: data.bannerUrl, // Can be null to delete
                 presentationPhotoUrl: data.photoUrl, // Can be null to delete
                 presentationFoundedDate: data.foundedDate,
+                presentationMemberCount: data.memberCount,
                 presentationDiscordReq: data.discordRequired,
                 presentationMinLevel: validatedLevel,
                 presentationMinSuccesses: validatedSuccesses,
@@ -379,7 +506,7 @@ export async function updateGuildPresentation(
 
         return { success: true };
     } catch (error) {
-        console.error("Presentation update error:", error);
+        logger.error("Presentation update error:", error);
         return { success: false, error: "Erreur lors de la mise à jour" };
     }
 }
@@ -395,7 +522,7 @@ export async function uploadPresentationImage(
     const user = await getUserContext(guildId);
 
     if (!user.isAuthenticated || (!user.isAdmin && !user.canEditPresentation)) {
-        await logAdminAccessDenied(guildId, "/admin/presentation/upload");
+        await logAdminAccessDenied(guildId, "Upload d'image de Présentation");
         return { success: false, error: "Non autorisé" };
     }
 
@@ -452,7 +579,7 @@ export async function deletePresentationImage(
     const user = await getUserContext(guildId);
 
     if (!user.isAuthenticated || (!user.isAdmin && !user.canEditPresentation)) {
-        await logAdminAccessDenied(guildId, "/admin/presentation/delete-image");
+        await logAdminAccessDenied(guildId, "Suppression d'image de Présentation");
         return { success: false, error: "Non autorisé" };
     }
 
@@ -508,7 +635,7 @@ export async function getAdminPresentationData(guildId: string): Promise<{
     }
 
     if (!user.isAdmin && !user.canEditPresentation) {
-        await logAdminAccessDenied(guildId, "/admin/presentation/data");
+        await logAdminAccessDenied(guildId, "Lecture des données de Présentation");
         return { success: false, error: "Non autorisé" };
     }
 
@@ -532,6 +659,7 @@ export async function getAdminPresentationData(guildId: string): Promise<{
             presentationMinLevel: true,
             presentationMinSuccesses: true,
             presentationFoundedDate: true,
+            presentationMemberCount: true,
             // presentationIsActive: true, // If I needed to check active status
         },
     });
@@ -557,9 +685,10 @@ export async function getAdminPresentationData(guildId: string): Promise<{
             recruitmentRequirements: d.presentationRecruitReq,
             server: d.presentationServer,
             bannerType: (d.presentationBannerType as "discord" | "custom") || "discord",
-            bannerUrl: d.presentationBannerUrl,
-            photoUrl: d.presentationPhotoUrl,
+            bannerUrl: d.presentationBannerUrl ? d.presentationBannerUrl.replace(/^\/uploads\//, "/api/storage/") : null,
+            photoUrl: d.presentationPhotoUrl ? d.presentationPhotoUrl.replace(/^\/uploads\//, "/api/storage/") : null,
             foundedDate: d.presentationFoundedDate,
+            memberCount: d.presentationMemberCount as number | null,
             discordRequired: d.presentationDiscordReq,
             minLevel: d.presentationMinLevel,
             minSuccesses: d.presentationMinSuccesses,

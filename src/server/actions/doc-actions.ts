@@ -15,7 +15,7 @@ export type DocPageData = {
     category: string;
     order: number;
     isPublished: boolean;
-    accessLevel: "PUBLIC" | "ADMIN";
+    accessLevel: "PUBLIC" | "MEMBER" | "ADMIN";
     guildId?: string | null;
     updatedAt: string;
     createdAt: string;
@@ -28,7 +28,7 @@ export type CreateDocInput = {
     category: string;
     order?: number;
     isPublished?: boolean;
-    accessLevel?: "PUBLIC" | "ADMIN";
+    accessLevel?: "PUBLIC" | "MEMBER" | "ADMIN";
     guildId?: string | null;
 };
 
@@ -54,6 +54,11 @@ export async function getDocBySlug(slug: string, guildId?: string): Promise<DocP
             if (!ctx.canViewAdminDocs) return null;
         }
 
+        // RBAC Check (Member pages) : exige une connexion authentifiée
+        if ((doc as any).accessLevel === "MEMBER") {
+            if (!ctx.isAuthenticated) return null;
+        }
+
         // Guild Isolation Check
         if ((doc as any).guildId && (doc as any).guildId !== guildId) return null;
 
@@ -71,7 +76,7 @@ export async function getDocBySlug(slug: string, guildId?: string): Promise<DocP
             createdAt: (doc as any).createdAt ? new Date((doc as any).createdAt).toISOString() : new Date().toISOString()
         };
     } catch (error) {
-        console.error("Error fetching doc:", error);
+        logger.error("Error fetching doc:", error);
         return null;
     }
 }
@@ -84,13 +89,15 @@ export async function getAllDocs(guildId?: string): Promise<Omit<DocPageData, "c
         // 🛡️ Build structural WHERE clause
         const where: any = { isPublished: true };
 
-        // 1. RBAC Check: Members only see PUBLIC docs unless they have admin view right
+        // 1. RBAC Check: publics see PUBLIC ; members see PUBLIC + MEMBER ;
+        //    admins/superadmins see all
         if (!ctx.canViewAdminDocs) {
             // Check if Super Admin (God mode)
             const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
             const isGod = await isSuperAdmin();
             if (!isGod) {
-                where.accessLevel = "PUBLIC";
+                // Membres connectés : PUBLIC + MEMBER ; visiteurs non connectés : PUBLIC
+                where.accessLevel = ctx.isAuthenticated ? { in: ["PUBLIC", "MEMBER"] } : "PUBLIC";
             }
         }
 
@@ -189,7 +196,7 @@ export async function getSearchableDocs(guildId?: string) {
             };
         });
     } catch (error) {
-        console.error("Error fetching searchable docs:", error);
+        logger.error("Error fetching searchable docs:", error);
         return [];
     }
 }
@@ -197,9 +204,11 @@ export async function getSearchableDocs(guildId?: string) {
 // --- ADMIN ACTIONS ---
 
 export async function saveDoc(data: CreateDocInput & { id?: string }): Promise<ActionResponse<DocPageData>> {
-    const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
+    const { isSuperAdmin, canAccessBrick } = await import("@/server/actions/super-admin-actions");
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return { success: false, error: "Unauthorized: Admins only" };
+    const isBrick = await canAccessBrick("docs");
+    if (!isAdmin && !isBrick) return { success: false, error: "Unauthorized: Admins only" };
+    const isSubGod = !isAdmin && isBrick;
 
     const { sanitizeHtml } = await import("@/lib/security");
 
@@ -245,23 +254,42 @@ export async function saveDoc(data: CreateDocInput & { id?: string }): Promise<A
             });
         }
 
+        if (isSubGod) {
+            const { createGodAuditLog } = await import("@/server/actions/audit-actions");
+            await createGodAuditLog({
+                action: "GOD_DOC_UPDATE",
+                targetType: "DATA_SYNC",
+                targetId: String(doc?.id ?? ""),
+                metadata: { op: data.id ? "update-doc" : "create-doc", slug: doc?.slug },
+            });
+        }
         revalidatePath("/docs");
         revalidatePath(`/docs/${doc.slug}`);
         return { success: true, data: doc as unknown as DocPageData };
 
     } catch (error) {
-        console.error("Error saving doc:", error);
+        logger.error("Error saving doc:", error);
         return { success: false, error: "Database error" };
     }
 }
 
 export async function deleteDoc(id: string): Promise<ActionResponse<void>> {
-    const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
+    const { isSuperAdmin, canAccessBrick } = await import("@/server/actions/super-admin-actions");
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return { success: false, error: "Unauthorized" };
+    const isBrick = await canAccessBrick("docs");
+    if (!isAdmin && !isBrick) return { success: false, error: "Unauthorized" };
 
     try {
         await db.docPage.delete({ where: { id } });
+        if (!isAdmin) {
+            const { createGodAuditLog } = await import("@/server/actions/audit-actions");
+            await createGodAuditLog({
+                action: "GOD_DOC_UPDATE",
+                targetType: "DATA_SYNC",
+                targetId: id,
+                metadata: { op: "delete-doc" },
+            });
+        }
         revalidatePath("/docs");
         return { success: true };
     } catch (error) {

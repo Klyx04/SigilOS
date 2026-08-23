@@ -3,7 +3,7 @@ FROM node:22-alpine AS base
 # Install dependencies only when needed
 FROM base AS deps
 # Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat curl
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
@@ -21,6 +21,10 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+# Reinstall sharp for the correct platform (Alpine = linuxmusl-x64)
+# This ensures libvips .so files are present and get traced into .next/standalone
+RUN npm install --os=linux --libc=musl --cpu=x64 sharp
 
 # Generate Prisma Client
 RUN npx prisma generate
@@ -47,8 +51,14 @@ RUN npm run build:seeds
 # Build maintenance scripts
 RUN npm run build:maintenance
 
+# Build siphon script (guide image downloader)
+RUN npm run build:siphon
+
 # Build worker script
 RUN npm run build:worker
+
+# Build WebSockets server
+RUN npm run build:ws
 
 # Production image, copy all the files and run next
 FROM base AS runner
@@ -57,6 +67,8 @@ WORKDIR /app
 ENV NODE_ENV production
 # Uncomment the following line in case you want to disable telemetry during runtime.
 # ENV NEXT_TELEMETRY_DISABLED 1
+
+RUN apk add --no-cache curl
 
 # Don't run as root
 RUN addgroup --system --gid 1001 nodejs
@@ -88,6 +100,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed.js ./prisma/
 
 # Copy bundled worker
 COPY --from=builder --chown=nextjs:nodejs /app/dist/worker.js ./worker.js
+
+# Copy WebSockets server
+COPY --from=builder --chown=nextjs:nodejs /app/dist/ws-server.js ./ws-server.js
 
 # Copy entrypoint script
 COPY --chown=nextjs:nodejs docker-entrypoint.sh ./

@@ -1,0 +1,54 @@
+Créer une maquette UI/UX haute fidélité de l'application web sombre de suivi de quêtes Dofus « Rush Sylvestre ». Format écran desktop paysage 16:9, interface large, dense mais très lisible, esthétique RPG premium sobre, standards UI/UX 2026. Objectif : le joueur comprend sa prochaine action en moins de deux secondes.
+
+Direction visuelle stricte : fond noir-vert presque neutre, surfaces sombres uniformes, bordures fines 1 px, aucun gradient, aucune ombre décorative, aucun glow, aucun violet ou bleu décoratif, aucun emoji. Couleurs fonctionnelles : vert émeraude pour actions et états actifs, ambre pour conseils et prérequis, rouge pour combats requis, gris neutre pour secondaire ou bloqué. Typographie nette et moderne, titres de chapitre légèrement fantasy mais sobres. Tous les textes français parfaitement orthographiés.
+
+Composition complète :
+
+1. Aucun grand bandeau de profil en haut : pas de personnage actif, avatar, alignement, métamobs ou guilde. L'interface commence par les outils de navigation.
+
+2. Barre de contrôle compacte en haut : à gauche « RUSH SYLVESTRE », « 12 % terminé » avec petite barre de progression émeraude ; au centre un champ de recherche large (environ 45 % de la largeur, 44 px de haut), icône loupe, placeholder exact « Rechercher une quête » ; à droite un toggle discret « Masquer les quêtes terminées ».
+
+3. Sous la barre : bandeau horizontal sobre « PROGRESSION DOFUS » avec à droite « 4 membres ». Grande carte sombre à bordure fine, peu haute. Cinq cartes Dofus alignées horizontalement : petite illustration, nom et pourcentage : « Dofus Argenté — 12 % », « Dofus Émeraude — 0 % », « Dofus Pourpre — 0 % », « Dofus Turquoise — 0 % », « Dofus Sylvestre — 0 % ». Le Dofus Argenté est actif : fine bordure émeraude et marqueur discret « En cours ». Les autres sont gris neutre atténués. Pas d'anneaux ni de jauges circulaires ni de médaillons.
+
+4. Layout principal : grande timeline au centre, panneau droit fixe d'environ 280 px.
+
+5. Timeline : fine ligne verticale grise à gauche, repère circulaire « 28 », en-tête « SUITE DOFUS ARGENTÉ ASTRUB » avec compteur « 0/8 » et chevron.
+
+6. Bloc « CONSEIL DE ROUTE » compact, bordure ambre fine, icône information, texte exact « Faites Restauration rapide avant de parler à Mage Ax ». Clairement distinct d'une quête.
+
+7. Groupe de quêtes avec fine bordure pointillée ambre et label « À faire ensemble ».
+
+8. Quête active focale, avec badge correctement positionné : label vert « À FAIRE MAINTENANT » en haut, puis titre « Bière qui roule n'amasse pas mousse » sur sa propre ligne bien dégagée, puis sous le titre — avec un espacement clair, sans chevauchement — le badge rouge compact « Combat solo » aligné à gauche. En dessous, ligne secondaire « Départ : Astrub — Cité d'Astrub [5,-19] ». À droite de la carte : bouton vert lisible « Valider » et petite icône « Ressources ». Grande zone de validation circulaire à gauche du bloc. Fine bordure verte, contraste supérieur, aucun élément ne doit se superposer.
+
+9. Panneau de détails ouvert et compact sous la quête active, intitulé « Détails de la quête », avec icônes et libellés de taille lisible (ni trop petits, ni disproportionnés) : position de lancement, lien « Guide » avec icône claire, lien « DofusDB » avec icône claire, et un badge « Prérequis » net et bien contrasté. Ces éléments restent visuellement secondaires par rapport au bouton « Valider », mais doivent être faciles à lire sans zoomer.
+
+10. Quêtes bloquées suivantes, plus compactes et atténuées : « Combat de rue », « Déjeuner à la fourchette », « Comme un pigeon hors de l'eau », « La coupe des vices ». Chaque ligne : petit cercle gris, nom, cadenas discret, prérequis court « Nécessite : Bière qui roule n'amasse pas mousse ». Pas de gros badges dorés.
+
+11. Une quête terminée discrète : check vert, texte atténué.
+
+12. Panneau droit « QUI EST OÙ » : fond sombre neutre, bordure fine, cartes compactes de membres avec avatar, pseudonymes Wylan, Astrub, Émeraude, Sylvestre, zone en sous-texte, petite icône d'alignement discrète et cinq pips de progression vert/ambre/gris. En bas du panneau, ajouter un petit footer discret qui comble l'espace vide restant : afficher pour chaque membre ou en résumé un indicateur sobre de statut, par exemple « En ligne » en vert atténué ou une courte mention de dernière activité, dans le même style gris discret que le reste du panneau, sans icône décorative superflue. Le panneau garde sa hauteur actuelle, seulement mieux rempli.
+
+13. Petit toast discret en bas à droite : « Quête validée ».
+
+L'ensemble doit ressembler à un vrai produit professionnel conçu par un expert UI/UX senior en 2026, jamais à un dashboard générique. Aucun élément ne doit se chevaucher, tous les espacements doivent être nets et cohérents.
+
+
+AMELIORATIONS :
+
+Modifier la maquette existante « Rush Sylvestre » en conservant sa palette sombre, le bandeau « Progression Dofus », la recherche centrale, le panneau droit « Qui est où » avec son footer de statuts, et le badge « Combat solo » correctement positionné sous le titre de la quête active.
+
+Corriger précisément le problème suivant : la quête active « Bière qui roule n'amasse pas mousse » apparaît actuellement deux fois — une fois isolée dans une colonne détachée à gauche de l'écran, et une seconde fois dans le groupe « À faire ensemble » au centre. Cette duplication doit disparaître complètement.
+
+Il ne doit y avoir qu'une seule occurrence de cette quête, intégrée directement dans le flux vertical de la timeline centrale, à l'endroit suivant précis :
+
+1. Repère de chapitre « 28 » et titre « SUITE DOFUS ARGENTÉ ASTRUB » avec compteur « 0/8 ».
+2. Bloc « CONSEIL DE ROUTE » en dessous.
+3. Groupe « À faire ensemble » avec bordure pointillée ambre.
+4. À l'intérieur de ce groupe, la carte de quête active unique « Bière qui roule n'amasse pas mousse », avec label vert « À FAIRE MAINTENANT », zone de validation circulaire à gauche, badge rouge « Combat solo » sous le titre sans chevauchement, ligne « Départ : Astrub — Cité d'Astrub [5,-19] », bouton vert « Valider » et icône « Ressources » à droite.
+5. Panneau « Détails de la quête » ouvert juste sous cette carte, avec le texte exact « Position de lancement » entièrement en français (jamais « Position launching »), lien « Guide », lien « DofusDB », et un badge « Prérequis » qui affiche un texte réel et lisible, jamais un badge vide.
+6. Puis les quêtes bloquées suivantes : « Combat de rue », « Déjeuner à la fourchette », « Comme un pigeon hors de l'eau », « La coupe des vices », chacune avec cercle gris, cadenas discret et prérequis court.
+7. Une quête terminée discrète avec check vert en bas de la liste.
+
+Ne créer aucune colonne séparée à gauche de l'écran. La timeline doit être une seule colonne verticale continue et cohérente, sans duplication d'aucune carte de quête.
+
+Conserver l'esthétique RPG premium sobre : fond noir-vert neutre, bordures fines 1 px, aucun gradient, aucune ombre décorative, aucun glow. Couleurs fonctionnelles strictes : vert émeraude pour actions, ambre pour conseils et prérequis, rouge pour combats requis, gris neutre pour secondaire. Tous les textes doivent être en français correct, sans aucun mot anglais résiduel.

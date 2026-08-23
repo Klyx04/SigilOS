@@ -1,45 +1,122 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Save, Hash, Target, Users, Bell, Search, ShieldCheck } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Loader2, Save, Hash, Target, Users, Bell, Search, ShieldCheck, Coins, Trophy, Clock, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { getMissionConfig, updateMissionNotifySettings } from "@/server/actions/admin-actions";
-import { getDiscordRolesAction } from "@/server/actions/user-actions";
+import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/actions/user-actions";
+import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
 import { RoleSelector } from "@/components/admin/role-selector";
-import { cn } from "@/lib/utils";
+import { ChannelPreview } from "@/components/shared/ChannelPreview";
+import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 
 interface MissionSettingsClientProps {
     guildId: string;
 }
 
 export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
+    // Publication (missions hebdo)
     const [channelId, setChannelId] = useState<string>("");
-    const [validationChannelId, setValidationChannelId] = useState<string>("");
     const [roleId, setRoleId] = useState<string | null>(null);
+
+    // Validation Missions
+    const [validationChannelId, setValidationChannelId] = useState<string>("");
     const [validationRoleId, setValidationRoleId] = useState<string | null>(null);
+
+    // Contributions Kamas
+    const [kamaChannelId, setKamaChannelId] = useState<string>("");
+    const [kamaRoleId, setKamaRoleId] = useState<string | null>(null);
+    
+    // Rappel Reset Staff (Mardi 8h00)
+    const [managementChannelId, setManagementChannelId] = useState<string>("");
+    const [managementRoleId, setManagementRoleId] = useState<string | null>(null);
+
+    // Mode Vitrine
+    const [missionVitrineMode, setMissionVitrineMode] = useState<boolean>(false);
+
     const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
+    const [discordRoles, setDiscordRoles] = useState<{ id: string; name: string; color: string }[]>([]);
+    const [missionPingRoleIds, setMissionPingRoleIds] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
+
+    // — Détection « modifications non sauvegardées » (snapshot chargé vs état courant)
+    type MissionConfigSnapshot = {
+        channelId: string;
+        roleId: string | null;
+        validationChannelId: string;
+        validationRoleId: string | null;
+        kamaChannelId: string;
+        kamaRoleId: string | null;
+        managementChannelId: string;
+        managementRoleId: string | null;
+        missionVitrineMode: boolean;
+        missionPingRoleIds: string[];
+    };
+
+    const [initialConfig, setInitialConfig] = useState<MissionConfigSnapshot | null>(null);
+
+    const currentConfig: MissionConfigSnapshot = useMemo(() => ({
+        channelId,
+        roleId,
+        validationChannelId,
+        validationRoleId,
+        kamaChannelId,
+        kamaRoleId,
+        managementChannelId,
+        managementRoleId,
+        missionVitrineMode,
+        missionPingRoleIds: [...missionPingRoleIds],
+    }), [
+        channelId, roleId, validationChannelId, validationRoleId,
+        kamaChannelId, kamaRoleId, managementChannelId, managementRoleId,
+        missionVitrineMode, missionPingRoleIds,
+    ]);
+
+    const hasUnsavedChanges = isDirty(currentConfig, initialConfig);
 
     useEffect(() => {
         async function loadData() {
             const [configRes, rolesRes] = await Promise.all([
                 getMissionConfig(guildId),
-                getDiscordRolesAction(guildId)
+                getDiscordRolesAction(guildId, { ignoreWhitelist: true })
+
             ]);
 
             if (configRes.success && configRes.data) {
-                setChannelId(configRes.data.missionChannelId || "");
-                setValidationChannelId(configRes.data.missionValidationChannelId || "");
-                setRoleId(configRes.data.missionNotifyRoleId || null);
-                setValidationRoleId(configRes.data.missionValidationNotifyRoleId || null);
+                const loaded: MissionConfigSnapshot = {
+                    channelId: configRes.data.missionChannelId || "",
+                    roleId: configRes.data.missionNotifyRoleId || null,
+                    validationChannelId: configRes.data.missionValidationChannelId || "",
+                    validationRoleId: configRes.data.missionValidationNotifyRoleId || null,
+                    kamaChannelId: configRes.data.kamaNotifyChannelId || "",
+                    kamaRoleId: (configRes.data as any).kamaNotifyRoleId || null,
+                    managementChannelId: configRes.data.missionManagementNotifyChannelId || "",
+                    managementRoleId: configRes.data.missionManagementNotifyRoleId || null,
+                    missionVitrineMode: configRes.data.missionVitrineMode || false,
+                    missionPingRoleIds: configRes.data.missionPingRoleIds || [],
+                };
+                setChannelId(loaded.channelId);
+                setValidationChannelId(loaded.validationChannelId);
+                setKamaChannelId(loaded.kamaChannelId);
+                setRoleId(loaded.roleId);
+                setValidationRoleId(loaded.validationRoleId);
+                setKamaRoleId(loaded.kamaRoleId);
+                setManagementChannelId(loaded.managementChannelId);
+                setManagementRoleId(loaded.managementRoleId);
+                setMissionVitrineMode(loaded.missionVitrineMode);
+                setMissionPingRoleIds(loaded.missionPingRoleIds);
+                // Snapshot « propre » → la détection dirty démarre à l'état chargé
+                setInitialConfig(loaded);
             }
 
-            if (rolesRes.success && rolesRes.data) {
-                setRoles(rolesRes.data);
+            if (rolesRes.success && rolesRes.roles) {
+                setRoles(rolesRes.roles);
+                setDiscordRoles(rolesRes.roles.filter((r: any) => r.name !== "@everyone") as any);
             }
 
             setIsLoading(false);
@@ -53,143 +130,241 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                 channelId: channelId.trim() || null,
                 roleId: roleId,
                 validationChannelId: validationChannelId.trim() || null,
-                validationRoleId: validationRoleId
+                validationRoleId: validationRoleId,
+                kamaNotifyChannelId: kamaChannelId.trim() || null,
+                kamaNotifyRoleId: kamaRoleId,
+                missionManagementNotifyChannelId: managementChannelId.trim() || null,
+                missionManagementNotifyRoleId: managementRoleId,
+                missionVitrineMode: missionVitrineMode,
             });
-            if (result.success) {
-                toast.success("Paramètres des missions mis à jour !");
+            const pingRolesResult = await updateAllowedPingRolesAction(guildId, missionPingRoleIds, "missions");
+            if (result.success && pingRolesResult.success) {
+                setInitialConfig(currentConfig);
+                toast.success("Paramètres mis à jour !");
             } else {
-                toast.error(result.error || "Erreur lors de la sauvegarde");
+                toast.error((pingRolesResult.success ? result.error : pingRolesResult.error) || "Erreur lors de la sauvegarde");
             }
         });
     };
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-[200px]">
-                <Loader2 className="w-8 h-8 animate-spin text-amber-500/50" />
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Loader2 className="w-8 h-8 animate-spin text-warning/50" />
             </div>
         );
     }
 
     return (
-        <div className="space-y-6 max-w-5xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* 1. PUBLICATION SETTINGS */}
-                <Card className="bg-zinc-900/60 border-white/5 overflow-hidden group relative">
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-amber-400">
-                            <Target className="w-5 h-5 font-black" />
-                            Publication
-                        </CardTitle>
-                        <CardDescription className="text-[10px] font-medium leading-relaxed">
-                            Configuration de l&apos;annonce hebdomadaire des nouvelles missions.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4 relative z-10">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-                                <Hash className="w-3 h-3" /> Salon de Publication
-                            </label>
-                            <Input
-                                value={channelId}
-                                onChange={(e) => setChannelId(e.target.value)}
-                                placeholder="ID du salon..."
-                                className="font-mono bg-black/40 border-white/10 text-white h-11 focus:ring-amber-500/20 focus:border-amber-500/50 rounded-xl"
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-                                <Users className="w-3 h-3" /> Rôle à Mentionner
-                            </label>
-                            <RoleSelector
-                                value={roleId}
-                                onChange={setRoleId}
-                                roles={roles}
-                                className="h-11"
-                            />
-                        </div>
-
-                        <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
-                            <p className="text-[10px] text-amber-500/60 leading-relaxed italic">
-                                "Ce message est envoyé chaque lundi matin lors de la génération automatique ou manuelle."
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* 2. VALIDATION SETTINGS */}
-                <Card className="bg-zinc-900/60 border-white/5 overflow-hidden group relative">
-                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-purple-400">
-                            <ShieldCheck className="w-5 h-5" />
-                            Alertes Validation
-                        </CardTitle>
-                        <CardDescription className="text-[10px] font-medium leading-relaxed">
-                            Configuration des notifications d&apos;admin lors du dépôt d&apos;une preuve.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4 relative z-10">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-                                <Hash className="w-3 h-3" /> Salon d&apos;Alertes
-                            </label>
-                            <Input
-                                value={validationChannelId}
-                                onChange={(e) => setValidationChannelId(e.target.value)}
-                                placeholder="ID du salon (souvent le même)..."
-                                className="font-mono bg-black/40 border-white/10 text-white h-11 focus:ring-purple-500/20 focus:border-purple-500/50 rounded-xl"
-                            />
-                            <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-wider">
-                                Vide = Salon de publication par défaut.
-                            </p>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-                                <Users className="w-3 h-3" /> Staff à Alerter
-                            </label>
-                            <RoleSelector
-                                value={validationRoleId}
-                                onChange={setValidationRoleId}
-                                roles={roles}
-                                className="h-11 border-purple-500/20"
-                            />
-                        </div>
-
-                        <div className="p-3 rounded-xl bg-purple-500/5 border border-purple-500/10">
-                            <div className="flex gap-2">
-                                <Bell className="w-3 h-3 text-purple-400 shrink-0 mt-0.5" />
-                                <p className="text-[10px] text-zinc-500 leading-relaxed italic">
-                                    "Un nouvel embed compact avec un lien direct vers la validation sera envoyé à chaque nouvelle preuve postée."
-                                </p>
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Configuration Panel */}
+                <div className="lg:col-span-2 space-y-6">
+                    {/* SECTION 1: PUBLICATION */}
+                    <Card className="bg-surface/60 border-border overflow-hidden">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-foreground">
+                                <span className="bg-warning/20 text-warning p-2 rounded-lg">
+                                    <Target className="w-5 h-5" />
+                                </span>
+                                Publication Hebdomadaire
+                            </CardTitle>
+                            <CardDescription>
+                                Annonce automatique des 12 missions de la semaine.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-caption font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                        <Hash className="w-3 h-3" /> Salon de Publication
+                                    </label>
+                                    <Input
+                                        value={channelId}
+                                        onChange={(e) => setChannelId(e.target.value)}
+                                        placeholder="ID du salon..."
+                                        className="font-mono bg-black/20 border-border h-10"
+                                    />
+                                    <ChannelPreview guildId={guildId} channelId={channelId} color="amber" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-caption font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                        <Users className="w-3 h-3" /> Rôle à Mentionner
+                                    </label>
+                                    <RoleSelector value={roleId} onChange={setRoleId} roles={roles} className="h-10" />
+                                </div>
                             </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                            <div className="pt-4 border-t border-border">
+                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2 mb-2">
+                                    <Users className="w-3 h-3" /> Ping Rôles Autorisés (Whitelist)
+                                </label>
+                                <PingRolesSelector
+                                    value={missionPingRoleIds}
+                                    onChange={setMissionPingRoleIds}
+                                    roles={discordRoles}
+                                    description="Si la liste est vide, aucun rôle Discord ne sera disponible pour le ping lors de la publication des missions (seuls les administrateurs verront toujours tous les rôles)."
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* SECTION 2: NOTIFICATIONS UPLOADS */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <Card className="bg-surface/60 border-border">
+                            <CardHeader className="pb-4">
+                                <CardTitle className="text-sm flex items-center gap-2 text-info uppercase tracking-tight">
+                                    <ShieldCheck className="w-4 h-4" /> Validation Missions
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Salon ID</label>
+                                    <Input value={validationChannelId} onChange={(e) => setValidationChannelId(e.target.value)} className="font-mono bg-black/20 border-border h-9" />
+                                    <ChannelPreview guildId={guildId} channelId={validationChannelId} color="amber" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Staff à alerter</label>
+                                    <RoleSelector value={validationRoleId} onChange={setValidationRoleId} roles={roles} className="h-9" />
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="bg-surface/60 border-border">
+                            <CardHeader className="pb-4">
+                                <CardTitle className="text-sm flex items-center gap-2 text-warning uppercase tracking-tight">
+                                    <Coins className="w-4 h-4" /> Contributions Kamas
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Salon ID</label>
+                                    <Input value={kamaChannelId} onChange={(e) => setKamaChannelId(e.target.value)} className="font-mono bg-black/20 border-border h-9" />
+                                    <ChannelPreview guildId={guildId} channelId={kamaChannelId} color="amber" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Staff à alerter</label>
+                                    <RoleSelector value={kamaRoleId} onChange={setKamaRoleId} roles={roles} className="h-9" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* SECTION 3: RAPPEL RESET */}
+                    <Card className="bg-surface/60 border-border">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-info text-sm uppercase tracking-tight">
+                                <Bell className="w-4 h-4" /> Rappel Reset Hebdo (Mardi 08:00)
+                            </CardTitle>
+                            <CardDescription>Rappelle aux officiers de générer les missions après la maintenance Dofus.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Salon de Rappel</label>
+                                <Input value={managementChannelId} onChange={(e) => setManagementChannelId(e.target.value)} className="font-mono bg-black/20 border-border h-10" />
+                                <ChannelPreview guildId={guildId} channelId={managementChannelId} color="indigo" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Rôle Staff</label>
+                                <RoleSelector value={managementRoleId} onChange={setManagementRoleId} roles={roles} className="h-10" />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* SECTION 4: MODE VITRINE */}
+                    <Card className="bg-surface/60 border-border">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                            <div className="space-y-1">
+                                <CardTitle className="flex items-center gap-2 text-info text-sm uppercase tracking-tight">
+                                    <Eye className="w-4 h-4" /> Mode Vitrine (Lecture seule)
+                                </CardTitle>
+                                <CardDescription className="text-muted-foreground text-xs">
+                                    Masque la possibilité d'uploader des captures (bouton PREUVE), le statut "Validé" sur les missions, et cache les ladders aux membres.
+                                </CardDescription>
+                            </div>
+                            <Switch checked={missionVitrineMode} onCheckedChange={setMissionVitrineMode} />
+                        </CardHeader>
+                    </Card>
+
+                    <div className="flex justify-end pt-4">
+                        <Button onClick={handleSave} disabled={isPending} className="bg-warning hover:bg-warning text-warning-foreground min-w-[200px] font-bold h-12 shadow-xl shadow-amber-600/20">
+                            {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                            SAUVEGARDER TOUT
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Preview Panel */}
+                <div className="space-y-6">
+                    <Card className="bg-surface/60 border-border overflow-hidden">
+                        <CardHeader className="bg-surface pb-4 px-4 py-3">
+                            <CardTitle className="text-caption font-black uppercase tracking-widest text-muted-foreground">Aperçu : Validation</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-6 relative text-left px-4">
+                            <div className="flex items-start gap-3">
+                                <div className="w-8 h-8 rounded-full bg-info flex items-center justify-center shrink-0">
+                                    <ShieldCheck className="w-4 h-4 text-foreground" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-baseline gap-2 mb-1">
+                                        <span className="font-medium text-info text-xs">SigilOS</span>
+                                        <span className="text-caption text-muted-foreground uppercase">Maintenant</span>
+                                    </div>
+                                    <div className="bg-[#2b2d31] rounded border-l-4 border-info p-3 max-w-sm shadow-xl">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="text-sm">🛡️</span>
+                                            <h4 className="font-semibold text-foreground text-caption">Preuve de Mission</h4>
+                                        </div>
+                                        <p className="text-foreground text-caption mb-3 leading-relaxed">
+                                            <span className="text-info font-medium">@Wylan</span> a soumis une preuve pour **Donjon Kralamoure**.
+                                        </p>
+                                        <div className="flex gap-2">
+                                            <div className="px-3 py-1 bg-success/20 border border-success/30 text-success text-caption font-bold rounded">VALIDER</div>
+                                            <div className="px-3 py-1 bg-danger/20 border border-danger/30 text-danger text-caption font-bold rounded">REFUSER</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-surface/60 border-border overflow-hidden">
+                        <CardHeader className="bg-surface pb-4 px-4 py-3">
+                            <CardTitle className="text-caption font-black uppercase tracking-widest text-muted-foreground">Aperçu : Reset Hebdo</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-6 relative text-left px-4">
+                            <div className="flex items-start gap-3">
+                                <div className="w-8 h-8 rounded-full bg-info flex items-center justify-center shrink-0">
+                                    <Bell className="w-4 h-4 text-foreground" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-baseline gap-2 mb-1">
+                                        <span className="font-medium text-info text-xs">SigilOS</span>
+                                        <span className="text-caption text-muted-foreground uppercase font-black">Mardi 08:00</span>
+                                    </div>
+                                    <div className="bg-[#2b2d31] rounded border-l-4 border-info p-3 max-w-sm">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="text-sm">🚀</span>
+                                            <h4 className="font-semibold text-foreground text-caption">Reset Hebdomadaire</h4>
+                                        </div>
+                                        <p className="text-foreground text-caption leading-relaxed mb-3">
+                                            Le reset Dofus a eu lieu. Il est temps de générer les missions !
+                                        </p>
+                                        <div className="w-full py-1.5 bg-muted hover:bg-muted text-foreground text-caption font-bold rounded flex items-center justify-center gap-2">
+                                            <span>🛠️</span> GÉRER LES MISSIONS
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
 
-            {/* ACTION FOOTER */}
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-zinc-900/40 border border-white/5">
-                <div className="flex items-start gap-4 max-w-md">
-                    <div className="p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
-                        <Search className="w-4 h-4 text-indigo-400" />
-                    </div>
-                    <p className="text-[11px] text-zinc-500 leading-relaxed font-medium">
-                        Ces réglages s&apos;appliquent à l&apos;ensemble de la guilde. Assurez-vous que le bot SigilOS a les permissions d&apos;écrire dans les salons choisis.
-                    </p>
-                </div>
-                <Button
-                    onClick={handleSave}
-                    disabled={isPending}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-8 h-12 shadow-lg shadow-indigo-900/20 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
-                >
-                    {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                    SAUVEGARDER LES CHANGEMENTS
-                </Button>
-            </div>
+            {/* Garde anti-navigation : avertit si des paramètres ne sont pas sauvegardés */}
+            <UnsavedChangesGuard
+                hasUnsavedChanges={hasUnsavedChanges}
+                message="Vous avez des modifications de paramètres de missions non sauvegardées. Quitter cette page les perdra définitivement."
+            />
         </div>
     );
 }

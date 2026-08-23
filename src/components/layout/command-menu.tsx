@@ -3,21 +3,32 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
-    Calculator,
-    Calendar,
-    CreditCard,
     Settings,
-    Smile,
     User,
     Search,
-    FileText,
-    LayoutDashboard,
-    Server,
-    Book,
-    Target,
     ScrollText,
-    InfinityIcon
+    Trophy,
+    Sparkles,
+    Crown,
+    CheckSquare,
+    LogOut,
+    Home,
+    Loader2,
+    Users,
+    LayoutDashboard,
+    BookOpen,
+    Compass,
+    Shield,
+    Database,
+    Package,
+    Handshake,
+    Calendar,
+    Zap,
+    Rocket,
+    History
 } from "lucide-react";
+import { useDebounce } from "use-debounce";
+import { globalSearch, SearchResult } from "@/server/actions/search-actions";
 
 import {
     CommandDialog,
@@ -29,13 +40,22 @@ import {
     CommandSeparator,
     CommandShortcut,
 } from "@/components/ui/command";
-import { DialogTitle } from "@/components/ui/dialog"; // Ensure accessibility
-import { getSearchableDocs } from "@/server/actions/doc-actions";
 
-export function CommandMenu() {
+import { type UserContext } from "@/server/actions/user-actions";
+import { PERMISSIONS } from "@/lib/permissions";
+
+interface CommandMenuProps {
+    guildId: string;
+    user: UserContext;
+}
+
+export function CommandMenu({ guildId, user }: CommandMenuProps) {
     const [open, setOpen] = React.useState(false);
+    const [query, setQuery] = React.useState("");
+    const [debouncedQuery] = useDebounce(query, 300);
+    const [results, setResults] = React.useState<SearchResult[]>([]);
+    const [isLoading, setIsLoading] = React.useState(false);
     const router = useRouter();
-    const [docs, setDocs] = React.useState<{ title: string; slug: string; category: string; excerpt: string }[]>([]);
 
     React.useEffect(() => {
         const down = (e: KeyboardEvent) => {
@@ -45,160 +65,376 @@ export function CommandMenu() {
             }
         };
 
+        const openMenu = () => setOpen(true);
+
         document.addEventListener("keydown", down);
-        return () => document.removeEventListener("keydown", down);
+        document.addEventListener("open-command-menu", openMenu);
+        return () => {
+            document.removeEventListener("keydown", down);
+            document.removeEventListener("open-command-menu", openMenu);
+        };
     }, []);
 
-    // Fetch docs when opening
     React.useEffect(() => {
-        if (open && docs.length === 0) {
-            getSearchableDocs().then(setDocs);
+        if (debouncedQuery.length < 2) {
+            setResults([]);
+            return;
         }
-    }, [open, docs.length]);
+
+        const performSearch = async () => {
+            setIsLoading(true);
+            try {
+                const searchResults = await globalSearch(debouncedQuery, guildId);
+                setResults(searchResults);
+            } catch (error) {
+                console.error("Search failed:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        performSearch();
+    }, [debouncedQuery, guildId]);
 
     const runCommand = React.useCallback((command: () => void) => {
         setOpen(false);
         command();
     }, []);
 
+    const memberResults = results.filter(r => r.type === "MEMBER");
+    const missionResults = results.filter(r => r.type === "MISSION");
+    const pageResults = results.filter(r => r.type === "PAGE");
+    const gameDataResults = results.filter(r => r.type === "GAME_DATA");
+    const serviceResults = results.filter(r => r.type === "SERVICE");
+    const vaultResults = results.filter(r => r.type === "VAULT");
+    const loanResults = results.filter(r => r.type === "LOAN");
+    const skinResults = results.filter(r => r.type === "SKIN");
+    const eventResults = results.filter(r => r.type === "EVENT");
+    const actionResults = results.filter(r => r.type === "ACTION");
+
+    const searchItems = React.useMemo(() => [
+        { title: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, category: "Général", color: "text-muted-foreground", bg: "bg-surface", border: "border-border" },
+        { title: "Documentation", href: `/docs`, icon: BookOpen, category: "Général", color: "text-muted-foreground", bg: "bg-surface", border: "border-border" },
+        
+        { title: "Annuaire des membres", href: `/dashboard/${guildId}/members`, icon: Users, category: "Informations", color: "text-info", bg: "bg-info/10", border: "border-info/20" },
+        { title: "La Guilde (Hub)", href: `/dashboard/${guildId}/guild-hub`, icon: Sparkles, category: "Informations", color: "text-info", bg: "bg-info/10", border: "border-info/20" },
+        { title: "Ressources communautaires", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, category: "Informations", color: "text-info", bg: "bg-info/10", border: "border-info/20" },
+        
+        { title: "Missions hebdomadaires", href: `/dashboard/${guildId}/missions`, icon: ScrollText, category: "Progression", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20" },
+        { title: "Songes Infinis", href: `/dashboard/${guildId}/songes`, icon: Sparkles, category: "Progression", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20" },
+        { title: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Trophy, category: "Progression", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20" },
+        { title: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Trophy, category: "Progression", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20" },
+        
+        { title: "Galerie de Stuff", href: `/dashboard/${guildId}/stuff-hub`, icon: Sparkles, category: "Outils", color: "text-success", bg: "bg-success/10", border: "border-success/20" },
+        { title: "Services & Artisans", href: `/dashboard/${guildId}/services`, icon: Sparkles, category: "Outils", color: "text-success", bg: "bg-success/10", border: "border-success/20" },
+        { title: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, category: "Outils", color: "text-success", bg: "bg-success/10", border: "border-success/20" },
+        { title: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Sparkles, category: "Outils", color: "text-success", bg: "bg-success/10", border: "border-success/20" },
+        
+        { title: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: CheckSquare, category: "Supervision", color: "text-danger", bg: "bg-danger/10", border: "border-danger/20", visible: user?.canValidateMissions },
+        { title: "Paramètres Admin", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, category: "Supervision", color: "text-danger", bg: "bg-danger/10", border: "border-danger/20", visible: user?.canViewSettings },
+        
+        { title: "Roadmap Plateforme", href: `/roadmap`, icon: Rocket, category: "Plateforme", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20" },
+        { title: "Mises à jour / Changelog", href: `/changelog`, icon: History, category: "Plateforme", color: "text-info", bg: "bg-info/10", border: "border-info/20" },
+    ], [guildId, user]);
+
+    const filteredSearchItems = React.useMemo(() => 
+        searchItems.filter(item => (item as any).visible !== false),
+    [searchItems]);
+
     return (
-        <>
-            <button
-                onClick={() => setOpen(true)}
-                className="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-zinc-500 bg-zinc-900/50 border border-white/5 rounded-lg hover:text-white hover:bg-white/5 hover:border-white/10 transition-colors w-64 justify-between"
-            >
-                <span className="flex items-center gap-2">
-                    <Search className="w-3.5 h-3.5" />
-                    Rechercher...
-                </span>
-                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-white/10 bg-zinc-950 px-1.5 font-mono text-[10px] font-medium text-zinc-500 opacity-100">
-                    <span className="text-xs">Ctrl</span>K
-                </kbd>
-            </button>
-
-            {/* Provide a hidden title for accessibility if DialogTitle is required by your Dialog implementation but handled internally by CommandDialog (often CommandDialog wraps DialogContent but might miss Title) */}
-            {/* However, Radix Dialog requires a Title for screen readers. CommandDialog usually handles this or we need to add it. */}
-            {/* Checking shadcn implementation usually CommandDialog includes DialogContent. */}
-
-            {/* Glassmorphism Premium Command Menu */}
-            <CommandDialog open={open} onOpenChange={setOpen}>
-                <DialogTitle className="sr-only">Menu de commande</DialogTitle>
-
-                <div className="relative">
-                    <CommandInput placeholder="Tapez une commande ou cherchez dans les docs..." className="border-none focus:ring-0 text-lg font-medium" />
+        <CommandDialog
+            open={open}
+            onOpenChange={setOpen}
+            shouldFilter={false}
+            className="bg-background border border-border  sm:max-w-[550px] rounded-2xl overflow-hidden p-0 gap-0"
+        >
+            <div className="relative">
+                <div className="flex items-center border-b border-border px-4 bg-surface">
+                    <Search className="mr-3 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <CommandInput 
+                        placeholder="Recherche globale..." 
+                        className="h-14 font-medium flex-1 bg-transparent focus:ring-0 border-none outline-none text-sm text-foreground placeholder:text-muted-foreground" 
+                        value={query}
+                        onValueChange={setQuery}
+                    />
+                    {isLoading && (
+                        <Loader2 className="ml-2 h-4 w-4 animate-spin text-muted-foreground" />
+                    )}
                 </div>
 
-                <CommandList className="max-h-[500px] border-t border-white/5">
-                    <CommandEmpty className="py-12 text-center text-zinc-500">
-                        <p>Aucun résultat trouvé.</p>
-                        <p className="text-xs mt-2">Essayez des mots-clés plus généraux.</p>
+                <CommandList className="max-h-[380px] premium-scrollbar p-2">
+                    <CommandEmpty className="py-12 text-center text-xs text-muted-foreground">
+                        Aucun résultat pour "{query}"
                     </CommandEmpty>
 
-                    <CommandGroup heading="Navigation" className="text-zinc-400">
-                        <CommandItem
-                            onSelect={() => runCommand(() => router.push("/dashboard"))}
-                            value="Dashboard Home Accueil Board"
-                        >
-                            <LayoutDashboard className="mr-2 h-4 w-4 text-indigo-400" />
-                            <span className="font-medium">Dashboard</span>
-                        </CommandItem>
-                        <CommandItem
-                            onSelect={() => runCommand(() => router.push("/guilds"))}
-                            value="Annuaire des Guildes Server Serveur Liste Recrutement"
-                        >
-                            <Server className="mr-2 h-4 w-4 text-emerald-400" />
-                            <span className="font-medium">Annuaire des Guildes</span>
-                        </CommandItem>
-                        <CommandItem
-                            onSelect={() => runCommand(() => router.push("/docs"))}
-                            value="Documentation Guide Help Aide API Tutoriel"
-                        >
-                            <Book className="mr-2 h-4 w-4 text-amber-400" />
-                            <span className="font-medium">Documentation</span>
-                        </CommandItem>
-                    </CommandGroup>
+                    {/* --- DYNAMIC RESULTS --- */}
+                    {results.length > 0 && (
+                        <>
+                            {memberResults.length > 0 && (
+                                <CommandGroup heading={<span className="text-muted-foreground font-black tracking-widest uppercase text-caption px-2 mb-2 block">Membres</span>}>
+                                    {memberResults.map((r) => (
+                                        <CommandItem 
+                                            key={r.id} 
+                                            onSelect={() => runCommand(() => router.push(r.href))}
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-surface border border-transparent transition-all"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg border border-border bg-surface flex items-center justify-center mr-3 shrink-0">
+                                                <Users className="h-4 w-4 text-muted-foreground" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-bold text-foreground truncate text-sm">{r.title}</span>
+                                                {r.subtitle && <span className="text-caption text-muted-foreground truncate">{r.subtitle}</span>}
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
 
-                    <CommandSeparator className="bg-white/5" />
+                            {missionResults.length > 0 && (
+                                <CommandGroup heading={<span className="text-muted-foreground font-black tracking-widest uppercase text-caption px-2 mb-2 block">Missions</span>}>
+                                    {missionResults.map((r) => (
+                                        <CommandItem 
+                                            key={r.id} 
+                                            onSelect={() => runCommand(() => router.push(r.href))}
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-surface border border-transparent transition-all"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg border border-border bg-surface flex items-center justify-center mr-3 shrink-0">
+                                                <ScrollText className="h-4 w-4 text-muted-foreground" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-bold text-foreground truncate text-sm">{r.title}</span>
+                                                {r.subtitle && <span className="text-caption text-muted-foreground truncate">{r.subtitle}</span>}
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
 
-                    <CommandGroup heading="Actions Rapides" className="text-zinc-400">
-                        <CommandItem
-                            onSelect={() => runCommand(() => router.push(`/dashboard/ocre/sync`))}
-                            value="Synchroniser Ocre Metamob"
-                        >
-                            <Target className="mr-2 h-4 w-4 text-amber-400" />
-                            <span className="font-medium">Synchroniser Ocre</span>
-                        </CommandItem>
-                        <CommandItem
-                            onSelect={() => runCommand(() => router.push(`/dashboard/missions/manage`))}
-                            value="Gérer Missions Administration"
-                        >
-                            <ScrollText className="mr-2 h-4 w-4 text-emerald-400" />
-                            <span className="font-medium">Gérer les Missions</span>
-                        </CommandItem>
-                        <CommandItem
-                            onSelect={() => runCommand(() => router.push(`/dashboard/songes`))}
-                            value="Créer Run Songes Recruter"
-                        >
-                            <InfinityIcon className="mr-2 h-4 w-4 text-purple-400" />
-                            <span className="font-medium">Lancer une Run Songes</span>
-                        </CommandItem>
-                    </CommandGroup>
+                            {pageResults.length > 0 && (
+                                <CommandGroup heading={<span className="text-muted-foreground font-black tracking-widest uppercase text-caption px-2 mb-2 block">Pages</span>}>
+                                    {pageResults.map((r) => (
+                                        <CommandItem 
+                                            key={r.id} 
+                                            onSelect={() => runCommand(() => router.push(r.href))}
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-surface border border-transparent transition-all"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg border border-border bg-surface flex items-center justify-center mr-3 shrink-0">
+                                                <Sparkles className="h-4 w-4 text-muted-foreground" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-bold text-foreground truncate text-sm">{r.title}</span>
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
 
-                    <CommandSeparator className="bg-white/5" />
+                            {gameDataResults.length > 0 && (
+                                <CommandGroup heading={<span className="text-success font-black tracking-widest uppercase text-caption px-2 mb-2 block">Monde des Douze</span>}>
+                                    {gameDataResults.map((r) => (
+                                        <CommandItem 
+                                            key={r.id} 
+                                            onSelect={() => runCommand(() => router.push(r.href))}
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-surface border border-transparent transition-all"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg border border-success/20 bg-success/10 flex items-center justify-center mr-3 shrink-0">
+                                                <Database className="h-4 w-4 text-success" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-bold text-foreground truncate text-sm group-hover:text-success transition-colors">{r.title}</span>
+                                                {r.subtitle && <span className="text-caption text-muted-foreground truncate">{r.subtitle}</span>}
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
 
-                    <CommandGroup heading="Documentation (Recherche Profonde)" className="text-zinc-400">
-                        {docs.map((doc) => (
-                            <CommandItem
-                                key={doc.slug}
-                                onSelect={() => runCommand(() => router.push(`/docs/${doc.slug}`))}
-                                // Deep Search: Includes Title, Category, and Content Excerpt
-                                value={`${doc.title} ${doc.category} ${doc.excerpt} doc guide`}
-                                className="group items-start py-3"
-                            >
-                                <FileText className="mr-2 h-4 w-4 text-purple-400 mt-1 shrink-0" />
-                                <div className="flex flex-col gap-0.5">
-                                    <span className="font-medium text-zinc-200 group-data-[selected=true]:text-white transition-colors">
-                                        {doc.title}
-                                    </span>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-500 bg-zinc-900/50 px-1.5 py-0.5 rounded border border-white/5">
-                                            {doc.category}
-                                        </span>
-                                        {/* Excerpt Preview (truncated) */}
-                                        {doc.excerpt && (
-                                            <span className="text-xs text-zinc-600 line-clamp-1 max-w-[300px] group-data-[selected=true]:text-zinc-400">
-                                                {doc.excerpt.slice(0, 60)}...
-                                            </span>
-                                        )}
+                            {serviceResults.length > 0 && (
+                                <CommandGroup heading={<span className="text-warning font-black tracking-widest uppercase text-caption px-2 mb-2 block">Services & Artisans</span>}>
+                                    {serviceResults.map((r) => (
+                                        <CommandItem 
+                                            key={r.id} 
+                                            onSelect={() => runCommand(() => router.push(r.href))}
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-surface border border-transparent transition-all"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg border border-warning/20 bg-warning/10 flex items-center justify-center mr-3 shrink-0">
+                                                <Sparkles className="h-4 w-4 text-warning" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-bold text-foreground truncate text-sm group-hover:text-warning transition-colors">{r.title}</span>
+                                                {r.subtitle && <span className="text-caption text-muted-foreground truncate">{r.subtitle}</span>}
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
+
+                            {(vaultResults.length > 0 || loanResults.length > 0) && (
+                                <CommandGroup heading={<span className="text-info font-black tracking-widest uppercase text-caption px-2 mb-2 block">Coffre & Prêts</span>}>
+                                    {vaultResults.map((r) => (
+                                        <CommandItem 
+                                            key={r.id} 
+                                            onSelect={() => runCommand(() => router.push(r.href))}
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-surface border border-transparent transition-all"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg border border-info/20 bg-info/10 flex items-center justify-center mr-3 shrink-0">
+                                                <Package className="h-4 w-4 text-info" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-bold text-foreground truncate text-sm group-hover:text-info transition-colors">{r.title}</span>
+                                                {r.subtitle && <span className="text-caption text-muted-foreground truncate">{r.subtitle}</span>}
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                    {loanResults.map((r) => (
+                                        <CommandItem 
+                                            key={r.id} 
+                                            onSelect={() => runCommand(() => router.push(r.href))}
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-surface border border-transparent transition-all"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg border border-info/20 bg-info/10 flex items-center justify-center mr-3 shrink-0">
+                                                <Handshake className="h-4 w-4 text-info" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-bold text-foreground truncate text-sm group-hover:text-info transition-colors">{r.title}</span>
+                                                {r.subtitle && <span className="text-caption text-muted-foreground truncate">{r.subtitle}</span>}
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
+
+                            {skinResults.length > 0 && (
+                                <CommandGroup heading={<span className="text-pink-500 font-black tracking-widest uppercase text-caption px-2 mb-2 block">Galerie de Skins</span>}>
+                                    {skinResults.map((r) => (
+                                        <CommandItem 
+                                            key={r.id} 
+                                            onSelect={() => runCommand(() => router.push(r.href))}
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-surface border border-transparent transition-all"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg border border-pink-500/20 bg-pink-500/10 flex items-center justify-center mr-3 shrink-0">
+                                                <Sparkles className="h-4 w-4 text-pink-400" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-bold text-foreground truncate text-sm group-hover:text-pink-400 transition-colors">{r.title}</span>
+                                                {r.subtitle && <span className="text-caption text-muted-foreground truncate">{r.subtitle}</span>}
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
+
+                            {eventResults.length > 0 && (
+                                <CommandGroup heading={<span className="text-info font-black tracking-widest uppercase text-caption px-2 mb-2 block">Événements</span>}>
+                                    {eventResults.map((r) => (
+                                        <CommandItem 
+                                            key={r.id} 
+                                            onSelect={() => runCommand(() => router.push(r.href))}
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-surface border border-transparent transition-all"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg border border-info/20 bg-info/10 flex items-center justify-center mr-3 shrink-0">
+                                                <Calendar className="h-4 w-4 text-info" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-bold text-foreground truncate text-sm group-hover:text-info transition-colors">{r.title}</span>
+                                                {r.subtitle && <span className="text-caption text-muted-foreground truncate">{r.subtitle}</span>}
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
+
+                            {actionResults.length > 0 && (
+                                <CommandGroup heading={<span className="text-info font-black tracking-widest uppercase text-caption px-2 mb-2 block">Actions Rapides</span>}>
+                                    {actionResults.map((r) => (
+                                        <CommandItem 
+                                            key={r.id} 
+                                            onSelect={() => runCommand(() => router.push(r.href))}
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-surface border border-transparent transition-all"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg border border-info/20 bg-info/10 flex items-center justify-center mr-3 shrink-0">
+                                                <Zap className="h-4 w-4 text-info" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-bold text-foreground truncate text-sm group-hover:text-info transition-colors">{r.title}</span>
+                                                {r.subtitle && <span className="text-caption text-muted-foreground truncate">{r.subtitle}</span>}
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
+                            <CommandSeparator className="bg-surface my-2" />
+                        </>
+                    )}
+
+                    {/* --- DEFAULT SUGGESTIONS --- */}
+                    {debouncedQuery.length < 2 && (
+                        <CommandGroup heading={<span className="text-muted-foreground font-black tracking-widest uppercase text-caption px-2 mb-2 block">Suggestions</span>}>
+                            {filteredSearchItems.map((item) => (
+                                <CommandItem
+                                    key={item.href + item.title}
+                                    value={item.title}
+                                    onSelect={() => runCommand(() => router.push(item.href))}
+                                    className="flex items-center gap-3 px-3 py-2.5 cursor-pointer rounded-xl data-[selected=true]:bg-surface transition-all mb-1 group"
+                                >
+                                    <div className={`flex h-8 w-8 items-center justify-center rounded-lg border ${item.bg} ${item.border}`}>
+                                        <item.icon className={`h-4 w-4 ${item.color}`} />
                                     </div>
-                                </div>
-                            </CommandItem>
-                        ))}
-                    </CommandGroup>
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="text-sm font-bold text-foreground group-hover:text-foreground transition-colors">{item.title}</span>
+                                        <span className={`text-caption font-black uppercase tracking-widest ${item.color} opacity-70`}>{item.category}</span>
+                                    </div>
+                                </CommandItem>
+                            ))}
+                        </CommandGroup>
+                    )}
 
-                    <CommandSeparator className="bg-white/5" />
+                    {debouncedQuery.length < 2 && (
+                        <>
+                            <CommandGroup heading={<span className="text-muted-foreground font-black tracking-widest uppercase text-caption px-2 mb-2 block">Navigation</span>}>
+                                <CommandItem 
+                                    onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}`))}
+                                    className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-surface transition-all p-2.5"
+                                >
+                                    <Home className="mr-3 h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="font-semibold text-sm">Tableau de bord</span>
+                                </CommandItem>
+                                <CommandItem 
+                                    onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}/missions`))}
+                                    className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-surface transition-all p-2.5"
+                                >
+                                    <ScrollText className="mr-3 h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="font-semibold text-sm">Missions</span>
+                                </CommandItem>
+                                <CommandItem 
+                                    onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}/ladder`))}
+                                    className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-surface transition-all p-2.5"
+                                >
+                                    <Trophy className="mr-3 h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="font-semibold text-sm">Ladder</span>
+                                </CommandItem>
+                            </CommandGroup>
 
-                    <CommandGroup heading="Compte" className="text-zinc-400">
-                        <CommandItem
-                            onSelect={() => runCommand(() => router.push("/dashboard/settings"))}
-                            value="Profil Settings Paramètres Config Account Compte"
-                        >
-                            <User className="mr-2 h-4 w-4 text-blue-400" />
-                            <span className="font-medium">Profil</span>
-                            <CommandShortcut>⌘P</CommandShortcut>
-                        </CommandItem>
-                        <CommandItem
-                            onSelect={() => runCommand(() => router.push("/api/auth/signout"))}
-                            value="Se déconnecter Logout Déconnexion Exit Quit"
-                        >
-                            <LogOut className="mr-2 h-4 w-4 text-red-400" />
-                            <span className="font-medium text-red-400/80 group-data-[selected=true]:text-red-400">Se déconnecter</span>
-                        </CommandItem>
-                    </CommandGroup>
+                            <CommandSeparator className="bg-surface my-2" />
+
+                            <CommandGroup>
+                                <CommandItem 
+                                    onSelect={() => runCommand(() => router.push("/api/auth/signout"))}
+                                    className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-danger/10 text-danger/80 transition-all p-2.5"
+                                >
+                                    <LogOut className="mr-3 h-3.5 w-3.5" />
+                                    <span className="font-bold text-sm">Déconnexion</span>
+                                </CommandItem>
+                            </CommandGroup>
+                        </>
+                    )}
                 </CommandList>
-            </CommandDialog>
-        </>
+
+                <div className="p-3 bg-background border-t border-border flex items-center justify-between text-caption font-medium text-muted-foreground px-5">
+                    <span>Recherche globale</span>
+                    <span>Taper <kbd className="font-mono bg-surface px-1 py-0.5 rounded text-caption text-muted-foreground">Esc</kbd> pour fermer</span>
+                </div>
+            </div>
+        </CommandDialog>
     );
 }
-
-import { LogOut } from "lucide-react";

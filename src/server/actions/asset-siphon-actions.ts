@@ -11,6 +11,7 @@ import {
     getAssetStorageStats,
     siphonAndCompressImage,
     getLocalAssetUrl,
+    getValidatedAssetUrl,
 } from '@/lib/dofus-asset-siphon';
 import { getDofensiveDungeonForBoss } from '@/server/actions/dofensive-actions';
 import { getMonsterStats } from '@/server/actions/game-data-actions';
@@ -231,7 +232,7 @@ export async function triggerBatchAssetSiphonAction(
             const cleanName = target.name.trim();
             const cleanDungeon = target.dungeonName?.trim();
             let monsterId = target.id;
-            let remoteUrl = target.remoteUrl;
+            let remoteUrl = getValidatedAssetUrl(target.remoteUrl) || undefined;
             const isNumericId = typeof monsterId === 'number' || (/^\d+$/.test(String(monsterId)) && !String(monsterId).startsWith('c'));
 
             try {
@@ -245,8 +246,9 @@ export async function triggerBatchAssetSiphonAction(
                         });
                         if (directRes.ok) {
                             const data = await directRes.json();
-                            if (data.img && data.img.startsWith('http')) {
-                                remoteUrl = data.img;
+                            const safeImg = getValidatedAssetUrl(data.img);
+                            if (safeImg) {
+                                remoteUrl = safeImg;
                                 // Persistance en BDD locale des stats si absentes
                                 await persistMonsterStat({ ...data, dungeonName: cleanDungeon });
                             }
@@ -255,15 +257,15 @@ export async function triggerBatchAssetSiphonAction(
                 }
 
                 // 2. Si pas d'URL résolue, résolution par nom via getMonsterStats
-                if (!remoteUrl || !remoteUrl.startsWith('http')) {
+                if (!remoteUrl) {
                     const statsRes = await getMonsterStats(cleanName, cleanDungeon, options.forceRefresh);
                     if (statsRes.success && statsRes.data) {
-                        remoteUrl = statsRes.data.img || remoteUrl;
+                        remoteUrl = getValidatedAssetUrl(statsRes.data.img) || remoteUrl;
                         monsterId = statsRes.data.id;
                     }
                 }
 
-                if (!remoteUrl || !remoteUrl.startsWith('http')) {
+                if (!remoteUrl) {
                     skipped++;
                     details.push(`⊘ [${cleanName}] -> Ignoré (image DofusDB introuvable)`);
                     continue;

@@ -32,31 +32,45 @@ const DEFAULT_HEADERS = {
 };
 
 /** Domaines stricts autorisés pour le siphonnage d'assets (SSRF Guard) */
-const ALLOWED_ASSET_DOMAINS = [
+const ALLOWED_ASSET_DOMAINS = new Set([
     'dofusdb.fr',
     'api.dofusdb.fr',
+    'static.dofusdb.fr',
     'static.ankama.com',
     's.ankama.com',
     'staticns.ankama.com',
+    'www.ankama.com',
+    'ankama.com',
     'dofensive.com',
     'api.dofensive.com',
+    'www.dofensive.com',
     'metamob.fr',
     'api.metamob.fr',
+    'www.metamob.fr',
     'dofus.com',
-    'ankama.com'
-];
+    'www.dofus.com',
+]);
+
+/**
+ * Valide et reconstruit une URL absolue vérifiée contre la liste blanche anti-SSRF.
+ * Retourne null si le protocole ou le domaine n'est pas strictement autorisé.
+ */
+export function getValidatedAssetUrl(rawUrl: string | null | undefined): string | null {
+    if (!rawUrl || typeof rawUrl !== 'string') return null;
+    try {
+        const parsed = new URL(rawUrl);
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
+        const host = parsed.hostname.toLowerCase();
+        if (!ALLOWED_ASSET_DOMAINS.has(host)) return null;
+        return `${parsed.protocol}//${host}${parsed.pathname}${parsed.search}`;
+    } catch {
+        return null;
+    }
+}
 
 /** Vérifie et parse l'URL pour empêcher tout SSRF */
 export function isSafeAssetUrl(rawUrl: string): boolean {
-    if (!rawUrl || typeof rawUrl !== 'string') return false;
-    try {
-        const parsed = new URL(rawUrl);
-        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
-        const host = parsed.hostname.toLowerCase();
-        return ALLOWED_ASSET_DOMAINS.some(allowed => host === allowed || host.endsWith(`.${allowed}`));
-    } catch {
-        return false;
-    }
+    return getValidatedAssetUrl(rawUrl) !== null;
 }
 
 /** Délai aléatoire (jitter) pour simuler un trafic naturel et éviter tout flag */
@@ -73,7 +87,8 @@ export async function siphonAndCompressImage(
     entityId: number | string,
     force = false
 ): Promise<{ success: boolean; localUrl?: string; sizeBytes?: number; error?: string }> {
-    if (!remoteUrl || !isSafeAssetUrl(remoteUrl)) {
+    const validatedInitialUrl = getValidatedAssetUrl(remoteUrl);
+    if (!validatedInitialUrl) {
         return { success: false, error: 'URL distante invalide ou domaine non autorisé' };
     }
 
@@ -96,7 +111,7 @@ export async function siphonAndCompressImage(
         }
     }
 
-    let actualUrl = remoteUrl;
+    let actualUrl: string = validatedInitialUrl;
     let downloadedBuffer: Buffer | null = null;
 
     try {
@@ -105,8 +120,9 @@ export async function siphonAndCompressImage(
 
         // Tentative 1 : Téléchargement direct
         try {
-            if (isSafeAssetUrl(actualUrl)) {
-                const response = await fetch(actualUrl, {
+            const safeTarget = getValidatedAssetUrl(actualUrl);
+            if (safeTarget) {
+                const response = await fetch(safeTarget, {
                     headers: DEFAULT_HEADERS,
                     signal: AbortSignal.timeout(12_000),
                     cache: 'no-store',
@@ -127,9 +143,10 @@ export async function siphonAndCompressImage(
                 });
                 if (monsterRes.ok) {
                     const monsterData = await monsterRes.json();
-                    if (monsterData.img && isSafeAssetUrl(monsterData.img)) {
-                        actualUrl = monsterData.img;
-                        const imgRes = await fetch(actualUrl, {
+                    const validatedImg = getValidatedAssetUrl(monsterData.img);
+                    if (validatedImg) {
+                        actualUrl = validatedImg;
+                        const imgRes = await fetch(validatedImg, {
                             headers: DEFAULT_HEADERS,
                             signal: AbortSignal.timeout(12_000),
                         });
@@ -154,9 +171,10 @@ export async function siphonAndCompressImage(
                     const iconId = itemData.iconId || itemData.id;
                     if (iconId) {
                         const directItemUrl = `https://api.dofusdb.fr/img/items/${iconId}.png`;
-                        if (isSafeAssetUrl(directItemUrl)) {
-                            actualUrl = directItemUrl;
-                            const imgRes = await fetch(actualUrl, {
+                        const validatedItemUrl = getValidatedAssetUrl(directItemUrl);
+                        if (validatedItemUrl) {
+                            actualUrl = validatedItemUrl;
+                            const imgRes = await fetch(validatedItemUrl, {
                                 headers: DEFAULT_HEADERS,
                                 signal: AbortSignal.timeout(12_000),
                             });

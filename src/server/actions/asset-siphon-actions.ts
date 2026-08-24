@@ -229,50 +229,47 @@ export async function triggerBatchAssetSiphonAction(
             const target = queue.shift();
             if (!target) break;
 
-            const cleanName = target.name.trim();
-            const cleanDungeon = target.dungeonName?.trim();
-            let monsterId = target.id;
-            let remoteUrl = getValidatedAssetUrl(target.remoteUrl) || undefined;
-            const isNumericId = typeof monsterId === 'number' || (/^\d+$/.test(String(monsterId)) && !String(monsterId).startsWith('c'));
+            const cleanName = typeof target.name === 'string' ? target.name.trim() : '';
+            const cleanDungeon = typeof target.dungeonName === 'string' ? target.dungeonName.trim() : undefined;
+            const parsedNum = parseInt(String(target.id).replace(/[^0-9]/g, ''), 10);
+            let monsterId = Number.isInteger(parsedNum) && parsedNum > 0 ? parsedNum : 0;
 
             try {
-                // 1. Si on a un ID numérique, on interroge directement l'API DofusDB pour avoir l'image exacte et les stats
-                if (isNumericId) {
-                    const numId = Number(monsterId);
+                // 1. Si on a un ID numérique, on interroge l'API DofusDB pour les stats
+                if (monsterId > 0) {
                     try {
-                        const directRes = await fetch(`https://api.dofusdb.fr/monsters/${numId}`, {
+                        const directUrl = new URL('https://api.dofusdb.fr');
+                        directUrl.pathname = `/monsters/${monsterId}`;
+                        const directRes = await fetch(directUrl.toString(), {
                             headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr; Game Asset Cache)' },
                             signal: AbortSignal.timeout(8_000),
                         });
                         if (directRes.ok) {
                             const data = await directRes.json();
-                            const safeImg = getValidatedAssetUrl(data.img);
-                            if (safeImg) {
-                                remoteUrl = safeImg;
-                                // Persistance en BDD locale des stats si absentes
-                                await persistMonsterStat({ ...data, dungeonName: cleanDungeon });
-                            }
+                            await persistMonsterStat({ ...data, dungeonName: cleanDungeon });
                         }
                     } catch {}
                 }
 
-                // 2. Si pas d'URL résolue, résolution par nom via getMonsterStats
-                if (!remoteUrl) {
+                // 2. Si ID non présent ou introuvable, résolution par nom via getMonsterStats
+                if (monsterId === 0 && cleanName) {
                     const statsRes = await getMonsterStats(cleanName, cleanDungeon, options.forceRefresh);
                     if (statsRes.success && statsRes.data) {
-                        remoteUrl = getValidatedAssetUrl(statsRes.data.img) || remoteUrl;
-                        monsterId = statsRes.data.id;
+                        const parsedFromStats = parseInt(String(statsRes.data.id).replace(/[^0-9]/g, ''), 10);
+                        if (Number.isInteger(parsedFromStats) && parsedFromStats > 0) {
+                            monsterId = parsedFromStats;
+                        }
                     }
                 }
 
-                if (!remoteUrl) {
+                if (monsterId === 0) {
                     skipped++;
-                    details.push(`⊘ [${cleanName}] -> Ignoré (image DofusDB introuvable)`);
+                    details.push(`⊘ [${cleanName}] -> Ignoré (ID monstre introuvable)`);
                     continue;
                 }
 
                 // 3. Télécharger et compresser en WebP local
-                const result = await siphonAndCompressImage(remoteUrl, 'monsters', monsterId, options.forceRefresh);
+                const result = await siphonAndCompressImage(null, 'monsters', monsterId, options.forceRefresh);
 
                 if (result.success) {
                     siphoned++;

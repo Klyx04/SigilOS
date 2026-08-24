@@ -72,9 +72,8 @@ function getSafeImageUrl(url: string | null | undefined): string | null {
     if (trimmed.startsWith("/")) return trimmed;
     try {
         const parsed = new URL(trimmed);
-        if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-            return parsed.href;
-        }
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+        return encodeURI(`${parsed.protocol}//${parsed.host}${parsed.pathname}${parsed.search}`);
     } catch {}
     return null;
 }
@@ -943,7 +942,14 @@ export function ReactionRolesManager({
                                     if (!safeImage) return null;
                                     return (
                                         <div className="rounded-lg overflow-hidden border border-black/20 my-2">
-                                            <img src={safeImage} alt="Banner" className="w-full h-auto object-cover max-h-48" />
+                                            <Image
+                                                src={safeImage}
+                                                alt="Banner"
+                                                width={480}
+                                                height={160}
+                                                unoptimized
+                                                className="w-full h-auto object-cover max-h-48"
+                                            />
                                         </div>
                                     );
                                 })()}

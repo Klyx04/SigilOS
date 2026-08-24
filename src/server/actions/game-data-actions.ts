@@ -732,7 +732,7 @@ export async function getMonsterStats(
             // 1. Try to find the dungeon by name if provided
             let dungeonInfo = null;
             if (dungeonName) {
-                const searchName = dungeonName.toLowerCase().replace("défi du ", "").trim();
+                const searchName = dungeonName.toLowerCase().replace("défi du ", "").replace(/\s*\(\d+\)$/, "").trim();
                 dungeonInfo = worldMapData.dungeons?.find((d: any) =>
                     d.name.toLowerCase().includes(searchName) ||
                     searchName.includes(d.name.toLowerCase())
@@ -787,8 +787,9 @@ export async function getMonsterStats(
         // Fallback 1: Si non trouvé, chercher par nom de donjon sur DofusDB
         if (!monsterHeader && dungeonName && dungeonName.trim()) {
             try {
+                const cleanDungeonQuery = dungeonName.replace(/\s*\(\d+\)$/, "").trim();
                 const djRes = await fetch(
-                    `https://api.dofusdb.fr/dungeons?name.fr=${encodeURIComponent(dungeonName.trim())}&lang=fr&$limit=5`,
+                    `https://api.dofusdb.fr/dungeons?name.fr=${encodeURIComponent(cleanDungeonQuery)}&lang=fr&$limit=5`,
                     { cache: 'no-store' }
                 );
                 if (djRes.ok) {
@@ -1268,8 +1269,9 @@ export async function getDungeonMonsters(
         // Fallback 1: via DofusDB Dungeons API si dungeonName fourni
         if (dungeonName && dungeonName.trim()) {
             try {
+                const cleanDungeonQuery = dungeonName.replace(/\s*\(\d+\)$/, "").trim();
                 const djRes = await fetch(
-                    `https://api.dofusdb.fr/dungeons?name.fr=${encodeURIComponent(dungeonName.trim())}&lang=fr&$limit=5`,
+                    `https://api.dofusdb.fr/dungeons?name.fr=${encodeURIComponent(cleanDungeonQuery)}&lang=fr&$limit=5`,
                     { cache: 'no-store' }
                 );
                 if (djRes.ok) {

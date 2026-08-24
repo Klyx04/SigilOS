@@ -38,6 +38,7 @@ export function norm(s: string): string {
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/[’'`]/g, "'")
+        .replace(/\s*\(\d+\)$/, "")
         .replace(/[\s\-_]+/g, " ")
         .trim();
 }

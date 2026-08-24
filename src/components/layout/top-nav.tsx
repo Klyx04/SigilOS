@@ -185,7 +185,7 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                     />
                 )}
 
-                <div className="flex items-center h-9 border border-border rounded-xl bg-muted/50 dark:bg-foreground/[0.03] backdrop-blur-xl shrink-0 overflow-hidden">
+                <div className="flex items-center h-9 border border-border rounded-xl bg-muted/50 dark:bg-foreground/[0.03] backdrop-blur-xl shrink-0">
                     {/* 1. Smart Bar (Hidden on Mobile) */}
                     <div className="hidden sm:block border-r border-border">
                         <SmartBar
@@ -196,27 +196,27 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                     </div>
 
                     {/* Interactive Tools */}
-                    <div className="flex items-center px-1">
+                    <div className="flex items-center px-1 gap-0.5">
                         {roadmapEnabled && (
-                            <Link href="/roadmap" className="p-2.5 text-muted-foreground hover:text-success transition-colors" title="Roadmap">
+                            <Link href="/roadmap" className="flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-success hover:bg-foreground/5 transition-colors" title="Roadmap">
                                 <Rocket className="w-4 h-4" />
                             </Link>
                         )}
 
                         {sidebarProps.user.isAdmin && (
-                            <Link href={`/dashboard/${sidebarProps.guildId}/admin/permissions`} className="p-2.5 text-muted-foreground hover:text-success transition-colors" title="RBAC / Permissions">
+                            <Link href={`/dashboard/${sidebarProps.guildId}/admin/permissions`} className="flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-success hover:bg-foreground/5 transition-colors" title="RBAC / Permissions">
                                 <Shield className="w-4 h-4" />
                             </Link>
                         )}
-                        <div className="w-px h-4 bg-border/40 mx-1" />
+                        <div className="w-px h-4 bg-border/40 mx-0.5" />
                         <FeedBell
                             guildId={sidebarProps.guildId}
-                            className="h-9 w-9 bg-transparent hover:bg-foreground/5 text-muted-foreground hover:text-foreground rounded-xl transition-all"
+                            className="h-8 w-8 bg-transparent hover:bg-foreground/5 text-muted-foreground hover:text-foreground rounded-lg transition-all"
                         />
                         <NotificationBell
                             userId={userId}
                             guildId={sidebarProps.guildId}
-                            className="h-9 w-9 bg-transparent hover:bg-foreground/5 text-muted-foreground hover:text-foreground rounded-xl transition-all"
+                            className="h-8 w-8 bg-transparent hover:bg-foreground/5 text-muted-foreground hover:text-foreground rounded-lg transition-all"
                         />
                     </div>
 

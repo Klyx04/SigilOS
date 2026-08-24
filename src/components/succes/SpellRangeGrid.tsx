@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Eye, EyeOff, Loader2, Map as MapIcon, Move, RotateCcw, Sparkles, Users, Zap } from "lucide-react";
+import { Eye, EyeOff, HelpCircle, Loader2, Map as MapIcon, Move, RotateCcw, Sparkles, Users, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getDofensiveMap, type DofensiveMapData, type DofensiveMapLite } from "@/server/actions/dofensive-actions";
 import {
@@ -10,6 +10,8 @@ import {
     cellIdToXY,
     cellToScreen,
     classifyGrid,
+    computeMonsterPlacements,
+    distance,
     getLosPath,
     getSpellRangeDistance,
     spellZoneCells,
@@ -55,6 +57,9 @@ export interface SpellData {
     zone?: SpellZone;
 }
 
+interface DofusPos { x: number; y: number }
+interface AllyToken { x: number; y: number; facing: number }
+
 interface SpellRangeGridProps {
     spells: SpellData[];
     activeSpellId?: number;
@@ -70,6 +75,8 @@ interface SpellRangeGridProps {
     /** Index du grade actif (fiche). Lié au grade affiché côté fiche. */
     activeGradeIndex?: number;
     onGradeChange?: (idx: number) => void;
+    /** Monstres de la famille du donjon pour peupler la salle selon le butin (4..8). */
+    monsters?: { id: number; name: string; isBoss?: boolean; imageUrl?: string | null }[];
 }
 
 // Ligne de Bresenham entre deux cellules (grille orthogonale) — pour la ligne de vue.
@@ -109,6 +116,7 @@ export function SpellRangeGrid({
     grades,
     activeGradeIndex,
     onGradeChange,
+    monsters,
 }: SpellRangeGridProps) {
     // Sort actif — le parent peut contrôler la sélection (activeSpellId/onSelectSpell) ;
     // sinon l'état interne prend le relais (cas de la démo /demo/boss-sim).
@@ -131,22 +139,37 @@ export function SpellRangeGrid({
     const GRID_SIZE = 17;
     const CENTER = Math.floor(GRID_SIZE / 2);
 
-    // Position du lanceur
-    const [casterPos, setCasterPos] = useState<{ x: number; y: number }>({ x: CENTER, y: CENTER });
-    const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null);
+    // Position du lanceur (boss).
+    const [casterPos, setCasterPos] = useState<DofusPos>({
+        x: CENTER,
+        y: CENTER,
+    });
 
-    // Composition simulée : jusqu'à 4 alliés.
-    const [allies, setAllies] = useState<{ x: number; y: number; facing: number }[]>([]);
-    const [selectedAlly, setSelectedAlly] = useState<number | null>(null);
-    const [placingAlly, setPlacingAlly] = useState(false);
-    const [showStartCells, setShowStartCells] = useState(false);
+    // Orientation du lanceur (0: SE, 1: SO, 2: NO, 3: NE).
+    const [casterFacing, setCasterFacing] = useState<number>(0);
+
+    // Alliés (Fécas) posés sur la grille pour tester les zones d'effet.
     const MAX_ALLIES = 4;
+    const [allies, setAllies] = useState<AllyToken[]>([]);
+    const [selectedAlly, setSelectedAlly] = useState<number | null>(null);
+    const [placingAlly, setPlacingAlly] = useState<boolean>(false);
+
+    // Cases de départ réelles (map Dofensive).
+    const [showStartCells, setShowStartCells] = useState<boolean>(false);
+
+    // Survol souris
+    const [hoveredCell, setHoveredCell] = useState<DofusPos | null>(null);
 
     // ── Sélecteur de map (salles du donjon, source Dofensive) ──
     const [selectedMapId, setSelectedMapId] = useState<number | "empty">("empty");
     const [mapData, setMapData] = useState<DofensiveMapData | null>(null);
     const [mapLoading, setMapLoading] = useState(false);
     const [mapError, setMapError] = useState<string | null>(null);
+
+    // Index du placement actif (1..N) et Butin (4..8)
+    const [placementIndex, setPlacementIndex] = useState<number>(1);
+    const [lootCount, setLootCount] = useState<number>(4);
+    const [showRulesModal, setShowRulesModal] = useState<boolean>(false);
 
     const gridRows = mapData ? mapData.cells.length : GRID_SIZE;
     const gridCols = mapData && mapData.cells[0] ? mapData.cells[0].length : GRID_SIZE;
@@ -160,35 +183,98 @@ export function SpellRangeGrid({
     };
     const isObstacle = (x: number, y: number): boolean => cellState(x, y) === CellState.OBSTACLE;
 
+    // Monstres accompagnateurs de la famille (hors boss)
+    const roomMonsters = useMemo(() => {
+        const nonBoss = (monsters ?? []).filter((m) => !m.isBoss && m.name.toLowerCase() !== bossName.toLowerCase());
+        return nonBoss;
+    }, [monsters, bossName]);
+
+    // Calcul complet des positions de monstres pour le Butin et Placement sélectionnés
+    const monsterPlacements = useMemo(() => {
+        if (!mapData || !mapData.allyCells || mapData.allyCells.length === 0) return [];
+        const computed = computeMonsterPlacements(mapData.allyCells, placementIndex);
+        const list: {
+            order: number;
+            name: string;
+            imageUrl?: string | null;
+            cellId: number;
+            x: number;
+            y: number;
+            isBoss: boolean;
+        }[] = [];
+
+        // 1. Boss
+        const bossPos = cellIdToXY(computed.bossCell);
+        list.push({
+            order: 1,
+            name: bossName,
+            imageUrl: bossImageUrl,
+            cellId: computed.bossCell,
+            x: bossPos.x,
+            y: bossPos.y,
+            isBoss: true,
+        });
+
+        // 2..lootCount : Monstres suivants
+        const needed = Math.min(lootCount - 1, computed.otherMonsterCells.length);
+        for (let i = 0; i < needed; i++) {
+            const cellId = computed.otherMonsterCells[i];
+            const pos = cellIdToXY(cellId);
+            const mob = roomMonsters[i % (roomMonsters.length || 1)];
+            list.push({
+                order: i + 2,
+                name: mob?.name ?? `Monstre ${i + 2}`,
+                imageUrl: mob?.imageUrl,
+                cellId,
+                x: pos.x,
+                y: pos.y,
+                isBoss: false,
+            });
+        }
+
+        return list;
+    }, [mapData, placementIndex, lootCount, bossName, bossImageUrl, roomMonsters]);
+
     // Cases de départ (alliés/ennemis) rendues quand le toggle est actif.
+    // Inversion conforme Dofus : Dofensive expose les monstres dans allyCells et les joueurs dans enemyCells.
+    // Filtrage strict : seules les cases monstres OCCUPÉES par le butin actuel (4..8) sont allumées.
     const startCells = useMemo(() => {
         if (!mapData || !showStartCells) return null;
         const ally = new Set<string>();
-        const enemy = new Set<string>();
-        for (const id of mapData.allyCells) { const p = cellIdToXY(id); ally.add(`${p.x},${p.y}`); }
-        for (const id of mapData.enemyCells) { const p = cellIdToXY(id); enemy.add(`${p.x},${p.y}`); }
-        return { ally, enemy };
-    }, [mapData, showStartCells]);
+        const enemy = new Map<string, number>(); // key -> order (1..lootCount)
 
-    // Placements de départ : le boss va toujours sur sa case réelle (enemyCells[0],
-    // toujours libre) ; les alliés (fecas) ne sont posés que si le toggle est actif.
-    const applyStartCells = (data: DofensiveMapData, enabled: boolean) => {
-        const enemy = data.enemyCells.length ? data.enemyCells[0] : null;
-        if (enemy !== null) {
-            const p = cellIdToXY(enemy);
+        // Joueurs (Alliés) : cases de départ joueurs
+        for (const id of mapData.enemyCells) {
+            const p = cellIdToXY(id);
+            ally.add(`${p.x},${p.y}`);
+        }
+
+        // Monstres (Boss + Mobs) : UNIQUEMENT les cases utilisées pour ce butin
+        for (const mp of monsterPlacements) {
+            enemy.set(`${mp.x},${mp.y}`, mp.order);
+        }
+
+        return { ally, enemy };
+    }, [mapData, showStartCells, monsterPlacements]);
+
+    const totalPlacements = useMemo(() => {
+        if (!mapData || !mapData.allyCells) return 0;
+        return mapData.allyCells.length;
+    }, [mapData]);
+
+    // Placements de départ calculés selon l'algorithme Dofus :
+    // - Le boss et les monstres sont positionnés selon le placement et butin choisis
+    // - Les Fécas (alliés) ne sont pas posés par défaut (les cases joueurs restent libres et disponibles).
+    const applyStartCells = (data: DofensiveMapData, enabled: boolean, pIdx: number = placementIndex) => {
+        if (data.allyCells.length > 0) {
+            const { bossCell } = computeMonsterPlacements(data.allyCells, pIdx);
+            const p = cellIdToXY(bossCell);
+            setCasterPos({ x: p.x, y: p.y });
+        } else if (data.enemyCells.length > 0) {
+            const p = cellIdToXY(data.enemyCells[0]);
             setCasterPos({ x: p.x, y: p.y });
         } else {
             setCasterPos({ x: Math.floor(gridCols / 2), y: Math.floor(gridRows / 2) });
-        }
-        if (enabled) {
-            setAllies(
-                data.allyCells.slice(0, MAX_ALLIES).map((id) => {
-                    const q = cellIdToXY(id);
-                    return { x: q.x, y: q.y, facing: 0 };
-                })
-            );
-        } else {
-            setAllies([]);
         }
     };
 
@@ -307,8 +393,10 @@ export function SpellRangeGrid({
         const el = zoomRef.current;
         if (!el) return;
         const onWheel = (e: WheelEvent) => {
-            e.preventDefault();
-            setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z - e.deltaY * 0.002)));
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z - e.deltaY * 0.002)));
+            }
         };
         el.addEventListener("wheel", onWheel, { passive: false });
         return () => el.removeEventListener("wheel", onWheel);
@@ -409,21 +497,28 @@ export function SpellRangeGrid({
         }
     }, [storageKey, selectedMapId, allies, casterPos, showStartCells]);
 
-    // Prévisu de zone d'effet (AoE) : quand on survole une case en portée, on
-    // calcule toutes les cases touchées (Cercle, Croix, Ligne, Cône, Rectangle).
+    // Prévisu de zone d'effet (AoE) : quand on survole une case en portée (ou autour du lanceur si sort 0 PO)
     const zonePreview = useMemo(() => {
-        if (!hoveredCell || !currentSpell?.zone || !isCellInRange(hoveredCell.x, hoveredCell.y)) return null;
+        const isSelfSpell = currentSpell?.range === 0 && (currentSpell?.minRange ?? 0) === 0;
+        const target = isSelfSpell
+            ? casterPos
+            : hoveredCell && isCellInRange(hoveredCell.x, hoveredCell.y)
+            ? hoveredCell
+            : null;
+
+        if (!target || !currentSpell?.zone) return null;
         const { shape, size } = currentSpell.zone;
         if (size < 1 || size > 15) return null;
         const cells = spellZoneCells({
             zone: currentSpell.zone,
-            target: hoveredCell,
+            target,
             caster: casterPos,
             cols: gridCols,
             rows: gridRows,
+            isRealMap,
         });
         return new Set(cells.map((c) => `${c.x},${c.y}`));
-    }, [hoveredCell, currentSpell, casterPos, isCellInRange, gridCols, gridRows]);
+    }, [hoveredCell, currentSpell, casterPos, isCellInRange, gridCols, gridRows, isRealMap]);
     const isInZone = (x: number, y: number): boolean => !!zonePreview && zonePreview.has(`${x},${y}`);
 
     // Alliés touchés dans la zone d'impact actuelle
@@ -537,231 +632,63 @@ export function SpellRangeGrid({
     const freeOriginY = 20;
 
     return (
-        <div className="space-y-4 rounded-3xl bg-zinc-950/90 border border-white/10 p-5 sm:p-6 shadow-2xl backdrop-blur-xl">
-            {/* 1. Sélecteur de Sorts (Style Dofensive) */}
-            <div>
-                <p className="text-[11px] font-black uppercase tracking-widest text-zinc-400 mb-2.5 flex items-center gap-1.5">
-                    <Zap className="w-3.5 h-3.5 text-amber-400" /> Sorts du Boss{dungeonName ? ` — ${dungeonName}` : ""}
-                </p>
-                {grades && grades.length > 1 && (
-                    <div className="flex flex-wrap items-center gap-1.5 mb-2.5" aria-label="Sélecteur de grade (lié à la fiche)">
-                        <span className="text-[11px] font-bold text-zinc-500 mr-1">Grade :</span>
-                        {grades.map((gr, idx) => (
-                            <button
-                                key={idx}
-                                type="button"
-                                onClick={() => onGradeChange?.(idx)}
-                                className={cn(
-                                    "px-2.5 py-1 rounded-lg border text-[10px] font-black transition-all",
-                                    (activeGradeIndex ?? grades.length - 1) === idx
-                                        ? "bg-amber-500/20 border-amber-400 text-amber-300"
-                                        : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-white hover:border-white/20"
-                                )}
-                            >
-                                Niv {gr.level}
-                            </button>
+        <div className="space-y-3 rounded-2xl bg-surface border border-border p-4 sm:p-5 shadow-xs">
+            {/* Toolbar Simulation Compacte : Choix du sort & Paramètres de portée */}
+            <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-background border border-border rounded-xl">
+                <div className="flex flex-wrap items-center gap-2.5">
+                    <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5 shrink-0">
+                        <Zap className="w-3.5 h-3.5 text-warning" /> Sort simulé :
+                    </span>
+                    <select
+                        value={currentSpell?.id ?? ""}
+                        onChange={(e) => {
+                            const found = spells.find((s) => s.id === Number(e.target.value));
+                            if (found) selectSpell(found);
+                        }}
+                        className="bg-surface border border-border text-foreground text-xs font-bold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-warning/40 max-w-[280px]"
+                    >
+                        {spells.map((s) => (
+                            <option key={s.id} value={s.id}>
+                                {s.name} ({s.apCost ? `${s.apCost} PA · ` : ""}{s.minRange === s.range ? `${s.range} PO` : `${s.minRange ?? 0}-${s.range ?? 0} PO`})
+                            </option>
                         ))}
-                    </div>
-                )}
-                <div className="flex flex-wrap gap-2">
-                    {spells.map((spell) => {
-                        const isSelected = currentSpell?.id === spell.id;
-                        return (
-                            <button
-                                key={spell.id}
-                                type="button"
-                                onClick={() => selectSpell(spell)}
-                                className={cn(
-                                    "flex items-center gap-2.5 px-3 py-2 rounded-xl border text-xs font-black transition-all shadow-sm",
-                                    isSelected
-                                        ? "bg-amber-500/20 border-amber-400 text-amber-300 ring-2 ring-amber-400/30 scale-105 z-10"
-                                        : "bg-zinc-900/90 border-white/10 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                                )}
-                            >
-                                <div className="w-6 h-6 rounded-md bg-zinc-950 border border-white/10 flex items-center justify-center p-0.5 overflow-hidden shrink-0">
-                                    {spell.imageUrl ? (
-                                        <img src={spell.imageUrl} alt="" className="w-full h-full object-contain" />
-                                    ) : (
-                                        <Zap className="w-3.5 h-3.5 text-amber-400" />
-                                    )}
-                                </div>
-                                <div className="flex flex-col items-start min-w-0 gap-0.5">
-                                    <span className="truncate max-w-[150px]">{spell.name}</span>
-                                    <span className="flex flex-wrap items-center gap-1">
-                                        {spell.apCost !== undefined && spell.apCost > 0 && (
-                                            <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-1.5 py-px rounded">
-                                                {spell.apCost} PA
-                                            </span>
-                                        )}
-                                        {(spell.minCastInterval ?? 0) > 0 && (
-                                            <span
-                                                className="text-[10px] font-bold text-red-400 bg-red-500/10 px-1.5 py-px rounded"
-                                                title={`Cooldown : relance possible après ${spell.minCastInterval} tour${(spell.minCastInterval ?? 0) > 1 ? "s" : ""}`}
-                                            >
-                                                ⏳ {spell.minCastInterval} t
-                                            </span>
-                                        )}
-                                        {(spell.maxCastPerTurn ?? 0) > 0 && (
-                                            <span
-                                                className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-px rounded"
-                                                title={`Lancers max par tour : ${spell.maxCastPerTurn}`}
-                                            >
-                                                {spell.maxCastPerTurn}×/tour
-                                            </span>
-                                        )}
-                                    </span>
-                                </div>
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
+                    </select>
 
-            {/* 2. Détails du Sort Actif */}
-            {currentSpell && (
-                <div className="rounded-2xl bg-zinc-900/60 border border-white/5 p-4 flex flex-wrap items-center justify-between gap-4">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                            <h4 className="text-sm font-black text-white">{currentSpell.name}</h4>
-                            {currentSpell.grade !== undefined && (
-                                <span className="text-[10px] font-black uppercase text-zinc-400 bg-zinc-800 border border-white/10 px-1.5 py-0.5 rounded">
-                                    Niv. {currentSpell.grade}
+                    {/* Badges résumés du sort */}
+                    {currentSpell && (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-info/10 text-info border border-info/20">
+                                {currentSpell.apCost || 0} PA
+                            </span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-accent/10 text-accent border border-accent/20">
+                                {minRange === maxRange ? `${maxRange} PO` : `${minRange} à ${maxRange} PO`}
+                            </span>
+                            <span className={cn(
+                                "text-[10px] font-bold px-2 py-0.5 rounded-md border",
+                                castTestLos ? "bg-muted/15 text-muted-foreground border-border" : "bg-success/15 text-success border-success/30 font-black"
+                            )}>
+                                {castTestLos ? "Ligne de vue" : "Sans Ligne de Vue"}
+                            </span>
+                            {currentSpell.zone && currentSpell.zone.shape !== "Inconnue" && (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-warning/10 text-warning border border-warning/20">
+                                    Zone {currentSpell.zone.shape}
                                 </span>
                             )}
-                            <span className="text-xs font-bold text-teal-400 bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 rounded-full">
-                                Portée : {minRange === maxRange ? `${maxRange} PO` : `${minRange} à ${maxRange} PO`}
-                            </span>
                         </div>
-                        {currentSpell.description && (
-                            <p className="text-xs text-zinc-300 leading-relaxed max-w-2xl font-medium">
-                                {currentSpell.description}
-                            </p>
-                        )}
-                        {(() => {
-                            const details =
-                                currentSpell.effectDetails && currentSpell.effectDetails.length > 0
-                                    ? currentSpell.effectDetails
-                                    : (Array.isArray(currentSpell.effects) ? currentSpell.effects.slice(0, 20).map((e) => ({ label: e, duration: null, triggers: [] as string[], masks: [] as string[] })) : []);
-                            if (details.length === 0) return null;
-                            return (
-                                <div className="pt-1 space-y-1">
-                                    {details.map((det, i) => (
-                                        <div key={i} className="text-[11px] leading-snug">
-                                            <span className="font-semibold text-amber-300/90">
-                                                {det.label}
-                                                {det.duration ? ` (${det.duration})` : ""}
-                                            </span>
-                                            {det.masks.length > 0 && (
-                                                <span className="block text-zinc-500">{det.masks.join(" · ")}</span>
-                                            )}
-                                            {det.triggers.map((tr, j) => (
-                                                <span key={j} className="block text-zinc-500 italic">{tr}</span>
-                                            ))}
-                                        </div>
-                                    ))}
-                                    {currentSpell.hasCriticalEffects === false ? (
-                                        <p className="text-[11px] text-zinc-500 pt-1">Effets critiques : aucun.</p>
-                                    ) : Array.isArray(currentSpell.criticalEffects) && currentSpell.criticalEffects.length > 0 ? (
-                                        <div className="pt-1">
-                                            <span className="text-[11px] font-black text-pink-400/90">Effets critiques :</span>
-                                            <ul className="pl-3 space-y-0.5">
-                                                {currentSpell.criticalEffects.map((ce, k) => (
-                                                    <li key={k} className="text-[11px] text-zinc-300">• {ce}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    ) : null}
-                                </div>
-                            );
-                        })()}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className={cn(
-                            "inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg border",
-                            castTestLos
-                                ? "bg-zinc-800/80 text-zinc-300 border-white/10"
-                                : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-black"
-                        )}>
-                            {castTestLos ? <Eye className="w-3 h-3 text-zinc-400" /> : <EyeOff className="w-3 h-3 text-emerald-400" />}
-                            {castTestLos ? "Ligne de vue requise" : "Sans ligne de vue"}
-                        </span>
-
-                        {(currentSpell.criticalChance ?? 0) > 0 && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-pink-500/10 text-pink-400 border border-pink-500/30">
-                                <Sparkles className="w-3 h-3" /> {currentSpell.criticalChance}% CC
-                            </span>
-                        )}
-
-                        {castInLine && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                                <Move className="w-3 h-3" /> Ligne uniquement
-                            </span>
-                        )}
-
-                        {castInDiagonal && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/30">
-                                <Sparkles className="w-3 h-3" /> Diagonale
-                            </span>
-                        )}
-
-                        {currentSpell.maxCastPerTurn !== undefined && currentSpell.maxCastPerTurn > 0 && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-zinc-800/80 text-zinc-300 border border-white/10">
-                                <Zap className="w-3 h-3 text-amber-400" />
-                                {currentSpell.maxCastPerTurn}×/tour
-                            </span>
-                        )}
-
-                        {(currentSpell.maxCastPerTarget ?? 0) > 0 && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-zinc-800/80 text-zinc-300 border border-white/10">
-                                <Users className="w-3 h-3 text-amber-400" />
-                                {currentSpell.maxCastPerTarget}×/cible
-                            </span>
-                        )}
-
-                        {(currentSpell.minCastInterval ?? 0) > 0 && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-red-500/10 text-red-400 border border-red-500/30">
-                                Cooldown {currentSpell.minCastInterval} tour{currentSpell.minCastInterval! > 1 ? "s" : ""}
-                            </span>
-                        )}
-
-                        {currentSpell.zone && currentSpell.zone.shape !== "Inconnue" && currentSpell.zone.size <= 12 && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                                <Sparkles className="w-3 h-3" />
-                                Zone {currentSpell.zone.shape}
-                                {currentSpell.zone.size > 0 ? ` ${currentSpell.zone.size}` : ""}
-                                {currentSpell.zone.range > 0 ? ` (portée ${currentSpell.zone.range})` : ""}
-                            </span>
-                        )}
-
-                        <button
-                            type="button"
-                            onClick={recenter}
-                            className="inline-flex items-center gap-1 text-xs font-bold text-zinc-400 hover:text-white bg-zinc-800 border border-white/10 px-2.5 py-1 rounded-lg transition-all ml-auto"
-                        >
-                            <RotateCcw className="w-3 h-3" /> Recentrer
-                        </button>
-                    </div>
+                    )}
                 </div>
-            )}
 
-            {/* 3. SIMULATION TACTIQUE (style Dofensive / Dofus) */}
-            <div className="relative rounded-2xl bg-[#161614] border border-white/10 p-2 sm:p-4 overflow-x-auto flex flex-col items-center justify-center select-none shadow-inner">
-                {/* Mini-carte (aperçu global) — cliquer recentre sur le lanceur */}
-                {miniMap && zoom > 1.2 && (
-                    <button
-                        type="button"
-                        onClick={scrollCasterIntoView}
-                        className="absolute top-2 right-2 z-20 rounded-lg border border-white/10 bg-black/75 p-1.5 shadow-lg hover:border-amber-400/50 transition-colors"
-                        title="Mini-carte — cliquer pour recentrer sur le lanceur"
-                        aria-label="Mini-carte — recentrer sur le lanceur"
-                    >
-                        <svg width={miniMap.w} height={miniMap.h} viewBox={`0 0 ${miniMap.w} ${miniMap.h}`} className="block" shapeRendering="crispEdges">
-                            {miniMap.cellsEls}
-                            <rect x={0} y={0} width={miniMap.w} height={miniMap.h} fill="none" stroke="#fbbf24" strokeWidth={1} />
-                        </svg>
-                    </button>
-                )}
+                <button
+                    type="button"
+                    onClick={recenter}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-foreground bg-surface border border-border px-2.5 py-1.5 rounded-lg transition-colors shadow-2xs shrink-0"
+                >
+                    <RotateCcw className="w-3.5 h-3.5" /> Recentrer
+                </button>
+            </div>
+
+            {/* SIMULATION TACTIQUE (style Dofensive / Dofus) */}
+            <div className="relative rounded-2xl bg-[#161614] border border-border p-2 sm:p-4 overflow-x-auto flex flex-col items-center justify-center select-none shadow-inner">
                 <div className="w-full flex items-center justify-between text-xs text-zinc-400 mb-2 px-2">
                     <span className="font-bold text-zinc-300">
                         Entité : <strong className="text-amber-400">{bossName}</strong>
@@ -828,10 +755,64 @@ export function SpellRangeGrid({
                                     ? "bg-amber-500/20 border-amber-400 text-amber-300"
                                     : "bg-zinc-800 border-white/10 text-zinc-400 hover:text-white"
                             )}
-                            title="Placer le boss et les alliés sur leurs cases de départ réelles"
+                            title="Placer le boss et les monstres sur leurs cases réelles"
                         >
                             <MapIcon className="w-3.5 h-3.5" /> Placements de départ
                         </button>
+                    )}
+                    {mapData && totalPlacements > 1 && (
+                        <div className="inline-flex items-center gap-1 bg-zinc-900 border border-white/10 rounded-lg p-0.5">
+                            <span className="text-[11px] font-bold text-zinc-400 pl-2">Placement :</span>
+                            <select
+                                value={placementIndex}
+                                onChange={(e) => {
+                                    const nextIdx = Number(e.target.value);
+                                    setPlacementIndex(nextIdx);
+                                    if (mapData) {
+                                        setShowStartCells(true);
+                                        applyStartCells(mapData, true, nextIdx);
+                                    }
+                                }}
+                                className="bg-zinc-800 border border-white/10 text-amber-400 text-xs font-black rounded-md px-2 py-1 focus:outline-none cursor-pointer"
+                            >
+                                {Array.from({ length: totalPlacements }).map((_, i) => (
+                                    <option key={i + 1} value={i + 1}>
+                                        Placement {i + 1} / {totalPlacements}
+                                    </option>
+                                ))}
+                            </select>
+                            <button
+                                type="button"
+                                onClick={() => setShowRulesModal(true)}
+                                className="p-1 text-zinc-400 hover:text-amber-400 transition-colors pr-1.5"
+                                title="Comment fonctionnent les règles de placement sur Dofus ?"
+                            >
+                                <HelpCircle className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                    )}
+                    {mapData && (
+                        <div className="inline-flex items-center gap-1 bg-zinc-900 border border-white/10 rounded-lg p-0.5">
+                            <span className="text-[11px] font-bold text-zinc-400 pl-2">Butin :</span>
+                            <select
+                                value={lootCount}
+                                onChange={(e) => {
+                                    const nextLoot = Number(e.target.value);
+                                    setLootCount(nextLoot);
+                                    if (mapData) {
+                                        setShowStartCells(true);
+                                        applyStartCells(mapData, true, placementIndex);
+                                    }
+                                }}
+                                className="bg-zinc-800 border border-white/10 text-sky-400 text-xs font-black rounded-md px-2 py-1 focus:outline-none cursor-pointer"
+                            >
+                                {[4, 5, 6, 7, 8].map((b) => (
+                                    <option key={b} value={b}>
+                                        Butin {b} ({b} monstres)
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     )}
                     {allies.length > 0 && (
                         <button
@@ -844,7 +825,41 @@ export function SpellRangeGrid({
                     )}
                 </div>
 
-                <div ref={zoomRef} className="flex justify-center relative z-0 w-full" style={{ zoom, transformOrigin: "top center" }}>
+                {/* Bandeau Composition de la salle */}
+                {mapData && showStartCells && monsterPlacements.length > 0 && (
+                    <div className="w-full flex flex-wrap items-center gap-1.5 mb-2 px-2 py-1.5 bg-zinc-900/90 border border-white/10 rounded-xl text-[11px] relative z-10">
+                        <span className="font-bold text-amber-400 flex items-center gap-1 shrink-0">
+                            <Users className="w-3.5 h-3.5" /> Ordre d'apparition (Butin {lootCount}) :
+                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            {monsterPlacements.map((mp) => (
+                                <span
+                                    key={mp.order}
+                                    className={cn(
+                                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold text-[10px] border",
+                                        mp.isBoss
+                                            ? "bg-amber-500/15 text-amber-300 border-amber-500/30 font-black"
+                                            : "bg-zinc-800 text-zinc-300 border-white/10"
+                                    )}
+                                >
+                                    <span className={cn(
+                                        "w-3.5 h-3.5 rounded-full inline-flex items-center justify-center text-[9px] font-black text-white",
+                                        mp.isBoss ? "bg-amber-600" : "bg-blue-600"
+                                    )}>
+                                        {mp.order}
+                                    </span>
+                                    {mp.name}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                <div
+                    ref={zoomRef}
+                    className="flex justify-center relative z-0 w-full"
+                    style={{ transform: `scale(${zoom})`, transformOrigin: "top center", transition: "transform 0.15s ease-out" }}
+                >
                 <svg
                     viewBox={`${viewX} ${viewY} ${viewW} ${viewH}`}
                     className="w-full h-auto drop-shadow-2xl"
@@ -886,7 +901,8 @@ export function SpellRangeGrid({
                                 const obs = state === CellState.OBSTACLE;
                                 const key = `${c},${r}`;
                                 const isStartAlly = !!startCells?.ally.has(key);
-                                const isStartEnemy = !!startCells?.enemy.has(key);
+                                const monsterOrder = startCells?.enemy?.get(key);
+                                const isStartEnemy = monsterOrder !== undefined;
                                 const { sx, sy } = cellToScreen(c, r, tileW, tileH);
                                 const isCaster = !obs && c === casterPos.x && r === casterPos.y;
                                 const isAllyCell = !obs && allies.some((a) => a.x === c && a.y === r);
@@ -909,12 +925,14 @@ export function SpellRangeGrid({
                                     strokeColor = C.obsStroke;
                                     strokeWidth = 0.5;
                                 } else if (isStartAlly) {
-                                    fillColor = "#2e5a8a";
-                                    strokeColor = "#4a86c4";
-                                    strokeWidth = 1.1;
-                                } else if (isStartEnemy) {
+                                    // Cases de départ Alliés / Joueurs (Rouge dans Dofus)
                                     fillColor = "#8a3a30";
                                     strokeColor = "#c65a4a";
+                                    strokeWidth = 1.1;
+                                } else if (isStartEnemy) {
+                                    // Cases de départ Monstres / Boss (Bleu dans Dofus) — filtrées sur ce butin
+                                    fillColor = "#2e5a8a";
+                                    strokeColor = "#4a86c4";
                                     strokeWidth = 1.1;
                                 }
 
@@ -945,9 +963,10 @@ export function SpellRangeGrid({
                                     strokeWidth = 1.1;
                                 }
 
-                                // Prisme 3D : seules les faces exposées sont rendues.
-                                const obsLeft = isObs(c - 1, r);
-                                const obsRight = isObs(c + 1, r);
+                                // Prisme 3D : seules les faces exposées vers le bas (Sud-Ouest et Sud-Est) sont rendues.
+                                const isEvenRow = r % 2 === 0;
+                                const obsSW = isEvenRow ? isObs(c - 1, r + 1) : isObs(c, r + 1);
+                                const obsSE = isEvenRow ? isObs(c, r + 1) : isObs(c + 1, r + 1);
                                 const ty = sy - OBST_H;
                                 const tTop = { x: sx, y: ty };
                                 const tRight = { x: sx + tileHalfW, y: ty + tileHalfH };
@@ -959,7 +978,7 @@ export function SpellRangeGrid({
 
                                 return (
                                     <g key={`${c}-${r}`} className={obs ? "" : "cursor-pointer"}>
-                                        {obs && !obsLeft && (
+                                        {obs && !obsSW && (
                                             <polygon
                                                 points={`${tLeft.x},${tLeft.y} ${tBottom.x},${tBottom.y} ${bBottom.x},${bBottom.y} ${bLeft.x},${bLeft.y}`}
                                                 fill={C.obsLeft}
@@ -968,7 +987,7 @@ export function SpellRangeGrid({
                                                 className="transition-colors duration-150"
                                             />
                                         )}
-                                        {obs && !obsRight && (
+                                        {obs && !obsSE && (
                                             <polygon
                                                 points={`${tRight.x},${tRight.y} ${bRight.x},${bRight.y} ${bBottom.x},${bBottom.y} ${tBottom.x},${tBottom.y}`}
                                                 fill={C.obsRight}
@@ -1002,8 +1021,38 @@ export function SpellRangeGrid({
                                             ) : (
                                                 <text x="28" y="36" textAnchor="middle" fontSize="30" className="select-none">👑</text>
                                             )}
+                                            {showStartCells && (
+                                                <g transform="translate(6, 6)">
+                                                    <circle cx="6" cy="6" r="8" fill="#d97706" stroke="#ffffff" strokeWidth="1.2" />
+                                                    <text x="6" y="9" textAnchor="middle" fill="#ffffff" fontSize="8" fontWeight="900" className="select-none">1</text>
+                                                </g>
+                                            )}
                                         </g>
                                     );
+                                }
+
+                                // Monstres accompagnateurs (ordre 2..lootCount) si placements de départ actifs
+                                if (showStartCells) {
+                                    const mob = monsterPlacements.find((mp) => !mp.isBoss && mp.x === c && mp.y === r);
+                                    if (mob) {
+                                        return (
+                                            <g key={`mob-${mob.order}-${mob.cellId}`} transform={`translate(${sx - 24}, ${sy - 38})`} pointerEvents="none">
+                                                {mob.imageUrl ? (
+                                                    <image href={mob.imageUrl} x="0" y="0" width="48" height="48" className="drop-shadow-2xl" />
+                                                ) : (
+                                                    <g>
+                                                        <circle cx="24" cy="24" r="18" fill="#1e293b" stroke="#3b82f6" strokeWidth="2" />
+                                                        <text x="24" y="29" textAnchor="middle" fill="#93c5fd" fontSize="16">👾</text>
+                                                    </g>
+                                                )}
+                                                {/* Badge numéro d'apparition (2, 3, 4...) */}
+                                                <g transform="translate(4, 4)">
+                                                    <circle cx="6" cy="6" r="7.5" fill="#2563eb" stroke="#ffffff" strokeWidth="1.2" />
+                                                    <text x="6" y="9" textAnchor="middle" fill="#ffffff" fontSize="8" fontWeight="900" className="select-none">{mob.order}</text>
+                                                </g>
+                                            </g>
+                                        );
+                                    }
                                 }
                                 const ai = allies.findIndex((a) => a.x === c && a.y === r);
                                 if (ai >= 0) {
@@ -1137,11 +1186,14 @@ export function SpellRangeGrid({
 
                 {/* Légende */}
                 <div className="w-full flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-3 px-2 text-[10px] font-bold text-zinc-400">
-                    <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#6b1d1d", border: "1px solid #c53030" }} /> Boss</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#6b1d1d", border: "1px solid #c53030" }} /> Boss (lanceur)</span>
                     <span className="inline-flex items-center gap-1.5"><img src="/assets/module-succes/feca.webp" alt="" className="w-4 h-4 object-contain rounded-[3px]" /> Joueur (allié)</span>
-                    <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#79b638" }} /> Dans la portée du sort</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#79b638" }} /> Portée du sort (cibles)</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#e0a320", border: "1px solid #ffcf5e" }} /> Zone d'effet / AoE (cercle, croix...)</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#8a3a30", border: "1px solid #c65a4a" }} /> Départ Joueurs (Rouge)</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#2e5a8a", border: "1px solid #4a86c4" }} /> Départ Monstres (Bleu)</span>
                     <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#1e3a5f", border: "1px solid #3b82f6" }} /> Allié hors de portée</span>
-                    <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#a11c1c", border: "1px solid #ef4444" }} /> Allié touché par le sort</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#a11c1c", border: "1px solid #ef4444" }} /> Allié touché par la zone</span>
                     {mapData && (
                         <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#8D8A66" }} /> Sol</span>
                     )}
@@ -1157,6 +1209,65 @@ export function SpellRangeGrid({
                     💡 Cliquez sur un losange pour déplacer le Boss (re-cliquez sur lui pour le faire pivoter). Cliquez un Féca pour le sélectionner, une case pour le déplacer, re-cliquez pour l'orienter. « Placements de départ » pose boss + alliés sur leurs cases réelles.
                 </p>
             </div>
+
+            {/* Modale d'explication des règles de placement Dofus */}
+            {showRulesModal && (
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs"
+                    onClick={() => setShowRulesModal(false)}
+                >
+                    <div
+                        className="relative w-full max-w-xl bg-surface border border-border rounded-2xl p-5 sm:p-6 shadow-2xl text-left space-y-4 max-h-[85vh] overflow-y-auto"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between border-b border-border pb-3">
+                            <h3 className="text-base font-black text-foreground flex items-center gap-2">
+                                <Sparkles className="w-4 h-4 text-warning" /> Règles des Placements en Combat Dofus
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={() => setShowRulesModal(false)}
+                                className="text-muted-foreground hover:text-foreground font-black text-lg p-1"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="space-y-3 text-xs text-muted-foreground leading-relaxed">
+                            <div className="p-3 rounded-xl bg-warning/10 border border-warning/20 text-warning-foreground">
+                                <p className="font-bold text-foreground mb-1">🎯 Comment le jeu choisit le placement de la team ?</p>
+                                <ul className="space-y-1 list-disc pl-4 text-muted-foreground">
+                                    <li><strong className="text-foreground">Règle 1 (Majorité) :</strong> Le placement possédé par le plus grand nombre de membres du groupe est choisi.</li>
+                                    <li><strong className="text-foreground">Règle 2 (Incrémentation) :</strong> À la fin d'un combat réussi sur votre placement, votre numéro de placement s'incrémente de +1.</li>
+                                    <li><strong className="text-foreground">Règle 3 (Points de Priorité) :</strong> Jouer sur un placement qui n'est pas le vôtre vous accorde 1 point de priorité (écrase la règle de majorité).</li>
+                                    <li><strong className="text-foreground">Règle 4 (Égalité) :</strong> En cas d'égalité de points de priorité, le placement le plus éloigné du placement 1 est retenu.</li>
+                                </ul>
+                            </div>
+
+                            <div className="p-3 rounded-xl bg-surface-raised border border-border">
+                                <p className="font-bold text-foreground mb-1">👾 Positionnement géométrique des Monstres :</p>
+                                <ol className="space-y-1 list-decimal pl-4">
+                                    <li>Il y a autant de placements disponibles que de cases bleues de départ monstres (ex. 8 placements).</li>
+                                    <li>Pour le <strong>Placement N</strong>, le Boss commence sur la <strong>N-ième case bleue</strong> (triées du plus petit au plus grand ID de cellule).</li>
+                                    <li>Les autres monstres se placent ensuite 1 par 1 : le jeu cherche la case libre située à exactement <strong>3 PO</strong> d'un monstre déjà placé (puis 4 PO, 5 PO... ou 2 PO/1 PO), avec départage par plus petit ID de case.</li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end pt-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowRulesModal(false)}
+                                className="px-4 py-2 rounded-xl bg-warning text-warning-foreground font-black text-xs hover:brightness-110 transition-all"
+                            >
+                                J'ai compris
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

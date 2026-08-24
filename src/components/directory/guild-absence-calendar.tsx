@@ -13,11 +13,11 @@ import Link from "next/link";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { startOfMonth, differenceInWeeks, addMonths, isSameMonth } from "date-fns";
 
-const SLOT_INFO: Record<TimeSlot, { icon: any, label: string, color: string, bg: string, border: string }> = {
-    matin: { icon: Sunrise, label: "Matin", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20" },
-    midi: { icon: Sun, label: "Midi", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20" },
-    soir: { icon: Sunset, label: "Soir", color: "text-violet-400", bg: "bg-violet-500/10", border: "border-violet-500/20" },
-    nuit: { icon: Moon, label: "Nuit", color: "text-info", bg: "bg-info/10", border: "border-info/20" },
+const SLOT_INFO: Record<TimeSlot, { icon: any, label: string, shortLabel: string, hours: string, color: string, bg: string, border: string }> = {
+    matin: { icon: Sunrise, label: "Matin", shortLabel: "Mat.", hours: "06h - 12h", color: "text-amber-400", bg: "bg-amber-400/10", border: "border-amber-400/25" },
+    midi: { icon: Sun, label: "Après-midi", shortLabel: "Aprem", hours: "12h - 18h", color: "text-warning", bg: "bg-warning/10", border: "border-warning/25" },
+    soir: { icon: Sunset, label: "Soirée", shortLabel: "Soir", hours: "18h - 00h", color: "text-violet-400", bg: "bg-violet-500/10", border: "border-violet-500/25" },
+    nuit: { icon: Moon, label: "Nuit", shortLabel: "Nuit", hours: "00h - 06h", color: "text-info", bg: "bg-info/10", border: "border-info/25" },
 };
 
 interface GuildAbsenceCalendarProps {
@@ -364,17 +364,18 @@ export function GuildAbsenceCalendar({ members, guildId, highlightProfileId }: G
                                                             <span className="text-caption font-bold text-info/80">Absent</span>
                                                         </div>
                                                     ) : hasSlots ? (
-                                                        <div className="grid grid-cols-2 gap-1">
+                                                        <div className="grid grid-cols-2 gap-1 w-full max-w-[125px]">
                                                             {slots.slice(0, 4).map((slot: TimeSlot) => {
                                                                 const Info = SLOT_INFO[slot];
                                                                 const Icon = Info.icon;
                                                                 return (
                                                                     <div
                                                                         key={slot}
-                                                                        className={cn("flex items-center justify-center w-6 h-6 rounded-md border", Info.bg, Info.border)}
-                                                                        title={Info.label}
+                                                                        className={cn("flex items-center justify-center gap-1 px-1 py-0.5 rounded-md border text-[10px] font-bold shadow-xs transition-colors", Info.bg, Info.border)}
+                                                                        title={`${Info.label} (${Info.hours})`}
                                                                     >
-                                                                        <Icon className={cn("w-3.5 h-3.5", Info.color)} />
+                                                                        <Icon className={cn("w-3 h-3 shrink-0", Info.color)} />
+                                                                        <span className={cn("text-[9.5px] font-extrabold uppercase tracking-tight truncate", Info.color)}>{Info.shortLabel}</span>
                                                                     </div>
                                                                 );
                                                             })}
@@ -400,27 +401,28 @@ export function GuildAbsenceCalendar({ members, guildId, highlightProfileId }: G
                 </div>
             </div>
 
-            {/* Legend */}
-            <div className="flex flex-wrap items-center justify-center gap-6 px-4 py-3 bg-background border border-border rounded-xl text-xs font-medium text-muted-foreground shadow-2xl">
+            {/* Legend with explicit hours */}
+            <div className="flex flex-wrap items-center justify-center gap-4 px-4 py-3 bg-surface/80 border border-border rounded-xl text-xs font-medium text-muted-foreground shadow-sm">
                 {TIME_SLOTS.map(slot => {
                     const Info = SLOT_INFO[slot];
                     const Icon = Info.icon;
                     return (
-                        <div key={slot} className="flex items-center gap-2">
-                            <div className={cn("flex items-center justify-center w-6 h-6 rounded-md border", Info.bg, Info.border)}>
-                                <Icon className={cn("w-3.5 h-3.5", Info.color)} />
+                        <div key={slot} className="flex items-center gap-1.5">
+                            <div className={cn("flex items-center justify-center w-5 h-5 rounded-md border", Info.bg, Info.border)}>
+                                <Icon className={cn("w-3 h-3", Info.color)} />
                             </div>
-                            <span className="capitalize">{Info.label}</span>
+                            <span className="font-semibold text-foreground">{Info.label}</span>
+                            <span className="text-caption text-muted-foreground">({Info.hours})</span>
                         </div>
                     );
                 })}
-                <div className="h-4 w-px bg-surface mx-2 hidden sm:block" />
-                <div className="flex items-center gap-2 text-info">
-                    <Plane className="w-4 h-4" />
-                    <span>Absent</span>
+                <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
+                <div className="flex items-center gap-1.5 text-info">
+                    <Plane className="w-3.5 h-3.5" />
+                    <span className="font-semibold">Absent (Congés)</span>
                 </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                    <AlertCircle className="w-4 h-4 opacity-50" />
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <AlertCircle className="w-3.5 h-3.5 opacity-50" />
                     <span>Non défini</span>
                 </div>
             </div>

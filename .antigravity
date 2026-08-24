@@ -120,6 +120,55 @@ git push origin feat/ma-branche
 
 ## ✅ Historique des Sessions (Complètes)
 
+### Session — Refonte Fiches Boss, Simulation & Quêtes (2026-08-24)
+
+- ✅ **Architecture en 4 Onglets** : `Mes Succès`, `Succès Commun`, `Fiches Boss`, et `Quêtes & Succès` (nouvel onglet dédié avec rattachement aux guides Dofus/Tour du Monde, filtrage, statuts et membres en cours).
+- ✅ **Simulation Tactique Isométrique** :
+  - Zoom fluide avec support `Ctrl + molette` et boutons dédiés (sans bloquer le scroll natif de la page).
+  - Élimination des rechargements superflus grâce au dropdown réactif de sélection des sorts.
+  - Correction de la géométrie de zone d'effet (AoE) pour les sorts 0 PO et la grille 17×17.
+  - Inversion et mise aux normes Dofus des cases de départ (Rouge = Joueurs / Alliés, Bleu = Monstres / Boss).
+  - **Sélecteur de Placements (1..N)** : Implémentation de l'algorithme communautaire Dofus (tri des cellIds croissants, Boss sur le N-ième cellId, placement récursif des monstres suivants par distance Manhattan 3 PO) avec modale d'aide résumant les règles de combat de team (majorité, incrémentation, points de priorité, départage).
+- ✅ **Siphon & Peuplement Universel des Donjons (Multi-Boss & Dofensive)** :
+  - **Résolution des Donjons Multi-Boss** : Prise en charge complète des combats spéciaux (ex. *Tempête de l'Éliocalypse* / *Sanctuaire du Dernier Espoir*, *Fuji Givrefoux*, etc.) avec fallback multi-niveaux DofusDB Dungeons API & Dofensive.
+  - **Tolérance Typographique 100%** : Normalisation Unicode stricte de `norm()` (apostrophes courbes `’`, apostrophes droites `'`, tirets, accents, espaces) éliminant tout échec de matching.
+  - **Auto-Peuplement Garanti** : Tout nouveau donjon ajouté dans `game-data` résout automatiquement ses monstres, sorts, drops, coordonnées de carte et maps tactiques sans aucune saisie manuelle.
+  - Coordonnées d'entrée cliquables avec copie `/travel` et association de la sous-zone.
+- ✅ **Validation Groupée & Attributions** : Action `toggleLevelBracketAchievements` pour cocher/décocher une tranche entière de succès, et bandeau `SuccesAttributionBanner` avec crédits DofusDB et Dofensive.
+
+---
+
+### Session — Moteur Autonome de Siphon & Stockage Local d'Assets (2026-08-24)
+
+- ✅ **Moteur de Siphon WebP Local-First** (`src/lib/dofus-asset-siphon.ts`) :
+  - Compression Sharp WebP (qualité 85) dans `public/uploads/assets-dofus/{monsters,items,spells}/`.
+  - Politique anti-flag intégrée : concurrence limitée à 2, jitter 250–550 ms, headers discrets SigilOS.
+  - Calcul des statistiques de stockage : nombre de fichiers WebP, espace disque en Mo.
+- ✅ **Proxy Assets à la Volée** (`/api/assets-dofus/[type]/[id]`) :
+  - Route Next.js qui sert le WebP local si présent, sinon télécharge, compresse et sert — **0 404 visible dans DevTools**.
+  - Couvre les 3 catégories : `monsters`, `items`, `spells`.
+  - Cache navigateur `immutable` (1 an) pour un chargement instantané à partir de la 2e visite.
+- ✅ **Composant `MonsterImage` (Local-First + Fallback gracieux)** (`SuccesBossGuide.tsx`) :
+  - Résolution prioritaire via le proxy local `/api/assets-dofus/{type}/{id}`.
+  - Fallback transparent sur URL distante si le proxy échoue, puis icône SVG de secours.
+  - Étendu aux sorts (`assetType="spells"`) et aux drops/items (`assetType="items"`).
+- ✅ **Module Ressources Local-First** (`ItemSearchPanel.tsx`) :
+  - Helper `getItemImageUrl(id)` central remplaçant toutes les URLs DofusDB/Dofusbook directes.
+  - Miniatures de liste, image principale de fiche et images d'ingrédients de recette passent toutes par le proxy.
+- ✅ **Actions Serveur Siphon & Inventaire** (`asset-siphon-actions.ts`) :
+  - `getSiphonDashboardStats` : score d'autonomie %, fiches BDD, maps Dofensive, espace WebP utilisé.
+  - `getSiphonInventory` : liste paginée filtrable par boss/monstre/statut cache.
+  - `triggerBatchAssetSiphonAction` : siphonnage par lot (concurrence 2, reporting détaillé).
+- ✅ **Panneau GOD « 🛡️ Siphon & Autonomie »** (`GameDataSiphonPanel.tsx`) :
+  - Intégré dans l'onglet `game-data` du dashboard SuperAdmin `/god`.
+  - Jauges d'autonomie en direct, filtres, console de logs et bouton siphon par lot.
+- ✅ **Cron nocturne amélioré** (`/api/cron/sync-monster-stats`) :
+  - Détection CDC par hash SHA-256 (`versionHash`) pour les nouveaux monstres/donjons.
+  - Téléchargement WebP automatique et rapport Discord/GOD.
+- ✅ **Compilation & Tests** : `npx tsc --noEmit` → 0 erreur ; `npm run test:run` → 328/328 passés.
+
+---
+
 ### Session — Fix Onboarding & Accès Membre (2026-06-15)
 
 - ✅ **Découplage de l'Onboarding** : Modification de `user-actions.ts` pour que `isOnboardingComplete` ne dépende plus de `dofusServerId` mais uniquement de `isRbacConfigured`. Cela évite que les membres se retrouvent avec toutes leurs permissions forcées à `false` ou soient bloqués sur l'écran "Configuration en cours" si l'administrateur n'a pas encore configuré le serveur de jeu.

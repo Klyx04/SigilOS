@@ -226,6 +226,25 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
         return a.name.localeCompare(b.name);
     });
 
+    const filteredPartners = partners
+        .map(partner => ({
+            ...partner,
+            monstersTheyHave: partner.monstersTheyHave.filter(m => {
+                const matchesMonster = !monsterSearch.trim() || m.name.toLowerCase().includes(monsterSearch.toLowerCase().trim());
+                const matchesOwned = !hideOwned || m.coversNeed;
+                return matchesMonster && matchesOwned;
+            })
+        }))
+        .filter(partner => {
+            if (partner.monstersTheyHave.length === 0) return false;
+            if (!memberSearch.trim()) return true;
+            const q = memberSearch.toLowerCase().trim();
+            return (
+                partner.characterName.toLowerCase().includes(q) ||
+                partner.username.toLowerCase().includes(q)
+            );
+        });
+
     const totalMatches = partners.reduce((acc, p) => acc + p.monstersTheyHave.length, 0);
 
     return (
@@ -238,7 +257,7 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent className="w-[95vw] sm:max-w-4xl h-[90vh] sm:h-[85vh] !flex flex-col bg-black/95 border-border p-0 gap-0 overflow-hidden">
+            <DialogContent className="w-[95vw] sm:max-w-4xl h-[90vh] sm:h-[85vh] !flex flex-col bg-surface border-border p-0 gap-0 overflow-hidden">
                 <DialogHeader className="p-6 border-b border-border flex-shrink-0">
                     <div className="flex items-center justify-between mr-8">
                         <div>
@@ -295,20 +314,20 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                             <div className="px-4 sm:px-6 pt-4 flex flex-col gap-3 flex-shrink-0">
                                 {/* Tabs + Search row */}
                                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-                                    <TabsList className="grid w-full grid-cols-2 bg-background/80 border border-border p-1 rounded-xl shrink-0 sm:w-auto">
+                                    <TabsList className="grid w-full grid-cols-2 bg-surface border border-border p-1 rounded-xl shrink-0 sm:w-auto">
                                         <TabsTrigger 
                                             value="monsters" 
-                                            className="rounded-lg font-black py-2 text-caption uppercase tracking-wider gap-1.5 transition-all duration-205 data-[state=active]:bg-success data-[state=active]:text-success-foreground text-muted-foreground"
+                                            className="rounded-lg font-bold py-2 text-caption uppercase tracking-wider gap-1.5 transition-all text-muted-foreground hover:text-foreground data-[state=active]:bg-success data-[state=active]:text-success-foreground data-[state=active]:shadow-sm"
                                         >
                                             <PackageOpen className="h-3.5 w-3.5 shrink-0" />
                                             <span>Par Monstre ({monstersList.length})</span>
                                         </TabsTrigger>
                                         <TabsTrigger 
                                             value="members" 
-                                            className="rounded-lg font-black py-2 text-caption uppercase tracking-wider gap-1.5 transition-all duration-205 data-[state=active]:bg-success data-[state=active]:text-success-foreground text-muted-foreground"
+                                            className="rounded-lg font-bold py-2 text-caption uppercase tracking-wider gap-1.5 transition-all text-muted-foreground hover:text-foreground data-[state=active]:bg-success data-[state=active]:text-success-foreground data-[state=active]:shadow-sm"
                                         >
                                             <Users className="h-3.5 w-3.5 shrink-0" />
-                                            <span>Par Membre ({partners.filter(p => p.monstersTheyHave.some(m => (!monsterSearch.trim() || m.name.toLowerCase().includes(monsterSearch.toLowerCase().trim())) && (!hideOwned || m.coversNeed))).length})</span>
+                                            <span>Par Membre ({filteredPartners.length})</span>
                                         </TabsTrigger>
                                     </TabsList>
                                     <div className="relative w-full group">
@@ -493,20 +512,13 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                 </div>
                                 <div className="flex-1 overflow-y-auto px-6 pb-6 min-h-0">
                                     <div className="space-y-4">
-                                        {partners
-                                            .map(partner => ({
-                                                ...partner,
-                                                monstersTheyHave: partner.monstersTheyHave.filter(m => 
-                                                    !monsterSearch.trim() || m.name.toLowerCase().includes(monsterSearch.toLowerCase().trim())
-                                                )
-                                            }))
-                                            .filter(partner => {
-                                                if (partner.monstersTheyHave.length === 0) return false;
-                                                if (!memberSearch.trim()) return true;
-                                                const q = memberSearch.toLowerCase().trim();
-                                                return partner.characterName.toLowerCase().includes(q) || partner.username.toLowerCase().includes(q);
-                                            })
-                                            .map((partner) => (
+                                        {filteredPartners.length === 0 ? (
+                                            <div className="h-[200px] flex flex-col items-center justify-center gap-3 text-muted-foreground text-center p-6">
+                                                <Users className="h-10 w-10 opacity-30" />
+                                                <p className="text-sm font-medium">Aucun membre ne correspond aux critères de recherche.</p>
+                                            </div>
+                                        ) : (
+                                            filteredPartners.map((partner) => (
                                                 <div
                                                     key={partner.username}
                                                     className="bg-surface/40 border border-border rounded-xl p-4"
@@ -634,7 +646,8 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                                         ))}
                                                     </div>
                                                 </div>
-                                            ))}
+                                            ))
+                                        )}
                                     </div>
                                 </div>
                             </TabsContent>

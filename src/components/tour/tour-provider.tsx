@@ -1237,8 +1237,15 @@ const PRESENTATION_STEPS: TourStep[] = [
 const SUCCES_STEPS: TourStep[] = [
     {
         target: '[data-tour="succes-views"]',
-        title: "Mes Succès / Succès Commun / Fiches Boss",
-        description: "Trois vues : « Mes Succès » pour cocher ta progression donjon par donjon, « Succès Commun » pour voir qui dans la guilde a validé quoi, et « Fiches Boss » pour les drops, sorts et carte des boss.",
+        title: "Navigation du Module Succès",
+        description: "Quatre vues complémentaires : « Mes Succès » pour cocher ta progression donjon par donjon, « Succès Commun » pour voir qui dans la guilde a validé quoi, « Fiches Boss » pour les sorts et simulations de combat, et « Quêtes & Succès » pour les quêtes associées.",
+        placement: "bottom",
+        module: "succes",
+    },
+    {
+        target: '[data-tour="succes-view-quetes"]',
+        title: "Quêtes & Succès de Donjons",
+        description: "Suis toutes les quêtes de donjons (Tour du Monde, Quêtes de Dofus, Rush Sylvestre), recherche par membre et prévisualise les zones et coordonnées cartographiques.",
         placement: "bottom",
         module: "succes",
     },

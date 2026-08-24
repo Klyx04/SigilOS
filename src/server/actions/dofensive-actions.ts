@@ -109,14 +109,38 @@ export async function getDofensiveDungeonForBoss(
     if (!Array.isArray(dungeons)) return { success: false, error: "Dofensive indisponible" };
 
     const key = norm(bossName);
-    const hits = dungeons.filter((d) =>
+    let hits = dungeons.filter((d) =>
         Array.isArray(d?.Monsters) && d.Monsters.some((m: any) => norm(String(m?.Name ?? "")) === key)
     );
+
+    // 2. Si non trouvé par bossName, chercher par nom de donjon
+    if (hits.length === 0 && dungeonName && dungeonName.trim()) {
+        const dk = norm(dungeonName);
+        hits = dungeons.filter((d) => {
+            const dn = norm(String(d?.Name ?? ""));
+            return dn === dk || dn.includes(dk) || dk.includes(dn);
+        });
+    }
+
+    // 3. Si toujours non trouvé, recherche floue sur bossName dans Monsters ou Name
+    if (hits.length === 0) {
+        hits = dungeons.filter((d) => {
+            const dn = norm(String(d?.Name ?? ""));
+            const hasMob = Array.isArray(d?.Monsters) && d.Monsters.some((m: any) => {
+                const mn = norm(String(m?.Name ?? ""));
+                return mn.includes(key) || key.includes(mn);
+            });
+            return hasMob || dn.includes(key) || key.includes(dn);
+        });
+    }
 
     let hit: any | undefined;
     if (dungeonName && dungeonName.trim()) {
         const dk = norm(dungeonName);
-        hit = hits.find((d) => norm(String(d?.Name ?? "")).includes(dk));
+        hit = hits.find((d) => {
+            const dn = norm(String(d?.Name ?? ""));
+            return dn === dk || dn.includes(dk) || dk.includes(dn);
+        });
     }
     if (!hit && hits.length > 1) {
         // Préfère le donjon où le boss est en tête de liste (probable boss principal).
@@ -129,7 +153,7 @@ export async function getDofensiveDungeonForBoss(
     if (!hit) return { success: false, error: `Aucun donjon Dofensive pour « ${bossName} »` };
 
     const boss = Array.isArray(hit.Monsters)
-        ? hit.Monsters.find((m: any) => norm(String(m?.Name ?? "")) === key)
+        ? (hit.Monsters.find((m: any) => norm(String(m?.Name ?? "")) === key) || hit.Monsters[0])
         : null;
 
     const dungeonMaps: DofensiveMapLite[] = Array.isArray(hit.Maps)

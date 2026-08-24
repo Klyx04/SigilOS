@@ -2240,6 +2240,74 @@ export async function toggleDungeonAchievements(
 }
 
 /**
+ * Validation ou dévalidation groupée de tous les succès de donjons d'une tranche de niveau.
+ */
+export async function toggleLevelBracketAchievements(
+    guildId: string,
+    minLevel: number,
+    maxLevel: number,
+    action: "validate" | "unvalidate"
+): Promise<ActionResponse<{ count: number; achievementIds: string[] }>> {
+    const user = await getUserContext(guildId);
+    if (!user.canEditOwnSucces) return { success: false, error: "Accès refusé" };
+    if (!user.profileId) return { success: false, error: "Profil introuvable" };
+
+    try {
+        const dungeons = await (db as any).dungeon.findMany({
+            where: {
+                level: {
+                    gte: minLevel,
+                    lte: maxLevel,
+                },
+            },
+            select: {
+                id: true,
+                achievements: {
+                    select: { id: true },
+                },
+            },
+        });
+
+        const allPairs: { dungeonId: string; achievementId: string }[] = [];
+        for (const d of dungeons) {
+            for (const a of d.achievements || []) {
+                allPairs.push({ dungeonId: d.id, achievementId: a.id });
+            }
+        }
+
+        const allAchievementIds = allPairs.map((p) => p.achievementId);
+        if (allAchievementIds.length === 0) {
+            return { success: true, data: { count: 0, achievementIds: [] } };
+        }
+
+        if (action === "unvalidate") {
+            await (db as any).userDungeonProgress.deleteMany({
+                where: {
+                    profileId: user.profileId,
+                    achievementId: { in: allAchievementIds },
+                },
+            });
+            return { success: true, data: { count: allAchievementIds.length, achievementIds: allAchievementIds } };
+        }
+
+        await (db as any).userDungeonProgress.createMany({
+            data: allPairs.map((p) => ({
+                profileId: user.profileId,
+                dungeonId: p.dungeonId,
+                achievementId: p.achievementId,
+                source: "MANUAL",
+            })),
+            skipDuplicates: true,
+        });
+
+        return { success: true, data: { count: allAchievementIds.length, achievementIds: allAchievementIds } };
+    } catch (error) {
+        logger.error("[toggleLevelBracketAchievements]", error);
+        return { success: false, error: "Erreur lors de la validation de la tranche" };
+    }
+}
+
+/**
  * Find achievements a user is missing + guild members who have them.
  */
 export async function findMissingAchievements(

@@ -207,6 +207,16 @@ export interface SpellZoneInput {
     range: number;
 }
 
+/** Distance entre deux cellules : Manhattan orthogonal si map libre, losange Dofus si map réelle. */
+export function gridDistance(a: DofusPos, b: DofusPos, isRealMap = true): number {
+    if (!isRealMap) {
+        return Math.abs(b.x - a.x) + Math.abs(b.y - a.y);
+    }
+    const la = toLos(a.x, a.y);
+    const lb = toLos(b.x, b.y);
+    return Math.abs(lb.x - la.x) + Math.abs(lb.y - la.y);
+}
+
 /**
  * Cases touchées par une zone AoE centrée sur `target` (orientation caster → target
  * pour Ligne/Cône). Bornes de la grille (cols×rows) appliquées. Testable unitairement.
@@ -217,8 +227,9 @@ export function spellZoneCells(opts: {
     caster: DofusPos;
     cols: number;
     rows: number;
+    isRealMap?: boolean;
 }): DofusPos[] {
-    const { zone, target, caster, cols, rows } = opts;
+    const { zone, target, caster, cols, rows, isRealMap = true } = opts;
     const size = zone.size || 0;
     const out: DofusPos[] = [];
     const seen = new Set<string>();
@@ -233,6 +244,47 @@ export function spellZoneCells(opts: {
     };
     add(target.x, target.y);
 
+    if (!isRealMap) {
+        // Grille libre orthogonale (17×17 damier isométrique)
+        const dU = Math.sign(target.x - caster.x);
+        const dV = Math.sign(target.y - caster.y);
+
+        switch (zone.shape) {
+            case "Cercle":
+                for (let y = 0; y < rows; y++) {
+                    for (let x = 0; x < cols; x++) {
+                        if (Math.abs(x - target.x) + Math.abs(y - target.y) <= size) add(x, y);
+                    }
+                }
+                break;
+            case "Croix":
+            case "Perpend":
+                for (let i = -size; i <= size; i++) {
+                    add(target.x + i, target.y);
+                    add(target.x, target.y + i);
+                }
+                break;
+            case "Ligne":
+                if (dU !== 0 || dV !== 0) {
+                    for (let i = 1; i <= size; i++) {
+                        add(target.x + i * dU, target.y + i * dV);
+                    }
+                }
+                break;
+            case "Rectangle":
+                for (let dy = -size; dy <= size; dy++) {
+                    for (let dx = -size; dx <= size; dx++) {
+                        add(target.x + dx, target.y + dy);
+                    }
+                }
+                break;
+            default:
+                break;
+        }
+        return out;
+    }
+
+    // Map réelle brick (40×14)
     const t = toLos(target.x, target.y);
     const c = toLos(caster.x, caster.y);
 
@@ -280,7 +332,7 @@ export function spellZoneCells(opts: {
                         const n = Math.hypot(cu, cv);
                         if (n < 1) continue;
                         const dot = (cu * du + cv * dv) / n;
-                        if (dot >= Math.cos(Math.PI / 3)) add(x, y); // cône 120°
+                        if (dot >= Math.cos(Math.PI / 3)) add(x, y);
                     }
                 }
             }
@@ -294,8 +346,83 @@ export function spellZoneCells(opts: {
                 }
             }
             break;
-        default: // Point / Inconnue
+        default:
             break;
     }
     return out;
 }
+
+/**
+ * Calcule l'attribution des positions des monstres selon le numéro de placement (1..N).
+ * Règle Dofus (découverte communautaire) :
+ * - sortedCells = cases monstres triées par cellId croissant (la plus haute / plus petit ID en premier).
+ * - Boss = sortedCells[placementIndex - 1].
+ * - Monstres suivants (mobs 2 à N) :
+ *   1. La case choisie doit avoir un mob déjà placé à exactement 3 PO (distance Manhattan Dofus) et aucun mob plus proche (< 3 PO).
+ *   2. Si aucune case ne respecte l'étape 1, augmenter de 1 PO (4 PO, 5 PO...).
+ *   3. Si plusieurs cases respectent l'étape, choisir celle avec le plus petit cellId.
+ *   4. Si cela dépasse la map sans trouver, tester 2 PO, puis 1 PO.
+ */
+export function computeMonsterPlacements(
+    monsterCellIds: number[],
+    placementIndex: number = 1
+): { bossCell: number; otherMonsterCells: number[] } {
+    if (!monsterCellIds || monsterCellIds.length === 0) {
+        return { bossCell: 0, otherMonsterCells: [] };
+    }
+    const sorted = [...monsterCellIds].sort((a, b) => a - b);
+    const pIdx = Math.max(0, Math.min(sorted.length - 1, placementIndex - 1));
+    const bossCell = sorted[pIdx];
+
+    const placedCells: number[] = [bossCell];
+    const availableCells = sorted.filter((id) => id !== bossCell);
+
+    while (availableCells.length > 0) {
+        let bestCell: number | null = null;
+
+        // Tester distances croissantes à partir de 3 PO jusqu'à 30 PO
+        for (let targetDist = 3; targetDist <= 30; targetDist++) {
+            const candidates = availableCells.filter((cellId) => {
+                const cellPos = cellIdToXY(cellId);
+                const dists = placedCells.map((pId) => distance(cellPos, cellIdToXY(pId)));
+                const minDist = Math.min(...dists);
+                return minDist === targetDist;
+            });
+            if (candidates.length > 0) {
+                bestCell = Math.min(...candidates);
+                break;
+            }
+        }
+
+        // Si non trouvé (distances < 3 PO)
+        if (bestCell === null) {
+            for (const targetDist of [2, 1]) {
+                const candidates = availableCells.filter((cellId) => {
+                    const cellPos = cellIdToXY(cellId);
+                    const dists = placedCells.map((pId) => distance(cellPos, cellIdToXY(pId)));
+                    const minDist = Math.min(...dists);
+                    return minDist === targetDist;
+                });
+                if (candidates.length > 0) {
+                    bestCell = Math.min(...candidates);
+                    break;
+                }
+            }
+        }
+
+        // Fallback ultime : premier ID dispo
+        if (bestCell === null) {
+            bestCell = availableCells[0];
+        }
+
+        placedCells.push(bestCell);
+        const idx = availableCells.indexOf(bestCell);
+        if (idx >= 0) availableCells.splice(idx, 1);
+    }
+
+    return {
+        bossCell,
+        otherMonsterCells: placedCells.slice(1),
+    };
+}
+

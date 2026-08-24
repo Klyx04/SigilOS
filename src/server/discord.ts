@@ -1445,3 +1445,233 @@ export async function sendDiscordRawEmbed(
         return null;
     }
 }
+
+/**
+ * Add a Discord role to a guild member
+ */
+export async function addGuildMemberRole(
+    guildId: string,
+    userId: string,
+    roleId: string,
+    reason?: string
+): Promise<{ success: boolean; error?: string }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { success: false, error: "Bot token manquant" };
+
+    try {
+        const headers: Record<string, string> = {
+            Authorization: `Bot ${token}`,
+            "User-Agent": DISCORD_USER_AGENT,
+        };
+        if (reason) {
+            headers["X-Audit-Log-Reason"] = encodeURIComponent(reason);
+        }
+
+        const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/members/${userId}/roles/${roleId}`, {
+            method: "PUT",
+            headers,
+        });
+
+        if (res.status === 204) {
+            invalidateDiscordCache(`member:${guildId}:${userId}`);
+            return { success: true };
+        }
+
+        if (res.status === 403) {
+            return { success: false, error: "Permissions insuffisantes (le rôle du bot doit être supérieur au rôle à attribuer)" };
+        }
+        if (res.status === 404) {
+            return { success: false, error: "Membre ou rôle introuvable sur Discord" };
+        }
+
+        const errorData = await res.json().catch(() => ({}));
+        return { success: false, error: errorData?.message || `Erreur Discord ${res.status}` };
+    } catch (error: any) {
+        logger.error(`[Discord] Error adding role ${roleId} to user ${userId}:`, error);
+        return { success: false, error: error?.message || "Erreur réseau Discord" };
+    }
+}
+
+/**
+ * Remove a Discord role from a guild member
+ */
+export async function removeGuildMemberRole(
+    guildId: string,
+    userId: string,
+    roleId: string,
+    reason?: string
+): Promise<{ success: boolean; error?: string }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { success: false, error: "Bot token manquant" };
+
+    try {
+        const headers: Record<string, string> = {
+            Authorization: `Bot ${token}`,
+            "User-Agent": DISCORD_USER_AGENT,
+        };
+        if (reason) {
+            headers["X-Audit-Log-Reason"] = encodeURIComponent(reason);
+        }
+
+        const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/members/${userId}/roles/${roleId}`, {
+            method: "DELETE",
+            headers,
+        });
+
+        if (res.status === 204) {
+            invalidateDiscordCache(`member:${guildId}:${userId}`);
+            return { success: true };
+        }
+
+        if (res.status === 403) {
+            return { success: false, error: "Permissions insuffisantes (le rôle du bot doit être supérieur au rôle à retirer)" };
+        }
+
+        const errorData = await res.json().catch(() => ({}));
+        return { success: false, error: errorData?.message || `Erreur Discord ${res.status}` };
+    } catch (error: any) {
+        logger.error(`[Discord] Error removing role ${roleId} from user ${userId}:`, error);
+        return { success: false, error: error?.message || "Erreur réseau Discord" };
+    }
+}
+
+/**
+ * Fetch current bot user (@me)
+ */
+export async function fetchCurrentBotUser(): Promise<{ id: string; username: string } | null> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return null;
+    const cacheKey = "bot:current_user";
+    const cached = getCached<{ id: string; username: string }>(cacheKey);
+    if (cached) return cached;
+
+    try {
+        const res = await fetchWithRetry("/api/v10/users/@me", {
+            headers: { Authorization: `Bot ${token}` }
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        setCached(cacheKey, { id: data.id, username: data.username }, 3600 * 1000);
+        return { id: data.id, username: data.username };
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Check if the bot can manage a specific role (hierarchy check)
+ */
+export async function verifyBotRoleHierarchy(
+    guildId: string,
+    targetRoleId: string
+): Promise<{ canManage: boolean; reason?: string; botHighestPosition?: number; targetRolePosition?: number }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { canManage: false, reason: "Bot token non configuré" };
+
+    try {
+        const roles = await fetchGuildRoles(guildId, { excludeManaged: false });
+        const targetRole = roles.find(r => r.id === targetRoleId);
+        if (!targetRole) {
+            return { canManage: false, reason: "Rôle cible introuvable" };
+        }
+
+        // Get bot application id / current bot user
+        const botUser = await fetchCurrentBotUser();
+        if (!botUser) return { canManage: false, reason: "Impossible de déterminer l'identité du bot" };
+
+        const botMember = await fetchGuildMember(guildId, botUser.id);
+        if (!botMember) return { canManage: false, reason: "Le bot n'est pas présent dans ce serveur" };
+
+        const botRoles = roles.filter(r => botMember.roles.includes(r.id));
+        const botHighestPosition = botRoles.reduce((max, r) => Math.max(max, r.position || 0), 0);
+        const targetRolePosition = targetRole.position || 0;
+
+        if (botHighestPosition <= targetRolePosition) {
+            return {
+                canManage: false,
+                botHighestPosition,
+                targetRolePosition,
+                reason: `Le rôle du bot (position ${botHighestPosition}) est inférieur ou égal au rôle ${targetRole.name} (position ${targetRolePosition}). Placez le rôle du bot plus haut dans les paramètres Discord du serveur.`
+            };
+        }
+
+        return {
+            canManage: true,
+            botHighestPosition,
+            targetRolePosition
+        };
+    } catch (error: any) {
+        logger.error("[Discord] Error in verifyBotRoleHierarchy:", error);
+        return { canManage: false, reason: error?.message || "Erreur vérification hiérarchie" };
+    }
+}
+
+/**
+ * Send or update a Reaction Role message with full components
+ */
+export async function deployReactionRoleMessage(
+    guildId: string,
+    channelId: string,
+    payload: {
+        messageId?: string | null;
+        content?: string;
+        embed: any;
+        components: any[];
+    }
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { success: false, error: "Bot token manquant" };
+
+    const body = {
+        content: payload.content ? sanitizeMentions(payload.content) : undefined,
+        embeds: payload.embed ? [payload.embed] : [],
+        components: payload.components || [],
+    };
+
+    try {
+        if (payload.messageId) {
+            // Edit existing message
+            const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages/${payload.messageId}`, {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bot ${token}`,
+                    "Content-Type": "application/json",
+                    "User-Agent": DISCORD_USER_AGENT,
+                },
+                body: JSON.stringify(body),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                return { success: true, messageId: data.id };
+            }
+            // If message was deleted (404), create a new one below
+            if (res.status !== 404) {
+                const errorData = await res.json().catch(() => ({}));
+                return { success: false, error: errorData?.message || `Erreur Discord ${res.status}` };
+            }
+        }
+
+        // Create new message
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+                "User-Agent": DISCORD_USER_AGENT,
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            return { success: true, messageId: data.id };
+        }
+
+        const errorData = await res.json().catch(() => ({}));
+        return { success: false, error: errorData?.message || `Erreur Discord ${res.status}` };
+    } catch (error: any) {
+        logger.error("[Discord] Error deploying reaction role message:", error);
+        return { success: false, error: error?.message || "Erreur déploiement Discord" };
+    }
+}

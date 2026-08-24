@@ -220,6 +220,7 @@ export type UserContext = {
     // Admin Tools
     canEditPresentation: boolean;
     canManageRelance: boolean;
+    canManageReactionRoles: boolean;
     canManageRBAC: boolean;
     canManagePoints: boolean;
     canViewSettings: boolean;
@@ -362,6 +363,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canEditVacation: false,
         canEditPresentation: false,
         canManageRelance: false,
+        canManageReactionRoles: false,
         canManageRBAC: false,
         canManagePoints: false,
         canViewSettings: false,
@@ -951,6 +953,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canEditVacation = permissionSet.has(PERMISSIONS.STAFF_MEMBER_MGMT) || isAdminFinal;
     const canViewPolls = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal;
     const canManageRelance = permissionSet.has(PERMISSIONS.STAFF_MEMBER_MGMT) || isAdminFinal;
+    const canManageReactionRoles = permissionSet.has(PERMISSIONS.STAFF_REACTION_ROLES) || isAdminFinal;
     const canManageRBAC = permissionSet.has(PERMISSIONS.SYSTEM_RBAC) || hasDiscordAdmin || isGod;
     const canViewSettings = permissionSet.has(PERMISSIONS.SYSTEM_CONFIG) || isAdminFinal;
     const canViewAuditLogs = permissionSet.has(PERMISSIONS.STAFF_AUDIT) || isAdminFinal;
@@ -1035,6 +1038,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewDJQuests: !!applyModule(!!mod?.donjons, !!canViewDJQuests),
         canEditPresentation: !!applyModule(!!mod?.presentation, !!canEditPresentation),
         canManageRelance: !!canManageRelance,
+        canManageReactionRoles: !!canManageReactionRoles,
         canManageRBAC: !!canManageRBAC,
         canManagePoints: !!canManagePoints,
         canViewSettings: !!canViewSettings,

@@ -206,7 +206,7 @@ export default function NotificationsPage() {
             </div>
 
             {/* Status Filter (Unread / Read / All) */}
-            <div className="flex flex-wrap items-center gap-2 mb-4 p-1.5 bg-background border border-border rounded-2xl">
+            <div className="flex flex-wrap items-center gap-2 mb-4 p-1.5 bg-surface/50 border border-border rounded-2xl">
                 {[
                     { id: "UNREAD", label: "Non lues", count: unreadCount, icon: Bell },
                     { id: "READ", label: "Historique (Lues)", count: notifications.filter(n => n.read).length, icon: CheckCircle2 },
@@ -216,17 +216,17 @@ export default function NotificationsPage() {
                         key={st.id}
                         onClick={() => setStatusFilter(st.id as any)}
                         className={cn(
-                            "flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-colors",
+                            "flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 px-3.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors",
                             statusFilter === st.id
-                                ? "bg-surface text-foreground border border-border-strong shadow-lg shadow-white/5"
-                                : "text-muted-foreground hover:text-foreground hover:bg-surface"
+                                ? "bg-surface text-foreground border border-border shadow-xs"
+                                : "text-muted-foreground hover:text-foreground hover:bg-surface/60"
                         )}
                     >
                         <st.icon className={cn("w-3.5 h-3.5 shrink-0", statusFilter === st.id ? "text-info" : "text-muted-foreground")} />
                         <span className="whitespace-nowrap">{st.label}</span>
                         <span className={cn(
-                            "min-w-[26px] text-center px-2 py-0.5 rounded-full text-caption font-bold tabular-nums",
-                            statusFilter === st.id ? "bg-info/20 text-info border border-info/30" : "bg-surface text-muted-foreground"
+                            "min-w-[24px] text-center px-1.5 py-0.5 rounded-full text-caption font-bold tabular-nums",
+                            statusFilter === st.id ? "bg-info/15 text-info border border-info/25" : "bg-muted/40 text-muted-foreground"
                         )}>
                             {st.count}
                         </span>
@@ -235,7 +235,7 @@ export default function NotificationsPage() {
             </div>
 
             {/* Category Filter Tabs (ALWAYS VISIBLE - Responsive Wrap) */}
-            <div className="flex flex-wrap items-center gap-2 mb-6 p-2 bg-surface/50 border border-border rounded-2xl">
+            <div className="flex flex-wrap items-center gap-1.5 mb-6 p-2 bg-surface/30 border border-border rounded-2xl">
                 {categories.map((cat) => {
                     const count = cat.id === "ALL"
                         ? statusFiltered.length
@@ -248,14 +248,14 @@ export default function NotificationsPage() {
                             className={cn(
                                 "flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors border",
                                 activeTab === cat.id
-                                    ? "bg-info text-info-foreground border-info/50 shadow-md shadow-cyan-900/30"
-                                    : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-surface"
+                                    ? "bg-info/15 text-info border-info/30"
+                                    : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
                             )}
                         >
                             {cat.label}
                             <span className={cn(
-                                "min-w-[22px] text-center px-1.5 py-0.5 rounded-md text-caption font-black tabular-nums",
-                                activeTab === cat.id ? "bg-muted/30 text-info" : "bg-surface text-muted-foreground"
+                                "min-w-[20px] text-center px-1.5 py-0.5 rounded-md text-caption font-black tabular-nums",
+                                activeTab === cat.id ? "bg-info/20 text-info" : "bg-muted/30 text-muted-foreground"
                             )}>
                                 {count}
                             </span>
@@ -274,7 +274,7 @@ export default function NotificationsPage() {
                 </div>
             ) : filteredNotifications.length === 0 ? (
                 <Card className="flex flex-col items-center justify-center py-20 bg-surface/30 border-border border-dashed">
-                    <div className="h-16 w-16 rounded-full bg-elevated/50 flex items-center justify-center mb-4">
+                    <div className="h-16 w-16 rounded-full bg-elevated/50 flex items-center justify-center mb-4 border border-border">
                         <CheckCircle2 className="w-8 h-8 text-success/50" />
                     </div>
                     <p className="text-muted-foreground font-medium">
@@ -297,11 +297,11 @@ export default function NotificationsPage() {
                     {filteredNotifications.map((notif) => (
                         <div
                             key={notif.id}
-                            className="group relative flex items-start gap-4 p-4 rounded-xl bg-surface/50 hover:bg-surface border border-border hover:border-info/20 transition-all duration-300 shadow-sm"
+                            className="group relative flex items-start gap-4 p-4 rounded-xl bg-surface border border-border hover:border-border-strong hover:bg-elevated/30 transition-all duration-200 shadow-xs"
                         >
                             {/* Category-colored border-left hint */}
                             <div className={cn(
-                                "absolute left-0 top-4 bottom-4 w-1 rounded-r-full opacity-50",
+                                "absolute left-0 top-3 bottom-3 w-1 rounded-r-full opacity-60",
                                 notif.category === "MISSION" && "bg-info",
                                 notif.category === "SUCCESS" && "bg-warning",
                                 notif.category === "SONGES" && "bg-success",
@@ -314,7 +314,7 @@ export default function NotificationsPage() {
                             )} />
 
                             {/* Icon Box */}
-                            <div className="shrink-0 h-10 w-10 rounded-lg bg-black/40 border border-border flex items-center justify-center group- transition-transform">
+                            <div className="shrink-0 h-10 w-10 rounded-lg bg-background border border-border flex items-center justify-center">
                                 {getIcon(notif.category)}
                             </div>
 

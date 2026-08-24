@@ -530,7 +530,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                             Modifier
                         </Button>
                         <Button 
-                            className="flex-1 h-11 bg-amber-500 hover:bg-amber-400 text-warning-foreground font-black uppercase tracking-widest text-caption rounded-xl transition-colors"
+                            className="flex-1 h-11 bg-warning/15 hover:bg-warning/25 text-warning border border-warning/30 font-black uppercase tracking-widest text-caption rounded-xl transition-all"
                             onClick={() => setCloseModalOpen(true)}
                         >
                             <Check className="w-4 h-4 mr-2" />

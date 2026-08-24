@@ -4,6 +4,7 @@
 
 // -----------------------------------------------------------------------------
 // CLASSES
+// -----------------------------------------------------------------------------
 export interface DofusClass {
     id: string;
     name: string;
@@ -18,7 +19,7 @@ export const DOFUS_CLASSES = [
     { id: "eniripsa", name: "Eniripsa", icon: "/assets/dofus/classes/7.png", color: "#f472b6" },
     { id: "enutrof", name: "Enutrof", icon: "/assets/dofus/classes/3.png", color: "#f59e0b" },
     { id: "feca", name: "Féca", icon: "/assets/dofus/classes/1.png", color: "#60a5fa" },
-    { id: "forgelance", name: "Forgelance", icon: "/assets/dofus/classes/20.png", color: "#fcd34d" }, // ID 20 confirmed
+    { id: "forgelance", name: "Forgelance", icon: "/assets/dofus/classes/20.png", color: "#fcd34d" },
     { id: "huppermage", name: "Huppermage", icon: "/assets/dofus/classes/17.png", color: "#8b5cf6" },
     { id: "iop", name: "Iop", icon: "/assets/dofus/classes/8.png", color: "#ef4444" },
     { id: "osamodas", name: "Osamodas", icon: "/assets/dofus/classes/2.png", color: "#ef4444" },
@@ -40,7 +41,7 @@ export function getClass(id: string) {
 }
 
 // -----------------------------------------------------------------------------
-// JOBS (MÉTIERS) - Corrected categories per user specs
+// JOBS (MÉTIERS)
 // -----------------------------------------------------------------------------
 
 export const JOB_CATEGORIES = {
@@ -106,6 +107,14 @@ export const TIME_SLOTS = ["matin", "midi", "soir", "nuit"] as const;
 
 export type DayOfWeek = typeof DAYS_OF_WEEK[number];
 export type TimeSlot = typeof TIME_SLOTS[number];
+
+export const TIME_SLOT_CONFIG: Record<TimeSlot, { label: string; shortLabel: string; hours: string; shortHours: string }> = {
+    matin: { label: "Matin", shortLabel: "Matin", hours: "06h - 12h", shortHours: "06h-12h" },
+    midi: { label: "Après-midi", shortLabel: "Aprem", hours: "12h - 18h", shortHours: "12h-18h" },
+    soir: { label: "Soirée", shortLabel: "Soir", hours: "18h - 00h", shortHours: "18h-00h" },
+    nuit: { label: "Nuit", shortLabel: "Nuit", hours: "00h - 06h", shortHours: "00h-06h" },
+};
+
 export type AvailabilityMap = Partial<Record<DayOfWeek, TimeSlot[]>>;
 
 export type GlobalAvailability = {
@@ -266,29 +275,49 @@ export function getAlignmentLevelSteps(order: any): Array<{ level: number; title
 }
 
 // -----------------------------------------------------------------------------
-// DOFUS WORLDS & DIMENSIONS
+// DOFUS WORLDS & DIMENSIONS (Official Dofus / DofusDB worldMap IDs)
 // -----------------------------------------------------------------------------
 export const DOFUS_WORLDS = [
-    { id: 1, name: "Monde des Douze (Amakna, Frigost...)" },
+    { id: 1, name: "Monde des Douze" },
     { id: 2, name: "Incarnam" },
-    { id: 3, name: "Souterrains & Égouts" },
+    { id: 3, name: "Souterrain d'Astrub" },
     { id: 4, name: "Labyrinthe du Minotoror" },
-    { id: 5, name: "Antre du Dragon Cochon" },
-    { id: 6, name: "Labyrinthe du Maître Corbac" },
-    { id: 7, name: "Givrefoux & Cavernes" },
+    { id: 5, name: "Labyrinthe du Dragon Cochon" },
+    { id: 6, name: "Bibliothèque du Maître Corbac" },
+    { id: 7, name: "Cavernes des Givrefoux" },
     { id: 8, name: "Canaux Méphitiques" },
     { id: 9, name: "Entrailles de Brâkmar" },
-    { id: 10, name: "Sanctuaire des Dragoeufs / Canopée" },
-    { id: 11, name: "Dimension Divine - Enutrosor" },
-    { id: 12, name: "Dimension Divine - Srambad" },
-    { id: 13, name: "Dimension Divine - Xélorium" },
-    { id: 14, name: "Dimension Divine - Écaflipus" },
-    { id: 15, name: "Voyage dans le Temps / Passé" },
-    { id: 19, name: "Mappemondes / Pandala" },
-    { id: 22, name: "Nimotopia" },
+    { id: 10, name: "Village de la Canopée" },
+    { id: 11, name: "Duty free" },
+    { id: 12, name: "Château de Harebourg" },
+    { id: 13, name: "Enutrosor" },
+    { id: 14, name: "Srambad" },
+    { id: 15, name: "Xélorium" },
+    { id: 16, name: "Ecaflipus" },
+    { id: 17, name: "Profondeurs de Sufokia" },
+    { id: 18, name: "Pyramide Maudite" },
+    { id: 19, name: "Mappemondes" },
+    { id: 20, name: "Épaves Silencieuses" },
+    { id: 21, name: "Île de Pwâk" },
+    { id: 22, name: "Crocuzko" },
+    { id: 24, name: "Blessures de Guerre" },
+    { id: 25, name: "Royaume Corrompu" },
+    { id: 26, name: "Désert de Misère" },
+    { id: 27, name: "Galère de Servitude" },
+    { id: 28, name: "Wukin et Wukang" },
     { id: 29, name: "Ecaflip City" },
-    { id: 31, name: "Dimension Divine - Srambad (Alt)" },
-    { id: 32, name: "Dimension Divine - Enutrosor (Alt)" },
-    { id: 33, name: "Dimension Divine - Xélorium (Alt)" },
-    { id: 34, name: "Dimension Divine - Écaflipus (Alt)" },
+    { id: 30, name: "Cauchemar" },
+    { id: 31, name: "Galeries d'Ereboria" },
+    { id: 32, name: "Caverne des Fungus" },
+    { id: 33, name: "Base Abyssale" },
+    { id: 34, name: "Osavora" },
+    { id: 35, name: "Dimension Obscure" },
+    { id: 36, name: "Sanctuaire des Dragoeufs" },
+    { id: 38, name: "Village des Brigandins" },
 ] as const;
+
+export function getWorldName(worldMapId?: number | null): string {
+    if (!worldMapId || worldMapId === -1 || worldMapId === 1) return "Monde des Douze";
+    const found = DOFUS_WORLDS.find((w) => w.id === worldMapId);
+    return found ? found.name : `Monde ${worldMapId}`;
+}

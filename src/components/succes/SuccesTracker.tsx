@@ -13,10 +13,14 @@ import {
     Loader2,
     Users,
     X,
+    Zap,
+    CheckCheck,
+    RotateCcw,
 } from "lucide-react";
 import {
     toggleAchievementCompleted,
     toggleDungeonAchievements,
+    toggleLevelBracketAchievements,
     getUserDungeonProgress,
     findMissingAchievements,
 } from "@/server/actions/dungeon-finder-actions";
@@ -93,10 +97,45 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
     const [maxLevel, setMaxLevel] = useState(1000);
     const [partners, setPartners] = useState<Record<string, Partner[]>>({});
     const [loadingPartners, setLoadingPartners] = useState(false);
+    const [bracketLoading, setBracketLoading] = useState(false);
     const toastFired = useRef(false);
     const autoSelectedRef = useRef(false);
 
     const selectedDungeonId = searchParams.get("dungeon");
+
+    const handleToggleLevelBracket = useCallback(
+        async (action: "validate" | "unvalidate") => {
+            if (!canEdit || bracketLoading) return;
+            setBracketLoading(true);
+            try {
+                const res = await toggleLevelBracketAchievements(guildId, minLevel, maxLevel, action);
+                if (res.success && res.data) {
+                    const affectedIds = res.data.achievementIds;
+                    setCompletedIds((prev) => {
+                        const next = new Set(prev);
+                        if (action === "validate") {
+                            affectedIds.forEach((id) => next.add(id));
+                        } else {
+                            affectedIds.forEach((id) => next.delete(id));
+                        }
+                        return next;
+                    });
+                    toast.success(
+                        action === "validate"
+                            ? `Tous les succès de la tranche (Niv. ${minLevel}-${maxLevel === 1000 ? "200+" : maxLevel}) ont été validés !`
+                            : `Tous les succès de la tranche ont été décochés.`
+                    );
+                } else {
+                    toast.error(res.error || "Erreur lors de la mise à jour");
+                }
+            } catch {
+                toast.error("Erreur de communication avec le serveur");
+            } finally {
+                setBracketLoading(false);
+            }
+        },
+        [canEdit, bracketLoading, guildId, minLevel, maxLevel]
+    );
 
     const updateParam = useCallback(
         (key: string, value: string | null) => {
@@ -376,6 +415,31 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                             {p.label}
                         </button>
                     ))}
+
+                    {/* Validation globale de la tranche sélectionnée */}
+                    {canEdit && (
+                        <div className="flex items-center gap-1.5 shrink-0 pl-1 border-l border-border">
+                            <button
+                                type="button"
+                                disabled={bracketLoading}
+                                onClick={() => handleToggleLevelBracket("validate")}
+                                className="inline-flex items-center gap-1.5 px-3 py-2 min-h-11 rounded-xl bg-success/10 border border-success/30 hover:bg-success/20 text-success text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50"
+                                title={`Valider tous les succès ${minLevel === 1 && maxLevel === 1000 ? "du jeu" : `Niv. ${minLevel}-${maxLevel === 1000 ? "200+" : maxLevel}`}`}
+                            >
+                                {bracketLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCheck className="w-3.5 h-3.5" />}
+                                <span>Valider la tranche</span>
+                            </button>
+                            <button
+                                type="button"
+                                disabled={bracketLoading}
+                                onClick={() => handleToggleLevelBracket("unvalidate")}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-2 min-h-11 rounded-xl bg-surface border border-border hover:border-danger/30 hover:text-danger text-muted-foreground text-xs font-bold transition-all disabled:opacity-50"
+                                title={`Décocher tous les succès ${minLevel === 1 && maxLevel === 1000 ? "du jeu" : `Niv. ${minLevel}-${maxLevel === 1000 ? "200+" : maxLevel}`}`}
+                            >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 

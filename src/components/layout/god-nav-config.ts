@@ -79,6 +79,7 @@ export const CONSOLE_PAGES: GodNavItem[] = [
     { id: "roadmap", name: "Roadmap Pro", icon: Map, color: "text-warning", group: "tools", sub: "roadmap", scope: "all", scopeLabel: "Toutes", brickId: "roadmap" },
     { id: "changelog", name: "Changelog Engine", icon: History, color: "text-info", group: "tools", sub: "changelog", scope: "all", scopeLabel: "Toutes", brickId: "changelog" },
     { id: "docs", name: "Documents", icon: BookOpen, color: "text-info", group: "tools", sub: "docs", scope: "all", scopeLabel: "Toutes", brickId: "docs" },
+    { id: "reaction-roles", name: "Packs Reaction Roles", icon: Sparkles, color: "text-purple-400", group: "tools", sub: "reaction-roles", scope: "all", scopeLabel: "Toutes", brickId: "overview" },
     { id: "onboarding", name: "Onboarding B2B", icon: UserPlus, color: "text-success", group: "tools", sub: "onboarding", scope: "all", scopeLabel: "Toutes", brickId: "onboarding" },
     { id: "landing", name: "Landing Screens", icon: Sparkles, color: "text-purple-400", group: "tools", sub: "landing", scope: "all", scopeLabel: "Toutes", brickId: "overview" },
 ];

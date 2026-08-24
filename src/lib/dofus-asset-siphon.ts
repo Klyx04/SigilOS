@@ -82,19 +82,18 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * Idempotent : si le fichier existe déjà, aucun appel réseau n'est effectué.
  */
 export async function siphonAndCompressImage(
-    remoteUrl: string,
+    remoteUrl: string | null | undefined,
     targetType: 'monsters' | 'items' | 'spells',
     entityId: number | string,
     force = false
 ): Promise<{ success: boolean; localUrl?: string; sizeBytes?: number; error?: string }> {
-    const validatedInitialUrl = getValidatedAssetUrl(remoteUrl);
-    if (!validatedInitialUrl) {
-        return { success: false, error: 'URL distante invalide ou domaine non autorisé' };
-    }
-
     ensureAssetDirsExist();
 
     const safeId = String(entityId).replace(/[^a-zA-Z0-9_-]/g, '');
+    if (!safeId) {
+        return { success: false, error: 'Identifiant d\'asset invalide' };
+    }
+
     const filename = `${safeId}.webp`;
     const targetFilePath = path.join(ASSET_DIRS[targetType], filename);
     const localPublicUrl = `${PUBLIC_ASSET_PATHS[targetType]}/${filename}`;
@@ -111,70 +110,56 @@ export async function siphonAndCompressImage(
         }
     }
 
-    let actualUrl: string = validatedInitialUrl;
+    // Construction d'une URL saine et immunisée contre le SSRF à partir de gabarits stricts
+    let safeUrlToFetch: string = `https://api.dofusdb.fr/img/${targetType}/${safeId}.png`;
+
+    if (remoteUrl) {
+        try {
+            const parsed = new URL(remoteUrl);
+            const host = parsed.hostname.toLowerCase();
+            if (ALLOWED_ASSET_DOMAINS.has(host)) {
+                const cleanPath = parsed.pathname.replace(/[^a-zA-Z0-9_.\-\/]/g, '');
+                safeUrlToFetch = `https://${host}${cleanPath}`;
+            }
+        } catch {}
+    }
+
     let downloadedBuffer: Buffer | null = null;
 
     try {
         // Jitter poli : pause de 250ms à 550ms pour ne pas bombarder le serveur source
         await sleep(Math.floor(Math.random() * 300) + 250);
 
-        // Tentative 1 : Téléchargement direct
+        // Tentative 1 : Téléchargement direct depuis l'URL saine
         try {
-            const safeTarget = getValidatedAssetUrl(actualUrl);
-            if (safeTarget) {
-                const response = await fetch(safeTarget, {
-                    headers: DEFAULT_HEADERS,
-                    signal: AbortSignal.timeout(12_000),
-                    cache: 'no-store',
-                });
-                if (response.ok) {
-                    const arrayBuffer = await response.arrayBuffer();
-                    downloadedBuffer = Buffer.from(arrayBuffer);
-                }
+            const response = await fetch(safeUrlToFetch, {
+                headers: DEFAULT_HEADERS,
+                signal: AbortSignal.timeout(12_000),
+                cache: 'no-store',
+            });
+            if (response.ok) {
+                const arrayBuffer = await response.arrayBuffer();
+                downloadedBuffer = Buffer.from(arrayBuffer);
             }
         } catch {}
 
         // Tentative 2 (Auto-Healing) : Si échec et cible monster -> résolution du graphicLookId via DofusDB
         if (!downloadedBuffer && targetType === 'monsters' && /^\d+$/.test(safeId)) {
             try {
-                const monsterRes = await fetch(`https://api.dofusdb.fr/monsters/${safeId}`, {
+                const numMonsterId = Number(safeId);
+                const monsterRes = await fetch(`https://api.dofusdb.fr/monsters/${numMonsterId}`, {
                     headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
                     signal: AbortSignal.timeout(8_000),
                 });
                 if (monsterRes.ok) {
                     const monsterData = await monsterRes.json();
-                    const validatedImg = getValidatedAssetUrl(monsterData.img);
-                    if (validatedImg) {
-                        actualUrl = validatedImg;
-                        const imgRes = await fetch(validatedImg, {
-                            headers: DEFAULT_HEADERS,
-                            signal: AbortSignal.timeout(12_000),
-                        });
-                        if (imgRes.ok) {
-                            const arrayBuffer = await imgRes.arrayBuffer();
-                            downloadedBuffer = Buffer.from(arrayBuffer);
-                        }
-                    }
-                }
-            } catch {}
-        }
-
-        // Tentative 3 (Auto-Healing) : Si échec et cible item -> résolution de l'iconId via DofusDB
-        if (!downloadedBuffer && targetType === 'items' && /^\d+$/.test(safeId)) {
-            try {
-                const itemRes = await fetch(`https://api.dofusdb.fr/items/${safeId}`, {
-                    headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
-                    signal: AbortSignal.timeout(8_000),
-                });
-                if (itemRes.ok) {
-                    const itemData = await itemRes.json();
-                    const iconId = itemData.iconId || itemData.id;
-                    if (iconId) {
-                        const directItemUrl = `https://api.dofusdb.fr/img/items/${iconId}.png`;
-                        const validatedItemUrl = getValidatedAssetUrl(directItemUrl);
-                        if (validatedItemUrl) {
-                            actualUrl = validatedItemUrl;
-                            const imgRes = await fetch(validatedItemUrl, {
+                    if (monsterData.img && typeof monsterData.img === 'string') {
+                        const parsedImg = new URL(monsterData.img);
+                        const imgHost = parsedImg.hostname.toLowerCase();
+                        if (ALLOWED_ASSET_DOMAINS.has(imgHost)) {
+                            const cleanImgPath = parsedImg.pathname.replace(/[^a-zA-Z0-9_.\-\/]/g, '');
+                            const safeImgUrl = `https://${imgHost}${cleanImgPath}`;
+                            const imgRes = await fetch(safeImgUrl, {
                                 headers: DEFAULT_HEADERS,
                                 signal: AbortSignal.timeout(12_000),
                             });
@@ -188,8 +173,34 @@ export async function siphonAndCompressImage(
             } catch {}
         }
 
+        // Tentative 3 (Auto-Healing) : Si échec et cible item -> résolution de l'iconId via DofusDB
+        if (!downloadedBuffer && targetType === 'items' && /^\d+$/.test(safeId)) {
+            try {
+                const numItemId = Number(safeId);
+                const itemRes = await fetch(`https://api.dofusdb.fr/items/${numItemId}`, {
+                    headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
+                    signal: AbortSignal.timeout(8_000),
+                });
+                if (itemRes.ok) {
+                    const itemData = await itemRes.json();
+                    const iconId = Number(itemData.iconId || itemData.id);
+                    if (iconId && Number.isInteger(iconId)) {
+                        const directItemUrl = `https://api.dofusdb.fr/img/items/${iconId}.png`;
+                        const imgRes = await fetch(directItemUrl, {
+                            headers: DEFAULT_HEADERS,
+                            signal: AbortSignal.timeout(12_000),
+                        });
+                        if (imgRes.ok) {
+                            const arrayBuffer = await imgRes.arrayBuffer();
+                            downloadedBuffer = Buffer.from(arrayBuffer);
+                        }
+                    }
+                }
+            } catch {}
+        }
+
         if (!downloadedBuffer) {
-            throw new Error(`Impossible de récupérer l'image depuis ${actualUrl}`);
+            throw new Error(`Impossible de récupérer l'image depuis ${safeUrlToFetch}`);
         }
 
         // Compression WebP via Sharp avec suppression des métadonnées superflues
@@ -201,7 +212,7 @@ export async function siphonAndCompressImage(
         return { success: true, localUrl: localPublicUrl, sizeBytes: stat.size };
     } catch (error) {
         logger.warn(`[asset-siphon] Échec du téléchargement (${targetType} #${entityId}):`, {
-            url: actualUrl,
+            url: safeUrlToFetch,
             error: String(error),
         });
         return { success: false, error: String(error) };

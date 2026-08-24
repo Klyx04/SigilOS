@@ -144,9 +144,10 @@ sylvestre_results.txt
 # Discord bot node_modules
 services/discord-bot/node_modules/
 
-# Game Data Assets (too large for Git)
-/public/game-data/tiles/
-/public/game-data/hd_maps/
+# Game Data Assets (too large for Git) — servis via bind mount + sync-assets.sh,
+# jamais versionnés pour les NOUVEAUX fichiers ; les fichiers déjà suivis ne sont PAS untrackés.
+/public/game-data/
+# /public/game-data/tiles/ + /public/game-data/hd_maps/ sont couverts par la règle ci-dessus.
 
 # Temporary files
 temp_map.jpg

@@ -1398,6 +1398,60 @@ export async function updateDolmanaxProgress(
 }
 
 /**
+ * Met à jour les captures d'archimonstres Krokilles pour le Dokille (0-20)
+ */
+export async function updateDokilleProgress(
+    guildId: string,
+    dofusId: string,
+    capturedMonsters: string[],
+    characterName: string = "PRINCIPAL"
+): Promise<ActionResponse> {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!ctx.profileId) return { success: false, error: "Profil introuvable" };
+
+    const guildConfig = await (db as any).guildConfig.findFirst({
+        where: { OR: [{ id: guildId }, { discordGuildId: guildId }] },
+        select: { id: true },
+    });
+    if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+    try {
+        const TOTAL_KROKILLES = 20;
+        const uniqueMonsters = [...new Set(capturedMonsters)];
+        const count = uniqueMonsters.length;
+        const percent = Math.min(100, Math.round((count / TOTAL_KROKILLES) * 100));
+        const notes = `KROKILLES:${JSON.stringify(uniqueMonsters)}`;
+        
+        await (db as any).playerDofusProgress.upsert({
+            where: {
+                profileId_dofusId_characterName: {
+                    profileId: ctx.profileId,
+                    dofusId,
+                    characterName,
+                },
+            },
+            update: { completionPercent: percent, isObtained: count >= TOTAL_KROKILLES, notes },
+            create: {
+                profileId: ctx.profileId,
+                guildId: guildConfig.id,
+                dofusId,
+                characterName,
+                completionPercent: percent,
+                isObtained: count >= TOTAL_KROKILLES,
+                notes
+            },
+        });
+
+        revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
+        return { success: true };
+    } catch (error) {
+        logger.error("[updateDokilleProgress] error:", { error });
+        return { success: false, error: "Erreur lors de la mise à jour" };
+    }
+}
+
+/**
  * Seed les données Dofus depuis les JSONs curatés (admin uniquement)
  * V3: Supporte les champs isSylvestreReq, isMeta, bonusSummary, weight, externalRef
  * et charge les JSONs compilés par Dofus depuis seed-data/dofus-quests/
@@ -1471,6 +1525,7 @@ export async function seedDofusData(guildId: string): Promise<{
             { slug: "dokoko", path: "prisma/seed-data/dofus-quests/dokoko-compiled.json" },
             { slug: "veilleur", path: "prisma/seed-data/dofus-quests/veilleur-compiled.json" },
             { slug: "argente-scintillant", path: "prisma/seed-data/dofus-quests/argente-scintillant-compiled.json" },
+            { slug: "dokille", path: "prisma/seed-data/dofus-quests/dokille-compiled.json" },
             // Meta / Spéciaux
             { slug: "sylvestre", path: "prisma/seed-data/dofus-quests/sylvestre-compiled.json" },
             // Mineurs (configs minimales)

@@ -36,6 +36,7 @@ const CHAIN_FILES = [
     { slug: "sylvestre",           file: "sylvestre-compiled.json" },
     { slug: "cawotte",             file: "cawotte-compiled.json" },
     { slug: "dolmanax",            file: "dolmanax-compiled.json" },
+    { slug: "dokille",             file: "dokille-compiled.json" },
 ];
 
 async function main() {

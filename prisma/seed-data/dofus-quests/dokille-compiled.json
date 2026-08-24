@@ -1,0 +1,219 @@
+{
+  "dofus": "dokille",
+  "displayName": "Dokille",
+  "color": "#f59e0b",
+  "successName": "Le Safari des âmes",
+  "recommendedLevel": 100,
+  "description": "Capturer tous les archimonstres Krokilles de l'Archipel de Vulkania pour Nevark le Chasseur.",
+  "dofusItemId": null,
+  "imageUrl": "/module-dofus/Dokille.png",
+  "compiledAt": "2026-08-23T23:00:00.000Z",
+  "compilerVersion": "3.0",
+  "chains": [
+    {
+      "sectionName": "Prérequis de Vulkania",
+      "sectionType": "PREREQUISITE",
+      "zone": "Vulkania",
+      "description": "Quêtes d'introduction obligatoires pour débloquer les chasses et safaris auprès de Nevark le Chasseur.",
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Premier contact",
+          "dofusdbId": null,
+          "level": 1,
+          "zone": "Village de Vulkania",
+          "npcName": "Betty Boop",
+          "npcSubArea": "Village de Vulkania",
+          "coords": {
+            "x": -48,
+            "y": 44,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Parler à Betty Boop en [-48,44]",
+            "Obtenir le passeport de vacancier de Vulkania"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Chasse aux Krokilles",
+          "dofusdbId": null,
+          "level": 100,
+          "zone": "Village de Vulkania",
+          "npcName": "Nevark le Chasseur",
+          "npcSubArea": "Village de Vulkania",
+          "coords": {
+            "x": -47,
+            "y": 42,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Parler à Nevark le Chasseur en [-47,42]",
+            "Rapporter 30 langues de Krokilles selon votre tranche de niveau"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": []
+        }
+      ]
+    },
+    {
+      "sectionName": "Le Safari des âmes moniaques",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Forêt d'Etraktopel",
+      "description": "Capturer les 5 archimonstres Krokilles Juvéniles dans la Forêt d'Etraktopel.",
+      "isSynergyCandidate": true,
+      "chainOrder": 1,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Le Safari des âmes moniaques",
+          "dofusdbId": null,
+          "level": 100,
+          "zone": "Forêt d'Etraktopel",
+          "npcName": "Nevark le Chasseur",
+          "npcSubArea": "Village de Vulkania",
+          "coords": {
+            "x": -47,
+            "y": 42,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Capturer l'âme de Krokette la Croustillante",
+            "Capturer l'âme de Krokillage la Marine",
+            "Capturer l'âme de Krokcinelle la Tachetée",
+            "Capturer l'âme de Krokikrisp la Céréalière",
+            "Capturer l'âme de Krokis l'Esquissée",
+            "Livrer les 5 âmes à Nevark le Chasseur en [-47,42]"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": true,
+          "requirements": []
+        }
+      ]
+    },
+    {
+      "sectionName": "Le Safari des âmes hygdales",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Forêt d'Espartiate",
+      "description": "Capturer les 5 archimonstres Krokilles Novices dans la Forêt d'Espartiate.",
+      "isSynergyCandidate": true,
+      "chainOrder": 2,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Le Safari des âmes hygdales",
+          "dofusdbId": null,
+          "level": 110,
+          "zone": "Forêt d'Espartiate",
+          "npcName": "Nevark le Chasseur",
+          "npcSubArea": "Village de Vulkania",
+          "coords": {
+            "x": -47,
+            "y": 42,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Capturer l'âme de Krokenjambe la Tombeuse",
+            "Capturer l'âme de Kroktail la Désaltérante",
+            "Capturer l'âme de Krokotte la Minutée",
+            "Capturer l'âme de Krokée l'Entamée",
+            "Capturer l'âme de Krokblanche l'Immaculée",
+            "Livrer les 5 âmes à Nevark le Chasseur en [-47,42]"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": true,
+          "requirements": []
+        }
+      ]
+    },
+    {
+      "sectionName": "Le Safari des âmes andalires",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Forêt des Strates Igraphies",
+      "description": "Capturer les 5 archimonstres Krokilles Matures dans la Forêt des Strates Igraphies.",
+      "isSynergyCandidate": true,
+      "chainOrder": 3,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Le Safari des âmes andalires",
+          "dofusdbId": null,
+          "level": 120,
+          "zone": "Forêt des Strates Igraphies",
+          "npcName": "Nevark le Chasseur",
+          "npcSubArea": "Village de Vulkania",
+          "coords": {
+            "x": -47,
+            "y": 42,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Capturer l'âme de Krokrodaille la Mordante",
+            "Capturer l'âme de Kroknemboure la Mousseuse",
+            "Capturer l'âme de Krokine l'Allumeuse",
+            "Capturer l'âme de Krokue la Trompée",
+            "Capturer l'âme de Krokpit la Pilotée",
+            "Livrer les 5 âmes à Nevark le Chasseur en [-47,42]"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": true,
+          "requirements": []
+        }
+      ]
+    },
+    {
+      "sectionName": "Le Safari des âmes nésiques",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Forêt de Ponefarr",
+      "description": "Capturer les 5 archimonstres Krokilles Vénérables dans la Forêt de Ponefarr et obtenir le Dokille.",
+      "isSynergyCandidate": true,
+      "chainOrder": 4,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Le Safari des âmes nésiques",
+          "dofusdbId": null,
+          "level": 130,
+          "zone": "Forêt de Ponefarr",
+          "npcName": "Nevark le Chasseur",
+          "npcSubArea": "Village de Vulkania",
+          "coords": {
+            "x": -47,
+            "y": 42,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "isLast": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Capturer l'âme de Krokage la Vorace",
+            "Capturer l'âme de Krokillagée la Sage",
+            "Capturer l'âme de Krokuite la Calcinée",
+            "Capturer l'âme de Krokobure la Maudite",
+            "Capturer l'âme de Krokrane la Distordue",
+            "Livrer les 5 âmes à Nevark le Chasseur en [-47,42]",
+            "Facultatif : rapporter un éclat de chaque archimonstre pour des runes Ga Pa/Pme"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": true,
+          "requirements": []
+        }
+      ]
+    }
+  ]
+}

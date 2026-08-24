@@ -1,4 +1,5 @@
 import { guide as creerGererGuideDofus2026 } from "./creer-gerer-guilde-dofus-2026";
+import { guide as gererDiscordGuildeDofus } from "./gerer-discord-guilde-dofus";
 import { guide as poidsRunesForgemagieDofus } from "./poids-runes-forgemagie-dofus";
 import { guide as guideElevageEnclosGuildeDofus } from "./guide-elevage-enclos-guilde-dofus";
 import { guide as guideBrisageRentabiliteRunes } from "./guide-brisage-rentabilite-runes";
@@ -19,6 +20,18 @@ export type Guide = {
 };
 
 export const allGuides: readonly Guide[] = [
+    {
+        slug: gererDiscordGuildeDofus.slug,
+        title: gererDiscordGuildeDofus.title,
+        description: gererDiscordGuildeDofus.description,
+        publishedAt: gererDiscordGuildeDofus.publishedAt,
+        updatedAt: gererDiscordGuildeDofus.updatedAt,
+        draft: gererDiscordGuildeDofus.draft,
+        category: "Gestion de Guilde",
+        coverImage: "/images/guides/guilde/guild_hall.jpg",
+        readingTime: "11 min",
+        badgeColor: "emerald",
+    },
     {
         slug: guideGigalodonDofus.slug,
         title: guideGigalodonDofus.title,
@@ -53,7 +66,7 @@ export const allGuides: readonly Guide[] = [
         category: "Gestion de Guilde",
         coverImage: "/images/guides/guilde/guild_hall.jpg",
         readingTime: "8 min",
-        badgeColor: "emerald",
+        badgeColor: "teal",
     },
     {
         slug: poidsRunesForgemagieDofus.slug,
@@ -103,6 +116,8 @@ export function getGuideBySlug(slug: string) {
 // Contenu complet d'un guide (utilisé uniquement sur la page détail)
 export async function getGuideContent(slug: string) {
     switch (slug) {
+        case "gerer-discord-guilde-dofus":
+            return gererDiscordGuildeDofus;
         case "creer-gerer-guilde-dofus-2026":
             return creerGererGuideDofus2026;
         case "poids-runes-forgemagie-dofus":

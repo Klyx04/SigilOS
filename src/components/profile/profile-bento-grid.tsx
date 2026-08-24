@@ -242,10 +242,9 @@ export function ProfileBentoGrid({
     const isUpcoming = Boolean(startDate && startDate > now);
     const isOnVacation = Boolean(startDate && startDate <= now && (!endDate || endDate >= now));
 
-    // canEdit logic: Normal users can only edit if NOT readOnly. 
-    // SuperAdmins can ALWAYS edit (God Mode).
-    const canEdit = !readOnly || isSuperAdmin;
-    const targetUserId = isSuperAdmin ? profile.userId : undefined;
+    // canEdit logic: Édition autorisée uniquement sur son propre profil (readOnly === false).
+    const canEdit = !readOnly;
+    const targetUserId = undefined;
 
     // Handlers
     const handleClassSave = async (mainClass: string, pseudo: string) => {

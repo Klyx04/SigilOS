@@ -208,10 +208,11 @@ run_conditional_seed() {
 pull_image() {
     local IMG="$1" SHA="$2" NAME="$3" TARGET="$4"
     local TOTAL=0 DONE=0
-    # Déjà présent localement ? → on re-tague et on passe (gain de temps).
-    if sudo docker image inspect "${IMG}:${SHA}" >/dev/null 2>&1; then
+    # Déjà présent localement ? → on re-tague et on passe (gain de temps pour les SHA fixes).
+    # ⚠️ IMPORTANT : si SHA=="latest", GHCR a pu recevoir une nouvelle image. On ne court-circuite que pour les SHA fixes.
+    if [[ "$SHA" != "latest" ]] && sudo docker image inspect "${IMG}:${SHA}" >/dev/null 2>&1; then
         sudo docker tag "${IMG}:${SHA}" "sigilos-${NAME}-${TARGET}:latest"
-        printf "  ${C_DIM}%-20s${C_RESET} ${C_YELLOW}✓ déjà à jour${C_RESET}\n" "$NAME"
+        printf "  ${C_DIM}%-20s${C_RESET} ${C_YELLOW}✓ déjà en cache (${SHA})${C_RESET}\n" "$NAME"
         return
     fi
     # Docker écrit sa progression avec des \r → on les transforme en \n pour

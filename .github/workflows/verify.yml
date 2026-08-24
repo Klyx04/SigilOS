@@ -5,32 +5,15 @@ name: SigilOS CI
 # - Push: only main/dev (protected branches)
 # - PR: main/dev (feature branches get CI via PR only)
 # - Schedule: weekly security scan (Monday 3am UTC)
+# NOTE: paths-ignore removed — using a filter job instead so
+#       the required check is always reported (never stuck in
+#       "Expected" state when only doc/config files change).
 # ─────────────────────────────────────────────────────────────
 on:
   push:
     branches: [ main, dev ]
-    paths-ignore:
-      - '**.md'
-      - '.gitignore'
-      - 'LICENSE'
-      - 'docs/**'
-      - '.gemini/**'
-      - '.agent/**'
-      - '.antigravity'
-      - 'scripts/*.sh'
-      - 'scripts/*.md'
   pull_request:
     branches: [ main, dev ]
-    paths-ignore:
-      - '**.md'
-      - '.gitignore'
-      - 'LICENSE'
-      - 'docs/**'
-      - '.gemini/**'
-      - '.agent/**'
-      - '.antigravity'
-      - 'scripts/*.sh'
-      - 'scripts/*.md'
   schedule:
     # Weekly security scan — Monday 3:00 AM UTC
     - cron: '0 3 * * 1'
@@ -50,12 +33,44 @@ permissions:
 jobs:
 
   # ┌──────────────────────────────────────────────────────────┐
+  # │ 🔍 FILTER — Detect if any non-doc file changed          │
+  # │ Prevents the required check from being stuck in         │
+  # │ "Expected" state when only docs/config files changed.   │
+  # └──────────────────────────────────────────────────────────┘
+  filter:
+    name: 🔍 Filter changed files
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
+    outputs:
+      should_run: ${{ steps.changes.outputs.src }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            src:
+              - '!**.md'
+              - '!.gitignore'
+              - '!LICENSE'
+              - '!docs/**'
+              - '!.gemini/**'
+              - '!.agent/**'
+              - '!.antigravity'
+              - '!scripts/*.sh'
+              - '!scripts/*.md'
+              - '**'
+
+  # ┌──────────────────────────────────────────────────────────┐
   # │ ✅ VERIFY & BUILD — Single job to save CI minutes        │
   # │ Lint, Types, Tests + conditional Production Build        │
   # └──────────────────────────────────────────────────────────┘
   verify:
     name: ✅ Verify & Build
-    if: github.event_name != 'schedule'
+    needs: filter
+    if: github.event_name != 'schedule' && needs.filter.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

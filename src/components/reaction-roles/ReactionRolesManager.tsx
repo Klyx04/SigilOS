@@ -64,6 +64,21 @@ import {
     getAvailableIconPacksForGuildAction
 } from "@/server/actions/reaction-role-actions";
 
+/** Valide et assainit une URL d'image pour prévenir toute injection XSS / DOM */
+function getSafeImageUrl(url: string | null | undefined): string | null {
+    if (!url || typeof url !== "string") return null;
+    const trimmed = url.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith("/")) return trimmed;
+    try {
+        const parsed = new URL(trimmed);
+        if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+            return parsed.href;
+        }
+    } catch {}
+    return null;
+}
+
 export interface DiscordRoleItem {
     id: string;
     name: string;
@@ -923,11 +938,15 @@ export function ReactionRolesManager({
                                     </p>
                                 )}
 
-                                {formEmbedImage && (
-                                    <div className="rounded-lg overflow-hidden border border-black/20 my-2">
-                                        <img src={formEmbedImage} alt="Banner" className="w-full h-auto object-cover max-h-48" />
-                                    </div>
-                                )}
+                                {(() => {
+                                    const safeImage = getSafeImageUrl(formEmbedImage);
+                                    if (!safeImage) return null;
+                                    return (
+                                        <div className="rounded-lg overflow-hidden border border-black/20 my-2">
+                                            <img src={safeImage} alt="Banner" className="w-full h-auto object-cover max-h-48" />
+                                        </div>
+                                    );
+                                })()}
 
                                 {formEmbedFooter && (
                                     <p className="text-[10px] text-[#949ba4] pt-1 border-t border-white/5">{formEmbedFooter}</p>

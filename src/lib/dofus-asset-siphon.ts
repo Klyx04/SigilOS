@@ -31,6 +31,34 @@ const DEFAULT_HEADERS = {
     'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr; Game Asset Cache Service)',
 };
 
+/** Domaines stricts autorisés pour le siphonnage d'assets (SSRF Guard) */
+const ALLOWED_ASSET_DOMAINS = [
+    'dofusdb.fr',
+    'api.dofusdb.fr',
+    'static.ankama.com',
+    's.ankama.com',
+    'staticns.ankama.com',
+    'dofensive.com',
+    'api.dofensive.com',
+    'metamob.fr',
+    'api.metamob.fr',
+    'dofus.com',
+    'ankama.com'
+];
+
+/** Vérifie et parse l'URL pour empêcher tout SSRF */
+export function isSafeAssetUrl(rawUrl: string): boolean {
+    if (!rawUrl || typeof rawUrl !== 'string') return false;
+    try {
+        const parsed = new URL(rawUrl);
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
+        const host = parsed.hostname.toLowerCase();
+        return ALLOWED_ASSET_DOMAINS.some(allowed => host === allowed || host.endsWith(`.${allowed}`));
+    } catch {
+        return false;
+    }
+}
+
 /** Délai aléatoire (jitter) pour simuler un trafic naturel et éviter tout flag */
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -45,8 +73,8 @@ export async function siphonAndCompressImage(
     entityId: number | string,
     force = false
 ): Promise<{ success: boolean; localUrl?: string; sizeBytes?: number; error?: string }> {
-    if (!remoteUrl || !remoteUrl.startsWith('http')) {
-        return { success: false, error: 'URL distante invalide' };
+    if (!remoteUrl || !isSafeAssetUrl(remoteUrl)) {
+        return { success: false, error: 'URL distante invalide ou domaine non autorisé' };
     }
 
     ensureAssetDirsExist();
@@ -77,14 +105,16 @@ export async function siphonAndCompressImage(
 
         // Tentative 1 : Téléchargement direct
         try {
-            const response = await fetch(actualUrl, {
-                headers: DEFAULT_HEADERS,
-                signal: AbortSignal.timeout(12_000),
-                cache: 'no-store',
-            });
-            if (response.ok) {
-                const arrayBuffer = await response.arrayBuffer();
-                downloadedBuffer = Buffer.from(arrayBuffer);
+            if (isSafeAssetUrl(actualUrl)) {
+                const response = await fetch(actualUrl, {
+                    headers: DEFAULT_HEADERS,
+                    signal: AbortSignal.timeout(12_000),
+                    cache: 'no-store',
+                });
+                if (response.ok) {
+                    const arrayBuffer = await response.arrayBuffer();
+                    downloadedBuffer = Buffer.from(arrayBuffer);
+                }
             }
         } catch {}
 
@@ -97,7 +127,7 @@ export async function siphonAndCompressImage(
                 });
                 if (monsterRes.ok) {
                     const monsterData = await monsterRes.json();
-                    if (monsterData.img && monsterData.img.startsWith('http')) {
+                    if (monsterData.img && isSafeAssetUrl(monsterData.img)) {
                         actualUrl = monsterData.img;
                         const imgRes = await fetch(actualUrl, {
                             headers: DEFAULT_HEADERS,
@@ -123,14 +153,17 @@ export async function siphonAndCompressImage(
                     const itemData = await itemRes.json();
                     const iconId = itemData.iconId || itemData.id;
                     if (iconId) {
-                        actualUrl = `https://api.dofusdb.fr/img/items/${iconId}.png`;
-                        const imgRes = await fetch(actualUrl, {
-                            headers: DEFAULT_HEADERS,
-                            signal: AbortSignal.timeout(12_000),
-                        });
-                        if (imgRes.ok) {
-                            const arrayBuffer = await imgRes.arrayBuffer();
-                            downloadedBuffer = Buffer.from(arrayBuffer);
+                        const directItemUrl = `https://api.dofusdb.fr/img/items/${iconId}.png`;
+                        if (isSafeAssetUrl(directItemUrl)) {
+                            actualUrl = directItemUrl;
+                            const imgRes = await fetch(actualUrl, {
+                                headers: DEFAULT_HEADERS,
+                                signal: AbortSignal.timeout(12_000),
+                            });
+                            if (imgRes.ok) {
+                                const arrayBuffer = await imgRes.arrayBuffer();
+                                downloadedBuffer = Buffer.from(arrayBuffer);
+                            }
                         }
                     }
                 }

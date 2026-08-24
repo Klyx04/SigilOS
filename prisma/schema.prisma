@@ -427,7 +427,9 @@ model GuildConfig {
   relances                         Relance[]
   resourceCategories               ResourceCategory[]
   serviceActivityLogs              ServiceActivityLog[]
+  serviceFeedbacks                 ServiceFeedback[]
   serviceListings                  ServiceListing[]
+  serviceRequests                  ServiceRequest[]
   sigilRoles                       SigilRole[]
   profiles                         UserProfile[]
   vaultEntries                     VaultEntry[]
@@ -657,7 +659,10 @@ model UserProfile {
   polls                      Poll[]                     @relation("PollCreator")
   pollVotes                  PollVote[]
   serviceActivityLogs        ServiceActivityLog[]
+  serviceFeedbacksReceived   ServiceFeedback[]
   serviceListings            ServiceListing[]
+  serviceRequestsAsClient    ServiceRequest[]           @relation("ServiceRequestsAsClient")
+  serviceRequestsAsProvider  ServiceRequest[]           @relation("ServiceRequestsAsProvider")
   roleGrants                 SigilRoleGrant[]
   submissions                Submission[]
   userDungeonAchievements    UserDungeonAchievement[]
@@ -1534,10 +1539,66 @@ model ServiceListing {
   selectedAchievementNames Json?
   guild                    GuildConfig     @relation(fields: [guildId], references: [id], onDelete: Cascade)
   profile                  UserProfile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  requests                 ServiceRequest[]
 
   @@index([guildId, status])
   @@index([guildId, category])
   @@index([profileId])
+}
+
+model ServiceFeedback {
+  id                String          @id @default(cuid())
+  guildId           String
+  providerProfileId String
+  clientUserId      String
+  clientName        String
+  clientAvatar      String?
+  serviceListingId  String?
+  serviceRequestId  String?         @unique // lié à une demande fermée
+  serviceTitle      String
+  category          ServiceCategory
+  rating            Int             // 1 à 5
+  comment           String?
+  isModerated       Boolean         @default(false) // masqué par un admin
+  createdAt         DateTime        @default(now())
+
+  guild             GuildConfig     @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  providerProfile   UserProfile     @relation(fields: [providerProfileId], references: [id], onDelete: Cascade)
+  request           ServiceRequest? @relation(fields: [serviceRequestId], references: [id])
+
+  @@index([guildId, providerProfileId])
+  @@index([providerProfileId])
+}
+
+model ServiceRequest {
+  id                 String                @id @default(cuid())
+  guildId            String
+  listingId          String
+  clientProfileId    String                // profil du client qui demande
+  clientUserId       String                // userId pour les notifications
+  clientName         String
+  clientAvatar       String?
+  providerProfileId  String                // profil du passeur
+  providerUserId     String
+  options            Json?                 // options sélectionnées
+  customMessage      String?               // message du client
+  status             ServiceRequestStatus  @default(PENDING)
+  discordMessageId   String?               // id du message embed Discord envoyé
+  closedAt           DateTime?
+  feedbackToken      String?               @unique // token one-time pour le feedback
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  guild              GuildConfig           @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  listing            ServiceListing        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  clientProfile      UserProfile           @relation("ServiceRequestsAsClient", fields: [clientProfileId], references: [id], onDelete: Cascade)
+  providerProfile    UserProfile           @relation("ServiceRequestsAsProvider", fields: [providerProfileId], references: [id], onDelete: Cascade)
+  feedback           ServiceFeedback?
+
+  @@index([guildId, status])
+  @@index([listingId])
+  @@index([clientProfileId])
+  @@index([providerProfileId])
 }
 
 model GuildLoan {
@@ -2525,6 +2586,13 @@ enum ServiceStatus {
   ACTIVE
   PAUSED
   CLOSED
+}
+
+enum ServiceRequestStatus {
+  PENDING   // demande envoyée, en attente de réponse du passeur
+  REPLIED   // le passeur a répondu
+  CLOSED    // le passeur a clôturé → feedback possible
+  CANCELLED // annulée
 }
 
 enum LoanType {

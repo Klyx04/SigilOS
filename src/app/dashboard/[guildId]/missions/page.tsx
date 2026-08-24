@@ -105,7 +105,7 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
     // Kama status for the widget
     const kamaStatus = (kamaRes.success && kamaRes.data) ? kamaRes.data : null;
 
-    const vitrineMode = !!guildConfig?.missionVitrineMode && !user.isAdmin;
+    const vitrineMode = !!guildConfig?.missionVitrineMode || !user.isMember;
 
     return (
         <div className="space-y-6 pb-12">

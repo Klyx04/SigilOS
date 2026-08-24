@@ -388,12 +388,27 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                     ) : <UserPlus className="w-3.5 h-3.5 text-muted-foreground/60" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <span className={cn(
-                                        "text-xs font-black block truncate",
-                                        member ? "text-foreground" : "text-muted-foreground/60"
-                                    )}>
-                                        {pseudo}
-                                    </span>
+                                    <div className="flex items-center gap-1">
+                                        <span className={cn(
+                                            "text-xs font-black truncate",
+                                            member ? "text-foreground" : "text-muted-foreground/60"
+                                        )}>
+                                            {pseudo}
+                                        </span>
+                                        {member && pseudo !== "Libre" && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(`/w ${pseudo}`);
+                                                    toast.success(`/w ${pseudo} copié !`);
+                                                }}
+                                                className="p-0.5 text-muted-foreground/50 hover:text-foreground rounded hover:bg-white/5 transition-colors shrink-0"
+                                                title={`Copier /w ${pseudo}`}
+                                            >
+                                                <Copy className="w-3 h-3" />
+                                            </button>
+                                        )}
+                                    </div>
                                     {member?.joinedAt && (
                                         <span className="text-[10px] text-foreground/30 font-medium block truncate" title={new Date(member.joinedAt).toLocaleString("fr-FR")}>
                                             {format(new Date(member.joinedAt), "d MMM à HH:mm", { locale: fr })}

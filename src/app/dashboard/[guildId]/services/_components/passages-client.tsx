@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Key, Handshake, Vault, Lock, AlertTriangle } from "lucide-react";
@@ -19,13 +20,18 @@ import { LoanCard } from "./loan-card";
 import { LoanForm } from "./loan-form";
 import { VaultTable } from "./vault-table";
 import { VaultForm } from "./vault-form";
-import { type ServiceListingWithProfile } from "@/server/actions/service-actions";
+import { type ServiceListingWithProfile, type ServiceRequestWithDetails } from "@/server/actions/service-actions";
 import { CATEGORY_LABELS } from "@/server/actions/services-constants";
 import { type LoanWithProfiles } from "@/server/actions/loan-actions";
 import { type VaultEntryWithProfile, type VaultSummaryItem } from "@/server/actions/vault-actions";
+import { type ServiceFeedbackWithProvider, type ProviderRanking } from "@/server/actions/service-feedback-actions";
+import { FeedbacksView } from "./feedbacks-view";
+import { FeedbackModal } from "./feedback-modal";
+import { ServiceRequestsView } from "./service-requests-view";
 import { ServiceCategory } from "@prisma/client";
+import { Star, MessageSquareHeart, Sparkles, Clock } from "lucide-react";
 
-type Tab = "services" | "prets" | "coffre";
+type Tab = "services" | "demandes" | "feedbacks" | "prets" | "coffre";
 
 interface PassagesClientProps {
     guildId: string;
@@ -33,6 +39,9 @@ interface PassagesClientProps {
     isAdmin: boolean;
     canCreate: boolean;
     listings: ServiceListingWithProfile[];
+    requests?: ServiceRequestWithDetails[];
+    feedbacks?: ServiceFeedbackWithProvider[];
+    rankings?: ProviderRanking[];
     loans: LoanWithProfiles[];
     vaultEntries: VaultEntryWithProfile[];
     vaultSummary: VaultSummaryItem[];
@@ -51,39 +60,15 @@ interface PassagesClientProps {
     loansChannelName?: string | null;
 }
 
-const TAB_CONFIG: { key: Tab; label: string; icon: typeof Key; color: string; activeClass: string; glow: string }[] = [
-    { 
-        key: "services", 
-        label: "Marketplace", 
-        icon: Key, 
-        color: "cyan", 
-        activeClass: "bg-info/20 text-info border-info/30 ",
-        glow: "from-info/20 to-transparent"
-    },
-    { 
-        key: "prets", 
-        label: "Prêts & Emprunts", 
-        icon: Handshake, 
-        color: "amber", 
-        activeClass: "bg-warning/20 text-warning border-warning/30 ",
-        glow: "from-warning/20 to-transparent"
-    },
-    { 
-        key: "coffre", 
-        label: "Coffre de Guilde", 
-        icon: Vault, 
-        color: "emerald", 
-        activeClass: "bg-success/20 text-success border-success/30 ",
-        glow: "from-success/20 to-transparent"
-    },
-];
-
 export function PassagesClient({
     guildId,
     profileId,
     isAdmin,
     canCreate,
     listings,
+    requests = [],
+    feedbacks = [],
+    rankings = [],
     loans,
     vaultEntries,
     vaultSummary,
@@ -94,11 +79,58 @@ export function PassagesClient({
     loansChannelName = null,
 }: PassagesClientProps) {
     const [tab, setTab] = useState<Tab>("services");
+    const searchParams = useSearchParams();
+    const router = useRouter();
 
     const [showServiceForm, setShowServiceForm] = useState(false);
     const [showLoanForm, setShowLoanForm] = useState(false);
     const [showVaultForm, setShowVaultForm] = useState(false);
+    const [feedbackTarget, setFeedbackTarget] = useState<{
+        providerProfileId: string;
+        providerName: string;
+        serviceTitle: string;
+        serviceCategory: ServiceCategory;
+        serviceListingId?: string;
+        serviceRequestId?: string;
+    } | null>(null);
     const tabsRef = useRef<HTMLDivElement>(null);
+
+    const clearFeedbackParam = () => {
+        if (typeof window !== "undefined") {
+            const url = new URL(window.location.href);
+            if (url.searchParams.has("feedback")) {
+                url.searchParams.delete("feedback");
+                window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
+            }
+        }
+    };
+
+    // Auto-select tab and open feedback modal if URL parameters are present (?feedback=token or ?tab=demandes)
+    useEffect(() => {
+        const tabParam = searchParams.get("tab");
+        if (tabParam && ["services", "demandes", "feedbacks", "prets", "coffre"].includes(tabParam)) {
+            setTab(tabParam as Tab);
+        }
+
+        const feedbackParam = searchParams.get("feedback");
+        if (feedbackParam) {
+            const found = requests.find(
+                (r) => r.feedbackToken === feedbackParam || r.id === feedbackParam || feedbackParam.startsWith(r.id)
+            );
+            if (found && !found.hasFeedback) {
+                setFeedbackTarget({
+                    providerProfileId: found.providerProfileId,
+                    providerName: found.providerProfile?.pseudoDofus || found.providerProfile?.discordNickname || "Prestataire",
+                    serviceTitle: found.listing.title,
+                    serviceCategory: found.listing.category,
+                    serviceListingId: found.listingId,
+                    serviceRequestId: found.id,
+                });
+            }
+            // Nettoie l'URL pour ne pas rouvrir la modale à chaque rafraîchissement
+            clearFeedbackParam();
+        }
+    }, [searchParams, requests]);
 
     const isMarketplaceDisabled = maintenance && !maintenance.serviceMarketplaceEnabled && !isAdmin;
     const isLoansDisabled = maintenance && !maintenance.serviceLoansEnabled && !isAdmin;
@@ -135,14 +167,11 @@ export function PassagesClient({
 
     const handleTabChange = (t: Tab) => {
         setTab(t);
-        // Fix layout shift: dé-scroller jusqu'aux onglets sans sauter
-        setTimeout(() => {
-            tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        }, 50);
     };
 
     // Global search (applies to current tab content)
     const [globalSearch, setGlobalSearch] = useState("");
+    const [feedbackSearch, setFeedbackSearch] = useState("");
 
     // Service-specific filter
     const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
@@ -180,142 +209,175 @@ export function PassagesClient({
     const archivedLoanCount = loans.filter(l => l.status === "RETURNED" || l.status === "CANCELLED").length;
 
     return (
-        <div className="space-y-6">
-            {/* Header Area */}
-            <div className="relative overflow-hidden rounded-3xl border border-border bg-background/40 p-8 shadow-2xl backdrop-blur-xl">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] pointer-events-none" />
-                <div className="absolute bottom-0 left-0 w-64 h-64 bg-info/5 blur-[100px] pointer-events-none" />
-                
-                <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6 z-10" data-tour="services-summary">
-                    <div className="flex items-center gap-6">
-                        <div className="relative h-20 w-20 shrink-0 group">
-                            <div className="absolute inset-0 bg-info/20 rounded-2xl blur-xl group-hover:bg-info/30 transition-all duration-300" />
-                            <div className="relative h-full w-full rounded-2xl border border-border bg-surface flex items-center justify-center shadow-2xl group-hover:border-info/30 transition-all duration-300">
-                                <Key className="w-10 h-10 text-info drop-shadow-[0_0_15px_rgba(6,182,212,0.6)]" strokeWidth={1.5} />
-                            </div>
-                        </div>
-                        <div>
-                            <h1 className="text-3xl font-black text-foreground tracking-tight uppercase">Services de Guilde</h1>
-                            <p className="text-muted-foreground text-sm font-medium mt-1">Gérez vos échanges, vos prêts et le stock communautaire.</p>
-                            <div className="flex items-center gap-4 mt-3">
-                                <Badge variant="outline" className="bg-surface border-border text-caption font-black uppercase tracking-widest px-3 py-1">
-                                    {listings.length} Offres actives
-                                </Badge>
-                                <Badge variant="outline" className="bg-surface border-border text-caption font-black uppercase tracking-widest px-3 py-1">
-                                    {activeLoanCount} Prêts en cours
-                                </Badge>
-                            </div>
-                        </div>
-                    </div>
+        <div className="space-y-5">
+            {/* Navigation unifiée & Actions */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-1">
+                {/* Tabs bar */}
+                <div ref={tabsRef} data-tour="services-tabs" className="flex items-center gap-1 p-1 bg-surface/80 rounded-xl border border-border overflow-x-auto no-scrollbar">
+                    <button
+                        onClick={() => handleTabChange("services")}
+                        className={cn(
+                            "flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors shrink-0",
+                            tab === "services"
+                                ? "bg-primary text-primary-foreground shadow-xs"
+                                : "text-muted-foreground hover:text-foreground hover:bg-surface"
+                        )}
+                    >
+                        <Key className="w-3.5 h-3.5" />
+                        Marketplace
+                        <span className={cn(
+                            "text-[11px] px-1.5 py-0.2 rounded-full font-bold",
+                            tab === "services" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+                        )}>
+                            {listings.length}
+                        </span>
+                    </button>
 
-                    <div className="relative w-full md:w-80 group">
-                        <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                            <Search className="h-4 w-4 text-muted-foreground group-focus-within:text-info transition-colors" />
-                        </div>
+                    <button
+                        onClick={() => handleTabChange("demandes")}
+                        className={cn(
+                            "flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors shrink-0",
+                            tab === "demandes"
+                                ? "bg-primary text-primary-foreground shadow-xs"
+                                : "text-muted-foreground hover:text-foreground hover:bg-surface"
+                        )}
+                    >
+                        <Clock className="w-3.5 h-3.5" />
+                        Demandes
+                        {requests.filter(r => r.status === "PENDING").length > 0 && (
+                            <span className="h-4 min-w-[16px] px-1 rounded-full bg-warning text-warning-foreground text-[10px] font-black flex items-center justify-center">
+                                {requests.filter(r => r.status === "PENDING").length}
+                            </span>
+                        )}
+                    </button>
+
+                    <button
+                        onClick={() => handleTabChange("feedbacks")}
+                        className={cn(
+                            "flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors shrink-0",
+                            tab === "feedbacks"
+                                ? "bg-primary text-primary-foreground shadow-xs"
+                                : "text-muted-foreground hover:text-foreground hover:bg-surface"
+                        )}
+                    >
+                        <Star className="w-3.5 h-3.5" />
+                        Livre d'or
+                        {feedbacks.length > 0 && (
+                            <span className={cn(
+                                "text-[11px] px-1.5 py-0.2 rounded-full font-bold",
+                                tab === "feedbacks" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+                            )}>
+                                {feedbacks.length}
+                            </span>
+                        )}
+                    </button>
+
+                    <button
+                        onClick={() => handleTabChange("prets")}
+                        className={cn(
+                            "flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors shrink-0",
+                            tab === "prets"
+                                ? "bg-primary text-primary-foreground shadow-xs"
+                                : "text-muted-foreground hover:text-foreground hover:bg-surface"
+                        )}
+                    >
+                        <Handshake className="w-3.5 h-3.5" />
+                        Prêts
+                        {activeLoanCount > 0 && (
+                            <span className="h-4 min-w-[16px] px-1 rounded-full bg-warning text-warning-foreground text-[10px] font-black flex items-center justify-center">
+                                {activeLoanCount}
+                            </span>
+                        )}
+                    </button>
+
+                    <button
+                        onClick={() => handleTabChange("coffre")}
+                        className={cn(
+                            "flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors shrink-0",
+                            tab === "coffre"
+                                ? "bg-primary text-primary-foreground shadow-xs"
+                                : "text-muted-foreground hover:text-foreground hover:bg-surface"
+                        )}
+                    >
+                        <Vault className="w-3.5 h-3.5" />
+                        Coffre
+                    </button>
+                </div>
+
+                {/* Right controls: Search & Primary Action */}
+                <div className="flex items-center gap-2.5 shrink-0">
+                    <div className="relative flex-1 sm:w-60">
+                        <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <Input
                             value={globalSearch}
                             onChange={(e) => setGlobalSearch(e.target.value)}
-                            placeholder="RECHERCHER DANS TOUTE LA GUILDE..."
-                            className="pl-10 bg-surface/50 border-border h-12 text-xs font-black uppercase tracking-[0.1em] placeholder:text-muted-foreground focus:border-info/40 focus:ring-info/10 transition-all rounded-xl"
+                            placeholder="Rechercher..."
+                            className="pl-8.5 h-9 bg-surface/80 border-border text-xs rounded-xl focus:border-primary"
                         />
                     </div>
-                </div>
-            </div>
 
-            {/* Tabs & Filters Navigation */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-2">
-                <div ref={tabsRef} className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-surface/40 border border-border w-fit backdrop-blur-md" data-tour="services-tabs">
-                    {TAB_CONFIG.map((t) => {
-                        const isActive = tab === t.key;
-                        const Icon = t.icon;
-                        const isDisabled = discordBlocked ||
-                            (t.key === "services" && isMarketplaceDisabled) ||
-                            (t.key === "prets" && isLoansDisabled) ||
-                            (t.key === "coffre" && isVaultDisabled);
-
-                        return (
-                            <button
-                                key={t.key}
-                                onClick={() => !isDisabled && handleTabChange(t.key)}
-                                className={cn(
-                                    "relative flex items-center gap-2.5 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-[0.1em] transition-all duration-300 overflow-hidden",
-                                    isActive ? t.activeClass : "text-muted-foreground hover:text-foreground hover:bg-surface",
-                                    isDisabled && "opacity-50 cursor-not-allowed hover:bg-transparent"
-                                )}
-                            >
-                                {isActive && (
-                                    <div className={cn("absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r", t.glow)} />
-                                )}
-                                {isDisabled ? <Lock className="h-3.5 w-3.5 text-warning" /> : <Icon className="h-4 w-4" />}
-                                {t.label}
-                                {t.key === "prets" && activeLoanCount > 0 && (
-                                    <div className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-warning text-warning-foreground text-caption font-black px-1 ">
-                                        {activeLoanCount}
-                                    </div>
-                                )}
-                            </button>
-                        );
-                    })}
-                </div>
-
-                <div className="flex items-center gap-3">
                     {tab === "services" && canCreate && !isMarketplaceDisabled && (
                         <Button
                             data-tour="services-create"
                             disabled={discordBlocked}
                             onClick={() => setShowServiceForm(true)}
-                            className="bg-info hover:bg-info text-info-foreground font-black uppercase tracking-widest h-11 px-6 rounded-xl   transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-info disabled:shadow-none"
+                            size="sm"
+                            className="h-9 px-3.5 text-xs font-bold rounded-xl shadow-xs"
                         >
-                            <Plus className="h-4 w-4 mr-2" strokeWidth={3} /> Publier une offre
+                            <Plus className="h-3.5 w-3.5 mr-1.5" /> Publier une offre
                         </Button>
                     )}
                     {tab === "prets" && canCreate && !isLoansDisabled && (
                         <Button
                             disabled={discordBlocked}
                             onClick={() => setShowLoanForm(true)}
-                            className="bg-warning hover:bg-warning text-warning-foreground font-black uppercase tracking-widest h-11 px-6 rounded-xl   transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-warning disabled:shadow-none"
+                            size="sm"
+                            className="h-9 px-3.5 text-xs font-bold rounded-xl shadow-xs"
                         >
-                            <Plus className="h-4 w-4 mr-2" strokeWidth={3} /> Nouveau prêt
+                            <Plus className="h-3.5 w-3.5 mr-1.5" /> Nouveau prêt
                         </Button>
                     )}
                     {tab === "coffre" && canCreate && !isVaultDisabled && (
                         <Button
                             disabled={discordBlocked}
                             onClick={() => setShowVaultForm(true)}
-                            className="bg-success hover:bg-success text-success-foreground font-black uppercase tracking-widest h-11 px-6 rounded-xl   transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-success disabled:shadow-none"
+                            size="sm"
+                            className="h-9 px-3.5 text-xs font-bold rounded-xl shadow-xs"
                         >
-                            <Plus className="h-4 w-4 mr-2" strokeWidth={3} /> Enregistrer un item
+                            <Plus className="h-3.5 w-3.5 mr-1.5" /> Enregistrer un item
                         </Button>
                     )}
                 </div>
             </div>
 
             {!isCurrentDiscordConfigured && (
-                <div className="flex items-center gap-3 p-4 rounded-2xl bg-warning/10 border border-warning/20 text-warning text-xs font-bold animate-in fade-in duration-300">
-                    <AlertTriangle className="w-5 h-5 shrink-0" />
+                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-warning/10 border border-warning/20 text-warning text-xs font-medium">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
                     <div>
-                        <p className="font-black uppercase tracking-wider text-caption">Salon Discord non configuré</p>
-                        <p className="text-muted-foreground font-medium mt-0.5">{[`Le salon pour les notifications n'est pas configuré dans l'administration de la guilde (Paramètres ${'>'} Prêts/Services). Les créations d'offres, de prêts et d'enregistrements sont désactivées.`]}</p>
+                        <p className="font-bold">Salon Discord non configuré</p>
+                        <p className="text-muted-foreground text-[11px] mt-0.5">Le salon de notifications n'est pas renseigné dans l'administration (Paramètres {'>'} Services). Les créations d'offres et prêts sont désactivées.</p>
                     </div>
                 </div>
             )}
 
             {/* TAB: Services */}
-            <div className={tab === "services" ? "block" : "hidden"}>
+            <div className={tab === "services" ? "block" : "hidden"} data-tour="services-board">
                 {isMarketplaceDisabled ? (
                     <MaintenanceView label="Services" message={maintenance?.serviceMarketplaceMessage} />
                 ) : (
                     <div className="space-y-4 animate-in fade-in duration-200">
                         {maintenance && !maintenance.serviceMarketplaceEnabled && isAdmin && (
-                            <div className="flex items-center gap-2 p-2 rounded-lg bg-warning/10 border border-warning/20 text-warning text-caption font-black uppercase tracking-widest mb-4">
-                                <AlertTriangle className="w-3 h-3" /> Sous maintenance (Visible uniquement par l'admin)
+                            <div className="flex items-center gap-2 p-2 rounded-lg bg-warning/10 border border-warning/20 text-warning text-xs font-bold mb-3">
+                                <AlertTriangle className="w-3.5 h-3.5" /> Mode maintenance actif (Visible uniquement par l'admin)
                             </div>
                         )}
-                        <div className="flex items-center gap-4 flex-wrap bg-surface/40 p-4 rounded-2xl border border-border">
-                            <div className="flex items-center gap-3">
-                                <span className="text-caption font-black uppercase tracking-widest text-muted-foreground">Filtrer par</span>
+
+                        {/* Filtre de catégorie épuré */}
+                        <div className="flex items-center justify-between gap-3 pt-1">
+                            <div className="flex items-center gap-2.5">
+                                <span className="text-xs font-bold text-muted-foreground">Catégorie :</span>
                                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                                    <SelectTrigger className="w-[200px] bg-background/50 border-border h-10 rounded-xl focus:border-info/50">
+                                    <SelectTrigger className="w-[190px] bg-surface/80 border-border h-8.5 text-xs rounded-xl">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent className="bg-background border-border">
@@ -326,6 +388,10 @@ export function PassagesClient({
                                     </SelectContent>
                                 </Select>
                             </div>
+
+                            <span className="text-xs text-muted-foreground">
+                                {filteredListings.length} {filteredListings.length > 1 ? "offres disponibles" : "offre disponible"}
+                            </span>
                         </div>
 
                         {filteredListings.length === 0 ? (
@@ -339,12 +405,54 @@ export function PassagesClient({
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                                 {filteredListings.map((listing) => (
-                                    <ServiceCard key={listing.id} listing={listing} guildId={guildId} currentProfileId={profileId} isAdmin={isAdmin} servicesDiscordConfigured={servicesDiscordConfigured} />
+                                    <ServiceCard
+                                        key={listing.id}
+                                        listing={listing}
+                                        guildId={guildId}
+                                        currentProfileId={profileId}
+                                        isAdmin={isAdmin}
+                                        servicesDiscordConfigured={servicesDiscordConfigured}
+                                        onFeedbackClick={() => {
+                                            const providerName = listing.profile.pseudoDofus || listing.profile.discordNickname || listing.profile.user?.name || listing.title;
+                                            setFeedbackSearch(providerName);
+                                            setTab("feedbacks");
+                                        }}
+                                    />
                                 ))}
                             </div>
                         )}
                     </div>
                 )}
+            </div>
+
+            {/* TAB: Demandes en cours */}
+            <div className={tab === "demandes" ? "block" : "hidden"}>
+                <ServiceRequestsView
+                    guildId={guildId}
+                    requests={requests}
+                    currentProfileId={profileId}
+                    isAdmin={isAdmin}
+                    onLeaveFeedback={(req) => setFeedbackTarget({
+                        providerProfileId: req.providerProfileId,
+                        providerName: req.providerProfile?.pseudoDofus || req.providerProfile?.discordNickname || "Prestataire",
+                        serviceTitle: req.listing.title,
+                        serviceCategory: req.listing.category,
+                        serviceListingId: req.listingId,
+                        serviceRequestId: req.id,
+                    })}
+                />
+            </div>
+
+            {/* TAB: Livre d'or & Feedbacks */}
+            <div className={tab === "feedbacks" ? "block" : "hidden"}>
+                <FeedbacksView
+                    guildId={guildId}
+                    feedbacks={feedbacks}
+                    rankings={rankings}
+                    isAdmin={isAdmin}
+                    searchQuery={feedbackSearch}
+                    onSearchQueryChange={setFeedbackSearch}
+                />
             </div>
 
             {/* TAB: Prêts */}
@@ -354,39 +462,40 @@ export function PassagesClient({
                 ) : (
                     <div className="space-y-4 animate-in fade-in duration-200">
                         {maintenance && !maintenance.serviceLoansEnabled && isAdmin && (
-                            <div className="flex items-center gap-2 p-2 rounded-lg bg-warning/10 border border-warning/20 text-warning text-caption font-black uppercase tracking-widest mb-4">
-                                <AlertTriangle className="w-3 h-3" /> Sous maintenance (Visible uniquement par l'admin)
+                            <div className="flex items-center gap-2 p-2 rounded-lg bg-warning/10 border border-warning/20 text-warning text-xs font-bold mb-3">
+                                <AlertTriangle className="w-3.5 h-3.5" /> Mode maintenance actif (Visible uniquement par l'admin)
                             </div>
                         )}
-                        <div className="flex items-center gap-3 flex-wrap bg-surface/40 p-4 rounded-2xl border border-border">
-                            <span className="text-caption font-black uppercase tracking-widest text-muted-foreground">Statut</span>
-                            <div className="flex items-center gap-2 flex-wrap">
-                                {/* Pills filtre */}
-                                {([
-                                    { key: "ACTIVE", label: "En cours", color: "border-info/40 bg-info/10 text-info ", badge: activeLoanCount },
-                                    { key: "MINE", label: "Mes prêts", color: "border-violet-500/40 bg-violet-500/10 text-violet-400 ", badge: null },
-                                    { key: "ARCHIVED", label: "Historique", color: "border-border bg-surface text-muted-foreground shadow-none", badge: archivedLoanCount },
-                                ] as const).map(({ key, label, color, badge }) => (
-                                    <button
-                                        key={key}
-                                        onClick={() => setLoanFilter(key)}
-                                        className={cn(
-                                            "flex items-center gap-2 text-caption font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-all duration-300",
-                                            loanFilter === key ? color : "border-border bg-transparent text-muted-foreground hover:text-foreground hover:bg-surface"
-                                        )}
-                                    >
-                                        {label}
-                                        {badge !== null && badge > 0 && (
-                                            <span className={cn(
-                                                "min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-caption font-black px-1",
-                                                loanFilter === key ? "bg-elevated text-foreground" : "bg-surface text-muted-foreground"
-                                            )}>
-                                                {badge}
-                                            </span>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
+
+                        {/* Filtre de statut propre & stable */}
+                        <div className="flex items-center gap-2 flex-wrap pt-1">
+                            <span className="text-xs font-bold text-muted-foreground mr-1">Statut :</span>
+                            {([
+                                { key: "ACTIVE", label: "En cours", badge: activeLoanCount },
+                                { key: "MINE", label: "Mes prêts", badge: null },
+                                { key: "ARCHIVED", label: "Historique", badge: archivedLoanCount },
+                            ] as const).map(({ key, label, badge }) => (
+                                <button
+                                    key={key}
+                                    onClick={() => setLoanFilter(key)}
+                                    className={cn(
+                                        "flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors",
+                                        loanFilter === key
+                                            ? "bg-primary text-primary-foreground border-primary"
+                                            : "border-border bg-surface text-muted-foreground hover:text-foreground hover:bg-surface/80"
+                                    )}
+                                >
+                                    {label}
+                                    {badge !== null && badge > 0 && (
+                                        <span className={cn(
+                                            "text-[10px] font-bold px-1.5 py-0.2 rounded-full",
+                                            loanFilter === key ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+                                        )}>
+                                            {badge}
+                                        </span>
+                                    )}
+                                </button>
+                            ))}
                         </div>
                         {filteredLoans.length === 0 ? (
                             <div className="flex flex-col items-center justify-center min-h-[300px] border border-dashed border-border rounded-xl bg-surface">
@@ -454,6 +563,27 @@ export function PassagesClient({
                 guildId={guildId}
                 isDiscordConfigured={vaultDiscordConfigured}
             />
+            {feedbackTarget && (
+                <FeedbackModal
+                    isOpen={!!feedbackTarget}
+                    onClose={() => {
+                        setFeedbackTarget(null);
+                        clearFeedbackParam();
+                    }}
+                    onSuccess={() => {
+                        setFeedbackTarget(null);
+                        clearFeedbackParam();
+                        router.refresh();
+                    }}
+                    guildId={guildId}
+                    providerProfileId={feedbackTarget.providerProfileId}
+                    providerName={feedbackTarget.providerName}
+                    serviceTitle={feedbackTarget.serviceTitle}
+                    serviceCategory={feedbackTarget.serviceCategory}
+                    serviceListingId={feedbackTarget.serviceListingId}
+                    serviceRequestId={feedbackTarget.serviceRequestId}
+                />
+            )}
         </div>
     );
 }

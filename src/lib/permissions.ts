@@ -11,6 +11,7 @@ export const PERMISSIONS = {
     STAFF_MEMBER_MGMT: "staff:member_mgmt",
     STAFF_CONTENT: "staff:content",
     STAFF_AUDIT: "staff:audit",
+    STAFF_REACTION_ROLES: "staff:reaction_roles",
 
     // Modules & Information
     PRESENTATION_VIEW: "presentation:view",
@@ -85,6 +86,12 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         description: "Accès aux Audit Logs administrateurs (actions sensibles, historique des modifications).", 
         module: "admin",
         modules: ["Audit Logs"]
+    },
+    [PERMISSIONS.STAFF_REACTION_ROLES]: { 
+        label: "Rôles par Réaction & Menus", 
+        description: "Créer, modifier, déployer et synchroniser les panneaux de reaction roles (boutons, listes, réactions).", 
+        module: "admin",
+        modules: ["Reaction Roles", "Déploiement Discord", "Packs d'Icônes"]
     },
     [PERMISSIONS.SYSTEM_CONFIG]: { 
         label: "Paramétrage Technique", 

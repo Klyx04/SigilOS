@@ -29,6 +29,7 @@ import {
     Camera,
     Gavel,
     CalendarClock,
+    Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -86,6 +87,7 @@ const MODULE_ROUTES: Partial<Record<ModuleKey, { label: string; href: string }[]
         { label: "Annuaire", href: "/dashboard/{guildId}/members" },
     ],
     logs: [{ label: "Audit Logs", href: "/dashboard/{guildId}/admin/logs" }],
+    reactionRoles: [{ label: "Rôles par Réaction", href: "/dashboard/{guildId}/reaction-roles" }],
 };
 
 type ModuleGroup = {
@@ -311,6 +313,15 @@ const MODULE_GROUPS: ModuleGroup[] = [
     {
         label: "Administration",
         modules: [
+            {
+                key: "reactionRoles",
+                label: "Rôles par Réaction (Reaction Roles)",
+                description: "Panneaux de sélection de rôles Discord interactifs avec boutons, menus déroulants, swap automatique et packs d'icônes.",
+                icon: Sparkles,
+                color: "text-violet-400",
+                bgColor: "bg-violet-500/10",
+                borderColor: "border-violet-500/30",
+            },
             {
                 key: "logs",
                 label: "Logs d'Audit",

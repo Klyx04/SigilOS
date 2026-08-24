@@ -41,6 +41,7 @@ const UpdateModulesSchema = z.object({
     manualLadderSync: z.boolean(),
     minigames: z.boolean(),
     succes: z.boolean(),
+    reactionRoles: z.boolean(),
 });
 
 type ActionResponse<T = undefined> = {
@@ -103,6 +104,7 @@ export const getGuildModules = cache(async (discordGuildId: string): Promise<Gui
             availability: dbModules.availability ?? DEFAULT_MODULES.availability,
             logs: dbModules.logs ?? DEFAULT_MODULES.logs,
             admin: dbModules.admin ?? DEFAULT_MODULES.admin,
+            reactionRoles: dbModules.reactionRoles ?? DEFAULT_MODULES.reactionRoles,
             quests: dbModules.quests ?? DEFAULT_MODULES.quests,
             worldmap: dbModules.worldmap ?? DEFAULT_MODULES.worldmap,
             resources: dbModules.resources ?? DEFAULT_MODULES.resources,

@@ -423,6 +423,8 @@ model GuildConfig {
   welcomePosts                     MemberWelcome[]
   missions                         Mission[]
   ocreTradeRequests                OcreTradeRequest[]
+  reactionRoleGroups               ReactionRoleGroup[]
+  reactionRoleIconPacks            ReactionRoleIconPack[]
   polls                            Poll[]
   relances                         Relance[]
   resourceCategories               ResourceCategory[]
@@ -509,6 +511,7 @@ model GuildModules {
   manualLadderSync Boolean     @default(true)
   availability     Boolean     @default(false)
   succes           Boolean     @default(false)
+  reactionRoles    Boolean     @default(true)
   guild            GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
 }
 
@@ -1209,24 +1212,95 @@ model OcrApiUsage {
 }
 
 model OcreTradeRequest {
-  id              String      @id @default(cuid())
-  guildId         String
-  requesterId     String
-  targetId        String
-  monsterId       Int
-  status          TradeStatus @default(PENDING)
-  message         String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  monsterImageUrl String?
-  monsterName     String?
-  guild           GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  requester       UserProfile @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade)
-  target          UserProfile @relation("Target", fields: [targetId], references: [id], onDelete: Cascade)
+  id                    String      @id @default(cuid())
+  guildId               String
+  requesterId           String
+  targetId              String
+  monsterId             Int
+  monsterName           String?
+  monsterImageUrl       String?
+  monsterStep           Int?
+  offeredMonsterId      Int?
+  offeredMonsterName    String?
+  offeredMonsterImageUrl String?
+  offeredMonsterStep    Int?
+  status                TradeStatus @default(PENDING)
+  message               String?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  guild                 GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  requester             UserProfile @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  target                UserProfile @relation("Target", fields: [targetId], references: [id], onDelete: Cascade)
 
   @@index([guildId, status])
   @@index([targetId, status])
   @@index([requesterId, status])
+}
+
+model ReactionRoleGroup {
+  id               String               @id @default(cuid())
+  guildId          String
+  name             String
+  description      String?
+  channelId        String
+  messageId        String?
+  logChannelId     String?
+  mode             String               @default("NORMAL") // NORMAL, UNIQUE, VERIFY, REVERSE
+  style            String               @default("BUTTONS") // BUTTONS, SELECT_MENU, REACTIONS
+  maxRoles         Int?
+  embedTitle       String?
+  embedDescription String?
+  embedColor       String?              @default("#10b981")
+  embedThumbnail   String?
+  embedImage       String?
+  embedFooter      String?
+  showRoleCount    Boolean              @default(false)
+  isActive         Boolean              @default(true)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  options          ReactionRoleOption[]
+  guild            GuildConfig          @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId])
+}
+
+model ReactionRoleOption {
+  id                  String            @id @default(cuid())
+  groupId             String
+  roleId              String
+  roleName            String
+  roleColor           String?
+  emoji               String?
+  label               String?
+  description         String?
+  buttonStyle         String            @default("SECONDARY") // PRIMARY, SECONDARY, SUCCESS, DANGER
+  position            Int               @default(0)
+  maxMembers          Int?
+  removeRoleId        String?           // Rôle à retirer automatiquement lors de l'attribution
+  removeRoleName      String?
+  requiredRoleId      String?           // Rôle prérequis obligatoire pour pouvoir cliquer
+  requiredRoleName    String?
+  blacklistedRoleId   String?           // Rôle interdit (bloque l'attribution si possédé)
+  blacklistedRoleName String?
+  group               ReactionRoleGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+}
+
+model ReactionRoleIconPack {
+  id          String       @id @default(cuid())
+  name        String
+  category    String       @default("CUSTOM") // DOFUS_CLASSES, ELEMENTS, ALIGNMENTS, PROFESSIONS, NOTIFICATIONS, CUSTOM
+  description String?
+  icons       Json
+  isGodOnly   Boolean      @default(false)
+  guildId     String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  guild       GuildConfig? @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId])
+  @@index([category])
 }
 
 model GuildBonus {

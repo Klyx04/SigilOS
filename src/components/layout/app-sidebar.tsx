@@ -236,6 +236,7 @@ export function AppSidebar({
             `/dashboard/${guildId}/admin/points`,
             `/dashboard/${guildId}/missions/manage`,
             `/dashboard/${guildId}/admin/logs`,
+            `/dashboard/${guildId}/reaction-roles`,
         ]
     };
 

@@ -66,9 +66,9 @@ export function FeedBell({ guildId, className }: { guildId: string, className?: 
         <Popover open={isOpen} onOpenChange={handleOpenChange}>
             <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className={cn("relative text-muted-foreground hover:text-foreground transition-colors", className)}>
-                    <Rss className="h-5 w-5" />
+                    <Rss className="h-4 w-4" />
                     {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 flex min-w-[1.125rem] h-4.5 px-1 items-center justify-center rounded-full bg-success text-[10px] font-black text-success-foreground ring-2 ring-background animate-in zoom-in duration-200">
+                        <span className="absolute -top-1 -right-1 z-10 flex min-w-[1rem] h-4 px-1 items-center justify-center rounded-full bg-success text-[9px] font-black text-success-foreground ring-2 ring-background animate-in zoom-in duration-200 shadow-sm">
                             {unreadCount > 9 ? "9+" : unreadCount}
                         </span>
                     )}

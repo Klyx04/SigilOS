@@ -48,7 +48,7 @@
 
 ## 🟠 Retours user (suite #202)
 
-- **#227** — Épurer l'UI de la notif partout (badges compteur + toasts, charte design-system, zéro glow, OKLCH).
+- **#227** — ✅ FAIT (24/08) : Épuration globale UI des notifications (cloches `NotificationBell` / `FeedBell` / `GodNotificationPanel` / page notifs — harmonisation des badges de compteurs, suppression des glow/gradients et ombres criardes, tokens OKLCH, dates en français).
 - **#228** — ✅ FAIT + VALIDÉ (23/08, `feat/chantier-2026-08-23-one-shot`) : garde appliquée à galerie /
   présentation / services / donjons + interception `router.push`/`replace` **validée** : mécanisme confirmé
   sur Next 16 (`useRouter()` → instance router partagée & modifiable, `window.next.router`). Tests unitaires
@@ -79,8 +79,7 @@
 #192 bouton « Suivant » · #199 tour tuto Succès · #202 / #204 RBAC · #206 Dofoobz centralisé
 · #223 P0/P1/P2 · #127 audit RBAC · #85 blacklist embeds · #169 · #101 SEO almanax · #176 fiches boss
 · #181 privacy OCR · #96 README déploiement CD · #41bis circuit-breaker Dofusbook · #140 landing God → `page.tsx`
-· #232 legal (crédits Dofensive/DPLN) · #231 ladder RBAC profil membre · #230 transfert propriété durci
-· ✅ #228 garde anti-nav (4 formulaires + `router.push`/`replace` — interception validée + tests) · ✅ #226 cartes dj/quêtes (P1/3/4, P5 drawer → modale fermable, P2 hiérarchie créneau en tête, P6 transitions) · ✅ #225 Dokille (édition image God + seed 4 quêtes Safari + prérequis + trackeur krokilles 20 archis) · ✅ #233 Guide gestion guilde & Discord (permissions, architecture, sorties, synergie SigilOS). (#207 FAQ · #23/#134 avatar · #26/#177 donjons : traités/poussés le 23/08.)
+· ✅ #228 garde anti-nav (4 formulaires + `router.push`/`replace` — interception validée + tests) · ✅ #226 cartes dj/quêtes (P1/3/4, P5 drawer → modale fermable, P2 hiérarchie créneau en tête, P6 transitions) · ✅ #225 Dokille (édition image God + seed 4 quêtes Safari + prérequis + trackeur krokilles 20 archis) · ✅ #233 Guide gestion guilde & Discord (permissions, architecture, sorties, synergie SigilOS) · ✅ #208 Planning & dispos (plages horaires explicites, icônes distinctes, chips textuelles) · ✅ #209 Contraste bouton « Suivant » / « Créer » Calendrier (`text-warning-foreground`) · ✅ #221 Polish UI/contrastes (onglets création Songes, modale marché Ocre + filtre hideOwned, harmonisation boutons DofusDB) · ✅ #224 Fiches Boss & Siphon (chargement instantané du catalogue, lazy-loading par boss sélectionné avec cache, sous-onglets épurés, alertes/notifications God crons siphon Dofensive) · ✅ #180 Ocre, Metamob Sync, Troc & Place de Marché UI (transfert unitaire strict -1/+1, troc bilatéral avec étape archimonstre, boutons de stock +/-, refonte onglets) · ✅ Songes UI (bouton clôturer dé-jauni dark mode, boutons pros h-11) · ✅ Module Monumental Reaction Roles (RBAC, 4 modes NORMAL/UNIQUE/VERIFY/REVERSE, 2 styles BUTTONS/SELECT_MENU, swap auto removeRoleId, prérequis, blacklists, simulateur Discord live, 1-clic deploy, packs d'icônes GOD drag & drop visual importer). (#207 FAQ · #23/#134 avatar · #26/#177 donjons : traités/poussés le 23/08.)
 
 ---
 

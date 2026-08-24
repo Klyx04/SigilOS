@@ -108,6 +108,19 @@ const CHAR_NAMES: Record<number, string> = {
     125: "Vitalité",
 };
 
+/**
+ * 🛡️ Résolution locale-first des images d'items.
+ * -> /api/assets-dofus/items/{id} : proxy auto-siphon WebP (0 404, 0 appel externe visible)
+ * Fallback : si l'id est inconnu, on passe l'URL distante telle quelle via le proxy générique.
+ */
+function getItemImageUrl(id?: number | string | null, fallbackUrl?: string | null): string {
+    if (id) {
+        const query = fallbackUrl ? `?url=${encodeURIComponent(fallbackUrl)}` : '';
+        return `/api/assets-dofus/items/${id}${query}`;
+    }
+    return fallbackUrl || '';
+}
+
 const TYPE_COLORS: Record<string, string> = {
     "Arme": "#ef4444",
     "Équipement": "#a855f7",
@@ -493,7 +506,7 @@ export function ItemSearchPanel() {
                                     )}
                                 >
                                     <div className="w-11 h-11 rounded-xl bg-background flex items-center justify-center border border-border shrink-0 group- transition-transform">
-                                        <Image src={item.imgset?.[0]?.icon || item.img || ""} alt={item.name.fr} width={32} height={32} className="object-contain" unoptimized />
+                                        <Image src={getItemImageUrl(item.id, item.imgset?.[0]?.icon || item.img)} alt={item.name.fr} width={32} height={32} className="object-contain" unoptimized />
                                     </div>
                                     <div className="min-w-0 text-left">
                                         <div className="text-body-sm font-bold text-foreground group-hover:text-foreground truncate">{item.name.fr}</div>
@@ -595,7 +608,7 @@ export function ItemSearchPanel() {
                                     )}
                                 >
                                     <div className="w-11 h-11 rounded-xl bg-background flex items-center justify-center border border-border shrink-0 group- transition-transform">
-                                        <Image src={`https://www.dofusbook.net/static/dist/items/${item.picture || item.picture_id || item.id}-70.webp`} alt={item.name} width={32} height={32} className="object-contain" unoptimized />
+                                        <Image src={getItemImageUrl(item.id, `https://www.dofusbook.net/static/dist/items/${item.picture || item.picture_id || item.id}-70.webp`)} alt={item.name} width={32} height={32} className="object-contain" unoptimized />
                                     </div>
                                     <div className="min-w-0 text-left">
                                         <div className="text-body-sm font-bold text-foreground group-hover:text-foreground truncate">{item.name}</div>
@@ -687,7 +700,7 @@ export function ItemSearchPanel() {
                                         )} />
                                         <div className="w-40 h-40 rounded-2xl bg-background border border-border flex items-center justify-center relative z-10 shadow-sm">
                                             <Image
-                                                src={selectedItem.imgset?.[0]?.sd || selectedItem.img || ""}
+                                                src={getItemImageUrl(selectedItem.id, selectedItem.imgset?.[0]?.sd || selectedItem.img)}
                                                 alt={selectedItem.name.fr}
                                                 width={120}
                                                 height={120}
@@ -797,7 +810,7 @@ export function ItemSearchPanel() {
                                                         {recipe.ingredients.map((ing, i) => (
                                                             <div key={i} className="flex items-center gap-4 p-3 rounded-2xl bg-surface border border-border group/ing hover:border-border transition-colors">
                                                                 <div className="w-12 h-12 rounded-xl bg-background flex items-center justify-center shrink-0">
-                                                                    <Image src={ing.img || `https://static.dofusdb.fr/items/${ing.id}.png`} alt="Ingredient" width={32} height={32} unoptimized />
+                                                                    <Image src={getItemImageUrl(ing.id, ing.img)} alt="Ingredient" width={32} height={32} unoptimized />
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
                                                                     <div className="text-label font-bold text-foreground truncate group-hover/ing:text-foreground transition-colors">{ing.name.fr}</div>

@@ -20,7 +20,7 @@ export async function GET(req: Request) {
         const result = await syncDofensiveMaps();
         logger.info("[Cron:SyncDofensiveMaps] Synchronisation terminée:", result);
 
-        // Visibilité dans le Dashboard GOD (Audit Logs) — sans session utilisateur.
+        // Visibilité dans le Dashboard GOD (Audit Logs & Alertes) — sans session utilisateur.
         await createSystemAuditLog({
             cron: "sync-dofensive-maps",
             targetId: "sync-dofensive-maps",
@@ -29,6 +29,21 @@ export async function GET(req: Request) {
             skippedFresh: result.skippedFresh,
             errorsCount: result.errors.length,
             errors: result.errors.slice(0, 5),
+        });
+
+        // Envoi d'une alerte/notification God
+        const { notifyGod } = await import("@/server/actions/god-notif-actions");
+        await notifyGod({
+            title: "Siphon Maps Dofensive terminé",
+            message: `${result.synced} maps synchronisées, ${result.unchanged} inchangées (${result.errors.length} erreurs).`,
+            type: "WORKER_SYNC",
+            success: result.errors.length === 0,
+            metadata: {
+                synced: result.synced,
+                unchanged: result.unchanged,
+                skippedFresh: result.skippedFresh,
+                errorsCount: result.errors.length,
+            },
         });
 
         return NextResponse.json({ success: true, result });

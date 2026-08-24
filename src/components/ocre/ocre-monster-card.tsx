@@ -37,6 +37,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
     updateMonsterTradeParamsAction,
+    updateUserMonsterQuantityAction,
 } from "@/server/actions/ocre-actions";
 import { toast } from "sonner";
 
@@ -79,6 +80,7 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
     isSelectionMode = false,
     onToggleSelection,
 }: OcreMonsterCardProps) {
+    const [currentQuantity, setCurrentQuantity] = useState(monster.owned);
     const [showPartners, setShowPartners] = useState(false);
     const [partners, setPartners] = useState<ExchangePartner[]>([]);
     const [copiedUser, setCopiedUser] = useState<string | null>(null);
@@ -234,9 +236,59 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
                                     {monster.name}
                                 </h3>
                                 <div className={cn("flex flex-col items-end gap-1 shrink-0", isSelectionMode && "pointer-events-none opacity-50")}>
-                                    <Badge variant="outline" className={cn("text-xs", config.color)}>
-                                        {config.icon} x{monster.owned}
-                                    </Badge>
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            type="button"
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
+                                                if (currentQuantity <= 0) return;
+                                                const nextQty = Math.max(0, currentQuantity - 1);
+                                                setCurrentQuantity(nextQty);
+                                                try {
+                                                    const res = await updateUserMonsterQuantityAction({ guildId, monsterId: monster.id, quantity: nextQty });
+                                                    if (!res.success) {
+                                                        toast.error(res.error || "Échec de la mise à jour");
+                                                        setCurrentQuantity(currentQuantity);
+                                                    } else {
+                                                        toast.success(`Quantité mise à jour : ${nextQty}`);
+                                                    }
+                                                } catch {
+                                                    setCurrentQuantity(currentQuantity);
+                                                }
+                                            }}
+                                            disabled={currentQuantity <= 0}
+                                            className="w-5 h-5 flex items-center justify-center rounded-md bg-surface border border-border text-muted-foreground hover:text-foreground hover:bg-elevated disabled:opacity-30 transition-all text-xs font-bold"
+                                            title="Diminuer la quantité sur Metamob (-1)"
+                                        >
+                                            -
+                                        </button>
+                                        <Badge variant="outline" className={cn("text-xs font-bold px-1.5 py-0.5", config.color)}>
+                                            {config.icon} x{currentQuantity}
+                                        </Badge>
+                                        <button
+                                            type="button"
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
+                                                const nextQty = currentQuantity + 1;
+                                                setCurrentQuantity(nextQty);
+                                                try {
+                                                    const res = await updateUserMonsterQuantityAction({ guildId, monsterId: monster.id, quantity: nextQty });
+                                                    if (!res.success) {
+                                                        toast.error(res.error || "Échec de la mise à jour");
+                                                        setCurrentQuantity(currentQuantity);
+                                                    } else {
+                                                        toast.success(`Quantité mise à jour : ${nextQty}`);
+                                                    }
+                                                } catch {
+                                                    setCurrentQuantity(currentQuantity);
+                                                }
+                                            }}
+                                            className="w-5 h-5 flex items-center justify-center rounded-md bg-surface border border-border text-muted-foreground hover:text-foreground hover:bg-elevated transition-all text-xs font-bold"
+                                            title="Augmenter la quantité sur Metamob (+1)"
+                                        >
+                                            +
+                                        </button>
+                                    </div>
                                     
                                     {/* Manual Trade Override Popover */}
                                     <Popover>

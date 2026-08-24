@@ -122,8 +122,7 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
                     </div>
                 )}
             </div>
-
-            {/* Sync All Mules toggle button */}
+            {/* Sync all mules toggle */}
             <button
                 onClick={(e) => {
                     e.preventDefault();
@@ -133,8 +132,8 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
                     localStorage.setItem("dofus-sync-all-mules", String(nextVal));
                     window.dispatchEvent(new Event("dofus-sync-all-mules-changed"));
                 }}
-                className={`absolute top-3 right-12 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200  border ${
-                    syncAllMules ? "bg-info/10 border-info/30 text-info" : "bg-surface border-border text-muted-foreground hover:text-info-foreground"
+                className={`absolute top-2.5 right-24 sm:right-28 z-10 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 border ${
+                    syncAllMules ? "bg-info/10 border-info/30 text-info" : "bg-surface/80 border-border text-muted-foreground hover:text-info-foreground"
                 }`}
                 style={{
                     borderColor: syncAllMules ? `${color}66` : undefined,
@@ -143,29 +142,39 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
                 }}
                 title={syncAllMules ? "Sync multi-personnages ACTIVE (Appliquer à tous)" : "Sync multi-personnages INACTIVE (Seulement ce perso)"}
             >
-                <RefreshCw className="w-3.5 h-3.5" />
+                <RefreshCw className="w-3 h-3" />
             </button>
 
-            {/* Obtained toggle button */}
+            {/* Obtained toggle button (badge ultra-clair) */}
             <button
                 onClick={handleToggleObtained}
                 disabled={isPending}
                 className={cn(
-                    "absolute top-3 right-3 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 border",
-                    isObtained ? "border-transparent text-white shadow-md" : "bg-muted/50 border-border text-muted-foreground hover:bg-muted"
+                    "absolute top-2.5 right-2.5 z-10 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider transition-all duration-200 border shadow-sm",
+                    isObtained
+                        ? "text-white shadow-md hover:scale-105"
+                        : "bg-surface/90 border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground hover:bg-elevated"
                 )}
                 style={isObtained ? {
                     background: color,
                     borderColor: color,
-                    boxShadow: `0 0 10px ${color}66`,
+                    boxShadow: `0 0 12px ${color}66`,
                 } : undefined}
-                title={isObtained ? "Marquer comme non obtenu" : "Marquer comme obtenu"}
+                title={isObtained ? "Dofus obtenu (cliquer pour retirer)" : "Marquer ce Dofus comme obtenu"}
                 aria-label={isObtained ? "Dofus obtenu — cliquer pour annuler" : "Marquer comme obtenu"}
             >
-                {isObtained ? (
-                    <span className="text-sm font-bold text-white">✓</span>
+                {isPending ? (
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                ) : isObtained ? (
+                    <>
+                        <span className="text-xs font-black">✓</span>
+                        <span className="hidden sm:inline">Obtenu</span>
+                    </>
                 ) : (
-                    <span className="text-sm">○</span>
+                    <>
+                        <span className="text-[10px] opacity-70">○</span>
+                        <span className="hidden sm:inline">À valider</span>
+                    </>
                 )}
             </button>
 

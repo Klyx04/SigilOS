@@ -274,8 +274,8 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button className="h-14 px-8 text-lg bg-info hover:bg-info text-info-foreground gap-3 font-black uppercase tracking-wider flex-1 min-w-[240px] transition-colors">
-                    <Plus className="w-6 h-6" />
+                <Button className="h-11 px-5 text-sm bg-info hover:bg-info/90 text-info-foreground gap-2 font-bold rounded-xl shadow-sm transition-all">
+                    <Plus className="w-4 h-4" />
                     Créer une Run
                 </Button>
             </DialogTrigger>
@@ -291,17 +291,17 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                     {step === 1 && (
                         <motion.div key="step1" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="space-y-4 pt-2">
                             <Tabs value={mode} onValueChange={(v) => { setMode(v as "standard" | "epreuve"); setError(null); }}>
-                    <TabsList className="w-full bg-surface border border-white/8 p-1 rounded-lg mb-4">
+                    <TabsList className="w-full bg-surface border border-border p-1 rounded-lg mb-4">
                         <TabsTrigger
                             value="standard"
-                            className="flex-1 gap-2 data-[state=active]:bg-info data-[state=active]:text-info-foreground data-[state=active]: text-info-foreground/50 font-bold uppercase tracking-wide text-xs transition-all rounded"
+                            className="flex-1 gap-2 text-muted-foreground hover:text-foreground data-[state=active]:bg-info data-[state=active]:text-info-foreground font-bold uppercase tracking-wide text-xs transition-all rounded"
                         >
                             <Swords className="w-3.5 h-3.5" />
                             Run Standard
                         </TabsTrigger>
                         <TabsTrigger
                             value="epreuve"
-                            className="flex-1 gap-2 data-[state=active]:bg-warning data-[state=active]:text-warning-foreground data-[state=active]: text-warning-foreground/50 font-bold uppercase tracking-wide text-xs transition-all rounded"
+                            className="flex-1 gap-2 text-muted-foreground hover:text-foreground data-[state=active]:bg-warning data-[state=active]:text-warning-foreground font-bold uppercase tracking-wide text-xs transition-all rounded"
                         >
                             <Trophy className="w-3.5 h-3.5" />
                             Épreuve de Songe

@@ -9,6 +9,7 @@ import {
     getDofusDetailWithChains,
     getGuildHeatmapForDofus,
     updateDolmanaxProgress,
+    updateDokilleProgress,
     getUserCompletedQuestIds,
 } from "@/server/actions/dofus-quest-actions";
 import { DofusQuestManagerV3 } from "@/components/dofus-quests/DofusQuestManagerV3";
@@ -17,6 +18,7 @@ import { DofusIcon } from "@/components/dofus-quests/DofusIcon";
 import { getDofusColor } from "@/components/dofus-quests/dofus-colors";
 import { DofusOcreMetamob } from "@/components/dofus-quests/DofusOcreMetamob";
 import { DofusDolmanaxTracker } from "@/components/dofus-quests/DofusDolmanaxTracker";
+import { DofusDokilleTracker } from "@/components/dofus-quests/DofusDokilleTracker";
 import { notFound } from "next/navigation";
 import { linkOcreAccount } from "@/server/actions/ocre-actions";
 import { DofusQuestBanner } from "@/components/dofus-quests/DofusQuestBanner";
@@ -64,6 +66,16 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
         initialPages = parseInt(dofus.notes.split(":")[1], 10) || 0;
     } else if (dofusSlug === "dolmanax") {
         initialPages = Math.round((dofus.progressPercent * 365) / 100);
+    }
+
+    // Extract captured Krokilles from notes if available (Format: "KROKILLES:[...]")
+    let initialCapturedKrokilles: string[] = [];
+    if (dofus.notes && dofus.notes.startsWith("KROKILLES:")) {
+        try {
+            initialCapturedKrokilles = JSON.parse(dofus.notes.slice("KROKILLES:".length));
+        } catch {
+            initialCapturedKrokilles = [];
+        }
     }
 
     return (
@@ -259,30 +271,18 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                 </div>
             )}
 
-            {/* Dokille — en-tête « Safari des Krokilles » (info siphonnée Dofus pour les Noobs) */}
+            {/* Dokille — Trackeur « Safari des Krokilles » */}
             {dofusSlug === "dokille" && (
-                <div
-                    className="rounded-3xl p-6 border transition-all duration-300"
-                    style={{
-                        background: `linear-gradient(135deg, ${color}10 0%, var(--foreground)/[0.05] 100%)`,
-                        border: `1px solid ${color}25`,
+                <DofusDokilleTracker
+                    guildId={guildId}
+                    dofusId={dofus.id}
+                    dofusColor={color}
+                    initialCaptured={initialCapturedKrokilles}
+                    onSave={async (monsters) => {
+                        "use server";
+                        return updateDokilleProgress(guildId, dofus.id, monsters, character);
                     }}
-                >
-                    <div className="text-caption font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <span style={{ color }}>🐾</span> Le Safari des Krokilles
-                    </div>
-                    <div className="grid sm:grid-cols-2 gap-4 text-sm text-foreground/80 leading-relaxed">
-                        <div className="space-y-1.5">
-                            <p><strong style={{ color }}>Prérequis :</strong> niveau 99+, chasse aux Krokilles.</p>
-                            <p><strong style={{ color }}>Départ :</strong> Vulkania, Village de Vulkania <span className="font-mono">[-47,42]</span> auprès de Nevark le Chasseur.</p>
-                            <p><strong style={{ color }}>Bonus :</strong> +10 Prospection.</p>
-                        </div>
-                        <div className="space-y-1.5">
-                            <p><strong style={{ color }}>Mécanique :</strong> 4 quêtes (Safari des âmes moniaques, hygdales, andalires puis nésiques) — capturer les <strong>archimonstres Krokilles</strong> de chaque zone de l&apos;archipel.</p>
-                            <p><strong style={{ color }}>Astuce :</strong> combattre un archi suffit pour obtenir son éclat ; le repop est rapide (~30 min-1h). Suivez la progression de la guilde ci-dessous et cochez vos captures.</p>
-                        </div>
-                    </div>
-                </div>
+                />
             )}
 
             <DofusQuestManagerV3

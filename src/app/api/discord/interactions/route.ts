@@ -407,6 +407,32 @@ export async function POST(request: NextRequest) {
                             ]
                         }
                     });
+                } else if (action === "close") {
+                    const requestId = entityId;
+                    if (!requestId) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Identifiant de demande manquant.", flags: 64 },
+                        });
+                    }
+
+                    const { closeServiceRequestAction } = await import("@/server/actions/service-actions");
+                    const res = await closeServiceRequestAction(guild_id, requestId);
+
+                    if (res.success) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: {
+                                content: "✅ **Demande clôturée avec succès !** Une notification et une invitation à évaluer la prestation ont été transmises au client.",
+                                flags: 64,
+                            },
+                        });
+                    } else {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: `❌ ${res.error || "Impossible de clôturer la demande."}`, flags: 64 },
+                        });
+                    }
                 }
             } else if (prefix === "userreq") {
                 if (action === "reply") {

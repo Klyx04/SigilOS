@@ -324,8 +324,10 @@ export function EventDetailModal({
         setShowRaidCompletion(true);
     };
 
+    const isCompleted = event.status === "COMPLETED" || (Boolean(event.endDate) && new Date(event.endDate).getTime() < Date.now());
+    const effectiveStatus = isCompleted ? "COMPLETED" : event.status;
     const typeConfig = TYPE_CONFIG[event.type] || TYPE_CONFIG.EVENT_GUILD;
-    const statusConfig = STATUS_CONFIG[event.status] || STATUS_CONFIG.DRAFT;
+    const statusConfig = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.DRAFT;
 
     const registeredCount = event.participants.filter(p => p.status === "REGISTERED").length;
     const reserveCount = event.participants.filter(p => p.status === "RESERVE").length;
@@ -337,7 +339,7 @@ export function EventDetailModal({
     const isImportedKralamoure = event.type === "KRALAMOURE" && !isDirectKralamoure;
     const isExternal = isDirectKralamoure; // Only direct Kralamoure events are truly external
 
-    const isOpen = event.status === "PUBLISHED";
+    const isOpen = effectiveStatus === "PUBLISHED";
     const isFull = event.maxParticipants ? registeredCount >= event.maxParticipants : false;
     const isCreator = event.creator.id === currentUserId;
     const isRegistered = isUserRegistered;
@@ -548,7 +550,7 @@ export function EventDetailModal({
                                     )}
 
                                     {/* Complete button — raids get a special flow */}
-                                    {event.status === "PUBLISHED" && onComplete && (
+                                    {effectiveStatus === "PUBLISHED" && onComplete && (
                                         isRaid ? (
                                             <Button
                                                 size="sm"
@@ -571,7 +573,7 @@ export function EventDetailModal({
                                             </Button>
                                         )
                                     )}
-                                    {event.status === "COMPLETED" && (
+                                    {effectiveStatus === "COMPLETED" && (
                                         <div className="flex items-center gap-2">
                                             {isRaid && onUndoComplete && (isCreator || canManage) && (
                                                 <Button
@@ -1375,6 +1377,18 @@ function ParticipantRow({
                             {(participant.user.profiles?.[0]?.discordNickname || participant.user.name || "Anonyme").replace(/\s\(\d+\)$/, "")}
                             {isCurrentUser && " (Moi)"}
                         </span>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const name = (participant.user.profiles?.[0]?.discordNickname || participant.user.name || "Anonyme").replace(/\s\(\d+\)$/, "");
+                                navigator.clipboard.writeText(`/w ${name}`);
+                                toast.success(`/w ${name} copié dans le presse-papier !`);
+                            }}
+                            className="p-0.5 text-muted-foreground/50 hover:text-foreground rounded hover:bg-white/5 transition-colors"
+                            title={`Copier /w ${(participant.user.profiles?.[0]?.discordNickname || participant.user.name || "Anonyme").replace(/\s\(\d+\)$/, "")}`}
+                        >
+                            <Copy className="h-3 w-3" />
+                        </button>
                         {isCreator && (
                             <TooltipProvider>
                                 <Tooltip>

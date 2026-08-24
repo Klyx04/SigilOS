@@ -304,7 +304,7 @@ export function CalendarGrid({
                                             const config = TYPE_CONFIG[event.type] || TYPE_CONFIG.EVENT_GUILD;
                                             const Icon = config.icon;
                                             const time = format(start, "HH:mm");
-                                            const isCompleted = event.status === "COMPLETED";
+                                            const isCompleted = event.status === "COMPLETED" || (Boolean(event.endDate) && new Date(event.endDate).getTime() < Date.now());
 
                                             return (
                                                 <TooltipProvider key={event.id}>

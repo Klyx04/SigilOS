@@ -182,6 +182,8 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
         }
 
         const patchedEvents = events.map(event => {
+            const isPast = event.endDate && new Date(event.endDate) < now;
+            const effectiveStatus = (isPast && event.status === "PUBLISHED") ? "COMPLETED" : event.status;
             const meta = event.metadata as any;
             if (meta?.isKralamoure) {
                 let liveCount = meta.metamobParticipantsCount || 0;
@@ -192,11 +194,15 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
                 
                 return { 
                     ...event, 
+                    status: effectiveStatus as any,
                     type: "KRALAMOURE" as any,
                     _count: { participants: liveCount } // Override count for display
                 };
             }
-            return event;
+            return {
+                ...event,
+                status: effectiveStatus as any,
+            };
         });
 
         return { success: true, events: patchedEvents };
@@ -298,8 +304,20 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
 
         if (!event) return { success: false, error: "Événement introuvable" };
 
+        // Auto-complete past event if still PUBLISHED
+        const now = new Date();
+        const isPast = event.endDate && new Date(event.endDate) < now;
+        const effectiveStatus = (isPast && event.status === "PUBLISHED") ? "COMPLETED" : event.status;
+
+        if (isPast && event.status === "PUBLISHED") {
+            db.guildEvent.update({
+                where: { id: event.id },
+                data: { status: "COMPLETED" }
+            }).catch(() => {});
+        }
+
         // Clone event to allow modification
-        const eventData = { ...event };
+        const eventData = { ...event, status: effectiveStatus as any };
 
         // KRALAMOURE HANDLING (Imported Events)
         const meta = eventData.metadata as any;

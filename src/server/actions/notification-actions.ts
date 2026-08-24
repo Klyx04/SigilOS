@@ -112,11 +112,20 @@ export async function getUnreadNotifications(guildId?: string): Promise<{ succes
             take: 50, // PERF: limit results to prevent unbounded accumulation
         });
 
-        // 4. Cache 10s (aligné sur le polling sidebar 10s => quasi-100% de hits)
-        await redis.set(cacheKey, JSON.stringify(notifications), "EX", 10).catch(() => {});
+        // 4. SECURITY RBAC: Filtrer les notifications administratives si l'utilisateur n'a pas la RBAC
+        const ctx = guildId ? await getUserContext(guildId) : null;
+        const filtered = notifications.filter(n => {
+            if (n.category === "ADMIN_ALERT") {
+                return !!(ctx?.isAdmin || ctx?.canValidateMissions || ctx?.canManageMembers);
+            }
+            return true;
+        });
+
+        // 5. Cache 10s (aligné sur le polling sidebar 10s => quasi-100% de hits)
+        await redis.set(cacheKey, JSON.stringify(filtered), "EX", 10).catch(() => {});
 
         logger.debug(`[PERF] getUnreadNotifications: DB Fetch ${Date.now() - start}ms (Auth: ${authDone - start}ms, DB: ${Date.now() - authDone}ms)`);
-        return { success: true, data: notifications as Notification[] };
+        return { success: true, data: filtered as Notification[] };
     } catch (error) {
         logger.error("Get Notifications Error:", error);
         return { success: false, error: "Database error" };
@@ -128,8 +137,9 @@ export async function getAllNotifications(guildId?: string, limit = 100): Promis
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
     let internalGuildId: string | undefined;
+    let ctx: any = null;
     if (guildId) {
-        const ctx = await getUserContext(guildId);
+        ctx = await getUserContext(guildId);
         if (!ctx.isMember) {
             return { success: false, error: "Forbidden: Member access required" };
         }
@@ -146,7 +156,15 @@ export async function getAllNotifications(guildId?: string, limit = 100): Promis
             take: limit,
         });
 
-        return { success: true, data: notifications as Notification[] };
+        // SECURITY RBAC: Filtrer les notifications administratives si l'utilisateur n'a pas la RBAC
+        const filtered = notifications.filter(n => {
+            if (n.category === "ADMIN_ALERT") {
+                return !!(ctx?.isAdmin || ctx?.canValidateMissions || ctx?.canManageMembers);
+            }
+            return true;
+        });
+
+        return { success: true, data: filtered as Notification[] };
     } catch (error) {
         logger.error("Get All Notifications Error:", error);
         return { success: false, error: "Database error" };

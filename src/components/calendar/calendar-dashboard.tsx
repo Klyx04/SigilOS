@@ -52,7 +52,6 @@ import { CalendarGrid } from "./calendar-grid";
 import { EventDetailModal } from "./event-detail-modal";
 import { EventCard } from "./event-card";
 import { EventForm } from "./event-form";
-import { RaidHubModal } from "./raid-hub-modal";
 import { cn } from "@/lib/utils";
 
 export interface DiscordChannels {
@@ -142,9 +141,6 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
     // Filter state
     const [selectedFilter, setSelectedFilter] = useState<string | "ALL">("ALL");
     const [showFilters, setShowFilters] = useState(false);
-
-    // Hub Raid modal
-    const [isRaidHubOpen, setIsRaidHubOpen] = useState(false);
 
     // Day events modal (click on "+N" badge)
     const [selectedDayEvents, setSelectedDayEvents] = useState<{ date: Date; events: any[] } | null>(null);
@@ -483,26 +479,6 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                                 )}
                             </Button>
 
-                            {/* Raid Hub (ghost) */}
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => setIsRaidHubOpen(true)}
-                                            className="h-9 px-3 rounded-lg text-xs font-semibold text-muted-foreground hover:text-danger hover:bg-danger/10 transition-all"
-                                        >
-                                            <Swords className="h-4 w-4 mr-1.5 text-danger/70" />
-                                            Raids
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent className="bg-background border-border text-xs">
-                                        Guides et conseils raid
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-
                             {canManage && (
                                 <Button
                                     data-tour="calendar-create"
@@ -752,14 +728,6 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                     </div>
                 </DialogContent>
             </Dialog>
-
-            {/* ============ RAID HUB MODAL ============ */}
-            <RaidHubModal
-                open={isRaidHubOpen}
-                onOpenChange={setIsRaidHubOpen}
-                guildId={guildId}
-                isAdmin={isAdmin}
-            />
 
             {/* ============ EDIT DIALOG ============ */}
             <Dialog open={!!editingEvent} onOpenChange={(open) => !open && setEditingEvent(null)}>

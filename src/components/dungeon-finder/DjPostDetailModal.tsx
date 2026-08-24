@@ -355,7 +355,21 @@ export function DjPostDetailModal({
                                         {post.profile.user.image && <img src={post.profile.user.image} alt="" className="w-full h-full object-cover" />}
                                     </div>
                                     <div className="flex-1 min-w-0 z-10">
-                                        <p className="text-sm font-black text-foreground truncate drop-shadow-sm">{displayName(post.profile)}</p>
+                                        <div className="flex items-center gap-1.5">
+                                            <p className="text-sm font-black text-foreground truncate drop-shadow-sm">{displayName(post.profile)}</p>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const name = displayName(post.profile);
+                                                    navigator.clipboard.writeText(`/w ${name}`);
+                                                    toast.success(`/w ${name} copié dans le presse-papier !`);
+                                                }}
+                                                className="p-1 text-muted-foreground/60 hover:text-foreground rounded hover:bg-white/5 transition-colors"
+                                                title={`Copier /w ${displayName(post.profile)}`}
+                                            >
+                                                <Copy className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
                                         <span className="text-caption text-warning/80 font-bold flex items-center mt-0.5"><Crown className="w-3 h-3 mr-1 inline" /> Créateur du groupe</span>
                                     </div>
                                     <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-warning/10 to-transparent pointer-events-none" />
@@ -371,6 +385,18 @@ export function DjPostDetailModal({
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap">
                                                     <p className="text-sm font-bold text-foreground truncate group-hover:text-foreground transition-colors">{displayName(p.profile)}</p>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const name = displayName(p.profile);
+                                                            navigator.clipboard.writeText(`/w ${name}`);
+                                                            toast.success(`/w ${name} copié dans le presse-papier !`);
+                                                        }}
+                                                        className="p-1 text-muted-foreground/60 hover:text-foreground rounded hover:bg-white/5 transition-colors"
+                                                        title={`Copier /w ${displayName(p.profile)}`}
+                                                    >
+                                                        <Copy className="w-3.5 h-3.5" />
+                                                    </button>
                                                     {p.classe && <Badge variant="outline" className="text-caption h-4 border-border text-muted-foreground px-1.5">{p.classe}</Badge>}
                                                     {(post.dungeonsJson as any[])?.length > 0 && p.dungeonIndex != null && (post.dungeonsJson as any[])[p.dungeonIndex]?.name && (
                                                         <Badge variant="outline" className="text-caption h-4 border-info text-info px-1.5 max-w-[120px] truncate">

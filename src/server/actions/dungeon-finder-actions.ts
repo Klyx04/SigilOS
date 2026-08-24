@@ -1193,11 +1193,11 @@ export async function updateDjPost(
                     data: { status: newStatus },
                 });
             }
-
-            // Rafraîchir l'embed Discord (nouveaux inscrits + compteur de places)
-            updateDjDiscordEmbed(guildId, postId).catch(() => { });
-            await notifyDjUpdate(guildId);
         }
+
+        // Rafraîchir systématiquement l'embed Discord (date, heure, message, succès, composition)
+        updateDjDiscordEmbed(guildId, postId).catch(() => { });
+        await notifyDjUpdate(guildId);
 
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
         return { success: true };

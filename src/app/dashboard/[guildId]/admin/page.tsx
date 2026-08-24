@@ -87,6 +87,15 @@ function buildSections(guildId: string): AdminSection[] {
                     tourId: "admin-overview-card-modules",
                 },
                 {
+                    href: `/dashboard/${guildId}/reaction-roles`,
+                    icon: Sparkles,
+                    title: "Rôles par Réaction (Reaction Roles)",
+                    description: "Panneaux de sélection de rôles interactifs avec boutons, menus déroulants et icônes pour Discord.",
+                    accent: "violet",
+                    permission: (u) => u.canManageReactionRoles || u.isAdmin,
+                    tourId: "admin-overview-card-reaction-roles",
+                },
+                {
                     href: `/dashboard/${guildId}/admin/presentation`,
                     icon: BookOpen,
                     title: "Identité de Guilde",

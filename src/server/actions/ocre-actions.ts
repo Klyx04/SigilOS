@@ -1766,8 +1766,13 @@ const CreateTradeSchema = z.object({
     guildId: z.string(),
     targetProfileId: z.string(),
     monsterId: z.number(),
-    monsterName: z.string().optional(), // Passed from client â€” avoids Metamob API call
-    monsterImage: z.string().optional(), // Image URL passed from client
+    monsterName: z.string().optional(),
+    monsterImage: z.string().optional(),
+    monsterStep: z.number().optional(),
+    offeredMonsterId: z.number().optional(),
+    offeredMonsterName: z.string().optional(),
+    offeredMonsterImage: z.string().optional(),
+    offeredMonsterStep: z.number().optional(),
     message: z.string().max(500).optional(),
     sendDiscordPing: z.boolean().optional(),
 });
@@ -1776,21 +1781,29 @@ export async function createTradeRequest(
     rawData: z.infer<typeof CreateTradeSchema>
 ): Promise<ActionResponse> {
     try {
-
         const session = await auth();
         if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
-
         const parsed = CreateTradeSchema.safeParse(rawData);
         if (!parsed.success) return { success: false, error: "Données invalides" };
-        const { guildId, targetProfileId, monsterId, monsterName: clientMonsterName, monsterImage: clientMonsterImage, message, sendDiscordPing } = parsed.data;
-
+        const {
+            guildId,
+            targetProfileId,
+            monsterId,
+            monsterName: clientMonsterName,
+            monsterImage: clientMonsterImage,
+            monsterStep,
+            offeredMonsterId,
+            offeredMonsterName,
+            offeredMonsterImage,
+            offeredMonsterStep,
+            message,
+            sendDiscordPing
+        } = parsed.data;
 
         const rateCheck = await rateLimit(`ocre:trade:create:${session.user.id}`, 10, 60);
         if (!rateCheck.success) return { success: false, error: "Veuillez patienter avant de faire une nouvelle demande." };
 
-
-        // Force TS re-eval
         const guildConfig = await (db.guildConfig as any).findUnique({
             where: { discordGuildId: guildId },
             select: { id: true, ocreNotifyChannelId: true }
@@ -1798,14 +1811,12 @@ export async function createTradeRequest(
 
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
-
         const requesterProfile = await db.userProfile.findFirst({
             where: { userId: session.user.id, guildId: guildConfig.id },
             include: { user: { include: { accounts: true } } }
         });
 
         if (!requesterProfile) return { success: false, error: "Profil introuvable" };
-
 
         const targetProfile = await db.userProfile.findUnique({
             where: { id: targetProfileId },
@@ -1816,11 +1827,9 @@ export async function createTradeRequest(
             return { success: false, error: "Partenaire introuvable" };
         }
 
-
         if (requesterProfile.id === targetProfile.id) {
             return { success: false, error: "Vous ne pouvez pas échanger avec vous-même" };
         }
-
 
         // Unique par monstre : un seul trade en attente par monstre (toutes cibles confondues)
         const existingRequest = await (db as any).ocreTradeRequest.findFirst({
@@ -1847,7 +1856,6 @@ export async function createTradeRequest(
             return { success: false, error: "Tu as déjà 3 demandes en attente. Attends une réponse avant d'en envoyer de nouvelles." };
         }
 
-
         const tradeRequest = await (db as any).ocreTradeRequest.create({
             data: {
                 guildId: guildConfig.id,
@@ -1856,29 +1864,33 @@ export async function createTradeRequest(
                 monsterId,
                 monsterName: clientMonsterName || null,
                 monsterImageUrl: clientMonsterImage || null,
+                monsterStep: monsterStep || null,
+                offeredMonsterId: offeredMonsterId || null,
+                offeredMonsterName: offeredMonsterName || null,
+                offeredMonsterImageUrl: offeredMonsterImage || null,
+                offeredMonsterStep: offeredMonsterStep || null,
                 message,
                 status: "PENDING"
             }
         });
 
-
         const targetPrefs = (targetProfile.notificationPrefs as any) || {};
         const shouldNotifyOcre = targetPrefs.ocre !== false;
 
         if (shouldNotifyOcre) {
+            const trocMsg = offeredMonsterName ? ` en échange de ${offeredMonsterName}` : "";
             // In-App Notification
             await (db.notification as any).create({
                 data: {
                     userId: targetProfile.userId,
                     guildId: guildConfig.id,
                     type: "OCRE_TRADE_REQUEST",
-                    title: "Demande d'Échange",
-                    message: `${getDisplayName(requesterProfile)} souhaite vous échanger un monstre !`,
+                    title: "Demande d'Échange Ocre",
+                    message: `${getDisplayName(requesterProfile)} souhaite vous échanger ${clientMonsterName || "un monstre"}${trocMsg} !`,
                     link: `/dashboard/${guildId}/quete-ocre`,
                 }
             });
         }
-
 
         // Discord Ping if requested
         const targetDiscordAccount = targetProfile.user.accounts.find((a: any) => a.provider === "discord");
@@ -1886,7 +1898,6 @@ export async function createTradeRequest(
         
         if (sendDiscordPing && guildConfig.ocreNotifyChannelId && targetDiscordAccount) {
             try {
-                // Use name/image passed from client (already known in the modal)
                 const monsterName = clientMonsterName || `Monstre #${monsterId}`;
                 const monsterImageUrl = clientMonsterImage || undefined;
 
@@ -1898,17 +1909,23 @@ export async function createTradeRequest(
                 const requesterMention = requesterDiscordAccount ? `<@${requesterDiscordAccount.providerAccountId}>` : "";
                 const mentions = [requesterMention, targetMention].filter(Boolean).join(" ");
 
+                const stepText = monsterStep ? ` (Étape ${monsterStep})` : "";
+                const offeredText = offeredMonsterName
+                    ? `${offeredMonsterName}${offeredMonsterStep ? ` (Étape ${offeredMonsterStep})` : ""}`
+                    : "Don / Échange simple";
+
                 await sendChannelMessage(
                     guildConfig.ocreNotifyChannelId,
                     mentions,
                     {
-                        embedTitle: `🤝 Demande d'échange — ${monsterName}`,
+                        embedTitle: `🤝 Proposition d'Échange — ${monsterName}`,
                         embedColor: 0x10b981,
                         embedThumbnail: monsterImageUrl,
                         embedUrl: `${publicUrl}/dashboard/${guildId}/quete-ocre`,
                         fields: [
-                            { name: "De", value: requesterName, inline: true },
-                            { name: "Archimonstre", value: monsterName, inline: true },
+                            { name: "Demandeur", value: requesterName, inline: true },
+                            { name: "Recherché", value: `${monsterName}${stepText}`, inline: true },
+                            { name: "Proposé en contrepartie", value: offeredText, inline: false },
                             ...(message ? [{ name: "Message", value: `*${message}*`, inline: false }] : []),
                             { name: "Répondre", value: `[Ouvrir le Dashboard](${publicUrl}/dashboard/${guildId}/quete-ocre)`, inline: false },
                         ]
@@ -1918,8 +1935,6 @@ export async function createTradeRequest(
                 logger.error("Failed to send Discord ping for Ocre trade:", e);
             }
         }
-
-
 
         revalidatePath(`/dashboard/${guildId}/quete-ocre`);
         
@@ -1934,7 +1949,7 @@ export async function createTradeRequest(
         return { success: true };
     } catch (error: any) {
         logger.error("[createTradeRequest] Detailed Error:", error);
-        return { success: false, error: "DEBUG: " + (error?.message || "Erreur serveur interne") };
+        return { success: false, error: error?.message || "Erreur serveur interne" };
     }
 }
 
@@ -2057,24 +2072,20 @@ export async function acceptTradeRequest(rawData: z.infer<typeof ActionTradeSche
                 guildId: guildConfig.id,
                 type: "OCRE_TRADE_ACCEPTED",
                 title: "Échange Accepté",
-                message: `${tradeRequest.target.discordNickname || tradeRequest.target.metamobPseudo || "Un membre"} a accepté votre échange !`,
+                message: `${tradeRequest.target.discordNickname || tradeRequest.target.metamobPseudo || "Un membre"} a accepté votre échange pour ${tradeRequest.monsterName || "un archimonstre"} !`,
                 link: `/dashboard/${guildId}/quete-ocre`,
             }
         });
 
-        // Metamob Auto-Update
-        // #180 — Un trade = UN SEUL archi transféré. La lecture de la quantité se fait
-        // dans la QUÊTE EXACTE du membre (metamobQuestSlug) via getQuestDetails, plus
-        // `getUserMonsters` (qui auto-pick une quête et pouvait lire une mauvaise
-        // quantité → écriture absolue destructrice « le trade patch tous ses archi »).
+        // Metamob Auto-Update (#180 : transfert strictement unitaire et bilatéral si contrepartie)
         try {
             const { getQuestDetails, normalizeQuestMonster, updateMonsterQuantity } = await import("@/lib/metamob-client");
 
-            const readOwned = async (pseudo: string, slug: string, apiKey: string): Promise<number | null> => {
+            const readOwned = async (pseudo: string, slug: string, apiKey: string, mId: number): Promise<number | null> => {
                 if (!pseudo || !slug || !apiKey) return null;
                 try {
                     const details = await getQuestDetails(pseudo, slug, { guildApiKey: apiKey, limit: 500 });
-                    const m = details.monsters.find((mm) => (mm as any).id === tradeRequest.monsterId);
+                    const m = details.monsters.find((mm) => (mm as any).id === mId);
                     if (!m) return null;
                     return normalizeQuestMonster(m, details.parallel_quests).owned;
                 } catch {
@@ -2082,10 +2093,26 @@ export async function acceptTradeRequest(rawData: z.infer<typeof ActionTradeSche
                 }
             };
 
-            // 1. Requester (reçoit EXACTEMENT 1 copie)
-            if (tradeRequest.requester.metamobApiKey && tradeRequest.requester.metamobQuestSlug && tradeRequest.requester.metamobVerified) {
-                const reqKey = decrypt(tradeRequest.requester.metamobApiKey as string) || "";
-                const reqOwned = await readOwned(tradeRequest.requester.metamobPseudo as string, tradeRequest.requester.metamobQuestSlug, reqKey);
+            const reqKey = tradeRequest.requester.metamobApiKey ? decrypt(tradeRequest.requester.metamobApiKey as string) || "" : "";
+            const tgtKey = tradeRequest.target.metamobApiKey ? decrypt(tradeRequest.target.metamobApiKey as string) || "" : "";
+
+            // 1. Monstre demandé (tradeRequest.monsterId) :
+            // Target donne (-1, borné à 0), Requester reçoit (+1)
+            if (tradeRequest.target.metamobQuestSlug && tgtKey) {
+                const tgtOwned = await readOwned(tradeRequest.target.metamobPseudo as string, tradeRequest.target.metamobQuestSlug, tgtKey, tradeRequest.monsterId);
+                if (tgtOwned !== null && tgtOwned > 0) {
+                    await updateMonsterQuantity(
+                        tradeRequest.target.metamobPseudo,
+                        tradeRequest.target.metamobQuestSlug,
+                        tradeRequest.monsterId,
+                        Math.max(0, tgtOwned - 1),
+                        { guildApiKey: tgtKey }
+                    );
+                }
+            }
+
+            if (tradeRequest.requester.metamobQuestSlug && reqKey) {
+                const reqOwned = await readOwned(tradeRequest.requester.metamobPseudo as string, tradeRequest.requester.metamobQuestSlug, reqKey, tradeRequest.monsterId);
                 if (reqOwned !== null) {
                     await updateMonsterQuantity(
                         tradeRequest.requester.metamobPseudo,
@@ -2097,23 +2124,39 @@ export async function acceptTradeRequest(rawData: z.infer<typeof ActionTradeSche
                 }
             }
 
-            // 2. Target (perd EXACTEMENT 1 copie, bornée à 0)
-            if (tradeRequest.target.metamobApiKey && tradeRequest.target.metamobQuestSlug && tradeRequest.target.metamobVerified) {
-                const tgtKey = decrypt(tradeRequest.target.metamobApiKey as string) || "";
-                const tgtOwned = await readOwned(tradeRequest.target.metamobPseudo as string, tradeRequest.target.metamobQuestSlug, tgtKey);
-                if (tgtOwned !== null && tgtOwned > 0) {
-                    await updateMonsterQuantity(
-                        tradeRequest.target.metamobPseudo,
-                        tradeRequest.target.metamobQuestSlug,
-                        tradeRequest.monsterId,
-                        Math.max(0, tgtOwned - 1),
-                        { guildApiKey: tgtKey }
-                    );
+            // 2. Monstre offert en contrepartie (si troc bilatéral) :
+            // Requester donne (-1, borné à 0), Target reçoit (+1)
+            if (tradeRequest.offeredMonsterId) {
+                const offId = tradeRequest.offeredMonsterId;
+
+                if (tradeRequest.requester.metamobQuestSlug && reqKey) {
+                    const reqOffOwned = await readOwned(tradeRequest.requester.metamobPseudo as string, tradeRequest.requester.metamobQuestSlug, reqKey, offId);
+                    if (reqOffOwned !== null && reqOffOwned > 0) {
+                        await updateMonsterQuantity(
+                            tradeRequest.requester.metamobPseudo,
+                            tradeRequest.requester.metamobQuestSlug,
+                            offId,
+                            Math.max(0, reqOffOwned - 1),
+                            { guildApiKey: reqKey }
+                        );
+                    }
+                }
+
+                if (tradeRequest.target.metamobQuestSlug && tgtKey) {
+                    const tgtOffOwned = await readOwned(tradeRequest.target.metamobPseudo as string, tradeRequest.target.metamobQuestSlug, tgtKey, offId);
+                    if (tgtOffOwned !== null) {
+                        await updateMonsterQuantity(
+                            tradeRequest.target.metamobPseudo,
+                            tradeRequest.target.metamobQuestSlug,
+                            offId,
+                            tgtOffOwned + 1,
+                            { guildApiKey: tgtKey }
+                        );
+                    }
                 }
             }
         } catch (syncError) {
             logger.error("[acceptTradeRequest] Auto-sync to Metamob failed:", syncError);
-            // We do not fail the trade just because Metamob API failed, the users can do it manually worst case
         }
 
         revalidatePath(`/dashboard/${guildId}/quete-ocre`);
@@ -2128,6 +2171,94 @@ export async function acceptTradeRequest(rawData: z.infer<typeof ActionTradeSche
     } catch (error) {
         logger.error("[acceptTradeRequest] Error:", error);
         return { success: false, error: "Erreur serveur" };
+    }
+}
+
+/**
+ * Direct single monster quantity update in Metamob
+ */
+export async function updateUserMonsterQuantityAction(rawData: {
+    guildId: string;
+    monsterId: number;
+    quantity: number;
+}): Promise<ActionResponse<{ quantity: number }>> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+        const { guildId, monsterId, quantity } = rawData;
+        if (typeof monsterId !== "number" || typeof quantity !== "number" || quantity < 0) {
+            return { success: false, error: "Quantité invalide" };
+        }
+
+        const profile = await db.userProfile.findFirst({
+            where: { userId: session.user.id, guild: { discordGuildId: guildId }, status: "ACTIVE" },
+            select: { metamobApiKey: true, metamobQuestSlug: true, metamobPseudo: true }
+        });
+
+        if (!profile?.metamobApiKey || !profile.metamobQuestSlug) {
+            return { success: false, error: "Compte Metamob non lié ou clé API manquante" };
+        }
+
+        const { updateMonsterQuantity } = await import("@/lib/metamob-client");
+        const effectiveApiKey = decrypt(profile.metamobApiKey as string) || "";
+        
+        await updateMonsterQuantity(
+            profile.metamobPseudo as string,
+            profile.metamobQuestSlug as string,
+            monsterId,
+            quantity,
+            { guildApiKey: effectiveApiKey }
+        );
+
+        await invalidateCache(`ocre:progress:${guildId}:${session.user.id}`);
+        revalidatePath(`/dashboard/${guildId}/quete-ocre`);
+        revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
+
+        return { success: true, data: { quantity } };
+    } catch (error: any) {
+        logger.error("[updateUserMonsterQuantityAction] Error:", error);
+        return { success: false, error: error?.message || "Erreur lors de la mise à jour Metamob" };
+    }
+}
+
+/**
+ * Get available duplicates for troc trade selector
+ */
+export async function getTradeAvailableDuplicatesAction(guildId: string): Promise<ActionResponse<{ id: number; name: string; step: number; imageUrl?: string; count: number }[]>> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+        const profile = await db.userProfile.findFirst({
+            where: { userId: session.user.id, guild: { discordGuildId: guildId }, status: "ACTIVE" },
+            select: { metamobApiKey: true, metamobQuestSlug: true, metamobPseudo: true }
+        });
+
+        if (!profile?.metamobPseudo || !profile.metamobQuestSlug) {
+            return { success: true, data: [] };
+        }
+
+        const effectiveApiKey = profile.metamobApiKey ? (decrypt(profile.metamobApiKey as string) || undefined) : undefined;
+        const { getQuestDetails, normalizeQuestMonster } = await import("@/lib/metamob-client");
+        const details = await getQuestDetails(profile.metamobPseudo, profile.metamobQuestSlug, { guildApiKey: effectiveApiKey, limit: 500 });
+
+        const duplicates = details.monsters
+            .map(m => normalizeQuestMonster(m, details.parallel_quests))
+            .filter(m => m.state === "DOUBLON" && m.owned > 1 && m.type === "archimonstre")
+            .map(m => ({
+                id: m.id,
+                name: m.nameFr,
+                step: m.step,
+                imageUrl: m.image,
+                count: m.owned - details.parallel_quests,
+            }))
+            .sort((a, b) => a.step - b.step || a.name.localeCompare(b.name));
+
+        return { success: true, data: duplicates };
+    } catch (error: any) {
+        logger.error("[getTradeAvailableDuplicatesAction] Error:", error);
+        return { success: false, error: error?.message || "Erreur récupération doublons" };
     }
 }
 

@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
             const dungeonIndex = extra !== undefined && extra !== "" ? Number(extra) : undefined;
 
             const account = await findUserByDiscordId(member.user.id);
-            if (!account && prefix !== "ticket") {
+            if (!account && prefix !== "ticket" && prefix !== "rr") {
                 return NextResponse.json({
                     type: 4,
                     data: { content: "❌ Tu dois t'être connecté au moins une fois sur le site pour utiliser ce bouton.", flags: 64 },
@@ -854,6 +854,40 @@ export async function POST(request: NextRequest) {
 
                     return response;
                 }
+            } else if (prefix === "rr") {
+                // =========================================================
+                // REACTION ROLES INTERACTION (Buttons or Select Menu)
+                // custom_id = rr:btn:{groupId}:{optionId}
+                // custom_id = rr:select:{groupId}
+                // =========================================================
+                const { internalHandleReactionRoleInteraction } = await import("@/server/actions/reaction-role-actions");
+
+                let result;
+                if (action === "select") {
+                    const selectedRoleIds = payload.data?.values || [];
+                    result = await internalHandleReactionRoleInteraction({
+                        discordGuildId: guild_id,
+                        discordUserId: member.user.id,
+                        groupId: entityId,
+                        selectedRoleIds,
+                    });
+                } else {
+                    // action === "btn" -> entityId is groupId, extra is optionId
+                    result = await internalHandleReactionRoleInteraction({
+                        discordGuildId: guild_id,
+                        discordUserId: member.user.id,
+                        groupId: entityId,
+                        optionId: extra,
+                    });
+                }
+
+                return NextResponse.json({
+                    type: 4,
+                    data: {
+                        content: result.message,
+                        flags: 64, // EPHEMERAL
+                    },
+                });
             } else {
                 return NextResponse.json({ type: 4, data: { content: "Interaction inconnue", flags: 64 } });
             }

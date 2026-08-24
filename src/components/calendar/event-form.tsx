@@ -1017,7 +1017,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                         "w-full h-12 font-bold text-base transition-all mt-4",
                         isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible
                             ? "bg-elevated border border-border text-muted-foreground cursor-not-allowed"
-                            : "bg-warning hover:bg-warning text-foreground"
+                            : "bg-warning hover:bg-warning text-warning-foreground"
                     )}
                 >
                     {isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible ? (
@@ -1235,7 +1235,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                             "w-full h-12 font-bold text-base transition-all",
                             isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible
                                 ? "bg-elevated border border-border text-muted-foreground cursor-not-allowed"
-                                : "bg-warning hover:bg-warning text-foreground"
+                                : "bg-warning hover:bg-warning text-warning-foreground"
                         )}
                     >
                         {submitting ? (

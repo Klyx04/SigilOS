@@ -1986,7 +1986,15 @@ export async function getLinkedQuests(
         const bn = norm(bossName || "");
 
         const all = await db.dofusQuestEntry.findMany({
-            include: { chain: { select: { sectionName: true, sectionType: true } } },
+            include: {
+                chain: {
+                    select: {
+                        sectionName: true,
+                        sectionType: true,
+                        dofus: { select: { name: true, nameShort: true, imageUrl: true } },
+                    },
+                },
+            },
         });
 
         const linked = all.filter((e: any) => {
@@ -2013,7 +2021,17 @@ export async function getLinkedQuests(
 
         const progress = await db.playerDofusQuestProgress.findMany({
             where: { guildId: internalGuildId, questId: { in: questIds } },
-            select: { questId: true, status: true, profileId: true },
+            select: {
+                questId: true,
+                status: true,
+                profileId: true,
+                profile: {
+                    select: {
+                        pseudoDofus: true,
+                        user: { select: { name: true, image: true } },
+                    },
+                },
+            },
         });
 
         const memberCount = await db.userProfile.count({
@@ -2022,8 +2040,18 @@ export async function getLinkedQuests(
 
         const quests = linked.map((q: any) => {
             const mine = progress.find((p: any) => p.profileId === ctx.profileId && p.questId === q.id);
-            const guildCompleted = progress.filter((p: any) => p.questId === q.id && p.status === "COMPLETED").length;
-            const guildInProgress = progress.filter((p: any) => p.questId === q.id && p.status === "IN_PROGRESS").length;
+            const questProgress = progress.filter((p: any) => p.questId === q.id);
+            const guildCompleted = questProgress.filter((p: any) => p.status === "COMPLETED").length;
+            const guildInProgress = questProgress.filter((p: any) => p.status === "IN_PROGRESS").length;
+            const members = questProgress
+                .filter((p: any) => p.status === "COMPLETED" || p.status === "IN_PROGRESS")
+                .map((p: any) => ({
+                    profileId: p.profileId,
+                    pseudo: p.profile?.pseudoDofus || p.profile?.user?.name || "Membre",
+                    avatarUrl: p.profile?.user?.image || null,
+                    status: p.status as "COMPLETED" | "IN_PROGRESS",
+                }));
+
             return {
                 id: q.id,
                 name: q.name,
@@ -2031,11 +2059,14 @@ export async function getLinkedQuests(
                 stepOrder: q.stepOrder,
                 zone: q.zone ?? null,
                 chainName: q.chain?.sectionName ?? null,
+                dofusName: q.chain?.dofus?.name || q.chain?.sectionName || null,
+                dofusImageUrl: q.chain?.dofus?.imageUrl || null,
                 isRush: !!q.isSynergyCandidate || ((q.chain?.sectionType || "").toLowerCase().includes("rush")),
                 myStatus: mine?.status ?? "NOT_STARTED",
                 guildCompleted,
                 guildInProgress,
                 memberCount,
+                members,
             };
         });
 

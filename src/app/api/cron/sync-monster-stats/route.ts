@@ -7,6 +7,7 @@ import { getDungeonsWithAchievements, getMonsterStats } from "@/server/actions/g
 import { getBossDofensiveSpells } from "@/server/actions/dofensive-actions";
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { persistMonsterStat } from "@/lib/dofensive-sync";
+import { siphonAndCompressImage } from "@/lib/dofus-asset-siphon";
 
 /**
  * 🐉 CRON quotidien : synchronisation locale des fiches et statistiques de monstres (DofusDB + Dofensive).
@@ -30,6 +31,7 @@ export async function GET(req: Request) {
             .map((d: any) => ({ bossName: d.bossName || d.name, dungeonName: d.name }));
 
         let synced = 0;
+        let imagesSiphoned = 0;
         let errors = 0;
 
         for (const b of bosses) {
@@ -44,6 +46,13 @@ export async function GET(req: Request) {
                         data = { ...data, spells: mergeDofensiveSpells(data.spells ?? [], dRes.data) };
                     }
                     await persistMonsterStat({ ...data, dungeonName: b.dungeonName });
+
+                    // Téléchargement et compression WebP locale (idempotent, anti-flag)
+                    if (data.id) {
+                        const remoteImg = data.img || `https://api.dofusdb.fr/img/monsters/${data.id}.png`;
+                        const imgRes = await siphonAndCompressImage(remoteImg, "monsters", data.id);
+                        if (imgRes.success) imagesSiphoned++;
+                    }
                     synced++;
                 }
             } catch (err) {
@@ -54,13 +63,27 @@ export async function GET(req: Request) {
 
         logger.info(`[Cron:SyncMonsterStats] Terminé: ${synced} monstres synchronisés, ${errors} erreurs`);
 
-        // Visibilité dans le Dashboard GOD (Audit Logs) — sans session utilisateur.
+        // Visibilité dans le Dashboard GOD (Audit Logs & Alertes) — sans session utilisateur.
         await createSystemAuditLog({
             cron: "sync-monster-stats",
             targetId: "sync-monster-stats",
             synced,
             errors,
             totalBosses: bosses.length,
+        });
+
+        // Envoi d'une alerte/notification God
+        const { notifyGod } = await import("@/server/actions/god-notif-actions");
+        await notifyGod({
+            title: "Siphon Monstres & Sorts terminé",
+            message: `${synced} monstres synchronisés avec succès (${errors} erreurs sur ${bosses.length}).`,
+            type: "WORKER_SYNC",
+            success: errors === 0,
+            metadata: {
+                synced,
+                errors,
+                totalBosses: bosses.length,
+            },
         });
 
         return NextResponse.json({ success: true, synced, errors });

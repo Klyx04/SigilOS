@@ -14,16 +14,20 @@ import { QuestSiphonPanel } from "./QuestSiphonPanel";
 import ArchimonstreManager from "./ArchimonstreManager";
 import { GameDataMonsterManager } from "./GameDataMonsterManager";
 import { DofusDbHarvestSyncManager } from "./DofusDbHarvestSyncManager";
-import { Sparkles, ChevronRight, Database, Pickaxe } from "lucide-react";
+import { GameDataSiphonPanel } from "./GameDataSiphonPanel";
+import { Sparkles, ChevronRight, Database, Pickaxe, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function GameDataInterface() {
-    const [activeTab, setActiveTab] = useState("families");
+    const [activeTab, setActiveTab] = useState("siphon");
 
     return (
         <div className="bg-surface/50 backdrop-blur-sm rounded-3xl border border-border/50 p-6">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="flex flex-nowrap justify-start gap-1 w-full bg-elevated/50 mb-6 p-2 rounded-2xl h-auto overflow-x-auto custom-scrollbar">
+                    <TabsTrigger value="siphon" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white shrink-0 whitespace-nowrap rounded-xl font-black gap-2 shadow-sm">
+                        🛡️ Siphon & Autonomie
+                    </TabsTrigger>
                     <TabsTrigger value="families" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground shrink-0 whitespace-nowrap rounded-xl font-bold">
                         🦎 Familles
                     </TabsTrigger>
@@ -55,6 +59,10 @@ export default function GameDataInterface() {
                         💀 Monstres Spéciaux
                     </TabsTrigger>
                 </TabsList>
+
+                <TabsContent value="siphon" className="space-y-4">
+                    <GameDataSiphonPanel />
+                </TabsContent>
 
                 <TabsContent value="families" className="space-y-4">
                     <MonsterFamilyManager />

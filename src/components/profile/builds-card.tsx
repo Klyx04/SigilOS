@@ -394,7 +394,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                             </button>
                                             <button
                                                 onClick={() => setEditingLink({ ...link })}
-                                                className="p-2 bg-surface/80 hover:bg-info text-info-foreground/50 hover:text-info-foreground rounded-xl border border-border hover:border-border shadow-lg transition-all"
+                                                className="p-2 bg-surface/80 hover:bg-info text-muted-foreground hover:text-info-foreground rounded-xl border border-border hover:border-border shadow-lg transition-all"
                                                 title="Modifier ce build"
                                             >
                                                 <Pencil className="w-3.5 h-3.5" strokeWidth={2.5} />

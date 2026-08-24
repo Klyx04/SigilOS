@@ -11,6 +11,7 @@ import path from 'path';
 import { logger } from "@/lib/logger";
 import { sanitizeHtml } from "@/lib/security";
 import { getLocalMonsterStat, persistMonsterStat } from "@/lib/dofensive-sync";
+import { getDofensiveDungeonForBoss } from "@/server/actions/dofensive-actions";
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -779,10 +780,48 @@ export async function getMonsterStats(
             { cache: 'no-store' }
         );
         if (!searchRes.ok) throw new Error("DofusDB search failed");
-
         const searchData = await searchRes.json();
-        // Try to find exact match or take first
-        const monsterHeader = searchData.data?.find((m: any) => m.name.fr.toLowerCase() === monsterName.toLowerCase().trim()) || searchData.data?.[0];
+
+        let monsterHeader = searchData.data?.find((m: any) => m.name?.fr?.toLowerCase() === monsterName.toLowerCase().trim()) || searchData.data?.[0];
+
+        // Fallback 1: Si non trouvé, chercher par nom de donjon sur DofusDB
+        if (!monsterHeader && dungeonName && dungeonName.trim()) {
+            try {
+                const djRes = await fetch(
+                    `https://api.dofusdb.fr/dungeons?name.fr=${encodeURIComponent(dungeonName.trim())}&lang=fr&$limit=5`,
+                    { cache: 'no-store' }
+                );
+                if (djRes.ok) {
+                    const djData = await djRes.json();
+                    const dj = djData.data?.[0];
+                    if (dj && Array.isArray(dj.monsters) && dj.monsters.length > 0) {
+                        const firstMobId = dj.monsters[0];
+                        const mobRes = await fetch(`https://api.dofusdb.fr/monsters/${firstMobId}?lang=fr`, { cache: 'no-store' });
+                        if (mobRes.ok) {
+                            monsterHeader = await mobRes.json();
+                        }
+                    }
+                }
+            } catch {}
+        }
+
+        // Fallback 2: Si non trouvé, chercher dans Dofensive preview
+        if (!monsterHeader && dungeonName && dungeonName.trim()) {
+            try {
+                const dofDungeon = await getDofensiveDungeonForBoss(monsterName, dungeonName);
+                if (dofDungeon.success && dofDungeon.data?.monsters?.length) {
+                    const firstMob = dofDungeon.data.monsters[0];
+                    const searchMob = await fetch(
+                        `https://api.dofusdb.fr/monsters?name.fr=${encodeURIComponent(firstMob.name)}&lang=fr&$limit=5`,
+                        { cache: 'no-store' }
+                    );
+                    if (searchMob.ok) {
+                        const smData = await searchMob.json();
+                        monsterHeader = smData.data?.[0];
+                    }
+                }
+            } catch {}
+        }
 
         if (!monsterHeader) return { success: false, error: 'Monstre non trouvé' };
 
@@ -1205,28 +1244,82 @@ export async function getDungeonMonsters(
         const searchData = await searchRes.json();
         const bossHeader = searchData.data?.find((m: any) => m.name?.fr?.toLowerCase() === bossName.toLowerCase().trim()) || searchData.data?.[0];
         const race = bossHeader?.race ?? null;
-
-        if (!race) {
-            return { success: true, data: { familyId: null, monsters: [] } };
+        if (race) {
+            const familyRes = await fetch(
+                `https://api.dofusdb.fr/monsters?race=${race}&lang=fr&$limit=50`,
+                { cache: 'no-store' }
+            );
+            if (familyRes.ok) {
+                const familyData = await familyRes.json();
+                const monsters = (familyData.data || []).map((m: any) => ({
+                    id: m.id,
+                    name: m.name?.fr || 'Monstre',
+                    imageUrl: m.img || null,
+                    isBoss: !!m.isBoss,
+                }));
+                if (monsters.length > 0) {
+                    const result = { familyId: race, monsters };
+                    dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
+                    return { success: true, data: result };
+                }
+            }
         }
 
-        const familyRes = await fetch(
-            `https://api.dofusdb.fr/monsters?race=${race}&lang=fr&$limit=50`,
-            { cache: 'no-store' }
-        );
-        if (!familyRes.ok) throw new Error('DofusDB family fetch failed');
-        const familyData = await familyRes.json();
+        // Fallback 1: via DofusDB Dungeons API si dungeonName fourni
+        if (dungeonName && dungeonName.trim()) {
+            try {
+                const djRes = await fetch(
+                    `https://api.dofusdb.fr/dungeons?name.fr=${encodeURIComponent(dungeonName.trim())}&lang=fr&$limit=5`,
+                    { cache: 'no-store' }
+                );
+                if (djRes.ok) {
+                    const djData = await djRes.json();
+                    const dj = djData.data?.[0];
+                    if (dj && Array.isArray(dj.monsters) && dj.monsters.length > 0) {
+                        const mobList: { id: number; name: string; imageUrl: string | null; isBoss: boolean }[] = [];
+                        for (const mobId of dj.monsters) {
+                            try {
+                                const mRes = await fetch(`https://api.dofusdb.fr/monsters/${mobId}?lang=fr`, { cache: 'no-store' });
+                                if (mRes.ok) {
+                                    const m = await mRes.json();
+                                    mobList.push({
+                                        id: m.id,
+                                        name: m.name?.fr || 'Monstre',
+                                        imageUrl: m.img || null,
+                                        isBoss: !!m.isBoss,
+                                    });
+                                }
+                            } catch {}
+                        }
+                        if (mobList.length > 0) {
+                            const result = { familyId: null, monsters: mobList };
+                            dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
+                            return { success: true, data: result };
+                        }
+                    }
+                }
+            } catch {}
+        }
 
-        const monsters = (familyData.data || []).map((m: any) => ({
-            id: m.id,
-            name: m.name?.fr || 'Monstre',
-            imageUrl: m.img || null,
-            isBoss: !!m.isBoss,
-        }));
+        // Fallback 2: via Dofensive preview
+        if (dungeonName && dungeonName.trim()) {
+            try {
+                const dofDungeon = await getDofensiveDungeonForBoss(bossName, dungeonName);
+                if (dofDungeon.success && dofDungeon.data?.monsters?.length) {
+                    const monsters = dofDungeon.data.monsters.map((m, idx) => ({
+                        id: m.id,
+                        name: m.name,
+                        imageUrl: null,
+                        isBoss: idx === 0 || dofDungeon.data?.bossMonsterId === m.id,
+                    }));
+                    const result = { familyId: null, monsters };
+                    dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
+                    return { success: true, data: result };
+                }
+            } catch {}
+        }
 
-        const result = { familyId: race, monsters };
-        dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
-        return { success: true, data: result };
+        return { success: true, data: { familyId: null, monsters: [] } };
     } catch (error) {
         logger.error('[getDungeonMonsters] Error:', { error });
         return { success: false, error: 'Erreur DofusDB' };

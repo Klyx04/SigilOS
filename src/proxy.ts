@@ -165,6 +165,9 @@ export default auth(async (req) => {
     const isPublicApi = 
         nextUrl.pathname.startsWith("/api/auth") || 
         nextUrl.pathname.startsWith("/api/health") ||
+        nextUrl.pathname.startsWith("/api/assets-dofus") ||
+        nextUrl.pathname.startsWith("/api/dofusdb") ||
+        nextUrl.pathname.startsWith("/api/proxy-image") ||
         nextUrl.pathname.startsWith("/api/god/notify") || 
         nextUrl.pathname.startsWith("/api/cron/") ||       // ✅ Protected by verifyCronSecret (x-cron-secret header)
         nextUrl.pathname.startsWith("/api/discord/interactions") || 

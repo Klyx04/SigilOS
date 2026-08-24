@@ -14,6 +14,7 @@ import {
 } from '@/lib/dofus-asset-siphon';
 import { getDofensiveDungeonForBoss } from '@/server/actions/dofensive-actions';
 import { getMonsterStats } from '@/server/actions/game-data-actions';
+import { persistMonsterStat } from '@/lib/dofensive-sync';
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -69,13 +70,12 @@ export async function getSiphonDashboardStats(): Promise<ActionResponse<SiphonDa
 
         const storageStats = getAssetStorageStats();
 
-        // Calcul du score d'autonomie (donjons pourvus de stats, maps et images locales)
+        // Calcul du score d'autonomie (priorité absolue à l'indépendance CDN : stats BDD + images WebP locales)
         const expectedBossCount = Math.max(totalDungeons, 1);
         const statsRatio = Math.min(totalMonsterStatsInDb / expectedBossCount, 1);
-        const mapsRatio = Math.min(totalDofensiveMapsInDb / expectedBossCount, 1);
         const imagesRatio = Math.min(storageStats.monsters.count / expectedBossCount, 1);
 
-        const autonomyScore = Math.round(((statsRatio + mapsRatio + imagesRatio) / 3) * 100);
+        const autonomyScore = Math.round(((statsRatio * 0.5) + (imagesRatio * 0.5)) * 100);
 
         return {
             success: true,
@@ -128,8 +128,11 @@ export async function getSiphonInventory(filters: {
         const items: SiphonInventoryItem[] = [];
 
         for (const dj of dungeons) {
-            const bossKey = dj.bossName.toLowerCase().trim();
-            const statRow = monsterStatsMap.get(bossKey);
+            let bossKey = dj.bossName.toLowerCase().trim();
+            if (bossKey.includes('reine nyee')) bossKey = 'reine nyee';
+            if (bossKey.includes('dernier espoir') || bossKey.includes('eliocalypse')) bossKey = 'servitude';
+
+            const statRow = monsterStatsMap.get(bossKey) || monsterStatsMap.get(dj.bossName.toLowerCase().trim());
             const statsData = (statRow?.stats as any) || null;
 
             let numericMonsterId: number | null = null;
@@ -225,42 +228,65 @@ export async function triggerBatchAssetSiphonAction(
             const target = queue.shift();
             if (!target) break;
 
-            try {
-                // 1. Résolution des statistiques et de la véritable URL graphique DofusDB
-                let remoteUrl = target.remoteUrl;
-                let monsterId = target.id;
+            const cleanName = target.name.trim();
+            const cleanDungeon = target.dungeonName?.trim();
+            let monsterId = target.id;
+            let remoteUrl = target.remoteUrl;
+            const isNumericId = typeof monsterId === 'number' || (/^\d+$/.test(String(monsterId)) && !String(monsterId).startsWith('c'));
 
-                // Toujours interroger getMonsterStats si l'URL est manquante ou suspecte
-                const statsRes = await getMonsterStats(target.name, target.dungeonName, options.forceRefresh);
-                if (statsRes.success && statsRes.data) {
-                    remoteUrl = statsRes.data.img || remoteUrl;
-                    monsterId = statsRes.data.id;
+            try {
+                // 1. Si on a un ID numérique, on interroge directement l'API DofusDB pour avoir l'image exacte et les stats
+                if (isNumericId) {
+                    const numId = Number(monsterId);
+                    try {
+                        const directRes = await fetch(`https://api.dofusdb.fr/monsters/${numId}`, {
+                            headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr; Game Asset Cache)' },
+                            signal: AbortSignal.timeout(8_000),
+                        });
+                        if (directRes.ok) {
+                            const data = await directRes.json();
+                            if (data.img && data.img.startsWith('http')) {
+                                remoteUrl = data.img;
+                                // Persistance en BDD locale des stats si absentes
+                                await persistMonsterStat({ ...data, dungeonName: cleanDungeon });
+                            }
+                        }
+                    } catch {}
+                }
+
+                // 2. Si pas d'URL résolue, résolution par nom via getMonsterStats
+                if (!remoteUrl || !remoteUrl.startsWith('http')) {
+                    const statsRes = await getMonsterStats(cleanName, cleanDungeon, options.forceRefresh);
+                    if (statsRes.success && statsRes.data) {
+                        remoteUrl = statsRes.data.img || remoteUrl;
+                        monsterId = statsRes.data.id;
+                    }
                 }
 
                 if (!remoteUrl || !remoteUrl.startsWith('http')) {
                     skipped++;
-                    details.push(`⊘ [${target.name}] -> Ignoré (image DofusDB introuvable)`);
+                    details.push(`⊘ [${cleanName}] -> Ignoré (image DofusDB introuvable)`);
                     continue;
                 }
 
-                // 2. Télécharger et compresser en WebP local avec l'ID officiel du monstre
+                // 3. Télécharger et compresser en WebP local
                 const result = await siphonAndCompressImage(remoteUrl, 'monsters', monsterId, options.forceRefresh);
 
                 if (result.success) {
                     siphoned++;
-                    details.push(`✓ [${target.name}] -> ${result.localUrl} (${Math.round((result.sizeBytes || 0) / 1024)} Ko)`);
+                    details.push(`✓ [${cleanName}] -> ${result.localUrl} (${Math.round((result.sizeBytes || 0) / 1024)} Ko)`);
                 } else {
                     errors++;
-                    details.push(`✗ [${target.name}] -> Échec: ${result.error}`);
+                    details.push(`✗ [${cleanName}] -> Échec: ${result.error}`);
                 }
 
-                // 3. Siphoner également la map Dofensive associée
-                if (target.dungeonName) {
-                    await getDofensiveDungeonForBoss(target.name, target.dungeonName);
+                // 4. Siphoner également la map Dofensive associée
+                if (cleanDungeon) {
+                    await getDofensiveDungeonForBoss(cleanName, cleanDungeon);
                 }
             } catch (err) {
                 errors++;
-                details.push(`✗ [${target.name}] -> Exception: ${String(err)}`);
+                details.push(`✗ [${cleanName}] -> Exception: ${String(err)}`);
             }
         }
     };

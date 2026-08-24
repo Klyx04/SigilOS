@@ -355,9 +355,9 @@ export function GameDataSiphonPanel() {
                                                     ✓ Map 40×14
                                                 </Badge>
                                             ) : (
-                                                <Badge variant="outline" className="bg-neutral-500/10 border-neutral-500/20 text-muted-foreground font-bold">
-                                                    Non siphonnée
-                                                </Badge>
+                                                <span className="text-caption text-muted-foreground/40 font-medium px-2 py-0.5 rounded bg-surface/50 border border-border/30">
+                                                    Non requise
+                                                </span>
                                             )}
                                         </td>
 

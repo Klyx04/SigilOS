@@ -43,7 +43,8 @@ import {
     Bug,
     Coins,
     Map,
-    CalendarClock
+    CalendarClock,
+    Ticket
 } from "lucide-react";
 import { SidebarSearch } from "./sidebar-search";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -237,6 +238,7 @@ export function AppSidebar({
             `/dashboard/${guildId}/missions/manage`,
             `/dashboard/${guildId}/admin/logs`,
             `/dashboard/${guildId}/reaction-roles`,
+            `/dashboard/${guildId}/tickets`,
         ]
     };
 
@@ -273,7 +275,9 @@ export function AppSidebar({
         { name: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: CheckCircle, color: "emerald", visible: user.canValidateMissions },
         { name: "Gestion des Membres", href: `/dashboard/${guildId}/admin/members`, icon: Users, color: "cyan", visible: user.canManageMembers || user.canManageRelance },
         { name: "Points de Contribution", href: `/dashboard/${guildId}/admin/points`, icon: Coins, color: "amber", visible: user.canManagePoints },
-        { name: "Audit Logs", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, color: "zinc", visible: user.canViewAuditLogs },
+        { name: "Rôles par Réaction", href: `/dashboard/${guildId}/reaction-roles`, icon: Sparkles, color: "purple", visible: user.canManageReactionRoles && modules.reactionRoles },
+        { name: "Bot Tickets & Support", href: `/dashboard/${guildId}/tickets`, icon: Ticket, color: "amber", visible: user.canManageTickets && modules.tickets },
+        { name: "Logs d'Audit", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, color: "rose", visible: user.canViewAuditLogs && modules.logs },
         { name: "Mises à jour", href: "/changelog", icon: History, color: "indigo", visible: true },
         { name: "Tracker de Bugs", href: `/dashboard/${guildId}/tracker`, icon: Bug, color: "amber", visible: true },
     ];

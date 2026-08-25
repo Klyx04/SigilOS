@@ -140,6 +140,12 @@ export async function revalidateUserContext(guildId?: string) {
             });
             if (config?.id) internalGuildId = config.id;
         } catch { /* non bloquant */ }
+        // 1bis. Purge aussi le cache de CONFIG guilde (`config:{guildId}`, TTL 60 s).
+        // `isOnboardingComplete` lit `dofusServerId`/`rolesMapping` depuis ce cache ;
+        // sans ça un membre restait sur « Configuration en cours » ~60 s après une
+        // modif d'onboarding, même en spammant « Synchroniser » (qui ne purgeait que
+        // `user:ctx` + caches membre/rôles). Voir retour beta (Vidou).
+        await invalidateGuildCache(guildId).catch(() => {});
     }
     await invalidateUserContextCache(userId, internalGuildId, guildId);
 

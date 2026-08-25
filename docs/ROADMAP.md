@@ -39,7 +39,7 @@
 - **Fiche Boss / Simulation** (06/10, terminé — 283/283) — reliquats : icônes résistances/vitalité
   `public/assets/module-succes/*.png` (**à brancher ou supprimer**, chantier en cours) · onglet
   « Mes succès / Succès Commun » · prévisu zone sous-monde · bug faces noires 3D · butin par grade · zaaps.
-- **Accès membres / Discord (25/08)** : réglé le « Accès Banni » après réintégration (invalidation cache+session, PR #541 mergée) + UX « Exclure (réintégrable) ». ⚪ RESTE : invalidation des caches `member:`/`roles:`/`user:ctx` à un **changement de rôle Discord** (cas « rôle accordé mais refusé ~15 s ») — cache membre en mémoire (process app) non partageable avec le bot Gateway → chantier « résilience Discord » (Redis ou endpoint interne).
+- **Accès membres / Discord (25/08)** : réglé le « Accès Banni » après réintégration (invalidation cache+session, PR #541 mergée) + UX « Exclure (réintégrable) ». **✅ CHANTIER 25/08** (`feat/chantier-2026-08-25-acces-timeout-archivage`) : reflet du **timeout Discord** (écran « Accès Temporairement Suspendu » + compte à rebours) · bug « Accès Banni » après réintégration définitivement corrigé (tombstone `findFirst({ liftedAt: null })`) · `wipeUserProfile` crée son tombstone · `getGuildMemberBans` sans `take:100` · **archivage auto 12 mois** · messaging honnête Archiver vs Supprimer. ⚪ RESTE (→ #223 résilience Discord) : invalidation des caches `member:`/`roles:`/`user:ctx` à un **changement de rôle / timeout Discord** — cache membre en mémoire (process app) non partageable avec le bot Gateway → Redis/endpoint interne ; + « Supprimer définitivement » réel = retrait du rôle d'accès Discord via le bot.
 
 ## 🟠 Bloc B — UX / Perf (valeur immédiate)
 

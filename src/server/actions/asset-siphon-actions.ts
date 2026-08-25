@@ -231,8 +231,8 @@ export async function triggerBatchAssetSiphonAction(
 
             const cleanName = typeof target.name === 'string' ? target.name.trim() : '';
             const cleanDungeon = typeof target.dungeonName === 'string' ? target.dungeonName.trim() : undefined;
-            const parsedNum = parseInt(String(target.id).replace(/[^0-9]/g, ''), 10);
-            let monsterId = Number.isInteger(parsedNum) && parsedNum > 0 ? parsedNum : 0;
+            const isPureNumeric = typeof target.id === 'number' || (/^\d+$/.test(String(target.id).trim()));
+            let monsterId = isPureNumeric ? parseInt(String(target.id).trim(), 10) : 0;
 
             try {
                 // 1. Si on a un ID numérique, on interroge l'API DofusDB pour les stats

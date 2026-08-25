@@ -888,6 +888,194 @@ export async function POST(request: NextRequest) {
                         flags: 64, // EPHEMERAL
                     },
                 });
+            } else if (prefix === "tb") {
+                // =========================================================
+                // TICKET BOT INTERACTION (Buttons, Select Menus)
+                // custom_id = tb:open:{panelId}:{categoryId}
+                // custom_id = tb:select_open:{panelId}
+                // custom_id = tb:claim:{ticketId}
+                // custom_id = tb:note:{ticketId}
+                // custom_id = tb:rename:{ticketId}
+                // custom_id = tb:close:{ticketId}
+                // custom_id = tb:csat:{ticketId}:{rating}
+                // =========================================================
+                const {
+                    internalHandleTicketCreate,
+                    internalHandleTicketClaim,
+                    internalHandleTicketCsat,
+                } = await import("@/server/actions/ticket-bot-actions");
+
+                if (action === "select_open" || action === "open") {
+                    const panelId = entityId;
+                    const categoryId = action === "select_open" ? payload.data?.values?.[0] : extra;
+
+                    if (!categoryId) {
+                        return NextResponse.json({ type: 4, data: { content: "Catégorie non spécifiée", flags: 64 } });
+                    }
+
+                    const { db } = await import("@/lib/prisma");
+                    const category = await db.ticketBotCategory.findUnique({
+                        where: { id: categoryId },
+                    });
+
+                    const formSchema = Array.isArray(category?.formSchemaJson) ? (category.formSchemaJson as any[]) : [];
+
+                    if (formSchema.length > 0) {
+                        const modalComponents = formSchema.slice(0, 5).map((field, idx) => ({
+                            type: 1, // ACTION_ROW
+                            components: [
+                                {
+                                    type: 4, // TEXT_INPUT
+                                    custom_id: `field_${idx}`,
+                                    label: String(field.label || `Question ${idx + 1}`).slice(0, 45),
+                                    style: field.type === "PARAGRAPH" ? 2 : 1,
+                                    placeholder: field.placeholder ? String(field.placeholder).slice(0, 100) : undefined,
+                                    required: field.required !== false,
+                                    min_length: field.minLength || 0,
+                                    max_length: field.maxLength || (field.type === "PARAGRAPH" ? 1000 : 100),
+                                },
+                            ],
+                        }));
+
+                        return NextResponse.json({
+                            type: 9, // MODAL
+                            data: {
+                                custom_id: `tb:modal_open:${panelId}:${categoryId}`,
+                                title: `Ouvrir un ticket — ${category?.name || "Support"}`.slice(0, 45),
+                                components: modalComponents,
+                            },
+                        });
+                    }
+
+                    const res = await internalHandleTicketCreate({
+                        discordGuildId: guild_id,
+                        discordUserId: member.user.id,
+                        discordUserName: member.user.global_name || member.user.username,
+                        discordUserAvatar: member.user.avatar,
+                        panelId,
+                        categoryId,
+                        answers: {},
+                    });
+
+                    if (res.success && res.channelId) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: {
+                                content: `✅ Votre ticket a été créé : <#${res.channelId}>`,
+                                flags: 64,
+                            },
+                        });
+                    } else {
+                        return NextResponse.json({
+                            type: 4,
+                            data: {
+                                content: `❌ ${res.error || "Impossible d'ouvrir le ticket"}`,
+                                flags: 64,
+                            },
+                        });
+                    }
+                } else if (action === "claim") {
+                    const ticketId = entityId;
+                    const res = await internalHandleTicketClaim({
+                        discordGuildId: guild_id,
+                        discordUserId: member.user.id,
+                        discordUserName: member.user.global_name || member.user.username,
+                        ticketId,
+                    });
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: res.message, flags: 64 },
+                    });
+                } else if (action === "note") {
+                    const ticketId = entityId;
+                    return NextResponse.json({
+                        type: 9, // MODAL
+                        data: {
+                            custom_id: `tb:modal_note:${ticketId}`,
+                            title: "Note interne staff",
+                            components: [
+                                {
+                                    type: 1,
+                                    components: [
+                                        {
+                                            type: 4,
+                                            custom_id: "note_content",
+                                            label: "Contenu de la note (Staff uniquement)",
+                                            style: 2,
+                                            placeholder: "Notes d'investigation, détails du compte...",
+                                            required: true,
+                                            max_length: 2000,
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    });
+                } else if (action === "rename") {
+                    const ticketId = entityId;
+                    return NextResponse.json({
+                        type: 9, // MODAL
+                        data: {
+                            custom_id: `tb:modal_rename:${ticketId}`,
+                            title: "Renommer le ticket",
+                            components: [
+                                {
+                                    type: 1,
+                                    components: [
+                                        {
+                                            type: 4,
+                                            custom_id: "new_name",
+                                            label: "Nouveau nom du salon",
+                                            style: 1,
+                                            placeholder: "ex: ticket-urgent-probleme",
+                                            required: true,
+                                            max_length: 100,
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    });
+                } else if (action === "close") {
+                    const ticketId = entityId;
+                    return NextResponse.json({
+                        type: 9, // MODAL
+                        data: {
+                            custom_id: `tb:modal_close:${ticketId}`,
+                            title: "Fermer le ticket",
+                            components: [
+                                {
+                                    type: 1,
+                                    components: [
+                                        {
+                                            type: 4,
+                                            custom_id: "close_reason",
+                                            label: "Motif de clôture (optionnel)",
+                                            style: 2,
+                                            placeholder: "Problème résolu, inactivité, doublon...",
+                                            required: false,
+                                            max_length: 500,
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    });
+                } else if (action === "csat") {
+                    const ticketId = entityId;
+                    const rating = parseInt(extra, 10) || 5;
+                    const res = await internalHandleTicketCsat({
+                        discordUserId: member.user.id,
+                        ticketId,
+                        rating,
+                    });
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: res.message, flags: 64 },
+                    });
+                } else {
+                    return NextResponse.json({ type: 4, data: { content: "Action ticket inconnue", flags: 64 } });
+                }
             } else {
                 return NextResponse.json({ type: 4, data: { content: "Interaction inconnue", flags: 64 } });
             }
@@ -1132,6 +1320,118 @@ export async function POST(request: NextRequest) {
                     type: 4,
                     data: { content: `❌ ${res.error || "Impossible d'envoyer la réponse."}`, flags: 64 },
                 });
+            } else if (prefix === "tb") {
+                // =========================================================
+                // TICKET BOT MODAL SUBMITS
+                // custom_id = tb:modal_open:{panelId}:{categoryId}
+                // custom_id = tb:modal_note:{ticketId}
+                // custom_id = tb:modal_rename:{ticketId}
+                // custom_id = tb:modal_close:{ticketId}
+                // =========================================================
+                if (action === "modal_open") {
+                    const panelId = entityId;
+                    const categoryId = extra;
+                    const { db } = await import("@/lib/prisma");
+                    const category = await db.ticketBotCategory.findUnique({
+                        where: { id: categoryId },
+                    });
+
+                    const formSchema = Array.isArray(category?.formSchemaJson) ? (category.formSchemaJson as any[]) : [];
+                    const answers: Record<string, string> = {};
+
+                    for (const row of components) {
+                        for (const comp of row.components) {
+                            if (comp.custom_id.startsWith("field_")) {
+                                const idx = parseInt(comp.custom_id.replace("field_", ""), 10);
+                                const label = formSchema[idx]?.label || `Question ${idx + 1}`;
+                                answers[label] = comp.value?.trim() || "";
+                            }
+                        }
+                    }
+
+                    const { internalHandleTicketCreate } = await import("@/server/actions/ticket-bot-actions");
+                    const res = await internalHandleTicketCreate({
+                        discordGuildId: guild_id,
+                        discordUserId: member.user.id,
+                        discordUserName: member.user.global_name || member.user.username,
+                        discordUserAvatar: member.user.avatar,
+                        panelId,
+                        categoryId,
+                        answers,
+                    });
+
+                    if (res.success && res.channelId) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: {
+                                content: `✅ Votre ticket a été créé : <#${res.channelId}>`,
+                                flags: 64,
+                            },
+                        });
+                    } else {
+                        return NextResponse.json({
+                            type: 4,
+                            data: {
+                                content: `❌ ${res.error || "Erreur lors de la création du ticket"}`,
+                                flags: 64,
+                            },
+                        });
+                    }
+                } else if (action === "modal_note") {
+                    const ticketId = entityId;
+                    let content = "";
+                    for (const row of components) {
+                        for (const comp of row.components) {
+                            if (comp.custom_id === "note_content") content = comp.value?.trim() || "";
+                        }
+                    }
+                    const { internalHandleTicketAddNote } = await import("@/server/actions/ticket-bot-actions");
+                    const res = await internalHandleTicketAddNote({
+                        discordGuildId: guild_id,
+                        discordUserId: member.user.id,
+                        discordUserName: member.user.global_name || member.user.username,
+                        ticketId,
+                        content,
+                    });
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: res.message, flags: 64 },
+                    });
+                } else if (action === "modal_rename") {
+                    const ticketId = entityId;
+                    let newName = "";
+                    for (const row of components) {
+                        for (const comp of row.components) {
+                            if (comp.custom_id === "new_name") newName = comp.value?.trim() || "";
+                        }
+                    }
+                    const { renameTicketAction } = await import("@/server/actions/ticket-bot-actions");
+                    await renameTicketAction(guild_id, ticketId, newName);
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: `✏️ Salon renommé en **${newName}**`, flags: 64 },
+                    });
+                } else if (action === "modal_close") {
+                    const ticketId = entityId;
+                    let reason = "";
+                    for (const row of components) {
+                        for (const comp of row.components) {
+                            if (comp.custom_id === "close_reason") reason = comp.value?.trim() || "";
+                        }
+                    }
+                    const { internalHandleTicketClose } = await import("@/server/actions/ticket-bot-actions");
+                    const res = await internalHandleTicketClose({
+                        discordGuildId: guild_id,
+                        discordUserId: member.user.id,
+                        discordUserName: member.user.global_name || member.user.username,
+                        ticketId,
+                        reason,
+                    });
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: res.message, flags: 64 },
+                    });
+                }
             }
 
             // =========================================================

@@ -33,7 +33,8 @@ export type ModuleKey =
     | "manualLadderSync"
     | "minigames"
     | "succes"
-    | "reactionRoles";
+    | "reactionRoles"
+    | "tickets";
 
 export type GuildModulesState = {
     // Général
@@ -59,6 +60,7 @@ export type GuildModulesState = {
     polls: boolean;
     admin: boolean;
     reactionRoles: boolean;
+    tickets: boolean;
     // Coming Soon
     quests: boolean;
     worldmap: boolean;
@@ -101,6 +103,7 @@ export const DEFAULT_MODULES: GuildModulesState = {
     polls: false,
     admin: true, // nécessaire à l'admin pour se configurer à l'arrivée
     reactionRoles: true,
+    tickets: true,
     quests: false,
     worldmap: false,
     resources: false,
@@ -109,3 +112,4 @@ export const DEFAULT_MODULES: GuildModulesState = {
     minigames: false,
     succes: false,
 };
+

@@ -168,9 +168,9 @@ if [ "$TARGET" == "beta" ]; then
     sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta npm run migrate:uploads
 
     info "🧹 Synchronisation des migrations BÊTA..."
-    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta npx --yes prisma migrate deploy
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta npx --yes prisma@7.9.1 migrate deploy
     # Le `db push` reste en beta pour itérer vite sur le schéma (dev-like)
-    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta npx --yes prisma db push
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta npx --yes prisma@7.9.1 db push
 
     run_conditional_seed app-beta
 
@@ -208,7 +208,7 @@ else
     sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-prod npm run migrate:uploads
 
     info "🧹 Synchronisation des migrations PRODUCTION..."
-    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-prod npx --yes prisma migrate deploy
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-prod npx --yes prisma@7.9.1 migrate deploy
     # 🛑 `prisma db push` est volontairement ABSENT en prod.
     # Seule `migrate deploy` est autorisée sur une base de production :
     # db push peut désynchroniser le schéma et les migrations de façon

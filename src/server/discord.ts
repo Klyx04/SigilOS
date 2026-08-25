@@ -297,7 +297,8 @@ export async function fetchGuildMember(guildId: string, userId: string) {
         nick?: string | null; 
         avatar?: string | null;
         roles: string[]; 
-        joined_at?: string 
+        joined_at?: string;
+        communication_disabled_until?: string | null;
     } | null>(cacheKey);
     if (cached !== null) return cached;
 
@@ -323,6 +324,7 @@ export async function fetchGuildMember(guildId: string, userId: string) {
         avatar?: string | null;
         roles: string[];
         joined_at?: string;
+        communication_disabled_until?: string | null;
     };
 
     // TTL: 15 seconds (court pour que l'ajout d'un rôle soit vu rapidement)

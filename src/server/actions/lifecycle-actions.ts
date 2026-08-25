@@ -74,7 +74,7 @@ export async function archiveProfile(guildId: string, profileId?: string, durati
             });
         }
 
-        const duration = durationMonths || 3; // Default to 3 months for self archival
+        const duration = durationMonths || 12; // Défaut : 12 mois d'archivage automatique
         const days = duration * 30.5;
         const scheduledDeletion = new Date(Date.now() + Math.floor(days * 24 * 60 * 60 * 1000));
 
@@ -505,14 +505,14 @@ export async function reactivateProfileByAdmin(
     }
 }
 
-// Retention periods in days
+// Retention periods in days — politique d'archivage automatique : 12 mois (365 j)
 const RETENTION_DAYS = {
-    USER_LEAVE: 90,    // Voluntary departure: 90 days
-    LEFT: 90,          // Left via sync: 90 days
-    ADMIN_ACTION: 30,  // Archived by admin: 30 days
-    KICKED: 30,        // Wiped by admin: 30 days
-    BANNED: 0,         // Already anonymized immediately
-    GDPR_REQUEST: 0    // Immediate deletion on GDPR request
+    USER_LEAVE: 365,    // Départ volontaire : 12 mois
+    LEFT: 365,          // Départ via sync : 12 mois
+    ADMIN_ACTION: 365,  // Archivé par un admin : 12 mois
+    KICKED: 365,        // Nettoyé par un admin : 12 mois
+    BANNED: 0,          // Déjà anonymisé immédiatement
+    GDPR_REQUEST: 0     // Suppression immédiate sur demande RGPD
 };
 
 /**
@@ -960,6 +960,35 @@ export async function wipeUserProfile(profileId: string, discordGuildId: string)
         // 🔔 Lifecycle Notification — before anonymization
         await sendLifecycleNotification(discordGuildId, profile, "BANNED", ctx.name ?? "Un administrateur");
 
+        // ── F-01 : tombstone guild-scopé — le membre « nettoyé » (status BANNED) reste
+        // bloqué et visible/réintégrable dans l'onglet « Exclus ». Sans tombstone, il était
+        // en « Accès Banni » mais INVISIBLE dans Exclus (impossible à réintégrer via l'UI).
+        if (targetDiscordId) {
+            try {
+                const memberName = profile.pseudoDofus || profile.discordNickname || profile.user?.name || null;
+                await db.guildMemberBan.upsert({
+                    where: { guildId_discordId: { guildId: profile.guildId, discordId: targetDiscordId } },
+                    create: {
+                        guildId: profile.guildId,
+                        discordId: targetDiscordId,
+                        reason: "KICKED (RGPD wipe)",
+                        bannedBy: ctx.id ?? "system",
+                        bannedByName: ctx.name ?? "Un administrateur",
+                        memberName
+                    },
+                    update: {
+                        reason: "KICKED (RGPD wipe)",
+                        liftedAt: null,
+                        liftedBy: null,
+                        liftedByName: null,
+                        memberName
+                    }
+                });
+            } catch (banErr) {
+                logger.error("[GuildMemberBan] tombstone on wipe failed:", banErr);
+            }
+        }
+
         await db.userProfile.update({
             where: { id: profileId },
             data: {
@@ -1179,10 +1208,11 @@ export async function getGuildMemberBans(guildId: string) {
     });
     if (!guild) return { success: false, error: "Guild not found", data: [] };
 
+    // ⚠️ F-01 — pas de `take` : une limite (ex. 100) rendait certains exclusions invisibles
+    // dans l'onglet « Exclus » (le membre apparaissait « Accès Banni » sans être réintégrable).
     const bans = await db.guildMemberBan.findMany({
         where: { guildId: guild.id, liftedAt: null },
-        orderBy: { createdAt: "desc" },
-        take: 100
+        orderBy: { createdAt: "desc" }
     });
 
     return { success: true, data: bans };

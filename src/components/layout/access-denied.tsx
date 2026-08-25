@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ShieldAlert, Lock, ArrowLeft, MessageSquare, Archive } from "lucide-react";
+import { ShieldAlert, Lock, ArrowLeft, MessageSquare, Archive, Clock } from "lucide-react";
 import { PublicHeader } from "@/components/layout/public-header";
 import { useSession } from "next-auth/react";
 import { RefreshCcw } from "lucide-react";
@@ -27,16 +27,18 @@ import { Label } from "@/components/ui/label";
 interface AccessDeniedProps {
     title?: string;
     message?: string;
-    variant?: "lock" | "ban" | "archive";
+    variant?: "lock" | "ban" | "archive" | "timeout";
     action?: React.ReactNode;
     countdownDate?: string | null;
+    countdownLabel?: string;
+    expiredLabel?: string;
     guildId?: string; // Optional, to help re-sync specific guild
     hasPendingReactivation?: boolean;
 }
 
 import { useState, useEffect } from "react";
 
-function Countdown({ date }: { date: string }) {
+function Countdown({ date, label = "Suppression définitive des données dans", expiredLabel = "Suppression imminente..." }: { date: string; label?: string; expiredLabel?: string }) {
     const [timeLeft, setTimeLeft] = useState<string>("");
 
     useEffect(() => {
@@ -47,7 +49,7 @@ function Countdown({ date }: { date: string }) {
             const diff = target - now;
 
             if (diff <= 0) {
-                setTimeLeft("Suppression imminente...");
+                setTimeLeft(expiredLabel);
                 return;
             }
 
@@ -66,12 +68,12 @@ function Countdown({ date }: { date: string }) {
         update();
         const timer = setInterval(update, 1000);
         return () => clearInterval(timer);
-    }, [date]);
+    }, [date, expiredLabel]);
 
     return (
         <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl animate-pulse">
             <p className="text-caption font-semibold uppercase tracking-wide text-amber-500">
-                ⚠️ Suppression définitive des données dans
+                ⚠️ {label}
             </p>
             <p className="text-xl font-black text-amber-400 tabular-nums">
                 {timeLeft}
@@ -86,6 +88,8 @@ export function AccessDenied({
     variant = "lock",
     action,
     countdownDate,
+    countdownLabel,
+    expiredLabel,
     guildId,
     hasPendingReactivation = false
 }: AccessDeniedProps) {
@@ -146,6 +150,8 @@ export function AccessDenied({
                             <Lock className="w-14 h-14 text-zinc-400" />
                         ) : variant === "archive" ? (
                             <Archive className="w-14 h-14 text-amber-400" />
+                        ) : variant === "timeout" ? (
+                            <Clock className="w-14 h-14 text-amber-400" />
                         ) : (
                             <ShieldAlert className="w-14 h-14 text-red-400" />
                         )}
@@ -162,7 +168,7 @@ export function AccessDenied({
 
                     {countdownDate && (
                         <div className="px-8">
-                            <Countdown date={countdownDate} />
+                            <Countdown date={countdownDate} label={countdownLabel} expiredLabel={expiredLabel} />
                         </div>
                     )}
                 </div>

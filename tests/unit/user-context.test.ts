@@ -39,7 +39,7 @@ vi.mock("@/lib/prisma", () => ({
         guildConfig: { findFirst: vi.fn() },
         account: { findFirst: vi.fn() },
         platformBan: { findUnique: vi.fn() },
-        guildMemberBan: { findUnique: vi.fn().mockResolvedValue(null) },
+        guildMemberBan: { findUnique: vi.fn().mockResolvedValue(null), findFirst: vi.fn().mockResolvedValue(null) },
         platformConfig: { findUnique: vi.fn() },
     },
 }));
@@ -829,4 +829,72 @@ describe("invalidateUserContextCache — auto-résolution de l'UUID interne", ()
         expect(redis.del).toHaveBeenCalledWith("user:ctx:user-1:111111111111111111");
     });
 });
+
+// ─────────────────────────────────────────────────────────────
+// BLOC 8 — TIMEOUT DISCORD (« Exclure temporairement ») + exclusions levées
+// ─────────────────────────────────────────────────────────────
+describe("getUserContext — timeout Discord (communication_disabled_until)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.advanceTimersByTime(120_000);
+        mockIsGuildAllowed.mockResolvedValue(true);
+        mockIsSuperAdmin.mockResolvedValue(false);
+        mockDb.platformBan.findUnique.mockResolvedValue(null);
+        mockDb.userProfile.findUnique.mockResolvedValue(makeProfile());
+        mockFetchGuild.mockResolvedValue({ id: "111111111111111111", owner_id: "other-owner", roles: [] });
+        mockFetchRoles.mockResolvedValue([{ id: "role-membre", permissions: "0", name: "Membre" }]);
+        mockDb.guildConfig.findFirst.mockResolvedValue(
+            makeGuildConfig({ rolesMapping: { "role-membre": [PERMISSIONS.DASHBOARD_LOGIN] } })
+        );
+        mockAuth.mockResolvedValue({ user: { id: "user-1", discordId: "discord-user-1", name: "Test" } });
+    });
+
+    it("expose isTimedOut + timedOutUntil pour un membre timeout actif (accès dashboard suspendu)", async () => {
+        const future = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-membre"], communication_disabled_until: future }));
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect(ctx.isTimedOut).toBe(true);
+        expect(ctx.timedOutUntil).toBe(future);
+        // Toujours membre (le timeout ne retire pas le rôle), mais suspendu côté layout.
+        expect(ctx.isMember).toBe(true);
+        expect(ctx.canViewDashboard).toBe(true);
+    });
+
+    it("laisse isTimedOut à false si le membre n'est pas timeout", async () => {
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-membre"], communication_disabled_until: null }));
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect(ctx.isTimedOut).toBe(false);
+        expect(ctx.timedOutUntil).toBeNull();
+    });
+
+    it("laisse isTimedOut à false si le timeout est déjà expiré", async () => {
+        const past = new Date(Date.now() - 60 * 1000).toISOString();
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-membre"], communication_disabled_until: past }));
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect(ctx.isTimedOut).toBe(false);
+        expect(ctx.isMember).toBe(true);
+    });
+
+    it("ne bloque PAS (isBanned false) une exclusion levée — requiere liftedAt: null dans la requête", async () => {
+        // Aucune exclusion ACTIVE : findFirst renvoie null.
+        mockDb.guildMemberBan.findFirst.mockResolvedValue(null);
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-membre"] }));
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect((ctx as any).isBanned).toBeFalsy();
+        expect(ctx.canViewDashboard).toBe(true);
+        // La requête filtre bien sur les exclusions actives uniquement (liftedAt: null).
+        expect(mockDb.guildMemberBan.findFirst).toHaveBeenCalledWith(
+            expect.objectContaining({ where: expect.objectContaining({ liftedAt: null }) })
+        );
+    });
+});
+
 

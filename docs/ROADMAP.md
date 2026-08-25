@@ -36,9 +36,9 @@
   veille mensuelle changelog + jour J.
   📄 Plan maître : `src/temp/refonte-long-terme-discord-compatibilite/PLAN-MAITRE-RESILIENCE-DISCORD-LONG-TERME.md`
   · ⚠️ §12 = VEILLE (à relire à chaque itération Discord).
-- **Fiche Boss / Simulation** (06/10, terminé — 283/283) — reliquats : icônes résistances/vitalité
+- **Fiche Boss / Simulation** (06/10, terminé — 283/283) — ✅ **25/08** (`feat/chantier-2026-08-25-succes-fiche-boss-map-dofensive`, PR #548) : resolution donjon multi-boss par **token-overlap** (gère « Temple de l'Eliocalypse » ↔ « Tempête de l'Eliocalypse » chez Dofensive, générique pour futurs DJ) → la vraie map Dofensive (Déluge 204476422) se charge ; passage du `dungeonName` au resolver. ⚪ RESTE : icônes résistances/vitalité
   `public/assets/module-succes/*.png` (**à brancher ou supprimer**, chantier en cours) · onglet
-  « Mes succès / Succès Commun » · prévisu zone sous-monde · bug faces noires 3D · butin par grade · zaaps.
+  « Mes succès / Succès Commun » · prévisu zone sous-monde · bug faces noires 3D · butin par grade · zaaps · (option « graphe multi-boss en cartes séparées » à cadrer).
 - **Accès membres / Discord (25/08)** : réglé le « Accès Banni » après réintégration (invalidation cache+session, PR #541 mergée) + UX « Exclure (réintégrable) ». **✅ CHANTIER 25/08** (`feat/chantier-2026-08-25-acces-timeout-archivage`) : reflet du **timeout Discord** (écran « Accès Temporairement Suspendu » + compte à rebours) · bug « Accès Banni » après réintégration définitivement corrigé (tombstone `findFirst({ liftedAt: null })`) · `wipeUserProfile` crée son tombstone · `getGuildMemberBans` sans `take:100` · **archivage auto 12 mois** · messaging honnête Archiver vs Supprimer. ⚪ RESTE (→ #223 résilience Discord) : invalidation des caches `member:`/`roles:`/`user:ctx` à un **changement de rôle / timeout Discord** — cache membre en mémoire (process app) non partageable avec le bot Gateway → Redis/endpoint interne ; + « Supprimer définitivement » réel = retrait du rôle d'accès Discord via le bot.
 
 ## 🟠 Bloc B — UX / Perf (valeur immédiate)

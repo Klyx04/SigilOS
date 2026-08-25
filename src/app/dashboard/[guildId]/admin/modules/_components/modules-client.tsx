@@ -30,6 +30,7 @@ import {
     Gavel,
     CalendarClock,
     Sparkles,
+    Ticket,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -321,6 +322,15 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 color: "text-violet-400",
                 bgColor: "bg-violet-500/10",
                 borderColor: "border-violet-500/30",
+            },
+            {
+                key: "tickets",
+                label: "Bot Tickets & Support",
+                description: "Système complet de support Discord avec formulaires d'intake personnalisés, claim staff, notes internes, auto-close, SLA et transcripts.",
+                icon: Ticket,
+                color: "text-amber-400",
+                bgColor: "bg-amber-500/10",
+                borderColor: "border-amber-500/30",
             },
             {
                 key: "logs",

@@ -24,6 +24,7 @@ import {
     Activity,
     ShieldAlert,
     Coins,
+    Ticket,
 } from "lucide-react";
 import { AdminCard } from "@/components/admin/admin-card";
 import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
@@ -94,6 +95,15 @@ function buildSections(guildId: string): AdminSection[] {
                     accent: "violet",
                     permission: (u) => u.canManageReactionRoles || u.isAdmin,
                     tourId: "admin-overview-card-reaction-roles",
+                },
+                {
+                    href: `/dashboard/${guildId}/tickets`,
+                    icon: Ticket,
+                    title: "Bot Tickets & Support Discord",
+                    description: "Gestion des formulaires d'intake, réclamations staff, notes internes et transcripts.",
+                    accent: "amber",
+                    permission: (u) => u.canManageTickets || u.isAdmin,
+                    tourId: "admin-overview-card-tickets",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/presentation`,

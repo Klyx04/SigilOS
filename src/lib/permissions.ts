@@ -12,6 +12,7 @@ export const PERMISSIONS = {
     STAFF_CONTENT: "staff:content",
     STAFF_AUDIT: "staff:audit",
     STAFF_REACTION_ROLES: "staff:reaction_roles",
+    STAFF_TICKETS: "staff:tickets",
 
     // Modules & Information
     PRESENTATION_VIEW: "presentation:view",
@@ -92,6 +93,12 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         description: "Créer, modifier, déployer et synchroniser les panneaux de reaction roles (boutons, listes, réactions).", 
         module: "admin",
         modules: ["Reaction Roles", "Déploiement Discord", "Packs d'Icônes"]
+    },
+    [PERMISSIONS.STAFF_TICKETS]: { 
+        label: "Support & Tickets Discord", 
+        description: "Gérer le bot de tickets, les catégories, formulaires d'intake, réclamations staff et clôtures.", 
+        module: "admin",
+        modules: ["Tickets Discord", "Panneaux", "SLA & Modals", "Transcripts"]
     },
     [PERMISSIONS.SYSTEM_CONFIG]: { 
         label: "Paramétrage Technique", 

@@ -58,32 +58,40 @@ export async function GET(
 
         // 2. Sinon, on siphonne à la volée depuis la source (Auto Self-Healing)
         const urlParam = req.nextUrl.searchParams.get('url');
-        let remoteUrl = urlParam || `${REMOTE_BASE_URLS[assetType]}/${safeId}.png`;
+
+        // Guard : si l'ID n'est pas purement numérique (ex: CUID Prisma comme "cmrwd97k..."),
+        // on ne peut pas faire un lookup DofusDB fiable → on tente uniquement le ?url= fourni
+        // sinon on renvoie directement le placeholder pour éviter de retourner le mauvais monstre.
+        const isNumericId = /^\d+$/.test(safeId);
+
+        let remoteUrl = urlParam || (isNumericId ? `${REMOTE_BASE_URLS[assetType]}/${safeId}.png` : null);
 
         let downloaded = false;
         let inputBuffer: Buffer | null = null;
 
-        // Tentative 1 : Téléchargement direct depuis remoteUrl
-        try {
-            const remoteRes = await fetch(remoteUrl, {
-                headers: {
-                    Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-                },
-                signal: AbortSignal.timeout(8_000),
-            });
+        // Tentative 1 : Téléchargement direct depuis remoteUrl (si disponible)
+        if (remoteUrl) {
+            try {
+                const remoteRes = await fetch(remoteUrl, {
+                    headers: {
+                        Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                    },
+                    signal: AbortSignal.timeout(8_000),
+                });
 
-            if (remoteRes.ok) {
-                const arrayBuffer = await remoteRes.arrayBuffer();
-                inputBuffer = Buffer.from(arrayBuffer);
-                downloaded = true;
+                if (remoteRes.ok) {
+                    const arrayBuffer = await remoteRes.arrayBuffer();
+                    inputBuffer = Buffer.from(arrayBuffer);
+                    downloaded = true;
+                }
+            } catch {
+                // Échec première tentative
             }
-        } catch {
-            // Échec première tentative
         }
 
         // Tentative 2 : Si c'est un item et que l'URL par défaut a échoué, résolution via l'API DofusDB (iconId)
-        if (!downloaded && assetType === 'items') {
+        if (!downloaded && isNumericId && assetType === 'items') {
             try {
                 const itemRes = await fetch(`https://api.dofusdb.fr/items/${safeId}`, {
                     headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
@@ -110,7 +118,7 @@ export async function GET(
         }
 
         // Tentative 3 : Si c'est un monstre et que l'URL par défaut a échoué, résolution via l'API DofusDB (graphicLookId)
-        if (!downloaded && assetType === 'monsters') {
+        if (!downloaded && isNumericId && assetType === 'monsters') {
             try {
                 const monsterRes = await fetch(`https://api.dofusdb.fr/monsters/${safeId}`, {
                     headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },

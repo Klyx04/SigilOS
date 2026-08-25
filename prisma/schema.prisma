@@ -446,6 +446,14 @@ model GuildConfig {
   raidHubConfig                    Json?
   notifications                    Notification[]
   memberBans                       GuildMemberBan[]
+  ticketConfig                     TicketGuildConfig?
+  ticketCategories                 TicketBotCategory[]
+  ticketPanels                     TicketBotPanel[]
+  ticketRecords                    TicketRecord[]
+  ticketNotes                      TicketNote[]
+  ticketTranscripts                TicketTranscript[]
+  ticketFeedbacks                  TicketFeedback[]
+  ticketAuditLogs                  TicketAuditLog[]
 }
 
 model UserSkin {
@@ -512,6 +520,7 @@ model GuildModules {
   availability     Boolean     @default(false)
   succes           Boolean     @default(false)
   reactionRoles    Boolean     @default(true)
+  tickets          Boolean     @default(false)
   guild            GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
 }
 
@@ -2819,4 +2828,212 @@ model MonsterStat {
   @@index([monsterName])
   @@index([lastSyncedAt])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TICKET BOT DISCORD (GOD + MODULE GUILDE)
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum TicketBotStatus {
+  OPEN
+  CLAIMED
+  PENDING_USER
+  RESOLVED
+  CLOSED
+}
+
+enum TicketChannelType {
+  CHANNEL_TEXT
+  THREAD_PRIVATE
+}
+
+enum TicketButtonStyle {
+  PRIMARY
+  SECONDARY
+  SUCCESS
+  DANGER
+}
+
+model TicketGuildConfig {
+  id                      String              @id @default(cuid())
+  guildId                 String              @unique
+  isEnabled               Boolean             @default(false)
+  activatedAt             DateTime?
+  activatedBy             String?
+  logChannelId            String?
+  transcriptsChannelId    String?
+  staffRoleIds            String[]            @default([])
+  maxActiveTicketsPerUser Int                 @default(1)
+  maxTicketsTotalGuild    Int                 @default(50)
+  enableCsat              Boolean             @default(true)
+  enableDmNotifications   Boolean             @default(true)
+  enableTranscripts       Boolean             @default(true)
+  settingsJson            Json?               @default("{}")
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  guild                   GuildConfig         @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, isEnabled])
+}
+
+model TicketBotCategory {
+  id                    String            @id @default(cuid())
+  guildId               String
+  name                  String
+  slug                  String
+  description           String?
+  emoji                 String?           @default("🎫")
+  buttonStyle           TicketButtonStyle @default(PRIMARY)
+  channelType           TicketChannelType @default(CHANNEL_TEXT)
+  channelParentId       String?
+  staffRoleIds          String[]          @default([])
+  namingPattern         String            @default("ticket-{num}")
+  formSchemaJson        Json              @default("[]")
+  slaFirstResponseMin   Int?
+  slaResolutionMin      Int?
+  autoCloseWarningHours Int?
+  autoCloseHours        Int?
+  order                 Int               @default(0)
+  isEnabled             Boolean           @default(true)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  guild                 GuildConfig       @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  tickets               TicketRecord[]
+
+  @@unique([guildId, slug])
+  @@index([guildId, isEnabled, order])
+}
+
+model TicketBotPanel {
+  id               String            @id @default(cuid())
+  guildId          String
+  name             String
+  channelId        String
+  messageId        String?
+  embedTitle       String            @default("Centre de Support & Assistance")
+  embedDescription String            @default("Cliquez sur l'un des boutons ci-dessous pour ouvrir un ticket.")
+  embedColor       String            @default("#6366f1")
+  embedThumbnail   String?
+  embedImage       String?
+  embedFooter      String?           @default("SigilOS Tickets")
+  style            String            @default("BUTTONS") // BUTTONS, SELECT_MENU
+  categoryIds      String[]          @default([])
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  guild            GuildConfig       @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId])
+}
+
+model TicketRecord {
+  id                   String            @id @default(cuid())
+  ticketNumber         Int               @default(autoincrement())
+  guildId              String
+  categoryId           String
+  discordGuildId       String
+  discordChannelId     String?           @unique
+  discordThreadId      String?           @unique
+  creatorDiscordId     String
+  creatorDiscordName   String
+  creatorAvatarUrl     String?
+  creatorProfileId     String?
+  status               TicketBotStatus   @default(OPEN)
+  claimedByDiscordId   String?
+  claimedByName        String?
+  claimedAt            DateTime?
+  firstStaffResponseAt DateTime?
+  slaResponseBreached  Boolean           @default(false)
+  slaResolveBreached   Boolean           @default(false)
+  lastActivityAt       DateTime          @default(now())
+  warningSentAt        DateTime?
+  closedAt             DateTime?
+  closedByDiscordId    String?
+  closedByName         String?
+  closedReason         String?
+  intakeAnswersJson    Json?             @default("{}")
+  metadataJson         Json?             @default("{}")
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  guild                GuildConfig       @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  category             TicketBotCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  notes                TicketNote[]
+  transcript           TicketTranscript?
+  feedback             TicketFeedback?
+  auditLogs            TicketAuditLog[]
+
+  @@index([guildId, status])
+  @@index([guildId, categoryId])
+  @@index([creatorDiscordId, status])
+  @@index([discordChannelId])
+  @@index([discordThreadId])
+}
+
+model TicketNote {
+  id              String       @id @default(cuid())
+  ticketId        String
+  guildId         String
+  authorDiscordId String
+  authorName      String
+  content         String
+  createdAt       DateTime     @default(now())
+
+  guild           GuildConfig  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  ticket          TicketRecord @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([guildId])
+}
+
+model TicketTranscript {
+  id           String       @id @default(cuid())
+  ticketId     String       @unique
+  guildId      String
+  storageRef   String
+  messageCount Int          @default(0)
+  sizeBytes    Int          @default(0)
+  secretToken  String       @unique @default(cuid())
+  createdAt    DateTime     @default(now())
+
+  guild        GuildConfig  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  ticket       TicketRecord @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([guildId])
+}
+
+model TicketFeedback {
+  id               String       @id @default(cuid())
+  ticketId         String       @unique
+  guildId          String
+  creatorDiscordId String
+  rating           Int
+  comment          String?
+  createdAt        DateTime     @default(now())
+
+  guild            GuildConfig  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  ticket           TicketRecord @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, rating])
+}
+
+model TicketAuditLog {
+  id             String       @id @default(cuid())
+  ticketId       String
+  guildId        String
+  actorDiscordId String
+  actorName      String
+  action         String
+  detailsJson    Json?        @default("{}")
+  createdAt      DateTime     @default(now())
+
+  guild          GuildConfig  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  ticket         TicketRecord @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@index([guildId, action])
+}
+
 

@@ -42,6 +42,15 @@ function MonsterImage({
     const [triedRemote, setTriedRemote] = useState(false);
     const [failed, setFailed] = useState(false);
 
+    useEffect(() => {
+        const newSrc = targetId
+            ? `/api/assets-dofus/${assetType}/${targetId}${src ? `?url=${encodeURIComponent(src)}` : ''}`
+            : (src || null);
+        setCurrentSrc(newSrc);
+        setTriedRemote(false);
+        setFailed(false);
+    }, [src, targetId, assetType]);
+
     const handleError = () => {
         if (!triedRemote && src && currentSrc !== src) {
             setTriedRemote(true);
@@ -147,7 +156,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
     const [familyByDungeon, setFamilyByDungeon] = useState<Record<string, DungeonFamily>>({});
     const [activeMonsterName, setActiveMonsterName] = useState<string | null>(null);
     const [activeGradeIndex, setActiveGradeIndex] = useState<number | null>(null);
-    const [detailTab, setDetailTab] = useState<"sorts" | "overview" | "sim" | "loot">("sorts");
+    const [detailTab, setDetailTab] = useState<"sorts" | "overview" | "sim" | "grades" | "loot" | "family">("sorts");
     const [linkedQuestsByDungeon, setLinkedQuestsByDungeon] = useState<Record<string, LinkedQuestsData>>({});
     // Maps du donjon (salles réelles) récupérées chez Dofensive pour le boss courant.
     const [dungeonMapsByBoss, setDungeonMapsByBoss] = useState<Record<string, DofensiveDungeonInfo | null>>({});
@@ -328,7 +337,14 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <input
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setSearch(val);
+                            if (val.trim().length > 0 && selected) {
+                                setSelected(null);
+                                setSelectedSpellId(undefined);
+                            }
+                        }}
                         placeholder="Rechercher un boss ou un donjon…"
                         className="w-full h-11 pl-9 pr-8 rounded-xl bg-surface border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-warning/40"
                     />
@@ -343,7 +359,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                     )}
                 </div>
                 <p className="text-xs text-muted-foreground font-semibold">
-                    {filtered.length} boss répertoriés
+                    {search ? `${filtered.length} boss trouvé(s) sur ${dungeons.length}` : `${dungeons.length} boss répertoriés`}
                 </p>
             </div>
 
@@ -381,7 +397,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                     <MonsterImage
                                         src={stats?.imageUrl ?? d.imageUrl}
                                         alt={d.bossName}
-                                        monsterId={stats?.id ?? d.dofusdbId ?? undefined}
+                                        monsterId={stats?.id ?? (typeof d.dofusdbId === 'number' ? d.dofusdbId : undefined)}
                                         className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
                                     />
                                     <div className="absolute top-1.5 left-1.5 rounded-md bg-black/70 backdrop-blur px-1.5 py-0.5 text-[10px] font-black text-white border border-white/10">
@@ -405,7 +421,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                         <div className="flex items-center gap-4">
                             <div className="w-16 h-16 rounded-2xl bg-background border border-border flex items-center justify-center p-1.5 shrink-0 overflow-hidden shadow-inner">
                                 <MonsterImage
-                                    src={statsOf(selected)?.imageUrl}
+                                    src={statsOf(selected)?.imageUrl ?? selected.imageUrl}
                                     alt={selected.bossName}
                                     monsterId={statsOf(selected)?.id ?? selected.dofusdbId ?? undefined}
                                     className="max-h-full max-w-full object-contain"
@@ -466,47 +482,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                         })()}
                     </div>
 
-                    {/* Famille du Boss (accompagnateurs de la salle) — Version compacte & épurée */}
-                    {familyByDungeon[selected.id] && familyByDungeon[selected.id].monsters.length > 1 && (
-                        <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-xl bg-background/50 border border-border">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mr-1 flex items-center gap-1">
-                                <Users className="w-3 h-3 text-accent" /> Salle :
-                            </span>
-                            {familyByDungeon[selected.id].monsters.map((m) => {
-                                const isActive = (activeMonsterName ?? selected.bossName) === m.name;
-                                return (
-                                    <button
-                                        key={m.id}
-                                        type="button"
-                                        onClick={() => selectMonster(selected, m)}
-                                        className={cn(
-                                            "flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold transition-all",
-                                            isActive
-                                                ? "border-warning/50 bg-warning/15 text-warning shadow-2xs font-black"
-                                                : "border-border/80 bg-surface text-muted-foreground hover:text-foreground hover:bg-elevated"
-                                        )}
-                                    >
-                                        {m.imageUrl ? (
-                                            <MonsterImage src={m.imageUrl} alt={m.name} monsterId={m.id} className="w-3.5 h-3.5 object-contain rounded-sm" />
-                                        ) : (
-                                            <Swords className="w-3 h-3" />
-                                        )}
-                                        {m.isBoss && "👑 "}
-                                        {m.name}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    )}
-
-                    {/* Chargement de la fiche d'un monstre de la famille */}
-                    {activeMonsterName && !statsOf(selected) && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-2">
-                            <Loader2 className="w-3.5 h-3.5 animate-spin text-warning" /> Chargement de la fiche de {activeMonsterName}…
-                        </p>
-                    )}
-
-                    {/* 1. Résistances & Vital (TOUJOURS VISIBLES, 5 colonnes) */}
+                    {/* 1. Résistances & Vitalité (regroupés et rapprochés, sans vide géant) */}
                     {(() => {
                         const targetKey = activeMonsterName && selected ? `${selected.id}::${activeMonsterName}` : selected?.id;
                         const isLoadingCurrent = targetKey ? loadingStatsByBoss[targetKey] : false;
@@ -527,37 +503,11 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                         const resists = g?.resists || {};
 
                         return (
-                            <div className="space-y-3">
-                                {grades && grades.length > 1 && (
-                                    <div className="flex flex-wrap items-center gap-1.5">
-                                        <span className="text-[11px] font-bold text-muted-foreground mr-1">Grade :</span>
-                                        {grades.map((gr, idx) => {
-                                            const is5Grades = grades.length === 5;
-                                            const label = is5Grades
-                                                ? `Butin ${4 + idx} · Niv ${gr.level}`
-                                                : `Grade ${idx + 1} · Niv ${gr.level}`;
-                                            return (
-                                                <button
-                                                    key={idx}
-                                                    type="button"
-                                                    onClick={() => setActiveGradeIndex(idx)}
-                                                    className={cn(
-                                                        "px-2.5 py-1 rounded-lg border text-[11px] font-bold transition-all",
-                                                        (activeGradeIndex ?? grades.length - 1) === idx
-                                                            ? "border-warning/50 bg-warning/15 text-warning font-black shadow-2xs"
-                                                            : "border-border bg-surface/70 text-muted-foreground hover:text-foreground"
-                                                    )}
-                                                >
-                                                    {label}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-
-                                <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4 py-2 px-1 border-y border-border/40 my-1">
-                                    {/* PV / PA / PM : alignés proprement sur une même ligne */}
-                                    <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+                            <div className="space-y-2">
+                                {/* Barre de Vitalité & Résistances rapprochées */}
+                                <div className="flex flex-wrap items-center gap-2 sm:gap-3 py-2 px-1 border-y border-border/40 my-1">
+                                    {/* PV / PA / PM */}
+                                    <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
                                         {/* PV */}
                                         <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-surface border border-border/70 shadow-2xs" title="Points de Vie">
                                             <img src="/assets/module-succes/vitalité.png" alt="PV" className="w-4 h-4 object-contain" />
@@ -584,8 +534,11 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                         </div>
                                     </div>
 
+                                    {/* Séparateur vertical */}
+                                    <div className="hidden sm:block h-5 w-px bg-border/80 mx-0.5" />
+
                                     {/* Résistances élémentaires 5 colonnes */}
-                                    <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                                         <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface/70 border border-border/60 shadow-2xs" title="Résistance Neutre">
                                             <img src="/assets/module-succes/neutre.png" alt="Neutre" className="w-4 h-4 object-contain" />
                                             <b className="text-xs font-black text-foreground tabular-nums">{resists.neutral ?? 0}%</b>
@@ -612,39 +565,213 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                             <span className="text-[10px] font-bold text-success/80 hidden sm:inline">Air</span>
                                         </div>
                                     </div>
+
+                                    {/* Tag de grade actif avec raccourci vers l'onglet Grades */}
+                                    {grades && grades.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setDetailTab("grades")}
+                                            className="ml-auto px-2 py-1 rounded-lg bg-warning/10 border border-warning/25 text-warning text-[10px] font-black hover:bg-warning/20 transition-all flex items-center gap-1"
+                                            title="Ouvrir l'onglet des grades & paliers"
+                                        >
+                                            <Flame className="w-3 h-3" />
+                                            {grades.length === 5 ? `Butin ${4 + gradeIdx}` : `Grade ${1 + gradeIdx}`}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         );
                     })()}
 
-                    {/* 3. Onglets secondaires épurés */}
-                    <div className="flex items-center gap-1.5 p-1 bg-surface border border-border rounded-xl overflow-x-auto no-scrollbar">
-                        {[
+                    {/* 3. Onglets secondaires épurés avec sous-onglets Grades & Monstres de salle */}
+                    {(() => {
+                        const roomMonsters = selected && familyByDungeon[selected.id]?.monsters ? familyByDungeon[selected.id].monsters : [];
+                        const hasRoomMonsters = roomMonsters.length > 1;
+                        const currentStats = statsOf(selected);
+                        const grades = currentStats?.grades;
+
+                        const tabs = [
                             { id: "sorts", label: "Sorts du Boss", icon: Zap },
                             { id: "overview", label: "Sorts Détaillés", icon: Swords },
                             { id: "sim", label: "Simulation Tactique", icon: Target },
+                            ...(grades && grades.length > 1 ? [{ id: "grades", label: `Grades & Paliers (${grades.length})`, icon: Flame }] : []),
                             { id: "loot", label: "Butin & Drops", icon: Gem },
-                        ].map((tab) => {
-                            const Icon = tab.icon;
-                            const isActive = detailTab === tab.id;
-                            return (
-                                <button
-                                    key={tab.id}
-                                    type="button"
-                                    onClick={() => setDetailTab(tab.id as any)}
-                                    className={cn(
-                                        "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-colors whitespace-nowrap",
-                                        isActive
-                                            ? "bg-warning/15 text-warning border border-warning/30 shadow-xs"
-                                            : "text-muted-foreground hover:text-foreground hover:bg-elevated/50"
-                                    )}
-                                >
-                                    <Icon className={cn("w-3.5 h-3.5", isActive ? "text-warning" : "text-muted-foreground")} />
-                                    <span>{tab.label}</span>
-                                </button>
-                            );
-                        })}
-                    </div>
+                            ...(hasRoomMonsters ? [{ id: "family", label: `Monstres de la salle (${roomMonsters.length})`, icon: Users }] : []),
+                        ];
+
+                        return (
+                            <div className="flex items-center gap-1.5 p-1 bg-surface border border-border rounded-xl overflow-x-auto no-scrollbar">
+                                {tabs.map((tab) => {
+                                    const Icon = tab.icon;
+                                    const isActive = detailTab === tab.id;
+                                    return (
+                                        <button
+                                            key={tab.id}
+                                            type="button"
+                                            onClick={() => setDetailTab(tab.id as any)}
+                                            className={cn(
+                                                "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-colors whitespace-nowrap",
+                                                isActive
+                                                    ? "bg-warning/15 text-warning border border-warning/30 shadow-xs"
+                                                    : "text-muted-foreground hover:text-foreground hover:bg-elevated/50"
+                                            )}
+                                        >
+                                            <Icon className={cn("w-3.5 h-3.5", isActive ? "text-warning" : "text-muted-foreground")} />
+                                            <span>{tab.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        );
+                    })()}
+
+                    {/* Onglet dédié : Grades & Paliers de Butin */}
+                    {detailTab === "grades" && (
+                        <div className="space-y-4">
+                            <h4 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                                <Flame className="w-3.5 h-3.5 text-warning" /> Paliers de Grades & Caractéristiques de Combat
+                            </h4>
+                            {(() => {
+                                const grades = statsOf(selected)?.grades || [];
+                                const is5Grades = grades.length === 5;
+                                const activeIdx = activeGradeIndex ?? (grades.length - 1);
+
+                                return (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                                        {grades.map((gr, idx) => {
+                                            const isActive = activeIdx === idx;
+                                            const label = is5Grades ? `Butin ${4 + idx}` : `Grade ${idx + 1}`;
+                                            const r = gr.resists || {};
+
+                                            return (
+                                                <div
+                                                    key={idx}
+                                                    className={cn(
+                                                        "p-3.5 rounded-2xl border transition-all flex flex-col justify-between space-y-3",
+                                                        isActive
+                                                            ? "border-warning/50 bg-warning/10 shadow-sm ring-1 ring-warning/30"
+                                                            : "border-border bg-surface"
+                                                    )}
+                                                >
+                                                    <div>
+                                                        <div className="flex items-center justify-between gap-1 mb-2">
+                                                            <span className="text-xs font-black text-foreground">{label}</span>
+                                                            <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-background border border-border text-muted-foreground">
+                                                                Niv. {gr.level}
+                                                            </span>
+                                                        </div>
+
+                                                        {/* Stats vitaux */}
+                                                        <div className="space-y-1 text-xs">
+                                                            <div className="flex items-center justify-between text-muted-foreground">
+                                                                <span>PV :</span>
+                                                                <strong className="text-foreground">{gr.lifePoints?.toLocaleString("fr-FR")}</strong>
+                                                            </div>
+                                                            <div className="flex items-center justify-between text-muted-foreground">
+                                                                <span>PA / PM :</span>
+                                                                <strong className="text-foreground">{gr.actionPoints} / {gr.movementPoints}</strong>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Résistances élémentaires du grade */}
+                                                        <div className="grid grid-cols-5 gap-1 mt-2.5 pt-2 border-t border-border/60 text-center text-[10px] font-bold">
+                                                            <span title="Neutre" className="text-muted-foreground">{r.neutral ?? 0}%</span>
+                                                            <span title="Terre" className="text-amber-400">{r.earth ?? 0}%</span>
+                                                            <span title="Feu" className="text-danger">{r.fire ?? 0}%</span>
+                                                            <span title="Eau" className="text-info">{r.water ?? 0}%</span>
+                                                            <span title="Air" className="text-success">{r.air ?? 0}%</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setActiveGradeIndex(idx);
+                                                        }}
+                                                        className={cn(
+                                                            "w-full py-1.5 rounded-xl text-xs font-bold transition-all",
+                                                            isActive
+                                                                ? "bg-warning text-black font-black shadow-xs"
+                                                                : "bg-surface border border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
+                                                        )}
+                                                    >
+                                                        {isActive ? "✓ Grade Actif" : "Sélectionner"}
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    )}
+
+                    {/* Onglet dédié : Monstres de la salle */}
+                    {detailTab === "family" && (
+                        <div className="space-y-3">
+                            <h4 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                                <Users className="w-3.5 h-3.5 text-warning" /> Monstres accompagnateurs de la salle
+                            </h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                {(familyByDungeon[selected.id]?.monsters || []).map((m) => {
+                                    const isActive = (activeMonsterName ?? selected.bossName) === m.name;
+                                    return (
+                                        <div
+                                            key={m.id}
+                                            className={cn(
+                                                "p-3 rounded-2xl border transition-all flex flex-col justify-between space-y-2.5 group",
+                                                isActive
+                                                    ? "border-warning/50 bg-warning/15 shadow-sm"
+                                                    : "border-border bg-surface hover:border-border-strong"
+                                            )}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-1 shrink-0 overflow-hidden shadow-inner">
+                                                    {m.imageUrl ? (
+                                                        <MonsterImage src={m.imageUrl} alt={m.name} monsterId={m.id} className="w-full h-full object-contain" />
+                                                    ) : (
+                                                        <Swords className="w-4 h-4 text-muted-foreground" />
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className={cn("text-xs font-bold truncate", isActive ? "text-warning font-black" : "text-foreground")}>
+                                                        {m.isBoss && "👑 "}{m.name}
+                                                    </p>
+                                                    <span className="text-[10px] text-muted-foreground block">
+                                                        {m.isBoss ? "Boss principal" : "Monstre de salle"}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 pt-1 border-t border-border/50">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        selectMonster(selected, m);
+                                                        setDetailTab("sorts");
+                                                    }}
+                                                    className="flex-1 py-1 px-2 rounded-lg bg-surface border border-border text-[11px] font-bold text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors text-center"
+                                                >
+                                                    Fiche & Sorts
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        selectMonster(selected, m);
+                                                        setDetailTab("sim");
+                                                    }}
+                                                    className="py-1 px-2.5 rounded-lg bg-warning/15 border border-warning/30 text-warning text-[11px] font-bold hover:bg-warning/25 transition-all text-center flex items-center gap-1"
+                                                    title="Simuler la portée de ce monstre"
+                                                >
+                                                    <Target className="w-3 h-3" /> Simuler
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Onglet : Sorts du Boss (Mécaniques clés & sorts principaux) */}
                     {detailTab === "sorts" && (
@@ -809,13 +936,46 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
 
                     {/* Onglet : Simulation */}
                     {detailTab === "sim" && (
-                        <div>
-                            <div className="flex items-center gap-2 mb-3">
-                                <Target className="w-4 h-4 text-amber-400" />
-                                <h4 className="text-xs font-black uppercase tracking-widest text-foreground">
-                                    Simulation & Portée des Sorts
-                                </h4>
+                        <div className="space-y-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                    <Target className="w-4 h-4 text-amber-400" />
+                                    <h4 className="text-xs font-black uppercase tracking-widest text-foreground">
+                                        Simulation & Portée des Sorts
+                                    </h4>
+                                </div>
+
+                                {familyByDungeon[selected.id]?.monsters && familyByDungeon[selected.id].monsters.length > 1 && (
+                                    <div className="flex items-center gap-1 bg-background/60 border border-border/80 p-1 rounded-xl overflow-x-auto max-w-full">
+                                        <span className="text-[10px] font-black uppercase text-muted-foreground px-1.5 hidden sm:inline">
+                                            Entité :
+                                        </span>
+                                        {familyByDungeon[selected.id].monsters.map((m) => {
+                                            const isActive = (activeMonsterName ?? selected.bossName) === m.name;
+                                            return (
+                                                <button
+                                                    key={m.id}
+                                                    type="button"
+                                                    onClick={() => selectMonster(selected, m)}
+                                                    className={cn(
+                                                        "flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all shrink-0",
+                                                        isActive
+                                                            ? "bg-warning/20 border border-warning/40 text-warning font-black shadow-xs"
+                                                            : "bg-surface border border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
+                                                    )}
+                                                >
+                                                    {m.imageUrl && (
+                                                        <MonsterImage src={m.imageUrl} alt={m.name} monsterId={m.id} className="w-3 h-3 object-contain rounded-xs" />
+                                                    )}
+                                                    {m.isBoss && "👑 "}
+                                                    {m.name}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
+
                             <SpellRangeGrid
                                 spells={statsOf(selected)?.spells ?? []}
                                 activeSpellId={selectedSpellId}

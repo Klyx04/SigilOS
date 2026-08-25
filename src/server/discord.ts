@@ -1675,3 +1675,287 @@ export async function deployReactionRoleMessage(
         return { success: false, error: error?.message || "Erreur déploiement Discord" };
     }
 }
+
+// =============================================================================
+// TICKET BOT DISCORD HELPERS
+// =============================================================================
+
+/**
+ * Deploy or update a Ticket Panel message on Discord
+ */
+export async function deployTicketPanelMessage(
+    guildId: string,
+    channelId: string,
+    payload: {
+        messageId?: string | null;
+        embed: any;
+        components: any[];
+    }
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { success: false, error: "Bot token manquant" };
+
+    const body = {
+        embeds: payload.embed ? [payload.embed] : [],
+        components: payload.components || [],
+    };
+
+    try {
+        if (payload.messageId) {
+            // Edit existing panel message
+            const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages/${payload.messageId}`, {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bot ${token}`,
+                    "Content-Type": "application/json",
+                    "User-Agent": DISCORD_USER_AGENT,
+                },
+                body: JSON.stringify(body),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                return { success: true, messageId: data.id };
+            }
+            if (res.status !== 404) {
+                const errorData = await res.json().catch(() => ({}));
+                return { success: false, error: errorData?.message || `Erreur Discord ${res.status}` };
+            }
+        }
+
+        // Post new panel message
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+                "User-Agent": DISCORD_USER_AGENT,
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            return { success: true, messageId: data.id };
+        }
+
+        const errorData = await res.json().catch(() => ({}));
+        return { success: false, error: errorData?.message || `Erreur Discord ${res.status}` };
+    } catch (error: any) {
+        logger.error("[Discord] Error deploying ticket panel message:", error);
+        return { success: false, error: error?.message || "Erreur déploiement Discord" };
+    }
+}
+
+/**
+ * Create a private text channel for a ticket with locked permissions
+ */
+export async function createTicketChannelDiscord(
+    guildId: string,
+    channelName: string,
+    options: {
+        parentId?: string | null;
+        creatorDiscordId: string;
+        staffRoleIds: string[];
+        topic?: string;
+    }
+): Promise<{ success: boolean; channelId?: string; error?: string }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { success: false, error: "Bot token manquant" };
+
+    try {
+        // VIEW_CHANNEL: 1024 (0x400), SEND_MESSAGES: 2048 (0x800), READ_MESSAGE_HISTORY: 65536 (0x10000), ATTACH_FILES: 32768 (0x8000), EMBED_LINKS: 16384 (0x4000)
+        const allowBitmask = String(1024 | 2048 | 65536 | 32768 | 16384);
+        const denyBitmask = String(1024); // Deny VIEW_CHANNEL for @everyone
+
+        const permissionOverwrites: any[] = [
+            // Deny everyone
+            {
+                id: guildId, // @everyone role ID is guild ID
+                type: 0, // role
+                allow: "0",
+                deny: denyBitmask,
+            },
+            // Allow ticket creator
+            {
+                id: options.creatorDiscordId,
+                type: 1, // member
+                allow: allowBitmask,
+                deny: "0",
+            },
+        ];
+
+        // Allow staff roles
+        for (const roleId of options.staffRoleIds) {
+            if (roleId) {
+                permissionOverwrites.push({
+                    id: roleId,
+                    type: 0, // role
+                    allow: allowBitmask,
+                    deny: "0",
+                });
+            }
+        }
+
+        const body: Record<string, any> = {
+            name: channelName.toLowerCase().replace(/[^a-z0-9-_]/g, "-").slice(0, 100),
+            type: 0, // GUILD_TEXT
+            permission_overwrites: permissionOverwrites,
+            topic: options.topic ? options.topic.slice(0, 1024) : undefined,
+        };
+
+        if (options.parentId) {
+            body.parent_id = options.parentId;
+        }
+
+        const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/channels`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+                "User-Agent": DISCORD_USER_AGENT,
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            return { success: true, channelId: data.id };
+        }
+
+        const errorData = await res.json().catch(() => ({}));
+        return { success: false, error: errorData?.message || `Erreur création salon Discord (${res.status})` };
+    } catch (error: any) {
+        logger.error("[Discord] Error creating ticket channel:", error);
+        return { success: false, error: error?.message || "Erreur création salon" };
+    }
+}
+
+/**
+ * Add or remove member permission on a ticket channel
+ */
+export async function setMemberChannelPermissionDiscord(
+    channelId: string,
+    memberId: string,
+    allow: boolean
+): Promise<{ success: boolean; error?: string }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { success: false, error: "Bot token manquant" };
+
+    try {
+        if (!allow) {
+            // Delete overwrite
+            const res = await fetchWithRetry(`/api/v10/channels/${channelId}/permissions/${memberId}`, {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bot ${token}`,
+                    "User-Agent": DISCORD_USER_AGENT,
+                },
+            });
+            return { success: res.ok };
+        }
+
+        const allowBitmask = String(1024 | 2048 | 65536 | 32768 | 16384);
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/permissions/${memberId}`, {
+            method: "PUT",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+                "User-Agent": DISCORD_USER_AGENT,
+            },
+            body: JSON.stringify({
+                type: 1, // member
+                allow: allowBitmask,
+                deny: "0",
+            }),
+        });
+
+        return { success: res.ok };
+    } catch (error: any) {
+        logger.error("[Discord] Error setting member channel permission:", error);
+        return { success: false, error: error?.message || "Erreur mise à jour permissions" };
+    }
+}
+
+/**
+ * Rename a Discord channel or thread
+ */
+export async function renameChannelDiscord(
+    channelId: string,
+    name: string
+): Promise<{ success: boolean; error?: string }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { success: false, error: "Bot token manquant" };
+
+    try {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}`, {
+            method: "PATCH",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+                "User-Agent": DISCORD_USER_AGENT,
+            },
+            body: JSON.stringify({
+                name: name.toLowerCase().replace(/[^a-z0-9-_]/g, "-").slice(0, 100),
+            }),
+        });
+
+        return { success: res.ok };
+    } catch (error: any) {
+        logger.error("[Discord] Error renaming channel:", error);
+        return { success: false, error: error?.message || "Erreur renommage" };
+    }
+}
+
+/**
+ * Delete a Discord channel or thread
+ */
+export async function deleteChannelDiscord(channelId: string): Promise<{ success: boolean; error?: string }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { success: false, error: "Bot token manquant" };
+
+    try {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}`, {
+            method: "DELETE",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "User-Agent": DISCORD_USER_AGENT,
+            },
+        });
+
+        return { success: res.ok };
+    } catch (error: any) {
+        logger.error("[Discord] Error deleting channel:", error);
+        return { success: false, error: error?.message || "Erreur suppression salon" };
+    }
+}
+
+/**
+ * Fetch messages from a channel (for transcript generation)
+ */
+export async function fetchChannelMessagesDiscord(
+    channelId: string,
+    limit: number = 100
+): Promise<any[]> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return [];
+
+    try {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages?limit=${Math.min(limit, 100)}`, {
+            headers: {
+                Authorization: `Bot ${token}`,
+                "User-Agent": DISCORD_USER_AGENT,
+            },
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            return Array.isArray(data) ? data.reverse() : [];
+        }
+        return [];
+    } catch (error: any) {
+        logger.error("[Discord] Error fetching channel messages:", error);
+        return [];
+    }
+}
+

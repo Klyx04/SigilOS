@@ -85,33 +85,48 @@ export function GameDataSiphonPanel() {
         }
 
         setIsSiphoning(true);
-        setProgressValue(5);
-        setLogs((prev) => [`🚀 Démarrage du siphon de ${missingTargets.length} éléments avec politesse réseau...`, ...prev]);
+        setProgressValue(0);
+        setLogs((prev) => [`🚀 Démarrage du siphon de ${missingTargets.length} éléments par lots de 5...`, ...prev]);
 
         startTransition(async () => {
-            try {
-                const res = await triggerBatchAssetSiphonAction(
-                    missingTargets.map((t) => ({
-                        id: t.id,
-                        name: t.name,
-                        dungeonName: t.dungeonName,
-                        remoteUrl: t.remoteImageUrl || undefined,
-                    }))
-                );
+            let totalSiphoned = 0;
+            let totalErrors = 0;
+            const CHUNK_SIZE = 5;
 
-                if (res.success && res.data) {
-                    const data = res.data;
-                    setProgressValue(100);
-                    setLogs((prev) => [
-                        `✅ Siphon terminé : ${data.siphoned} images WebP créées, ${data.errors} erreurs.`,
-                        ...(data.details || []),
-                        ...prev,
-                    ]);
-                } else {
-                    setLogs((prev) => [`❌ Erreur : ${res.error}`, ...prev]);
+            try {
+                for (let i = 0; i < missingTargets.length; i += CHUNK_SIZE) {
+                    const chunk = missingTargets.slice(i, i + CHUNK_SIZE);
+                    const res = await triggerBatchAssetSiphonAction(
+                        chunk.map((t) => ({
+                            id: t.id,
+                            name: t.name,
+                            dungeonName: t.dungeonName,
+                            remoteUrl: t.remoteImageUrl || undefined,
+                        }))
+                    );
+
+                    if (res.success && res.data) {
+                        const batchData = res.data;
+                        totalSiphoned += batchData.siphoned;
+                        totalErrors += batchData.errors;
+                        if (batchData.details && batchData.details.length > 0) {
+                            setLogs((prev) => [...batchData.details, ...prev]);
+                        }
+                    } else if (res.error) {
+                        totalErrors += chunk.length;
+                        setLogs((prev) => [`❌ Erreur sur le lot : ${res.error}`, ...prev]);
+                    }
+
+                    const progress = Math.min(100, Math.round(((i + chunk.length) / missingTargets.length) * 100));
+                    setProgressValue(progress);
                 }
+
+                setLogs((prev) => [
+                    `🎉 Siphon terminé : ${totalSiphoned} images WebP et fiches créées, ${totalErrors} erreurs.`,
+                    ...prev,
+                ]);
             } catch (error) {
-                setLogs((prev) => [`❌ Exception : ${String(error)}`, ...prev]);
+                setLogs((prev) => [`❌ Exception globale : ${String(error)}`, ...prev]);
             } finally {
                 setIsSiphoning(false);
                 await loadData();

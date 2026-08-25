@@ -221,6 +221,7 @@ export type UserContext = {
     canEditPresentation: boolean;
     canManageRelance: boolean;
     canManageReactionRoles: boolean;
+    canManageTickets: boolean;
     canManageRBAC: boolean;
     canManagePoints: boolean;
     canViewSettings: boolean;
@@ -364,6 +365,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canEditPresentation: false,
         canManageRelance: false,
         canManageReactionRoles: false,
+        canManageTickets: false,
         canManageRBAC: false,
         canManagePoints: false,
         canViewSettings: false,
@@ -954,6 +956,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canViewPolls = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal;
     const canManageRelance = permissionSet.has(PERMISSIONS.STAFF_MEMBER_MGMT) || isAdminFinal;
     const canManageReactionRoles = permissionSet.has(PERMISSIONS.STAFF_REACTION_ROLES) || isAdminFinal;
+    const canManageTickets = permissionSet.has(PERMISSIONS.STAFF_TICKETS) || isAdminFinal;
     const canManageRBAC = permissionSet.has(PERMISSIONS.SYSTEM_RBAC) || hasDiscordAdmin || isGod;
     const canViewSettings = permissionSet.has(PERMISSIONS.SYSTEM_CONFIG) || isAdminFinal;
     const canViewAuditLogs = permissionSet.has(PERMISSIONS.STAFF_AUDIT) || isAdminFinal;
@@ -1039,6 +1042,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canEditPresentation: !!applyModule(!!mod?.presentation, !!canEditPresentation),
         canManageRelance: !!canManageRelance,
         canManageReactionRoles: !!canManageReactionRoles,
+        canManageTickets: !!canManageTickets,
         canManageRBAC: !!canManageRBAC,
         canManagePoints: !!canManagePoints,
         canViewSettings: !!canViewSettings,

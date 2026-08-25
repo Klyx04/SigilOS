@@ -1225,6 +1225,18 @@ export async function liftGuildMemberBan(guildId: string, discordId: string) {
             }
         });
 
+        // F-01 : lever le tombstone en BDD ne suffit pas — il faut invalider le
+        // contexte user (`user:ctx` = isBanned) + purger les sessions du membre,
+        // sinon il reste bloqué sur « Accès Banni » jusqu'à expiration du cache.
+        const account = await db.account.findFirst({
+            where: { provider: "discord", providerAccountId: discordId },
+            select: { userId: true }
+        });
+        if (account) {
+            await invalidateUserContextCache(account.userId, guild.id, guildId);
+            await db.session.deleteMany({ where: { userId: account.userId } });
+        }
+
         revalidatePath(`/dashboard/${guildId}/admin/members`);
         return { success: true };
     } catch (e) {

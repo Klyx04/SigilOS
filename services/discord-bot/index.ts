@@ -501,7 +501,7 @@ client.on(Events.GuildMemberRemove, async (member) => {
                                     { name: 'Nom Discord', value: `@${member.nickname || member.user.displayName || member.user.username}`, inline: true },
                                     { name: 'Nouveau Statut', value: '**Archivé**', inline: true },
                                     { name: 'Action effectuée par', value: '🤖 Bot Gateway (automatique)', inline: false },
-                                    { name: 'Rétention des données', value: 'Profil archivé 30 jours', inline: false },
+                                    { name: 'Rétention des données', value: 'Profil archivé 12 mois', inline: false },
                                     { name: 'Guilde', value: guildFull.name || member.guild.name, inline: false },
                                 ],
                                 thumbnail: { url: member.user.displayAvatarURL({ size: 128 }) },

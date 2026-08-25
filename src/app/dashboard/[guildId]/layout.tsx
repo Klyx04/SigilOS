@@ -126,6 +126,21 @@ export default async function DashboardLayout({
         );
     }
 
+    // ── TIMEOUT DISCORD (« Exclure temporairement ») — suspension temporaire ──
+    if ((user as any).isTimedOut && !(user as any).isSuperAdmin) {
+        return (
+            <AccessDenied
+                title="Accès Temporairement Suspendu"
+                message={`Vous êtes temporairement exclu du serveur Discord ${user.guildName} (timeout). Votre accès au tableau de bord sera rétabli automatiquement à la fin de la sanction.`}
+                variant="timeout"
+                action={<SignOutButton variant="ghost" />}
+                countdownLabel="Accès rétabli dans"
+                expiredLabel="Accès disponible"
+                countdownDate={(user as any).timedOutUntil}
+            />
+        );
+    }
+
     // ── NOT A MEMBER ──
     if (!user.isMember) {
         return (

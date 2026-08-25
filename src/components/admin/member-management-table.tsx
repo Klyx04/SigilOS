@@ -264,14 +264,19 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
     };
 
     const handleDelete = async (profileId: string) => {
-        if (!confirm("⚠️ Action irréversible. Supprimer définitivement toutes les données de ce membre pour cette guilde ?")) return;
+        if (!confirm(
+            "⚠️ Exclure ce membre de SigilOS ?\n\n" +
+            "Ses données SigilOS pour cette guilde seront supprimées et il ne pourra plus accéder au dashboard.\n" +
+            "Il garde toutefois son rôle Discord : une entrée restera dans l'onglet « Exclus » et vous pourrez le RÉINTÉGRER à tout moment.\n\n" +
+            "Action réversible (réintégration manuelle possible)."
+        )) return;
 
         setIsUpdating(profileId);
         try {
             const res = await deleteProfileByAdmin(guildId, profileId);
             if (res.success) {
                 setMembers(prev => prev.filter(m => m.id !== profileId));
-                toast.success("Profil supprimé définitivement");
+                toast.success("Membre exclu (réintégrable depuis l'onglet Exclus)");
                 loadExcludedBans(); // F-01 : la suppression crée un tombstone → le membre ne peut plus être ré-provisionné
             } else {
                 toast.error(res.error || "Erreur lors de la suppression");
@@ -699,7 +704,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                                     {(isSuperAdmin || member.status !== "ACTIVE") && !isProtected && (
                                                         <DropdownMenuItem onClick={() => handleDelete(member.id)} className="gap-2 focus:bg-danger focus:text-foreground text-danger cursor-pointer text-caption font-black uppercase tracking-wider">
                                                             <Trash2 className="h-3.5 w-3.5" />
-                                                            Supprimer
+                                                            Exclure (réintégrable)
                                                         </DropdownMenuItem>
                                                     )}
                                                 </>

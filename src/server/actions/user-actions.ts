@@ -232,6 +232,9 @@ export type UserContext = {
     isDiscordAdmin: boolean;
     isSuperAdmin: boolean;
     isMember: boolean;
+    // Timeout Discord (« Exclure temporairement ») — suspension temporaire d'accès.
+    isTimedOut?: boolean;
+    timedOutUntil?: string | null;
     // Data & Identity
     hasPseudoIssue: boolean;
     /** true si le membre a déjà sélectionné ≥1 activité (bloc « Activités & Contenu préféré »). */
@@ -502,8 +505,11 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     // même si son UserProfile a été purgé (il ne peut PAS être ré-provisionné
     // automatiquement au prochain accès). Vérifié AVANT la création de profil.
     if (guildConfig && !isGod && discordUserId) {
-        const guildBan = await db.guildMemberBan.findUnique({
-            where: { guildId_discordId: { guildId: guildConfig.id, discordId: discordUserId } },
+        // ⚠️ F-01 — on ne bloque que les exclusions ACTIVES (`liftedAt: null`).
+        // Sans ce filtre, une exclusion « levée » restait trouvée → le membre réintégré
+        // restait coincé sur « Accès Banni » et disparaissait de l'onglet « Exclus ».
+        const guildBan = await db.guildMemberBan.findFirst({
+            where: { guildId: guildConfig.id, discordId: discordUserId, liftedAt: null },
             select: { id: true, reason: true }
         }).catch(() => null);
         if (guildBan) {
@@ -581,6 +587,20 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
             }
         }
 
+    }
+
+    // ── TIMEOUT DISCORD (« Exclure temporairement » / `communication_disabled_until`) ──
+    // Un membre timeout garde SON rôle et reste membre, mais Discord lui coupe la parole.
+    // On reflète cette modération : `isTimedOut` suspend l'accès dashboard pendant la durée
+    // (géré côté layout : écran explicite + compte à rebours). Le membre n'est PAS exclu.
+    let isTimedOut = false;
+    let timedOutUntil: string | null = null;
+    if (member && (member as any).communication_disabled_until) {
+        const until = new Date((member as any).communication_disabled_until);
+        if (!Number.isNaN(until.getTime()) && until.getTime() > Date.now()) {
+            isTimedOut = true;
+            timedOutUntil = until.toISOString();
+        }
     }
 
     // ── SECURITY: Block ARCHIVED and BANNED — they cannot self-reactivate even if they re-join Discord ──
@@ -1052,6 +1072,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         isDiscordAdmin: !!(hasDiscordAdmin || isGod),
         isSuperAdmin: !!isGod,
         isMember: !!member,
+        isTimedOut,
+        timedOutUntil,
         hasPseudoIssue: !profile?.pseudoDofus || profile.pseudoDofus.startsWith("Voyageur"),
         hasPreferredActivities: !!((profile?.preferredActivities as string[])?.length),
         pseudoDofus: profile?.pseudoDofus,
@@ -1691,7 +1713,8 @@ export async function internalUpdateMemberProfileStatus(
     // 4. Update with retention policy
     let scheduledDeletion = null;
     if (status === "ARCHIVED") {
-        const days = durationMonths ? durationMonths * 30.5 : 30;
+        // Rétention par défaut : 12 mois (aligné sur la politique d'archivage automatique).
+        const days = durationMonths ? durationMonths * 30.5 : 365;
         scheduledDeletion = new Date(Date.now() + Math.floor(days * 24 * 60 * 60 * 1000));
     } else if (status === "BANNED") {
         scheduledDeletion = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -1703,7 +1726,7 @@ export async function internalUpdateMemberProfileStatus(
             status,
             archivedAt: status !== "ACTIVE" ? new Date() : null,
             archiveReason: status !== "ACTIVE" ? (reason || "MANUAL_ADMIN_ACTION") : null,
-            archiveDuration: durationMonths || (status === "ARCHIVED" ? 1 : null),
+            archiveDuration: durationMonths || (status === "ARCHIVED" ? 12 : null),
             scheduledDeletion,
             reactivationRequestedAt: null,
             reactivationRequestReason: null

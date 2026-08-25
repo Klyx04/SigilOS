@@ -265,10 +265,12 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
 
     const handleDelete = async (profileId: string) => {
         if (!confirm(
-            "⚠️ Exclure ce membre de SigilOS ?\n\n" +
-            "Ses données SigilOS pour cette guilde seront supprimées et il ne pourra plus accéder au dashboard.\n" +
-            "Il garde toutefois son rôle Discord : une entrée restera dans l'onglet « Exclus » et vous pourrez le RÉINTÉGRER à tout moment.\n\n" +
-            "Action réversible (réintégration manuelle possible)."
+            "⚠️ EXCLURE ce membre de SigilOS ?\n\n" +
+            "IMPACTS RÉELS :\n" +
+            "• Ses données SigilOS pour CETTE guilde (missions, succès, progression) sont définitivement supprimées.\n" +
+            "• Si c'est sa SEULE guilde : son COMPTE entier (identifiant, connexion Discord, sessions) est effacé.\n" +
+            "• Il GARDE son rôle Discord : sans protection, il serait réinstancié dès son prochain accès. On pose donc un blocage (tombstone) → il apparaît dans l'onglet « Exclus ».\n\n" +
+            "Action RÉVERSIBLE : vous pouvez le RÉINTÉGRER depuis l'onglet « Exclus » à tout moment."
         )) return;
 
         setIsUpdating(profileId);

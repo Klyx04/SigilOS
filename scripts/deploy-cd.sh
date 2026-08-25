@@ -327,7 +327,11 @@ deploy() {
     fi
     info "   Application des migrations Prisma..."
     local MIGRATE_LOG; MIGRATE_LOG="$(mktemp)"
-    if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npx --yes prisma migrate deploy' >"$MIGRATE_LOG" 2>&1; then
+    # ⚠️ Prisma CLI absent de l'image runner (devDependency, non incluse dans .next/standalone) :
+    # sans pin, `npx prisma` tire `prisma@latest` (actuellement une RC cassée 8.0.0-rc.10 où la
+    # commande est renommée `migration` → "No command registered for `migrate`"). On épingle la
+    # version du projet (7.9.1) comme dans services/discord-bot/Dockerfile.
+    if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npx --yes prisma@7.9.1 migrate deploy' >"$MIGRATE_LOG" 2>&1; then
         if grep -qi "no pending migrations" "$MIGRATE_LOG"; then
             ok "Base à jour — aucune migration en attente."
         else
@@ -343,7 +347,7 @@ deploy() {
     if [[ "$TARGET" == "beta" ]]; then
         info "   Synchronisation du schéma (beta, db push)..."
         local PUSH_LOG; PUSH_LOG="$(mktemp)"
-        if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npx --yes prisma db push' >"$PUSH_LOG" 2>&1; then
+        if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npx --yes prisma@7.9.1 db push' >"$PUSH_LOG" 2>&1; then
             if grep -qi "already in sync" "$PUSH_LOG"; then
                 ok "Schéma déjà à jour."
             else

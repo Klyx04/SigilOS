@@ -77,6 +77,8 @@
 
 ## ✅ Déjà soldé (surveiller)
 
+- **#242** — ✅ FAIT (26/08) : Refonte UI/UX de la **Fiche Boss** (module Succès) — `SuccesBossGuide.tsx` dé-sloppé (tokens OKLCH, type-scale, suppression ombres/`font-black`/`tracking-widest`/`transition-all`/scales, couleurs en dur→tokens) + enrichissement des onglets (synthèse « Mécaniques clés — N sorts à anticiper », cartes sorts détaillés en sections Effet principal / Déclenchement / Effets critiques, grades alignés à droite, butin en cartes homogènes icône+nom+taux, monstres de salle compacts). Vérifs : tsc 0 · lint 0 erreur · 339/339 · build OK.
+
 #192 bouton « Suivant » · #199 tour tuto Succès · #202 / #204 RBAC · #206 Dofoobz centralisé
 · #223 P0/P1/P2 · #127 audit RBAC · #85 blacklist embeds · #169 · #101 SEO almanax · #176 fiches boss
 · #181 privacy OCR · #96 README déploiement CD · #41bis circuit-breaker Dofusbook · #140 landing God → `page.tsx`

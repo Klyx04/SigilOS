@@ -256,7 +256,10 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
         const boss = activeMonsterName ?? d.bossName;
         if (!boss || dungeonMapsByBoss[boss] !== undefined) return;
         let cancelled = false;
-        getDofensiveDungeonForBoss(boss)
+        // On passe aussi le nom du donjon (`d.name`) : le resolver Dofensive a un
+        // fallback par nom de donjon (token overlap) — indispensable pour les donjons
+        // multi-boss dont le `bossName` DofusDB ne matche pas le nom Dofensive.
+        getDofensiveDungeonForBoss(boss, d.name)
             .then((res) => {
                 if (cancelled) return;
                 setDungeonMapsByBoss((prev) => ({ ...prev, [boss]: res.success && res.data ? res.data : null }));

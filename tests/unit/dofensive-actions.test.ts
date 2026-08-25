@@ -4,6 +4,7 @@ import {
     getDofensiveMap,
     getDofensiveMonster,
     getDofensiveSpells,
+    getDofensiveDungeonForBoss,
 } from "@/server/actions/dofensive-actions";
 
 const BASE = "https://dofensive.com/api/dofus2/bestiary";
@@ -58,7 +59,58 @@ describe("dofensive-actions — garde anti-SSRF", () => {
     });
 });
 
+describe("dofensive-actions — résolution donjon multi-boss (durable)", () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it("résout par token-overlap un donjon dont le nom DofusDB diffère de Dofensive (Temple ↔ Tempête)", async () => {
+        const fetchMock = vi.fn((url: unknown) => {
+            const u = String(url);
+            if (u.includes("/dungeons/preview")) {
+                return Promise.resolve(
+                    jsonResponse([
+                        {
+                            Id: 121,
+                            Name: "Tempête de l'Eliocalypse",
+                            Level: 200,
+                            Maps: [{ Id: 204476422, Name: "Tempête de l'Eliocalypse - Déluge" }],
+                            Monsters: [
+                                { Id: 6026, Name: "Corruption" },
+                                { Id: 6014, Name: "Guerre" },
+                                { Id: 5990, Name: "Misère" },
+                                { Id: 5955, Name: "Servitude" },
+                            ],
+                        },
+                    ])
+                );
+            }
+            if (u.includes("/monsters/6026")) {
+                return Promise.resolve(
+                    jsonResponse([
+                        { Id: 6026, Name: "Corruption", PreferredMaps: [{ Id: 204476422, Name: "Tempête de l'Eliocalypse - Déluge" }] },
+                    ])
+                );
+            }
+            return Promise.resolve(jsonResponse(null));
+        });
+        vi.stubGlobal("fetch", fetchMock);
+
+        // bossName DofusDB (« Sanctuaire du dernier espoir ») ≠ nom Dofensive, mais le
+        // nom de donjon partage le token « Eliocalypse » → le donjon Dofensive est résolu.
+        const res = await getDofensiveDungeonForBoss("Sanctuaire du dernier espoir", "Temple de l'Eliocalypse");
+
+        expect(res.success).toBe(true);
+        expect(res.data?.dungeonName).toBe("Tempête de l'Eliocalypse");
+        expect(res.data?.maps).toEqual([{ id: 204476422, name: "Tempête de l'Eliocalypse - Déluge", isBoss: true }]);
+        // Boss résolu = 1re entité du donjon (Corruption) car le bossName DofusDB ne matche aucun monstre.
+        expect(res.data?.bossMonsterId).toBe(6026);
+        expect(res.data?.monsters).toHaveLength(4);
+    });
+});
 describe("dofensive-actions — sorts Dofensive (données de combat)", () => {
+
+
     it("getDofensiveSpells normalise AP/portée/LoS/cooldown/zone depuis /spells/{id}", async () => {
         const fetchMock = vi.fn((url: unknown) => {
             const u = String(url);

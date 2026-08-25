@@ -38,6 +38,18 @@ type ActionResponse<T = void> = {
 
 // ─── Types exposés (camelCase normalisé) ────────────────────────────────────
 
+/** Mots-significatifs d'un nom (minuscules, sans accents, ≥4 lettres, hors stop-words). */
+function significantTokens(s: string): Set<string> {
+    const STOP = new Set([
+        "de", "du", "des", "la", "le", "les", "l", "d", "en", "au", "aux",
+        "un", "une", "et", "a", "a", "sur", "dans", "pour", "avec", "sans",
+    ]);
+    const tokens = norm(s)
+        .split(/[\s'’]+/)
+        .filter((t) => t.length >= 4 && !STOP.has(t));
+    return new Set(tokens);
+}
+
 export interface DofensiveMapLite {
     id: number;
     name: string;
@@ -132,6 +144,26 @@ export async function getDofensiveDungeonForBoss(
             });
             return hasMob || dn.includes(key) || key.includes(dn);
         });
+    }
+
+    // 4. Fallback DURABLE : correspondance par mots-significatifs (token overlap).
+    //    Gère les écarts de nommage DofusDB ↔ Dofensive sans rien casser :
+    //    « Temple de l'Eliocalypse » ↔ « Tempête de l'Eliocalypse » (token « Eliocalypse »),
+    //    accents/typographie, etc. Uniquement si les étapes exactes précédentes ont échoué.
+    if (hits.length === 0 && dungeonName && dungeonName.trim()) {
+        const qTokens = significantTokens(dungeonName);
+        if (qTokens.size > 0) {
+            const scored = dungeons
+                .map((d) => {
+                    const dTokens = significantTokens(String(d?.Name ?? ""));
+                    let score = 0;
+                    dTokens.forEach((t) => { if (qTokens.has(t)) score++; });
+                    return { d, score };
+                })
+                .filter((x) => x.score > 0)
+                .sort((a, b) => b.score - a.score);
+            if (scored.length > 0) hits = scored.map((x) => x.d);
+        }
     }
 
     let hit: any | undefined;

@@ -32,13 +32,13 @@ CONTAINER_APP=$(sudo docker ps --format '{{.Names}}' | grep -E "sigilos-(prod|be
 if [ ! -z "$CONTAINER_APP" ]; then
     echo -e "Analyse du schéma via $CONTAINER_APP..."
     # On check si Prisma voit des migrations non appliquées
-    DRIFT=$(sudo docker exec "$CONTAINER_APP" npx prisma migrate status 2>&1)
+    DRIFT=$(sudo docker exec "$CONTAINER_APP" npx prisma@7.9.1 migrate status 2>&1)
     if [[ "$DRIFT" == *"up to date"* ]]; then
         echo -e "${GREEN}✅ Schéma de base de données à jour.${NC}"
     else
         echo -e "${RED}❌ ALERTE SCHEMA DRIFT :${NC}"
         echo "$DRIFT"
-        echo -e "${YELLOW}👉 Action suggérée : Lance 'docker exec $CONTAINER_APP npx prisma migrate deploy'${NC}"
+        echo -e "${YELLOW}👉 Action suggérée : Lance 'docker exec $CONTAINER_APP npx prisma@7.9.1 migrate deploy'${NC}"
     fi
 else
     echo -e "${RED}❌ Erreur : Impossible de trouver un conteneur App pour vérifier la DB.${NC}"

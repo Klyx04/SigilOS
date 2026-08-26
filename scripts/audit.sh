@@ -17,7 +17,7 @@ echo -e "${BLUE}==================================================${NC}"
 # 1. État des Containers
 echo -e "\n${YELLOW}📦 1. État des Services Docker${NC}"
 # Utilisation de .RestartCount via --format "json" ou une syntaxe plus robuste
-RESTARTS=$(sudo docker ps --format "{{.Names}}: {{.Status}}" | grep -i "restarts")
+RESTARTS=$(docker ps --format "{{.Names}}: {{.Status}}" | grep -i "restarts")
 if [ -z "$RESTARTS" ]; then
     echo -e "${GREEN}✅ Aucun redémarrage anormal détecté.${NC}"
 else
@@ -27,12 +27,12 @@ fi
 
 # 2. Vérification de la Base de Données (Schema Drift)
 echo -e "\n${YELLOW}🗄️ 2. Intégrité de la Base de Données${NC}"
-CONTAINER_APP=$(sudo docker ps --format '{{.Names}}' | grep -E "sigilos-(prod|beta|app)" | head -n 1)
+CONTAINER_APP=$(docker ps --format '{{.Names}}' | grep -E "sigilos-(prod|beta|app)" | head -n 1)
 
 if [ ! -z "$CONTAINER_APP" ]; then
     echo -e "Analyse du schéma via $CONTAINER_APP..."
     # On check si Prisma voit des migrations non appliquées
-    DRIFT=$(sudo docker exec "$CONTAINER_APP" npx prisma@7.9.1 migrate status 2>&1)
+    DRIFT=$(docker exec "$CONTAINER_APP" npx prisma@7.9.1 migrate status 2>&1)
     if [[ "$DRIFT" == *"up to date"* ]]; then
         echo -e "${GREEN}✅ Schéma de base de données à jour.${NC}"
     else
@@ -49,21 +49,21 @@ echo -e "\n${YELLOW}🔌 3. Connectivité Inter-Services${NC}"
 if [ ! -z "$CONTAINER_APP" ]; then
     # Test Redis
     echo -n "Test Redis... "
-    CONTAINER_REDIS=$(sudo docker ps --format '{{.Names}}' | grep "sigilos-redis" | head -n 1)
+    CONTAINER_REDIS=$(docker ps --format '{{.Names}}' | grep "sigilos-redis" | head -n 1)
     if [ ! -z "$CONTAINER_REDIS" ]; then
         # Récupérer le mot de passe Redis depuis l'app
-        REDIS_URL_VAL=$(sudo docker exec "$CONTAINER_APP" env | grep REDIS_URL | cut -d'=' -f2-)
+        REDIS_URL_VAL=$(docker exec "$CONTAINER_APP" env | grep REDIS_URL | cut -d'=' -f2-)
         if [[ "$REDIS_URL_VAL" == *":"* && "$REDIS_URL_VAL" == *"@"* ]]; then
             # Format: redis://:password@host:port
             REDIS_PASS=$(echo "$REDIS_URL_VAL" | cut -d':' -f3 | cut -d'@' -f1)
         else
-            REDIS_PASS=$(sudo docker exec "$CONTAINER_APP" env | grep REDIS_PASSWORD | cut -d'=' -f2)
+            REDIS_PASS=$(docker exec "$CONTAINER_APP" env | grep REDIS_PASSWORD | cut -d'=' -f2)
         fi
 
         if [ ! -z "$REDIS_PASS" ]; then
-            REDIS_PING=$(sudo docker exec "$CONTAINER_REDIS" redis-cli -a "$REDIS_PASS" ping 2>/dev/null)
+            REDIS_PING=$(docker exec "$CONTAINER_REDIS" redis-cli -a "$REDIS_PASS" ping 2>/dev/null)
         else
-            REDIS_PING=$(sudo docker exec "$CONTAINER_REDIS" redis-cli ping 2>/dev/null)
+            REDIS_PING=$(docker exec "$CONTAINER_REDIS" redis-cli ping 2>/dev/null)
         fi
 
         if [[ "$REDIS_PING" == *"PONG"* ]]; then
@@ -77,15 +77,15 @@ if [ ! -z "$CONTAINER_APP" ]; then
     
     # Test Postgres (ping basique via pg_isready dans le container DB)
     echo -n "Test PostgreSQL... "
-    CONTAINER_DB=$(sudo docker ps --format '{{.Names}}' | grep "sigilos-db" | head -n 1)
+    CONTAINER_DB=$(docker ps --format '{{.Names}}' | grep "sigilos-db" | head -n 1)
     if [ ! -z "$CONTAINER_DB" ]; then
         # Récupérer l'user et la DB
-        DB_USER=$(sudo docker exec "$CONTAINER_APP" env | grep POSTGRES_USER | cut -d'=' -f2)
-        DB_NAME=$(sudo docker exec "$CONTAINER_APP" env | grep POSTGRES_DB | cut -d'=' -f2)
+        DB_USER=$(docker exec "$CONTAINER_APP" env | grep POSTGRES_USER | cut -d'=' -f2)
+        DB_NAME=$(docker exec "$CONTAINER_APP" env | grep POSTGRES_DB | cut -d'=' -f2)
         DB_USER=${DB_USER:-user}
         DB_NAME=${DB_NAME:-sigilos}
 
-        DB_STATUS=$(sudo docker exec "$CONTAINER_DB" pg_isready -U "$DB_USER" -d "$DB_NAME" -q && echo "OK" || echo "FAIL")
+        DB_STATUS=$(docker exec "$CONTAINER_DB" pg_isready -U "$DB_USER" -d "$DB_NAME" -q && echo "OK" || echo "FAIL")
         if [ "$DB_STATUS" == "OK" ]; then
             echo -e "${GREEN}✅ Connectivité PostgreSQL OK (User: $DB_USER, DB: $DB_NAME).${NC}"
         else
@@ -97,7 +97,7 @@ fi
 # 4. Scannage des Logs (Filtrage du bruit)
 echo -e "\n${YELLOW}📜 4. Analyse des Logs (Derniers 100 évènements)${NC}"
 # On ignore les erreurs connues de node-exporter et de config postgres_exporter
-ERRORS=$(sudo docker ps -q | xargs -L 1 sudo docker logs --tail 100 2>&1 | \
+ERRORS=$(docker ps -q | xargs -L 1 docker logs --tail 100 2>&1 | \
     grep -iE "error|fatal|exception|denied" | \
     grep -vE "postgres_exporter.yml|/run/udev/data|netclass|role \"root\"|role \"postgres\"|database \"sigiluser\"")
 

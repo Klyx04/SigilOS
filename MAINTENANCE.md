@@ -370,6 +370,7 @@ git pull origin main
   curl -s -o /dev/null -w "%{http_code}\n" https://beta.sigilos.fr/game-data/tiles/w38/1/204.webp   # → 200
   ```
 - ⚠️ Les tuiles (`public/game-data/tiles/...`) sont **ignorées par git** → un `git pull`/`deploy-cd.sh` ne les mettra **jamais** à jour. C'est `sync-assets.sh` qui les synchronise (volume bind-mount `ro`, lu directement par Caddy).
+- ✅ **Revalidation cache `/game-data/*` (26/08)** : `/game-data/*` était servi **sans `Cache-Control`** → le navigateur appliquait un cache heuristique et pouvait resservir un `worldmap.json`/`worlds.json` **périmé** après un déploiement (ex : mondes 37/40 absents du sélecteur alors que les données étaient bien sur le VPS). Fix : `handle /game-data/*` + `header Cache-Control "no-cache, must-revalidate"` (revalidation ETag/Last-Modified → 304 si inchangé, 200 si nouveau). Côté app, `src/components/worldmap/map-viewer.tsx` force aussi `{ cache: 'no-cache' }` sur les `fetch` de `worldmap.json`/`worlds.json`. ⚠️ Après un changement `Caddyfile` : `docker exec sigilos-gateway caddy validate --config /etc/caddy/Caddyfile && docker exec sigilos-gateway caddy reload` (bind-mount → **pas de rebuild**).
 - ⏳ **Prod (main)** : ajouter le même `handle /game-data/*` dans le bloc `sigilos.fr` quand le site sera lancé.
 #### 3e. Vitrine prod — assets `/assets/*` servis par Caddy (23/08)
 

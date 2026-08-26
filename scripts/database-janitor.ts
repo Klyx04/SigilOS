@@ -15,6 +15,8 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { Pool } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 const GRACE_PERIOD_DAYS = 7;
 const AUDIT_RETENTION_DAYS = 30;
@@ -28,7 +30,14 @@ const ACCESS_ATTEMPT_RETENTION_DAYS = 90;
 
 async function main() {
     const isDryRun = !process.argv.includes('--execute');
-    const db = new PrismaClient();
+
+    if (!process.env.DATABASE_URL) {
+        throw new Error('DATABASE_URL is required to run the database janitor.');
+    }
+
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    const adapter = new PrismaPg(pool as any);
+    const db = new PrismaClient({ adapter });
 
     console.log('--------------------------------------------------');
     console.log(`🧹 Database Janitor - ${new Date().toISOString()}`);
@@ -320,6 +329,7 @@ async function main() {
         process.exit(1);
     } finally {
         await db.$disconnect();
+        await pool.end();
     }
 }
 

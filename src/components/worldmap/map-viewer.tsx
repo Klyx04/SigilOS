@@ -51,8 +51,13 @@ export function MapViewer({
         async function fetchMapData() {
             try {
                 const [resMap, resWorlds] = await Promise.all([
-                    fetch('/game-data/worldmap.json'),
-                    fetch('/game-data/worlds.json')
+                    // cache:'no-cache' → revalidation systématique via ETag/Last-Modified.
+                    // Sans cela (et sans Cache-Control côté Caddy sur /game-data/*), le
+                    // navigateur applique un cache heuristique et peut resservir un
+                    // worldmap.json PÉRIMÉ (ex: mondes 37/40 absents du sélecteur alors
+                    // que les données sont bien déployées sur le VPS).
+                    fetch('/game-data/worldmap.json', { cache: 'no-cache' }),
+                    fetch('/game-data/worlds.json', { cache: 'no-cache' })
                 ]);
 
                 if (!resMap.ok || !resWorlds.ok) throw new Error("Could not load map data");

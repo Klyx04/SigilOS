@@ -121,6 +121,14 @@ beta.sigilos.fr {
     handle /game-data/* {
         root * /srv/game-data
         uri strip_prefix /game-data
+        # 🔄 Revalidation obligatoire : sans ce header, les navigateurs appliquent un
+        # cache heuristique sur /game-data/* (worldmap.json, worlds.json, tuiles HD)
+        # et peuvent resservir des données PÉRIMÉES après un déploiement (ex: mondes
+        # 37/40 absents du sélecteur alors qu'ils sont bien sur le VPS).
+        # no-cache + must-revalidate => le navigateur revalide via ETag/Last-Modified
+        # (304 si inchangé, 200 si nouveau) à chaque navigation. Aligné sur le comportement
+        # des assets Next.js (« Cache-Control: no-cache, must-revalidate »).
+        header Cache-Control "no-cache, must-revalidate"
         file_server
     }
 

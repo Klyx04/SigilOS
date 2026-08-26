@@ -293,29 +293,6 @@ export function ProfileBentoGrid({
         }
     };
 
-    const handleForgemagiePricesSave = async (prices: { classic: number | null, trans: number | null, exo: number | null }) => {
-        setLocalProfile(prev => ({
-            ...prev,
-            fmPriceClassic: prices.classic,
-            fmPriceTrans: prices.trans,
-            fmPriceExo: prices.exo
-        }));
-
-        const res = await updateUserProfile({
-            guildId,
-            fmPriceClassic: prices.classic,
-            fmPriceTrans: prices.trans,
-            fmPriceExo: prices.exo,
-            targetUserId
-        });
-
-        if (res.success) {
-            toast.success("Tarifs Forgemagie mis à jour");
-        } else {
-            toast.error(res.error || "Erreur");
-        }
-    };
-
     const handleAvailabilitySave = async (availability: GlobalAvailability) => {
         setLocalProfile(prev => ({ ...prev, availability: availability as any }));
         const res = await updateAvailability({ guildId, availability, targetUserId });
@@ -705,12 +682,8 @@ export function ProfileBentoGrid({
                          <JobsGrid
                              jobs={localProfile.metiers || []}
                              forgemagieStatus={(localProfile.forgemagieStatus as ForgemagieStatusId) || "UNAVAILABLE"}
-                             fmPriceClassic={localProfile.fmPriceClassic}
-                             fmPriceTrans={localProfile.fmPriceTrans}
-                             fmPriceExo={localProfile.fmPriceExo}
                              onSaveJobs={handleJobsSave}
                              onSaveForgemagieStatus={handleForgemagieStatusSave}
-                             onSaveForgemagiePrices={handleForgemagiePricesSave}
                              readOnly={!canEdit}
                          />
                      )}

@@ -2501,9 +2501,9 @@ export async function getMemberDofusSummaryForProfile(guildId: string, profileId
         const mainName = profile.pseudoDofus || "Principal";
         const mainMap = progressByChar.get("PRINCIPAL") || new Map();
 
-        // #206 — le Dofoobz utilise l'asset LOCAL (comme les autres Dofus sur les
-        // pages profil/membres) ; l'imageUrl en base (dofusdb) pointait sur le mauvais
-        // icône et restait KO. Normalisation lue à la volée via resolveDofusImageUrl
+        // Les icônes Dofus sont désormais servies depuis nos ASSETS LOCAUX
+        // (/module-dofus/*.png) pour ne plus dépendre du CDN dofusdb.fr.
+        // Normalisation appliquée à la lecture via resolveDofusImageUrl(slug, imageUrl, nameShort)
         // (src/lib/dofus-image-url.ts) → couvre les bases existantes + le hub Quêtes Dofus.
         const mainDofusList = dofusItems.map((d: any) => {
             const prog = mainMap.get(d.id);
@@ -2511,7 +2511,7 @@ export async function getMemberDofusSummaryForProfile(guildId: string, profileId
                 slug: d.slug,
                 name: d.nameShort,
                 color: d.color,
-                imageUrl: resolveDofusImageUrl(d.slug, d.imageUrl),
+                imageUrl: resolveDofusImageUrl(d.slug, d.imageUrl, d.nameShort),
                 isObtained: prog?.isObtained ?? false,
                 progressPercent: prog?.isObtained ? 100 : (prog?.percent ?? 0)
             };
@@ -2529,7 +2529,7 @@ export async function getMemberDofusSummaryForProfile(guildId: string, profileId
                     slug: d.slug,
                     name: d.nameShort,
                     color: d.color,
-                    imageUrl: resolveDofusImageUrl(d.slug, d.imageUrl),
+                    imageUrl: resolveDofusImageUrl(d.slug, d.imageUrl, d.nameShort),
                     isObtained: prog?.isObtained ?? false,
                     progressPercent: prog?.isObtained ? 100 : (prog?.percent ?? 0)
                 };

@@ -40,6 +40,13 @@
   `public/assets/module-succes/*.png` (**à brancher ou supprimer**, chantier en cours) · onglet
   « Mes succès / Succès Commun » · prévisu zone sous-monde · bug faces noires 3D · butin par grade · zaaps · (option « graphe multi-boss en cartes séparées » à cadrer).
 - **Accès membres / Discord (25/08)** : réglé le « Accès Banni » après réintégration (invalidation cache+session, PR #541 mergée) + UX « Exclure (réintégrable) ». **✅ CHANTIER 25/08** (`feat/chantier-2026-08-25-acces-timeout-archivage`) : reflet du **timeout Discord** (écran « Accès Temporairement Suspendu » + compte à rebours) · bug « Accès Banni » après réintégration définitivement corrigé (tombstone `findFirst({ liftedAt: null })`) · `wipeUserProfile` crée son tombstone · `getGuildMemberBans` sans `take:100` · **archivage auto 12 mois** · messaging honnête Archiver vs Supprimer. ⚪ RESTE (→ #223 résilience Discord) : invalidation des caches `member:`/`roles:`/`user:ctx` à un **changement de rôle / timeout Discord** — cache membre en mémoire (process app) non partageable avec le bot Gateway → Redis/endpoint interne ; + « Supprimer définitivement » réel = retrait du rôle d'accès Discord via le bot.
+- **🧪 Session debug 26/08** (`feat/chantier-2026-08-26-dofus-icones-locales`, PR → dev) : fixes console/UI —
+  icônes Dofus servies en **local** (`/module-dofus/*.png`, helper `dofus-image-url.ts` local-first, plus de dofusdb pour le profil/hub) ·
+  recherche Ressources : partie **dofusbook retirée** (dofusdb seul) · recette craft sans « Copier la liste » ni copie/quantité (nom seul) ·
+  WS `/socket.io/*` : **fix CORS même-origine** (400 → temps réel OK) · bloc **« Tarifs Forgemagie » retiré** de la carte Métiers du profil ·
+  **Sigil Bomb** : volume son appliqué, décompte 3s synchronisé, mort subite **pré-avertie** (~3 échanges) + nouveau réglage (on/off + nb d'échanges).
+  Vérifs : tsc 0 · eslint 0 · **340/340**. Mémo : `src/temp/memo-2026-08-26-fixes-console-ui-sigil-bomb.md`.
+
 
 ## 🟠 Bloc B — UX / Perf (valeur immédiate)
 

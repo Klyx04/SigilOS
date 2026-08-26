@@ -7,45 +7,30 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Image from "next/image";
 import { Pencil, Check, X, Hammer, Info } from "lucide-react";
-import { DOFUS_JOBS, getForgemagieStatus, type ForgemagieStatusId, hasAnyForgemagie } from "@/lib/dofus-assets";
+import { DOFUS_JOBS, getForgemagieStatus, type ForgemagieStatusId } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+
 
 interface JobsGridProps {
     jobs?: string[];
     forgemagieStatus?: ForgemagieStatusId;
-    fmPriceClassic?: number | null;
-    fmPriceTrans?: number | null;
-    fmPriceExo?: number | null;
     onSaveJobs?: (jobs: string[]) => void;
     onSaveForgemagieStatus?: (status: ForgemagieStatusId) => void;
-    onSaveForgemagiePrices?: (prices: { classic: number | null, trans: number | null, exo: number | null }) => void;
     readOnly?: boolean;
 }
 
 export function JobsGrid({
     jobs = [],
     forgemagieStatus = "UNAVAILABLE",
-    fmPriceClassic = null,
-    fmPriceTrans = null,
-    fmPriceExo = null,
     onSaveJobs,
     onSaveForgemagieStatus,
-    onSaveForgemagiePrices,
     readOnly = false,
 }: JobsGridProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [selectedJobs, setSelectedJobs] = useState<string[]>(jobs);
 
-    const [prices, setPrices] = useState({
-        classic: fmPriceClassic,
-        trans: fmPriceTrans,
-        exo: fmPriceExo
-    });
 
-    const userHasFMJobs = hasAnyForgemagie(jobs);
 
     const toggleJob = (jobId: string) => {
         if (selectedJobs.includes(jobId)) {
@@ -64,22 +49,6 @@ export function JobsGrid({
         setSelectedJobs(jobs);
     };
 
-    const formatKamas = (value: number | null | undefined) => {
-        if (value === null || value === undefined) return "Non défini";
-        if (value === 0) return "Gratuit";
-        return new Intl.NumberFormat('fr-FR').format(value) + " k";
-    };
-
-    const handlePriceChange = (type: 'classic' | 'trans' | 'exo', value: string) => {
-        const num = value === "" ? null : parseInt(value);
-        if (num !== null && (isNaN(num) || num < 0)) return;
-        setPrices(prev => ({ ...prev, [type]: num }));
-    };
-
-    const handleSavePrices = () => {
-        onSaveForgemagiePrices?.(prices);
-    };
-
     const allJobs = Object.values(DOFUS_JOBS).flat();
     const activeJobsData = allJobs.filter(j => jobs.includes(j.id));
 
@@ -94,7 +63,7 @@ export function JobsGrid({
                         <h3 className="text-base font-black text-foreground uppercase tracking-wider">
                             Maîtrise Artisanale
                         </h3>
-                        <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold">Métiers & Tarifs Forgemagie</p>
+                        <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold">Métiers</p>
                     </div>
                 </div>
                 {!readOnly && (
@@ -299,85 +268,6 @@ export function JobsGrid({
             )}
 
 
-            {userHasFMJobs && (
-                <div className="border-t border-border pt-4 mt-auto">
-                    <div className="flex items-center gap-2 mb-3">
-                        <Hammer className="w-3 h-3 text-warning" />
-                        <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Tarifs Forgemagie</p>
-                    </div>
-
-                    {!readOnly ? (
-                        <div className="flex flex-col gap-4">
-                            <div className="grid grid-cols-1 gap-3">
-                                <div className="flex items-center gap-3">
-                                    <Label className="text-xs text-muted-foreground w-24 shrink-0">FM Classique</Label>
-                                    <div className="relative flex-1">
-                                        <Input
-                                            type="number"
-                                            placeholder="Gratuit"
-                                            className="h-7 text-xs bg-surface/50 border-border text-right pr-6"
-                                            min={0}
-                                            value={prices.classic === null ? "" : prices.classic}
-                                            onChange={(e) => handlePriceChange("classic", e.target.value)}
-                                        />
-                                        <span className="absolute right-2 top-1.5 text-caption text-muted-foreground font-bold">K</span>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <Label className="text-xs text-muted-foreground w-24 shrink-0">Passage Trans</Label>
-                                    <div className="relative flex-1">
-                                        <Input
-                                            type="number"
-                                            placeholder="Gratuit"
-                                            className="h-7 text-xs bg-surface/50 border-border text-right pr-6"
-                                            min={0}
-                                            value={prices.trans === null ? "" : prices.trans}
-                                            onChange={(e) => handlePriceChange("trans", e.target.value)}
-                                        />
-                                        <span className="absolute right-2 top-1.5 text-caption text-muted-foreground font-bold">K</span>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <Label className="text-xs text-muted-foreground w-24 shrink-0">Tenta Exo</Label>
-                                    <div className="relative flex-1">
-                                        <Input
-                                            type="number"
-                                            placeholder="Gratuit"
-                                            className="h-7 text-xs bg-surface/50 border-border text-right pr-6"
-                                            min={0}
-                                            value={prices.exo === null ? "" : prices.exo}
-                                            onChange={(e) => handlePriceChange("exo", e.target.value)}
-                                        />
-                                        <span className="absolute right-2 top-1.5 text-caption text-muted-foreground font-bold">K</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <Button
-                                onClick={handleSavePrices}
-                                variant="sigil"
-                                className="w-full h-8 text-caption"
-                            >
-                                Sauvegarder les tarifs
-                            </Button>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col gap-3 pt-2">
-                            <div className="flex justify-between items-center p-2 rounded-lg bg-surface border border-border hover:border-border transition-colors">
-                                <span className="text-muted-foreground text-sm font-medium">Classique</span>
-                                <span className="font-mono text-warning font-semibold text-sm">{formatKamas(fmPriceClassic)}</span>
-                            </div>
-                            <div className="flex justify-between items-center p-2 rounded-lg bg-surface border border-border hover:border-border transition-colors">
-                                <span className="text-muted-foreground text-sm font-medium">Passage Trans</span>
-                                <span className="font-mono text-info font-semibold text-sm">{formatKamas(fmPriceTrans)}</span>
-                            </div>
-                            <div className="flex justify-between items-center p-2 rounded-lg bg-surface border border-border hover:border-border transition-colors">
-                                <span className="text-muted-foreground text-sm font-medium">Tenta Exo</span>
-                                <span className="font-mono text-info font-semibold text-sm">{formatKamas(fmPriceExo)}</span>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
         </div>
     );
 }

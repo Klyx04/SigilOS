@@ -175,12 +175,12 @@ export function ProfileDofusTab({ guildId, profileId, readOnly = false }: Profil
                                             alt={item.name}
                                             className="w-full h-full object-contain"
                                             onError={(e) => {
-                                                // #206 — fallback asset local pour le Dofoobz (image dofusdb KO)
-                                                if (item.slug === "dofoozbz") {
-                                                    const local = "/module-dofus/Dofus_Dofoozbz.png";
-                                                    if (e.currentTarget.src !== window.location.origin + local) {
-                                                        e.currentTarget.src = local;
-                                                    }
+                                                // Les icônes sont désormais locales (/module-dofus/) ; en cas
+                                                // d'asset manquant, on retombe sur un placeholder plutôt que
+                                                // sur le CDN dofusdb.fr.
+                                                const fallback = "/assets/missions/fragment.png";
+                                                if (e.currentTarget.src !== window.location.origin + fallback) {
+                                                    e.currentTarget.src = fallback;
                                                 }
                                             }}
                                         />

@@ -30,6 +30,8 @@ interface RoomConfig {
     minWordLength: number;
     isSoloMode: boolean;
     minTurnDuration: number; // Minimum time given to next player (JKLM style)
+    suddenDeathEnabled: boolean;   // Mort subite (temps réduit) activée ou non
+    suddenDeathExchanges: number;  // Nombre d'échanges avant l'activation de la mort subite
 }
 
 // ── Dofus class names always accepted ────────────────────────────
@@ -63,6 +65,8 @@ export class SigilBombRoom {
         minWordLength: 1,
         isSoloMode: false,
         minTurnDuration: 2,
+        suddenDeathEnabled: true,
+        suddenDeathExchanges: 20,
     };
 
     private currentTurnIndex = 0;
@@ -79,6 +83,7 @@ export class SigilBombRoom {
     private currentSyllableHintParts: string[] = [];
     private suddenDeathExchanges = 0;
     private isSuddenDeath = false;
+    private suddenDeathWarned = false;
 
     private clearBotTimeouts() {
         if (this.botTimeout) {
@@ -396,11 +401,15 @@ export class SigilBombRoom {
         this.lastFoundWords = [];
         this.suddenDeathExchanges = 0;
         this.isSuddenDeath = false;
+        this.suddenDeathWarned = false;
 
         // Pre-game countdown (3s)
         this.timeLeft = 3;
         this.syncState();
-        
+        // Son + affichage synchronisés : tick sonore dès le « 3 » (sinon 3 était muet
+        // et le son était décalé sur 2 et 1 → désynchronisation ressentie).
+        this.io.to(this.id).emit("bomb:tick", { timeLeft: 3 });
+
         this.stopTimer();
         this.tickInterval = setInterval(() => {
             this.timeLeft--;
@@ -740,9 +749,19 @@ export class SigilBombRoom {
 
         // ── SUDDEN DEATH TRACKING ──
         const survivors = this.players.filter(p => !p.isSpectator && p.lives > 0);
-        if (survivors.length === 2) {
+        if (survivors.length === 2 && this.config.suddenDeathEnabled) {
             this.suddenDeathExchanges++;
-            if (this.suddenDeathExchanges >= 20 && !this.isSuddenDeath) {
+            // Avertissement en amont : quelques échanges avant d'activer la mort subite.
+            if (!this.isSuddenDeath && !this.suddenDeathWarned
+                && this.suddenDeathExchanges >= Math.max(1, this.config.suddenDeathExchanges - 3)) {
+                this.suddenDeathWarned = true;
+                const exchangesLeft = Math.max(1, this.config.suddenDeathExchanges - this.suddenDeathExchanges);
+                this.io.to(this.id).emit("bomb:sudden-death-soon", {
+                    exchangesLeft,
+                    reductionPercent: 30,
+                });
+            }
+            if (this.suddenDeathExchanges >= this.config.suddenDeathExchanges && !this.isSuddenDeath) {
                 this.isSuddenDeath = true;
                 this.io.to(this.id).emit("bomb:sudden-death", {
                     reductionPercent: 30,

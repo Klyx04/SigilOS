@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { resolveDofusLocalImage } from "@/lib/dofus-image-url";
 
 interface DofusIconProps {
     name: string;
@@ -20,31 +21,9 @@ export function DofusIcon({
 }: DofusIconProps) {
     const [error, setError] = useState(false);
 
-    // 🛠️ ULTIMATE ROBUST FILENAME RESOLUTION (#88 : `Dofus_Dofus_Emeraude.png` → 400
-    // car `dofus.name` = « Dofus Émeraude » ; on retire le préfixe « Dofus » quand présent)
-    const normalizeName = (str: string) => {
-        const n = str.trim().replace(/^Dofus\s+/i, "");
-        const lower = n.toLocaleLowerCase();
-
-        // Specific alias mappings based on filesystem audit
-        if (lower === "glaces" || lower === "des glaces") return "Des_Glaces";
-        if (lower === "cauchemar" || lower === "du cauchemar") return "Du_Cauchemar";
-        if (lower === "scintillant" || lower === "argente scintillant" || lower === "argenté scintillant") return "Argente_Scintillant";
-        if (lower === "veilleurs" || lower === "veilleur" || lower === "des veilleurs") return "Veilleur";
-        if (lower === "tacheté" || lower === "tachete") return "Tachete";
-        if (lower === "dofoozbz") return "Dofoozbz";
-        if (lower === "dom de pin" || lower === "dom_de_pin") return "Dom_De_Pin";
-
-        // Strip ALL accents (e.g., Ébène -> Ebene, Émeraude -> Emeraude, Argenté -> Argente)
-        const deaccented = n.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        return deaccented.replace(/\s+/g, "_");
-    };
-
-    const norm = normalizeName(name);
-    // Dokille and Dom_De_Pin don't have "Dofus_" prefix in public/module-dofus/
-    const localSrc = norm === "Dokille" || norm === "Dom_De_Pin" 
-        ? `/module-dofus/${norm}.png` 
-        : `/module-dofus/Dofus_${norm}.png`;
+    // Résolution centralisée du nom → asset local (/module-dofus/*.png).
+    // Couvre le préfixe « Dofus », les accents et les alias (#88 / #206).
+    const localSrc = resolveDofusLocalImage(name) ?? "/assets/missions/fragment.png";
     // Fallback local (le CDN static.dofusdb.fr renvoyait 500 via /_next/image)
     const fallbackSrc = "/assets/missions/fragment.png";
 

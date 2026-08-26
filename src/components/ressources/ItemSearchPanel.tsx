@@ -2,9 +2,9 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import {
-    Search, ExternalLink, Loader2, X, PackageOpen, BookMarked, Sword, Shield, Sparkles, Scroll, Coins,
+    Search, ExternalLink, Loader2, PackageOpen, Sword, Shield, Sparkles, Scroll,
     Zap, Heart, Brain, Droplet, Wind, Target, Eye, Footprints, Flame, Star, ShieldCheck, Plus,
-    Crown, Circle, Layers, Award, Library, Copy, Check
+    Library
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -55,18 +55,6 @@ interface DofusItem {
 
 // ─── Constants & Helpers ───────────────────────────────────────────────────
 
-const DOFUSBOOK_CATEGORIES = [
-    { id: 16, name: "Chapeau", icon: Crown },
-    { id: 17, name: "Cape", icon: Wind },
-    { id: 12, name: "Amulette", icon: Heart },
-    { id: 13, name: "Anneau", icon: Circle },
-    { id: 15, name: "Ceinture", icon: Layers },
-    { id: 14, name: "Bottes", icon: Footprints },
-    { id: 82, name: "Bouclier", icon: Shield },
-    { id: 151, name: "Dofus", icon: Sparkles },
-    { id: 152, name: "Trophée", icon: Award },
-    { id: 18, name: "Arme", icon: Sword },
-];
 
 const CHAR_NAMES: Record<number, string> = {
     11: "Vitalité",
@@ -159,7 +147,7 @@ const STAT_ICONS: Record<string | number, any> = {
     412: { icon: Shield, color: "text-muted-foreground" },    // Retrait PM
     87: { icon: ShieldCheck, color: "text-danger" }, // Résistance Critiques
 
-    // Strings for Dofusbook (Strict mapping)
+    // Strings (Strict mapping)
     "vi": { icon: Heart, color: "text-danger" },    // Vitalité
     "fo": { icon: Sword, color: "text-warning" },     // Force
     "sa": { icon: Brain, color: "text-violet-400" },    // Sagesse
@@ -281,23 +269,11 @@ export function ItemSearchPanel() {
     const [dbResults, setDbResults] = useState<DofusItem[]>([]);
     const [dbLoading, setDbLoading] = useState(false);
 
-    // Dofusbook States
-    const [bookQuery, setBookQuery] = useState("");
-    const [bookResults, setBookResults] = useState<any[]>([]);
-    const [bookLoading, setBookLoading] = useState(false);
-    const [bookCategory, setBookCategory] = useState<number | null>(null);
-    const [showFilters, setShowFilters] = useState(false);
 
     // Common States
     const [loadingDetail, setLoadingDetail] = useState(false);
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
     const [recipe, setRecipe] = useState<DofusRecipe | null>(null);
-    const [source, setSource] = useState<"dofusdb" | "dofusbook">("dofusdb");
-    // #178 — copier les ressources de craft (nom tel quel)
-    const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
-    const [copiedRecipe, setCopiedRecipe] = useState(false);
-
-    // Search DofusDB — via proxy serveur pour éviter CORS
     const searchDB = useCallback(async (q: string) => {
         if (!q.trim() || q.trim().length < 2) {
             setDbResults([]);
@@ -315,52 +291,6 @@ export function ItemSearchPanel() {
         }
     }, []);
 
-    // Search Dofusbook
-    const searchBook = useCallback(async (q: string) => {
-        if (!q.trim() || q.trim().length < 2) {
-            setBookResults([]);
-            return;
-        }
-        setBookLoading(true);
-        try {
-            // #189 — passer la catégorie à la route API (qui la transmet via &include= à Dofusbook)
-            // + fallback client-side pour les champs category_id/category_name selon la réponse API
-            const categoryParam = bookCategory ? `&category=${bookCategory}` : "";
-            const res = await fetch(`/api/dofusbook/search?q=${encodeURIComponent(q)}${categoryParam}`);
-            const data = await res.json();
-
-            // Dofusbook returns either { results: [] }, { data: [] } or [] directly
-            const results = Array.isArray(data) ? data : (data.data || data.results || []);
-            if (data.error) throw new Error(data.error);
-
-            // Fallback client-side filter au cas où le filtre serveur ne serait pas exhaustif
-            let filtered = results;
-            if (bookCategory) {
-                const cat = DOFUSBOOK_CATEGORIES.find((c) => c.id === bookCategory);
-                filtered = results.filter((item: any) => {
-                    const rawCatId = item.category_id ?? item.categoryId;
-                    if (typeof rawCatId === "number") return rawCatId === bookCategory;
-                    if (typeof rawCatId === "string" && cat) return String(rawCatId) === String(cat.id);
-                    const catName = String(item.category_name ?? item.categoryName ?? "").trim().toLowerCase();
-                    return !!cat && catName === cat.name.toLowerCase();
-                });
-                // Si le filtre côté API a bien fonctionné, tous les items sont déjà filtrés
-                // → fallback ne retire rien dans ce cas
-                if (filtered.length === 0 && results.length > 0) {
-                    // La réponse Dofusbook est déjà filtrée côté serveur → accepter tous les résultats
-                    filtered = results;
-                }
-            }
-            setBookResults(filtered);
-        } catch {
-            // Échec gracieux Dofusbook : pas de log console en prod.
-            setBookResults([]);
-        } finally {
-            setBookLoading(false);
-        }
-    }, [bookCategory]);
-
-    // Timers
     useEffect(() => {
         const timer = setTimeout(() => {
             if (dbQuery.trim().length >= 2) searchDB(dbQuery);
@@ -369,16 +299,7 @@ export function ItemSearchPanel() {
         return () => clearTimeout(timer);
     }, [dbQuery, searchDB]);
 
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            if (bookQuery.trim().length >= 2) searchBook(bookQuery);
-            else if (bookQuery.trim().length === 0) setBookResults([]);
-        }, 350);
-        return () => clearTimeout(timer);
-    }, [bookQuery, searchBook]);
-
     const handleSelectDB = async (item: DofusItem) => {
-        setSource("dofusdb");
         setLoadingDetail(true);
         setRecipe(null);
         try {
@@ -405,61 +326,6 @@ export function ItemSearchPanel() {
         } finally {
             setLoadingDetail(false);
         }
-    };
-
-    const handleSelectBook = (item: any) => {
-        setSource("dofusbook");
-        // Normalize Dofusbook data to match our UI expected format
-        const pic = item.picture || item.picture_id || item.id;
-        const normalized: DofusItem = {
-            id: item.id,
-            name: { fr: item.name },
-            level: item.level,
-            type: { name: { fr: item.category_name || "Équipement" } },
-            img: `https://www.dofusbook.net/static/dist/items/${pic}-200.webp`,
-            effects: (item.effects || []).map((e: any) => ({
-                characteristic: undefined,
-                from: e.min,
-                to: e.max,
-                int_name: e.name
-            })),
-            description: { fr: item.description || "" },
-            hasRecipe: !!(item.ingredients && item.ingredients.length > 0)
-        };
-
-        setSelectedItem(normalized);
-        if (normalized.hasRecipe) {
-            setRecipe({
-                ingredients: item.ingredients.map((ing: any) => {
-                    const ingPic = ing.picture || ing.picture_id || ing.item_id || ing.id;
-                    return {
-                        id: ing.id || ing.item_id,
-                        name: { fr: ing.name || ing.item_name },
-                        img: `https://www.dofusbook.net/static/dist/items/${ingPic}-70.webp`
-                    };
-                }),
-                quantities: item.ingredients.map((ing: any) => ing.count || ing.quantity)
-            });
-        } else {
-            setRecipe(null);
-        }
-    };
-
-    // #178 — copier les ressources de craft (nom tel quel, dofusbook + dofusdb)
-    const handleCopyIngredient = (name: string, qty: number, idx: number) => {
-        const text = `${name} x${qty}`;
-        navigator.clipboard.writeText(text)
-            .then(() => { setCopiedIdx(idx); setTimeout(() => setCopiedIdx(null), 2000); })
-            .catch(() => {});
-    };
-    const handleCopyRecipe = () => {
-        if (!recipe) return;
-        const text = recipe.ingredients
-            .map((ing, i) => `${ing.name.fr} x${recipe.quantities[i]}`)
-            .join("\n");
-        navigator.clipboard.writeText(text)
-            .then(() => { setCopiedRecipe(true); setTimeout(() => setCopiedRecipe(false), 2000); })
-            .catch(() => {});
     };
 
     return (
@@ -500,7 +366,7 @@ export function ItemSearchPanel() {
                                     onClick={() => handleSelectDB(item)}
                                     className={cn(
                                         "w-full flex items-center gap-4 p-3 rounded-2xl border transition-colors group",
-                                        selectedItem?.id === item.id && source === "dofusdb"
+                                        selectedItem?.id === item.id
                                             ? "bg-violet-500/10 border-violet-500/40 "
                                             : "bg-surface border-border hover:bg-surface hover:border-border"
                                     )}
@@ -517,114 +383,13 @@ export function ItemSearchPanel() {
                         </div>
                     </div>
 
-                    {/* Dofusbook Block */}
-                    <div className="rounded-2xl p-8 border border-success/20 shadow-sm bg-surface flex flex-col flex-1 transition-colors hover:border-success/30">
-                        <div className="flex items-center justify-between mb-8">
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-2xl bg-success/10 flex items-center justify-center border border-success/20 ">
-                                    <BookMarked className="h-6 w-6 text-success" />
-                                </div>
-                                <div>
-                                    <h2 className="text-label font-semibold text-success">Dofusbook</h2>
-                                    <p className="text-caption text-muted-foreground font-medium mt-1">Expert Precision</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => setShowFilters(!showFilters)}
-                                className={cn(
-                                    "p-2.5 rounded-xl border transition-colors flex items-center gap-2 text-caption font-semibold",
-                                    showFilters ? "bg-success/20 border-success/40 text-success" : "bg-surface border-border text-muted-foreground hover:text-success-foreground"
-                                )}
-                            >
-                                <Zap className="w-4 h-4" /> Filters
-                            </button>
-                        </div>
-
-                        {showFilters && (
-                            <div className="mb-8 p-6 rounded-xl bg-surface border border-success/20 shadow-sm animate-in fade-in zoom-in-95 duration-300">
-                                <div className="flex items-center justify-between mb-4 px-1">
-                                    <p className="text-caption font-semibold text-success">Filtrer par type</p>
-                                    <button
-                                        onClick={() => setBookCategory(null)}
-                                        className="text-caption font-bold text-muted-foreground hover:text-foreground transition-colors"
-                                    >
-                                        Réinitialiser
-                                    </button>
-                                </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                                    {DOFUSBOOK_CATEGORIES.map((c) => {
-                                        const Icon = c.icon;
-                                        return (
-                                            <button
-                                                key={c.id}
-                                                onClick={() => setBookCategory(bookCategory === c.id ? null : c.id)}
-                                                className={cn(
-                                                    "flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border transition-colors group",
-                                                    bookCategory === c.id
-                                                        ? "bg-success/20 border-success/50 text-success  scale-105"
-                                                        : "bg-surface border-border text-muted-foreground hover:bg-surface hover:border-success/20 hover:text-foreground"
-                                                )}
-                                            >
-                                                <Icon className={cn(
-                                                    "h-5 w-5 transition-transform group-",
-                                                    bookCategory === c.id ? "text-success" : "text-muted-foreground group-hover:text-success/50"
-                                                )} />
-                                                <span className="text-caption font-semibold">{c.name}</span>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="relative mb-6">
-                            <input
-                                type="text"
-                                value={bookQuery}
-                                onChange={(e) => setBookQuery(e.target.value)}
-                                placeholder="Chercher sur Dofusbook..."
-                                className="w-full bg-background/80 border border-success/20 rounded-2xl pl-12 pr-4 py-4 text-sm text-foreground outline-none focus:border-success/50 transition-colors placeholder:text-success/30 shadow-sm"
-                            />
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-success/40" />
-                        </div>
-
-                        <div className="max-h-[400px] overflow-y-auto custom-scrollbar space-y-2 pr-2">
-                            {bookLoading && <div className="py-12 text-center"><Loader2 className="h-8 w-8 animate-spin text-success mx-auto" /></div>}
-                            {!bookLoading && bookQuery.length >= 2 && bookResults.length === 0 && (
-                                <div className="py-12 text-center">
-                                    <PackageOpen className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-20" />
-                                    <p className="text-caption font-semibold text-muted-foreground">Aucun résultat sur Dofusbook</p>
-                                </div>
-                            )}
-                            {bookResults.map((item) => (
-                                <button
-                                    key={item.id}
-                                    onClick={() => handleSelectBook(item)}
-                                    className={cn(
-                                        "w-full flex items-center gap-4 p-3 rounded-2xl border transition-colors group",
-                                        selectedItem?.id === item.id && source === "dofusbook"
-                                            ? "bg-success/10 border-success/40 "
-                                            : "bg-surface border-border hover:bg-surface hover:border-border"
-                                    )}
-                                >
-                                    <div className="w-11 h-11 rounded-xl bg-background flex items-center justify-center border border-border shrink-0 group- transition-transform">
-                                        <Image src={getItemImageUrl(item.id, `https://www.dofusbook.net/static/dist/items/${item.picture || item.picture_id || item.id}-70.webp`)} alt={item.name} width={32} height={32} className="object-contain" unoptimized />
-                                    </div>
-                                    <div className="min-w-0 text-left">
-                                        <div className="text-body-sm font-bold text-foreground group-hover:text-foreground truncate">{item.name}</div>
-                                        <div className="text-caption font-semibold text-success/60 uppercase tracking-tighter">Niv. {item.level}</div>
-                                    </div>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
                 </div>
 
                 {/* Detail Panel */}
                 <div className="lg:col-span-8">
                     <div className={cn(
                         "h-full min-h-[600px] rounded-[3rem] border backdrop-blur-3xl p-10 flex flex-col relative overflow-hidden transition-colors duration-300 shadow-sm",
-                        source === "dofusbook" ? "bg-success/10 border-success/20" : "bg-surface border-border"
+                        "bg-surface border-border"
                     )}>
                         {!selectedItem ? (
                             <div className="absolute inset-0 p-8 flex flex-col items-center justify-center text-center space-y-8 animate-in fade-in zoom-in-95 duration-300">
@@ -670,8 +435,8 @@ export function ItemSearchPanel() {
                                             <ExternalLink className="h-5 w-5 text-warning" />
                                         </div>
                                         <div className="space-y-1">
-                                            <h4 className="text-label font-semibold text-foreground">Multi-Sources</h4>
-                                            <p className="text-caption text-muted-foreground font-bold uppercase tracking-tight">DofusDB & Dofusbook</p>
+                                            <h4 className="text-label font-semibold text-foreground">DofusDB</h4>
+                                            <p className="text-caption text-muted-foreground font-bold uppercase tracking-tight">Catalogue officiel</p>
                                         </div>
                                     </div>
                                 </div>
@@ -696,7 +461,7 @@ export function ItemSearchPanel() {
                                     <div className="relative group shrink-0">
                                         <div className={cn(
                                             "absolute inset-0 blur-3xl opacity-0 group-hover:opacity-40 transition-opacity",
-                                            source === "dofusbook" ? "bg-success/20" : "bg-violet-600/20"
+                                            "bg-violet-600/20"
                                         )} />
                                         <div className="w-40 h-40 rounded-2xl bg-background border border-border flex items-center justify-center relative z-10 shadow-sm">
                                             <Image
@@ -714,9 +479,7 @@ export function ItemSearchPanel() {
                                         <div className="flex items-center gap-3 mb-4">
                                             <span className={cn(
                                                 "px-4 py-1.5 rounded-full text-caption font-semibold border transition-colors",
-                                                source === "dofusbook"
-                                                    ? "bg-success/10 text-success border-success/20"
-                                                    : "bg-violet-500/10 text-violet-400 border-violet-500/20"
+                                                "bg-violet-500/10 text-violet-400 border-violet-500/20"
                                             )}>
                                                 {selectedItem.type.name.fr}
                                             </span>
@@ -724,8 +487,8 @@ export function ItemSearchPanel() {
                                                 Niveau {selectedItem.level}
                                             </span>
                                             <span className="ml-auto text-caption font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                                                <div className={cn("w-1.5 h-1.5 rounded-full", source === "dofusbook" ? "bg-success" : "bg-violet-500")} />
-                                                Source: {source}
+                                                <div className={cn("w-1.5 h-1.5 rounded-full", "bg-violet-500")} />
+                                                DofusDB
                                             </span>
                                         </div>
                                         <h1 className="text-3xl font-black text-foreground tracking-tight mb-3">{selectedItem.name.fr}</h1>
@@ -735,12 +498,12 @@ export function ItemSearchPanel() {
 
                                         <div className="flex items-center gap-4 mt-8">
                                             <a
-                                                href={source === "dofusbook" ? `https://www.dofusbook.net/fr/encyclopedie/objet/${selectedItem.id}` : `https://www.dofusdb.fr/fr/database/item/${selectedItem.id}`}
+                                                href={`https://www.dofusdb.fr/fr/database/item/${selectedItem.id}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className={cn(
                                                     "px-6 py-3 rounded-2xl text-caption font-semibold flex items-center gap-2 transition-colors shadow-lg",
-                                                    source === "dofusbook" ? "bg-success hover:bg-success text-success-foreground" : "bg-violet-600 hover:bg-violet-500 text-success-foreground"
+                                                    "bg-violet-600 hover:bg-violet-500 text-success-foreground"
                                                 )}
                                             >
                                                 Wiki Officiel <ExternalLink className="h-3 w-3" />
@@ -754,7 +517,7 @@ export function ItemSearchPanel() {
                                     <div className="space-y-6">
                                         <div className="p-8 rounded-2xl bg-surface border border-border h-fit shadow-inner">
                                             <div className="flex items-center gap-3 mb-8">
-                                                <Sword className={cn("h-5 w-5", source === "dofusbook" ? "text-success" : "text-violet-400")} />
+                                                <Sword className={cn("h-5 w-5", "text-violet-400")} />
                                                 <h4 className="text-caption font-semibold text-muted-foreground">Effets & Bonus</h4>
                                             </div>
                                             <div className="space-y-5">
@@ -767,7 +530,7 @@ export function ItemSearchPanel() {
                                                                 </div>
                                                                 <span className="text-body-sm font-bold text-foreground group-hover/fx:text-foreground transition-colors">{getStatLabel(fx)}</span>
                                                             </div>
-                                                            <span className={cn("text-body-sm font-black", source === "dofusbook" ? "text-success" : "text-violet-400")}>
+                                                            <span className={cn("text-body-sm font-black", "text-violet-400")}>
                                                                 {fx.from === fx.to || fx.to === 0 ? fx.from : `${fx.from} à ${fx.to}`}
                                                             </span>
                                                         </div>
@@ -790,18 +553,6 @@ export function ItemSearchPanel() {
                                                     <Scroll className="h-5 w-5 text-muted-foreground" />
                                                     <h4 className="text-caption font-semibold text-muted-foreground">Fabrication</h4>
                                                 </div>
-                                                {/* #178 — copier toutes les ressources du craft (nom tel quel) */}
-                                                {recipe && recipe.ingredients.length > 0 && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={handleCopyRecipe}
-                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-background text-caption font-bold text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors"
-                                                        title="Copier la liste des ressources"
-                                                    >
-                                                        {copiedRecipe ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
-                                                        {copiedRecipe ? "Copié !" : "Copier la liste"}
-                                                    </button>
-                                                )}
                                             </div>
 
                                             {recipe ? (
@@ -814,17 +565,7 @@ export function ItemSearchPanel() {
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
                                                                     <div className="text-label font-bold text-foreground truncate group-hover/ing:text-foreground transition-colors">{ing.name.fr}</div>
-                                                                    <div className="text-caption font-semibold text-success">x {recipe.quantities[i]}</div>
                                                                 </div>
-                                                                {/* #178 — copier le nom de la ressource tel quel */}
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleCopyIngredient(ing.name.fr, recipe.quantities[i], i)}
-                                                                    className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-background transition-colors shrink-0"
-                                                                    title={`Copier « ${ing.name.fr} »`}
-                                                                >
-                                                                    {copiedIdx === i ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
-                                                                </button>
                                                             </div>
                                                         ))}
                                                     </div>

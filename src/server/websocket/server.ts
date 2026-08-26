@@ -145,7 +145,10 @@ const io = new Server(httpServer, {
                 "https://beta.sigilos.fr"
             ];
 
-            if (origin && allowedOrigins.includes(origin)) {
+            // Autorise les requêtes SANS header Origin : connexions même-origine
+            // (via Caddy /socket.io/) ou clients non-navigateur. Un CSWSH cross-origin
+            // envoie TOUJOURS un header Origin → il reste bloqué (sécurité conservée).
+            if (!origin || allowedOrigins.includes(origin)) {
                 callback(null, true);
             } else {
                 logger.warn("[WS] ⚠️ Connexion bloquée par CORS (Origin non autorisée)", { origin });

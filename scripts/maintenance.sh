@@ -92,11 +92,11 @@ echo "📦 Nettoyage Docker..."
 # On préserve donc ces images : on ne nettoie que les images "dangling"
 # (sans tag) et on laisse deploy.sh/deploy-cd.sh gérer la rotation des SHA.
 # Le prune des images dangling + build cache libère déjà l'essentiel du disque.
-sudo docker image prune --force
-sudo docker builder prune -a --force
+docker image prune --force
+docker builder prune -a --force
 
 # Supprimer volumes orphelins (inchangé, déjà OK)
-sudo docker volume prune --force
+docker volume prune --force
 
 # 2. Nettoyage Système (APT & Logs)
 echo "📟 Nettoyage Système..."
@@ -126,7 +126,7 @@ fi
 echo "🧹 Janitor de la base de données (GDPR + Logs)..."
 
 # Détection dynamique du conteneur prod en priorité, beta en fallback
-CONTAINER_NAME=$(sudo docker ps --format '{{.Names}}' | grep -E "^sigilos-(prod|beta)$" | grep -v "db\|ws\|worker\|discord\|gateway\|exporter\|cadvisor\|prometheus\|grafana\|redis" | head -n 1)
+CONTAINER_NAME=$(docker ps --format '{{.Names}}' | grep -E "^sigilos-(prod|beta)$" | grep -v "db\|ws\|worker\|discord\|gateway\|exporter\|cadvisor\|prometheus\|grafana\|redis" | head -n 1)
 
 if [ -z "$CONTAINER_NAME" ]; then
     echo "❌ Erreur : Impossible de trouver un conteneur SigilOS app actif."
@@ -135,9 +135,9 @@ if [ -z "$CONTAINER_NAME" ]; then
 else
     echo "🚀 Exécution du Janitor dans : $CONTAINER_NAME"
     # Utilise npx tsx directement (disponible dans l'image Node, pas besoin du .js buildé)
-    sudo docker exec "$CONTAINER_NAME" npx tsx scripts/database-janitor.ts --execute 2>&1 | tee -a "$LOG_DIR/janitor.log" || {
+    docker exec "$CONTAINER_NAME" npx tsx scripts/database-janitor.ts --execute 2>&1 | tee -a "$LOG_DIR/janitor.log" || {
         echo "⚠️  tsx non disponible dans le container, tentative via node..."
-        sudo docker exec "$CONTAINER_NAME" node scripts/database-janitor.js --execute 2>&1 | tee -a "$LOG_DIR/janitor.log"
+        docker exec "$CONTAINER_NAME" node scripts/database-janitor.js --execute 2>&1 | tee -a "$LOG_DIR/janitor.log"
     }
 fi
 

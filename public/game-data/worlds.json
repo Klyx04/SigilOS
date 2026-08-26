@@ -2658,5 +2658,133 @@
     ],
     "createdAt": "2026-06-23T11:50:25.606Z",
     "updatedAt": "2026-06-23T11:50:25.606Z"
+  },
+  {
+    "_id": "6a3a7301cf287e5b73621343",
+    "id": 37,
+    "origineX": -2,
+    "origineY": 83,
+    "mapWidth": 355,
+    "mapHeight": 257,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.5,
+    "totalWidth": 5013,
+    "totalHeight": 4832,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "1183118",
+      "de": "Gigalodons Abgrund",
+      "en": "Gigalodon's Chasm",
+      "es": "Sima del Gigalodón",
+      "fr": "Gouffre du Gigalodon",
+      "pt": "Fenda do Megalodon"
+    },
+    "className": "WorldMapData",
+    "m_id": 37,
+    "customScales": [
+      {
+        "x": 3.391549295774648,
+        "y": 3.3463035019455254,
+        "name": "custom3"
+      },
+      {
+        "x": 2.195774647887324,
+        "y": 2.173151750972763,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-06-23T11:50:25.606Z",
+    "updatedAt": "2026-06-23T11:50:25.606Z"
+  },
+  {
+    "_id": "6a3a7301cf287e5b73621346",
+    "id": 40,
+    "origineX": -2537,
+    "origineY": -1155,
+    "mapWidth": 355,
+    "mapHeight": 258,
+    "minScale": 0.25,
+    "maxScale": 1,
+    "startScale": 0.5,
+    "totalWidth": 7226,
+    "totalHeight": 5023,
+    "zoom": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "visibleOnMap": true,
+    "name": {
+      "id": "1183121",
+      "de": "Heiligtum der Ewigen Gärten",
+      "en": "Eternal Gardens Sanctuary",
+      "es": "Santuario de los Jardines Eternos",
+      "fr": "Sanctuaire des Jardins éternels",
+      "pt": "Santuário dos Jardins Eternos"
+    },
+    "className": "WorldMapData",
+    "m_id": 40,
+    "customScales": [
+      {
+        "x": 3.391549295774648,
+        "y": 3.3333333333333335,
+        "name": "custom3"
+      },
+      {
+        "x": 2.195774647887324,
+        "y": 2.166666666666667,
+        "name": "custom2"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "name": "1"
+      },
+      {
+        "x": 0.75,
+        "y": 0.75,
+        "name": "0.75"
+      },
+      {
+        "x": 0.5,
+        "y": 0.5,
+        "name": "0.5"
+      },
+      {
+        "x": 0.25,
+        "y": 0.25,
+        "name": "0.25"
+      }
+    ],
+    "createdAt": "2026-06-23T11:50:25.606Z",
+    "updatedAt": "2026-06-23T11:50:25.606Z"
   }
 ]

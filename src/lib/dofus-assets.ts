@@ -313,7 +313,9 @@ export const DOFUS_WORLDS = [
     { id: 34, name: "Osavora" },
     { id: 35, name: "Dimension Obscure" },
     { id: 36, name: "Sanctuaire des Dragoeufs" },
+    { id: 37, name: "Gouffre du Gigalodon" },
     { id: 38, name: "Village des Brigandins" },
+    { id: 40, name: "Sanctuaire des Jardins éternels" },
 ] as const;
 
 export function getWorldName(worldMapId?: number | null): string {

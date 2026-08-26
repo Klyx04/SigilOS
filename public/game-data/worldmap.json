@@ -51719,6 +51719,72 @@
       "areaId": 87,
       "level": 200,
       "shape": []
+    },
+    {
+      "id": 1131,
+      "name": "Avant-poste des explorateurs",
+      "areaId": 103,
+      "level": 200
+    },
+    {
+      "id": 1132,
+      "name": "Plateau de la Mureine",
+      "areaId": 103,
+      "level": 200
+    },
+    {
+      "id": 1133,
+      "name": "Falaise noyée",
+      "areaId": 103,
+      "level": 200
+    },
+    {
+      "id": 1134,
+      "name": "Terrier d'Exécrabe",
+      "areaId": 103,
+      "level": 200
+    },
+    {
+      "id": 1135,
+      "name": "Ossuaire abyssal",
+      "areaId": 103,
+      "level": 200
+    },
+    {
+      "id": 1136,
+      "name": "Sombrefond de Willorque",
+      "areaId": 103,
+      "level": 200
+    },
+    {
+      "id": 1126,
+      "name": "Ouvrage Monochrome",
+      "areaId": 102,
+      "level": 200
+    },
+    {
+      "id": 1127,
+      "name": "Clos des Protecteurs",
+      "areaId": 102,
+      "level": 200
+    },
+    {
+      "id": 1128,
+      "name": "Réserve de Belladone",
+      "areaId": 102,
+      "level": 0
+    },
+    {
+      "id": 1129,
+      "name": "Cour d'Éphèdre",
+      "areaId": 102,
+      "level": 200
+    },
+    {
+      "id": 1130,
+      "name": "Château du Sanctuaire",
+      "areaId": 102,
+      "level": 200
     }
   ],
   "dungeons": [
@@ -189933,6 +189999,998 @@
       "worldMap": -1,
       "outdoor": false,
       "altitude": 0
+    },
+    {
+      "id": 239077382,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1134,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239077391,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1136,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239077639,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1132,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239077652,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1131,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239077654,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1131,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239079430,
+      "x": 5,
+      "y": 11,
+      "subAreaId": 1134,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239079941,
+      "x": 6,
+      "y": 10,
+      "subAreaId": 1134,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239079942,
+      "x": 6,
+      "y": 11,
+      "subAreaId": 1134,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239079946,
+      "x": 10,
+      "y": 13,
+      "subAreaId": 1135,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239079947,
+      "x": 10,
+      "y": 14,
+      "subAreaId": 1135,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239079951,
+      "x": 10,
+      "y": 16,
+      "subAreaId": 1136,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080193,
+      "x": 1,
+      "y": 11,
+      "subAreaId": 1133,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080199,
+      "x": 2,
+      "y": 7,
+      "subAreaId": 1132,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080200,
+      "x": 2,
+      "y": 6,
+      "subAreaId": 1132,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080206,
+      "x": 2,
+      "y": 2,
+      "subAreaId": 1131,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080448,
+      "x": 2,
+      "y": 12,
+      "subAreaId": 1133,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080453,
+      "x": 7,
+      "y": 10,
+      "subAreaId": 1134,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080454,
+      "x": 7,
+      "y": 11,
+      "subAreaId": 1134,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080458,
+      "x": 11,
+      "y": 13,
+      "subAreaId": 1135,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080459,
+      "x": 11,
+      "y": 14,
+      "subAreaId": 1135,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080463,
+      "x": 11,
+      "y": 16,
+      "subAreaId": 1136,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080705,
+      "x": 2,
+      "y": 11,
+      "subAreaId": 1133,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080706,
+      "x": 2,
+      "y": 10,
+      "subAreaId": 1133,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080707,
+      "x": 2,
+      "y": 9,
+      "subAreaId": 1133,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080711,
+      "x": 3,
+      "y": 7,
+      "subAreaId": 1132,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080712,
+      "x": 3,
+      "y": 6,
+      "subAreaId": 1132,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080713,
+      "x": 3,
+      "y": 5,
+      "subAreaId": 1132,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080717,
+      "x": 3,
+      "y": 3,
+      "subAreaId": 1131,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080718,
+      "x": 3,
+      "y": 2,
+      "subAreaId": 1131,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080724,
+      "x": 3,
+      "y": 1,
+      "subAreaId": 1131,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080726,
+      "x": 3,
+      "y": 0,
+      "subAreaId": 1131,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080960,
+      "x": 3,
+      "y": 12,
+      "subAreaId": 1133,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080965,
+      "x": 8,
+      "y": 10,
+      "subAreaId": 1134,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080966,
+      "x": 8,
+      "y": 11,
+      "subAreaId": 1134,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080970,
+      "x": 12,
+      "y": 13,
+      "subAreaId": 1135,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239080971,
+      "x": 12,
+      "y": 14,
+      "subAreaId": 1135,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239081217,
+      "x": 3,
+      "y": 11,
+      "subAreaId": 1133,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239081218,
+      "x": 3,
+      "y": 10,
+      "subAreaId": 1133,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239081223,
+      "x": 4,
+      "y": 7,
+      "subAreaId": 1132,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239081224,
+      "x": 4,
+      "y": 6,
+      "subAreaId": 1132,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239081225,
+      "x": 4,
+      "y": 5,
+      "subAreaId": 1132,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239081229,
+      "x": 4,
+      "y": 3,
+      "subAreaId": 1131,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239081230,
+      "x": 4,
+      "y": 2,
+      "subAreaId": 1131,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239081984,
+      "x": 4,
+      "y": 12,
+      "subAreaId": 1133,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239081990,
+      "x": 9,
+      "y": 11,
+      "subAreaId": 1134,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239082247,
+      "x": 4,
+      "y": 8,
+      "subAreaId": 1132,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239083016,
+      "x": 9,
+      "y": 12,
+      "subAreaId": 1134,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239083269,
+      "x": 5,
+      "y": 9,
+      "subAreaId": 1132,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239085579,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1135,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239085825,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1133,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239085832,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1132,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239085837,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1131,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239086597,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1134,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239086603,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1135,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239086849,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1133,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239086856,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1132,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239086861,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1131,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239087621,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1134,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239087627,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1135,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239087873,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1133,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239087880,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1132,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239087885,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1131,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239088645,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1134,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239088651,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1135,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239088897,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1133,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239088904,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1132,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239088909,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1131,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239089669,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1134,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239089675,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1135,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239089921,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1133,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239089928,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1132,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239089933,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1131,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 239090693,
+      "x": 0,
+      "y": 0,
+      "subAreaId": 1134,
+      "worldMap": 37,
+      "outdoor": true
+    },
+    {
+      "id": 238292992,
+      "x": 21,
+      "y": 9,
+      "subAreaId": 1126,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238293250,
+      "x": 21,
+      "y": 8,
+      "subAreaId": 1126,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238293252,
+      "x": 21,
+      "y": 7,
+      "subAreaId": 1126,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238294016,
+      "x": 22,
+      "y": 9,
+      "subAreaId": 1126,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238294018,
+      "x": 22,
+      "y": 8,
+      "subAreaId": 1126,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238294274,
+      "x": 22,
+      "y": 8,
+      "subAreaId": 1126,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238294276,
+      "x": 22,
+      "y": 7,
+      "subAreaId": 1126,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238295040,
+      "x": 23,
+      "y": 9,
+      "subAreaId": 1126,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238295298,
+      "x": 23,
+      "y": 8,
+      "subAreaId": 1126,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238295300,
+      "x": 23,
+      "y": 7,
+      "subAreaId": 1126,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238295313,
+      "x": 17,
+      "y": 9,
+      "subAreaId": 1130,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238295316,
+      "x": 17,
+      "y": 9,
+      "subAreaId": 1130,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238295816,
+      "x": 15,
+      "y": 15,
+      "subAreaId": 1130,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238295817,
+      "x": 15,
+      "y": 14,
+      "subAreaId": 1130,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238295818,
+      "x": 15,
+      "y": 13,
+      "subAreaId": 1130,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238295822,
+      "x": 16,
+      "y": 9,
+      "subAreaId": 1130,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238296325,
+      "x": 15,
+      "y": 17,
+      "subAreaId": 1130,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238296327,
+      "x": 16,
+      "y": 16,
+      "subAreaId": 1130,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238296328,
+      "x": 16,
+      "y": 15,
+      "subAreaId": 1130,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238296331,
+      "x": 16,
+      "y": 12,
+      "subAreaId": 1130,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238296833,
+      "x": 10,
+      "y": 20,
+      "subAreaId": 1127,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238296842,
+      "x": 17,
+      "y": 13,
+      "subAreaId": 1130,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238296846,
+      "x": 17,
+      "y": 10,
+      "subAreaId": 1130,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238297088,
+      "x": 11,
+      "y": 21,
+      "subAreaId": 1127,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238297090,
+      "x": 11,
+      "y": 20,
+      "subAreaId": 1127,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238297093,
+      "x": 11,
+      "y": 20,
+      "subAreaId": 1127,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238297345,
+      "x": 11,
+      "y": 20,
+      "subAreaId": 1127,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238297346,
+      "x": 11,
+      "y": 19,
+      "subAreaId": 1127,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238297355,
+      "x": 18,
+      "y": 12,
+      "subAreaId": 1130,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238297357,
+      "x": 18,
+      "y": 11,
+      "subAreaId": 1130,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238297361,
+      "x": 15,
+      "y": 8,
+      "subAreaId": 1130,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238297364,
+      "x": 15,
+      "y": 8,
+      "subAreaId": 1130,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238297857,
+      "x": 12,
+      "y": 20,
+      "subAreaId": 1127,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238298890,
+      "x": 20,
+      "y": 12,
+      "subAreaId": 1130,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238298892,
+      "x": 20,
+      "y": 10,
+      "subAreaId": 1130,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238299393,
+      "x": 19,
+      "y": 16,
+      "subAreaId": 1128,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238299394,
+      "x": 19,
+      "y": 15,
+      "subAreaId": 1128,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238299648,
+      "x": 20,
+      "y": 17,
+      "subAreaId": 1128,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238299650,
+      "x": 20,
+      "y": 16,
+      "subAreaId": 1128,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238299905,
+      "x": 20,
+      "y": 16,
+      "subAreaId": 1128,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238299906,
+      "x": 20,
+      "y": 15,
+      "subAreaId": 1128,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238300160,
+      "x": 21,
+      "y": 17,
+      "subAreaId": 1128,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238300417,
+      "x": 21,
+      "y": 16,
+      "subAreaId": 1128,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238301953,
+      "x": 9,
+      "y": 14,
+      "subAreaId": 1129,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238302208,
+      "x": 10,
+      "y": 15,
+      "subAreaId": 1129,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238302210,
+      "x": 10,
+      "y": 14,
+      "subAreaId": 1129,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238302465,
+      "x": 10,
+      "y": 14,
+      "subAreaId": 1129,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238302466,
+      "x": 10,
+      "y": 13,
+      "subAreaId": 1129,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238302977,
+      "x": 11,
+      "y": 14,
+      "subAreaId": 1129,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238303489,
+      "x": 12,
+      "y": 14,
+      "subAreaId": 1129,
+      "worldMap": 40,
+      "outdoor": true
+    },
+    {
+      "id": 238305025,
+      "x": 12,
+      "y": 14,
+      "subAreaId": 1129,
+      "worldMap": 40,
+      "outdoor": true
     }
   ],
   "updatedAt": "2026-04-16T11:44:59.559Z",
@@ -189999,6 +191057,134 @@
       ],
       "createdAt": "2026-08-08T13:00:53.597Z",
       "updatedAt": "2026-08-08T13:00:53.599Z"
+    },
+    {
+      "_id": "6a3a7301cf287e5b73621343",
+      "id": 37,
+      "origineX": -2,
+      "origineY": 83,
+      "mapWidth": 355,
+      "mapHeight": 257,
+      "minScale": 0.25,
+      "maxScale": 1,
+      "startScale": 0.5,
+      "totalWidth": 5013,
+      "totalHeight": 4832,
+      "zoom": [
+        1,
+        0.75,
+        0.5,
+        0.25
+      ],
+      "visibleOnMap": true,
+      "name": {
+        "id": "1183118",
+        "de": "Gigalodons Abgrund",
+        "en": "Gigalodon's Chasm",
+        "es": "Sima del Gigalodón",
+        "fr": "Gouffre du Gigalodon",
+        "pt": "Fenda do Megalodon"
+      },
+      "className": "WorldMapData",
+      "m_id": 37,
+      "customScales": [
+        {
+          "x": 3.391549295774648,
+          "y": 3.3463035019455254,
+          "name": "custom3"
+        },
+        {
+          "x": 2.195774647887324,
+          "y": 2.173151750972763,
+          "name": "custom2"
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "name": "1"
+        },
+        {
+          "x": 0.75,
+          "y": 0.75,
+          "name": "0.75"
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "name": "0.5"
+        },
+        {
+          "x": 0.25,
+          "y": 0.25,
+          "name": "0.25"
+        }
+      ],
+      "createdAt": "2026-06-23T11:50:25.606Z",
+      "updatedAt": "2026-06-23T11:50:25.606Z"
+    },
+    {
+      "_id": "6a3a7301cf287e5b73621346",
+      "id": 40,
+      "origineX": -2537,
+      "origineY": -1155,
+      "mapWidth": 355,
+      "mapHeight": 258,
+      "minScale": 0.25,
+      "maxScale": 1,
+      "startScale": 0.5,
+      "totalWidth": 7226,
+      "totalHeight": 5023,
+      "zoom": [
+        1,
+        0.75,
+        0.5,
+        0.25
+      ],
+      "visibleOnMap": true,
+      "name": {
+        "id": "1183121",
+        "de": "Heiligtum der Ewigen Gärten",
+        "en": "Eternal Gardens Sanctuary",
+        "es": "Santuario de los Jardines Eternos",
+        "fr": "Sanctuaire des Jardins éternels",
+        "pt": "Santuário dos Jardins Eternos"
+      },
+      "className": "WorldMapData",
+      "m_id": 40,
+      "customScales": [
+        {
+          "x": 3.391549295774648,
+          "y": 3.3333333333333335,
+          "name": "custom3"
+        },
+        {
+          "x": 2.195774647887324,
+          "y": 2.166666666666667,
+          "name": "custom2"
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "name": "1"
+        },
+        {
+          "x": 0.75,
+          "y": 0.75,
+          "name": "0.75"
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "name": "0.5"
+        },
+        {
+          "x": 0.25,
+          "y": 0.25,
+          "name": "0.25"
+        }
+      ],
+      "createdAt": "2026-06-23T11:50:25.606Z",
+      "updatedAt": "2026-06-23T11:50:25.606Z"
     }
   ]
 }

@@ -311,7 +311,17 @@ deploy() {
 
 
     step "3" "Redémarrage des conteneurs" "Relance les services avec les nouvelles images et attend qu'ils soient «Healthy» (prêts à servir les requêtes)."
-    if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --no-build --wait app-${TARGET} worker-${TARGET} ws-${TARGET} discord-bot-${TARGET}; then
+    # --wait-timeout 240 : évite que l'étape 3 « fige » indéfiniment si un conteneur
+    # n'est pas healthy à temps (l'app pouvait sembler bloquée → Ctrl+C). On échoue
+    # proprement après 240s au lieu de bloquer sans message.
+    # Flag CONDITIONNEL (Compose >= 2.17) pour ne pas casser sur les versions plus anciennes.
+    local COMPOSE_VER WAIT_FLAG
+    COMPOSE_VER="$(sudo docker compose version --short 2>/dev/null | grep -oE '[0-9]+\.[0-9]+' | head -1)"
+    WAIT_FLAG=""
+    if [[ -n "$COMPOSE_VER" ]] && awk -v v="$COMPOSE_VER" 'BEGIN{ split(v,p,"."); if (p[1]>2 || (p[1]==2 && p[2]>=17)) exit 0; else exit 1 }'; then
+        WAIT_FLAG="--wait-timeout 240"
+    fi
+    if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --no-build --wait $WAIT_FLAG app-${TARGET} worker-${TARGET} ws-${TARGET} discord-bot-${TARGET}; then
         ok "Conteneurs démarrés et sains."
     else
         fail "Échec au démarrage des conteneurs."

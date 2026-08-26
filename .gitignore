@@ -129,6 +129,9 @@ sylvestre_results.txt
 # Backup files
 *.backup
 
+# Artefacts .candidate-* générés par audit.sh/maintenance.sh (jamais commités)
+*.candidate-*
+
 # Backups BDD & artefacts locaux de déploiement (jamais commités)
 /backups/
 *.bak-*

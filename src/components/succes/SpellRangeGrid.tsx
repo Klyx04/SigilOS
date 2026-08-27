@@ -278,24 +278,38 @@ export function SpellRangeGrid({
         }
     };
 
+    // Donjon « double boss » : on ne propose QUE la map du boss courant.
+    //  - les maps marquées `isBoss` (PreferredMaps du monstre) ;
+    //  - sinon celles dont le nom contient le nom du boss.
+    // Si aucune map dédiée n'existe (boss sans salle spécifique), on retombe sur toutes les maps
+    // pour ne jamais afficher un sélecteur vide.
+    const shownMaps = useMemo(() => {
+        if (!dungeonMaps || dungeonMaps.length === 0) return [];
+        const boss = (bossName || "").toLowerCase();
+        const filtered = dungeonMaps.filter(
+            (m) => m.isBoss || (boss && m.name.toLowerCase().includes(boss))
+        );
+        return filtered.length > 0 ? filtered : dungeonMaps;
+    }, [dungeonMaps, bossName]);
+
     // Reset / garde de cohérence quand le boss (et donc ses maps) change.
     // Sélection automatique de la première map de combat du boss (si présente).
     useEffect(() => {
-        if (!dungeonMaps?.length) {
+        if (!shownMaps.length) {
             setSelectedMapId("empty");
             setMapData(null);
             return;
         }
         if (selectedMapId === "empty") {
-            const bossMap = dungeonMaps.find((m) => m.isBoss);
+            const bossMap = shownMaps.find((m) => m.isBoss);
             if (bossMap) setSelectedMapId(bossMap.id);
             return;
         }
-        if (!dungeonMaps.some((m) => m.id === selectedMapId)) {
+        if (!shownMaps.some((m) => m.id === selectedMapId)) {
             setSelectedMapId("empty");
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [dungeonMaps]);
+    }, [shownMaps]);
 
     // Chargement de la map sélectionnée : grille + placements de départ réels.
     useEffect(() => {
@@ -700,7 +714,7 @@ export function SpellRangeGrid({
                 </div>
 
                 {/* Sélecteur de map (salles du donjon) */}
-                {dungeonMaps && dungeonMaps.length > 0 && (
+                {shownMaps.length > 0 && (
                     <div className="w-full flex flex-wrap items-center gap-2 mb-2 px-2 relative z-10">
                         <span className="inline-flex items-center gap-1.5 text-xs font-bold text-zinc-400">
                             <MapIcon className="w-3.5 h-3.5 text-amber-400" /> Salle :
@@ -711,7 +725,7 @@ export function SpellRangeGrid({
                             className="bg-zinc-900 border border-white/10 text-zinc-200 text-xs font-bold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400/40 max-w-[320px]"
                         >
                             <option value="">Map vide</option>
-                            {dungeonMaps.map((m) => (
+                            {shownMaps.map((m) => (
                                 <option key={m.id} value={m.id}>{m.isBoss ? "⚔ " : ""}{m.name}</option>
                             ))}
                         </select>

@@ -384,12 +384,19 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
         ? `https://static.dofusbook.net/equipement/render/${numericId}.png`
         : undefined;
 
+    // Robust class resolution: Dofusbook may omit or return an out-of-range
+    // `character_class` (shared builds, partial responses). Never let it produce a
+    // misleading "Inconnu" label — expose a validated classId (or 0) and let the
+    // caller fall back to the selected class / name-based guess.
+    const rawClassId = Number(raw.stuff?.character_class);
+    const validClassId = Number.isFinite(rawClassId) && rawClassId >= 1 && rawClassId <= 19 ? rawClassId : null;
+
     return {
         id: parseInt(id) || 0,
         name: raw.stuff?.name || "Sans nom",
         level,
-        classId: raw.stuff?.character_class || 1,
-        className: getClassName(raw.stuff?.character_class),
+        classId: validClassId ?? 0,
+        className: validClassId ? getClassName(validClassId) : "",
         stats: { pa, pm, po, vit, ini, pp, cc, invo, so },
         elements: { fo: el_fo, in: el_in, ch: el_ch, ag: el_ag, sa: el_sa, pu: el_pu },
         resists: { neutre: resN, terre: resT, feu: resF, eau: resE, air: resA },

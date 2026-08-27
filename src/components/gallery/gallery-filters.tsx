@@ -73,7 +73,7 @@ export function AdvancedTagFilter({
                     <ChevronDown className="w-3 h-3 opacity-60" />
                 </button>
             </PopoverTrigger>
-            <PopoverContent className="w-[340px] bg-background border-border rounded-2xl p-4 shadow-lg" align="start" side="bottom">
+            <PopoverContent className="w-[min(340px,calc(100vw-2rem))] bg-background border-border rounded-2xl p-4 shadow-lg" align="start" side="bottom">
                 {/* Recherche dans les tags */}
                 <div className="relative mb-3">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -149,7 +149,7 @@ export function ClassFilter({
                     <ChevronDown className="w-3 h-3 opacity-60" />
                 </button>
             </PopoverTrigger>
-            <PopoverContent className="w-64 bg-background border-border rounded-2xl p-2 shadow-lg" align="start" side="bottom">
+            <PopoverContent className="w-[min(256px,calc(100vw-2rem))] bg-background border-border rounded-2xl p-2 shadow-lg" align="start" side="bottom">
                 <p className="text-caption font-black text-muted-foreground uppercase tracking-widest px-2 pt-1 pb-2">Filtrer par {label.toLowerCase()}</p>
                 <div className="grid grid-cols-3 gap-1">
                     {DOFUS_CLASSES.map(cls => {

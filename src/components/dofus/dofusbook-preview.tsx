@@ -232,10 +232,16 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
         return { guessedClassId: gId, glowColor: gColor };
     }, [title, url, tags, classId, data?.classId]);
 
+    // Never let a stale/missing Dofusbook className ("Inconnu") shadow a
+    // resolvable classId (selected by the user or guessed from name/URL).
+    const resolvedClassName = data?.className && data.className !== "Inconnu"
+        ? data.className
+        : (getClassName(guessedClassId) || "Classe inconnue");
+
     const classArtColor = useMemo(() => {
-        const name = (data?.className || getClassName(guessedClassId) || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const name = resolvedClassName.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         return getClassColor(name);
-    }, [data?.className, guessedClassId]);
+    }, [resolvedClassName]);
 
     if (loading) {
         return (
@@ -275,7 +281,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                             <span className="px-1.5 py-0.5 rounded-md bg-elevated border border-border text-caption font-black text-muted-foreground uppercase tracking-tighter">
                                 Lvl {data?.level || "???"}
                             </span>
-                            <p className="text-caption font-bold text-muted-foreground uppercase tracking-widest truncate">{data?.className || getClassName(guessedClassId) || "Classe inconnue"}</p>
+                            <p className="text-caption font-bold text-muted-foreground uppercase tracking-widest truncate">{resolvedClassName}</p>
                         </div>
                     </div>
                 </div>
@@ -495,7 +501,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                     ].map(({ res, val, icon, label, barColor }) => {
                                         const pct = Math.min(100, Math.max(0, (val / 50) * 100));
                                         return (
-                                            <div key={res} className="flex flex-col gap-1 bg-black/20 px-3 py-2 rounded-xl border border-border">
+                                            <div key={res} className="flex flex-col gap-1 bg-surface/60 px-3 py-2 rounded-xl border border-border">
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex items-center gap-2">
                                                         <span className="flex items-center justify-center w-4 h-4">{icon}</span>
@@ -520,7 +526,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                     <div className="flex-1">
                                         <div className="flex items-center gap-3 mb-2">
                                             <span className="px-2.5 py-0.5 bg-success/20 text-success text-caption font-black rounded-lg uppercase">Lvl {data?.level || "200"}</span>
-                                            <span className="text-muted-foreground text-caption font-bold uppercase tracking-widest">{data?.className || getClassName(guessedClassId)}</span>
+                                            <span className="text-muted-foreground text-caption font-bold uppercase tracking-widest">{resolvedClassName}</span>
                                         </div>
                                         <DialogTitle className="text-2xl sm:text-4xl font-black text-foreground uppercase tracking-tight">{title || data?.name || "Sans nom"}</DialogTitle>
                                     </div>
@@ -556,7 +562,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                                         {/* Bloc 1: Caractéristiques */}
                                         <div className="bg-surface/30 backdrop-blur-md p-6 rounded-[2rem] border border-border shadow-xl flex flex-col h-full">
-                                            <h4 className="text-caption font-black text-foreground/30 uppercase tracking-widest mb-4 flex items-center gap-2"><Move className="w-3.5 h-3.5"/> CARACTÉRISTIQUES</h4>
+                                            <h4 className="text-caption font-black text-foreground/70 uppercase tracking-widest mb-4 flex items-center gap-2"><Move className="w-3.5 h-3.5"/> CARACTÉRISTIQUES</h4>
                                             <div className="grid grid-cols-2 gap-2 my-auto">
                                                 {[
                                                     { val: data.stats?.vit ?? 0, icon: "❤️", label: "PdV", color: "text-foreground" },
@@ -568,7 +574,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                     { val: data.stats?.invo ?? 0, icon: "🦊", label: "Invo.", color: "text-[#f59f0f]" },
                                                     { val: data.stats?.so ?? 0, icon: "➕", label: "Soin", color: "text-[#ef3f3f]" },
                                                 ].map((s, i) => (
-                                                    <div key={i} className="flex items-center justify-between bg-black/25 px-2.5 py-2.5 rounded-xl border border-border gap-1 hover:bg-black/40 transition-colors">
+                                                    <div key={i} className="flex items-center justify-between bg-surface/60 px-2.5 py-2.5 rounded-xl border border-border gap-1 hover:bg-surface transition-colors">
                                                         <div className="flex items-center gap-1">
                                                             <span className="text-label opacity-70 shrink-0">{s.icon}</span>
                                                             <span className="text-muted-foreground text-caption font-black uppercase tracking-tighter whitespace-nowrap">{s.label}</span>
@@ -581,7 +587,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
 
                                         {/* Bloc 2: Éléments */}
                                         <div className="bg-surface/30 backdrop-blur-md p-6 rounded-[2rem] border border-border shadow-xl flex flex-col h-full">
-                                            <h4 className="text-caption font-black text-foreground/30 uppercase tracking-widest mb-4 flex items-center gap-2"><Zap className="w-3.5 h-3.5"/> ÉLÉMENTS</h4>
+                                            <h4 className="text-caption font-black text-foreground/70 uppercase tracking-widest mb-4 flex items-center gap-2"><Zap className="w-3.5 h-3.5"/> ÉLÉMENTS</h4>
                                             <div className="flex flex-col gap-2.5 my-auto">
                                                 {[
                                                     { key: 'fo' as const, label: 'Force',        color: 'text-[#9D753E]', barColor: 'bg-[#9D753E]', max: 1200 },
@@ -594,7 +600,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                     const val = data.elements?.[key] || 0;
                                                     const pct = Math.min(100, Math.max(0, (val / max) * 100));
                                                     return (
-                                                        <div key={key} className="flex flex-col gap-1.5 bg-black/20 px-3 py-2 rounded-xl border border-border">
+                                                        <div key={key} className="flex flex-col gap-1.5 bg-surface/60 px-3 py-2 rounded-xl border border-border">
                                                             <div className="flex justify-between items-center">
                                                                 <span className="text-muted-foreground text-caption font-bold uppercase tracking-wider">{label}</span>
                                                                 <span className={cn("font-black text-body", color)}>{val}</span>
@@ -610,7 +616,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                         
                                         {/* Bloc 3: Dommages */}
                                         <div className="bg-surface/30 backdrop-blur-md p-6 rounded-[2rem] border border-border shadow-xl md:col-span-2 xl:col-span-1 flex flex-col h-full">
-                                            <h4 className="text-caption font-black text-foreground/30 uppercase tracking-widest mb-4 flex items-center gap-2"><Zap className="w-3.5 h-3.5 fill-current"/> DOMMAGES FIXES & %</h4>
+                                            <h4 className="text-caption font-black text-foreground/70 uppercase tracking-widest mb-4 flex items-center gap-2"><Zap className="w-3.5 h-3.5 fill-current"/> DOMMAGES FIXES & %</h4>
                                             <div className="flex flex-col gap-4 my-auto">
                                                 <div className="grid grid-cols-2 gap-x-6 gap-y-2">
                                                     {[

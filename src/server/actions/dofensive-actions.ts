@@ -23,6 +23,7 @@ import type {
     DofensiveZoneShape,
 } from "@/lib/dofensive-spells";
 import { dofensiveFetch, norm, toSafeId } from "@/lib/dofensive-fetch";
+import { deriveDofensiveMonsterName } from "@/lib/dofensive-boss";
 import {
     getLocalDofensiveDungeon,
     getLocalDofensiveMap,
@@ -109,9 +110,12 @@ export async function getDofensiveDungeonForBoss(
     // Chantier double boss : si le donjon a été configuré avec des champs de résolution Dofensive explicites
     // (`dofensiveMonsterName` + `dofensiveDungeonName`), on résout DIRECTEMENT le bon donjon + le bon monstre.
     // Lève l'ambiguïté avec les donjons solo homonymes (ex. « Sylargh » seul vs « Donjon du Comte Harebourg »).
-    if (opts?.dofensiveDungeonName || opts?.dofensiveMonsterName) {
+    // Si `dofensiveMonsterName` n'est pas renseigné, on dérive le monstre depuis un `bossName` du type « X et Y »
+    // (« Comte et Klime » → « Klime ») — robuste même quand la donnée en base est incomplète.
+    const explicitMonsterName = opts?.dofensiveMonsterName ?? deriveDofensiveMonsterName(bossName) ?? undefined;
+    if (explicitMonsterName || opts?.dofensiveDungeonName) {
         try {
-            const direct = await resolveDofensiveDungeonDirect(opts.dofensiveMonsterName ?? bossName, opts.dofensiveDungeonName ?? dungeonName);
+            const direct = await resolveDofensiveDungeonDirect(explicitMonsterName ?? bossName, opts?.dofensiveDungeonName ?? dungeonName);
             if (direct) return { success: true, data: direct };
         } catch {
             // Fallback vers la résolution heuristique ci-dessous
@@ -259,7 +263,12 @@ async function resolveDofensiveDungeonDirect(
     }
     if (candidates.length === 0) return null;
 
-    const hit = candidates[0];
+    // Ambiguïté double boss : plusieurs donjons contiennent le même monstre (ex. « Klime » présent
+    // dans « Salons privés de Klime » ET « Donjon du Comte Harebourg »). On préfère le donjon dont la
+    // liste de monstres est la plus fournie (la « famille » = le donjon multi-boss), sans casser le cas
+    // où un `dungeonName` explicite a déjà trié les candidats en tête.
+    const sorted = [...candidates].sort((a, b) => (b?.Monsters?.length ?? 0) - (a?.Monsters?.length ?? 0));
+    const hit = sorted[0];
     const boss = Array.isArray(hit.Monsters)
         ? (hit.Monsters.find((m: any) => norm(String(m?.Name ?? "")) === mKey) || hit.Monsters[0])
         : null;

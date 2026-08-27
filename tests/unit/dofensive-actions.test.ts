@@ -417,6 +417,103 @@ describe("dofensive-actions — sorts Dofensive (données de combat)", () => {
         expect(map?.isBoss).toBe(true);
     });
 
+    it("résolution DIRECTE avec les VRAIES données Dofensive (id 71 donjon, monstre Klime id 3384, map Balcon de Klime 112206593)", async () => {
+        vi.resetModules();
+        const { getDofensiveDungeonForBoss: freshGet } = await import("@/server/actions/dofensive-actions");
+        const fetchMock = vi.fn((input: any) => {
+            const url = String(input);
+            if (url.includes("/dungeons/preview")) {
+                return Promise.resolve(jsonResponse([
+                    {
+                        Id: 71,
+                        Name: "Donjon du Comte Harebourg",
+                        Monsters: [
+                            { Id: 3416, Name: "Comte Harebourg" },
+                            { Id: 3384, Name: "Klime" },
+                            { Id: 3391, Name: "Missiz Frizz" },
+                            { Id: 3397, Name: "Nileza" },
+                            { Id: 3409, Name: "Sylargh" },
+                        ],
+                        Maps: [
+                            { Id: 112206595, Name: "Donjon du Comte - Grande aiguille" },
+                            { Id: 112206593, Name: "Donjon du Comte - Balcon de Klime" },
+                            { Id: 112206341, Name: "Donjon du Comte - Balcon de Missiz Frizz" },
+                            { Id: 112206343, Name: "Donjon du Comte - Balcon de Nileza" },
+                            { Id: 112206337, Name: "Donjon du Comte - Balcon de Sylargh" },
+                        ],
+                    },
+                    // Donjon SOLO Klime homonyme (l'ambiguïté à lever)
+                    { Id: 999, Name: "Salons privés de Klime", Monsters: [{ Id: 3384, Name: "Klime" }], Maps: [] },
+                ]));
+            }
+            if (url.includes("/monsters/3384")) {
+                return Promise.resolve(jsonResponse([{ Id: 3384, Name: "Klime", PreferredMaps: [{ Id: 112206593 }] }]));
+            }
+            return Promise.resolve(jsonResponse(null));
+        });
+        vi.stubGlobal("fetch", fetchMock);
+
+        // ⚠️ On ne fournit PAS `dofensiveMonsterName` (donnée incompatible) : le monstre doit être
+        // dérivé automatiquement de « Comte et Klime ». C'est le scénario exact de la capture.
+        const res = await freshGet("Comte et Klime", "Comte et Klime", {
+            dofensiveDungeonName: "Donjon du Comte Harebourg",
+        });
+
+        expect(res.success).toBe(true);
+        expect(res.data?.dungeonName).toBe("Donjon du Comte Harebourg");
+        expect(res.data?.bossMonsterId).toBe(3384);
+        expect(res.data?.maps.length).toBe(5);
+        // Seule la « Balcon de Klime » est isBoss → le dropdown n'affichera qu'elle.
+        const bossMaps = res.data?.maps.filter((m) => m.isBoss);
+        expect(bossMaps?.length).toBe(1);
+        expect(bossMaps?.[0].id).toBe(112206593);
+    });
+
+    it("résolution DIRECTE SANS aucun champ de résolution — dérive « Klime » depuis « Comte et Klime » (donnée vide)", async () => {
+        vi.resetModules();
+        const { getDofensiveDungeonForBoss: freshGet } = await import("@/server/actions/dofensive-actions");
+        const fetchMock = vi.fn((input: any) => {
+            const url = String(input);
+            if (url.includes("/dungeons/preview")) {
+                return Promise.resolve(jsonResponse([
+                    {
+                        Id: 71,
+                        Name: "Donjon du Comte Harebourg",
+                        Monsters: [
+                            { Id: 3416, Name: "Comte Harebourg" },
+                            { Id: 3384, Name: "Klime" },
+                            { Id: 3391, Name: "Missiz Frizz" },
+                            { Id: 3397, Name: "Nileza" },
+                            { Id: 3409, Name: "Sylargh" },
+                        ],
+                        Maps: [
+                            { Id: 112206595, Name: "Donjon du Comte - Grande aiguille" },
+                            { Id: 112206593, Name: "Donjon du Comte - Balcon de Klime" },
+                            { Id: 112206341, Name: "Donjon du Comte - Balcon de Missiz Frizz" },
+                            { Id: 112206343, Name: "Donjon du Comte - Balcon de Niléza" },
+                            { Id: 112206337, Name: "Donjon du Comte - Balcon de Sylargh" },
+                        ],
+                    },
+                    { Id: 999, Name: "Salons privés de Klime", Monsters: [{ Id: 3384, Name: "Klime" }], Maps: [] },
+                ]));
+            }
+            if (url.includes("/monsters/3384")) {
+                return Promise.resolve(jsonResponse([{ Id: 3384, Name: "Klime", PreferredMaps: [{ Id: 112206593 }] }]));
+            }
+            return Promise.resolve(jsonResponse(null));
+        });
+        vi.stubGlobal("fetch", fetchMock);
+
+        // Aucun champ de résolution → le monstre est dérivé de « Comte et Klime ».
+        const res = await freshGet("Comte et Klime", "Comte et Klime", {});
+
+        expect(res.success).toBe(true);
+        expect(res.data?.bossMonsterId).toBe(3384);
+        const bossMaps = res.data?.maps.filter((m) => m.isBoss);
+        expect(bossMaps?.length).toBe(1);
+        expect(bossMaps?.[0].id).toBe(112206593);
+    });
+
     it("mergeDofensiveSpells : le combat Dofensive prime, icône CDN Dofensive préférée", () => {
 
         const dbSpells = [

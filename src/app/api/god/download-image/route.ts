@@ -6,7 +6,7 @@ import { z } from "zod";
 
 const schema = z.object({
     url: z.string().url(),
-    type: z.enum(["monster", "achievement", "dungeon", "item", "legendary"]),
+    type: z.enum(["monster", "achievement", "dungeon", "item", "legendary", "defi"]),
     identifier: z.string()
         .min(1, "Identifier required")
         .max(100, "Identifier too long")

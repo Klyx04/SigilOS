@@ -101,9 +101,22 @@ export interface DofensiveMonsterData {
  */
 export async function getDofensiveDungeonForBoss(
     bossName: string,
-    dungeonName?: string
+    dungeonName?: string,
+    opts?: { dofensiveMonsterName?: string | null; dofensiveDungeonName?: string | null }
 ): Promise<ActionResponse<DofensiveDungeonInfo>> {
     if (!bossName || !bossName.trim()) return { success: false, error: "Nom de boss manquant" };
+
+    // Chantier double boss : si le donjon a été configuré avec des champs de résolution Dofensive explicites
+    // (`dofensiveMonsterName` + `dofensiveDungeonName`), on résout DIRECTEMENT le bon donjon + le bon monstre.
+    // Lève l'ambiguïté avec les donjons solo homonymes (ex. « Sylargh » seul vs « Donjon du Comte Harebourg »).
+    if (opts?.dofensiveDungeonName || opts?.dofensiveMonsterName) {
+        try {
+            const direct = await resolveDofensiveDungeonDirect(opts.dofensiveMonsterName ?? bossName, opts.dofensiveDungeonName ?? dungeonName);
+            if (direct) return { success: true, data: direct };
+        } catch {
+            // Fallback vers la résolution heuristique ci-dessous
+        }
+    }
 
     // Local-first (siphon local, chantier 2) : donjon déjà synchronisé en base →
     // zéro appel réseau Dofensive (les maps/monstres/boss y sont stockés).
@@ -215,6 +228,64 @@ export async function getDofensiveDungeonForBoss(
                 : [],
             bossMonsterId: bossId,
         },
+    };
+}
+
+/**
+ * Résolution Dofensive DIRECTE pour un donjon « double boss » : on connaît le nom EXACT du monstre
+ * (`dofensiveMonsterName`) et du donjon Dofensive (`dofensiveDungeonName`). On retrouve le donjon par son
+ * nom, le monstre par son nom dans sa liste, et on marque les maps de combat du monstre (`isBoss`).
+ * Retourne `null` si l'un des deux est introuvable (le caller retombe alors sur l'heuristique).
+ */
+async function resolveDofensiveDungeonDirect(
+    monsterName: string,
+    dungeonName?: string | null
+): Promise<DofensiveDungeonInfo | null> {
+    const mKey = norm(monsterName);
+    const dKey = dungeonName ? norm(dungeonName) : "";
+
+    const dungeons = await dofensiveFetch<any[]>("/dungeons/preview?lang=fr", "dofensive-dungeons-preview");
+    if (!Array.isArray(dungeons)) return null;
+
+    // 1. Candidats : ceux dont le nom matche le nom de donjon fourni, sinon ceux qui contiennent le monstre.
+    let candidates = dungeons.filter((d) => {
+        const dn = norm(String(d?.Name ?? ""));
+        return dKey && (dn === dKey || dn.includes(dKey) || dKey.includes(dn));
+    });
+    if (candidates.length === 0) {
+        candidates = dungeons.filter((d) =>
+            Array.isArray(d?.Monsters) && d.Monsters.some((m: any) => norm(String(m?.Name ?? "")) === mKey)
+        );
+    }
+    if (candidates.length === 0) return null;
+
+    const hit = candidates[0];
+    const boss = Array.isArray(hit.Monsters)
+        ? (hit.Monsters.find((m: any) => norm(String(m?.Name ?? "")) === mKey) || hit.Monsters[0])
+        : null;
+
+    const dungeonMaps: DofensiveMapLite[] = Array.isArray(hit.Maps)
+        ? hit.Maps.map((m: any) => ({ id: m.Id as number, name: String(m.Name ?? "") }))
+        : [];
+
+    let bossMapIds: number[] = [];
+    const bossId = toSafeId(boss?.Id);
+    if (bossId) {
+        const monRaw = await dofensiveFetch<any>(`/monsters/${bossId}?lang=fr`, `dofensive-monster-${bossId}`);
+        const mon = Array.isArray(monRaw) ? monRaw[0] : monRaw;
+        if (mon && Array.isArray(mon.PreferredMaps)) {
+            bossMapIds = mon.PreferredMaps.map((m: any) => Number(m.Id));
+        }
+    }
+
+    return {
+        dungeonId: hit.Id as number,
+        dungeonName: String(hit.Name ?? monsterName),
+        maps: dungeonMaps.map((m) => ({ ...m, isBoss: bossMapIds.includes(m.id) })),
+        monsters: Array.isArray(hit.Monsters)
+            ? hit.Monsters.map((m: any) => ({ id: m.Id as number, name: String(m.Name ?? "") }))
+            : [],
+        bossMonsterId: bossId,
     };
 }
 
@@ -514,9 +585,10 @@ export async function getBossDofensiveSpells(
     monsterName: string,
     dungeonName?: string,
     gradeLevel?: number,
-    forceRefresh = false
+    forceRefresh = false,
+    opts?: { dofensiveMonsterName?: string | null; dofensiveDungeonName?: string | null }
 ): Promise<ActionResponse<DofensiveSpellCombat[]>> {
-    const dungeon = await getDofensiveDungeonForBoss(monsterName, dungeonName);
+    const dungeon = await getDofensiveDungeonForBoss(monsterName, dungeonName, opts);
     const monsterId = dungeon.success ? toSafeId(dungeon.data?.bossMonsterId) : null;
     if (!monsterId) return { success: false, error: "Monstre Dofensive introuvable" };
     return getDofensiveSpells(monsterId, gradeLevel, forceRefresh);

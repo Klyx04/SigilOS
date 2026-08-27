@@ -679,6 +679,7 @@ model UserProfile {
   submissions                Submission[]
   userDungeonAchievements    UserDungeonAchievement[]
   dungeonProgress            UserDungeonProgress[]
+  defiProgress               UserDefiProgress[]
   legendaryCrafts            LegendaryItem[]            @relation("LegendaryCrafters")
   hasLegendaryPrerequisites  Boolean                    @default(false)
   hasLegendaryPet            Boolean                    @default(false)
@@ -808,6 +809,14 @@ model Dungeon {
   isOcreQuest          Boolean               @default(false) // Donjon de la Quête Ocre (Éternelle Moisson)
   dofusdbId            Int?                  // Identifiant DofusDB pour croisement avec les données du jeu
   mapId                Int?                  // Identifiant map worldmap.json pour l'icône sur la carte
+  // Chantier double boss — dissociation affichage / résolution Dofensive.
+  // `dofensiveMonsterName` = nom EXACT du monstre Dofensive (ex. "Sylargh") pour retrouver la map « Balcon de … » ;
+  // `dofensiveDungeonName` = nom EXACT du donjon Dofensive (ex. "Donjon du Comte Harebourg") pour lever l'ambiguïté
+  // avec les donjons solo homonymes (Sylargh existe aussi en donjon seul). Vides pour un donjon classique.
+  dofensiveMonsterName String?
+  dofensiveDungeonName String?
+  /* donjon sans succès : le « succès » est d'être validé → un pseudo-succès « Donjon validé » est créé. */
+  isNoAchievement      Boolean               @default(false) // Donjon sans succès (validable en un clic)
   djSearchPosts        DjSearchPost[]
   achievements         DungeonAchievement[]
   userProgress         UserDungeonProgress[]
@@ -1490,6 +1499,10 @@ model DjSearchPost {
   dungeonsJson         Json?
   participants         DjSearchParticipant[]
   dungeon              Dungeon?              @relation(fields: [dungeonId], references: [id], onDelete: Cascade)
+  /* Mode Défi (# — chantier double boss/défi) : post rattaché à un défi (simple ou multi). */
+  defiId               String?
+  defiName             String?
+  defi                 Defi?                 @relation(fields: [defiId], references: [id], onDelete: Cascade)
   guild                GuildConfig           @relation(fields: [guildId], references: [id], onDelete: Cascade)
   profile              UserProfile           @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
@@ -1543,6 +1556,48 @@ model UserDungeonProgress {
   @@index([profileId])
   @@index([dungeonId])
   @@index([achievementId])
+}
+
+/// Défi (événement / combat one-shot, ex. « Défi du Xélor fou », « Faille inattendue »).
+/// Un défi référence un ou plusieurs boss (noms + ids Dofensive optionnels), une zone, une image.
+/// Côté membre : l'onglet « Défi » de /succes permet de cocher « je l'ai fait » et « qui a quoi ».
+model Defi {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  description  String?
+  zone         String?
+  level        Int?
+  imageUrl     String?
+  dofensiveUrl String?
+  dpnlUrl      String?
+  dofuspourlesnoobsUrl String?
+  /// Boss du défi + infos pour l'affichage / la fiche : [{ name, dofusdbId?, imageUrl? }]
+  bossNames    Json?    @default("[]")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  userProgress UserDefiProgress[]
+  djPosts     DjSearchPost[]
+
+  @@index([name])
+  @@index([zone])
+  @@index([level])
+}
+
+/// Progression « je l'ai fait » sur un défi (par membre).
+model UserDefiProgress {
+  id          String   @id @default(cuid())
+  profileId   String
+  defiId      String
+  source      String   @default("MANUAL") // MANUAL | GROUP
+  completedAt DateTime @default(now())
+  defi        Defi     @relation(fields: [defiId], references: [id], onDelete: Cascade)
+  profile     UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, defiId])
+  @@index([profileId])
+  @@index([defiId])
 }
 
 model DreamBonus {
@@ -2640,6 +2695,7 @@ enum PollStatus {
 enum DjSearchMode {
   DONJON
   QUETE
+  DEFI
 }
 
 enum DjSearchStatus {

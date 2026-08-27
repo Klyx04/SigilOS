@@ -13,7 +13,7 @@ interface LocalImage {
 }
 
 interface LocalImagePickerProps {
-    type: "monster" | "achievement" | "dungeon" | "item" | "legendary";
+    type: "monster" | "achievement" | "dungeon" | "item" | "legendary" | "defi";
     selected?: string;
     onImageSelect: (path: string) => void;
     gridSize?: "small" | "medium" | "large";

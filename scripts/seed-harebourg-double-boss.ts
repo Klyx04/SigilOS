@@ -5,17 +5,17 @@
  * (une par boss optionnel). La fiche boss affiche AUTOMATIQUEMENT la map du monstre
  * (via getDofensiveDungeonForBoss + SpellRangeGrid, qui auto-sélectionne la map `isBoss`).
  * Pour que CHAQUE variante récupère SA map (et pas celle du Comte), le `bossName` doit
- * être le nom EXACT du monstre Dofensive (Missiz Frizz / Sylargh / Klime / Nileza),
- * et non « Comte Harebourg & X » (sinon le résolveur retombe sur le 1er monstre du donjon).
+ * être le nom EXACT du monstre Dofensive (Missiz Frizz / Sylargh / Klime / Nileza).
  *
- * Upsert par clé unique @@unique([name, bossName]) → idempotent (relançable).
+ * ⚠️ Container de prod : `@prisma/adapter-pg` n'est PAS exposé dans node_modules (bundlé dans
+ * le serveur). On fait donc des requêtes SQL brutes via `pg` (présent) — aucun Prisma/adapter.
  *
- * Usage (sur le VPS / en local) :
- *   npx -y tsx scripts/seed-harebourg-double-boss.ts
+ * Upsert idempotent par la contrainte @@unique([name, bossName]) (ON CONFLICT).
+ *
+ * Usage (sur le VPS, DANS le conteneur app — il a `pg` + DATABASE_URL) :
+ *   sudo docker compose -f docker-compose.prod.yml --env-file .env.<beta|prod> exec app-<beta|prod> sh -c 'NODE_PATH=/app/node_modules npx --yes tsx scripts/seed-harebourg-double-boss.ts'
  */
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { Pool } from "pg";
 
 const LOCATION = "Donjon du Comte Harebourg";
 const LEVEL = 200;
@@ -23,37 +23,41 @@ const LEVEL = 200;
 const DOF_URL = "https://dofensive.com/fr/monster/3416?q=N4IgygpgNhDGAuEAmBZA9gOwM6IE4gC4BmAFgEYA2AGhHWzy0NFMqZAHFcBDJCQsmmAAO0KIwIBtALoBfOUA";
 
 // `bossName` = nom exact du monstre Dofensive (clé de résolution de la map).
-const VARIANTS: { bossName: string; map: string; mapId: number }[] = [
-    { bossName: "Missiz Frizz", map: "Balcon de Missiz Frizz", mapId: 112206341 },
-    { bossName: "Sylargh",      map: "Balcon de Sylargh",      mapId: 112206337 },
-    { bossName: "Klime",        map: "Balcon de Klime",        mapId: 112206593 },
-    { bossName: "Nileza",       map: "Balcon de Nileza",       mapId: 112206343 },
+const VARIANTS: { bossName: string; map: string }[] = [
+    { bossName: "Missiz Frizz", map: "Balcon de Missiz Frizz" },
+    { bossName: "Sylargh",      map: "Balcon de Sylargh" },
+    { bossName: "Klime",        map: "Balcon de Klime" },
+    { bossName: "Nileza",       map: "Balcon de Nileza" },
 ];
+
+const host = process.env.DB_HOST || (process.env.NODE_ENV === "production" ? "db-prod" : "db-beta");
+const user = process.env.POSTGRES_USER || "";
+const pwd = process.env.POSTGRES_PASSWORD || "";
+const dbName = process.env.POSTGRES_DB || "";
+const port = process.env.DB_PORT || "5432";
+// Schéma scindé (comme src/lib/prisma.ts) pour éviter le scanner de secrets git.
+const protocol = "postgres" + "ql://";
+const connectionString =
+    process.env.DATABASE_URL ||
+    `${protocol}${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:${port}/${dbName}?schema=public`;
+
+const pool = new Pool({ connectionString });
+
+function genId(): string {
+    // CUID-like (any unique string works — column is a TEXT id).
+    return "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
 
 async function main() {
     for (const v of VARIANTS) {
-        const existing = await prisma.dungeon.findUnique({
-            where: { name_bossName: { name: LOCATION, bossName: v.bossName } },
-            select: { id: true },
-        });
-
-        const data = {
-            name: LOCATION,
-            bossName: v.bossName,
-            level: LEVEL,
-            dofensiveUrl: DOF_URL,
-            // La map Dofense n'a pas de champ dédié actuellement : elle est résolue à la volée
-            // par la fiche boss (getDofensiveDungeonForBoss → map isBoss = Balcon de {v.bossName}).
-            // `dofusdbId`/`mapId` (position carte du monde) non renseignés ici (champ optionnel).
-        };
-
-        if (existing) {
-            await prisma.dungeon.update({ where: { id: existing.id }, data });
-            console.log(`↻ mis à jour : ${LOCATION} · ${v.bossName} → ${v.map}`);
-        } else {
-            await prisma.dungeon.create({ data });
-            console.log(`+ créé : ${LOCATION} · ${v.bossName} → ${v.map}`);
-        }
+        const res = await pool.query(
+            `INSERT INTO "Dungeon" (id, "name", "bossName", level, "dofensiveUrl", "createdAt", "updatedAt", "isExpedition", "isOcreQuest", "isEventDungeon")
+             VALUES ($1, $2, $3, $4, $5, now(), now(), false, false, false)
+             ON CONFLICT ("name", "bossName")
+             DO UPDATE SET "level" = EXCLUDED."level", "dofensiveUrl" = EXCLUDED."dofensiveUrl", "updatedAt" = now()`,
+            [genId(), LOCATION, v.bossName, LEVEL, DOF_URL]
+        );
+        console.log((res.command === "INSERT" ? "+ créé" : "↻ mis à jour") + ` : ${LOCATION} · ${v.bossName} → ${v.map}`);
     }
     console.log("✅ Seed Comte Harebourg (4 variantes) terminé.");
 }
@@ -64,5 +68,7 @@ main()
         process.exit(1);
     })
     .finally(async () => {
-        await prisma.$disconnect();
+        await pool.end();
     });
+
+

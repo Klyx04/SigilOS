@@ -228,12 +228,12 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                     <h3 className="text-base font-semibold text-foreground">Mes Builds</h3>
                     {!readOnly && (
                         <span className="text-xs text-muted-foreground bg-background/50 px-2 py-0.5 rounded border border-border">
-                            {links.length}/20
+                            {links.length}/30
                         </span>
                     )}
                 </div>
 
-                {!readOnly && links.length < 20 && (
+                {!readOnly && links.length < 30 && (
                     <AddBuildModal
                         guildId={guildId}
                         links={links}

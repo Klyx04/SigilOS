@@ -433,6 +433,11 @@ export default function DungeonManager() {
                                                     placeholder="Ex: Antre du Kralamoure"
                                                     className="h-16 bg-background border-border focus:border-info/50 focus:ring-ring/20 text-xl font-bold transition-all rounded-2xl"
                                                 />
+                                                <p className="text-xs text-muted-foreground pl-1">
+                                                    Correspond à l'<strong className="text-foreground">emplacement</strong> du donjon.
+                                                    Tu peux créer plusieurs entrées du <strong className="text-foreground">même emplacement</strong>
+                                                    avec des boss différents (ex. « Comte Harebourg » + « Frizz », + « Sylargh », + « Klime »…).
+                                                </p>
                                             </div>
                                             <div className="space-y-3">
                                                 <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Niveau <span className="text-danger text-lg">*</span></label>
@@ -460,6 +465,11 @@ export default function DungeonManager() {
                                                 placeholder="Ex: Kralamoure Géant"
                                                 className="h-16 bg-background border-border focus:border-info/50 focus:ring-ring/20 text-xl font-bold transition-all rounded-2xl"
                                             />
+                                            <p className="text-xs text-muted-foreground pl-1">
+                                                Le boss ou la <strong className="text-foreground">variante</strong> (solo, +Frizz, +Sylargh…).
+                                                Doit être <strong className="text-foreground">unique</strong> pour un même emplacement :
+                                                c'est lui qui différencie chaque entrée.
+                                            </p>
                                         </div>
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

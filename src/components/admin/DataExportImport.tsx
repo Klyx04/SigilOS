@@ -60,7 +60,7 @@ export default function DataExportImport() {
             } else {
                 toast.error(result.error || "Erreur d'import");
             }
-        } catch (error) {
+        } catch {
             toast.error("Fichier invalide");
         }
 
@@ -70,10 +70,20 @@ export default function DataExportImport() {
 
     return (
         <div className="space-y-6">
-            <div className="bg-gradient-to-r from-info/20 to-info/20 p-6 rounded-lg border border-info/30">
-                <h3 className="text-lg font-semibold text-foreground mb-2">📦 Export / Import</h3>
+            <div className="bg-gradient-to-r from-info/20 to-info/20 p-6 rounded-lg border border-info/30 space-y-2">
+                <h3 className="text-lg font-semibold text-foreground mb-2">📦 Export / Import des données de jeu</h3>
                 <p className="text-sm text-foreground">
-                    Utilisez ces fonctions pour synchroniser les données entre environnements (local → beta → prod)
+                    <strong className="text-foreground">À quoi ça sert :</strong> synchroniser <strong>à la main</strong> les données de
+                    jeu entre environnements (local → beta → prod), quand on ne passe pas par le siphon DofusDB. C'est un outil de
+                    <strong className="text-foreground"> sauvegarde / migration</strong>, pas une source de données quotidienne.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                    ✅ Couvre <strong className="text-foreground">4 tables</strong> : Zones · Familles de monstres · Succès (challenges) · Donjons (+ succès associés).
+                </p>
+                <p className="text-xs text-warning/90">
+                    ⚠️ <strong>Non couvert :</strong> quêtes (GameQuest), archis/boss, monstres spéciaux, légendaires, récoltables, avis de
+                    recherche — ces données viennent du <strong>siphon DofusDB / Metamob</strong> et ne transitent pas par cet onglet.
+                    C'est principalement pour ça qu'on s'en sert rarement.
                 </p>
             </div>
 
@@ -83,7 +93,7 @@ export default function DataExportImport() {
                     <div>
                         <h4 className="font-semibold text-foreground mb-2">📤 Export</h4>
                         <p className="text-sm text-muted-foreground mb-4">
-                            Télécharger toutes les données (familles, challenges, donjons) en JSON
+                            Télécharger les données gérées à la main (Zones, Familles, Succès, Donjons) en JSON
                         </p>
                     </div>
 
@@ -96,9 +106,10 @@ export default function DataExportImport() {
                     </Button>
 
                     <div className="text-xs text-muted-foreground space-y-1">
-                        <p>✅ Inclut toutes les familles de monstres</p>
-                        <p>✅ Inclut tous les challenges</p>
-                        <p>✅ Inclut tous les donjons + succès associés</p>
+                        <p>✅ Inclut les zones</p>
+                        <p>✅ Inclut les familles de monstres (+ liens vers les zones)</p>
+                        <p>✅ Inclut les succès (challenges)</p>
+                        <p>✅ Inclut les donjons + succès associés</p>
                     </div>
                 </div>
 
@@ -127,6 +138,10 @@ export default function DataExportImport() {
                         <p>✅ Prêt pour commit Git</p>
                         <p>✅ Auto-deployed via deploy.sh</p>
                     </div>
+                    <p className="text-xs text-warning/90">
+                        ⚠️ Disponible <strong>uniquement en développement</strong>. Sur beta/prod, l'action est bloquée
+                        (NODE_ENV=production) → utilise l'export JSON ci-contre.
+                    </p>
                 </div>
 
                 {/* Import */}
@@ -164,35 +179,48 @@ export default function DataExportImport() {
                 </div>
             </div>
 
-            {/* Instructions */}
-            <div className="bg-elevated/30 p-6 rounded-lg border border-border/30">
-                <h4 className="font-semibold text-foreground mb-3">🔄 Workflow Local → Beta → Prod</h4>
-                <ol className="space-y-2 text-sm text-foreground">
-                    <li>
-                        <span className="inline-block w-6 text-info">1.</span>
-                        Saisir les données en local via cette interface
-                    </li>
-                    <li>
-                        <span className="inline-block w-6 text-info">2.</span>
-                        Exporter le JSON en local
-                    </li>
-                    <li>
-                        <span className="inline-block w-6 text-info">3.</span>
-                        Déployer le code sur beta (<code className="px-2 py-1 bg-surface rounded">./scripts/deploy.sh beta</code>)
-                    </li>
-                    <li>
-                        <span className="inline-block w-6 text-info">4.</span>
-                        Importer le JSON sur <code className="px-2 py-1 bg-surface rounded">beta.sigilos.fr/god/game-data</code>
-                    </li>
-                    <li>
-                        <span className="inline-block w-6 text-info">5.</span>
-                        Tester sur beta, puis merger vers main
-                    </li>
-                    <li>
-                        <span className="inline-block w-6 text-info">6.</span>
-                        Déployer sur prod et importer le même JSON
-                    </li>
-                </ol>
+            {/* Comment l'utiliser */}
+            <div className="bg-elevated/30 p-6 rounded-lg border border-border/30 space-y-4">
+                <h4 className="font-semibold text-foreground mb-1">📖 Comment l'utiliser</h4>
+
+                <div className="space-y-3 text-sm text-muted-foreground">
+                    <div>
+                        <strong className="text-foreground">Méthode 1 — JSON (tous environnements)</strong>
+                        <p className="mt-1">
+                            ① « Télécharger l'export JSON » sur l'environnement source → ② « Choisir un fichier JSON » sur
+                            l'environnement cible. Fonctionne partout (local, beta, prod).
+                            <span className="text-warning/90"> C'est la méthode à privilégier sur beta/prod.</span>
+                        </p>
+                    </div>
+                    <div>
+                        <strong className="text-foreground">Méthode 2 — Git / seed (développement uniquement)</strong>
+                        <p className="mt-1">
+                            « Sauvegarder dans Git » écrit dans <code className="px-1.5 py-0.5 bg-surface rounded">prisma/seed-data/game-data.json</code>
+                            → commit → <code className="px-1.5 py-0.5 bg-surface rounded">npm run seed:game-data</code>.
+                            En dev uniquement.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="border-t border-border pt-3">
+                    <h5 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2">Workflow recommandé Local → Beta → Prod</h5>
+                    <ol className="space-y-2 text-sm text-foreground">
+                        <li><span className="inline-block w-6 text-info">1.</span> Saisir les données en local via cette interface (ou via le siphon DofusDB)</li>
+                        <li><span className="inline-block w-6 text-info">2.</span> Exporter le JSON en local (ou « Sauvegarder dans Git » + commit)</li>
+                        <li><span className="inline-block w-6 text-info">3.</span> Déployer le code sur beta (<code className="px-2 py-1 bg-surface rounded">./scripts/deploy.sh beta</code>)</li>
+                        <li><span className="inline-block w-6 text-info">4.</span> Importer le JSON sur <code className="px-2 py-1 bg-surface rounded">beta.sigilos.fr/god?tab=game-data</code> (onglet Import/Export)</li>
+                        <li><span className="inline-block w-6 text-info">5.</span> Tester sur beta, puis merger vers main</li>
+                        <li><span className="inline-block w-6 text-info">6.</span> Déployer sur prod et importer le même JSON</li>
+                    </ol>
+                </div>
+
+                <div className="border-t border-border pt-3 text-xs text-warning/90 space-y-1">
+                    <p>⚠️ L'import fait un <strong>upsert</strong> (ajout/modification, jamais de suppression).</p>
+                    <p>
+                        ⚠️ Si tu comptes surtout sur le <strong>siphon DofusDB</strong>, cet onglet est en grande partie
+                        <strong> supplémentaire</strong> — garde-le pour les données saisies à la main ou une migration ponctuelle.
+                    </p>
+                </div>
             </div>
         </div>
     );

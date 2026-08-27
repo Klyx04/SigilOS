@@ -159,7 +159,11 @@ export default function ZoneManager() {
             const res = await autoAssociateAllZoneFamilies();
             if (res.success && res.data) {
                 if (res.data.familiesLinked === 0) {
-                    toast.info("Aucune nouvelle famille à associer (matching strict, sans faux positif)");
+                    toast.info(
+                        res.data.archisWithZone === 0
+                            ? "Aucun archimonstre siphonné avec zone/sous-zone → rien à associer"
+                            : "Aucune correspondance de noms de zones (les zones gérées ne matchent pas celles des archis)"
+                    );
                 } else {
                     toast.success(`${res.data.familiesLinked} famille(s) associée(s) sur ${res.data.zonesScanned} zone(s)`);
                 }

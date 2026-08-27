@@ -1,10 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { canGodAccess } from "@/server/actions/super-admin-actions";
 import { logger } from "@/lib/logger";
-import { readdir } from "fs/promises";
-import { join, normalize } from "path";
+import { readdir, unlink } from "fs/promises";
+import { join, normalize, basename } from "path";
 
 const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
+const VALID_TYPES = ["achievement", "monster", "dungeon", "item", "legendary"];
+
+// Chemin relatif sous /public pour chaque type (source unique, utilisé par GET + DELETE).
+function subPathFor(type: string): string {
+    switch (type) {
+        case "achievement": return "game-data/achievements";
+        case "monster": return "game-data/monsters";
+        case "dungeon": return "game-data/dungeons";
+        case "item": return "game-data/items";
+        case "legendary": return "game-data/legendary";
+        default: return "";
+    }
+}
 
 export async function GET(req: NextRequest) {
     try {
@@ -22,8 +35,7 @@ export async function GET(req: NextRequest) {
         const type = searchParams.get("type") || "achievement";
 
         // Validate type
-        const validTypes = ["achievement", "monster", "dungeon", "item", "legendary"];
-        if (!validTypes.includes(type)) {
+        if (!VALID_TYPES.includes(type)) {
             return NextResponse.json(
                 { success: false, error: "Invalid type" },
                 { status: 400 }
@@ -32,14 +44,7 @@ export async function GET(req: NextRequest) {
 
         // 3. Build path - String concatenation to bypass Turbopack's static analysis
         const root = process.cwd();
-        let subPath = "";
-        switch (type) {
-            case "achievement": subPath = "game-data/achievements"; break;
-            case "monster": subPath = "game-data/monsters"; break;
-            case "dungeon": subPath = "game-data/dungeons"; break;
-            case "item": subPath = "game-data/items"; break;
-            case "legendary": subPath = "game-data/legendary"; break;
-        }
+        const subPath = subPathFor(type);
         const dirPath = normalize(root + "/public/" + subPath);
 
         // 4. Read directory
@@ -66,6 +71,73 @@ export async function GET(req: NextRequest) {
 
     } catch (error: any) {
         logger.error("[ListLocalImages API] Error", { error: String(error) });
+        return NextResponse.json(
+            { success: false, error: error.message || "Internal server error" },
+            { status: 500 }
+        );
+    }
+}
+
+/**
+ * Supprime une image locale de la galerie game-data.
+ * Auditabilité + fail-closed :
+ *  - scope "game-data" requis (même garde que GET) ;
+ *  - type validé parmi la liste blanche ;
+ *  - filename revalidé (basename, pas de séparateur, pas de "..", extension image) ;
+ *  - le chemin résolu est vérifié pour rester dans le dossier attendu (anti path-traversal).
+ */
+export async function DELETE(req: NextRequest) {
+    try {
+        const hasGameDataScope = await canGodAccess("game-data");
+        if (!hasGameDataScope) {
+            return NextResponse.json(
+                { success: false, error: "Unauthorized: game-data scope required" },
+                { status: 403 }
+            );
+        }
+
+        const { searchParams } = new URL(req.url);
+        const type = searchParams.get("type") || "";
+        const filename = searchParams.get("filename") || "";
+
+        if (!VALID_TYPES.includes(type)) {
+            return NextResponse.json({ success: false, error: "Invalid type" }, { status: 400 });
+        }
+
+        // Anti path-traversal : on n'accepte qu'un nom de fichier nu (pas de séparateur, pas de "..").
+        const safeName = basename(filename);
+        const isUnsafe =
+            !safeName ||
+            safeName !== filename ||
+            filename.includes("/") ||
+            filename.includes("\\") ||
+            filename.includes("..");
+        const ext = safeName.split(".").pop()?.toLowerCase();
+        const extensionOk = ext && IMAGE_EXTENSIONS.includes("." + ext);
+        if (isUnsafe || !extensionOk) {
+            return NextResponse.json({ success: false, error: "Invalid filename" }, { status: 400 });
+        }
+
+        const root = process.cwd();
+        const dirPath = normalize(root + "/public/" + subPathFor(type));
+        const filePath = normalize(join(dirPath, safeName));
+
+        // Double vérification : le fichier résolu doit rester dans le dossier attendu.
+        if (!filePath.startsWith(dirPath)) {
+            return NextResponse.json({ success: false, error: "Invalid path" }, { status: 400 });
+        }
+
+        try {
+            await unlink(filePath);
+        } catch (e: any) {
+            // ENOENT => déjà absent, suppression idempotente.
+            if (e?.code !== "ENOENT") throw e;
+        }
+
+        logger.info("[DeleteLocalImage API] Deleted", { type, filename: safeName });
+        return NextResponse.json({ success: true });
+    } catch (error: any) {
+        logger.error("[DeleteLocalImage API] Error", { error: String(error) });
         return NextResponse.json(
             { success: false, error: error.message || "Internal server error" },
             { status: 500 }

@@ -1291,7 +1291,7 @@ const UpdateDofusBookLinksSchema = z.object({
         discordMessageId: z.string().nullable().optional(),
         createdAt: z.string().nullable().optional(),
         updatedAt: z.string().nullable().optional(),
-    }).passthrough()).max(20, "Maximum 20 builds"),
+    }).passthrough()).max(30, "Maximum 30 builds"),
     targetUserId: z.string().optional(),
 });
 

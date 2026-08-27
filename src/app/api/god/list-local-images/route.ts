@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { canGodAccess } from "@/server/actions/super-admin-actions";
 import { logger } from "@/lib/logger";
-import { readdir, unlink } from "fs/promises";
+import { readdir, unlink, mkdir } from "fs/promises";
 import { join, normalize, basename } from "path";
 
 const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
@@ -48,7 +48,13 @@ export async function GET(req: NextRequest) {
         const subPath = subPathFor(type);
         const dirPath = normalize(root + "/public/" + subPath);
 
-        // 4. Read directory
+        // 4. Read directory — fail-soft : crée le dossier s'il est absent (ex. `game-data/defis`
+        //    avant le premier téléchargement) pour ne jamais lever ENOENT sur un scan de galerie.
+        try {
+            await mkdir(dirPath, { recursive: true });
+        } catch {
+            // ignore : la lecture ci-dessous lèvera une erreur explicite si le dossier est inaccessible.
+        }
         const files = await readdir(dirPath, { withFileTypes: true });
 
         // 5. Filter images and map to response format

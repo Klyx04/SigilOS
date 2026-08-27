@@ -1574,6 +1574,11 @@ model Defi {
   dofuspourlesnoobsUrl String?
   /// Boss du défi + infos pour l'affichage / la fiche : [{ name, dofusdbId?, imageUrl? }]
   bossNames    Json?    @default("[]")
+  /// Fenêtre d'événement. Si `isPermanent` = true, le défi est dispo en permanence sur le jeu
+  /// (startDate/endDate ignorés) ; sinon `startDate` (début) et `endDate` (fin) bornent l'événement.
+  isPermanent  Boolean  @default(true)
+  startDate    DateTime?
+  endDate      DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

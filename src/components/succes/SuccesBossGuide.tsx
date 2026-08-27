@@ -5,6 +5,7 @@ import { Brain, Compass, ExternalLink, Flame, Info, Loader2, MapPin, ScrollText,
 import { getDungeonsWithAchievements, getDungeonMonsters, getMonsterStats } from "@/server/actions/game-data-actions";
 import { getLinkedQuests } from "@/server/actions/dofus-quest-actions";
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
+import { deriveDofensiveMonsterName } from "@/lib/dofensive-boss";
 import {
     getBossDofensiveSpells,
     getDofensiveDungeonForBoss,
@@ -1013,7 +1014,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                 spells={statsOf(selected)?.spells ?? []}
                                 activeSpellId={selectedSpellId}
                                 onSelectSpell={(spell) => setSelectedSpellId(spell.id)}
-                                bossName={selected.dofensiveMonsterName ?? (activeMonsterName ?? selected.bossName)}
+                                bossName={selected.dofensiveMonsterName ?? (activeMonsterName ?? deriveDofensiveMonsterName(selected.bossName) ?? selected.bossName)}
                                 bossImageUrl={statsOf(selected)?.imageUrl}
                                 dungeonMaps={dungeonMapsByBoss[activeMonsterName ?? selected.bossName]?.maps}
                                 dungeonName={dungeonMapsByBoss[activeMonsterName ?? selected.bossName]?.dungeonName}

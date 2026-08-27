@@ -71,6 +71,15 @@ export type DjPostWithDetails = {
     questId: number | null;
     questName: string | null;
     questUrl: string | null;
+    /* Mode Défi */
+    defiId?: string | null;
+    defiName?: string | null;
+    defi?: {
+        id: string;
+        name: string;
+        imageUrl: string | null;
+        zone: string | null;
+    } | null;
     wantedAchievementIds: string[];
     maxMembers: number;
     message: string | null;
@@ -166,11 +175,14 @@ export async function getDungeonFinderConfig(guildId: string): Promise<ActionRes
 // ---------------------------------------------------------------------------
 
 const createPostSchema = z.object({
-    mode: z.enum(["DONJON", "QUETE"]),
+    mode: z.enum(["DONJON", "QUETE", "DEFI"]),
     dungeonId: z.string().nullable(),
     questId: z.number().nullable(),
     questName: z.string().nullable(),
     questUrl: z.string().nullable(),
+    // Mode Défi : défi ciblé (if défini, stocké pour l'embed / la liste).
+    defiId: z.string().nullable().optional(),
+    defiName: z.string().nullable().optional(),
     wantedAchievementIds: z.array(z.string()).default([]),
     maxMembers: z.number().min(2).max(8).default(4),
     message: z.string().max(500).nullable(),
@@ -796,8 +808,10 @@ async function buildPostEmbed(post: any, authorName: string, guildId: string, ac
         creatorDiscordId = acc?.providerAccountId || null;
     }
 
-    const title = isDungeon
+    const title = post.mode === "DONJON"
         ? `⚔️ RECHERCHE DONJON`
+        : post.mode === "DEFI"
+        ? `⚡ RECHERCHE DÉFI`
         : `📜 RECHERCHE QUÊTE`;
 
     const fields: any[] = [];
@@ -807,6 +821,12 @@ async function buildPostEmbed(post: any, authorName: string, guildId: string, ac
         fields.push({ 
             name: "📍 Donjon", 
             value: `**${post.dungeon.name}**\n*Niveau ${post.dungeon.level}*`,
+            inline: true 
+        });
+    } else if (post.mode === "DEFI") {
+        fields.push({ 
+            name: "⚡ Défi", 
+            value: `**${post.defiName || "Inconnu"}**`,
             inline: true 
         });
     } else if (!isDungeon) {
@@ -872,7 +892,7 @@ async function buildPostEmbed(post: any, authorName: string, guildId: string, ac
             `👤 **${creatorDiscordId ? `<@${creatorDiscordId}>` : authorName}** cherche des compagnons !`,
             post.message ? `\n> ${post.message}` : "",
         ].filter(Boolean).join("\n"),
-        color: isDungeon ? 0x818cf8 : 0x34d399,
+        color: post.mode === "DONJON" ? 0x818cf8 : post.mode === "DEFI" ? 0xf59e0b : 0x34d399,
         fields,
         thumbnail: (() => {
             if (!isDungeon || !post.dungeon?.imageUrl) return undefined;
@@ -964,6 +984,7 @@ export async function createDjPost(
                         },
                     },
                 },
+                defi: { select: { id: true, name: true, imageUrl: true, zone: true } },
             },
         });
 
@@ -1276,6 +1297,25 @@ async function applySuccessValidations(opts: {
 }
 
 /**
+ * Mode Défi — clôture : valide le défi « je l'ai fait » pour les profils présents.
+ * Idempotent (skipDuplicates) et fail-closed : ne crée rien si le défi n'existe pas.
+ */
+async function applyDefiValidation(profileIds: string[], defiId: string): Promise<{ created: number }> {
+    const uniqueProfiles = Array.from(new Set(profileIds));
+    if (uniqueProfiles.length === 0) return { created: 0 };
+    try {
+        const defi = await (db as any).defi.findUnique({ where: { id: defiId }, select: { id: true } });
+        if (!defi) return { created: 0 };
+        const data = uniqueProfiles.map((profileId) => ({ profileId, defiId, source: "GROUP" }));
+        const res = await (db as any).userDefiProgress.createMany({ data, skipDuplicates: true });
+        return { created: res.count ?? data.length };
+    } catch (error) {
+        logger.error("[applyDefiValidation]", error);
+        return { created: 0 };
+    }
+}
+
+/**
  * Close a DJ search post (creator only) and award contribution points to validated participants.
  * The creator themselves gets 0 points.
  * @param validatedProfileIds - profileIds of participants who participated and should get points
@@ -1417,7 +1457,7 @@ export async function closeDjPost(
     try {
         const post = await (db as any).djSearchPost.findUnique({
             where: { id: postId },
-            select: { profileId: true, guildId: true, discordMessageId: true, discordChannelId: true, dungeonId: true, dungeonsJson: true },
+            select: { profileId: true, guildId: true, discordMessageId: true, discordChannelId: true, dungeonId: true, dungeonsJson: true, defiId: true },
         });
 
         if (!post) return { success: false, error: "Post introuvable" };
@@ -1452,6 +1492,11 @@ export async function closeDjPost(
         const successProfiles = Array.from(new Set([...(validatedProfileIds ?? []), post.profileId]));
         if (successValidations && successValidations.length > 0 && successProfiles.length > 0) {
             await applySuccessValidations({ guildId, post, successValidations, profileIds: successProfiles });
+        }
+
+        // Mode Défi — clôture : tout le groupe présent valide le défi (« je l'ai fait »).
+        if (post.defiId && successProfiles.length > 0) {
+            await applyDefiValidation(successProfiles, post.defiId);
         }
 
         disableDjDiscordEmbed(guildId, post.discordChannelId, post.discordMessageId).catch(() => { });
@@ -1966,6 +2011,9 @@ export async function getDjPosts(
                             },
                         },
                     },
+                },
+                defi: {
+                    select: { id: true, name: true, imageUrl: true, zone: true },
                 },
                 profile: {
                     select: {

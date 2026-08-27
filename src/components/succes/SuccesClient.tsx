@@ -2,13 +2,13 @@
 
 import { useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ScrollText, Swords, User, Users } from "lucide-react";
+import { ScrollText, Swords, User, Users, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SuccesTracker } from "./SuccesTracker";
 import { SuccesDirectory } from "./SuccesDirectory";
 import { SuccesBossGuide } from "./SuccesBossGuide";
 import { SuccesQuestsTab } from "./SuccesQuestsTab";
-import { SuccesAttributionBanner } from "./SuccesAttributionBanner";
+import { SuccesDefiTab } from "./SuccesDefiTab";
 import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
 
 interface SuccesClientProps {
@@ -26,11 +26,11 @@ export function SuccesClient({
     const router = useRouter();
     const searchParams = useSearchParams();
     const rawView = searchParams.get("view");
-    const view: "moi" | "guilde" | "boss" | "quetes" =
-        rawView === "guilde" ? "guilde" : rawView === "boss" ? "boss" : rawView === "quetes" ? "quetes" : "moi";
+    const view: "moi" | "guilde" | "boss" | "quetes" | "defi" =
+        rawView === "guilde" ? "guilde" : rawView === "boss" ? "boss" : rawView === "quetes" ? "quetes" : rawView === "defi" ? "defi" : "moi";
 
     const setView = useCallback(
-        (next: "moi" | "guilde" | "boss" | "quetes") => {
+        (next: "moi" | "guilde" | "boss" | "quetes" | "defi") => {
             const params = new URLSearchParams(searchParams.toString());
             params.set("view", next);
             if (next === "guilde") params.delete("dungeon");
@@ -45,6 +45,7 @@ export function SuccesClient({
             { id: "guilde" as const, label: "Succès Commun", sub: "Qui a quoi", icon: Users, disabled: !canViewGuildSucces },
             { id: "boss" as const, label: "Fiches Boss", sub: "Sorts & combat", icon: Swords, disabled: false },
             { id: "quetes" as const, label: "Quêtes & Succès", sub: "Quêtes de donjons", icon: ScrollText, disabled: false },
+            { id: "defi" as const, label: "Défi", sub: "Événements & one-shot", icon: Zap, disabled: false },
         ],
         [canEditOwnSucces, canViewGuildSucces]
     );
@@ -70,6 +71,8 @@ export function SuccesClient({
                                         ? "succes-view-boss"
                                         : v.id === "quetes"
                                         ? "succes-view-quetes"
+                                        : v.id === "defi"
+                                        ? "succes-view-defi"
                                         : undefined
                                 }
                                 title={v.disabled ? "Accès non autorisé par les permissions" : v.label}
@@ -100,7 +103,6 @@ export function SuccesClient({
                     })}
                 </div>
                 <div className="ml-auto flex flex-wrap items-center gap-3 shrink-0">
-                    <SuccesAttributionBanner />
                     <ModuleTourReplayButton phase="succes" />
                 </div>
             </div>
@@ -111,6 +113,8 @@ export function SuccesClient({
                 <SuccesBossGuide guildId={guildId} />
             ) : view === "quetes" ? (
                 <SuccesQuestsTab guildId={guildId} />
+            ) : view === "defi" ? (
+                <SuccesDefiTab guildId={guildId} canEdit={canEditOwnSucces} />
             ) : (
                 <SuccesDirectory guildId={guildId} />
             )}

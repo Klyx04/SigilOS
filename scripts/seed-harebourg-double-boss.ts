@@ -17,17 +17,19 @@
  */
 import { Pool } from "pg";
 
-const LOCATION = "Donjon du Comte Harebourg";
+const LOCATION = "Donjon du Comte Harebourg"; // nom EXACT du donjon Dofensive (résolution de la map)
 const LEVEL = 200;
-// Lien Dofensive fourni (donjon de base id 71 → monstre 3416). La map est résolue par le bossName.
+// Lien Dofensive fourni (donjon de base id 71 → monstre 3416). La map est résolue par le dofensiveMonsterName.
 const DOF_URL = "https://dofensive.com/fr/monster/3416?q=N4IgygpgNhDGAuEAmBZA9gOwM6IE4gC4BmAFgEYA2AGhHWzy0NFMqZAHFcBDJCQsmmAAO0KIwIBtALoBfOUA";
 
-// `bossName` = nom exact du monstre Dofensive (clé de résolution de la map).
-const VARIANTS: { bossName: string; map: string }[] = [
-    { bossName: "Missiz Frizz", map: "Balcon de Missiz Frizz" },
-    { bossName: "Sylargh",      map: "Balcon de Sylargh" },
-    { bossName: "Klime",        map: "Balcon de Klime" },
-    { bossName: "Nileza",       map: "Balcon de Nileza" },
+// `name` = NOM AFFICHÉ (lisible) ; `bossName` = NOM AFFICHÉ du boss (même libellé) ;
+// `dofensiveMonsterName` = nom EXACT du monstre Dofensive (clé de résolution de la « Balcon de … ») ;
+// `dofensiveDungeonName` = nom EXACT du donjon Dofensive (lève l'ambiguïté avec les donjons solo homonymes).
+const VARIANTS: { name: string; bossName: string; monsterName: string; map: string }[] = [
+    { name: "Comte et Missiz Frizz", bossName: "Comte et Missiz Frizz", monsterName: "Missiz Frizz", map: "Balcon de Missiz Frizz" },
+    { name: "Comte et Sylargh",      bossName: "Comte et Sylargh",      monsterName: "Sylargh",      map: "Balcon de Sylargh" },
+    { name: "Comte et Klime",        bossName: "Comte et Klime",        monsterName: "Klime",        map: "Balcon de Klime" },
+    { name: "Comte et Nileza",       bossName: "Comte et Nileza",       monsterName: "Nileza",       map: "Balcon de Nileza" },
 ];
 
 const host = process.env.DB_HOST || (process.env.NODE_ENV === "production" ? "db-prod" : "db-beta");
@@ -51,15 +53,18 @@ function genId(): string {
 async function main() {
     for (const v of VARIANTS) {
         const res = await pool.query(
-            `INSERT INTO "Dungeon" (id, "name", "bossName", level, "dofensiveUrl", "createdAt", "updatedAt", "isExpedition", "isOcreQuest", "isEventDungeon")
-             VALUES ($1, $2, $3, $4, $5, now(), now(), false, false, false)
+            `INSERT INTO "Dungeon" (id, "name", "bossName", level, "dofensiveUrl", "dofensiveMonsterName", "dofensiveDungeonName", "createdAt", "updatedAt", "isExpedition", "isOcreQuest", "isEventDungeon", "isNoAchievement")
+             VALUES ($1, $2, $3, $4, $5, $6, $7, now(), now(), false, false, false, false)
              ON CONFLICT ("name", "bossName")
-             DO UPDATE SET "level" = EXCLUDED."level", "dofensiveUrl" = EXCLUDED."dofensiveUrl", "updatedAt" = now()`,
-            [genId(), LOCATION, v.bossName, LEVEL, DOF_URL]
+             DO UPDATE SET "level" = EXCLUDED."level", "dofensiveUrl" = EXCLUDED."dofensiveUrl",
+                 "dofensiveMonsterName" = EXCLUDED."dofensiveMonsterName",
+                 "dofensiveDungeonName" = EXCLUDED."dofensiveDungeonName",
+                 "updatedAt" = now()`,
+            [genId(), v.name, v.bossName, LEVEL, DOF_URL, v.monsterName, LOCATION]
         );
-        console.log((res.command === "INSERT" ? "+ créé" : "↻ mis à jour") + ` : ${LOCATION} · ${v.bossName} → ${v.map}`);
+        console.log((res.command === "INSERT" ? "+ créé" : "↻ mis à jour") + ` : ${v.name} → ${v.map}`);
     }
-    console.log("✅ Seed Comte Harebourg (4 variantes) terminé.");
+    console.log("✅ Seed Comte Harebourg (4 variantes double boss) terminé.");
 }
 
 main()

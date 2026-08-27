@@ -54,9 +54,43 @@ const DungeonFormSchema = z.object({
     isOcreQuest: z.boolean().default(false),
     mapId: z.number().int().nullable().optional(),
     challengeIds: z.array(z.string()).optional(),
+    /* Chantier double boss : dissociation affichage / résolution Dofensive. Optionnels. */
+    dofensiveMonsterName: z.string().optional().or(z.literal("")),
+    dofensiveDungeonName: z.string().optional().or(z.literal("")),
+    /* Chantier donjon sans succès : le « succès » est d'être validé → pseudo-succès « Donjon validé ». */
+    isNoAchievement: z.boolean().default(false),
 });
 
 // --- Helper: Check super-admin access ---
+
+// Chantier « donjon sans succès » : slug du challenge système qui matérialise « le donjon est validé ».
+// Un donjon marqué `isNoAchievement` porte un unique DungeonAchievement lié à ce challenge → il devient
+// cochable dans « Mes Succès » comme un donjon normal (et compte dans les totaux / filtre done-todo).
+const NO_ACHIEVEMENT_CHALLENGE_SLUG = "donjon-valide";
+
+/** Crée/retourne (upsert) le challenge système « Donjon validé » (slug `donjon-valide`). */
+async function ensureNoAchievementChallengeId(): Promise<string | null> {
+    const existing = await db.challenge.findUnique({ where: { slug: NO_ACHIEVEMENT_CHALLENGE_SLUG } });
+    if (existing) return existing.id;
+    try {
+        const created = await db.challenge.create({
+            data: {
+                name: "Donjon validé",
+                slug: NO_ACHIEVEMENT_CHALLENGE_SLUG,
+                description: "Donjon sans succès : valider le donjon suffit à le compléter.",
+            },
+        });
+        return created.id;
+    } catch (error: any) {
+        // Course possible (upsert concurrent) → relire.
+        if (error.code === "P2002") {
+            const re = await db.challenge.findUnique({ where: { slug: NO_ACHIEVEMENT_CHALLENGE_SLUG } });
+            return re?.id ?? null;
+        }
+        logger.error("[ensureNoAchievementChallengeId]", error);
+        return null;
+    }
+}
 
 // 🛡️ Fail-closed : super-admin OU sous-god avec la brique "game-data".
 async function requireSuperAdmin(): Promise<string | null> {
@@ -383,28 +417,46 @@ export async function createDungeon(
 
     try {
         const validated = DungeonFormSchema.parse(data);
-        const { challengeIds, ...dungeonData } = validated;
+        const { challengeIds, isNoAchievement, ...dungeonData } = validated;
 
+        // Chantier double boss : conversion '' → null pour les champs de résolution Dofensive.
         const dungeon = await db.dungeon.create({
             data: {
                 ...dungeonData,
+                isNoAchievement: !!isNoAchievement,
                 dpnlUrl: dungeonData.dpnlUrl || null,
                 dofuspourlesnoobsUrl: dungeonData.dofuspourlesnoobsUrl || null,
                 dofensiveUrl: dungeonData.dofensiveUrl || null,
                 imageUrl: dungeonData.imageUrl || null,
+                dofensiveMonsterName: dungeonData.dofensiveMonsterName || null,
+                dofensiveDungeonName: dungeonData.dofensiveDungeonName || null,
                 expeditionModes: (dungeonData.expeditionModes || null) as any,
                 expeditionMechanics: dungeonData.expeditionMechanics || null,
-                achievements: challengeIds ? {
-                    create: challengeIds.map(challengeId => ({
-                        challengeId,
-                        points: 10, // Default value
-                    }))
+                achievements: challengeIds || isNoAchievement ? {
+                    create: [
+                        ...(challengeIds || []).map(challengeId => ({
+                            challengeId,
+                            points: 10, // Default value
+                        })),
+                    ]
                 } : undefined
             },
             include: {
                 achievements: { include: { challenge: true } }
             }
         });
+
+        // Donjon sans succès : rattacher le pseudo-succès « Donjon validé » (créé au besoin).
+        if (isNoAchievement) {
+            const noAchId = await ensureNoAchievementChallengeId();
+            if (noAchId) {
+                await db.dungeonAchievement.upsert({
+                    where: { dungeonId_challengeId: { dungeonId: dungeon.id, challengeId: noAchId } },
+                    update: {},
+                    create: { dungeonId: dungeon.id, challengeId: noAchId, points: 10 },
+                });
+            }
+        }
         await logGameDataWrite('create-dungeon', dungeon.id, { name: dungeon.name });
 
         revalidatePath('/god/game-data');
@@ -428,7 +480,7 @@ export async function updateDungeon(
 
     try {
         const validated = DungeonFormSchema.parse(data);
-        const { challengeIds, ...dungeonData } = validated;
+        const { challengeIds, isNoAchievement, ...dungeonData } = validated;
 
         // Update dungeon and sync achievements
         const dungeon = await db.$transaction(async (tx) => {
@@ -437,22 +489,42 @@ export async function updateDungeon(
                 where: { id },
                 data: {
                     ...dungeonData,
+                    isNoAchievement: !!isNoAchievement,
                     dpnlUrl: dungeonData.dpnlUrl || null,
                     dofuspourlesnoobsUrl: dungeonData.dofuspourlesnoobsUrl || null,
                     dofensiveUrl: dungeonData.dofensiveUrl || null,
                     imageUrl: dungeonData.imageUrl || null,
+                    dofensiveMonsterName: dungeonData.dofensiveMonsterName || null,
+                    dofensiveDungeonName: dungeonData.dofensiveDungeonName || null,
                     expeditionModes: (dungeonData.expeditionModes || null) as any,
                     expeditionMechanics: dungeonData.expeditionMechanics || null,
                 }
             });
 
+            // Chantier « donjon sans succès » : synchroniser le pseudo-succès « Donjon validé ».
+            const noAchId = isNoAchievement ? await ensureNoAchievementChallengeId() : null;
+            if (noAchId) {
+                await tx.dungeonAchievement.upsert({
+                    where: { dungeonId_challengeId: { dungeonId: id, challengeId: noAchId } },
+                    update: {},
+                    create: { dungeonId: id, challengeId: noAchId, points: 10 },
+                });
+            } else {
+                const existingNoAch = await tx.challenge.findUnique({ where: { slug: NO_ACHIEVEMENT_CHALLENGE_SLUG } });
+                if (existingNoAch) {
+                    await tx.dungeonAchievement.deleteMany({
+                        where: { dungeonId: id, challengeId: existingNoAch.id },
+                    });
+                }
+            }
+
             // Sync achievements if provided
             if (challengeIds) {
-                // Delete removed achievements
+                // Delete removed achievements (jamais le pseudo-succès « Donjon validé » quand isNoAchievement).
                 await tx.dungeonAchievement.deleteMany({
                     where: {
                         dungeonId: id,
-                        challengeId: { notIn: challengeIds }
+                        challengeId: { notIn: challengeIds, not: noAchId ?? "__none__" }
                     }
                 });
 

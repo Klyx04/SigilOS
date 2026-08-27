@@ -88,6 +88,9 @@ interface BossDungeon {
     dpnlUrl?: string | null;
     dofuspourlesnoobsUrl?: string | null;
     dofusdbId?: number | null;
+    /* Chantier double boss — dissociation affichage / résolution Dofensive. */
+    dofensiveMonsterName?: string | null;
+    dofensiveDungeonName?: string | null;
     achievements?: { id: string; points: number; challenge?: { name: string } }[];
 }
 
@@ -259,7 +262,10 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
         // On passe aussi le nom du donjon (`d.name`) : le resolver Dofensive a un
         // fallback par nom de donjon (token overlap) — indispensable pour les donjons
         // multi-boss dont le `bossName` DofusDB ne matche pas le nom Dofensive.
-        getDofensiveDungeonForBoss(boss, d.name)
+        getDofensiveDungeonForBoss(boss, d.name, {
+            dofensiveMonsterName: d.dofensiveMonsterName,
+            dofensiveDungeonName: d.dofensiveDungeonName,
+        })
             .then((res) => {
                 if (cancelled) return;
                 setDungeonMapsByBoss((prev) => ({ ...prev, [boss]: res.success && res.data ? res.data : null }));
@@ -282,7 +288,10 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
         if (!grades || grades.length === 0) return;
         const gradeNumber = activeGradeIndex + 1; // grade ordinal Dofensive (1..N)
         let cancelled = false;
-        getBossDofensiveSpells(activeMonsterName ?? d.bossName, d.name, gradeNumber)
+        getBossDofensiveSpells(activeMonsterName ?? d.bossName, d.name, gradeNumber, false, {
+            dofensiveMonsterName: d.dofensiveMonsterName,
+            dofensiveDungeonName: d.dofensiveDungeonName,
+        })
             .then((res) => {
                 if (cancelled || !res.success || !res.data) return;
                 setStatsByBoss((prev) => {
@@ -1004,7 +1013,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                 spells={statsOf(selected)?.spells ?? []}
                                 activeSpellId={selectedSpellId}
                                 onSelectSpell={(spell) => setSelectedSpellId(spell.id)}
-                                bossName={activeMonsterName ?? selected.bossName}
+                                bossName={selected.dofensiveMonsterName ?? (activeMonsterName ?? selected.bossName)}
                                 bossImageUrl={statsOf(selected)?.imageUrl}
                                 dungeonMaps={dungeonMapsByBoss[activeMonsterName ?? selected.bossName]?.maps}
                                 dungeonName={dungeonMapsByBoss[activeMonsterName ?? selected.bossName]?.dungeonName}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Search, X, Swords, Map, Users, Star, RotateCcw } from "lucide-react";
+import { Search, X, Swords, Map, Zap, Users, Star, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface DjFiltersState {
@@ -93,6 +93,7 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                             { value: "", label: "Tous", icon: null, active: "bg-info text-info-foreground" },
                             { value: "DONJON", label: "DJ", icon: Swords, active: "bg-danger text-danger-foreground" },
                             { value: "QUETE", label: "Quête", icon: Map, active: "bg-success text-success-foreground" },
+                            { value: "DEFI", label: "Défi", icon: Zap, active: "bg-amber-500 text-white" },
                         ].map(({ value, label, icon: Icon, active }) => {
                             const isActive = filters.mode === value;
                             return (

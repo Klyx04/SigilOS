@@ -382,6 +382,41 @@ describe("dofensive-actions — sorts Dofensive (données de combat)", () => {
         expect(spell?.criticalEffects).toEqual(["95 soins Feu"]);
     });
 
+    it("getDofensiveDungeonForBoss — résolution DIRECTE (double boss) via dofensiveMonsterName + dofensiveDungeonName", async () => {
+        vi.resetModules();
+        const { getDofensiveDungeonForBoss: freshGet } = await import("@/server/actions/dofensive-actions");
+        // Le monstre « Sylargh » existe à la fois dans un donjon solo ET dans « Donjon du Comte Harebourg ».
+        // Les champs de résolution permettent de choisir le bon donjon (celui où Sylargh est un sbire).
+        const fetchMock = vi.fn((input: any) => {
+            const url = String(input);
+            // 1) /dungeons/preview → liste des donjons (solo + comte)
+            if (url.includes("/dungeons/preview")) {
+                return Promise.resolve(jsonResponse([
+                    { Id: 999, Name: "Sylargh", Monsters: [{ Id: 10, Name: "Sylargh" }], Maps: [] },
+                    { Id: 71, Name: "Donjon du Comte Harebourg", Monsters: [{ Id: 1, Name: "Comte Harebourg" }, { Id: 10, Name: "Sylargh" }], Maps: [{ Id: 700, Name: "Balcon de Sylargh" }] },
+                ]));
+            }
+            // 2) /monsters/{bossId} → PreferredMaps du monstre (ici Sylargh id 10)
+            if (url.includes("/monsters/10")) {
+                return Promise.resolve(jsonResponse([{ Id: 10, Name: "Sylargh", PreferredMaps: [{ Id: 700 }] }]));
+            }
+            return Promise.resolve(jsonResponse(null));
+        });
+        vi.stubGlobal("fetch", fetchMock);
+
+        const res = await freshGet("Comte et Sylargh", "Comte et Sylargh", {
+            dofensiveMonsterName: "Sylargh",
+            dofensiveDungeonName: "Donjon du Comte Harebourg",
+        });
+
+        expect(res.success).toBe(true);
+        expect(res.data?.dungeonName).toBe("Donjon du Comte Harebourg");
+        expect(res.data?.bossMonsterId).toBe(10);
+        // La map « Balcon de Sylargh » est marquée isBoss → le dropdown ne montre que celle-ci.
+        const map = res.data?.maps.find((m) => m.id === 700);
+        expect(map?.isBoss).toBe(true);
+    });
+
     it("mergeDofensiveSpells : le combat Dofensive prime, icône CDN Dofensive préférée", () => {
 
         const dbSpells = [

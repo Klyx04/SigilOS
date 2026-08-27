@@ -188,7 +188,7 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed, adminMo
         });
     }
 
-    const title = post.mode === "DONJON" ? post.dungeon?.name : post.questName;
+    const title = post.mode === "DONJON" ? post.dungeon?.name : post.mode === "DEFI" ? (post.defiName || "Défi") : post.questName;
     const validatedCount = validated.size;
     const totalListCount = acceptedParticipants.length + extraMembers.length;
 

@@ -9,7 +9,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import {
     Users, CheckCircle2, XCircle, Crown, Swords, Clock,
-    Trophy, Map, Link2, LogIn, LogOut, Trash2, Pencil, Bell, Layers, AlarmClock,
+    Trophy, Map, Zap, Link2, LogIn, LogOut, Trash2, Pencil, Bell, Layers, AlarmClock,
     Copy, Check
 } from "lucide-react";
 import {
@@ -148,9 +148,9 @@ export function DjPostDetailModal({
                     {/* Hero Image / Banner */}
                     <div className="relative h-24 bg-surface border-b border-border overflow-hidden shrink-0">
                         {/* Ambiance : léger voile du visuel du donjon (flouté + fondu, jamais pixelisé) */}
-                        {post.mode === "DONJON" && (post.dungeon?.imageUrl || (post.dungeonsJson as any[])?.[0]?.imageUrl) ? (
+                        {(post.mode === "DONJON" && (post.dungeon?.imageUrl || (post.dungeonsJson as any[])?.[0]?.imageUrl)) || (post.mode === "DEFI" && post.defi?.imageUrl) ? (
                             <img
-                                src={post.dungeon?.imageUrl ?? (post.dungeonsJson as any[])?.[0]?.imageUrl}
+                                src={post.mode === "DEFI" ? post.defi?.imageUrl : post.dungeon?.imageUrl ?? (post.dungeonsJson as any[])?.[0]?.imageUrl}
                                 alt=""
                                 aria-hidden
                                 className="absolute inset-0 w-full h-full object-cover opacity-[0.10] blur-2xl scale-110"
@@ -161,9 +161,13 @@ export function DjPostDetailModal({
                         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
 
                         <div className="relative z-10 flex items-center gap-4 px-5 h-full">
-                            <div className={cn("w-16 h-16 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center border shadow-lg", post.mode === "DONJON" ? "bg-elevated/80 border-border" : "bg-info/80 border-info/30")}>
-                                {post.mode === "DONJON" && (post.dungeon?.imageUrl || (post.dungeonsJson as any[])?.[0]?.imageUrl) ? (
+                            <div className={cn("w-16 h-16 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center border shadow-lg", post.mode === "DONJON" ? "bg-elevated/80 border-border" : post.mode === "DEFI" ? "bg-amber-500/20 border-amber-500/30" : "bg-info/80 border-info/30")}>
+                                {(post.mode === "DONJON" && (post.dungeon?.imageUrl || (post.dungeonsJson as any[])?.[0]?.imageUrl)) ? (
                                     <img src={post.dungeon?.imageUrl ?? (post.dungeonsJson as any[])?.[0]?.imageUrl} alt="" className="w-full h-full object-cover" />
+                                ) : post.mode === "DEFI" && post.defi?.imageUrl ? (
+                                    <img src={post.defi.imageUrl} alt="" className="w-full h-full object-cover" />
+                                ) : post.mode === "DEFI" ? (
+                                    <Zap className="w-6 h-6 text-amber-500" />
                                 ) : post.mode === "DONJON" ? (
                                     <Swords className="w-6 h-6 text-muted-foreground" />
                                 ) : (

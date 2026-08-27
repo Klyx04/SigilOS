@@ -54,6 +54,11 @@ interface Dungeon {
     expeditionMechanics?: string | null;
     isOcreQuest?: boolean;
     mapId?: number | null;
+    /* Chantier double boss — dissociation affichage / résolution Dofensive. */
+    dofensiveMonsterName?: string | null;
+    dofensiveDungeonName?: string | null;
+    /* Chantier donjon sans succès. */
+    isNoAchievement?: boolean;
     achievements: { challengeId: string; challenge: { name: string; slug: string; iconUrl?: string | null } }[];
 }
 
@@ -95,6 +100,10 @@ export default function DungeonManager() {
         isOcreQuest: false,
         mapId: null as number | null,
         challengeIds: [] as string[],
+        /* Chantier double boss / donjon sans succès. */
+        dofensiveMonsterName: "",
+        dofensiveDungeonName: "",
+        isNoAchievement: false,
     });
 
     useEffect(() => {
@@ -196,6 +205,9 @@ export default function DungeonManager() {
             isOcreQuest: false,
             mapId: null,
             challengeIds: [],
+            dofensiveMonsterName: "",
+            dofensiveDungeonName: "",
+            isNoAchievement: false,
         });
     }
 
@@ -216,6 +228,9 @@ export default function DungeonManager() {
             isOcreQuest: dungeon.isOcreQuest ?? false,
             mapId: dungeon.mapId ?? null,
             challengeIds: dungeon.achievements.map(a => a.challengeId),
+            dofensiveMonsterName: dungeon.dofensiveMonsterName || "",
+            dofensiveDungeonName: dungeon.dofensiveDungeonName || "",
+            isNoAchievement: dungeon.isNoAchievement ?? false,
         });
         setIsDialogOpen(true);
     }
@@ -420,6 +435,13 @@ export default function DungeonManager() {
                                                     onCheckedChange={(checked) => setFormData({ ...formData, isOcreQuest: checked })}
                                                     className="data-[state=checked]:bg-warning"
                                                 />
+                                                {/* Chantier « donjon sans succès » : le succès est d'être validé. */}
+                                                <span className="text-sm font-bold text-muted-foreground uppercase">Donjon sans succès</span>
+                                                <Switch
+                                                    checked={formData.isNoAchievement}
+                                                    onCheckedChange={(checked) => setFormData({ ...formData, isNoAchievement: checked })}
+                                                    className="data-[state=checked]:bg-foreground"
+                                                />
                                             </div>
                                         </div>
 
@@ -490,6 +512,35 @@ export default function DungeonManager() {
                                                     placeholder="https://dofensive.com/fr/monster/..."
                                                     className="h-14 bg-background border-border focus:border-info/50 focus:ring-ring/20 text-sm transition-all rounded-xl"
                                                 />
+                                            </div>
+                                        </div>
+
+                                        {/* Chantier double boss — dissociation affichage / résolution Dofensive.
+                                            Permet de pointer la « Balcon de … » du bon monstre même quand le nom affiché
+                                            est composé (ex. « Comte et Sylargh ») et qu'un donjon solo homonyme existe. */}
+                                        <div className="p-5 rounded-2xl bg-info/5 border border-info/20 space-y-4">
+                                            <p className="text-caption text-info/90 pl-1 font-bold uppercase tracking-widest">Résolution Dofensive (doubles boss)</p>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="space-y-3">
+                                                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Nom du monstre (Dofensive)</label>
+                                                    <Input
+                                                        value={formData.dofensiveMonsterName || ""}
+                                                        onChange={(e) => setFormData({ ...formData, dofensiveMonsterName: e.target.value })}
+                                                        placeholder="Ex: Sylargh"
+                                                        className="h-12 bg-background border-border focus:border-info/50 focus:ring-ring/20 text-sm transition-all rounded-xl"
+                                                    />
+                                                    <p className="text-[10px] text-muted-foreground pl-1 leading-relaxed">Nom EXACT du monstre Dofensive (celui qui apparaît sur la fiche). Sert à retrouver la « Balcon de … » correspondante.</p>
+                                                </div>
+                                                <div className="space-y-3">
+                                                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Nom du donjon (Dofensive)</label>
+                                                    <Input
+                                                        value={formData.dofensiveDungeonName || ""}
+                                                        onChange={(e) => setFormData({ ...formData, dofensiveDungeonName: e.target.value })}
+                                                        placeholder="Ex: Donjon du Comte Harebourg"
+                                                        className="h-12 bg-background border-border focus:border-info/50 focus:ring-ring/20 text-sm transition-all rounded-xl"
+                                                    />
+                                                    <p className="text-[10px] text-muted-foreground pl-1 leading-relaxed">Nom EXACT du donjon Dofensive, pour lever l'ambiguïté avec un donjon solo homonyme. Vides pour un donjon classique.</p>
+                                                </div>
                                             </div>
                                         </div>
 

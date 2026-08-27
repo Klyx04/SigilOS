@@ -15,6 +15,7 @@ import ArchimonstreManager from "./ArchimonstreManager";
 import { GameDataMonsterManager } from "./GameDataMonsterManager";
 import { DofusDbHarvestSyncManager } from "./DofusDbHarvestSyncManager";
 import { GameDataSiphonPanel } from "./GameDataSiphonPanel";
+import DefiManager from "./DefiManager";
 
 
 export default function GameDataInterface() {
@@ -38,6 +39,9 @@ export default function GameDataInterface() {
                     </TabsTrigger>
                     <TabsTrigger value="dungeons" className="px-3.5 py-2 shrink-0 whitespace-nowrap rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                         🏰 Donjons
+                    </TabsTrigger>
+                    <TabsTrigger value="defis" className="px-3.5 py-2 shrink-0 whitespace-nowrap rounded-xl font-bold data-[state=active]:bg-amber-600 data-[state=active]:text-white">
+                        ⚡ Défis
                     </TabsTrigger>
                     <TabsTrigger value="quests" className="px-3.5 py-2 shrink-0 whitespace-nowrap rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                         📜 Quêtes
@@ -77,6 +81,10 @@ export default function GameDataInterface() {
 
                 <TabsContent value="dungeons" className="space-y-4">
                     <DungeonManager />
+                </TabsContent>
+
+                <TabsContent value="defis" className="space-y-4">
+                    <DefiManager />
                 </TabsContent>
 
                 <TabsContent value="quests" className="space-y-6">

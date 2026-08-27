@@ -9,12 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-    Plus, Search, Swords, Map,
+    Plus, Search, Swords, Map, Zap,
     Users, CheckCircle2, X, Trophy, ChevronsUpDown, Check, ChevronRight, ScrollText, Hash, AlertTriangle, Layers
 } from "lucide-react";
 import { createDjPost, createDjPosts } from "@/server/actions/dungeon-finder-actions";
 import { DjMultiDungeonModal, type MultiDungeonSelection } from "./DjMultiDungeonModal";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
+import { getDefis } from "@/server/actions/defi-admin-actions";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
 import { PingEstimate } from "@/components/shared/ping-estimate";
 import { Switch } from "@/components/ui/switch";
@@ -55,6 +56,16 @@ interface Dungeon {
     }[];
 }
 
+interface Defi {
+    id: string;
+    name: string;
+    slug: string;
+    zone?: string | null;
+    level?: number | null;
+    imageUrl?: string | null;
+    bossNames?: { name: string }[] | null;
+}
+
 interface DjPostCreateModalProps {
     guildId: string;
     isOpen: boolean;
@@ -68,7 +79,13 @@ interface DjPostCreateModalProps {
 export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQuestName, isDiscordConfigured, onClose, onCreated }: DjPostCreateModalProps) {
     // Top-Level Mode
     const [step, setStep] = useState(1);
-    const [mode, setMode] = useState<"DONJON" | "QUETE">("DONJON");
+    const [mode, setMode] = useState<"DONJON" | "QUETE" | "DEFI">("DONJON");
+
+    // Défis
+    const [defis, setDefis] = useState<Defi[]>([]);
+    const [loadingDefis, setLoadingDefis] = useState(false);
+    const [defiSearch, setDefiSearch] = useState("");
+    const [selectedDefi, setSelectedDefi] = useState<Defi | null>(null);
 
     // Donjons
     const [dungeons, setDungeons] = useState<Dungeon[]>([]);
@@ -117,6 +134,8 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
             setDungeonSearch("");
             setSelectedDungeon(null);
             setSelectedAchievements([]);
+            setDefiSearch("");
+            setSelectedDefi(null);
             setQuestSearchQuery(initialQuestName || "");
             setQuestSearchResults([]);
             setSelectedQuest(null);
@@ -191,6 +210,23 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                 .finally(() => setLoadingDungeons(false));
         }
     }, [isOpen, dungeons.length]);
+
+    // Fetch Défis on open (mode Défi)
+    useEffect(() => {
+        if (isOpen && defis.length === 0) {
+            setLoadingDefis(true);
+            getDefis()
+                .then(res => { if (res.success && res.data) setDefis(res.data as Defi[]); })
+                .catch(console.error)
+                .finally(() => setLoadingDefis(false));
+        }
+    }, [isOpen, defis.length]);
+
+    const filteredDefis = useMemo(() => {
+        if (!defiSearch.trim()) return defis;
+        const q = defiSearch.toLowerCase();
+        return defis.filter(d => d.name.toLowerCase().includes(q) || (d.zone || "").toLowerCase().includes(q));
+    }, [defis, defiSearch]);
 
     // DofusDB Quest search debounce
     useEffect(() => {
@@ -284,6 +320,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
         if (isPending) return null;
         if (!multiActive && mode === "DONJON" && !selectedDungeon) return "Sélectionne un donjon dans la liste ci-dessus.";
         if (!multiActive && mode === "QUETE" && !selectedQuest) return "Choisis une quête dans la recherche ci-dessus.";
+        if (!multiActive && mode === "DEFI" && !selectedDefi) return "Choisis un défi dans la liste ci-dessus.";
         if (!multiActive && !targetDate) return "Renseigne le champ « Date & Heure prévue » ci-dessus.";
         return null;
     })();
@@ -335,6 +372,10 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
             toast.error("Veuillez choisir ou saisir manuellement une quête.");
             return;
         }
+        if (mode === "DEFI" && !selectedDefi) {
+            toast.error("Veuillez choisir un défi.");
+            return;
+        }
         if (!targetDate) {
             toast.error("Veuillez définir une date et une heure prévues.");
             return;
@@ -351,6 +392,8 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
             questId: mode === "QUETE" ? selectedQuest!.id : (linkedQuest ? linkedQuest.id : null),
             questName: mode === "QUETE" ? selectedQuest!.name : (linkedQuest ? linkedQuest.name : null),
             questUrl: mode === "QUETE" && questUrl ? questUrl : null,
+            defiId: mode === "DEFI" ? selectedDefi!.id : null,
+            defiName: mode === "DEFI" ? selectedDefi!.name : null,
             wantedAchievementIds: mode === "DONJON" ? selectedAchievements : [],
             maxMembers,
             message: message ? message : null,
@@ -384,7 +427,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                         </div>
                         <div className="flex flex-col">
                             <span className="text-xl tracking-tight text-foreground leading-none">
-                                {mode === "DONJON" ? "Nouveau Groupe Donjon" : "Nouveau Groupe Quête"}
+                                {mode === "DONJON" ? "Nouveau Groupe Donjon" : mode === "DEFI" ? "Nouveau Groupe Défi" : "Nouveau Groupe Quête"}
                             </span>
                             <span className="text-caption text-muted-foreground font-bold uppercase tracking-widest mt-1">
                                 Planifier une session de guilde
@@ -397,22 +440,28 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                 <div className="p-6 flex-1 overflow-y-auto premium-scrollbar min-h-0">
                         {step === 1 && (
                             <div className="space-y-6">
-                                {/* Mode Selector - Refined */}
-                                <div className="grid grid-cols-2 relative bg-surface/80 border border-border p-1 rounded-xl w-full">
-                                    <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-elevated border border-border rounded-xl transition-all duration-300 ease-out z-0 ${mode === "QUETE" ? "translate-x-full" : "translate-x-0"}`} />
+                                {/* Mode Selector - Refined (3 modes : Donjon / Quête / Défi) */}
+                                <div className="grid grid-cols-3 relative bg-surface/80 border border-border p-1 rounded-xl w-full">
                                     <button
                                         onClick={() => setMode("DONJON")}
-                                        className={`relative z-10 flex items-center justify-center gap-2 py-3 text-sm font-bold transition-all ${mode === "DONJON" ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                                        className={`relative z-10 flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-xl transition-all ${mode === "DONJON" ? "bg-elevated border border-border text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                                     >
                                         <Swords className={`w-4 h-4 transition-colors ${mode === "DONJON" ? "text-warning" : ""}`} />
                                         Mode Donjons
                                     </button>
                                     <button
                                         onClick={() => setMode("QUETE")}
-                                        className={`relative z-10 flex items-center justify-center gap-2 py-3 text-sm font-bold transition-all ${mode === "QUETE" ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                                        className={`relative z-10 flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-xl transition-all ${mode === "QUETE" ? "bg-elevated border border-border text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                                     >
                                         <Map className={`w-4 h-4 transition-colors ${mode === "QUETE" ? "text-success" : ""}`} />
                                         Mode Quêtes
+                                    </button>
+                                    <button
+                                        onClick={() => setMode("DEFI")}
+                                        className={`relative z-10 flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-xl transition-all ${mode === "DEFI" ? "bg-elevated border border-border text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                                    >
+                                        <Zap className={`w-4 h-4 transition-colors ${mode === "DEFI" ? "text-amber-500" : ""}`} />
+                                        Mode Défi
                                     </button>
                                 </div>
 
@@ -494,6 +543,74 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                         <Button size="sm" variant="outline" onClick={() => setIsMultiOpen(true)} className="h-9 px-4 rounded-xl text-caption font-black uppercase tracking-wider shrink-0">
                                             {multiDungeons ? `Modifier (${multiDungeons.length})` : "Choisir"}
                                         </Button>
+                                    </div>
+                                )}
+
+                                {/* Mode Défi — choisir un défi (événement one-shot) */}
+                                {mode === "DEFI" && (
+                                    <div className="space-y-4">
+                                        <div className="space-y-4 p-4 bg-surface rounded-xl border border-border">
+                                            <div className="space-y-3">
+                                                <p className="text-sm font-bold text-foreground">Choisir un défi</p>
+                                                {selectedDefi ? (
+                                                    <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+                                                        <div className="flex items-center gap-3 min-w-0">
+                                                            <div className="w-9 h-9 rounded-lg overflow-hidden bg-background border border-border shrink-0">
+                                                                {selectedDefi.imageUrl ? (
+                                                                    <img src={selectedDefi.imageUrl} alt={selectedDefi.name} className="w-full h-full object-contain p-0.5" />
+                                                                ) : (
+                                                                    <div className="w-full h-full flex items-center justify-center"><Zap className="w-4 h-4 text-amber-500" /></div>
+                                                                )}
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <p className="text-sm font-bold text-amber-500 truncate">{selectedDefi.name}</p>
+                                                                <p className="text-caption text-muted-foreground truncate">{selectedDefi.zone || "Zone inconnue"}</p>
+                                                            </div>
+                                                        </div>
+                                                        <Button variant="ghost" size="sm" onClick={() => setSelectedDefi(null)} className="text-muted-foreground hover:text-foreground shrink-0 ml-2">Modifier</Button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="relative">
+                                                        <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                                                        <input
+                                                            autoFocus
+                                                            type="text"
+                                                            value={defiSearch}
+                                                            onChange={(e) => setDefiSearch(e.target.value)}
+                                                            placeholder="Rechercher un défi..."
+                                                            className="w-full bg-surface/60 hover:bg-surface/80 border border-border focus:border-amber-500/50 rounded-xl pl-9 pr-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-amber-500/10 transition-all placeholder:text-muted-foreground"
+                                                        />
+                                                        {defiSearch.trim().length > 0 && (
+                                                            <div className="mt-3 bg-surface/50 border border-border rounded-xl overflow-hidden premium-scrollbar max-h-64 overflow-y-auto relative shadow-inner">
+                                                                {loadingDefis ? (
+                                                                    <div className="p-4 text-sm text-muted-foreground">Chargement…</div>
+                                                                ) : filteredDefis.length === 0 ? (
+                                                                    <div className="p-4 text-sm text-muted-foreground">Aucun défi trouvé pour “{defiSearch}”.</div>
+                                                                ) : filteredDefis.map((d) => (
+                                                                    <button
+                                                                        key={d.id}
+                                                                        onClick={() => { setSelectedDefi(d); setDefiSearch(""); }}
+                                                                        className="w-full flex items-center gap-3 p-3 hover:bg-elevated/60 border-b border-border/50 last:border-0 text-left transition-colors"
+                                                                    >
+                                                                        <div className="w-9 h-9 rounded-lg overflow-hidden bg-background border border-border shrink-0">
+                                                                            {d.imageUrl ? (
+                                                                                <img src={d.imageUrl} alt={d.name} className="w-full h-full object-contain p-0.5" />
+                                                                            ) : (
+                                                                                <div className="w-full h-full flex items-center justify-center"><Zap className="w-4 h-4 text-amber-500" /></div>
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <p className="text-sm font-bold text-foreground truncate">{d.name}</p>
+                                                                            <p className="text-caption text-muted-foreground truncate">{d.zone || "Zone inconnue"}{d.level ? ` · Lvl ${d.level}` : ""}</p>
+                                                                        </div>
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
 
@@ -610,9 +727,13 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                 ) : (
                                     <div className="flex items-center gap-4 bg-surface/60 rounded-3xl p-5 border border-border shadow-xl relative overflow-hidden group">
                                         <div className="absolute inset-0 bg-gradient-to-r from-warning/5 to-transparent opacity-50" />
-                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border relative z-10 ${mode === "DONJON" ? "bg-background border-border" : "bg-success/30 border-success/20"}`}>
+                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border relative z-10 ${mode === "DONJON" ? "bg-background border-border" : mode === "DEFI" ? "bg-amber-500/20 border-amber-500/30" : "bg-success/30 border-success/20"}`}>
                                             {mode === "DONJON" && selectedDungeon?.imageUrl ? (
                                                 <img src={selectedDungeon.imageUrl} alt="" className="w-10 h-10 object-contain group- transition-transform duration-300" />
+                                            ) : mode === "DEFI" && selectedDefi?.imageUrl ? (
+                                                <img src={selectedDefi.imageUrl} alt="" className="w-10 h-10 object-contain group- transition-transform duration-300" />
+                                            ) : mode === "DEFI" ? (
+                                                <Zap className="w-6 h-6 text-amber-500" />
                                             ) : mode === "DONJON" ? (
                                                 <Swords className="w-6 h-6 text-muted-foreground" />
                                             ) : (
@@ -621,7 +742,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                         </div>
                                         <div className="flex-1 min-w-0 relative z-10">
                                             <p className="font-black text-foreground text-lg tracking-tight truncate leading-tight">
-                                                {mode === "DONJON" ? selectedDungeon?.name : selectedQuest?.name}
+                                                {mode === "DONJON" ? selectedDungeon?.name : mode === "DEFI" ? selectedDefi?.name : selectedQuest?.name}
                                             </p>
                                             <div className="flex items-center gap-2 mt-1">
                                                 {mode === "DONJON" ? (

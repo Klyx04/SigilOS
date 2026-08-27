@@ -47,6 +47,14 @@
   seed `scripts/seed-harebourg-double-boss.ts` pour les 4 variantes du Comte Harebourg) · fiche boss = **map du boss uniquement**
   (`SpellRangeGrid`, filtre `shownMaps`). RESTE : merger la PR → dev · `sudo ./scripts/deploy-cd.sh beta` (aucun migrate Prisma,
   pas de changement de schéma) · siphonner les quêtes + ajouter les 4 variantes (UI recommandé ou seed tsx). `#57` ouverture prod toujours bloquant.
+
+- 📌 **Doubles boss & module Défi (27/08, ONE SHOT A+B+C+D)** (`feat/chantier-2026-08-27-double-boss-defi`, depuis `feat/chantier-2026-08-27-game-data-ui`, PR → dev) :
+  **A — Correctif doubles boss + dropdown map** : cause racine = `bossName` « Comte + Klime » ne matche pas le monstre Dofensive → `shownMaps` affichait toutes les maps. Fix = dissociation **affichage / résolution** : `name`/`bossName` restent « Comte et X », + 2 champs optionnels `Dungeon.dofensiveMonsterName` (`Klime`…) + `Dungeon.dofensiveDungeonName` (« Donjon du Comte Harebourg ») → `resolveDofensiveDungeonDirect` cible la bonne « Balcon » (et lève l'ambiguïté vs les donjons **solo** homonymes). `SpellRangeGrid` ne retombe plus sur toutes les maps. Script `scripts/fix-double-boss-resolution.ts` (idempotent, préserve les donjons solo) + seed MAJ. ·
+  **B — Donjon sans succès** : toggle « Donjon sans succès » (`Dungeon.isNoAchievement`) → pseudo-succès « Donjon validé » (challenge `donjon-valide`) relié au donjon → cochable dans « Mes Succès ». ·
+  **C — Sources communautaires** : déplacé dans les `actions` du `UnifiedModuleHeader` (`succes/page.tsx`). ·
+  **D — Module « Défi »** : modèle dédié `Defi` + `UserDefiProgress` + `DjSearchMode`=DEFI ; onglet « Défi » God (`DefiManager`) et `/succes` (`SuccesDefiTab`) ; 3ᵉ mode DJ (pièce, embed, clôture → `applyDefiValidation`), filtres/cartes/détail/close ; type image `defi` whitelisté.
+  Vérifs : **test:run 344/344** · **tsc 0** · **build OK** · eslint 0 erreur. Mémo : `src/temp/memo-2026-08-27-double-boss-defi.md`.
+  ⚠️ **Migration** `20261006000000_add_defi_double_boss_resolution` (SQL manuel) — la base locale est en **drift** (`add_inter_guild`), ne pas faire `migrate dev` (reset), utiliser **`prisma migrate deploy`** en CI/prod. Merger **d'abord** la PR game-data-ui → dev (fichiers communs). ⚪ RESTE (non fait) : multi-défis DJ, annuaire « qui a fait / pas fait » par membre (compteur simple), ingestion Dofensive des boss de défi, flag événement.
 - **#223 — Résilience Discord long terme** (point dur **16/11/2026**)
   P0 + P1 + P2 + fix CodeQL : ✅ FAIT + MERGÉ (PR #520, `6e5a779a3`).
   **RESTE (P3)** : outbox BullMQ/Redis écritures Discord · révocation session Auth.js sur

@@ -289,7 +289,14 @@ export function SpellRangeGrid({
         const filtered = dungeonMaps.filter(
             (m) => m.isBoss || (boss && m.name.toLowerCase().includes(boss))
         );
-        return filtered.length > 0 ? filtered : dungeonMaps;
+        if (filtered.length > 0) return filtered;
+        // Chantier double boss : si le boss a été résolu avec un monstre Dofensive dédié
+        // (nom contenu dans bossName), ne JAMAIS retomber sur toutes les maps — cela noierait
+        // le sélecteur avec les autres « Balcon de … ». À la place, on retourne les maps qui
+        // contiennent le même emplacement de donjon (préfixe « Balcon de … ») pour rester utile.
+        const prefixMap = dungeonMaps.filter((m) => boss && /balcon/i.test(m.name) && m.name.toLowerCase().includes(boss));
+        if (prefixMap.length > 0) return prefixMap;
+        return dungeonMaps;
     }, [dungeonMaps, bossName]);
 
     // Reset / garde de cohérence quand le boss (et donc ses maps) change.

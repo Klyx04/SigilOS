@@ -5,7 +5,7 @@ import { readdir, unlink } from "fs/promises";
 import { join, normalize, basename } from "path";
 
 const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
-const VALID_TYPES = ["achievement", "monster", "dungeon", "item", "legendary"];
+const VALID_TYPES = ["achievement", "monster", "dungeon", "item", "legendary", "defi"];
 
 // Chemin relatif sous /public pour chaque type (source unique, utilisé par GET + DELETE).
 function subPathFor(type: string): string {
@@ -15,6 +15,7 @@ function subPathFor(type: string): string {
         case "dungeon": return "game-data/dungeons";
         case "item": return "game-data/items";
         case "legendary": return "game-data/legendary";
+        case "defi": return "game-data/defis";
         default: return "";
     }
 }

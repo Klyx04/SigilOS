@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
-    Swords, Map, Users, Clock, Calendar, CheckCircle2,
+    Swords, Map, Zap, Users, Clock, Calendar, CheckCircle2,
     XCircle, LogIn, LogOut, Crown, Bell, MoreHorizontal
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -38,6 +38,11 @@ const MODE_META: Record<string, { label: string; color: string; icon: React.Elem
         label: "Quête", 
         color: "text-info bg-info/10 border-info/35", 
         icon: Map 
+    },
+    DEFI: { 
+        label: "Défi", 
+        color: "text-amber-500 bg-amber-500/10 border-amber-500/35", 
+        icon: Zap 
     },
 };
 
@@ -104,11 +109,11 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
     const isMulti = multiDungeons.length > 0;
     const title = isMulti
         ? `Multi-donjons — ${multiDungeons.length}`
-        : (post.mode === "DONJON" ? post.dungeon?.name : post.questName);
+        : (post.mode === "DONJON" ? post.dungeon?.name : post.mode === "DEFI" ? (post.defiName || "Défi") : post.questName);
     const subtitle = isMulti
         ? "Session de guilde multi-donjons"
-        : (post.mode === "DONJON" ? `${post.dungeon?.bossName} · Lvl ${post.dungeon?.level}` : "Quête");
-    const coverImage = isMulti ? (multiDungeons[0]?.imageUrl ?? null) : post.dungeon?.imageUrl;
+        : (post.mode === "DONJON" ? `${post.dungeon?.bossName} · Lvl ${post.dungeon?.level}` : post.mode === "DEFI" ? "Événement one-shot" : "Quête");
+    const coverImage = isMulti ? (multiDungeons[0]?.imageUrl ?? null) : (post.mode === "DONJON" ? post.dungeon?.imageUrl : post.mode === "DEFI" ? post.defi?.imageUrl : null);
 
     const isOpen = post.status === "OPEN" || post.status === "FULL";
     const isDonjon = post.mode === "DONJON";

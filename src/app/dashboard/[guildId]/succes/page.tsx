@@ -6,6 +6,7 @@ import { isModuleEnabled } from "@/server/actions/module-actions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import AccessDenied from "@/components/access-denied";
 import { SuccesClient } from "@/components/succes/SuccesClient";
+import { SuccesAttributionBanner } from "@/components/succes/SuccesAttributionBanner";
 
 export const metadata = {
     title: "Mes Succès | SigilOS",
@@ -37,6 +38,7 @@ export default async function SuccesPage({
                 icon={Trophy}
                 iconColor="#f59e0b"
                 backHref={`/dashboard/${guildId}`}
+                actions={<SuccesAttributionBanner />}
             />
 
             <Suspense

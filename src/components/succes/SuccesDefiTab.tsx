@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Circle, ExternalLink, Loader2, MapPin, Swords, Users, Search } from "lucide-react";
+import { CheckCircle2, Circle, ExternalLink, Loader2, MapPin, Swords, Users, Search, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getUserDefisData, toggleDefiCompleted } from "@/server/actions/defi-actions";
@@ -24,6 +24,9 @@ interface Defi {
     dpnlUrl?: string | null;
     dofuspourlesnoobsUrl?: string | null;
     bossNames: BossRef[] | null;
+    isPermanent?: boolean;
+    startDate?: string | null;
+    endDate?: string | null;
 }
 
 interface DefiProgressEntry {
@@ -173,6 +176,11 @@ export function SuccesDefiTab({ guildId, canEdit }: { guildId: string; canEdit: 
                                 {completedIds.has(selected.id) && <CheckCircle2 className="w-5 h-5 text-success" />}
                             </h3>
                             <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
+                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+                                {(selected.isPermanent ?? true)
+                                    ? <><Calendar className="w-3.5 h-3.5 text-warning/70" /> Dispo en perpétuel</>
+                                    : <><Calendar className="w-3.5 h-3.5 text-warning/70" /> {selected.startDate ? new Date(selected.startDate).toLocaleDateString("fr-FR") : "?"} → {selected.endDate ? new Date(selected.endDate).toLocaleDateString("fr-FR") : "?"}</>}
+                            </p>
                                 <MapPin className="w-3.5 h-3.5 text-warning" />
                                 {selected.zone || "Zone inconnue"} {selected.level ? `· Lvl ${selected.level}` : ""}
                             </p>

@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
+import { searchQuestsLocalThenDofusDB } from "./dofus-search-actions";
 
 // ---------------------------------------------------------------------------
 // DUNGEON PICKER
@@ -87,10 +88,13 @@ export async function searchGameQuests(
     query?: string
 ): Promise<{ success: true; data: GameQuestResult[] } | { success: false; error: string }> {
     try {
-        // GameQuest is global data — no guild isolation needed
-        const quests = await db.gameQuest.findMany({
-            where: query
-                ? { name: { contains: query, mode: "insensitive" } }
+        const q = (query ?? "").trim();
+
+        // GameQuest is global data — no guild isolation needed.
+        // Recherche locale en priorité (on garde `levelMax` natif).
+        const localQuests = await db.gameQuest.findMany({
+            where: q
+                ? { name: { contains: q, mode: "insensitive" } }
                 : undefined,
             select: {
                 id: true,
@@ -104,7 +108,36 @@ export async function searchGameQuests(
             take: 20,
         });
 
-        return { success: true, data: quests };
+        if (localQuests.length > 0 || q.length < 2) {
+            // Résultat local (ou aucune recherche assez précise) → on le retourne tel quel.
+            return { success: true, data: localQuests };
+        }
+
+        // Aucun résultat local → fallback en direct sur l'API DofusDB.
+        const res = await searchQuestsLocalThenDofusDB(q);
+        if (!res.success) return { success: false, error: res.error ?? "Recherche DofusDB impossible" };
+
+        // `res.data` résulte d'une union de branches (local / dofusdb) → on typifie le fallback.
+        const fallbackData = res.data as Array<{
+            id: string;
+            name: string;
+            category: string | null;
+            levelMin: number | null;
+            imageUrl: string | null;
+        }>;
+
+        return {
+            success: true,
+            data: fallbackData.map((quest) => ({
+                id: quest.id,
+                name: quest.name,
+                category: quest.category ?? null,
+                levelMin: quest.levelMin ?? null,
+                // DofusDB n'expose pas levelMax dans ce fallback.
+                levelMax: null,
+                imageUrl: quest.imageUrl ?? null,
+            })),
+        };
     } catch (error) {
         logger.error("[searchGameQuests]", error);
         return { success: false, error: "Erreur interne" };

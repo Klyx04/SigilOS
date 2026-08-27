@@ -681,7 +681,10 @@ export async function siphonQuestsFromDofusDB(limit = 100): Promise<ActionRespon
 
         while (fetched < capped) {
             const take = Math.min(pageSize, capped - fetched);
-            const res = await fetch(`https://api.dofusdb.fr/quests?limit=${take}&page=${page}`, {
+            // DofusDB pagine via `$limit`/`$skip` (et NON `limit`/`page`, qui renvoient un
+            // `total:0` / `data:[]` → bug « 0 quête siphonnée »). `$skip` = offset cumulé.
+            const skip = (page - 1) * pageSize;
+            const res = await fetch(`https://api.dofusdb.fr/quests?$limit=${take}&$skip=${skip}`, {
                 headers: { Accept: "application/json" },
                 signal: AbortSignal.timeout(15000),
             });
@@ -730,6 +733,10 @@ export async function siphonQuestsFromDofusDB(limit = 100): Promise<ActionRespon
             }
 
             fetched += data.length;
+
+            // Fin de pagination : DofusDB a renvoyé moins d'éléments que demandés.
+            if (data.length < take) break;
+
             page++;
         }
 

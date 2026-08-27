@@ -351,11 +351,17 @@ export async function unlinkFamilyFromZone(zoneId: string, familyId: string): Pr
 export async function autoAssociateAllZoneFamilies(): Promise<ActionResponse<{
     zonesScanned: number;
     familiesLinked: number;
+    archisWithZone: number;
     matches: { zoneName: string; familyName: string }[];
 }>> {
     if (!(await canAccessGameData())) return { success: false, error: 'Non autorisé' };
 
     try {
+        // Normalisation : minuscules + suppression des accents → matching robuste (casse/accents)
+        // sans risque de faux positif (on exige l'ÉGALITÉ des noms normalisés, pas un « contains »).
+        const norm = (s: string | null | undefined) =>
+            (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
         const zones = await db.zone.findMany({
             select: { id: true, name: true, families: { select: { id: true } } },
             orderBy: { name: 'asc' },
@@ -366,16 +372,20 @@ export async function autoAssociateAllZoneFamilies(): Promise<ActionResponse<{
             select: { zone: true, subzone: true, name: true },
         });
 
-        // Index zone name → archimonstres (nom exact uniquement).
+        // Index zone (normalisée) → archimonstres présents.
         const archisByZone = new Map<string, string[]>();
         for (const a of allArchis) {
             for (const zoneName of [a.zone, a.subzone]) {
                 if (!zoneName) continue;
-                const list = archisByZone.get(zoneName) ?? [];
+                const key = norm(zoneName);
+                const list = archisByZone.get(key) ?? [];
                 if (!list.includes(a.name)) list.push(a.name);
-                archisByZone.set(zoneName, list);
+                archisByZone.set(key, list);
             }
         }
+
+        // Diagnostic : nb d'archis portant une zone/sous-zone (source de l'association).
+        const archisWithZone = allArchis.length;
 
         // Précharge les familles par nom de monstre (nom exact, un seul par famille).
         const allMonsters = await db.monster.findMany({ select: { name: true, familyId: true } });
@@ -388,7 +398,7 @@ export async function autoAssociateAllZoneFamilies(): Promise<ActionResponse<{
         const matches: { zoneName: string; familyName: string }[] = [];
 
         for (const zone of zones) {
-            const monsterNames = archisByZone.get(zone.name) ?? [];
+            const monsterNames = archisByZone.get(norm(zone.name)) ?? [];
             if (monsterNames.length === 0) continue;
 
             const linkedIds = new Set(zone.families.map(f => f.id));
@@ -418,7 +428,7 @@ export async function autoAssociateAllZoneFamilies(): Promise<ActionResponse<{
         }
 
         logger.info(`[autoAssociateAllZoneFamilies] ${matches.length} familles liées sur ${zones.length} zones`);
-        return { success: true, data: { zonesScanned: zones.length, familiesLinked, matches } };
+        return { success: true, data: { zonesScanned: zones.length, familiesLinked, archisWithZone, matches } };
     } catch (error) {
         logger.error('[autoAssociateAllZoneFamilies] Error:', { error });
         return { success: false, error: 'Erreur lors de l\'association automatique' };

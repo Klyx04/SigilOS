@@ -28,6 +28,20 @@
 
 ## 🔴 En cours / continuation
 
+- ✅ **Game Data — État des lieux & UI (27/08)** (`feat/chantier-2026-08-27-game-data-ui`, branche créée depuis `dev`, PR → dev) :
+  **bug « Siphonner les quêtes » corrigé** (DofusDB pagine via `$limit`/`$skip` — avec `limit`/`page` l'API renvoie `total:0` → « 0 quête siphonnée », reproduit) ·
+  dé-doublonnage des points d'entrée (`/god/game-data` → `redirect` vers l'onglet canonique `/god?tab=game-data`,
+  qui porte déjà stats réelles + GameDataInterface + EventZoneManager) · galerie des modales (succès/boss) enrichie
+  (**recherche** + **suppression d'image**, nouveau `DELETE /api/god/list-local-images` fail-closed anti path-traversal) ·
+  onglets aérés (rangée unique qui défile, padding/gap élargis) · onglet Quêtes clarifié (« Import initial » vs « Synchronisation »).
+  Vérifs : **test:run 340/340** · **tsc 0** · **eslint 0 erreur** · **build OK**. Mémo : `src/temp/memo-2026-08-27-game-data.md`.
+  ⚪ RESTE (optionnel) : « Archis & Boss » = onglet (tab) **et** route standalone `/god/game-data/archimonstres` (2 views du même module) ·
+  2 galeries d'assets parallèles (`LocalImagePicker` vs `AssetGalleryModal`) à unifier · `EventZoneManager` à ne monter qu'une fois ·
+  déploiement = re-build app.
+  ➕ **Compléments (27/08 — A/B/C)** : `searchGameQuests` = **local-first + fallback DofusDB** (le picker membre profite désormais du fallback,
+  + test `tests/unit/quest-picker-fallback.test.ts`) · bouton « Associer familles (auto) » = matching **normalisé** (casse/accents) + diagnostic
+  `archisWithZone` (explique quand 0 association) · onglet Import/Export documenté (couverture = **4 tables** seulement, export Git **dev-only**,
+  **complémentaire** au siphon DofusDB — pas obsolète mais partiellement supplanté). Vérifs : test:run **343/343** · tsc 0 · build OK.
 - **#223 — Résilience Discord long terme** (point dur **16/11/2026**)
   P0 + P1 + P2 + fix CodeQL : ✅ FAIT + MERGÉ (PR #520, `6e5a779a3`).
   **RESTE (P3)** : outbox BullMQ/Redis écritures Discord · révocation session Auth.js sur

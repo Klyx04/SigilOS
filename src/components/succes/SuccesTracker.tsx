@@ -158,9 +158,9 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
             if (cancelled) return;
             if (dungeonsRes.success && dungeonsRes.data) {
                 setDungeons(
-                    (dungeonsRes.data as Dungeon[])
-                        .filter((d) => d.achievements.length > 0)
-                        .sort((a, b) => a.level - b.level)
+                    // On inclut AUSSI les donjons sans succès associé (ils doivent rester visibles,
+                    // p.ex. via /succes?dungeon=<id>). L'écran gère l'état « 0 succès ».
+                    (dungeonsRes.data as Dungeon[]).sort((a, b) => a.level - b.level)
                 );
             }
             if (progressRes.success && progressRes.data) {
@@ -300,6 +300,8 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
             const matchLevel = d.level >= minLevel && d.level <= maxLevel;
             if (!matchSearch || !matchLevel) return false;
             const done = d.achievements.filter((a) => completedIds.has(a.id)).length;
+            // Un donjon sans aucun succès n'est ni « done » ni « todo » → il reste visible sous « Tous ».
+            if (d.achievements.length === 0) return true;
             if (status === "done") return done === d.achievements.length;
             if (status === "todo") return done < d.achievements.length;
             return true;
@@ -456,7 +458,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                         filteredDungeons.map((d) => {
                             const done = d.achievements.filter((a) => completedIds.has(a.id)).length;
                             const pct = d.achievements.length ? Math.round((done / d.achievements.length) * 100) : 0;
-                            const complete = done === d.achievements.length;
+                            const complete = d.achievements.length > 0 && done === d.achievements.length;
                             const active = d.id === selectedDungeonId;
                             return (
                                 <button

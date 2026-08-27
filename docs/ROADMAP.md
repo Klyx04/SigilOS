@@ -42,6 +42,11 @@
   + test `tests/unit/quest-picker-fallback.test.ts`) · bouton « Associer familles (auto) » = matching **normalisé** (casse/accents) + diagnostic
   `archisWithZone` (explique quand 0 association) · onglet Import/Export documenté (couverture = **4 tables** seulement, export Git **dev-only**,
   **complémentaire** au siphon DofusDB — pas obsolète mais partiellement supplanté). Vérifs : test:run **343/343** · tsc 0 · build OK.
+  ✅ **COMMIT + PUSH** : `4b58cfe45` sur `feat/chantier-2026-08-27-game-data-ui` (poussée → origin, PR → dev). Ajouts finaux :
+  donjon à 0 succès **visible** dans `/succes?dungeon=` (`SuccesTracker`) · même emplacement + **plusieurs boss** (aide de sémantique +
+  seed `scripts/seed-harebourg-double-boss.ts` pour les 4 variantes du Comte Harebourg) · fiche boss = **map du boss uniquement**
+  (`SpellRangeGrid`, filtre `shownMaps`). RESTE : merger la PR → dev · `sudo ./scripts/deploy-cd.sh beta` (aucun migrate Prisma,
+  pas de changement de schéma) · siphonner les quêtes + ajouter les 4 variantes (UI recommandé ou seed tsx). `#57` ouverture prod toujours bloquant.
 - **#223 — Résilience Discord long terme** (point dur **16/11/2026**)
   P0 + P1 + P2 + fix CodeQL : ✅ FAIT + MERGÉ (PR #520, `6e5a779a3`).
   **RESTE (P3)** : outbox BullMQ/Redis écritures Discord · révocation session Auth.js sur

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, useCallback, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -17,14 +17,20 @@ import {
     createDefi,
     updateDefi,
     deleteDefi,
+    searchMonstersForDefi,
+    type DefiFormValues,
 } from "@/server/actions/defi-admin-actions";
-import { Search, Plus, MapPin, Swords, MoreHorizontal, Edit2, Trash2 } from "lucide-react";
+import { slugifyName } from "@/lib/defi-slug";
+import { searchZones } from "@/server/actions/game-data-actions";
+import { Search, Plus, MapPin, Swords, MoreHorizontal, Edit2, Trash2, CalendarRange, Infinity, Calendar, X } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AsyncCombobox, type ComboboxItem } from "@/components/ui/async-combobox";
+import { Switch } from "@/components/ui/switch";
 
 interface BossRef {
     name: string;
@@ -44,20 +50,53 @@ interface Defi {
     dpnlUrl?: string | null;
     dofuspourlesnoobsUrl?: string | null;
     bossNames: BossRef[] | null;
+    isPermanent?: boolean;
+    startDate?: string | null;
+    endDate?: string | null;
 }
 
-const EMPTY_FORM = {
+/** Valeurs de formulaire (miroir du schéma serveur) — slug auto-généré + dates d'événement. */
+type DefiFormState = {
+    name: string;
+    slug: string;
+    description: string;
+    zone: string;
+    level: number | null;
+    imageUrl: string;
+    dofensiveUrl: string;
+    dpnlUrl: string;
+    dofuspourlesnoobsUrl: string;
+    bosses: BossRef[];
+    isPermanent: boolean;
+    startDate: string;
+    endDate: string;
+};
+
+const EMPTY_FORM: DefiFormState = {
     name: "",
     slug: "",
     description: "",
     zone: "",
-    level: 200 as number | null,
+    level: 200,
     imageUrl: "",
     dofensiveUrl: "",
     dpnlUrl: "",
     dofuspourlesnoobsUrl: "",
-    bosses: [] as BossRef[],
+    bosses: [],
+    isPermanent: true,
+    startDate: "",
+    endDate: "",
 };
+
+/** Convertit une valeur Date|null (ISO) en valeur `<input type="datetime-local">`. */
+function toDateTimeLocal(v: string | null | undefined): string {
+    if (!v) return "";
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return "";
+    // datetime-local attend "YYYY-MM-DDTHH:mm" (fuseau local).
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 export default function DefiManager() {
     const [defis, setDefis] = useState<Defi[]>([]);
@@ -97,6 +136,9 @@ export default function DefiManager() {
             dpnlUrl: d.dpnlUrl || "",
             dofuspourlesnoobsUrl: d.dofuspourlesnoobsUrl || "",
             bosses: Array.isArray(d.bossNames) ? d.bossNames : [],
+            isPermanent: d.isPermanent ?? true,
+            startDate: toDateTimeLocal(d.startDate),
+            endDate: toDateTimeLocal(d.endDate),
         });
         setIsDialogOpen(true);
     }
@@ -107,11 +149,30 @@ export default function DefiManager() {
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
-        if (!formData.name || !formData.slug) {
-            toast.error("Nom et slug requis");
+        if (!formData.name) {
+            toast.error("Nom requis");
             return;
         }
-        const result = editing ? await updateDefi(editing, formData as any) : await createDefi(formData as any);
+        if (!formData.isPermanent && (!formData.startDate || !formData.endDate)) {
+            toast.error("Renseigne les dates de début et de fin (ou passe le défi en permanent)");
+            return;
+        }
+        const payload: DefiFormValues = {
+            name: formData.name,
+            slug: slugifyName(formData.slug || formData.name),
+            description: formData.description,
+            zone: formData.zone,
+            level: formData.level,
+            imageUrl: formData.imageUrl,
+            dofensiveUrl: formData.dofensiveUrl,
+            dpnlUrl: formData.dpnlUrl,
+            dofuspourlesnoobsUrl: formData.dofuspourlesnoobsUrl,
+            bosses: formData.bosses,
+            isPermanent: formData.isPermanent,
+            startDate: formData.isPermanent ? null : formData.startDate ? new Date(formData.startDate) : null,
+            endDate: formData.isPermanent ? null : formData.endDate ? new Date(formData.endDate) : null,
+        };
+        const result = editing ? await updateDefi(editing, payload) : await createDefi(payload);
         if (result.success) {
             toast.success(editing ? "Défi mis à jour" : "Défi créé");
             resetForm();
@@ -162,11 +223,35 @@ function DefiManagerView(props: {
     isDialogOpen: boolean;
     onDialogOpenChange: (o: boolean) => void;
     editing: string | null;
-    formData: typeof EMPTY_FORM;
-    setFormData: (v: typeof EMPTY_FORM) => void;
+    formData: DefiFormState;
+    setFormData: (v: DefiFormState) => void;
     onSubmit: (e: FormEvent) => void;
 }) {
-    const { loading, filtered, searchQuery, setSearchQuery, onNew, onEdit, onDelete } = props;
+    const { loading, filtered, searchQuery, setSearchQuery, onNew, onEdit, onDelete, formData, setFormData } = props;
+
+    // Zones siphonnées (nom) pour le dropdown « Zone ».
+    const zoneFetcher = useCallback(async (q: string): Promise<ComboboxItem[]> => {
+        const res = await searchZones(q);
+        if (!res.success || !res.data) return [];
+        return (res.data as any[])
+            .filter((z) => z?.name)
+            .map((z) => ({ value: z.name, label: z.name, subLabel: z.level ? `Lvl ${z.level}` : undefined }));
+    }, []);
+
+    // Monstres Dofensive siphonnés pour le dropdown « Boss du défi ».
+    const bossFetcher = useCallback(async (q: string): Promise<ComboboxItem[]> => {
+        const res = await searchMonstersForDefi(q);
+        if (!res.success || !res.data) return [];
+        return (res.data as any[]).map((m) => ({ value: m.value, label: m.label, subLabel: m.subLabel }));
+    }, []);
+
+    // Génère le slug à partir du nom tant que l'utilisateur n'a pas touché le champ slug.
+    function handleNameChange(name: string) {
+        setFormData({ ...formData, name, slug: formData.slug || slugifyName(name) });
+    }
+    function handleSlugChange(slug: string) {
+        setFormData({ ...formData, slug: slugifyName(slug) });
+    }
     return (
         <div className="space-y-6">
             {/* Toolbar */}
@@ -210,6 +295,11 @@ function DefiManagerView(props: {
                                     <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
                                         {d.zone ? <><MapPin className="w-3 h-3" /> {d.zone} · </> : null}
                                         {d.level ? <>Lvl {d.level}</> : "Niveau variable"}
+                                    <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
+                                        {(d.isPermanent ?? true)
+                                            ? <><Infinity className="w-3 h-3" /> Dispo en perpétuel</>
+                                            : <><Calendar className="w-3 h-3" /> {d.startDate ? new Date(d.startDate).toLocaleDateString("fr-FR") : "?"} → {d.endDate ? new Date(d.endDate).toLocaleDateString("fr-FR") : "?"}</>}
+                                    </p>
                                     </p>
                                 </div>
                                 <DropdownMenu>
@@ -255,38 +345,48 @@ function DefiManagerView(props: {
                             <div className="space-y-3">
                                 <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Nom du Défi <span className="text-danger text-lg">*</span></label>
                                 <Input
-                                    value={props.formData.name}
-                                    onChange={(e) => props.setFormData({ ...props.formData, name: e.target.value })}
+                                    value={formData.name}
+                                    onChange={(e) => handleNameChange(e.target.value)}
                                     required
                                     placeholder="Ex: Défi du Xélor fou"
                                 />
                             </div>
                             <div className="space-y-3">
-                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Slug <span className="text-danger text-lg">*</span></label>
-                                <Input
-                                    value={props.formData.slug}
-                                    onChange={(e) => props.setFormData({ ...props.formData, slug: e.target.value })}
-                                    required
-                                    placeholder="Ex: defi-du-xelor-fou"
-                                />
+                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Slug <span className="normal-case font-medium text-muted-foreground">(auto)</span></label>
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        value={formData.slug}
+                                        onChange={(e) => handleSlugChange(e.target.value)}
+                                        placeholder="Automatique"
+                                        className="flex-1"
+                                    />
+                                    <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground" title="Régénérer depuis le nom" onClick={() => handleSlugChange(slugifyName(formData.name))}>
+                                        <Infinity className="w-4 h-4" />
+                                    </Button>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground pl-1">Généré depuis le nom — tu n'as rien à saisir. Ex. <code>defi-du-xelor-fou</code>.</p>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-3">
-                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Zone</label>
-                                <Input
-                                    value={props.formData.zone}
-                                    onChange={(e) => props.setFormData({ ...props.formData, zone: e.target.value })}
-                                    placeholder="Ex: Amakna"
+                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Zone <span className="normal-case font-medium text-muted-foreground">(siphonnée)</span></label>
+                                <AsyncCombobox
+                                    value={formData.zone || ""}
+                                    onSelect={(v) => setFormData({ ...formData, zone: v })}
+                                    fetcher={zoneFetcher}
+                                    placeholder="Choisir une zone..."
+                                    searchPlaceholder="Rechercher une zone..."
+                                    emptyText="Aucune zone trouvée (zones siphonnées)."
+                                    initialLabel={formData.zone || undefined}
                                 />
                             </div>
                             <div className="space-y-3">
                                 <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Niveau</label>
                                 <Input
                                     type="number"
-                                    value={props.formData.level ?? ""}
-                                    onChange={(e) => props.setFormData({ ...props.formData, level: e.target.value ? Number(e.target.value) : null })}
+                                    value={formData.level ?? ""}
+                                    onChange={(e) => setFormData({ ...formData, level: e.target.value ? Number(e.target.value) : null })}
                                     placeholder="200"
                                 />
                             </div>
@@ -296,34 +396,39 @@ function DefiManagerView(props: {
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
                                 <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Boss du défi <span className="text-muted-foreground normal-case font-medium">(un ou plusieurs)</span></label>
-                                <Button type="button" variant="outline" size="sm" onClick={() => props.setFormData({ ...props.formData, bosses: [...props.formData.bosses, { name: "" }] })}>
+                                <Button type="button" variant="outline" size="sm" onClick={() => setFormData({ ...formData, bosses: [...formData.bosses, { name: "" }] })}>
                                     <Plus className="w-3.5 h-3.5 mr-1.5" /> Ajouter un boss
                                 </Button>
                             </div>
                             <div className="space-y-2">
-                                {props.formData.bosses.map((b, i) => (
+                                {formData.bosses.map((b, i) => (
                                     <div key={i} className="flex items-center gap-2">
-                                        <Input
-                                            value={b.name}
-                                            onChange={(e) => {
-                                                const bosses = [...props.formData.bosses];
-                                                bosses[i] = { ...bosses[i], name: e.target.value };
-                                                props.setFormData({ ...props.formData, bosses });
-                                            }}
-                                            placeholder={`Boss ${i + 1}`}
-                                            className="flex-[2]"
-                                        />
+                                        <div className="flex-[2]">
+                                            <AsyncCombobox
+                                                value={b.name}
+                                                onSelect={(v) => {
+                                                    const bosses = [...formData.bosses];
+                                                    bosses[i] = { ...bosses[i], name: v };
+                                                    setFormData({ ...formData, bosses });
+                                                }}
+                                                fetcher={bossFetcher}
+                                                placeholder={`Boss ${i + 1}`}
+                                                searchPlaceholder="Nom du boss (monstres siphonnés)..."
+                                                emptyText="Aucun monstre trouvé."
+                                                initialLabel={b.name || undefined}
+                                            />
+                                        </div>
                                         <Input
                                             value={b.imageUrl || ""}
                                             onChange={(e) => {
-                                                const bosses = [...props.formData.bosses];
+                                                const bosses = [...formData.bosses];
                                                 bosses[i] = { ...bosses[i], imageUrl: e.target.value };
-                                                props.setFormData({ ...props.formData, bosses });
+                                                setFormData({ ...formData, bosses });
                                             }}
                                             placeholder="URL image (optionnel)"
                                             className="flex-[3]"
                                         />
-                                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground" onClick={() => props.setFormData({ ...props.formData, bosses: props.formData.bosses.filter((_, x) => x !== i) })}>
+                                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground" onClick={() => setFormData({ ...formData, bosses: formData.bosses.filter((_, x) => x !== i) })}>
                                             ×
                                         </Button>
                                     </div>
@@ -334,19 +439,68 @@ function DefiManagerView(props: {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-3">
                                 <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Lien Dofensive</label>
-                                <Input value={props.formData.dofensiveUrl} onChange={(e) => props.setFormData({ ...props.formData, dofensiveUrl: e.target.value })} placeholder="https://dofensive.com/fr/..." />
+                                <Input value={formData.dofensiveUrl} onChange={(e) => setFormData({ ...formData, dofensiveUrl: e.target.value })} placeholder="https://dofensive.com/fr/..." />
                             </div>
                             <div className="space-y-3">
                                 <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Lien DofusPourLesNoobs</label>
-                                <Input value={props.formData.dofuspourlesnoobsUrl} onChange={(e) => props.setFormData({ ...props.formData, dofuspourlesnoobsUrl: e.target.value })} placeholder="https://www.dofuspourlesnoobs.com/..." />
+                                <Input value={formData.dofuspourlesnoobsUrl} onChange={(e) => setFormData({ ...formData, dofuspourlesnoobsUrl: e.target.value })} placeholder="https://www.dofuspourlesnoobs.com/..." />
                             </div>
+                        </div>
+
+                        {/* Fenêtre d'événement : permanent (par défaut) ou bornée [début -> fin] */}
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
+                                    <CalendarRange className="w-4 h-4" /> Fenêtre d'événement
+                                </label>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                        <Infinity className="w-3.5 h-3.5" /> Dispo en perpétuel
+                                    </span>
+                                    <Switch
+                                        checked={formData.isPermanent}
+                                        onCheckedChange={(v) => setFormData({ ...formData, isPermanent: v })}
+                                    />
+                                </div>
+                            </div>
+
+                            {!formData.isPermanent && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-surface/40 border border-border rounded-xl p-4">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-1.5">
+                                            <Calendar className="w-3.5 h-3.5" /> Début de l'événement
+                                        </label>
+                                        <Input
+                                            type="datetime-local"
+                                            value={formData.startDate}
+                                            onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-1.5">
+                                            <Calendar className="w-3.5 h-3.5" /> Fin de l'événement
+                                        </label>
+                                        <Input
+                                            type="datetime-local"
+                                            value={formData.endDate}
+                                            onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {!formData.isPermanent && (
+                                <p className="text-[11px] text-muted-foreground pl-1">
+                                    L'événement a lieu entre <strong>{formData.startDate ? new Date(formData.startDate).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "—"}</strong> et <strong>{formData.endDate ? new Date(formData.endDate).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "—"}</strong>.
+                                </p>
+                            )}
                         </div>
 
                         <div className="space-y-3">
                             <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Description</label>
                             <textarea
-                                value={props.formData.description}
-                                onChange={(e) => props.setFormData({ ...props.formData, description: e.target.value })}
+                                value={formData.description}
+                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                 placeholder="Conditions du défi, récompenses…"
                                 rows={3}
                                 className="w-full bg-surface/60 border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-warning/30"
@@ -358,9 +512,9 @@ function DefiManagerView(props: {
                             <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Illustration</label>
                             <ImageDownloader
                                 type="defi"
-                                imageUrl={props.formData.imageUrl}
-                                identifier={props.formData.name}
-                                onImageDownloaded={(path) => props.setFormData({ ...props.formData, imageUrl: path })}
+                                imageUrl={formData.imageUrl}
+                                identifier={formData.name}
+                                onImageDownloaded={(path) => setFormData({ ...formData, imageUrl: path })}
                             />
                         </div>
 

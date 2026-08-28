@@ -30,7 +30,7 @@ import {
   reorderRushMilestones,
   reorderRushSequences,
 } from "@/server/actions/optimized-guide-actions";
-import { searchDungeonsLocal, searchGuideQuests } from "@/server/actions/dofus-search-actions";
+import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB } from "@/server/actions/dofus-search-actions";
 import { DOFUS_WORLDS } from "@/lib/dofus-assets";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -49,9 +49,10 @@ type ActivityTagType =
   | "sort"
   | "metier"
   | "solver"
-  | "quest_group";
+  | "quest_group"
+  | "item";
 
-type ActivityTag = { type: ActivityTagType; name?: string; level?: number; count?: number; color?: string; url?: string };
+type ActivityTag = { type: ActivityTagType; name?: string; level?: number; count?: number; color?: string; url?: string; id?: string; imageUrl?: string; quantity?: number };
 
 type Sequence = {
   id: string;
@@ -1439,6 +1440,147 @@ function ActivityTagsEditor({ tags, onChange }: {
 }
 
 
+// ─── RequiredItemsEditor ───────────────────────────────────────────────────
+function RequiredItemsEditor({
+  items,
+  onChange,
+}: {
+  items: Array<{ id?: string; name: string; quantity: number; imageUrl?: string; level?: number }>;
+  onChange: (items: Array<{ id?: string; name: string; quantity: number; imageUrl?: string; level?: number }>) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchTimeoutRef = useRef<any>(null);
+
+  const handleSearch = (q: string) => {
+    setQuery(q);
+    if (q.length < 2) {
+      setResults([]);
+      return;
+    }
+    clearTimeout(searchTimeoutRef.current);
+    setSearching(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      const res = await searchItemsLocalThenDofusDB(q);
+      if (res.success && res.data) {
+        setResults(res.data);
+      }
+      setSearching(false);
+    }, 250);
+  };
+
+  const addItem = (it: any) => {
+    const existingIndex = items.findIndex(x => x.name.toLowerCase() === it.name.toLowerCase() || (it.id && x.id === it.id));
+    if (existingIndex >= 0) {
+      const next = [...items];
+      next[existingIndex].quantity += 1;
+      onChange(next);
+    } else {
+      onChange([...items, {
+        id: it.id,
+        name: it.name,
+        quantity: 1,
+        imageUrl: it.imageUrl,
+        level: it.level
+      }]);
+    }
+    setQuery("");
+    setResults([]);
+  };
+
+  const updateQuantity = (idx: number, qty: number) => {
+    const next = [...items];
+    next[idx].quantity = Math.max(1, qty);
+    onChange(next);
+  };
+
+  const removeItem = (idx: number) => {
+    onChange(items.filter((_, i) => i !== idx));
+  };
+
+  return (
+    <div className="space-y-2 p-3 bg-zinc-950/60 rounded-xl border border-white/5 relative">
+      <div className="flex items-center justify-between">
+        <label className="text-caption font-black text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
+          📦 Objets & Ressources nécessaires ({items.length})
+        </label>
+      </div>
+
+      {/* Liste des items ajoutés */}
+      {items.length > 0 && (
+        <div className="flex flex-wrap gap-2 pt-1">
+          {items.map((it, idx) => (
+            <div key={idx} className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-200">
+              {it.imageUrl && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={it.imageUrl} alt={it.name} className="w-5 h-5 object-contain shrink-0" />
+              )}
+              <span className="font-bold truncate max-w-[140px]" title={it.name}>{it.name}</span>
+              <div className="flex items-center gap-1 bg-black/50 px-1.5 py-0.5 rounded-lg border border-amber-500/20">
+                <span className="text-[10px] text-zinc-400 font-mono">x</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={999999}
+                  value={it.quantity}
+                  onChange={(e) => updateQuantity(idx, parseInt(e.target.value, 10) || 1)}
+                  className="w-14 bg-transparent text-amber-300 font-black text-xs text-center focus:outline-none"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => removeItem(idx)}
+                className="hover:text-red-400 text-zinc-500 transition-colors ml-0.5"
+                title="Supprimer la ressource"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Input de recherche avec dropdown */}
+      <div className="relative">
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => handleSearch(e.target.value)}
+          placeholder="Rechercher une ressource (ex: Reflet onirique, Riz, Pépite)..."
+          className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/50"
+        />
+        {searching && (
+          <span className="absolute right-3 top-2 text-caption text-zinc-500 animate-pulse">Recherche...</span>
+        )}
+
+        {results.length > 0 && (
+          <div className="absolute left-0 right-0 top-full mt-1 bg-zinc-950 border border-amber-500/30 rounded-xl shadow-2xl z-50 max-h-52 overflow-y-auto custom-scrollbar p-1 space-y-0.5 backdrop-blur-xl">
+            {results.map((r) => (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => addItem(r)}
+                className="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-amber-500/20 text-left transition-colors group"
+              >
+                {r.imageUrl && (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={r.imageUrl} alt={r.name} className="w-6 h-6 object-contain shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-zinc-200 group-hover:text-white truncate">{r.name}</p>
+                  <p className="text-[10px] text-zinc-500">Niv. {r.level} • {r.typeName || "Ressource"}</p>
+                </div>
+                <Plus className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── SequenceEditForm ─────────────────────────────────────────────────────────
 function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, milestones }: {
   seq: Sequence; milestoneId: string; isPending: boolean;
@@ -1458,10 +1600,36 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
   const [activityTags, setActivityTags] = useState<ActivityTag[]>(
     Array.isArray(seq.activityTags) ? seq.activityTags as ActivityTag[] : []
   );
+  const [requiredItems, setRequiredItems] = useState<Array<{ id?: string; name: string; quantity: number; imageUrl?: string; level?: number }>>(() => {
+    return (seq.activityTags as any[])?.filter(t => t.type === "item").map(t => ({
+      id: t.id || (t.dofusdbId ? String(t.dofusdbId) : undefined),
+      name: t.name || "",
+      quantity: Number(t.quantity || t.count || 1),
+      imageUrl: t.imageUrl,
+      level: t.level
+    })) || [];
+  });
   const [selectedDofusId, setSelectedDofusId] = useState<string>(() => {
     const existing = (seq.activityTags as any[])?.find(t => t.type === "dofus_link");
     return existing?.name || "";
   });
+
+  const handleRequiredItemsChange = (items: Array<{ id?: string; name: string; quantity: number; imageUrl?: string; level?: number }>) => {
+    setRequiredItems(items);
+    setActivityTags(prev => {
+      const nonItemTags = prev.filter((t: any) => t.type !== "item");
+      const itemTags = items.map(it => ({
+        type: "item" as any,
+        id: it.id,
+        name: it.name,
+        quantity: it.quantity,
+        count: it.quantity,
+        imageUrl: it.imageUrl,
+        level: it.level
+      }));
+      return [...nonItemTags, ...itemTags];
+    });
+  };
 
   // Multiselect Prerequisites state
   const [prereqs, setPrereqs] = useState<string[]>(() => {
@@ -1940,6 +2108,9 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
         <ActivityTagsEditor tags={activityTags} onChange={setActivityTags} />
       </div>
 
+      {/* Objets & Ressources nécessaires */}
+      <RequiredItemsEditor items={requiredItems} onChange={handleRequiredItemsChange} />
+
       {/* Icône du bloc (optionnel) */}
       <div className="space-y-1.5">
         <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block">🖼️ Icône du bloc <span className="text-zinc-700 font-normal normal-case tracking-normal">(optionnel)</span></label>
@@ -2057,6 +2228,9 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
           </div>
         )}
       </div>
+
+      {/* ── Objets & Ressources nécessaires ────────────────────────── */}
+      <RequiredItemsEditor items={requiredItems} onChange={handleRequiredItemsChange} />
 
       {/* ── Déplacer vers un autre bloc ─────────────────────────────── */}
       {seq.id && milestones && milestones.length > 1 && (

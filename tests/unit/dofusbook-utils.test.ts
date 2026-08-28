@@ -29,6 +29,29 @@ describe("processDofusbookRawData — résolution de classe (#galerie Inconnu)",
         expect(res.classId).toBe(0);
         expect(res.className).toBe("");
     });
+
+    it("détecte les stats secondaires (retrait PA/PM, tacle, fuite) issues des effets d'items", () => {
+        const item = {
+            id: 1000,
+            name: "Bottes du retrait",
+            picture: 1,
+            official: 1,
+            effects: [
+                { name: "rpa", min: 2, max: 2 },
+                { name: "rpm", min: 1, max: 1 },
+                { name: "ta", min: 40, max: 40 },
+                { name: "fu", min: 30, max: 30 },
+            ],
+        };
+        const res = processDofusbookRawData("123", buildRaw({
+            stuff: { stuffItem: { bo: 1000 } },
+            items: [item],
+        }));
+        expect(res.stats?.retpa).toBe(2);
+        expect(res.stats?.retpm).toBe(1);
+        expect(res.stats?.tacle).toBe(40);
+        expect(res.stats?.fuite).toBe(30);
+    });
 });
 
 describe("getClassName", () => {

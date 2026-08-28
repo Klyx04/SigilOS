@@ -21,6 +21,10 @@ export type DofusbookPreviewData = {
         cc: number;
         invo: number;
         so: number;
+        retpa?: number;
+        retpm?: number;
+        tacle?: number;
+        fuite?: number;
     };
     /** Character real stats = items + capital + scrolls */
     elements: {
@@ -88,6 +92,7 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     let cc = 0;
     let invo = 1;
     let so = 0;
+    let retpa = 0, retpm = 0, tacle = 0, fuite = 0;
     let resN = 0, resT = 0, resF = 0, resE = 0, resA = 0;
 
     // Damages
@@ -166,6 +171,11 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
             case 'pp': pp += val; break;
             case 'invo': invo += val; break;
             case 'so': so += val; break;
+            // Retrait / esquive / tacle / fuite (Dofusbook: rpa, rpm, epa, epm, ta, fu)
+            case 'rpa': retpa += val; break;
+            case 'rpm': retpm += val; break;
+            case 'ta': tacle += val; break;
+            case 'fu': fuite += val; break;
         }
     };
 
@@ -281,6 +291,10 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     pp    += Number(fmGlobal.pp)  || 0;
     invo  += Number(fmGlobal.invo)|| 0;
     so    += Number(fmGlobal.so)  || 0;
+    retpa += Number(fmGlobal.rpa) || 0;
+    retpm += Number(fmGlobal.rpm) || 0;
+    tacle += Number(fmGlobal.ta)  || 0;
+    fuite += Number(fmGlobal.fu)  || 0;
     dn    += Number(fmGlobal.dnf) || 0;
     dt    += Number(fmGlobal.dtf) || 0;
     df    += Number(fmGlobal.dff) || 0;
@@ -319,6 +333,10 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
             pp    += Number(fmStats.pp)  || 0;
             invo  += Number(fmStats.invo)|| 0;
             so    += Number(fmStats.so)  || 0;
+            retpa += Number(fmStats.rpa) || 0;
+            retpm += Number(fmStats.rpm) || 0;
+            tacle += Number(fmStats.ta)  || 0;
+            fuite += Number(fmStats.fu)  || 0;
             dn    += Number(fmStats.dnf) || 0;
             dt    += Number(fmStats.dtf) || 0;
             df    += Number(fmStats.dff) || 0;
@@ -397,7 +415,7 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
         level,
         classId: validClassId ?? 0,
         className: validClassId ? getClassName(validClassId) : "",
-        stats: { pa, pm, po, vit, ini, pp, cc, invo, so },
+        stats: { pa, pm, po, vit, ini, pp, cc, invo, so, retpa, retpm, tacle, fuite },
         elements: { fo: el_fo, in: el_in, ch: el_ch, ag: el_ag, sa: el_sa, pu: el_pu },
         resists: { neutre: resN, terre: resT, feu: resF, eau: resE, air: resA },
         damages: { neutre: dn, terre: dt, feu: df, eau: de, air: da, general: dom, critique: dc, poussee: dp, armes: do_armes, sorts: do_sorts, melee: do_melee, distance: do_dist },

@@ -1,5 +1,64 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MAX_FILE_SIZE, detectMimeType } from "@/lib/image-security";
+import path from "node:path";
+import fs from "node:fs";
+import crypto from "node:crypto";
+
+// ─── Cache disque persistant ─────────────────────────────────────────────────
+// Les images proxifiées sont mises en cache localement pour être indépendantes
+// des sources externes (imgur, DofusDB, Ganymède…). Durée : 90 jours.
+// Dossier ignoré par git : /public/uploads/proxy-cache/
+const CACHE_DIR = path.join(process.cwd(), "public", "uploads", "proxy-cache");
+const CACHE_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 jours
+const MAX_CACHE_BYTES = 300 * 1024 * 1024; // 300 MB — plafond disque
+
+function ensureCacheDir() {
+  if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+}
+
+/**
+ * Éviction LRU : si le dossier cache dépasse MAX_CACHE_BYTES,
+ * supprime les 20 % de fichiers les plus anciens (par date de modification).
+ * Appelé uniquement avant une écriture, donc zéro overhead sur les lectures.
+ */
+function evictCacheIfNeeded() {
+  try {
+    const files = fs.readdirSync(CACHE_DIR).map(name => {
+      const fp = path.join(CACHE_DIR, name);
+      const stat = fs.statSync(fp);
+      return { fp, size: stat.size, mtime: stat.mtimeMs };
+    });
+    const totalBytes = files.reduce((sum, f) => sum + f.size, 0);
+    if (totalBytes <= MAX_CACHE_BYTES) return;
+    // Trier du plus ancien au plus récent, supprimer les 20% les plus vieux
+    files.sort((a, b) => a.mtime - b.mtime);
+    const toDelete = Math.max(1, Math.ceil(files.length * 0.2));
+    for (let i = 0; i < toDelete; i++) {
+      try { fs.unlinkSync(files[i].fp); } catch { /* ignore */ }
+    }
+  } catch { /* fail-open */ }
+}
+
+function urlToHash(url: string): string {
+  return crypto.createHash("sha256").update(url).digest("hex");
+}
+
+function mimeToExt(mime: string): string {
+  if (mime.includes("webp")) return ".webp";
+  if (mime.includes("png")) return ".png";
+  if (mime.includes("gif")) return ".gif";
+  if (mime.includes("svg")) return ".svg";
+  if (mime.includes("avif")) return ".avif";
+  return ".jpg"; // fallback
+}
+
+function findCacheFile(hash: string): { filePath: string; ext: string } | null {
+  for (const ext of [".webp", ".jpg", ".png", ".gif", ".svg", ".avif"]) {
+    const fp = path.join(CACHE_DIR, `${hash}${ext}`);
+    if (fs.existsSync(fp)) return { filePath: fp, ext };
+  }
+  return null;
+}
 
 /**
  * SECURITY FIX (SSRF): The previous whitelist matched by suffix
@@ -98,6 +157,28 @@ export async function GET(req: NextRequest) {
 
   if (!url) {
     return NextResponse.json({ error: "Missing url parameter" }, { status: 400 });
+  }
+
+  // ── Cache disque : lecture ───────────────────────────────────────────────
+  const urlHash = urlToHash(url);
+  ensureCacheDir();
+  const cached = findCacheFile(urlHash);
+  if (cached) {
+    const stat = fs.statSync(cached.filePath);
+    if (Date.now() - stat.mtimeMs < CACHE_TTL_MS) {
+      const buf = fs.readFileSync(cached.filePath);
+      const ext = cached.ext;
+      const mime = ext === ".webp" ? "image/webp" : ext === ".png" ? "image/png" : ext === ".gif" ? "image/gif" : ext === ".svg" ? "image/svg+xml" : ext === ".avif" ? "image/avif" : "image/jpeg";
+      return new NextResponse(buf, {
+        headers: {
+          "Content-Type": mime,
+          "Cache-Control": "public, max-age=31536000, immutable",
+          "X-Cache": "HIT",
+        },
+      });
+    }
+    // TTL expiré → supprimer et re-fetcher
+    fs.unlinkSync(cached.filePath);
   }
 
   try {
@@ -208,10 +289,19 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // ── Cache disque : écriture (fail-open) ───────────────────────────────────
+    try {
+      evictCacheIfNeeded(); // purge si > 300 MB avant d'écrire
+      const ext = mimeToExt(contentType);
+      const cachePath = path.join(CACHE_DIR, `${urlHash}${ext}`);
+      fs.writeFileSync(cachePath, buffer);
+    } catch { /* écriture disque non bloquante */ }
+
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": contentType,
         "Cache-Control": "public, max-age=31536000, immutable",
+        "X-Cache": "MISS",
       },
     });
   } catch (error) {

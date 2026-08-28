@@ -212,7 +212,20 @@ else
     echo "⚠️  Sondages ignoré : CRON_SECRET ou APP_URL manquant"
 fi
 
-# 7. Audit Final
+# 7. Nettoyage cache proxy-image (images Ganymède / Imgur / DofusDB)
+# Supprime les fichiers de plus de 90 jours (TTL identique à la logique Node)
+echo "🖼️  Nettoyage cache proxy-image..."
+PROXY_CACHE_DIR="$ROOT_DIR/public/uploads/proxy-cache"
+if [ -d "$PROXY_CACHE_DIR" ]; then
+    BEFORE_SIZE=$(du -sh "$PROXY_CACHE_DIR" 2>/dev/null | cut -f1 || echo "?")
+    find "$PROXY_CACHE_DIR" -type f -mtime +90 -delete 2>/dev/null || true
+    AFTER_SIZE=$(du -sh "$PROXY_CACHE_DIR" 2>/dev/null | cut -f1 || echo "?")
+    echo "✅ Cache proxy-image purgé : $BEFORE_SIZE → $AFTER_SIZE"
+else
+    echo "ℹ️  Cache proxy-image absent (pas encore créé)"
+fi
+
+# 8. Audit Final
 echo "🩺 Lancement de l'audit de santé..."
 bash "$(dirname "$0")/audit.sh"
 

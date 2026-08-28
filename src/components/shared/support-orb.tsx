@@ -1,7 +1,8 @@
 "use client";
 
-import { Heart, ExternalLink, Coffee } from "lucide-react";
+import { Heart, Coffee, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePathname } from "next/navigation";
 
 /**
  * SupportOrb component
@@ -9,7 +10,11 @@ import { cn } from "@/lib/utils";
  * Clean, sharp design without over-the-top AI effects or heavy blurs.
  */
 export function SupportOrb() {
-    const stripeLink = "https://ko-fi.com/wylan"; 
+    const pathname = usePathname();
+    // Masqué sur les routes overlay (popup juxtaposé en jeu)
+    if (pathname?.startsWith("/overlay")) return null;
+
+    const stripeLink = "https://ko-fi.com/wylan";
 
     return (
         <div className="support-orb fixed bottom-6 right-6 z-[100]">

@@ -146,8 +146,8 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                 </div>
             }>
                 {isTimeline ? (
-                    <div className="flex-1 overflow-y-auto px-6">
-                        <div className="mx-auto max-w-5xl">
+                    <div className="flex-1 overflow-y-auto" style={{ padding: "0 clamp(20px, 3vw, 48px)" }}>
+                        <div style={{ maxWidth: 1360, marginInline: "auto" }}>
                         <RushTimelineClient
                             key={character}
                             guide={{

@@ -63,6 +63,7 @@ next-env.d.ts
 # Uploads (ephemeral user content & auto-siphoned cache)
 /public/uploads/proofs/temp/
 /public/uploads/assets-dofus/
+/public/uploads/proxy-cache/
 
 # Vercel
 .vercel

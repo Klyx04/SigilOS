@@ -47,12 +47,47 @@ export async function searchItemsDofusDB(query: string) {
             data: (data.data || []).map((it: any) => ({
                 id: it.id.toString(),
                 name: it.name.fr,
-                imageUrl: it.img || `https://static.dofusdb.fr/items/illustr/${it.iconId}.png`,
-                level: it.level
+                imageUrl: it.img || (it.iconId ? `https://static.dofusdb.fr/items/illustr/${it.iconId}.png` : "/assets/icons/default-item.png"),
+                level: it.level || 1
             }))
         };
     } catch (error) {
         return { success: false, error: "Erreur DofusDB" };
+    }
+}
+
+export async function searchItemsLocalThenDofusDB(query: string) {
+    if (!query || query.length < 2) return { success: true, data: [] };
+    try {
+        const escaped = query.normalize("NFC").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const cleanQuery = escaped.replace(/['\u2019]/g, "['\\u2019]");
+
+        const dofusUrl = new URL("https://api.dofusdb.fr/items");
+        dofusUrl.searchParams.set("name.fr[$regex]", cleanQuery);
+        dofusUrl.searchParams.set("name.fr[$options]", "i");
+        dofusUrl.searchParams.set("$limit", "15");
+        dofusUrl.searchParams.set("lang", "fr");
+
+        const res = await fetch(dofusUrl.toString(), { cache: 'no-store' });
+        if (!res.ok) {
+            return await searchItemsDofusDB(query);
+        }
+        
+        const data = await res.json();
+        return {
+            success: true,
+            data: (data.data || []).map((it: any) => ({
+                id: it.id.toString(),
+                name: it.name?.fr || it.name || "Item",
+                imageUrl: it.img || (it.iconId ? `https://static.dofusdb.fr/items/illustr/${it.iconId}.png` : "/assets/icons/default-item.png"),
+                level: it.level || 1,
+                typeId: it.type?.id,
+                typeName: it.type?.name?.fr
+            }))
+        };
+    } catch (error) {
+        logger.error("[searchItemsLocalThenDofusDB] Error:", error);
+        return { success: false, error: "Erreur recherche items" };
     }
 }
 

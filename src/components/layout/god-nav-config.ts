@@ -21,6 +21,7 @@ import {
     BookOpen,
     UserPlus,
     Library,
+    Clock,
     type LucideIcon
 } from "lucide-react";
 
@@ -61,6 +62,7 @@ export const CONSOLE_PAGES: GodNavItem[] = [
 
     // Supervision
     { id: "infrastructure", name: "Système & Infra", icon: HardDrive, color: "text-warning", group: "supervision", scope: "maintenance", scopeLabel: "Maintenance", brickId: "infrastructure" },
+    { id: "cron-status", name: "Tâches CRON", icon: Clock, color: "text-warning", group: "supervision", scope: "maintenance", scopeLabel: "Maintenance", brickId: "infrastructure" },
     { id: "storage", name: "Stockage & Captures", icon: HardDrive, color: "text-info", group: "supervision", scope: "all", scopeLabel: "Toutes", brickId: "storage" },
     { id: "notifications", name: "Alertes Système", icon: Bell, color: "text-danger", group: "supervision", scope: "all", scopeLabel: "Toutes", brickId: "notifications" },
     { id: "mini-games", name: "Mini-Jeux", icon: Gamepad2, color: "text-warning", group: "supervision", sub: "mini-games", scope: "all", scopeLabel: "Toutes", brickId: "mini-games" },

@@ -8,8 +8,9 @@ import {
   BookmarkCheck, Loader2, CheckCheck,
   Sparkles, Construction, AlertTriangle, Sword, Lock, MapPin, Plus,
   Pencil, Crown, ChevronRight, ListCollapse, Info, Check, Shield, Search, X, CircleHelp,
-  Settings2, Ghost
+  Settings2, Ghost, Maximize2
 } from "lucide-react";
+
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -43,6 +44,7 @@ import { DofusProgressStrip } from "./DofusProgressStrip";
 import { GuildStatusPanel } from "./GuildStatusPanel";
 import { QuestGroupRenderer, useQuestGroups } from "./QuestGroup";
 import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
+import { RushChapterSidebar } from "./RushChapterSidebar";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DungeonRef = { id: string; name: string; bossName: string; imageUrl?: string|null };
@@ -227,6 +229,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
     return Array.from(new Map(raw.map(m => [m.profileId || m.userName, m])).values());
   }, [guildProgressBySeq, seq.id]);
   const [membersModalOpen, setMembersModalOpen] = useState(false);
+  const [activeTagInfo, setActiveTagInfo] = useState<{ icon: string; label: string; name?: string; level?: number; count?: number } | null>(null);
   const maxFloatingAvatars = 5;
   const floatAvatars = seqMembers.slice(0, maxFloatingAvatars);
   const floatExtra = seqMembers.length - maxFloatingAvatars;
@@ -302,215 +305,204 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
 
   return (
     <>
-      <div data-seq-id={seq.id} tabIndex={0} className={`relative flex flex-col gap-1.5 rounded-xl border transition-all scroll-mt-24 ${isSeqCompleted || (!isActive && !isNext) ? "p-2" : "p-2.5"} ${isSeqCompleted ? "bg-zinc-950/40 border-white/5 opacity-50" : isActive ? "bg-amber-500/[0.04] border-amber-500/30 ring-1 ring-amber-500/20" : isNext ? "bg-zinc-900/30 border-zinc-700/40 opacity-80" : "bg-zinc-900/40 border-white/10 hover:border-white/20 hover:bg-zinc-900/60"} ${focusedSeqId===seq.id?"ring-2 ring-emerald-400/70 border-emerald-400/60 bg-emerald-500/[0.04]":""} ${isThisBookmarked && !isSeqCompleted ? "border-l-2 border-l-amber-400/60 bg-amber-500/[0.07]" : ""}`}>
-        {isThisBookmarked && !isSeqCompleted && (
-          <span className="inline-flex items-center gap-1 self-start px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/25 text-caption font-black uppercase tracking-widest text-amber-300">
-            <MapPin className="w-2.5 h-2.5" />
-            Étape actuelle
-            {(()=>{
-              const t = seq.activityTags?.find((x:any)=>x.type==="dofus_link");
-              const tn = t?.name;
-              if(tn){
-                const d = DOFUS_DEFS.find(x=>x.id===tn);
-                if(d) return <img src={d.imageUrl} alt={d.label} title={d.label} className="w-3.5 h-3.5 object-contain ml-1" />;
-              }
-              return null;
-            })()}
-          </span>
-        )}
-        {isNext && !isSeqCompleted && (
-          <span className="text-caption font-black uppercase tracking-widest text-zinc-500 mb-0">
-            À VENIR
-          </span>
-        )}
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            {onToggleSeq && (
-              <button type="button" data-tour="quest-completion" onClick={e=>{e.stopPropagation();onToggleSeq();}} className="flex-shrink-0 h-5 w-5 mt-0.5 flex items-center justify-center rounded-md text-zinc-500 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors border border-zinc-700 hover:border-emerald-500/40" title={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"} aria-label={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"}>
-                {isSeqCompleted ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400/20"/> : <Square className="w-3 h-3 text-zinc-500 hover:text-zinc-300"/>}
-              </button>
-            )}
-            <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
-              <span className={`text-sm font-black leading-tight ${isSeqCompleted ? "line-through text-zinc-500" : "text-white"}`}>
-                {hasAlignment && seq.alignReq && seq.alignReq !== "neutre" && (
-                  <span 
-                    className="mr-1.5 font-[family-name:var(--font-cinzel)] uppercase tracking-widest"
-                    style={{ color: seq.alignReq === "bontarien" ? "#3b82f6" : "#ef4444" }}
-                  >
-                    {alignInfo?.label || seq.alignReq} lv.{seq.alignOrderReq} :{' '}
-                  </span>
-                )}
-                {hasAlignment && seq.alignReq === "neutre" && (
-                  <span className="mr-1.5 text-zinc-400 font-[family-name:var(--font-cinzel)] uppercase tracking-widest">
-                    {alignInfo?.label || seq.alignReq} lv.{seq.alignOrderReq} :{' '}
-                  </span>
-                )}
-                {seq.icon && (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={`/assets/icons/${seq.icon}.png`} alt="" className="inline-block w-5 h-5 mr-1 align-[-4px] object-contain shrink-0" loading="lazy" />
-                )}
-                {/* Chantier #68 — icône de quête dans chaque quête */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/assets/icons/icone-quete.png" alt="" className="inline-block w-3.5 h-3.5 mr-1 align-[-2px] object-contain opacity-80 shrink-0" loading="lazy" />
-                <span className="font-[family-name:var(--font-cinzel)] tracking-wide">{questName}</span>
-              </span>
-              {(()=>{
-                const posTag = Array.isArray(seq.activityTags) ? (seq.activityTags as any[]).find((t:any)=>t.type==="pos_tags") : null;
-                if(!posTag?.name) return null;
-                const posStr = String(posTag.name);
-                const worldId = (posTag as any).worldId ?? undefined;
-                // Parse first coordinate pair from posStr (e.g. "-2, 0 ; 10, -22")
-                const coords = posStr.match(/(-?\d+)\s*[,;]\s*(-?\d+)/);
-                if (coords) {
-                  const x = parseInt(coords[1], 10);
-                  const y = parseInt(coords[2], 10);
-                  const chip = (
-                    <span 
-                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-caption font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer shrink-0" 
-                      onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${posStr}`).then(()=>{toast.success(`📍 Position ${posStr} copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}} 
-                      title="Cliquer pour copier /travel"
-                    >
-                      <MapPin className="w-3 h-3 text-indigo-400" />
-                      <span className="text-caption font-black uppercase tracking-widest text-indigo-400/70 mr-0.5">Lancement:</span>
-                      <span>[<span>{x}, {y}</span>]</span>
-                    </span>
-                  );
-                  return (
-                    <MapPositionPopover posX={x} posY={y} worldId={worldId} guildId={guildId} contextLabel={`${questName} ${ms.title}`}>
-                      {chip}
-                    </MapPositionPopover>
-                  );
-                }
-                return null;
-              })()}
-            </div>
-          {/* ── Bookmark button — right side, fills the empty space ── */}
+      <div
+        data-seq-id={seq.id}
+        tabIndex={0}
+        className={`group relative flex flex-col gap-0 rounded-xl border transition-all scroll-mt-24 overflow-hidden
+          ${isSeqCompleted
+            ? "bg-zinc-950/30 border-white/5 opacity-45"
+            : isThisBookmarked
+              ? "bg-zinc-900/50 border-white/10 border-l-2 border-l-amber-400/70"
+              : isNext
+                ? "bg-zinc-900/25 border-white/5"
+                : "bg-zinc-900/40 border-white/5 hover:border-white/10"}
+          ${focusedSeqId === seq.id ? "ring-1 ring-emerald-400/40" : ""}
+        `}
+      >
+        {/* ── Ligne principale ── */}
+        <div className="flex items-center gap-2 px-2.5 py-2 min-w-0">
+          {/* Checkbox */}
           {onToggleSeq && (
-            <div className="flex flex-col items-end gap-2 flex-shrink-0 ml-auto">
-              <button
-                type="button"
-                onClick={e => { e.stopPropagation(); onBookmarkSeq(seq.id, ms); }}
-                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all text-caption font-black uppercase tracking-widest min-w-[90px] ${
-                  isThisBookmarked
-                    ? "bg-amber-500/25 border-amber-400/50 text-amber-200 ring-1 ring-amber-500/40 hover:bg-amber-500/35"
-                    : "bg-zinc-800/60 border-zinc-700/40 text-zinc-400 hover:bg-amber-500/10 hover:border-amber-500/40 hover:text-amber-300"
-                }`}
-                title={isThisBookmarked ? "Cette quête est ton point de reprise. Cliquer pour retirer le repère." : "Marquer cette quête comme mon point de reprise."}
+            <button
+              type="button"
+              data-tour="quest-completion"
+              onClick={e => { e.stopPropagation(); onToggleSeq(); }}
+              className="flex-shrink-0 w-4 h-4 flex items-center justify-center rounded transition-colors text-zinc-600 hover:text-emerald-400"
+              title={isSeqCompleted ? "Décocher" : "Valider"}
+              aria-label={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"}
+            >
+              {isSeqCompleted
+                ? <CheckCircle2 className="w-4 h-4 text-emerald-500/60 fill-emerald-500/10" />
+                : <Square className="w-3.5 h-3.5 text-zinc-600" />}
+            </button>
+          )}
+          {/* Nom + position + tags */}
+          <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+            {seq.icon && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={`/assets/icons/${seq.icon}.png`} alt="" className="w-4 h-4 object-contain shrink-0" loading="lazy" />
+            )}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/icons/icone-quete.png" alt="" className="w-3 h-3 object-contain opacity-40 shrink-0" loading="lazy" />
+            {hasAlignment && seq.alignReq && seq.alignReq !== "neutre" && (
+              <span
+                className="font-[family-name:var(--font-cinzel)] uppercase tracking-widest text-[10px] font-bold shrink-0"
+                style={{ color: seq.alignReq === "bontarien" ? "#60a5fa" : "#f87171" }}
               >
-                {isThisBookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Flag className="w-4 h-4" />}
-                JE SUIS ICI
-              </button>
-              {/* Avatars des membres bookmark — espacement aéré sous JE SUIS ICI */}
-              {isThisBookmarked && seqMembers.length > 0 && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setMembersModalOpen(true); }}
-                  className="flex items-center gap-2 mt-1.5 cursor-pointer"
-                  title={`Voir les ${seqMembers.length} membre${seqMembers.length > 1 ? 's' : ''}`}
+                {alignInfo?.label} lv.{seq.alignOrderReq}:
+              </span>
+            )}
+            {(() => {
+              const primaryUrl = noobsUrl || dbUrl || null;
+              const cls = `text-[13px] font-semibold leading-snug font-[family-name:var(--font-cinzel)] tracking-wide ${isSeqCompleted ? "line-through text-zinc-500" : "text-zinc-100"}`;
+              if (primaryUrl) return (
+                <a href={primaryUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className={`${cls} hover:text-amber-300 transition-colors`} title={`Ouvrir sur ${noobsUrl ? "DofusPourLesNoobs" : "DofusDB"}`}>{questName}</a>
+              );
+              return <span className={cls}>{questName}</span>;
+            })()}
+            {/* Position GPS — chip mono discret */}
+            {(() => {
+              const posTag = Array.isArray(seq.activityTags) ? (seq.activityTags as any[]).find((t: any) => t.type === "pos_tags") : null;
+              if (!posTag?.name) return null;
+              const posStr = String(posTag.name);
+              const worldId = (posTag as any).worldId ?? undefined;
+              const coords = posStr.match(/(-?\d+)\s*[,;]\s*(-?\d+)/);
+              if (!coords) return null;
+              const x = parseInt(coords[1], 10);
+              const y = parseInt(coords[2], 10);
+              const chip = (
+                <span
+                  className="inline-flex items-center px-1.5 py-0.5 rounded bg-zinc-800/70 border border-white/5 text-[10px] font-mono text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 cursor-pointer transition-colors shrink-0"
+                  onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(`/travel ${posStr}`).then(() => toast.success(`📍 ${posStr} copié !`, { duration: 1200 })).catch(() => {}); }}
+                  title={`Copier /travel ${posStr}`}
                 >
-                  <div className="flex -space-x-1">
-                    {seqMembers.slice(0, 5).map((m) => (
-                      <div
-                        key={m.profileId}
-                        className="w-6 h-6 rounded-full overflow-hidden bg-indigo-900 flex items-center justify-center border-2 border-zinc-950 ring-1 ring-amber-500/30 flex-shrink-0"
-                        title={m.userName}
-                      >
-                        {m.userAvatar ? (
-                          <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-caption font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>
+                  [{x}, {y}]
+                </span>
+              );
+              return (
+                <MapPositionPopover posX={x} posY={y} worldId={worldId} guildId={guildId} contextLabel={`${questName} ${ms.title}`}>
+                  {chip}
+                </MapPositionPopover>
+              );
+            })()}
+            {/* Tags activité — icônes seules avec tooltip natif */}
+            {(() => {
+              const visibleTags = Array.isArray(seq.activityTags)
+                ? seq.activityTags.filter((t: any) => !["prereq_text", "dofus_link", "ocre_dungeon", "pos_tags", "tougli_box", "quest_group", "info_sequence"].includes(t.type))
+                : [];
+              if (visibleTags.length === 0) return null;
+              return (
+                <span className="flex items-center gap-0.5 shrink-0">
+                  {visibleTags.map((tag: any, i: number) => {
+                    if (tag.type === "solver") {
+                      const su = tag.url || null;
+                      // eslint-disable-next-line @next/next/no-img-element
+                      const icon = <img src="/assets/rush-sylvestre/solver.png" alt="Solver" className="w-4 h-4 object-cover rounded-full opacity-60 hover:opacity-100 transition-opacity" />;
+                      if (su) return <a key={i} href={su} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} title="Solver" className="shrink-0">{icon}</a>;
+                      return <span key={i} title="Solver requis" className="shrink-0">{icon}</span>;
+                    }
+                    const def = ACTIVITY_TAGS.find(x => x.type === tag.type);
+                    if (!def) return null;
+                    const isMetier = tag.type === "metier";
+                    const isHoraire = tag.type === "contrainte_horaire";
+                    const ip = isMetier ? getMetierIconPath(tag.name) : def.imagePath;
+                    let tooltip = def.label;
+                    if (isMetier && tag.name) tooltip = `${tag.name}${tag.level != null ? ` Niv.${tag.level}` : ""}`;
+                    if (isHoraire && tag.name) {
+                      const n = String(tag.name);
+                      if (n.startsWith("<")) tooltip = `Avant ${n.slice(1).trim()}h`;
+                      else if (n.startsWith(">")) tooltip = `Après ${n.slice(1).trim()}h`;
+                      else { const p = n.split("-").map(s => s.trim()); if (p.length === 2) tooltip = `${p[0]}h → ${p[1]}h`; }
+                    }
+                    if (tag.count && tag.count > 1) tooltip = `${tooltip} ×${tag.count}`;
+                    return (
+                      <button key={i} type="button" onClick={e => { e.stopPropagation(); setActiveTagInfo({ icon: ip, label: tooltip, name: tag.name, level: tag.level, count: tag.count }); }} className="shrink-0 relative cursor-pointer" title={tooltip}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={ip} alt={tooltip} className="w-4 h-4 object-cover rounded-full opacity-55 hover:opacity-100 transition-opacity" />
+                        {tag.count && tag.count > 1 && (
+                          <span className="absolute -top-1 -right-1 text-[8px] font-black text-amber-400 leading-none">{tag.count}</span>
                         )}
-                      </div>
-                    ))}
-                  </div>
-                  <span className="text-caption font-bold text-amber-400/70">{seqMembers.length}</span>
-                </button>
+                      </button>
+                    );
+                  })}
+                </span>
+              );
+            })()}
+            {seq.isSuccess && (
+              <span title="Succès" className="shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/assets/icons/succes.png" alt="Succès" className="w-3.5 h-3.5 opacity-60" />
+              </span>
+            )}
+            {seq.isOptional && (
+              <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-zinc-800/50 text-zinc-500 border border-white/5 shrink-0">Bonus</span>
+            )}
+          </div>
+          {/* Liens externes — icônes discrètes au hover */}
+          {(dbUrl || noobsUrl) && (
+            <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+              {noobsUrl && (
+                <a href={noobsUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} title="DofusPourLesNoobs" className="opacity-40 hover:opacity-90 transition-opacity">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm" />
+                </a>
+              )}
+              {dbUrl && (
+                <a href={dbUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} title="DofusDB" className="opacity-40 hover:opacity-90 transition-opacity">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm" />
+                </a>
               )}
             </div>
           )}
-          </div>
-
-        {/* Liens externes — icônes VISIBLES (retour user P3) */}
-        {(dbUrl || noobsUrl) && (
-          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-            {noobsUrl && (
-              <a href={noobsUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/25 text-cyan-300 hover:bg-cyan-500/20 transition-colors text-caption font-black uppercase tracking-wider" title="DofusPourLesNoobs — tutoriel">
-                <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-3 h-3 rounded-sm shrink-0"/>
-                <span>Noobs</span>
-              </a>
-            )}
-            {dbUrl && (
-              <a href={dbUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 hover:bg-emerald-500/20 transition-colors text-caption font-black uppercase tracking-wider" title="DofusDB — base de données">
-                <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="w-3 h-3 rounded-sm shrink-0"/>
-                <span>DofusDB</span>
-              </a>
-            )}
+          {/* Bookmark JE SUIS ICI */}
+          {onToggleSeq && (
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onBookmarkSeq(seq.id, ms); }}
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${
+                isThisBookmarked
+                  ? "bg-amber-500/15 border-amber-400/30 text-amber-300"
+                  : "bg-transparent border-white/5 text-zinc-600 hover:text-amber-300 hover:border-amber-500/20"
+              }`}
+              title={isThisBookmarked ? "Retirer le repère" : "Je suis ici"}
+            >
+              {isThisBookmarked ? <BookmarkCheck className="w-3 h-3" /> : <Flag className="w-3 h-3" />}
+            </button>
+          )}
+        </div>
+        {/* ── Membres sur cette quête (avatars bookmark) ── */}
+        {isThisBookmarked && !isSeqCompleted && seqMembers.length > 0 && (
+          <div className="px-2.5 pb-1.5">
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); setMembersModalOpen(true); }}
+              className="flex items-center gap-1.5 cursor-pointer"
+              title={`${seqMembers.length} membre${seqMembers.length > 1 ? "s" : ""} ici`}
+            >
+              <div className="flex -space-x-1">
+                {seqMembers.slice(0, 5).map(m => (
+                  <div key={m.profileId} className="w-4 h-4 rounded-full overflow-hidden bg-zinc-900 border border-zinc-950 ring-1 ring-amber-500/30 flex-shrink-0" title={m.userName}>
+                    {m.userAvatar
+                      ? <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
+                      // eslint-disable-next-line @next/next/no-img-element
+                      : <span className="text-[7px] font-black text-amber-300 flex items-center justify-center h-full">{m.userName[0]?.toUpperCase()}</span>}
+                  </div>
+                ))}
+              </div>
+              <span className="text-[10px] font-bold text-amber-400/60">{seqMembers.length}</span>
+            </button>
           </div>
         )}
-
-        {/* Badges & Tags */}
-        <div className="flex flex-wrap items-center gap-1">
-          {/* Alignment info now displayed inline before quest name above */}
-          {seq.isOptional && <span className="text-caption text-purple-400 font-black uppercase px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/20">Bonus</span>}
-          {seq.isSuccess && <span className="flex items-center gap-1 text-caption font-black uppercase px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-400 border border-orange-500/20"><img src="/assets/icons/succes.png" alt="" className="w-3 h-3"/>Succès</span>}
-
-          {(() => {
-            const visibleTags = Array.isArray(seq.activityTags) ? seq.activityTags.filter((t:any)=>!["prereq_text","dofus_link","ocre_dungeon","pos_tags","tougli_box","quest_group"].includes(t.type)) : [];
-            if (visibleTags.length === 0) return null;
-            return (
-              <>
-                {visibleTags.map((tag:any,i:number)=>{
-                  if(tag.type==="solver"){
-                    const su=tag.url||null;
-                    return su ? (
-                      <a key={i} href={su} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-caption font-black uppercase bg-emerald-500/20 text-emerald-200 border border-emerald-500/30 hover:bg-emerald-500/30">
-                        <img src="/assets/rush-sylvestre/solver.png" alt="" className="w-3.5 h-3.5 rounded-full"/>Solver<ExternalLink className="w-2.5 h-2.5"/>
-                      </a>
-                    ) : (
-                      <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-caption font-black uppercase bg-emerald-500/20 text-emerald-200 border border-emerald-500/30">
-                        <img src="/assets/rush-sylvestre/solver.png" alt="" className="w-3.5 h-3.5 rounded-full"/>Solver
-                      </span>
-                    );
-                  }
-                  const def=ACTIVITY_TAGS.find(x=>x.type===tag.type);if(!def)return null;
-                  const isMetier=tag.type==="metier";
-                  const isHoraire=tag.type==="contrainte_horaire";
-                  const ip=isMetier?getMetierIconPath(tag.name):def.imagePath;
-                  let labelDisplay = def.label;
-                  if (isMetier && tag.name) {
-                    labelDisplay = `${tag.name}${tag.level != null ? ` (Niv. ${tag.level})` : ""}`;
-                  }
-                  if (isHoraire && tag.name) {
-                    const n = String(tag.name);
-                    if (n.startsWith("<")) labelDisplay = `Avant ${n.slice(1).trim()}h`;
-                    else if (n.startsWith(">")) labelDisplay = `Après ${n.slice(1).trim()}h`;
-                    else {
-                      const p = n.split("-").map(s=>s.trim());
-                      if (p.length===2) labelDisplay = `${p[0]}h → ${p[1]}h`;
-                    }
-                  }
-                  return (
-                    <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-caption font-black uppercase bg-zinc-900 border border-white/10 text-zinc-300">
-                      <img src={ip} alt="" className="w-4 h-4 object-cover rounded-md shrink-0"/>
-                      {tag.count&&tag.count>1&&<span className="text-caption text-amber-400 font-bold">x{tag.count}</span>}
-                      <span className="truncate max-w-[160px]">{labelDisplay}</span>
-                    </span>
-                  );
-                })}
-              </>
-            );
-          })()}
-
-          {/* Tougli Callout Box */}
-          {(()=>{
-            const t = seq.activityTags?.find((x:any)=>x.type==="tougli_box");
-            if(!t?.name) return null;
-            return <TougliCallout text={t.name} colorStyle={t.color||"emerald"}/>;
-          })()}
-        </div>
-
-        {/* Dungeons Row */}
+        {/* ── Tougli callout ── */}
+        {(() => {
+          const t = seq.activityTags?.find((x: any) => x.type === "tougli_box");
+          if (!t?.name) return null;
+          return <div className="px-2.5 pb-2"><TougliCallout text={t.name} colorStyle={t.color || "emerald"} /></div>;
+        })()}
+        {/* ── Donjon(s) ── */}
         {allDungeons.length > 0 && (
-          <div className="pt-1">
+          <div className="px-2.5 pb-2">
             <DungeonGroup
               dungeons={allDungeons as DungeonRef[]}
               capturedMonsterSet={capturedMonsterSet}
@@ -522,33 +514,46 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             />
           </div>
         )}
-
-        {/* Embedded Tips & Notes as sleek callouts */}
+        {/* ── Tips & Note — dépliables ── */}
         {(() => {
           let tipsText = String(seq.tips || "");
-          const hasPosTag = Array.isArray(seq.activityTags) && seq.activityTags.some((t:any)=>t.type==="pos_tags");
-          if (hasPosTag) {
-            // Phase 3.2 : retirer la ligne « Position de lancement : … » déjà portée par le chip pos_tags.
-            tipsText = tipsText.replace(/[^\n]*position de lancement[^\n]*/gi, "").trim();
-          }
-          if (!tipsText) return null;
-          return (
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-xs font-medium text-amber-300">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-              <div className="flex-1 flex flex-wrap items-center gap-1">{renderContentWithCoords(tipsText)}</div>
-            </div>
-          );
+          const hasPosTag = Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "pos_tags");
+          if (hasPosTag) tipsText = tipsText.replace(/[^\n]*position de lancement[^\n]*/gi, "").trim();
+          if (!tipsText && !seq.note) return null;
+          return <CollapsibleHints tipsText={tipsText} note={seq.note || null} />;
         })()}
-        {seq.note && (
-          <div className="p-3 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-start gap-2 text-xs font-medium text-orange-300">
-            <AlertTriangle className="w-3.5 h-3.5 text-orange-400 shrink-0 mt-0.5" />
-            <span>{seq.note}</span>
-          </div>
-        )}
       </div>
-      {/* ── Members modal (liste des pseudos) ───────────────────────────── */}
+      {/* ── Modal info tag activité ── */}
+      {activeTagInfo && (
+        <Dialog open={!!activeTagInfo} onOpenChange={open => { if (!open) setActiveTagInfo(null); }}>
+          <DialogContent className="sm:max-w-xs bg-zinc-950 border-white/10 shadow-2xl p-0 gap-0">
+            <DialogHeader className="p-4 border-b border-white/5">
+              <DialogTitle className="text-sm font-black text-white flex items-center gap-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={activeTagInfo.icon} alt={activeTagInfo.label} className="w-6 h-6 object-contain rounded-md" />
+                {activeTagInfo.label}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="p-4 text-center space-y-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={activeTagInfo.icon} alt={activeTagInfo.label} className="w-14 h-14 object-contain mx-auto rounded-xl" />
+              {activeTagInfo.name && (
+                <p className="text-sm font-bold text-zinc-200">
+                  {activeTagInfo.name}
+                  {activeTagInfo.level != null && <span className="text-zinc-400 font-normal"> — Niv. {activeTagInfo.level}</span>}
+                  {activeTagInfo.count && activeTagInfo.count > 1 && <span className="text-amber-400 font-black"> ×{activeTagInfo.count}</span>}
+                </p>
+              )}
+            </div>
+            <DialogFooter className="p-3 border-t border-white/5">
+              <Button onClick={() => setActiveTagInfo(null)} variant="ghost" size="sm" className="text-zinc-400 text-xs">Fermer</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+      {/* ── Modal membres ── */}
       {membersModalOpen && (
-        <Dialog open={membersModalOpen} onOpenChange={(open) => { if (!open) setMembersModalOpen(false); }}>
+        <Dialog open={membersModalOpen} onOpenChange={open => { if (!open) setMembersModalOpen(false); }}>
           <DialogContent className="sm:max-w-sm bg-zinc-950 border-white/10 shadow-2xl p-0 gap-0">
             <DialogHeader className="p-4 border-b border-white/5">
               <DialogTitle className="text-sm font-black text-white flex items-center gap-2">
@@ -557,23 +562,20 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               </DialogTitle>
             </DialogHeader>
             <div className="p-4 max-h-[300px] overflow-y-auto space-y-1">
-              {seqMembers.map((m) => (
+              {seqMembers.map(m => (
                 <div key={m.profileId} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-white/5 transition-colors">
                   <div className="w-7 h-7 rounded-full overflow-hidden bg-indigo-900 flex items-center justify-center flex-shrink-0">
-                    {m.userAvatar ? (
-                      <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-caption font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>
-                    )}
+                    {m.userAvatar
+                      ? <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
+                      // eslint-disable-next-line @next/next/no-img-element
+                      : <span className="text-caption font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>}
                   </div>
                   <span className="text-xs font-bold text-zinc-200">{m.userName}</span>
                 </div>
               ))}
             </div>
             <DialogFooter className="p-3 border-t border-white/5">
-              <Button onClick={() => setMembersModalOpen(false)} variant="ghost" size="sm" className="text-zinc-400 text-xs">
-                Fermer
-              </Button>
+              <Button onClick={() => setMembersModalOpen(false)} variant="ghost" size="sm" className="text-zinc-400 text-xs">Fermer</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -581,6 +583,41 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
     </>
   );
 });
+
+// ─── CollapsibleHints — Tips & Notes dépliables ────────────────────────────────
+function CollapsibleHints({ tipsText, note }: { tipsText: string; note: string | null }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border-t border-white/5">
+      <button
+        type="button"
+        onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
+        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600 hover:text-zinc-400 transition-colors"
+      >
+        <Sparkles className="w-2.5 h-2.5 shrink-0" />
+        {open ? "Masquer" : "Conseils & notes"}
+        <ChevronDown className={`w-3 h-3 ml-auto transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="px-2.5 pb-2.5 space-y-1.5">
+          {tipsText && (
+            <div className="flex items-start gap-2 text-xs text-amber-300/80 font-medium leading-relaxed">
+              <Sparkles className="w-3 h-3 text-amber-400/50 shrink-0 mt-0.5" />
+              <div className="flex-1 flex flex-wrap items-center gap-1">{renderContentWithCoords(tipsText)}</div>
+            </div>
+          )}
+          {note && (
+            <div className="flex items-start gap-2 text-xs text-orange-300/80 font-medium leading-relaxed">
+              <AlertTriangle className="w-3 h-3 text-orange-400/50 shrink-0 mt-0.5" />
+              <span>{note}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 // ─── DofusObtainedBanner (premium card style — high fantasy Dofus UI) ─────────
 function DofusObtainedBanner({ milestone }: { milestone: Milestone }) {
@@ -836,6 +873,34 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
           {expanded && (
             <motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} className="overflow-hidden">
               <div className="px-3 pb-3 space-y-1.5 pt-2 border-t border-white/5">
+                {/* ── À faire maintenant ── */}
+                {(()=>{
+                  const nextSeq = blockBookmarkSeqId
+                    ? nonInfoSeqs.find((s:any)=>s.id===blockBookmarkSeqId)
+                    : nonInfoSeqs.find((s:any)=>!completedStepsSet.has(s.id));
+                  if(!nextSeq||all) return null;
+                  const posTag = Array.isArray(nextSeq.activityTags) ? nextSeq.activityTags.find((t:any)=>t.type==="pos_tags") : null;
+                  const posStr = posTag?.name ? String(posTag.name) : null;
+                  const coords = posStr ? posStr.match(/(-?\d+)\s*[,;]\s*(-?\d+)/) : null;
+                  return (
+                    <div className="mb-2 flex items-start gap-2.5 px-3 py-2.5 rounded-xl border"
+                      style={{background:"linear-gradient(90deg,#d5a94e14,#d5a94e04)",borderColor:"#d5a94e40"}}>
+                      <Sparkles className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{color:"#d5a94e"}}/>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[9px] font-black uppercase tracking-[0.12em] mb-1" style={{color:"#d5a94e"}}>✦ À faire maintenant</p>
+                        <p className="text-xs font-semibold font-[family-name:var(--font-cinzel)] text-zinc-200 leading-snug truncate">{nextSeq.subGuideName}</p>
+                        {coords && (
+                          <button onClick={()=>navigator.clipboard.writeText(`/travel ${posStr}`).then(()=>toast.success(`📍 ${posStr} copié !`,{duration:1200})).catch(()=>{})}
+                            className="inline-flex items-center gap-1 mt-1.5 px-1.5 py-0.5 rounded font-mono text-[10px] transition-colors hover:bg-blue-500/10"
+                            style={{background:"#202a46",color:"#b7caff"}}
+                            title={`Copier /travel ${posStr}`}>
+                            [{coords[1]}, {coords[2]}]
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
                 {ms.tips && (
                   <div className="mb-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2.5 text-xs text-amber-300 font-medium">
                     <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
@@ -1389,6 +1454,20 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
               targetSlug={guide.slug}
               compact
             />
+
+            <button
+              type="button"
+              onClick={() => window.open(
+                `/overlay/guide/${guildId}/${guide.slug}`,
+                "sigil-overlay",
+                "width=420,height=700,resizable=yes,scrollbars=no,toolbar=no,menubar=no,location=no,status=no"
+              )}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 bg-zinc-800/60 text-zinc-400 hover:text-white hover:border-white/20 hover:bg-zinc-800 transition-all text-caption font-black uppercase tracking-widest"
+              title="Ouvrir le guide en mode overlay — juxtaposable en jeu"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+              Overlay
+            </button>
           </div>
         </div>
 
@@ -1625,7 +1704,35 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       </div>
     )}
     <GuildStatusPanel milestones={contentMilestones} guildProgress={guildProgress}/>
-    {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-zinc-700 mx-auto mb-3"/><p className="text-zinc-600 font-black uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="relative pl-[28px] space-y-1">{timelineItems.map((item:any)=>item.kind==="separator"?<SectionDivider key={item.ms.id} title={item.ms.title} accentColor={item.ms.accentColor||"#d4a853"}/>:item.kind==="info"?<div key={item.ms.id} className="-ml-1">{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={`ch-${item.chapterNum}`} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} userAlignmentInfo={resolvedCharacterInfo} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} searchFilter={searchResults}/>)}</div>}
+    {/* ── CSS grid responsive (timeline + sidebar) ── */}
+    <style>{`
+      .rush-content-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 260px;
+        gap: 24px;
+        align-items: start;
+      }
+      @media (max-width: 900px) {
+        .rush-content-grid {
+          grid-template-columns: 1fr;
+        }
+        .rush-content-grid .rush-sidebar {
+          display: none;
+        }
+      }
+    `}</style>
+    <div className="rush-content-grid">
+      <div className="min-w-0">
+        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-zinc-700 mx-auto mb-3"/><p className="text-zinc-600 font-black uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="relative pl-[28px] space-y-1">{timelineItems.map((item:any)=>item.kind==="separator"?<SectionDivider key={item.ms.id} title={item.ms.title} accentColor={item.ms.accentColor||"#d4a853"}/>:item.kind==="info"?<div key={item.ms.id} className="-ml-1">{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={`ch-${item.chapterNum}`} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} userAlignmentInfo={resolvedCharacterInfo} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} searchFilter={searchResults}/>)}</div>}
+      </div>
+      <div className="rush-sidebar sticky top-20">
+        <RushChapterSidebar
+          milestones={contentMilestones as any}
+          completedSeqIds={allCompletedSeqIds}
+          activeMilestoneId={(() => { for (const [msId] of bookmarksByMs) { return msId; } return null; })()}
+        />
+      </div>
+    </div>
     {/* ── Navigation flottante ───────────────────────────────────────────── */}
     {typeof document !== 'undefined' && createPortal(
       <div className="fixed right-4 z-[var(--z-floating-nav)] flex flex-col items-center gap-1 bg-zinc-950/90 border border-emerald-500/20 rounded-2xl py-2 px-1.5 shadow-2xl"

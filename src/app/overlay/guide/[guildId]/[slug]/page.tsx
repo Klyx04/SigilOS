@@ -49,6 +49,7 @@ export default async function GuideOverlayPage({ params, searchParams }: Props) 
         name: guide.name,
         slug: guide.slug,
         description: guide.description,
+        imageUrl: guide.imageUrl || "/module-dofus/Dofus_Sylvestre.png",
       }}
       milestones={guide.milestones as any[]}
       allProgress={allProgress}

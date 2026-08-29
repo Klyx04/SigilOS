@@ -1,0 +1,62 @@
+"use client";
+
+import React, { useState } from "react";
+import { Copy, Check, MapPin } from "lucide-react";
+import { toast } from "sonner";
+import { parseCoordinates } from "@/lib/rush-guide-utils";
+import { cn } from "@/lib/utils";
+
+interface RushCoordinateChipProps {
+  coordText: string;
+  className?: string;
+  showIcon?: boolean;
+  onOpenMap?: (x: number, y: number, worldId?: number) => void;
+}
+
+export function RushCoordinateChip({
+  coordText,
+  className,
+  showIcon = false,
+  onOpenMap,
+}: RushCoordinateChipProps) {
+  const [copied, setCopied] = useState(false);
+  const parsed = parseCoordinates(coordText);
+
+  if (!parsed) {
+    return <span className={className}>{coordText}</span>;
+  }
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(parsed.travelCommand);
+    setCopied(true);
+    toast.success(`Copié : ${parsed.travelCommand}`, {
+      description: "Colle cette commande dans le chat Dofus pour te déplacer.",
+      duration: 2500,
+    });
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      title={`Cliquer pour copier ${parsed.travelCommand}`}
+      aria-label={`Copier la commande ${parsed.travelCommand}`}
+      className={cn(
+        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-mono text-[11px] font-bold transition-all duration-150 cursor-pointer select-none",
+        "bg-[#26355a]/70 hover:bg-[#34487a] text-[#bcd0ff] border border-[#89adff]/30 hover:border-[#89adff]/60 shadow-sm",
+        "focus-visible:outline-2 focus-visible:outline-[#89adff] focus-visible:outline-offset-1",
+        className
+      )}
+    >
+      {showIcon && <MapPin className="w-3 h-3 text-[#89adff] shrink-0" />}
+      <span>{parsed.raw}</span>
+      {copied ? (
+        <Check className="w-3 h-3 text-emerald-400 shrink-0 animate-in zoom-in-50 duration-150" />
+      ) : (
+        <Copy className="w-3 h-3 text-[#89adff]/70 shrink-0 hover:text-[#89adff]" />
+      )}
+    </button>
+  );
+}

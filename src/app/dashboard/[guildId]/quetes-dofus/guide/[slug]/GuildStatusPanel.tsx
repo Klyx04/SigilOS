@@ -134,22 +134,22 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
 
   return (
     <>
-      <div className="p-4 rounded-2xl bg-gradient-to-br from-zinc-900/70 to-zinc-950/70 border border-zinc-800/60">
+      <div className="p-4 rounded-2xl bg-[#12161b] border border-[#28303a] shadow-lg">
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-indigo-400" />
-            <span className="text-caption font-black uppercase tracking-widest text-zinc-400">
-              Progression Dofus
+            <Users className="w-4 h-4 text-[#39bc95]" />
+            <span className="text-xs font-bold font-serif uppercase tracking-widest text-[#f2f0e9]">
+              Progression Guilde par Dofus
             </span>
           </div>
-          <span className="text-caption font-black text-indigo-400">
+          <span className="text-xs font-mono font-bold text-[#39bc95]">
             {totalMembers} membre{totalMembers > 1 ? "s" : ""}
           </span>
         </div>
 
         {/* Dofus cards — horizontal scroll, compact */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent -mx-1 px-1">
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent -mx-1 px-1">
           {dofusStats.map((d) => {
             const isAllDone = d.completedMilestones === d.totalMilestones && d.totalMilestones > 0;
 
@@ -157,10 +157,10 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
               <button
                 key={d.id}
                 onClick={() => setModalDofus(d.id)}
-                className="relative flex flex-col items-center gap-1 p-2 rounded-xl border transition-all text-center group cursor-pointer hover:scale-[1.02] active:scale-[0.98] shrink-0 w-[72px]"
+                className="relative flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all text-center group cursor-pointer hover:scale-[1.02] active:scale-[0.98] shrink-0 w-[78px] bg-[#181e25] border-[#28303a] hover:border-[#384352]"
                 style={{
-                  borderColor: isAllDone ? `${d.color}50` : `${d.color}20`,
-                  background: isAllDone ? `${d.color}08` : undefined,
+                  borderColor: isAllDone ? `${d.color}60` : undefined,
+                  background: isAllDone ? `${d.color}10` : undefined,
                 }}
                 title={`${d.label} — ${d.pct}% (${d.completedMilestones}/${d.totalMilestones})`}
               >
@@ -169,16 +169,16 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
                 <img
                   src={d.imageUrl}
                   alt={d.label}
-                  className="w-7 h-7 object-contain drop-shadow-lg group- transition-transform"
+                  className="w-7 h-7 object-contain drop-shadow-md group-hover:scale-105 transition-transform"
                 />
 
                 {/* Label — truncated */}
-                <span className="text-caption font-black uppercase tracking-widest truncate max-w-full leading-tight" style={{ color: d.color }}>
+                <span className="text-[10px] font-black uppercase tracking-wider truncate max-w-full leading-tight font-serif" style={{ color: d.color }}>
                   {d.label}
                 </span>
 
                 {/* Mini progress bar */}
-                <div className="w-full h-1 bg-zinc-800/60 rounded-full overflow-hidden">
+                <div className="w-full h-1 bg-[#242b35] rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-300"
                     style={{
@@ -189,7 +189,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
                 </div>
 
                 {/* Percentage compact */}
-                <span className="text-caption font-mono font-bold text-zinc-500">
+                <span className="text-[10px] font-mono font-bold text-[#929aa5]">
                   {d.pct}%
                 </span>
               </button>

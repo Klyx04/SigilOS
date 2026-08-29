@@ -4,7 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Toaster } from "sonner";
+import { AppToaster } from "@/components/shared/AppToaster";
 import { getAppBaseUrl } from "@/lib/utils";
 
 const spaceGrotesk = Space_Grotesk({
@@ -115,25 +115,7 @@ export default async function RootLayout({
               <GodBypassCookie />
               {children}
               {donationsEnabled && <SupportOrb />}
-              <Toaster
-                position="bottom-right"
-                richColors
-                expand={false}
-                closeButton
-                toastOptions={{
-                  className: "group font-sans border border-border/50 bg-card/90 backdrop-blur-xl text-card-foreground rounded-2xl p-4 shadow-lg",
-                  descriptionClassName: "text-muted-foreground font-medium text-body-sm",
-                  style: {
-                    borderLeft: '3px solid var(--border-strong, rgba(255,255,255,0.1))',
-                  },
-                  actionButtonStyle: {
-                    background: "var(--foreground)",
-                    color: "var(--background)",
-                    fontWeight: "bold",
-                    borderRadius: "0.5rem",
-                  },
-                }}
-              />
+              <AppToaster />
             </TooltipProvider>
           </AuthProvider>
         </ThemeProvider>

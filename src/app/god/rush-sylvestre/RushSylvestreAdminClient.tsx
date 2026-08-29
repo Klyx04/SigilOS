@@ -1581,7 +1581,7 @@ function RequiredItemsEditor({
   );
 }
 
-// ─── SequenceEditForm ─────────────────────────────────────────────────────────
+// ─── SequenceEditForm (Sections progressives & Live Preview) ───────────────────
 function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, milestones }: {
   seq: Sequence; milestoneId: string; isPending: boolean;
   onSave: (data: any, targetMilestoneId?: string) => void; onCancel: () => void;
@@ -1613,6 +1613,21 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
     const existing = (seq.activityTags as any[])?.find(t => t.type === "dofus_link");
     return existing?.name || "";
   });
+
+  // Accordéon des sections d'édition
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    identity: true,
+    location: true,
+    prereqs: false,
+    activities: false,
+    resources: false,
+    links: false,
+    hints: false,
+    advanced: false,
+  });
+
+  const toggleSection = (s: string) => setOpenSections(prev => ({ ...prev, [s]: !prev[s] }));
+  const [showPreview, setShowPreview] = useState(false);
 
   const handleRequiredItemsChange = (items: Array<{ id?: string; name: string; quantity: number; imageUrl?: string; level?: number }>) => {
     setRequiredItems(items);
@@ -1658,8 +1673,8 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
     }, 250);
   };
 
-  const addPrereq = (name: string) => {
-    const trimmed = name.trim();
+  const addPrereq = (nameToAdd: string) => {
+    const trimmed = nameToAdd.trim();
     if (!trimmed || prereqs.includes(trimmed)) return;
     const nextPrereqs = [...prereqs, trimmed];
     setPrereqs(nextPrereqs);
@@ -1831,6 +1846,21 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
     setActivityTags(prev => prev.filter((t: any) => !(t.type === "ocre_dungeon" && t.name === id)));
   };
 
+  const isDirty = useMemo(() => {
+    return (
+      name !== (seq.subGuideName || seq.subGuideRef) ||
+      dofusdbUrl !== (seq.dofusdbUrl || "") ||
+      noobsUrl !== (seq.dofuspourlesnoobsUrl || "") ||
+      tips !== (seq.tips || "") ||
+      alignReq !== (seq.alignReq || "") ||
+      alignOrderReq !== (seq.alignOrderReq ? String(seq.alignOrderReq) : "") ||
+      note !== (seq.note || "") ||
+      isSuccess !== (seq.isSuccess ?? false) ||
+      icon !== (seq.icon || "") ||
+      metamobMonsterId !== (seq.metamobMonsterId ? String(seq.metamobMonsterId) : "")
+    );
+  }, [name, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderReq, note, isSuccess, icon, metamobMonsterId, seq]);
+
   const handleSubmit = () => {
     if (!name.trim()) return;
     onSave({
@@ -1851,424 +1881,530 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
   };
 
   return (
-    <div className="p-3 bg-zinc-900/80 border border-indigo-500/20 rounded-xl space-y-2.5">
-      <p className="text-caption font-black text-indigo-400 uppercase tracking-widest">Édition quête</p>
-
-      <div>
-        <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">Nom *</label>
-        <input value={name} onChange={e => setName(e.target.value)}
-          className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50"
-          placeholder="Nom de la quête" autoFocus
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <div className="relative">
-          <label className="text-caption font-black text-amber-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
-            🔒 Prérequis de cette quête ({prereqs.length})
-          </label>
-
-          {/* Badges / Tags de prérequis choisis */}
-          {prereqs.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-1.5">
-              {prereqs.map((pName, pIdx) => (
-                <span key={pIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/30 text-caption font-bold">
-                  <Lock className="w-2.5 h-2.5 text-amber-400" />
-                  <span className="max-w-[120px] truncate">{pName}</span>
-                  <button type="button" onClick={() => removePrereq(pName)} className="hover:text-red-400 text-zinc-400 ml-0.5">
-                    <X className="w-2.5 h-2.5" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Autocomplete Input */}
-          <div className="relative">
-            <input
-              type="text"
-              value={prereqQuery}
-              onChange={e => handlePrereqSearch(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === "Enter" && prereqQuery.trim()) {
-                  e.preventDefault();
-                  addPrereq(prereqQuery.trim());
-                }
-              }}
-              className="w-full bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1.5 text-xs text-amber-200 focus:outline-none focus:border-amber-500/50 placeholder:text-zinc-700"
-              placeholder="Rechercher une quête prérequis..."
-            />
-            {searchingPrereqs && <span className="absolute right-2 top-2 text-caption text-zinc-500 animate-pulse">...</span>}
-          </div>
-
-          {/* Dropdown de résultats */}
-          {prereqResults.length > 0 && (
-            <div className="absolute left-0 right-0 top-full mt-1 bg-zinc-950 border border-amber-500/30 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto p-1 space-y-0.5">
-              {prereqResults.map((res) => (
-                <button
-                  key={res.id}
-                  type="button"
-                  onClick={() => addPrereq(res.name)}
-                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-200 hover:bg-amber-500/20 hover:text-amber-100 flex items-center gap-2 transition-colors"
-                >
-                  <Search className="w-3 h-3 text-amber-400 shrink-0" />
-                  <span className="truncate">{res.name}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div>
-          <label className="text-caption font-black text-emerald-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
-            🥚 Dofus associé
-          </label>
-          <select value={selectedDofusId} onChange={e => handleDofusChange(e.target.value)}
-            className="w-full bg-black/60 border border-emerald-500/20 rounded-lg px-2 py-1.5 text-xs text-emerald-300 focus:outline-none focus:border-emerald-500/50"
-          >
-            <option value="">— Aucun Dofus associé —</option>
-            {DOFUS_LIST.map(d => (
-              <option key={d.id} value={d.id}>{d.label}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Toggle Bloc Pur d'Information */}
-      <div className="flex flex-col gap-2 p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
+    <div className="p-3.5 bg-zinc-950/90 border border-indigo-500/30 rounded-2xl space-y-3 shadow-xl">
+      {/* Header avec statut dirty et toggle preview */}
+      <div className="flex items-center justify-between pb-2 border-b border-white/5">
         <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="isInfoBlockToggle"
-            checked={isInfoBlock}
-            onChange={e => handleIsInfoBlockChange(e.target.checked)}
-            className="w-4 h-4 accent-purple-500 rounded cursor-pointer"
-          />
-          <label htmlFor="isInfoBlockToggle" className="text-xs font-bold text-purple-200 cursor-pointer select-none">
-            📌 Est un bloc d'information pur (Tips / Remarque sans quête ni case à cocher)
-          </label>
+          <p className="text-caption font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1.5">
+            <Pencil className="w-3 h-3 text-indigo-400" /> Édition quête
+          </p>
+          {isDirty && (
+            <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md flex items-center gap-1">
+              ● Non enregistré
+            </span>
+          )}
         </div>
-        {isInfoBlock && (
-          <div className="flex items-center gap-2 pl-6">
-            <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Couleur du bandeau</span>
-            <div className="flex gap-1">
-              {COLOR_PALETTE.map(c => (
-                <button key={c.value} onClick={() => handleInfoBlockColorChange(c.value)} title={c.label}
-                  className={`w-4 h-4 rounded-full border-2 transition-all ${infoBlockColor === c.value ? "border-white scale-125" : "border-transparent opacity-40 hover:opacity-100"}`}
-                  style={{ backgroundColor: c.value }}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+        <button
+          type="button"
+          onClick={() => setShowPreview(v => !v)}
+          className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-caption font-bold transition-all ${
+            showPreview
+              ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+              : "bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-white/5"
+          }`}
+        >
+          👁️ {showPreview ? "Masquer Aperçu" : "Aperçu Live"}
+        </button>
       </div>
 
-      {/* Positions GPS & Bloc Tougli */}
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-caption font-black text-emerald-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
-            📍 Positions GPS (ex: -2, 0 ; 10, -22)
-          </label>
-          <div className="flex items-center gap-1.5">
-            <input
-              value={positionsInput}
-              onChange={e => handlePositionsChange(e.target.value)}
-              className="flex-1 bg-black/60 border border-emerald-500/20 rounded-lg px-2 py-1.5 text-xs text-emerald-300 font-mono focus:outline-none focus:border-emerald-500/50"
-              placeholder="-2, 0 ; 10, -22"
-            />
-            <div className="relative shrink-0">
-              <WorldPicker
-                value={positionsWorldId}
-                onChange={w => {
-                  setPositionsWorldId(w);
-                  setActivityTags(prev => {
-                    const filtered = prev.filter((t: any) => t.type !== "pos_tags");
-                    if (positionsInput.trim()) {
-                      return [...filtered, { type: "pos_tags" as any, name: positionsInput.trim(), worldId: w }];
-                    }
-                    return filtered;
-                  });
-                }}
+      {/* Aperçu Live (Simulateur Dashboard / Overlay) */}
+      {showPreview && (
+        <div className="p-3 rounded-xl bg-zinc-900/90 border border-[#d5a94e]/30 space-y-2">
+          <p className="text-[10px] font-black uppercase tracking-widest text-[#d5a94e]">Aperçu Joueur (Temps Réel)</p>
+          <div className="p-2.5 rounded-lg bg-zinc-950 border border-white/10 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-3.5 h-3.5 rounded border border-zinc-600 shrink-0" />
+              <span className="font-bold text-xs text-zinc-100 truncate font-serif">{name || "Nom de quête"}</span>
+            </div>
+            {positionsInput && (
+              <span className="font-mono text-[10px] font-bold text-blue-300 bg-blue-950/60 border border-blue-500/30 px-1.5 py-0.5 rounded">
+                {positionsInput}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Section 1 : Identité & Nom (Ouvert par défaut) ── */}
+      <div className="rounded-xl border border-white/5 bg-zinc-900/40">
+        <button
+          type="button"
+          onClick={() => toggleSection("identity")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-zinc-400">
+            1. Identité de la quête *
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.identity ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.identity && (
+          <div className="p-3 pt-0 space-y-2 border-t border-white/5">
+            <div>
+              <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">Nom *</label>
+              <input
+                value={name}
+                onChange={e => setName(e.target.value)}
+                className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50"
+                placeholder="Nom de la quête"
+                autoFocus
               />
             </div>
           </div>
-        </div>
-        <div>
-          <label className="text-caption font-black text-purple-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
-            💬 Style du bloc Tougli
-          </label>
-          <select
-            value={tougliColor}
-            onChange={e => handleTougliColorChange(e.target.value)}
-            className="w-full bg-black/60 border border-purple-500/20 rounded-lg px-2 py-1.5 text-xs text-purple-300 focus:outline-none focus:border-purple-500/50"
-          >
-            <option value="emerald">🟢 Vert (Quête / Conseil)</option>
-            <option value="purple">🟣 Violet (Donjon / Boss)</option>
-            <option value="amber">🟡 Jaune (Astuce / Important)</option>
-          </select>
-        </div>
+        )}
       </div>
 
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <label className="text-caption font-black text-purple-400/80 uppercase tracking-widest block">
-            💬 Mini bloc Conseil Style Tougli
-          </label>
-          <button
-            type="button"
-            onClick={handleInsertLink}
-            className="flex items-center gap-1 text-caption font-bold text-purple-300 hover:text-purple-100 bg-purple-500/20 border border-purple-500/30 px-2 py-0.5 rounded-lg transition-all"
-          >
-            🔗 Insérer un lien
-          </button>
-        </div>
-        <textarea
-          value={tougliText}
-          onChange={e => handleTougliTextChange(e.target.value)}
-          className="w-full bg-black/60 border border-purple-500/20 rounded-lg px-2 py-1.5 text-xs text-purple-200 focus:outline-none focus:border-purple-500/50 resize-none font-sans"
-          placeholder="ex: Prenez la quête [Le trésor de Totankama](https://dofusdb.fr/...) qui demandera de faire..."
-          rows={2}
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">URL DofusDB</label>
-          <input value={dofusdbUrl} onChange={e => setDofusdbUrl(e.target.value)}
-            className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-caption text-emerald-300/80 focus:outline-none focus:border-emerald-500/40"
-            placeholder="https://dofusdb.fr/fr/..."
-          />
-        </div>
-        <div>
-          <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">URL DofusNoobs</label>
-          <input value={noobsUrl} onChange={e => setNoobsUrl(e.target.value)}
-            className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-caption text-cyan-300/80 focus:outline-none focus:border-cyan-500/40"
-            placeholder="https://dofuspourlesnoobs.com/..."
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">Alignement</label>
-          <select value={alignReq} onChange={e => setAlignReq(e.target.value)}
-            className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none"
-          >
-            <option value="">— Aucun —</option>
-            <option value="bontarien">Bontarien</option>
-            <option value="brakmarien">Brakmarien</option>
-            <option value="neutre">Neutre</option>
-          </select>
-        </div>
-        <div>
-          <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">Niveau</label>
-          <input type="number" min={0} max={100} value={alignOrderReq} onChange={e => setAlignOrderReq(e.target.value)}
-            className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none"
-            placeholder="0–100"
-          />
-        </div>
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block">💡 Tips <span className="text-zinc-600 font-normal normal-case tracking-normal">(/travel X,Y pour position cliquable)</span></label>
-          <button
-            type="button"
-            onClick={() => {
-              const x = prompt("Position X :");
-              if (!x) return;
-              const y = prompt("Position Y :");
-              if (!y) return;
-              const pos = `/travel ${x},${y}`;
-              setTips(prev => prev ? `${prev} ${pos}` : pos);
-              toast.success(`📍 ${pos} ajouté !`, { duration: 1500 });
-            }}
-            className="flex items-center gap-1 text-caption font-bold text-indigo-300 hover:text-indigo-100 bg-indigo-500/20 border border-indigo-500/30 px-2 py-0.5 rounded-lg transition-all"
-          >
-            <MapPin className="w-3 h-3" /> Ajouter position
-          </button>
-        </div>
-        <textarea value={tips} onChange={e => setTips(e.target.value)}
-          className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-amber-300/80 focus:outline-none focus:border-amber-500/30 resize-none"
-          placeholder="Conseil affiché côté membre..." rows={2}
-        />
-      </div>
-
-      <div>
-        <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">⚠️ Note courte</label>
-        <input value={note} onChange={e => setNote(e.target.value)}
-          className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none"
-          placeholder="ex: Ne pas cliquer le portail !"
-        />
-      </div>
-
-      {/* Tags d'activité */}
-      <div className="space-y-1.5">
-        <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block">🏷️ Activités requises</label>
-        <ActivityTagsEditor tags={activityTags} onChange={setActivityTags} />
-      </div>
-
-      {/* Objets & Ressources nécessaires */}
-      <RequiredItemsEditor items={requiredItems} onChange={handleRequiredItemsChange} />
-
-      {/* Icône du bloc (optionnel) */}
-      <div className="space-y-1.5">
-        <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block">🖼️ Icône du bloc <span className="text-zinc-700 font-normal normal-case tracking-normal">(optionnel)</span></label>
-        <div className="grid grid-cols-3 gap-1.5">
-          {[["", "Défaut"], ["serie-de-quete", "Série de quêtes"], ["icone-succes", "Succès"]].map(([val, label]) => (
-            <button
-              key={val || "none"}
-              type="button"
-              onClick={() => setIcon(val)}
-              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${icon === val ? "bg-indigo-500/20 border-indigo-500/40 text-indigo-300" : "bg-zinc-800/60 border-white/10 text-zinc-600 hover:text-zinc-400"}`}
-            >
-              {val ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={`/assets/icons/${val}.png`} alt={label} className="w-4 h-4 object-contain" />
-              ) : (
-                <span className="w-4 h-4 flex items-center justify-center text-caption">✕</span>
-              )}
-              <span>{label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Badges spéciaux */}
-      <div className="flex flex-wrap items-center gap-3 p-2.5 bg-zinc-950/60 rounded-xl border border-white/5">
-        {/* Toggle Succès */}
+      {/* ── Section 2 : Destination & Coordonnées (Ouvert par défaut) ── */}
+      <div className="rounded-xl border border-white/5 bg-zinc-900/40 relative">
         <button
           type="button"
-          onClick={() => setIsSuccess(v => !v)}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
-            isSuccess
-              ? "bg-orange-500/20 border-orange-500/40 text-orange-400"
-              : "bg-zinc-800/60 border-white/10 text-zinc-600 hover:text-zinc-400"
-          }`}
+          onClick={() => toggleSection("location")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/assets/icons/succes.png" alt="succès" className="w-4 h-4 object-contain" />
-          Succès
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-emerald-400/90">
+            2. 📍 Destination & Coordonnées GPS
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.location ? "rotate-180" : ""}`} />
         </button>
-
-        {/* Toggle Capture Ocre global */}
-        <button
-          type="button"
-          onClick={() => setMetamobMonsterId(v => v ? "" : "1")}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
-            metamobMonsterId
-              ? "bg-amber-500/20 border-amber-500/40 text-amber-300"
-              : "bg-zinc-800/60 border-white/10 text-zinc-600 hover:text-zinc-400"
-          }`}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/assets/icons/ocre.png" alt="Ocre" className="w-4 h-4 object-contain" />
-          À capturer global (Ocre)
-        </button>
-      </div>
-
-      {/* Multi-donjons */}
-      <div>
-        <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block flex items-center gap-1">
-          <Sword className="w-2.5 h-2.5 text-indigo-400" /> Donjons liés (définir si à capturer par donjon)
-        </label>
-        {selectedDungeons.length > 0 && (
-          <div className="space-y-1.5 mb-2">
-            {selectedDungeons.map(d => (
-              <div key={d.id} className="flex items-center justify-between gap-2 p-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
-                <div className="flex items-center gap-2 min-w-0">
-                  {d.imageUrl
-                    // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={d.imageUrl} alt={d.name} className="w-5 h-5 rounded object-cover flex-shrink-0" />
-                    : <Sword className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />}
-                  <span className="text-caption font-bold text-white truncate">{d.name}</span>
-                </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => toggleOcreForDungeon(d.id)}
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded border text-caption font-black uppercase tracking-widest transition-all ${
-                      isDungeonOcre(d.id)
-                        ? "bg-amber-500/20 border-amber-500/40 text-amber-300 "
-                        : "bg-zinc-900 border-white/10 text-zinc-500 hover:text-zinc-300"
-                    }`}
-                    title="Marquer ce donjon comme à capturer pour le Dofus Ocre"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/assets/icons/ocre.png" alt="Ocre" className="w-3 h-3 object-contain" />
-                    {isDungeonOcre(d.id) ? "À capturer ✓" : "Ocre ?"}
-                  </button>
-                  <button type="button" onClick={() => removeDungeon(d.id)} className="text-zinc-500 hover:text-red-400 p-0.5">
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
+        {openSections.location && (
+          <div className="p-3 pt-0 space-y-2 border-t border-white/5">
+            <label className="text-caption font-black text-emerald-400/80 uppercase tracking-widest mb-1 block">
+              Positions GPS (ex: -2, 0 ; 10, -22)
+            </label>
+            <div className="flex items-center gap-1.5">
+              <input
+                value={positionsInput}
+                onChange={e => handlePositionsChange(e.target.value)}
+                className="flex-1 bg-black/60 border border-emerald-500/20 rounded-lg px-2.5 py-1.5 text-xs text-emerald-300 font-mono focus:outline-none focus:border-emerald-500/50"
+                placeholder="-2, 0 ; 10, -22"
+              />
+              <div className="relative shrink-0">
+                <WorldPicker
+                  value={positionsWorldId}
+                  onChange={w => {
+                    setPositionsWorldId(w);
+                    setActivityTags(prev => {
+                      const filtered = prev.filter((t: any) => t.type !== "pos_tags");
+                      if (positionsInput.trim()) {
+                        return [...filtered, { type: "pos_tags" as any, name: positionsInput.trim(), worldId: w }];
+                      }
+                      return filtered;
+                    });
+                  }}
+                />
               </div>
-            ))}
-          </div>
-        )}
-        <input value={dungeonQuery} onChange={e => handleDungeonSearch(e.target.value)}
-          className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white placeholder:text-zinc-700 focus:outline-none focus:border-indigo-500/40"
-          placeholder="Ajouter un donjon…"
-        />
-        {searching && <p className="text-caption text-zinc-600 italic mt-1">Recherche…</p>}
-        {dungeonResults.length > 0 && (
-          <div className="mt-1 space-y-0.5 max-h-28 overflow-y-auto">
-            {dungeonResults.map(d => (
-              <button key={d.id} onClick={() => addDungeon(d)}
-                className="w-full flex items-center gap-2 px-2 py-1 hover:bg-indigo-500/10 rounded-lg transition-colors text-left"
-              >
-                {d.imageUrl
-                  // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={d.imageUrl} alt={d.name} className="w-5 h-5 rounded object-cover flex-shrink-0" />
-                  : <div className="w-5 h-5 rounded bg-zinc-800 flex items-center justify-center flex-shrink-0"><Sword className="w-2.5 h-2.5 text-zinc-600" /></div>}
-                <p className="text-xs font-bold text-white">{d.name}</p>
-                <p className="text-caption text-zinc-500">Niv. {d.level}</p>
-              </button>
-            ))}
+            </div>
           </div>
         )}
       </div>
 
-      {/* ── Objets & Ressources nécessaires ────────────────────────── */}
-      <RequiredItemsEditor items={requiredItems} onChange={handleRequiredItemsChange} />
-
-      {/* ── Déplacer vers un autre bloc ─────────────────────────────── */}
-      {seq.id && milestones && milestones.length > 1 && (
-        <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-          <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-          <span className="text-caption font-black text-emerald-400 uppercase tracking-widest shrink-0">Déplacer vers</span>
-          <select
-            value=""
-            onChange={e => {
-              const targetId = e.target.value;
-              if (targetId && targetId !== milestoneId) {
-                onSave({ subGuideRef: name.trim(), activityTags }, targetId);
-              }
-            }}
-            className="flex-1 bg-black/60 border border-emerald-500/30 rounded-lg px-2 py-1 text-caption text-emerald-200 focus:outline-none"
-          >
-            <option value="">— Choisir un bloc —</option>
-            {milestones.filter(m => m.id !== milestoneId && !isSeparatorMilestone(m)).map(m => (
-              <option key={m.id} value={m.id}>{m.title}</option>
-            ))}
-          </select>
-        </div>
-      )}
-      <div className="flex items-center gap-2 pt-1">
-        <button onClick={handleSubmit} disabled={isPending || !name.trim()}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 text-white rounded-lg text-xs font-black uppercase tracking-widest transition-all"
+      {/* ── Section 3 : Prérequis & Dofus ── */}
+      <div className="rounded-xl border border-white/5 bg-zinc-900/40 relative">
+        <button
+          type="button"
+          onClick={() => toggleSection("prereqs")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
-          <Check className="w-3 h-3" /> Sauvegarder
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-amber-400/90">
+            3. 🔒 Prérequis ({prereqs.length}) & Dofus associé
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.prereqs ? "rotate-180" : ""}`} />
         </button>
-        <button onClick={onCancel}
-          className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg text-xs font-black uppercase tracking-widest transition-all"
-        >Annuler</button>
+        {openSections.prereqs && (
+          <div className="p-3 pt-0 space-y-3 border-t border-white/5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="relative">
+                <label className="text-caption font-black text-amber-400/80 uppercase tracking-widest mb-1 block">
+                  Prérequis de quête
+                </label>
+                {prereqs.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-1.5">
+                    {prereqs.map((pName, pIdx) => (
+                      <span key={pIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/30 text-caption font-bold">
+                        <Lock className="w-2.5 h-2.5 text-amber-400" />
+                        <span className="max-w-[120px] truncate">{pName}</span>
+                        <button type="button" onClick={() => removePrereq(pName)} className="hover:text-red-400 text-zinc-400 ml-0.5">
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={prereqQuery}
+                    onChange={e => handlePrereqSearch(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && prereqQuery.trim()) {
+                        e.preventDefault();
+                        addPrereq(prereqQuery.trim());
+                      }
+                    }}
+                    className="w-full bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1.5 text-xs text-amber-200 focus:outline-none focus:border-amber-500/50 placeholder:text-zinc-700"
+                    placeholder="Rechercher une quête prérequis..."
+                  />
+                  {searchingPrereqs && <span className="absolute right-2 top-2 text-caption text-zinc-500 animate-pulse">...</span>}
+                </div>
+                {prereqResults.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-zinc-950 border border-amber-500/30 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto p-1 space-y-0.5">
+                    {prereqResults.map((res) => (
+                      <button
+                        key={res.id}
+                        type="button"
+                        onClick={() => addPrereq(res.name)}
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-200 hover:bg-amber-500/20 hover:text-amber-100 flex items-center gap-2 transition-colors"
+                      >
+                        <Search className="w-3 h-3 text-amber-400 shrink-0" />
+                        <span className="truncate">{res.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="text-caption font-black text-emerald-400/80 uppercase tracking-widest mb-1 block">
+                  🥚 Dofus associé
+                </label>
+                <select
+                  value={selectedDofusId}
+                  onChange={e => handleDofusChange(e.target.value)}
+                  className="w-full bg-black/60 border border-emerald-500/20 rounded-lg px-2 py-1.5 text-xs text-emerald-300 focus:outline-none focus:border-emerald-500/50"
+                >
+                  <option value="">— Aucun Dofus associé —</option>
+                  {DOFUS_LIST.map(d => (
+                    <option key={d.id} value={d.id}>{d.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 4 : Activités & Tags ── */}
+      <div className="rounded-xl border border-white/5 bg-zinc-900/40">
+        <button
+          type="button"
+          onClick={() => toggleSection("activities")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-blue-400/90">
+            4. 🏷️ Activités & Contraintes ({activityTags.filter(t => !["prereq_text","dofus_link","pos_tags","tougli_box","info_sequence","item"].includes(t.type)).length})
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.activities ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.activities && (
+          <div className="p-3 pt-0 space-y-2 border-t border-white/5">
+            <ActivityTagsEditor tags={activityTags} onChange={setActivityTags} />
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 5 : Ressources & Objets requis ── */}
+      <div className="rounded-xl border border-white/5 bg-zinc-900/40 relative">
+        <button
+          type="button"
+          onClick={() => toggleSection("resources")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-amber-300/90">
+            5. 📦 Ressources & Objets nécessaires ({requiredItems.length})
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.resources ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.resources && (
+          <div className="p-3 pt-0 space-y-2 border-t border-white/5">
+            <RequiredItemsEditor items={requiredItems} onChange={handleRequiredItemsChange} />
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 6 : Liens & Médias ── */}
+      <div className="rounded-xl border border-white/5 bg-zinc-900/40">
+        <button
+          type="button"
+          onClick={() => toggleSection("links")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-cyan-400/90">
+            6. 🔗 Liens externes & Icône
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.links ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.links && (
+          <div className="p-3 pt-0 space-y-3 border-t border-white/5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">URL DofusDB</label>
+                <input
+                  value={dofusdbUrl}
+                  onChange={e => setDofusdbUrl(e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-caption text-emerald-300/80 focus:outline-none focus:border-emerald-500/40"
+                  placeholder="https://dofusdb.fr/fr/..."
+                />
+              </div>
+              <div>
+                <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">URL DofusNoobs</label>
+                <input
+                  value={noobsUrl}
+                  onChange={e => setNoobsUrl(e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-caption text-cyan-300/80 focus:outline-none focus:border-cyan-500/40"
+                  placeholder="https://dofuspourlesnoobs.com/..."
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block mb-1">Icône du bloc (optionnel)</label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[["", "Défaut"], ["serie-de-quete", "Série de quêtes"], ["icone-succes", "Succès"]].map(([val, label]) => (
+                  <button
+                    key={val || "none"}
+                    type="button"
+                    onClick={() => setIcon(val)}
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
+                      icon === val ? "bg-indigo-500/20 border-indigo-500/40 text-indigo-300" : "bg-zinc-800/60 border-white/10 text-zinc-600 hover:text-zinc-400"
+                    }`}
+                  >
+                    {val ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={`/assets/icons/${val}.png`} alt={label} className="w-4 h-4 object-contain" />
+                    ) : (
+                      <span className="w-4 h-4 flex items-center justify-center text-caption">✕</span>
+                    )}
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 7 : Conseils & Style Tougli ── */}
+      <div className="rounded-xl border border-white/5 bg-zinc-900/40">
+        <button
+          type="button"
+          onClick={() => toggleSection("hints")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-purple-400/90">
+            7. 💡 Conseils, Notes & Style Tougli
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.hints ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.hints && (
+          <div className="p-3 pt-0 space-y-3 border-t border-white/5">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-caption font-black text-zinc-500 uppercase tracking-widest block">💡 Tips</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const x = prompt("Position X :");
+                    if (!x) return;
+                    const y = prompt("Position Y :");
+                    if (!y) return;
+                    const pos = `/travel ${x},${y}`;
+                    setTips(prev => prev ? `${prev} ${pos}` : pos);
+                    toast.success(`📍 ${pos} ajouté !`, { duration: 1500 });
+                  }}
+                  className="flex items-center gap-1 text-caption font-bold text-indigo-300 hover:text-indigo-100 bg-indigo-500/20 border border-indigo-500/30 px-2 py-0.5 rounded-lg transition-all"
+                >
+                  <MapPin className="w-3 h-3" /> Ajouter position
+                </button>
+              </div>
+              <textarea
+                value={tips}
+                onChange={e => setTips(e.target.value)}
+                className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-amber-300/80 focus:outline-none focus:border-amber-500/30 resize-none"
+                placeholder="Conseil affiché côté membre..."
+                rows={2}
+              />
+            </div>
+
+            <div>
+              <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">⚠️ Note courte</label>
+              <input
+                value={note}
+                onChange={e => setNote(e.target.value)}
+                className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none"
+                placeholder="ex: Ne pas cliquer le portail !"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-caption font-black text-purple-400/80 uppercase tracking-widest block">
+                  Mini bloc Tougli
+                </label>
+                <button
+                  type="button"
+                  onClick={handleInsertLink}
+                  className="flex items-center gap-1 text-caption font-bold text-purple-300 hover:text-purple-100 bg-purple-500/20 border border-purple-500/30 px-2 py-0.5 rounded-lg transition-all"
+                >
+                  🔗 Insérer un lien
+                </button>
+              </div>
+              <textarea
+                value={tougliText}
+                onChange={e => handleTougliTextChange(e.target.value)}
+                className="w-full bg-black/60 border border-purple-500/20 rounded-lg px-2 py-1.5 text-xs text-purple-200 focus:outline-none focus:border-purple-500/50 resize-none font-sans"
+                placeholder="ex: Prenez la quête [Le trésor de Totankama](https://dofusdb.fr/...) qui demandera de faire..."
+                rows={2}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 8 : Options Avancées & Donjons ── */}
+      <div className="rounded-xl border border-white/5 bg-zinc-900/40 relative">
+        <button
+          type="button"
+          onClick={() => toggleSection("advanced")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-rose-400/90">
+            8. ⚔️ Donjons ({selectedDungeons.length}), Info Sequence & Transfert
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.advanced ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.advanced && (
+          <div className="p-3 pt-0 space-y-3 border-t border-white/5">
+            {/* Toggle Info Sequence */}
+            <div className="flex flex-col gap-2 p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isInfoBlockToggle"
+                  checked={isInfoBlock}
+                  onChange={e => handleIsInfoBlockChange(e.target.checked)}
+                  className="w-4 h-4 accent-purple-500 rounded cursor-pointer"
+                />
+                <label htmlFor="isInfoBlockToggle" className="text-xs font-bold text-purple-200 cursor-pointer select-none">
+                  📌 Est un bloc d'information pur (non cochable)
+                </label>
+              </div>
+            </div>
+
+            {/* Donjons liés */}
+            <div>
+              <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block flex items-center gap-1">
+                <Sword className="w-2.5 h-2.5 text-indigo-400" /> Donjons liés
+              </label>
+              {selectedDungeons.length > 0 && (
+                <div className="space-y-1.5 mb-2">
+                  {selectedDungeons.map(d => (
+                    <div key={d.id} className="flex items-center justify-between gap-2 p-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {d.imageUrl
+                          // eslint-disable-next-line @next/next/no-img-element
+                          ? <img src={d.imageUrl} alt={d.name} className="w-5 h-5 rounded object-cover flex-shrink-0" />
+                          : <Sword className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />}
+                        <span className="text-caption font-bold text-white truncate">{d.name}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => toggleOcreForDungeon(d.id)}
+                          className={`flex items-center gap-1 px-2 py-0.5 rounded border text-caption font-black uppercase tracking-widest transition-all ${
+                            isDungeonOcre(d.id)
+                              ? "bg-amber-500/20 border-amber-500/40 text-amber-300"
+                              : "bg-zinc-900 border-white/10 text-zinc-500 hover:text-zinc-300"
+                          }`}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src="/assets/icons/ocre.png" alt="Ocre" className="w-3 h-3 object-contain" />
+                          {isDungeonOcre(d.id) ? "À capturer ✓" : "Ocre ?"}
+                        </button>
+                        <button type="button" onClick={() => removeDungeon(d.id)} className="text-zinc-500 hover:text-red-400 p-0.5">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <input
+                value={dungeonQuery}
+                onChange={e => handleDungeonSearch(e.target.value)}
+                className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white placeholder:text-zinc-700 focus:outline-none focus:border-indigo-500/40"
+                placeholder="Ajouter un donjon…"
+              />
+              {searching && <p className="text-caption text-zinc-600 italic mt-1">Recherche…</p>}
+              {dungeonResults.length > 0 && (
+                <div className="mt-1 space-y-0.5 max-h-28 overflow-y-auto">
+                  {dungeonResults.map(d => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => addDungeon(d)}
+                      className="w-full flex items-center gap-2 px-2 py-1 hover:bg-indigo-500/10 rounded-lg transition-colors text-left"
+                    >
+                      {d.imageUrl
+                        // eslint-disable-next-line @next/next/no-img-element
+                        ? <img src={d.imageUrl} alt={d.name} className="w-5 h-5 rounded object-cover flex-shrink-0" />
+                        : <div className="w-5 h-5 rounded bg-zinc-800 flex items-center justify-center flex-shrink-0"><Sword className="w-2.5 h-2.5 text-zinc-600" /></div>}
+                      <p className="text-xs font-bold text-white">{d.name}</p>
+                      <p className="text-caption text-zinc-500">Niv. {d.level}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Déplacer vers un autre bloc */}
+            {seq.id && milestones && milestones.length > 1 && (
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="text-caption font-black text-emerald-400 uppercase tracking-widest shrink-0">Déplacer vers</span>
+                <select
+                  value=""
+                  onChange={e => {
+                    const targetId = e.target.value;
+                    if (targetId && targetId !== milestoneId) {
+                      onSave({ subGuideRef: name.trim(), activityTags }, targetId);
+                    }
+                  }}
+                  className="flex-1 bg-black/60 border border-emerald-500/30 rounded-lg px-2 py-1 text-caption text-emerald-200 focus:outline-none"
+                >
+                  <option value="">— Choisir un bloc —</option>
+                  {milestones.filter(m => m.id !== milestoneId && !isSeparatorMilestone(m)).map(m => (
+                    <option key={m.id} value={m.id}>{m.title}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Footer Actions */}
+      <div className="flex items-center justify-between pt-2 border-t border-white/5">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isPending || !name.trim()}
+            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-black rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg"
+          >
+            <Check className="w-3.5 h-3.5" /> Enregistrer la quête
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+          >
+            Annuler
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-// ─── AddSequenceForm ──────────────────────────────────────────────────────────
 // ─── WorldPicker pour sélectionner un monde avec style ──────────────────────
 function WorldPicker({ value, onChange }: { value: number; onChange: (worldId: number) => void }) {
   const [open, setOpen] = useState(false);
@@ -2294,20 +2430,20 @@ function WorldPicker({ value, onChange }: { value: number; onChange: (worldId: n
         <ChevronDown className={`w-3 h-3 text-zinc-500 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute top-full right-0 mt-1 bg-zinc-900 border border-zinc-700/60 rounded-xl shadow-2xl z-50 min-w-[220px] max-h-56 overflow-y-auto p-1">
+        <div className="absolute top-full right-0 mt-1.5 bg-zinc-950 border border-zinc-700/80 rounded-xl shadow-2xl z-[100] min-w-[220px] max-h-60 overflow-y-auto p-1.5 backdrop-blur-xl">
           {DOFUS_WORLDS.map(w => (
             <button key={w.id} type="button" onClick={() => { onChange(w.id); setOpen(false); }}
               className={`w-full text-left flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs transition-all ${
                 w.id === value
-                  ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
-                  : "text-zinc-300 hover:bg-zinc-800 border border-transparent"
+                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold"
+                  : "text-zinc-300 hover:bg-zinc-800/80 border border-transparent"
               }`}
             >
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-caption font-black ${
-                w.id === value ? "bg-emerald-500 text-white" : "bg-zinc-800 text-zinc-500"
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black font-mono shrink-0 ${
+                w.id === value ? "bg-emerald-500 text-black" : "bg-zinc-800 text-zinc-400"
               }`}>{w.id}</span>
-              <span className="font-medium">{w.name}</span>
-              {w.id === value && <Check className="w-3 h-3 ml-auto text-emerald-400 shrink-0" />}
+              <span className="font-medium truncate flex-1">{w.name}</span>
+              {w.id === value && <Check className="w-3.5 h-3.5 ml-auto text-emerald-400 shrink-0" />}
             </button>
           ))}
         </div>

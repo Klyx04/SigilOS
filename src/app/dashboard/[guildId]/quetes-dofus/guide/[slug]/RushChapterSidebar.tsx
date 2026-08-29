@@ -205,19 +205,19 @@ export function RushChapterSidebar({
   return (
     <aside
       className={cn(
-        "flex flex-col gap-4 bg-zinc-950/80 backdrop-blur-xl p-4 sm:p-5 rounded-3xl border border-white/10 shadow-2xl transition-all",
+        "flex flex-col gap-3.5 bg-[#12161b] backdrop-blur-xl p-4 sm:p-5 rounded-2xl border border-[#28303a] shadow-xl transition-all",
         className
       )}
     >
       {/* ─── Sélecteur de Chapitre ─── */}
-      <div className="flex items-center justify-between gap-2 border-b border-white/5 pb-3">
+      <div className="flex items-center justify-between gap-2 border-b border-[#28303a]/70 pb-3">
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <Layers className="w-4 h-4 text-zinc-400 shrink-0" />
+          <Layers className="w-4 h-4 text-[#d5a94e] shrink-0" />
           <select
             value={selectedChapter}
             onChange={(e) => setSelectedChapter(e.target.value === "ALL" ? "ALL" : Number(e.target.value))}
             aria-label="Sélectionner le chapitre"
-            className="w-full bg-zinc-900/80 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs font-bold text-zinc-200 focus:outline-none focus:border-emerald-500/50 truncate cursor-pointer hover:bg-zinc-900 transition-colors"
+            className="w-full bg-[#181e25] border border-[#28303a] rounded-xl px-2.5 py-1.5 text-xs font-bold text-[#f2f0e9] focus:outline-none focus:border-[#39bc95]/50 truncate cursor-pointer hover:bg-[#1e252e] transition-colors"
           >
             {chapters.map((ch) => (
               <option key={ch.chapter} value={ch.chapter}>
@@ -230,18 +230,18 @@ export function RushChapterSidebar({
       </div>
 
       {/* ─── Progression du Chapitre ─── */}
-      <div className="flex items-center gap-4 bg-zinc-900/40 p-3.5 rounded-2xl border border-white/5">
-        <div className="relative w-13 h-13 shrink-0 flex items-center justify-center">
-          <svg className="w-13 h-13 transform -rotate-90" viewBox="0 0 36 36">
+      <div className="flex items-center gap-4 bg-[#181e25] p-3.5 rounded-xl border border-[#28303a]/80">
+        <div className="relative w-12 h-12 shrink-0 flex items-center justify-center">
+          <svg className="w-12 h-12 transform -rotate-90" viewBox="0 0 36 36">
             <path
-              className="text-zinc-800/80"
+              className="text-[#242b35]"
               strokeWidth="3.5"
               stroke="currentColor"
               fill="none"
               d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
             />
             <path
-              className="text-emerald-500 transition-all duration-500"
+              className="text-[#39bc95] transition-all duration-500"
               strokeDasharray={`${stats.percent}, 100`}
               strokeWidth="3.5"
               strokeLinecap="round"
@@ -250,62 +250,62 @@ export function RushChapterSidebar({
               d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
             />
           </svg>
-          <span className="absolute font-mono font-bold text-xs text-white">{stats.percent}%</span>
+          <span className="absolute font-mono font-bold text-xs text-[#f2f0e9]">{stats.percent}%</span>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Progression</p>
-          <p className="text-sm font-bold text-zinc-100 truncate">
+          <p className="text-[10px] font-black uppercase tracking-widest text-[#929aa5]">Progression</p>
+          <p className="text-sm font-bold text-[#f2f0e9] truncate">
             {stats.completedSequences} / {stats.totalSequences}
-            <span className="text-xs font-normal text-zinc-400 ml-1">quêtes</span>
+            <span className="text-xs font-normal text-[#929aa5] ml-1">quêtes</span>
           </p>
-          <p className="text-[11px] text-zinc-500 truncate">{currentChapterLabel}</p>
+          <p className="text-[11px] text-[#6e7784] truncate">{currentChapterLabel}</p>
         </div>
       </div>
 
       {/* ─── Synthèse & Infos du Chapitre ─── */}
-      <div className="flex flex-col gap-2 bg-zinc-900/30 p-3 rounded-2xl border border-white/5">
-        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">Infos du chapitre</p>
+      <div className="flex flex-col gap-2 bg-[#181e25]/60 p-3 rounded-xl border border-[#28303a]/80">
+        <p className="text-[10px] font-black uppercase tracking-widest text-[#929aa5] px-1">Infos du chapitre</p>
         <div className="grid grid-cols-2 gap-1.5 text-xs">
-          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-zinc-900/60 border border-white/5">
-            <span className="flex items-center gap-1.5 text-zinc-400">
+          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-[#12161b] border border-[#28303a]/60">
+            <span className="flex items-center gap-1.5 text-[#929aa5]">
               <span className="text-xs">🏰</span> Donjons
             </span>
-            <span className="font-mono font-bold text-zinc-200">{stats.dungeons}</span>
+            <span className="font-mono font-bold text-[#f2f0e9]">{stats.dungeons}</span>
           </div>
-          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-zinc-900/60 border border-white/5">
-            <span className="flex items-center gap-1.5 text-zinc-400">
+          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-[#12161b] border border-[#28303a]/60">
+            <span className="flex items-center gap-1.5 text-[#929aa5]">
               <span className="text-xs">⚔️</span> Solo
             </span>
-            <span className="font-mono font-bold text-zinc-200">{stats.combatSolo}</span>
+            <span className="font-mono font-bold text-[#f2f0e9]">{stats.combatSolo}</span>
           </div>
-          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-zinc-900/60 border border-white/5">
-            <span className="flex items-center gap-1.5 text-zinc-400">
+          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-[#12161b] border border-[#28303a]/60">
+            <span className="flex items-center gap-1.5 text-[#929aa5]">
               <span className="text-xs">👥</span> Groupe
             </span>
-            <span className="font-mono font-bold text-zinc-200">{stats.combatGroupe}</span>
+            <span className="font-mono font-bold text-[#f2f0e9]">{stats.combatGroupe}</span>
           </div>
-          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-zinc-900/60 border border-white/5">
-            <span className="flex items-center gap-1.5 text-zinc-400">
+          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-[#12161b] border border-[#28303a]/60">
+            <span className="flex items-center gap-1.5 text-[#929aa5]">
               <span className="text-xs">🧩</span> Tactique
             </span>
-            <span className="font-mono font-bold text-zinc-200">{stats.tactique}</span>
+            <span className="font-mono font-bold text-[#f2f0e9]">{stats.tactique}</span>
           </div>
         </div>
       </div>
 
       {/* ─── Objets & Ressources nécessaires ─── */}
-      <div className="flex flex-col gap-2 bg-zinc-900/30 p-3.5 rounded-2xl border border-white/5 flex-1 min-h-0">
-        <div className="flex items-center justify-between border-b border-white/5 pb-2">
+      <div className="flex flex-col gap-2 bg-[#181e25]/60 p-3.5 rounded-xl border border-[#28303a]/80 flex-1 min-h-0">
+        <div className="flex items-center justify-between border-b border-[#28303a]/60 pb-2">
           <div className="flex items-center gap-1.5">
-            <Package className="w-3.5 h-3.5 text-zinc-400" />
-            <h4 className="text-[11px] font-black uppercase tracking-widest text-zinc-300">
-              Objets nécessaires ({aggregatedItems.length})
+            <Package className="w-3.5 h-3.5 text-[#d5a94e]" />
+            <h4 className="text-[11px] font-black uppercase tracking-widest text-[#f2f0e9]">
+              Objets requis ({aggregatedItems.length})
             </h4>
           </div>
           {aggregatedItems.length > 0 && (
             <button
               onClick={() => setHideCompletedItems((v) => !v)}
-              className="text-[10px] text-zinc-400 hover:text-zinc-200 font-bold uppercase tracking-wider transition-colors"
+              className="text-[10px] text-[#929aa5] hover:text-[#f2f0e9] font-bold uppercase tracking-wider transition-colors"
             >
               {hideCompletedItems ? "Tout voir" : "Masquer finis"}
             </button>
@@ -320,33 +320,33 @@ export function RushChapterSidebar({
                 className={cn(
                   "flex items-center justify-between gap-2 p-2 rounded-xl border transition-all text-xs",
                   item.isCompleted
-                    ? "bg-zinc-950/30 border-white/5 opacity-40"
-                    : "bg-zinc-900/60 border-white/5 hover:border-white/10"
+                    ? "bg-[#0c0f13]/60 border-white/[0.04] opacity-40"
+                    : "bg-[#12161b] border-[#28303a]/80 hover:border-[#384352]"
                 )}
               >
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   {item.imageUrl ? (
-                    <div className="w-7 h-7 rounded-lg bg-zinc-950 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
+                    <div className="w-7 h-7 rounded-lg bg-[#090b0e] border border-[#28303a] flex items-center justify-center shrink-0 overflow-hidden">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={item.imageUrl} alt={item.name} className="w-5.5 h-5.5 object-contain" />
                     </div>
                   ) : (
-                    <div className="w-7 h-7 rounded-lg bg-zinc-900 border border-white/10 flex items-center justify-center shrink-0">
-                      <Package className="w-3.5 h-3.5 text-zinc-400" />
+                    <div className="w-7 h-7 rounded-lg bg-[#181e25] border border-[#28303a] flex items-center justify-center shrink-0">
+                      <Package className="w-3.5 h-3.5 text-[#d5a94e]" />
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
                     <p
                       className={cn(
                         "font-semibold truncate text-xs",
-                        item.isCompleted ? "line-through text-zinc-500" : "text-zinc-200"
+                        item.isCompleted ? "line-through text-zinc-500" : "text-[#f2f0e9]"
                       )}
                       title={item.name}
                     >
                       {item.name}
                     </p>
                     {item.level && (
-                      <span className="text-[10px] text-zinc-500 block">Niv. {item.level}</span>
+                      <span className="text-[10px] text-[#929aa5] block">Niv. {item.level}</span>
                     )}
                   </div>
                 </div>
@@ -356,8 +356,8 @@ export function RushChapterSidebar({
                     className={cn(
                       "font-mono font-bold text-xs px-2 py-0.5 rounded-md",
                       item.isCompleted
-                        ? "bg-zinc-900 text-zinc-500"
-                        : "bg-zinc-800 text-zinc-200 border border-white/10"
+                        ? "bg-[#12161b] text-zinc-600"
+                        : "bg-[#181e25] text-[#f2f0e9] border border-[#28303a]"
                     )}
                   >
                     {hideCompletedItems
@@ -365,17 +365,17 @@ export function RushChapterSidebar({
                       : item.totalQuantity}
                   </span>
                   {item.isCompleted && (
-                    <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <Check className="w-3.5 h-3.5 text-[#39bc95] shrink-0" />
                   )}
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="py-6 text-center text-zinc-500 text-xs">
-            <Package className="w-6 h-6 mx-auto mb-1 opacity-30" />
+          <div className="py-6 text-center text-[#929aa5] text-xs">
+            <Package className="w-6 h-6 mx-auto mb-1 opacity-30 text-[#d5a94e]" />
             <p className="font-bold">Aucune ressource répertoriée</p>
-            <p className="text-[10px] text-zinc-600">pour ce chapitre.</p>
+            <p className="text-[10px] text-[#6e7784]">pour ce chapitre.</p>
           </div>
         )}
       </div>

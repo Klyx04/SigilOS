@@ -1,4 +1,14 @@
+> # ⚠️ STATUT À JOUR (30/08) — ce fichier était la liste de correction « first-pass » DeepSeek.
+> **Résolu en session 30/08** (voir `src/temp/chantier-actif.md`) :
+> - ✅ **Info sequences non-cochables** (item 8) : `info_sequence` ne se coche pas, ne compte pas, n'est jamais candidate.
+> - ✅ **Actionnable = pas bloquée** (item 2, partiel) : `getNextObjective` + bloc objectif skippent les séquences bloquées par prérequis réels (`isSequenceBlockedByPrereqs`).
+> **Restant (à traiter si pertinent, cf. roadmap S4/S6/S5/S7)** : recherche + `hideDone` sur milestones entièrement terminés (item 3) · bookmark strictement par quête (item 4) · modale de reprise (item 5) · navigation flottante via `resumeRush()` (item 6) · cibles de clic de validation (item 7) · data-tour (item 9).
+> **Nouvelle road map** : S4 (« qui peut aider », audit données d'abord) → S6 (moments premium) → S5 (éditeur GOD) → S7 (contexte chapitre).
+
+---
+
 Ce qui est bien implémenté
+
 Le fichier contient réellement les éléments annoncés :
 
 Recherche accent-insensible sur quêtes, références, tips, notes, donjons et tags, avec compteur, état vide et effacement.

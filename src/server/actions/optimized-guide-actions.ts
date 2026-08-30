@@ -11,7 +11,7 @@ import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { publishGuideEvent, parseStepKey, getCachedGuideProgress, invalidateGuideProgressCache } from "@/lib/guide-realtime";
-import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers, type GuideProgressRow, type GuideProgressMember, type GuidePresenceMap } from "@/lib/guide-progress-helpers";
+import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers, buildMilestoneStepKeys, type GuideProgressRow, type GuideProgressMember, type GuidePresenceMap } from "@/lib/guide-progress-helpers";
 
 /**
  * 🛡️ Trace une écriture God UNIQUEMENT si l'acteur est un sous-god (pas super-admin).
@@ -192,6 +192,43 @@ export async function getOptimizedGuideDetail(slug: string, guildId: string, alt
           (seq as any).dungeons = ids.map(id => dungeonMap.get(id)).filter(Boolean);
         }
       }
+    }
+  }
+
+  // ── Normalisation Rush : exposer `completedStepIds` & `bookmarkedSeqId` (seq-id) ──
+  // Le module Rush raisonne par `seq.id` ; la base stocke `completedSteps` / `currentStep`
+  // (seq-ids pour Rush ; step-keys Ganymède `GPx-N` pour le legacy/Duffus). On projette
+  // une vue seq-id sur `playerProgress[0]` pour que l'overlay et le dashboard lisent
+  // correctement l'état coché / repère (sinon `completedStepIds` était `undefined`).
+  const isInfoSeqLocal = (seq: any) =>
+    Array.isArray(seq?.activityTags) && (seq.activityTags as any[]).some((t: any) => t.type === "info_sequence");
+
+  for (const ms of guide.milestones) {
+    const stepKeyToSeq = new Map<string, string>();
+    const seqIdSet = new Set<string>();
+    for (const seq of ms.sequences || []) {
+      seqIdSet.add(seq.id);
+      for (const key of buildMilestoneStepKeys([seq])) {
+        if (!stepKeyToSeq.has(key)) stepKeyToSeq.set(key, seq.id);
+      }
+    }
+    const resolveSeqId = (raw: unknown): string | null => {
+      if (raw == null) return null;
+      const key = String(raw);
+      const id = key.startsWith("seq:") ? key.slice(4) : (stepKeyToSeq.get(key) ?? key);
+      return seqIdSet.has(id) ? id : null;
+    };
+    for (const pp of (ms as any).playerProgress || []) {
+      const resolvedSteps: string[] = [];
+      const completed = Array.isArray((pp as any).completedSteps) ? (pp as any).completedSteps : [];
+      for (const c of completed) {
+        const id = resolveSeqId(c);
+        if (!id) continue;
+        const seq = (ms.sequences || []).find((s: any) => s.id === id);
+        if (seq && !isInfoSeqLocal(seq)) resolvedSteps.push(id);
+      }
+      (pp as any).completedStepIds = [...new Set(resolvedSteps)];
+      (pp as any).bookmarkedSeqId = resolveSeqId((pp as any).currentStep);
     }
   }
 
@@ -825,6 +862,144 @@ export async function updateBookmarkedStep(guildId: string, milestoneId: string,
   }
 
   return { success: true, progress };
+}
+
+/**
+ * Action Rush dédiée : valide des séquences par leur ID (pas par step-keys Ganymède).
+ * Le module Rush stocke les séquences par `seq.id` ; `updateStepProgress` (partagé avec
+ * Duffus) filtre en `GPx-N` et casserait la persistance. Ici on écrit les seq-ids bruts
+ * et on calcule la complétion du jalon contre ses séquences de contenu (hors info).
+ */
+export async function setRushSequenceProgress(guildId: string, milestoneId: string, seqIds: string[], altPseudo?: string) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+  if (!ctx.profileId) throw new Error("Profile ID manquant");
+
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+
+  // 🛡️ RATE LIMIT (P0) : 120 validations d'étapes/min par membre.
+  const { success: rateOk } = await rateLimit(`guide-step-write:${ctx.profileId}`, 120, 60_000);
+  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
+
+  const milestone = await db.guideMilestone.findUnique({
+    where: { id: milestoneId },
+    select: {
+      title: true,
+      type: true,
+      guide: { select: { slug: true } },
+      sequences: { select: { id: true, activityTags: true } },
+    },
+  });
+  if (!milestone) throw new Error("Jalon introuvable");
+  if (["SEPARATEUR", "INFO", "DOFUS_OBTAINED"].includes(milestone.type || "")) {
+    throw new Error("Ce jalon n'est pas cochable");
+  }
+
+  const isInfoSeq = (seq: { id: string; activityTags?: any }) =>
+    Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "info_sequence");
+
+  const contentIds = (milestone.sequences || []).filter((s) => !isInfoSeq(s)).map((s) => s.id);
+  const contentSet = new Set(contentIds);
+  const incoming = Array.isArray(seqIds)
+    ? [...new Set(seqIds.filter((id): id is string => typeof id === "string" && contentSet.has(id)))].slice(0, 500)
+    : [];
+  const checkedSet = new Set(incoming);
+  const isCompleted = contentIds.length > 0 && contentIds.every((id) => checkedSet.has(id));
+
+  const progress = await db.playerGuideProgress.upsert({
+    where: { profileId_milestoneId_characterSlot: { profileId, milestoneId, characterSlot } },
+    update: { completedSteps: incoming, isCompleted, completedAt: isCompleted ? new Date() : null },
+    create: { profileId, milestoneId, characterSlot, completedSteps: incoming, isCompleted, completedAt: isCompleted ? new Date() : null },
+  });
+
+  // Temps réel + cache (fail-closed, non bloquant).
+  try {
+    if (milestone.guide?.slug) {
+      if (isCompleted) {
+        await publishGuideEvent(guildId, milestone.guide.slug, {
+          type: "milestone:completed",
+          profileId,
+          userName: ctx.name || "Membre",
+          milestoneId,
+          milestoneTitle: milestone.title || "Jalon",
+        });
+      }
+      revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide.slug}`);
+      await invalidateGuideProgressCache(guildId, milestone.guide.slug);
+    }
+    revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
+  } catch (e) {
+    logger.error("[setRushSequenceProgress] post-write failed (non blocking)", { error: e });
+  }
+
+  return { success: true, isCompleted, completedStepIds: incoming, completedCount: incoming.length, totalContent: contentIds.length };
+}
+
+/**
+ * Action Rush dédiée : pose/retire le repère « je suis ici » sur une séquence par son ID.
+ * Stocke le seq-id brut (cohérent entre dashboard et overlay), contrairement aux formats
+ * `seq:<id>` / step-key qui ne se synchronisaient pas.
+ */
+export async function setRushBookmark(guildId: string, milestoneId: string, seqId: string | null, altPseudo?: string) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+  if (!ctx.profileId) throw new Error("Profile ID manquant");
+
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+
+  // 🛡️ RATE LIMIT (P0) : 30 marque-pages/min par membre.
+  const { success: rateOk } = await rateLimit(`guide-bookmark:${ctx.profileId}`, 30, 60_000);
+  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
+
+  const milestone = await db.guideMilestone.findUnique({
+    where: { id: milestoneId },
+    select: {
+      guide: { select: { slug: true } },
+      sequences: { select: { id: true, activityTags: true } },
+    },
+  });
+
+  const isInfoSeq = (seq: { id: string; activityTags?: any }) =>
+    Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "info_sequence");
+
+  let resolved: string | null = null;
+  if (seqId) {
+    const seq = (milestone?.sequences || []).find((s) => s.id === seqId);
+    if (seq && !isInfoSeq(seq)) resolved = seq.id;
+  }
+
+  const progress = await db.playerGuideProgress.upsert({
+    where: { profileId_milestoneId_characterSlot: { profileId, milestoneId, characterSlot } },
+    update: { currentStep: resolved },
+    create: { profileId, milestoneId, characterSlot, currentStep: resolved, isCompleted: false },
+  });
+
+  // Temps réel + cache (fail-closed, non bloquant).
+  try {
+    if (milestone?.guide?.slug) {
+      if (resolved) {
+        await publishGuideEvent(guildId, milestone.guide.slug, {
+          type: "presence:join",
+          profileId,
+          userName: ctx.name || "Membre",
+          userAvatar: ctx.image,
+          milestoneId,
+        });
+      } else {
+        await publishGuideEvent(guildId, milestone.guide.slug, {
+          type: "presence:leave",
+          profileId,
+          milestoneId,
+        });
+      }
+      revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide.slug}`);
+      await invalidateGuideProgressCache(guildId, milestone.guide.slug);
+    }
+  } catch (e) {
+    logger.error("[setRushBookmark] post-write failed (non blocking)", { error: e });
+  }
+
+  return { success: true, bookmarkedSeqId: resolved };
 }
 
 // ===========================================================================

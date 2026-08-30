@@ -3,7 +3,6 @@
 import React, { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
-import { RushCurrentObjective } from "@/components/dofus-quests/rush/RushCurrentObjective";
 import { RushOverlayDungeonCard } from "./RushOverlayDungeonCard";
 import { RushOverlayResourceList } from "./RushOverlayResourceList";
 import { RushOverlayTagSection } from "./RushOverlayTagSection";
@@ -48,8 +47,6 @@ export function RushOverlayQuestPanel({
         className
       )}
     >
-      {!isDone && <RushCurrentObjective sequence={seq} milestoneTitle={milestone.title} variant="overlay" />}
-
       <RushOverlayDungeonCard dungeons={dungeons} isLightMode={isLightMode} />
 
       <RushOverlayResourceList items={resources} isLightMode={isLightMode} />

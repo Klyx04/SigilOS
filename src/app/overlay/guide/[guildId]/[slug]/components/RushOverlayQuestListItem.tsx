@@ -1,9 +1,9 @@
 "use client";
 
 import React, { memo } from "react";
-import { Check, Flag, BookmarkCheck, ChevronDown, ChevronUp } from "lucide-react";
+import { Check, Flag, BookmarkCheck, ChevronDown, ChevronUp, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getSequenceCoord, getItemTags, isDungeonSequence } from "./overlay-utils";
+import { getSequenceCoord, getItemTags, isDungeonSequence, getSequenceIcons } from "./overlay-utils";
 import type { RushSequence } from "@/types/rush-guide-types";
 
 interface RushOverlayQuestListItemProps {
@@ -17,6 +17,11 @@ interface RushOverlayQuestListItemProps {
   onExpand: () => void;
   /** Membres (avatar + nom) qui ont posé le repère sur cette étape */
   bookmarkers?: { name: string; avatar?: string }[];
+  /** Quête verrouillée tant que ses prérequis ne sont pas validés */
+  isLocked?: boolean;
+  /** Quêtes prérequis (cliquables pour y sauter) */
+  prereqs?: { seqId: string; milestoneId: string; name: string }[];
+  onGoToPrereq?: (seqId: string, milestoneId: string) => void;
 }
 
 /**
@@ -34,15 +39,19 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   onBookmark,
   onExpand,
   bookmarkers = [],
+  isLocked = false,
+  prereqs = [],
+  onGoToPrereq,
 }: RushOverlayQuestListItemProps) {
   const parsedCoord = getSequenceCoord(seq);
   const itemTags = getItemTags(seq.activityTags);
   const hasDungeon = isDungeonSequence(seq);
+  const seqIcons = getSequenceIcons(seq);
   const name = seq.subGuideName || seq.subGuideRef || "—";
-  const primaryUrl = seq.dofuspourlesnoobsUrl || seq.dofusdbUrl || null;
 
   return (
     <div
+      id={`overlay-seq-${seq.id}`}
       className={cn(
         "rounded-xl border transition-all overflow-hidden",
         isBookmarked
@@ -63,68 +72,76 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
         {/* Checkbox */}
         <button
           type="button"
-          onClick={onToggle}
-          aria-label={isDone ? "Décocher la quête" : "Marquer comme terminée"}
-          className="shrink-0 focus-visible:outline-2 focus-visible:outline-[#39bc95] focus-visible:outline-offset-1 rounded"
+          onClick={isLocked ? undefined : onToggle}
+          disabled={isLocked}
+          aria-label={isDone ? "Décocher la quête" : isLocked ? "Quête verrouillée par un prérequis" : "Marquer comme terminée"}
+          className={cn(
+            "shrink-0 focus-visible:outline-2 focus-visible:outline-[#39bc95] focus-visible:outline-offset-1 rounded",
+            isLocked && "cursor-not-allowed"
+          )}
         >
           <div
             className={cn(
               "w-4 h-4 rounded-md border flex items-center justify-center transition-all",
               isDone
                 ? "bg-[#39bc95] border-[#39bc95] text-black"
+                : isLocked
+                ? isLightMode
+                  ? "border-slate-200 bg-slate-100 text-slate-400"
+                  : "border-[#2a3646] bg-[#0b0e12] text-[#5c6771]"
                 : isLightMode
                 ? "border-slate-300 bg-white hover:border-[#39bc95]"
                 : "border-[#3a4d60] bg-[#0f1419] hover:border-[#39bc95]"
             )}
           >
-            {isDone && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+            {isDone ? <Check className="w-2.5 h-2.5 stroke-[3]" /> : isLocked ? <Lock className="w-2.5 h-2.5 stroke-[2.5]" /> : null}
           </div>
         </button>
 
-        {/* Icône quête */}
+        {/* Icône quête (nature de l'activité) */}
         <div className="shrink-0 w-6 h-6 flex items-center justify-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/assets/icons/icone-quete.png"
-            alt=""
-            aria-hidden="true"
-            className={cn("w-5 h-5 object-contain", isDone ? "opacity-40" : "opacity-75")}
-          />
+          {seqIcons.length > 0 ? (
+            <div className="flex items-center">
+              {seqIcons.map((ic) => (
+                <img
+                  key={ic.src}
+                  src={ic.src}
+                  alt={ic.alt}
+                  aria-hidden="true"
+                  title={ic.alt}
+                  className={cn("w-4 h-4 object-contain", isDone ? "opacity-40" : "opacity-80")}
+                />
+              ))}
+            </div>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src="/assets/icons/icone-quete.png"
+              alt=""
+              aria-hidden="true"
+              className={cn("w-5 h-5 object-contain", isDone ? "opacity-40" : "opacity-75")}
+            />
+          )}
         </div>
 
-        {/* Titre + 2e ligne */}
+        {/* Titre + 2e ligne — clic sur le titre = ouvre/réduit les détails */}
         <div className="flex-1 min-w-0">
-          {primaryUrl ? (
-            <a
-              href={primaryUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(
-                "block text-xs font-semibold leading-tight truncate transition-colors",
-                isDone
-                  ? "line-through opacity-50"
-                  : isLightMode
-                  ? "text-slate-900 hover:text-[#d5a94e]"
-                  : "text-[#e8e4da] hover:text-[#d5a94e]"
-              )}
-              title={`Ouvrir la solution : ${name}`}
-            >
-              {name}
-            </a>
-          ) : (
-            <span
-              className={cn(
-                "block text-xs font-semibold leading-tight truncate",
-                isDone
-                  ? "line-through opacity-50"
-                  : isLightMode
-                  ? "text-slate-900"
-                  : "text-[#e8e4da]"
-              )}
-            >
-              {name}
-            </span>
-          )}
+          <button
+            type="button"
+            onClick={onExpand}
+            aria-expanded={isExpanded}
+            title={isExpanded ? "Réduire les détails" : "Voir les détails"}
+            className={cn(
+              "block w-full text-left text-xs font-semibold leading-tight truncate transition-colors cursor-pointer",
+              isDone
+                ? "line-through opacity-50"
+                : isLightMode
+                ? "text-slate-900 hover:text-[#d5a94e]"
+                : "text-[#e8e4da] hover:text-[#d5a94e]"
+            )}
+          >
+            {name}
+          </button>
 
           {/* Indicateurs 2e ligne */}
           {(parsedCoord || hasDungeon || itemTags.length > 0 || bookmarkers.length > 0) && (
@@ -195,26 +212,51 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
               )}
             </div>
           )}
+          {isLocked && prereqs.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1 mt-1">
+              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[#e2726f]">
+                <Lock className="w-2.5 h-2.5" /> À terminer avant :
+              </span>
+              {prereqs.map((p) => (
+                <button
+                  key={p.seqId}
+                  type="button"
+                  onClick={() => onGoToPrereq?.(p.seqId, p.milestoneId)}
+                  className={cn(
+                    "text-[9px] px-1.5 py-0.5 rounded font-semibold transition-colors",
+                    isLightMode
+                      ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                      : "bg-[#3a2a0e]/80 text-[#d5a94e] hover:bg-[#4b3512]"
+                  )}
+                  title={`Aller à : ${p.name}`}
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Repère */}
         <button
           type="button"
-          onClick={onBookmark}
-          aria-label={isBookmarked ? "Retirer le repère" : "Poser le repère ici"}
-          title={isBookmarked ? "Repère posé ici" : "Je suis ici"}
+          onClick={isLocked ? undefined : onBookmark}
+          disabled={isLocked}
+          aria-label={isBookmarked ? "Retirer le repère" : isLocked ? "Repère indisponible (prérequis)" : "Poser le repère ici"}
+          title={isBookmarked ? "Repère posé ici" : isLocked ? "Repère indisponible (prérequis non terminés)" : "Je suis ici"}
           className={cn(
             "p-1 rounded-lg transition-colors shrink-0",
+            isLocked && "opacity-40 cursor-not-allowed",
             isBookmarked
               ? isLightMode
                 ? "text-amber-600 bg-amber-100"
                 : "text-[#d5a94e] bg-[#d5a94e]/10"
               : isLightMode
               ? "text-slate-300 hover:text-amber-500"
-              : "text-[#2e3d4f] hover:text-[#d5a94e]"
+              : "text-[#8b95a0] hover:text-[#d5a94e]"
           )}
         >
-          {isBookmarked ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Flag className="w-3.5 h-3.5" />}
+          {isBookmarked ? <BookmarkCheck className="w-3.5 h-3.5" /> : isLocked ? <Lock className="w-3.5 h-3.5" /> : <Flag className="w-3.5 h-3.5" />}
         </button>
 
         {/* Accordéon */}
@@ -231,7 +273,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                 : "bg-[#1f2733] text-[#f2f0e9]"
               : isLightMode
               ? "text-slate-400 hover:text-slate-700"
-              : "text-[#2e3d4f] hover:text-[#969daa]"
+              : "text-[#8b95a0] hover:text-[#f2f0e9]"
           )}
         >
           {isExpanded ? (

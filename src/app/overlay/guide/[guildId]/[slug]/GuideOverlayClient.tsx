@@ -1,15 +1,17 @@
 "use client";
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
-import { CheckCircle2, Eye, EyeOff, ExternalLink, Check } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, ExternalLink, Check, Users } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   toggleMilestoneProgress,
-  updateBookmarkedStep,
-  updateStepProgress,
+  setRushSequenceProgress,
+  setRushBookmark,
 } from "@/server/actions/optimized-guide-actions";
-import type { RushMilestone } from "@/types/rush-guide-types";
-import { buildMilestoneStepKeys, type GuideProgressRow } from "@/lib/guide-progress-helpers";
+import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
+import { type GuideProgressRow } from "@/lib/guide-progress-helpers";
+import { isInfoSequence, getPrereqRefs, type RushPrereqRef } from "@/lib/rush-guide-utils";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { RushOverlayHeader } from "./components/RushOverlayHeader";
 import { RushOverlaySearch } from "./components/RushOverlaySearch";
@@ -18,6 +20,7 @@ import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem"
 import { RushOverlayQuestPanel } from "./components/RushOverlayQuestPanel";
 import { RushOverlayFooter } from "./components/RushOverlayFooter";
 import { RushOverlayCompact } from "./components/RushOverlayCompact";
+import { RushCurrentObjective } from "@/components/dofus-quests/rush/RushCurrentObjective";
 import { getNextObjective } from "./components/overlay-utils";
 
 // Dofus defs pour récupération des visuels d'œufs
@@ -200,8 +203,11 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
   }, [search, isCompactMode]);
 
   // ─── Stats Globales ───────────────────────────────────────────────────────
+  // Les séquences info (bandeaux/conseils) ne comptent pas dans la progression.
+  const contentSeqs = (seqs: RushSequence[]) => seqs.filter((s) => !isInfoSequence(s));
+
   const totalMs = milestones.length;
-  const totalSteps = useMemo(() => milestones.reduce((acc, ms) => acc + ms.sequences.length, 0), [milestones]);
+  const totalSteps = useMemo(() => milestones.reduce((acc, ms) => acc + contentSeqs(ms.sequences).length, 0), [milestones]);
   const completedSteps = useMemo(() => {
     let n = 0;
     for (const ms of milestones) n += completedStepsByMs.get(ms.id)?.size ?? 0;
@@ -209,7 +215,7 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
   }, [milestones, completedStepsByMs]);
   const overallPct = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
-  const currentMsSeqs = currentMs?.sequences || [];
+  const currentMsSeqs = contentSeqs(currentMs?.sequences || []);
   const currentMsDoneSeqs = currentMs ? completedStepsByMs.get(currentMs.id) || new Set<string>() : new Set<string>();
   const currentMsDoneCount = currentMsSeqs.filter((s) => currentMsDoneSeqs.has(s.id)).length;
   const currentMsPct =
@@ -231,15 +237,12 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
   }, [currentMs, guide.imageUrl, guide.slug, guide.name]);
 
   // ─── Membres ayant posé un repère (par séquence) ────────────────────────────
-  // Le "repère" d'un membre = son `currentStep` (stepKey). On mappe chaque
-  // stepKey vers la séquence du milestone courant pour regrouper les avatars.
-  const seqByStepKey = useMemo(() => {
-    const map = new Map<string, string>();
-    if (!currentMs) return map;
-    for (const seq of currentMs.sequences) {
-      for (const key of buildMilestoneStepKeys([seq])) map.set(key, seq.id);
-    }
-    return map;
+  // Le "repère" d'un membre = son `currentStep`. Selon l'appelant (dashboard Rush
+  // ou overlay) il peut être stocké brut (`seqId`) ou préfixé (`seq:<seqId>`).
+  // On normalise puis on compare directement à l'id de séquence (plus de mapping
+  // step-keys Ganymède qui ne correspondait jamais → avatars vides).
+  const validSeqIds = useMemo(() => {
+    return new Set(currentMs?.sequences.map((s) => s.id) ?? []);
   }, [currentMs]);
 
   const bookmarkersBySeq = useMemo(() => {
@@ -247,14 +250,77 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
     if (!currentMs) return map;
     for (const row of allProgress) {
       if (row.milestoneId !== currentMs.id || !row.currentStep) continue;
-      const seqId = seqByStepKey.get(row.currentStep);
-      if (!seqId) continue;
+      const raw = String(row.currentStep);
+      const seqId = raw.startsWith("seq:") ? raw.slice(4) : raw;
+      if (!validSeqIds.has(seqId)) continue;
       const list = map.get(seqId) || [];
       list.push({ name: row.userName, avatar: row.userAvatar });
       map.set(seqId, list);
     }
     return map;
-  }, [allProgress, currentMs, seqByStepKey]);
+  }, [allProgress, currentMs, validSeqIds]);
+
+  // ─── Prérequis (gating de validation) ─────────────────────────────────────
+  // Une quête ne peut être cochée que si toutes ses quêtes prérequis sont validées.
+  const gateAllCompleted = useMemo(() => {
+    const all = new Set<string>();
+    completedStepsByMs.forEach((steps) => steps.forEach((id) => all.add(id)));
+    return all;
+  }, [completedStepsByMs]);
+
+  const prereqBySeq = useMemo(() => {
+    const map = new Map<string, RushPrereqRef[]>();
+    if (!currentMs) return map;
+    for (const seq of currentMs.sequences) {
+      map.set(seq.id, getPrereqRefs(seq, milestones));
+    }
+    return map;
+  }, [currentMs, milestones]);
+
+  const getSeqGate = useCallback(
+    (seqId: string): { locked: boolean; prereqs: RushPrereqRef[] } => {
+      const refs = prereqBySeq.get(seqId) || [];
+      return { locked: refs.some((r) => !gateAllCompleted.has(r.seqId)), prereqs: refs };
+    },
+    [prereqBySeq, gateAllCompleted]
+  );
+
+  const handleGoToPrereq = useCallback(
+    (seqId: string, milestoneId: string) => {
+      const idx = milestones.findIndex((m) => m.id === milestoneId);
+      if (idx >= 0) {
+        if (idx !== currentMsIndex) {
+          setCurrentMsIndex(idx);
+          setExpandedSeqIds(new Set([seqId]));
+        } else {
+          setExpandedSeqIds((prev) => new Set([...prev, seqId]));
+        }
+      }
+      window.setTimeout(() => {
+        document.getElementById(`overlay-seq-${seqId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 90);
+    },
+    [milestones, currentMsIndex]
+  );
+
+  // ─── Présence communauté : membres ayant un repère sur ce chapitre ─────────
+  const chapterMembers = useMemo(() => {
+    if (!currentMs) return [];
+    const seen = new Set<string>();
+    const out: { name: string; avatar?: string; stepId?: string }[] = [];
+    for (const row of allProgress) {
+      if (row.milestoneId !== currentMs.id) continue;
+      if (seen.has(row.profileId)) continue;
+      seen.add(row.profileId);
+      const raw = row.currentStep ? String(row.currentStep) : "";
+      out.push({
+        name: row.userName,
+        avatar: row.userAvatar,
+        stepId: raw ? (raw.startsWith("seq:") ? raw.slice(4) : raw) : undefined,
+      });
+    }
+    return out;
+  }, [allProgress, currentMs]);
 
 
   // ─── Mutations Optimistes ──────────────────────────────────────────────────
@@ -293,27 +359,48 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
     async (ms: RushMilestone, seqId: string) => {
       const cur = new Set(completedStepsByMs.get(ms.id) || []);
       const was = cur.has(seqId);
+      if (!was && getSeqGate(seqId).locked) {
+        toast.warning("Terminez d'abord les prérequis de cette quête.");
+        return;
+      }
       was ? cur.delete(seqId) : cur.add(seqId);
+      const contentSeqs = ms.sequences.filter((s) => !isInfoSequence(s));
+      const allChecked = contentSeqs.length > 0 && contentSeqs.every((s) => cur.has(s.id));
       const prevMap = new Map(completedStepsByMs);
+      const prevActive = completedIds.has(ms.id);
       setCompletedStepsByMs((prev) => {
         const n = new Map(prev);
         n.set(ms.id, cur);
         return n;
       });
+      setCompletedIds((prev) => {
+        const n = new Set(prev);
+        allChecked ? n.add(ms.id) : n.delete(ms.id);
+        return n;
+      });
       try {
-        const res = await updateStepProgress(guildId, ms.id, Array.from(cur), effectiveAltPseudo);
+        const res = await setRushSequenceProgress(guildId, ms.id, Array.from(cur), effectiveAltPseudo);
         if (!(res as any)?.success) throw new Error("Échec mutation");
       } catch {
         setCompletedStepsByMs(prevMap);
+        setCompletedIds((prev) => {
+          const n = new Set(prev);
+          prevActive ? n.add(ms.id) : n.delete(ms.id);
+          return n;
+        });
         toast.error("Erreur de synchronisation");
       }
     },
-    [completedStepsByMs, guildId, effectiveAltPseudo]
+    [completedStepsByMs, completedIds, guildId, effectiveAltPseudo, getSeqGate]
   );
 
   const handleBookmark = useCallback(
     async (ms: RushMilestone, seqId: string) => {
       const isAlready = bookmarksByMs.get(ms.id) === seqId;
+      if (!isAlready && getSeqGate(seqId).locked) {
+        toast.warning("Terminez d'abord les prérequis de cette quête.");
+        return;
+      }
       const prevMap = new Map(bookmarksByMs);
       setBookmarksByMs((prev) => {
         const n = new Map<string, string>();
@@ -321,14 +408,14 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
         return n;
       });
       try {
-        await updateBookmarkedStep(guildId, ms.id, isAlready ? null : seqId, effectiveAltPseudo);
+        await setRushBookmark(guildId, ms.id, isAlready ? null : seqId, effectiveAltPseudo);
         toast.success(isAlready ? "Repère retiré" : "📍 Repère posé ici !", { duration: 1500 });
       } catch {
         setBookmarksByMs(prevMap);
         toast.error("Erreur repère");
       }
     },
-    [bookmarksByMs, guildId, effectiveAltPseudo]
+    [bookmarksByMs, guildId, effectiveAltPseudo, getSeqGate]
   );
 
   const toggleSeqAccordion = useCallback((seqId: string) => {
@@ -360,7 +447,7 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
 
   const bookmarkSeqId = currentMs ? bookmarksByMs.get(currentMs.id) || null : null;
   const compactObjective = currentMs
-    ? getNextObjective(currentMs.sequences, currentMsDoneSeqs, bookmarkSeqId)
+    ? getNextObjective(currentMs.sequences, currentMsDoneSeqs, bookmarkSeqId, milestones, gateAllCompleted)
     : null;
 
   const msDone = currentMs ? completedIds.has(currentMs.id) : false;
@@ -492,6 +579,53 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
             </div>
           )}
 
+          {/* ══ OBJECTIF COURANT (épinglé — toujours visible) ══ */}
+          {!hideCompleted && compactObjective && (
+            <div className="px-3 pt-2">
+              <RushCurrentObjective
+                sequence={compactObjective}
+                milestoneTitle={currentMs?.title}
+                variant="overlay"
+                onNavigate={() => handleGoToPrereq(compactObjective.id, currentMs?.id || "")}
+              />
+            </div>
+          )}
+
+          {/* ══ PRÉSENCE COMMUNAUTÉ ══ */}
+          {chapterMembers.length > 0 && (
+            <div className="px-3 pt-2 flex items-center gap-2">
+              <Users className="w-3 h-3 text-[#39bc95]" />
+              <span className="text-[9px] font-bold uppercase tracking-wide text-[#6e7784]">
+                Sur ce chapitre
+              </span>
+              <div className="flex items-center -space-x-1.5">
+                {chapterMembers.slice(0, 6).map((m, i) =>
+                  m.avatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={i}
+                      src={m.avatar}
+                      alt={m.name}
+                      loading="lazy"
+                      title={m.name}
+                      className="w-5 h-5 rounded-full border border-[#39bc95]/40 object-cover"
+                    />
+                  ) : (
+                    <span
+                      key={i}
+                      title={m.name}
+                      className="w-5 h-5 rounded-full border border-[#39bc95]/40 bg-[#39bc95]/20 text-[#39bc95] flex items-center justify-center text-[8px] font-bold uppercase"
+                    >
+                      {m.name.charAt(0) || "?"}
+                    </span>
+                  )
+                )}
+              </div>
+              {chapterMembers.length > 6 && (
+                <span className="text-[9px] text-[#6e7784]">+{chapterMembers.length - 6}</span>
+              )}
+            </div>
+          )}
 
           {/* ══ LISTE DES QUÊTES + DÉTAILS ══ */}
           <main className="flex-1 overflow-y-auto p-3 space-y-2">
@@ -507,7 +641,26 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
               </div>
             ) : currentMs ? (
               visibleSequences.map((seq) => {
+                // Les séquences info (conseils/bandeaux) ne sont pas des quêtes cochables.
+                if (isInfoSequence(seq)) {
+                  const info = seq.tips || seq.subGuideName || seq.subGuideRef || "";
+                  return (
+                    <div
+                      key={seq.id}
+                      className={cn(
+                        "rounded-xl border px-3 py-2 text-[11px] leading-relaxed",
+                        isLightMode
+                          ? "bg-slate-50 border-slate-200 text-slate-500"
+                          : "bg-[#0f1318]/70 border-[#1e2530]/60 text-[#8b95a0]"
+                      )}
+                    >
+                      <span className="font-semibold text-[#39bc95]">📘&nbsp;</span>
+                      {info}
+                    </div>
+                  );
+                }
                 const isSeqDone = currentMsDoneSeqs.has(seq.id);
+                const gate = getSeqGate(seq.id);
                 const isBookmarked = bookmarkSeqId === seq.id;
                 const isExpanded = expandedSeqIds.has(seq.id);
                 return (
@@ -518,6 +671,9 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
                       isBookmarked={isBookmarked}
                       isExpanded={isExpanded}
                       isLightMode={isLightMode}
+                      isLocked={gate.locked}
+                      prereqs={gate.prereqs}
+                      onGoToPrereq={handleGoToPrereq}
                       onToggle={() => handleToggleSeq(currentMs, seq.id)}
                       onBookmark={() => handleBookmark(currentMs, seq.id)}
                       onExpand={() => toggleSeqAccordion(seq.id)}

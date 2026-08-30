@@ -4,7 +4,7 @@
  */
 
 import type { RushMilestone, RushSequence, RushActivityTag } from "@/types/rush-guide-types";
-import { parseCoordinates } from "@/lib/rush-guide-utils";
+import { parseCoordinates, RUSH_ACTIVITY_TAG_CONFIG, getMetierIconPath, isSequenceBlockedByPrereqs } from "@/lib/rush-guide-utils";
 
 // ─── Types locaux ─────────────────────────────────────────────────────────────
 
@@ -73,6 +73,39 @@ export function classifyTags(tags: RushActivityTag[] | undefined): TagClassifica
 /** Extrait les tags de type item (ressources) d'une séquence. */
 export function getItemTags(tags: RushActivityTag[] | undefined): RushActivityTag[] {
   return (tags || []).filter((t) => t.type === "item" && t.name);
+}
+
+export type SequenceIcon = { src: string; alt: string };
+
+/**
+ * Icônes « nature » d'une séquence (donjon, combat, métier…) pour la vignette de quête.
+ * Réutilise les visuels d'activité du module (rush-guide-utils) ; repli sur l'icône de
+ * quête générique si aucune nature n'est renseignée.
+ */
+export function getSequenceIcons(seq: RushSequence): SequenceIcon[] {
+  const natureTags = (seq.activityTags || []).filter((t) =>
+    (TAG_NATURE_TYPES as readonly string[]).includes(t.type)
+  );
+  const out: SequenceIcon[] = [];
+  const seen = new Set<string>();
+
+  for (const tag of natureTags) {
+    const cfg = RUSH_ACTIVITY_TAG_CONFIG[tag.type];
+    let src = cfg?.imagePath;
+    if (tag.type === "metier") src = getMetierIconPath(tag.name || "");
+    const alt = cfg?.label || tag.name || (tag.type === "donjon" ? "Donjon" : "");
+    if (src && !seen.has(src)) {
+      seen.add(src);
+      out.push({ src, alt });
+    }
+    if (out.length >= 2) break;
+  }
+
+  if (out.length === 0 && isDungeonSequence(seq)) {
+    out.push({ src: "/assets/rush-sylvestre/donjon.png", alt: "Donjon" });
+  }
+
+  return out;
 }
 
 /** Extrait la coordonnée d'une séquence (pos_tag > titre > tips > note). */
@@ -155,17 +188,23 @@ export function getDungeons(seq: RushSequence): DungeonInfo[] {
 export function getNextObjective(
   sequences: RushSequence[],
   doneSeqIds: Set<string>,
-  bookmarkSeqId: string | null | undefined
+  bookmarkSeqId: string | null | undefined,
+  allMilestones: RushMilestone[],
+  allCompletedSeqIds: Set<string>
 ): RushSequence | null {
   const isInfo = (s: RushSequence) =>
     (s.activityTags || []).some((t) => t.type === "info_sequence");
+  const isBlocked = (s: RushSequence) =>
+    isSequenceBlockedByPrereqs(s, allCompletedSeqIds, allMilestones);
 
   if (bookmarkSeqId) {
-    const bk = sequences.find((s) => s.id === bookmarkSeqId && !doneSeqIds.has(s.id));
+    const bk = sequences.find(
+      (s) => s.id === bookmarkSeqId && !doneSeqIds.has(s.id) && !isInfo(s) && !isBlocked(s)
+    );
     if (bk) return bk;
   }
 
-  return sequences.find((s) => !doneSeqIds.has(s.id) && !isInfo(s)) ?? null;
+  return sequences.find((s) => !doneSeqIds.has(s.id) && !isInfo(s) && !isBlocked(s)) ?? null;
 }
 
 /**

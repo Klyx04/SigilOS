@@ -40,8 +40,8 @@ import { updateUserProfile, updateMuleAlignment } from "@/server/actions/profile
 import {
   toggleMilestoneProgress,
   resetMilestoneProgress,
-  updateBookmarkedStep,
-  updateStepProgress,
+  setRushSequenceProgress,
+  setRushBookmark,
 } from "@/server/actions/optimized-guide-actions";
 import { DofusProgressStrip } from "./DofusProgressStrip";
 import { GuildStatusPanel } from "./GuildStatusPanel";
@@ -820,6 +820,8 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   const [expanded,setExpanded]=useState(false);
   const bookmarksByMs = React.useContext(BookmarkedSeqCtx);
   const onBookmarkSeq = React.useContext(OnBookmarkSeqCtx);
+  const allCompletedSeqIds = React.useContext(AllCompletedSeqIdsCtx) as Set<string>;
+  const allMilestones = React.useContext(AllMilestonesCtx) as Milestone[];
   const blockBookmarkSeqId = bookmarksByMs.get(ms.id) || null;
   if(ms.type==="SEPARATEUR")return null;
   if(ms.type==="INFO")return <InfoBanner milestone={ms}/>;
@@ -877,9 +879,10 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
               <div className="px-3 pb-3 space-y-1.5 pt-2 border-t border-[#28303a]/80">
                 {/* ── À faire maintenant ── */}
                 {(()=>{
+                  const isBlocked = (s:any)=>isSequenceBlockedByPrereqs(s, allCompletedSeqIds, allMilestones);
                   const nextSeq = blockBookmarkSeqId
-                    ? nonInfoSeqs.find((s:any)=>s.id===blockBookmarkSeqId)
-                    : nonInfoSeqs.find((s:any)=>!completedStepsSet.has(s.id));
+                    ? nonInfoSeqs.find((s:any)=>s.id===blockBookmarkSeqId && !isBlocked(s))
+                    : nonInfoSeqs.find((s:any)=>!completedStepsSet.has(s.id) && !isBlocked(s));
                   if(!nextSeq||all) return null;
                   const posTag = Array.isArray(nextSeq.activityTags) ? nextSeq.activityTags.find((t:any)=>t.type==="pos_tags") : null;
                   const posStr = posTag?.name ? String(posTag.name) : null;
@@ -1220,9 +1223,6 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
   const overallPercent=tMs>0?Math.round((completedCount/tMs)*100):0;
   const activeMembersCount=useMemo(()=>new Set(guildProgress.map(p=>p.profileId)).size,[guildProgress]);
   const setLoading=useCallback((msId:string,val:boolean)=>setLoadingIds(prev=>{const n=new Set(prev);val?n.add(msId):n.delete(msId);return n;}),[]);
-  const handleToggleSequence=useCallback(async(ms:Milestone,seqId:string)=>{const cur=new Set(completedStepsByMs.get(ms.id)||[]);const was=cur.has(seqId);was?cur.delete(seqId):cur.add(seqId);const arr=Array.from(cur);const regularSeqs=ms.sequences.filter((s:any)=>!isInfoSequence(s));const allChecked=regularSeqs.length>0&&regularSeqs.every((s:any)=>cur.has(s.id));const wasMilestoneCompleted=completedIds.has(ms.id);setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,cur);return n;});setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.add(ms.id):n.delete(ms.id);return n;});setLoading(ms.id,true);try{const res=await updateStepProgress(guildId,ms.id,arr,effectiveAltPseudo);if((res as any).success){if(res.isCompleted&&!wasMilestoneCompleted){toast.success("✅ Bloc validé !",{duration:1500});}else{toast.success(was?"Décocher":"✅ Validée !",{duration:1500});}}else{setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.delete(ms.id):n.add(ms.id);return n;});toast.error("Erreur");}}catch{setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.delete(ms.id):n.add(ms.id);return n;});toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedStepsByMs,completedIds,guildId,effectiveAltPseudo,setLoading]);
-  const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo);if(!(res as any).success){setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error("Erreur");}else toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500});}catch{toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,guildId,effectiveAltPseudo,setLoading]);
-  const handleReset=useCallback(async(ms:Milestone)=>{setCompletedIds(prev=>{const n=new Set(prev);n.delete(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,new Set);return n;});setLoading(ms.id,true);try{await resetMilestoneProgress(guildId,ms.id,effectiveAltPseudo);toast.success("Réinitialisée");}catch{setCompletedIds(prev=>new Set([...prev,ms.id]));toast.error("Erreur reset");}finally{setLoading(ms.id,false);}},[guildId,effectiveAltPseudo,setLoading]);
   // Ensemble de toutes les séquences complétées (à travers tous les blocs)
   const allCompletedSeqIds = useMemo(() => {
     const all = new Set<string>();
@@ -1230,7 +1230,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     return all;
   }, [completedStepsByMs]);
 
-  // Séquences bloquées par un prérequis non terminé → impossible d'y poser son repère
+  // Séquences bloquées par un prérequis non terminé → impossible de cocher / poser un repère
   const blockedSeqIds = useMemo(() => {
     const out = new Set<string>();
     for (const ms of milestones) {
@@ -1255,6 +1255,10 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     return out;
   }, [milestones, allCompletedSeqIds]);
 
+  const handleToggleSequence=useCallback(async(ms:Milestone,seqId:string)=>{const cur=new Set(completedStepsByMs.get(ms.id)||[]);const was=cur.has(seqId);if(!was&&blockedSeqIds.has(seqId)){toast.warning("Terminez d'abord les prérequis de cette quête.");return;}was?cur.delete(seqId):cur.add(seqId);const arr=Array.from(cur);const regularSeqs=ms.sequences.filter((s:any)=>!isInfoSequence(s));const allChecked=regularSeqs.length>0&&regularSeqs.every((s:any)=>cur.has(s.id));const wasMilestoneCompleted=completedIds.has(ms.id);setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,cur);return n;});setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.add(ms.id):n.delete(ms.id);return n;});setLoading(ms.id,true);try{const res=await setRushSequenceProgress(guildId,ms.id,arr,effectiveAltPseudo);if((res as any).success){if(res.isCompleted&&!wasMilestoneCompleted){toast.success("✅ Bloc validé !",{duration:1500});}else{toast.success(was?"Décocher":"✅ Validée !",{duration:1500});}}else{setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.delete(ms.id):n.add(ms.id);return n;});toast.error("Erreur");}}catch{setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.delete(ms.id):n.add(ms.id);return n;});toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedStepsByMs,completedIds,guildId,effectiveAltPseudo,setLoading,blockedSeqIds]);
+  const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo);if(!(res as any).success){setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error("Erreur");}else toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500});}catch{toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,guildId,effectiveAltPseudo,setLoading]);
+  const handleReset=useCallback(async(ms:Milestone)=>{setCompletedIds(prev=>{const n=new Set(prev);n.delete(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,new Set);return n;});setLoading(ms.id,true);try{await resetMilestoneProgress(guildId,ms.id,effectiveAltPseudo);toast.success("Réinitialisée");}catch{setCompletedIds(prev=>new Set([...prev,ms.id]));toast.error("Erreur reset");}finally{setLoading(ms.id,false);}},[guildId,effectiveAltPseudo,setLoading]);
+
   // ─── Bookmark par séquence ─────────────────────────────────────────────
   // 1 max par bloc : bookmarker une quête remplace le repère du même bloc
   const handleBookmarkSequence = useCallback(async (seqId: string, ms: Milestone) => {
@@ -1270,8 +1274,8 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       else next.set(ms.id, seqId);
       return next;
     });
-    try { await updateBookmarkedStep(guildId, ms.id, wasBookmarked ? null : `seq:${seqId}`); } catch {}
-  }, [bookmarksByMs, guildId, blockedSeqIds]);
+    try { await setRushBookmark(guildId, ms.id, wasBookmarked ? null : seqId, effectiveAltPseudo); } catch {}
+  }, [bookmarksByMs, guildId, blockedSeqIds, effectiveAltPseudo]);
   if(guide.isUnderConstruction)return<div className="flex flex-col items-center justify-center min-h-[400px] gap-6 p-8"><motion.div animate={{rotate:[0,-5,5,-5,0]}} transition={{repeat:Infinity,duration:3}} className="p-5 rounded-3xl bg-amber-500/10 border border-amber-500/20"><Construction className="w-12 h-12 text-amber-400"/></motion.div><div><h2 className="text-2xl font-black text-white mb-2">En construction 🚧</h2><p className="text-zinc-400 text-sm">Le staff prépare ce guide. Reviens bientôt !</p></div></div>;
   const handleScrollToPrereq = useCallback((seqName: string) => {
     let foundId: string | null = null;
@@ -1514,7 +1518,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
             <span>Quêtes Dofus</span>
           </Link>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs font-medium">
               <AlertTriangle className="w-3.5 h-3.5 text-[#d5a94e] shrink-0" />
               <span>Conseillé dès le <strong className="text-white font-black">Niv. 200</strong></span>
@@ -1535,11 +1539,12 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
             <button
               type="button"
               onClick={() => void handleOverlayClick()}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#28303a] bg-[#181e25] text-[#c4cad2] hover:text-white hover:border-[#39bc95]/40 hover:bg-[#1f2630] transition-all text-xs font-bold shadow-sm"
-              title="Ouvrir le guide en mode overlay — juxtaposable en jeu"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#28303a] bg-[#181e25] hover:bg-[#1f2630] hover:border-[#39bc95]/40 text-xs font-bold text-[#c4cad2] hover:text-white transition-all shadow-sm"
+              title="Ouvrir le guide en overlay — fenêtre épinglée au-dessus du jeu, sans rien installer"
+              aria-label="Ouvrir Overlay"
             >
-              <Maximize2 className="w-3.5 h-3.5 text-[#39bc95]" />
-              Overlay
+              <Maximize2 className="w-3.5 h-3.5 text-[#d5a94e]" />
+              Ouvrir Overlay
             </button>
           </div>
         </div>

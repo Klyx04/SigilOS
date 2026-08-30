@@ -23,7 +23,8 @@ export type RushActivityTagType =
   | "tougli_box"
   | "info_sequence"
   | "dofus_link"
-  | "ocre_dungeon";
+  | "ocre_dungeon"
+  | "alignment_set";
 
 export type RushActivityTag = {
   type: RushActivityTagType | string;

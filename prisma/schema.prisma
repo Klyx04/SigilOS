@@ -622,6 +622,8 @@ model UserProfile {
   alignment                  String?
   alignmentOrder             String?
   alignmentLevel             Int?                       @default(0)
+  /// Alignement « manuel » mémorisé avant que le rush ne l'écrase (restauré au décochage).
+  alignmentBefore            Json?
   ankamaId                   String?
   discordMessageCountWeekly  Int                        @default(0)
   discordVoiceTimeWeekly     Int                        @default(0)

@@ -3,7 +3,8 @@
 import React, { memo } from "react";
 import { Check, Flag, BookmarkCheck, ChevronDown, ChevronUp, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getSequenceCoord, getItemTags, isDungeonSequence, getSequenceIcons } from "./overlay-utils";
+import { getSequenceCoord, getItemTags, isDungeonSequence } from "./overlay-utils";
+import { getAlignmentSet } from "@/lib/rush-helpers";
 import type { RushSequence } from "@/types/rush-guide-types";
 
 interface RushOverlayQuestListItemProps {
@@ -46,8 +47,15 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   const parsedCoord = getSequenceCoord(seq);
   const itemTags = getItemTags(seq.activityTags);
   const hasDungeon = isDungeonSequence(seq);
-  const seqIcons = getSequenceIcons(seq);
   const name = seq.subGuideName || seq.subGuideRef || "—";
+  const alignmentSet = getAlignmentSet(seq);
+  const alignLabel = alignmentSet
+    ? alignmentSet.camp === "brakmarien"
+      ? "Brakmarien"
+      : alignmentSet.camp === "bontarien"
+      ? "Bontarien"
+      : alignmentSet.camp
+    : null;
 
   return (
     <div
@@ -98,32 +106,6 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           </div>
         </button>
 
-        {/* Icône quête (nature de l'activité) */}
-        <div className="shrink-0 w-6 h-6 flex items-center justify-center">
-          {seqIcons.length > 0 ? (
-            <div className="flex items-center">
-              {seqIcons.map((ic) => (
-                <img
-                  key={ic.src}
-                  src={ic.src}
-                  alt={ic.alt}
-                  aria-hidden="true"
-                  title={ic.alt}
-                  className={cn("w-4 h-4 object-contain", isDone ? "opacity-40" : "opacity-80")}
-                />
-              ))}
-            </div>
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src="/assets/icons/icone-quete.png"
-              alt=""
-              aria-hidden="true"
-              className={cn("w-5 h-5 object-contain", isDone ? "opacity-40" : "opacity-75")}
-            />
-          )}
-        </div>
-
         {/* Titre + 2e ligne — clic sur le titre = ouvre/réduit les détails */}
         <div className="flex-1 min-w-0">
           <button
@@ -144,8 +126,27 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           </button>
 
           {/* Indicateurs 2e ligne */}
-          {(parsedCoord || hasDungeon || itemTags.length > 0 || bookmarkers.length > 0) && (
+          {(parsedCoord || hasDungeon || itemTags.length > 0 || bookmarkers.length > 0 || alignmentSet) && (
             <div className="flex items-center gap-1 mt-0.5">
+              {alignmentSet && alignLabel && (
+                <span
+                  className={cn(
+                    "text-[9px] font-bold px-1 py-0.5 rounded inline-flex items-center gap-1",
+                    isLightMode
+                      ? "bg-indigo-100 text-indigo-700"
+                      : "bg-[#2a2160]/80 text-[#a5b4fc]"
+                  )}
+                  title={`Quête d'alignement → ${alignLabel} ${alignmentSet.level}`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={alignmentSet.camp === "brakmarien" ? "/ordres/brakmar.png" : "/ordres/bonta.png"}
+                    alt=""
+                    className="w-3 h-3 object-contain"
+                  />
+                  ↦ Alignement {alignLabel} {alignmentSet.level}
+                </span>
+              )}
               {parsedCoord && (
                 <span
                   className={cn(

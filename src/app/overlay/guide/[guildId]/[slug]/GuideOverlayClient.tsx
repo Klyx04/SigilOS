@@ -8,10 +8,12 @@ import {
   toggleMilestoneProgress,
   setRushSequenceProgress,
   setRushBookmark,
+  applyRushAlignmentFromSequence,
 } from "@/server/actions/optimized-guide-actions";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { type GuideProgressRow } from "@/lib/guide-progress-helpers";
 import { isInfoSequence, getPrereqRefs, type RushPrereqRef } from "@/lib/rush-guide-utils";
+import { collectCascadeUncheck } from "@/lib/rush-helpers";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { RushOverlayHeader } from "./components/RushOverlayHeader";
 import { RushOverlaySearch } from "./components/RushOverlaySearch";
@@ -368,19 +370,70 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
       const allChecked = contentSeqs.length > 0 && contentSeqs.every((s) => cur.has(s.id));
       const prevMap = new Map(completedStepsByMs);
       const prevActive = completedIds.has(ms.id);
+      // Cascade décoche : décocher la cible décoche aussi les quêtes qui en dépendent.
+      const cascadeMsIds = new Map<string, Set<string>>();
+      const cascadeSeqIds = new Set<string>();
+      if (was) {
+        const cascade = collectCascadeUncheck(seqId, milestones, gateAllCompleted);
+        for (const cid of cascade) {
+          if (cid === seqId) continue;
+          const owner = milestones.find((m) => m.sequences.some((s) => s.id === cid));
+          if (!owner) continue;
+          cascadeSeqIds.add(cid);
+          if (!cascadeMsIds.has(owner.id)) cascadeMsIds.set(owner.id, new Set<string>());
+          cascadeMsIds.get(owner.id)!.add(cid);
+        }
+      }
       setCompletedStepsByMs((prev) => {
         const n = new Map(prev);
         n.set(ms.id, cur);
+        for (const [mid, set] of cascadeMsIds) {
+          const s = new Set(n.get(mid) || []);
+          for (const cid of set) s.delete(cid);
+          n.set(mid, s);
+        }
         return n;
       });
       setCompletedIds((prev) => {
         const n = new Set(prev);
         allChecked ? n.add(ms.id) : n.delete(ms.id);
+        for (const [mid, set] of cascadeMsIds) {
+          const m = milestones.find((mm) => mm.id === mid);
+          if (!m) continue;
+          const reg = m.sequences.filter((s) => !isInfoSequence(s));
+          const steps = new Set(completedStepsByMs.get(mid) || []);
+          for (const cid of set) steps.delete(cid);
+          const done = reg.length > 0 && reg.every((s) => steps.has(s.id));
+          done ? n.add(mid) : n.delete(mid);
+        }
         return n;
       });
       try {
         const res = await setRushSequenceProgress(guildId, ms.id, Array.from(cur), effectiveAltPseudo);
         if (!(res as any)?.success) throw new Error("Échec mutation");
+        // Cascade : persiste les milestones dépendants (quêtes décochées).
+        for (const [mid, set] of cascadeMsIds) {
+          const steps = new Set(completedStepsByMs.get(mid) || []);
+          for (const cid of set) steps.delete(cid);
+          await setRushSequenceProgress(guildId, mid, Array.from(steps), effectiveAltPseudo).catch(() => {});
+        }
+        // Quête(s) d'alignement : applique (coche) / restaure (décoche) l'alignement.
+        for (const sid of [seqId, ...cascadeSeqIds]) {
+          const owner = milestones.find((m) => m.sequences.some((s) => s.id === sid));
+          const alignTag = owner?.sequences
+            .find((s) => s.id === sid)
+            ?.activityTags?.some((t) => t.type === "alignment_set");
+          if (!alignTag) continue;
+          const ares = await applyRushAlignmentFromSequence(guildId, sid, !was, effectiveAltPseudo);
+          if ((ares as any)?.success) {
+            toast.success(
+              was
+                ? "↩️ Alignement restauré"
+                : `↦ Alignement ${(ares as any).camp} ${(ares as any).level}`,
+              { duration: 2000 }
+            );
+          }
+        }
       } catch {
         setCompletedStepsByMs(prevMap);
         setCompletedIds((prev) => {

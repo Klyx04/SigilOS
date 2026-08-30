@@ -50,7 +50,7 @@ type DofusStat = {
   totalMilestones: number;
   completedMilestones: number;
   pct: number;
-  membersInProgress: { profileId: string; userName: string; userAvatar?: string; completed: number; total: number; pct: number }[];
+  membersInProgress: { profileId: string; userName: string; userAvatar?: string; completed: number; total: number; pct: number; alignment?: string | null; alignmentOrder?: string | null; alignmentLevel?: number | null }[];
 };
 
 // ─── GuildStatusPanel ─────────────────────────────────────────────────────────
@@ -114,7 +114,17 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
           const completed = memberProgress.filter((p) => p.isCompleted).length;
           const total = dofusMilestoneIds.size;
           const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-          return { profileId, userName, userAvatar, completed, total, pct };
+          // Alignement du personnage actif (repère > étapes cochées > premier).
+          const activeRow = (memberProgress as any[]).reduce((best, p: any) => {
+            const score = (p.currentStep ? 2 : 0) + Math.min((p.completedSteps || []).length, 5);
+            return !best || score > best._score ? { ...p, _score: score } : best;
+          }, null as any);
+          return {
+            profileId, userName, userAvatar, completed, total, pct,
+            alignment: activeRow?.alignment ?? null,
+            alignmentOrder: activeRow?.alignmentOrder ?? null,
+            alignmentLevel: activeRow?.alignmentLevel ?? null,
+          };
         })
         .filter((m) => m.total > 0)
         .sort((a, b) => b.pct - a.pct);
@@ -294,6 +304,18 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
                         <p className="text-caption text-zinc-500 mt-0.5 font-mono">
                           {m.completed}/{m.total} blocs
                         </p>
+                        {(() => {
+                          const lvl = Number(m.alignmentLevel ?? 0);
+                          if (!m.alignment || m.alignment === "neutre" || lvl <= 0) return null;
+                          const label = m.alignment === "brakmarien" ? "Brakmarien" : m.alignment === "bontarien" ? "Bontarien" : m.alignment;
+                          return (
+                            <span className="inline-flex items-center gap-1 mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#2a2160]/80 border border-indigo-500/40 text-[#a5b4fc]" title={`Alignement : ${label} ${lvl}`}>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={m.alignment === "brakmarien" ? "/ordres/brakmar.png" : "/ordres/bonta.png"} alt="" className="w-3 h-3 object-contain" />
+                              {label} {lvl}
+                            </span>
+                          );
+                        })()}
                       </div>
                     </div>
                   ))}

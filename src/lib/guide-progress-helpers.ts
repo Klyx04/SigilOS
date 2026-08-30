@@ -29,11 +29,16 @@ export function buildMilestoneStepKeys(sequences: MilestoneSequenceLike[]): stri
 export type GuideProgressRowSource = {
   profileId: string;
   milestoneId: string;
+  characterSlot?: string;
   isCompleted: boolean;
   completedSteps?: unknown;
   currentStep?: string | null;
   profile?: {
     pseudoDofus?: string | null;
+    alignment?: string | null;
+    alignmentOrder?: string | null;
+    alignmentLevel?: number | null;
+    altPseudos?: unknown;
     user?: { name?: string | null; image?: string | null } | null;
   } | null;
 };
@@ -42,12 +47,17 @@ export type GuideProgressRowSource = {
 export type GuideProgressRow = {
   profileId: string;
   milestoneId: string;
+  characterSlot?: string;
   isCompleted: boolean;
   completedSteps: string[];
   currentStep: string | null;
   userName: string;
   userAvatar?: string;
   profileSlug: string;
+  /** Alignement rusher (perso principal) — camp et niveau pour la visibilité guilde. */
+  alignment?: string | null;
+  alignmentOrder?: string | null;
+  alignmentLevel?: number | null;
 };
 
 /** Membre agrégé côté serveur — sérialisable (arrays, jamais de Set/Map dans le payload). */
@@ -60,6 +70,10 @@ export type GuideProgressMember = {
   completedMilestoneIds: string[];
   bookmarkedSteps: { milestoneId: string; stepKey: string }[];
   currentMilestoneId: string | null;
+  /** Alignement rusher (perso principal) pour la visibilité guilde. */
+  alignment?: string | null;
+  alignmentOrder?: string | null;
+  alignmentLevel?: number | null;
 };
 
 /** Carte présence `milestoneId → membres` (dédupliqués par profileId). */
@@ -79,16 +93,40 @@ function toStepKeys(value: unknown): string[] {
  *   userName = pseudoDofus || user.name || "Voyageur" ; profileSlug = pseudoDofus || profileId.
  */
 export function buildGuildProgressRows(rows: GuideProgressRowSource[]): GuideProgressRow[] {
-  return rows.map((p) => ({
-    profileId: p.profileId,
-    milestoneId: p.milestoneId,
-    isCompleted: p.isCompleted || false,
-    completedSteps: toStepKeys(p.completedSteps),
-    currentStep: p.currentStep || null,
-    userName: p.profile?.pseudoDofus || p.profile?.user?.name || "Voyageur",
-    userAvatar: p.profile?.user?.image || undefined,
-    profileSlug: p.profile?.pseudoDofus || p.profileId,
-  }));
+  return rows.map((p) => {
+    const slot = p.characterSlot || "PRINCIPAL";
+    const alts = Array.isArray((p.profile as any)?.altPseudos)
+      ? ((p.profile as any).altPseudos as any[])
+      : [];
+    // Alignement du personnage de CETTE ligne (principal ou mule).
+    let alignment: string | null = null;
+    let alignmentOrder: string | null = null;
+    let alignmentLevel: number | null = null;
+    if (slot !== "PRINCIPAL") {
+      const mule = alts.find((m: any) => m.pseudo === slot);
+      alignment = mule?.alignment ?? null;
+      alignmentOrder = mule?.alignmentOrder ?? null;
+      alignmentLevel = mule?.alignmentLevel ?? null;
+    } else {
+      alignment = (p.profile as any)?.alignment ?? null;
+      alignmentOrder = (p.profile as any)?.alignmentOrder ?? null;
+      alignmentLevel = (p.profile as any)?.alignmentLevel ?? null;
+    }
+    return {
+      profileId: p.profileId,
+      milestoneId: p.milestoneId,
+      characterSlot: slot,
+      isCompleted: p.isCompleted || false,
+      completedSteps: toStepKeys(p.completedSteps),
+      currentStep: p.currentStep || null,
+      userName: p.profile?.pseudoDofus || p.profile?.user?.name || "Voyageur",
+      userAvatar: p.profile?.user?.image || undefined,
+      profileSlug: p.profile?.pseudoDofus || p.profileId,
+      alignment,
+      alignmentOrder,
+      alignmentLevel,
+    };
+  });
 }
 
 /**
@@ -105,6 +143,10 @@ export function buildUniqueGuildMembers(
     userName: string;
     userAvatar?: string;
     profileSlug?: string;
+    alignment?: string | null;
+    alignmentOrder?: string | null;
+    alignmentLevel?: number | null;
+    activeScore: number;
     completedSteps: string[];
     completedMilestoneIds: string[];
     bookmarkedSteps: { milestoneId: string; stepKey: string }[];
@@ -121,12 +163,25 @@ export function buildUniqueGuildMembers(
         userName: p.userName,
         userAvatar: p.userAvatar,
         profileSlug: p.profileSlug,
+        alignment: p.alignment ?? null,
+        alignmentOrder: p.alignmentOrder ?? null,
+        alignmentLevel: p.alignmentLevel ?? null,
+        activeScore: -1,
         completedSteps: [],
         completedMilestoneIds: [],
         bookmarkedSteps: [],
         activeMilestoneIds: new Set<string>(),
       };
       byProfile.set(p.profileId, acc);
+    }
+
+    // Personnage « actif » : repère (bookmark) > nombre d'étapes cochées > premier.
+    const score = (p.currentStep ? 2 : 0) + Math.min(p.completedSteps.length, 5);
+    if (score > acc.activeScore) {
+      acc.activeScore = score;
+      acc.alignment = p.alignment ?? null;
+      acc.alignmentOrder = p.alignmentOrder ?? null;
+      acc.alignmentLevel = p.alignmentLevel ?? null;
     }
 
     if (p.completedSteps.length > 0) {
@@ -189,6 +244,9 @@ export function buildUniqueGuildMembers(
       userName: m.userName,
       userAvatar: m.userAvatar,
       profileSlug: m.profileSlug,
+      alignment: m.alignment ?? null,
+      alignmentOrder: m.alignmentOrder ?? null,
+      alignmentLevel: m.alignmentLevel ?? null,
       completedSteps: [...new Set(m.completedSteps)],
       completedMilestoneIds: [...new Set(m.completedMilestoneIds)],
       currentMilestoneId,

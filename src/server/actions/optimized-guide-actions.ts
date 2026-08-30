@@ -384,12 +384,17 @@ export async function getGuildOptimizedGuideProgress(slug: string, guildId: stri
       select: {
         profileId: true,
         milestoneId: true,
+        characterSlot: true,
         isCompleted: true,
         completedSteps: true,
         currentStep: true,
         profile: {
           select: {
             pseudoDofus: true,
+            alignment: true,
+            alignmentOrder: true,
+            alignmentLevel: true,
+            altPseudos: true,
             user: { select: { name: true, image: true } },
           },
         },
@@ -1000,6 +1005,261 @@ export async function setRushBookmark(guildId: string, milestoneId: string, seqI
   }
 
   return { success: true, bookmarkedSeqId: resolved };
+}
+
+/**
+ * ── S4 « quête d'alignement » — applique / restaure l'alignement du perso ──
+ * Quand un membre COCHE une quête marquée `alignment_set`, son alignement de
+ * rush (perso principal ou mule) est écrasé par le camp + niveau du tag.
+ * Quand il DÉCOCHE, on restaure l'alignement « manuel » mémorisé
+ * (`alignmentBefore`) — ou 0/neutre s'il n'y en avait pas.
+ * Écriture 100 % côté serveur : garde guilde + Zod + rate-limit (fail-closed).
+ */
+/**
+ * Trouve la dernière quête d'alignement ENCORE cochée pour un perso (chaîne
+ * linéaire 1..N). Retourne le camp+niveau à appliquer, ou null si aucune
+ * quête d'alignement ne reste cochée (on retombe alors sur la base).
+ * Position = milestone.order * 10000 + seq.order (ordre de progression guide).
+ */
+async function findLastCheckedAlignmentQuest(
+  profileId: string,
+  characterSlot: string,
+  guideSlug: string | undefined,
+  excludeSequenceId: string
+): Promise<{ camp: string; level: number } | null> {
+  if (!guideSlug) return null;
+  const rows = await db.playerGuideProgress.findMany({
+    where: { profileId, characterSlot, milestone: { guide: { slug: guideSlug } } },
+    select: {
+      isCompleted: true,
+      completedSteps: true,
+      milestone: {
+        select: {
+          order: true,
+          sequences: { select: { id: true, order: true, activityTags: true } },
+        },
+      },
+    },
+  });
+
+  const candidates: { pos: number; camp: string; level: number }[] = [];
+  for (const row of rows) {
+    const checked = new Set<string>(
+      row.isCompleted
+        ? row.milestone.sequences.map((s) => s.id)
+        : (Array.isArray(row.completedSteps) ? (row.completedSteps as string[]) : [])
+    );
+    for (const seq of row.milestone.sequences) {
+      if (seq.id === excludeSequenceId) continue;
+      if (!checked.has(seq.id)) continue;
+      const tag = ((Array.isArray(seq.activityTags) ? seq.activityTags : []) as any[]).find(
+        (t: any) => t.type === "alignment_set"
+      );
+      if (!tag?.name) continue;
+      candidates.push({
+        pos: row.milestone.order * 10000 + seq.order,
+        camp: String(tag.name),
+        level: typeof tag.level === "number" ? Math.max(0, Math.min(100, tag.level)) : 0,
+      });
+    }
+  }
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => b.pos - a.pos);
+  return { camp: candidates[0].camp, level: candidates[0].level };
+}
+
+export async function applyRushAlignmentFromSequence(
+  guildId: string,
+  sequenceId: string,
+  isChecked: boolean,
+  altPseudo?: string
+) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+  if (!ctx.profileId) throw new Error("Profile ID manquant");
+
+  const { success: rateOk } = await rateLimit(`guide-alignment:${ctx.profileId}`, 30, 60_000);
+  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
+
+  const sequence = await db.guideSequence.findUnique({
+    where: { id: sequenceId },
+    select: { id: true, activityTags: true, milestone: { select: { guide: { select: { slug: true } } } } },
+  });
+  if (!sequence) return { success: false, error: "Quête introuvable" };
+
+  const alignmentTag = ((Array.isArray(sequence.activityTags) ? sequence.activityTags : []) as any[]).find(
+    (t: any) => t.type === "alignment_set"
+  );
+  // Pas une quête d'alignement → no-op (aucun effet).
+  if (!alignmentTag?.name) return { success: true, noop: true };
+
+  const camp = String(alignmentTag.name);
+  const level = typeof alignmentTag.level === "number" ? Math.max(0, Math.min(100, alignmentTag.level)) : 0;
+
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+  const isMule = characterSlot !== "PRINCIPAL";
+
+  const profile = await db.userProfile.findUnique({
+    where: { id: profileId },
+    select: {
+      id: true,
+      guildId: true,
+      alignment: true,
+      alignmentOrder: true,
+      alignmentLevel: true,
+      alignmentBefore: true,
+      altPseudos: true,
+    },
+  });
+  if (!profile) return { success: false, error: "Profil introuvable" };
+
+  try {
+    if (isMule) {
+      const alts = Array.isArray(profile.altPseudos) ? [...(profile.altPseudos as any[])] : [];
+      const idx = alts.findIndex((m: any) => m.pseudo === characterSlot);
+      if (idx === -1) return { success: false, error: "Mule introuvable" };
+      const mule = { ...alts[idx] };
+      if (isChecked) {
+        if (!mule.alignmentBefore) {
+          mule.alignmentBefore = {
+            alignment: mule.alignment ?? null,
+            alignmentOrder: mule.alignmentOrder ?? null,
+            alignmentLevel: mule.alignmentLevel ?? 0,
+          };
+        }
+        mule.alignment = camp;
+        mule.alignmentLevel = level;
+        mule.alignmentOrder = null;
+      } else {
+        const last = await findLastCheckedAlignmentQuest(
+          profileId,
+          characterSlot,
+          sequence.milestone?.guide?.slug,
+          sequenceId
+        );
+        if (last) {
+          mule.alignment = last.camp;
+          mule.alignmentLevel = last.level;
+          mule.alignmentOrder = null;
+        } else {
+          const base = mule.alignmentBefore as any;
+          mule.alignment = base?.alignment ?? "neutre";
+          mule.alignmentOrder = base?.alignmentOrder ?? null;
+          mule.alignmentLevel = base?.alignmentLevel ?? 0;
+          delete mule.alignmentBefore;
+        }
+      }
+      alts[idx] = mule;
+      await db.userProfile.update({ where: { id: profile.id }, data: { altPseudos: alts as any, userUpdatedAt: new Date() } });
+    } else {
+      const data: any = { userUpdatedAt: new Date() };
+      if (isChecked) {
+        if (!profile.alignmentBefore) {
+          data.alignmentBefore = {
+            alignment: profile.alignment ?? null,
+            alignmentOrder: profile.alignmentOrder ?? null,
+            alignmentLevel: profile.alignmentLevel ?? 0,
+          };
+        }
+        data.alignment = camp;
+        data.alignmentLevel = level;
+        data.alignmentOrder = null;
+      } else {
+        const last = await findLastCheckedAlignmentQuest(
+          profileId,
+          characterSlot,
+          sequence.milestone?.guide?.slug,
+          sequenceId
+        );
+        if (last) {
+          data.alignment = last.camp;
+          data.alignmentLevel = last.level;
+          data.alignmentOrder = null;
+        } else {
+          const base = profile.alignmentBefore as any;
+          data.alignment = base?.alignment ?? "neutre";
+          data.alignmentOrder = base?.alignmentOrder ?? null;
+          data.alignmentLevel = base?.alignmentLevel ?? 0;
+          data.alignmentBefore = null;
+        }
+      }
+      await db.userProfile.update({ where: { id: profile.id }, data });
+    }
+  } catch (err) {
+    logger.error("[applyRushAlignmentFromSequence] write failed", { error: err });
+    return { success: false, error: "Erreur lors de la mise à jour d'alignement" };
+  }
+
+  const { invalidateUserContextCache } = await import("./user-actions");
+  await invalidateUserContextCache(ctx.id!, profile.guildId, guildId).catch(() => {});
+  revalidatePath(`/dashboard/${guildId}/profile`);
+  revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
+  if (sequence.milestone?.guide?.slug) {
+    revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${sequence.milestone.guide.slug}`);
+  }
+
+  return { success: true, applied: isChecked, camp, level };
+}
+
+/**
+ * ── S4 — « Démarrage du rush » : reset l'alignement du perso à 0/neutre,
+ *    en mémorisant l'alignement manuel courant comme base (`alignmentBefore`).
+ */
+export async function resetRushAlignment(guildId: string, altPseudo?: string) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+  if (!ctx.profileId) throw new Error("Profile ID manquant");
+
+  const { success: rateOk } = await rateLimit(`guide-alignment:${ctx.profileId}`, 10, 60_000);
+  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
+
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+  const isMule = characterSlot !== "PRINCIPAL";
+
+  const profile = await db.userProfile.findUnique({
+    where: { id: profileId },
+    select: { id: true, guildId: true, alignment: true, alignmentOrder: true, alignmentLevel: true, alignmentBefore: true, altPseudos: true },
+  });
+  if (!profile) return { success: false, error: "Profil introuvable" };
+
+  try {
+    if (isMule) {
+      const alts = Array.isArray(profile.altPseudos) ? [...(profile.altPseudos as any[])] : [];
+      const idx = alts.findIndex((m: any) => m.pseudo === characterSlot);
+      if (idx === -1) return { success: false, error: "Mule introuvable" };
+      const mule = { ...alts[idx] };
+      mule.alignmentBefore = mule.alignmentBefore ?? {
+        alignment: mule.alignment ?? null,
+        alignmentOrder: mule.alignmentOrder ?? null,
+        alignmentLevel: mule.alignmentLevel ?? 0,
+      };
+      mule.alignment = "neutre";
+      mule.alignmentOrder = null;
+      mule.alignmentLevel = 0;
+      alts[idx] = mule;
+      await db.userProfile.update({ where: { id: profile.id }, data: { altPseudos: alts as any, userUpdatedAt: new Date() } });
+    } else {
+      const data: any = { userUpdatedAt: new Date() };
+      data.alignmentBefore = profile.alignmentBefore ?? {
+        alignment: profile.alignment ?? null,
+        alignmentOrder: profile.alignmentOrder ?? null,
+        alignmentLevel: profile.alignmentLevel ?? 0,
+      };
+      data.alignment = "neutre";
+      data.alignmentOrder = null;
+      data.alignmentLevel = 0;
+      await db.userProfile.update({ where: { id: profile.id }, data });
+    }
+  } catch (err) {
+    logger.error("[resetRushAlignment] write failed", { error: err });
+    return { success: false, error: "Erreur lors de la réinitialisation" };
+  }
+
+  const { invalidateUserContextCache } = await import("./user-actions");
+  await invalidateUserContextCache(ctx.id!, profile.guildId, guildId).catch(() => {});
+  revalidatePath(`/dashboard/${guildId}/profile`);
+  revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
+  return { success: true };
 }
 
 // ===========================================================================

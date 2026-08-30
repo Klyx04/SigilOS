@@ -4,6 +4,8 @@
 > - ✅ **Actionnable = pas bloquée** (item 2, partiel) : `getNextObjective` + bloc objectif skippent les séquences bloquées par prérequis réels (`isSequenceBlockedByPrereqs`).
 > **Restant (à traiter si pertinent, cf. roadmap S4/S6/S5/S7)** : recherche + `hideDone` sur milestones entièrement terminés (item 3) · bookmark strictement par quête (item 4) · modale de reprise (item 5) · navigation flottante via `resumeRush()` (item 6) · cibles de clic de validation (item 7) · data-tour (item 9).
 > **Nouvelle road map** : S4 (« qui peut aider », audit données d'abord) → S6 (moments premium) → S5 (éditeur GOD) → S7 (contexte chapitre).
+> **📌 30/08 (suite) — détour alignement livré** (commit `9926947c7`) : quête d'alignement `alignment_set` (marquage GOD « Alignement », coche écrase / décoche restaure la dernière encore cochée, reset démarrage, cascade décoche) + badge par quête (dashboard+overlay) + visibilité niveau des rushers (Rush Live + panneau Dofus, alignement par personnage actif principal/mule) + nettoyage icônes (section GOD, admin texte-seul, rendu membre) + migration `alignmentBefore`. Vérifs : tsc 0 · eslint 0 · 424 tests.
+> **⚪ S4 « qui peut aider » métier/donjon : restant** — helper pur OK mais pas d'action `getSequenceHelpers`, ni badge « X peut aider », ni [Inviter/Partager] ; Gap A métier+niveau non fait ; l'éditeur de tags métier/donjon a été retiré de GOD (à repenser).
 
 ---
 

@@ -111,6 +111,41 @@ export function parseCoordinates(
   };
 }
 
+/** Référence vers une quête prérequis d'une autre quête. */
+export type RushPrereqRef = { seqId: string; milestoneId: string; name: string };
+
+/**
+ * Retourne les quêtes prérequis d'une séquence (match par nom via tags `prereq_text`).
+ * Indépendant de la complétion : sert à afficher/dispatcher les prérequis cliquables.
+ */
+export function getPrereqRefs(seq: RushSequence | null | undefined, allMilestones: RushMilestone[]): RushPrereqRef[] {
+  if (!seq || !Array.isArray(seq.activityTags) || !seq.activityTags.length) return [];
+  const prereqNames = seq.activityTags
+    .filter((tag) => tag.type === "prereq_text")
+    .map((tag) => tag.name?.toLowerCase().trim())
+    .filter(Boolean) as string[];
+  if (!prereqNames.length) return [];
+
+  const out: RushPrereqRef[] = [];
+  for (const candidateMs of allMilestones) {
+    if (candidateMs.type === "SEPARATEUR" || candidateMs.type === "INFO") continue;
+    for (const candidateSeq of candidateMs.sequences) {
+      if (candidateSeq.id === seq.id) continue;
+      const candidateName = (candidateSeq.subGuideName || candidateSeq.subGuideRef || "")
+        .toLowerCase()
+        .trim();
+      if (prereqNames.includes(candidateName)) {
+        out.push({
+          seqId: candidateSeq.id,
+          milestoneId: candidateMs.id,
+          name: candidateSeq.subGuideName || candidateSeq.subGuideRef || candidateSeq.id,
+        });
+      }
+    }
+  }
+  return out;
+}
+
 /**
  * Helper pur vérifiant si une séquence est bloquée par des prérequis inachevés.
  * Renvoie false si la séquence n'a pas de tag prereq_text OU si tous les prérequis sont terminés.

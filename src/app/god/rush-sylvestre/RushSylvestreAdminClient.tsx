@@ -164,23 +164,6 @@ const ACTIVITY_TAGS: { type: ActivityTagType; imagePath: string; label: string; 
   { type: "quest_group",        imagePath: "/assets/rush-sylvestre/group.png",              label: "À faire ensemble", color: "#f59e0b", hasName: true },
 ];
 
-const DOFUS_METIERS = [
-  "Alchimiste", "Bijoutier", "Bricoleur", "Bûcheron", "Chasseur", "Cordonnier",
-  "Façonneur", "Forgeron", "Mineur", "Paysan", "Pêcheur", "Sculpteur", "Tailleur",
-  "Cordomage", "Costumage", "Façomage", "Forgemage", "Joillomage", "Sculptemage"
-];
-
-function getMetierIconPath(metierName?: string) {
-  if (!metierName) return "/assets/rush-sylvestre/façonneur.png";
-  // Conversion en minuscule, sans accents, et remplacement du 'ç' par 'c'
-  const normalized = metierName
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/ç/g, "c");
-  return `/assets/rush-sylvestre/${normalized}.png`;
-}
-
 function getMilestoneTypeInfo(type?: MilestoneType) {
   return MILESTONE_TYPES.find(t => t.value === type) ?? MILESTONE_TYPES[0];
 }
@@ -1224,12 +1207,11 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
               <AlertCircle className="w-2.5 h-2.5 text-amber-400/60" />
             </span>
           )}
-          {/* Rendu des tags d'activité réels */}
+          {/* Rendu des tags d'activité réels (texte seul, sans icône) */}
           {Array.isArray(seq.activityTags) && seq.activityTags.map((tag: any, idx: number) => {
             const def = ACTIVITY_TAGS.find(d => d.type === tag.type);
             if (!def) return null;
             const isMetier = tag.type === "metier";
-            const iconPath = isMetier ? getMetierIconPath(tag.name) : def.imagePath;
             const label = isMetier && tag.name ? `${tag.name} (Niv. ${tag.level ?? 1})` : def.label;
             return (
               <span
@@ -1237,10 +1219,8 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
                 title={label}
                 className="flex items-center gap-0.5 px-1 py-0.5 rounded text-caption font-black bg-zinc-800 text-zinc-300 border border-white/5"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={iconPath} alt={def.label} className="w-3.5 h-3.5 object-contain" />
+                <span className="max-w-[90px] truncate">{label}</span>
                 {tag.count && tag.count > 1 && <span className="text-amber-400 font-mono text-caption ml-0.5">x{tag.count}</span>}
-                {isMetier && tag.name && <span className="max-w-[70px] truncate">{tag.name} {tag.level ? `Niv.${tag.level}` : ""}</span>}
               </span>
             );
           })}
@@ -1265,180 +1245,6 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
     </div>
   );
 }
-
-// ─── ActivityTagsEditor ───────────────────────────────────────────────────────
-function ActivityTagsEditor({ tags, onChange }: {
-  tags: ActivityTag[];
-  onChange: (tags: ActivityTag[]) => void;
-}) {
-  const toggleTag = (type: ActivityTagType) => {
-    const exists = tags.find(t => t.type === type);
-    if (exists) {
-      onChange(tags.filter(t => t.type !== type));
-    } else {
-      onChange([...tags, { type }]);
-    }
-  };
-
-  const updateTag = (type: ActivityTagType, patch: Partial<ActivityTag>) => {
-    onChange(tags.map(t => t.type === type ? { ...t, ...patch } : t));
-  };
-
-  return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap gap-1.5">
-        {ACTIVITY_TAGS.map(def => {
-          const active = tags.find(t => t.type === def.type);
-          return (
-            <button
-              key={def.type}
-              type="button"
-              onClick={() => toggleTag(def.type)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
-                active
-                  ? "border-white/30 text-white"
-                  : "border-white/5 text-zinc-600 hover:text-zinc-400 hover:border-white/10"
-              }`}
-              style={active ? { color: def.color, borderColor: def.color + "50", background: def.color + "15" } : {}}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={def.imagePath} alt={def.label} className="w-8 h-8 object-cover rounded-full overflow-hidden shrink-0 border border-white/20 bg-zinc-950 p-0.5" />
-              {def.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Champs spécifiques pour les tags actifs */}
-      {tags.map(tag => {
-        const def = ACTIVITY_TAGS.find(d => d.type === tag.type);
-        if (!def) return null;
-        const isMetier = tag.type === "metier";
-        const isHoraire = tag.type === "contrainte_horaire";
-        return (
-          <div key={tag.type} className="flex items-center gap-2 p-2 rounded-lg border" style={{ borderColor: def.color + "30", background: def.color + "08" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={isMetier ? getMetierIconPath(tag.name) : def.imagePath} alt={def.label} className="w-7 h-7 object-cover rounded-full overflow-hidden shrink-0 border border-white/20 bg-zinc-950 p-0.5 flex-shrink-0" />
-            
-            {isMetier ? (
-              <>
-                <select
-                  value={tag.name || ""}
-                  onChange={e => updateTag(tag.type, { name: e.target.value })}
-                  className="flex-1 bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-caption text-white focus:outline-none"
-                >
-                  <option value="">— Métier —</option>
-                  {DOFUS_METIERS.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-                <input
-                  type="number" min={1} max={200}
-                  value={tag.level || ""}
-                  onChange={e => updateTag(tag.type, { level: parseInt(e.target.value, 10) || undefined })}
-                  className="w-20 bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-caption text-white focus:outline-none"
-                  placeholder="Niv. min"
-                />
-              </>
-            ) : isHoraire ? (
-              <div className="flex items-center gap-2 flex-1 flex-wrap">
-                <select
-                  value={tag.name ? (tag.name.startsWith("<") ? "before" : tag.name.startsWith(">") ? "after" : "between") : "between"}
-                  onChange={e => {
-                    const mode = e.target.value;
-                    if (mode === "before") updateTag(tag.type, { name: "< 0" });
-                    else if (mode === "after") updateTag(tag.type, { name: "> 0" });
-                    else updateTag(tag.type, { name: "0-0" });
-                  }}
-                  className="bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-caption text-white focus:outline-none"
-                >
-                  <option value="before">Avant</option>
-                  <option value="between">Entre</option>
-                  <option value="after">Après</option>
-                </select>
-                {(() => {
-                  const currentName = tag.name || "0-0";
-                  const isBefore = currentName.startsWith("<");
-                  const isAfter = currentName.startsWith(">");
-                  const parts = isBefore || isAfter ? [currentName.slice(1).trim()] : currentName.split("-").map(s => s.trim());
-                  const h1 = parts[0] || "0";
-                  const h2 = isBefore || isAfter ? "" : (parts[1] || "0");
-                  const mode = isBefore ? "before" : isAfter ? "after" : "between";
-                  return (
-                    <div className="flex items-center gap-1">
-                      {mode === "before" ? (
-                        <div className="flex items-center gap-1">
-                          <span className="text-caption text-amber-300 font-bold">avant</span>
-                          <input
-                            type="number" min={0} max={23}
-                            value={h1}
-                            onChange={e => updateTag(tag.type, { name: `< ${parseInt(e.target.value, 10) || 0}` })}
-                            className="w-14 bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1 text-caption text-amber-300 text-center focus:outline-none"
-                          />
-                          <span className="text-caption text-amber-300 font-bold">h</span>
-                        </div>
-                      ) : mode === "after" ? (
-                        <div className="flex items-center gap-1">
-                          <span className="text-caption text-amber-300 font-bold">après</span>
-                          <input
-                            type="number" min={0} max={23}
-                            value={h1}
-                            onChange={e => updateTag(tag.type, { name: `> ${parseInt(e.target.value, 10) || 0}` })}
-                            className="w-14 bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1 text-caption text-amber-300 text-center focus:outline-none"
-                          />
-                          <span className="text-caption text-amber-300 font-bold">h</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <span className="text-caption text-zinc-400">de</span>
-                          <input
-                            type="number" min={0} max={23}
-                            value={h1}
-                            onChange={e => updateTag(tag.type, { name: `${parseInt(e.target.value, 10) || 0}-${h2}` })}
-                            className="w-14 bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1 text-caption text-amber-300 text-center focus:outline-none"
-                          />
-                          <span className="text-caption text-zinc-400">h à</span>
-                          <input
-                            type="number" min={0} max={23}
-                            value={h2}
-                            onChange={e => updateTag(tag.type, { name: `${h1}-${parseInt(e.target.value, 10) || 0}` })}
-                            className="w-14 bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1 text-caption text-amber-300 text-center focus:outline-none"
-                          />
-                          <span className="text-caption text-amber-300 font-bold">h</span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-            ) : tag.type === "solver" ? (
-              <div className="flex items-center gap-1.5 flex-1">
-                <span className="text-caption text-emerald-400 font-bold uppercase tracking-wider">Solver URL</span>
-                <input
-                  type="text"
-                  value={tag.url || ""}
-                  onChange={e => updateTag(tag.type, { url: e.target.value })}
-                  className="flex-1 bg-black/60 border border-emerald-500/20 rounded-lg px-2 py-1 text-caption text-emerald-300 focus:outline-none placeholder:text-zinc-700"
-                  placeholder="ex: https://solver.dofus.com/... (optionnel)"
-                />
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5 flex-1">
-                <span className="text-caption text-zinc-400 font-bold uppercase tracking-wider">{def.label}</span>
-                <input
-                  type="number" min={1} max={99}
-                  value={tag.count || ""}
-                  onChange={e => updateTag(tag.type, { count: parseInt(e.target.value, 10) || undefined })}
-                  className="w-20 bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-caption text-white focus:outline-none ml-auto"
-                  placeholder="Quantité"
-                />
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 
 // ─── RequiredItemsEditor ───────────────────────────────────────────────────
 function RequiredItemsEditor({
@@ -1742,6 +1548,36 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
       const filtered = prev.filter((t: any) => t.type !== "info_sequence");
       return [...filtered, { type: "info_sequence" as any, color }];
     });
+  };
+
+  // ─── Quête d'alignement (tag alignment_set) ─────────────────────────────
+  const [alignmentSet, setAlignmentSet] = useState<{ camp: string; level: number } | null>(() => {
+    const t = (seq.activityTags as any[])?.find((x: any) => x.type === "alignment_set");
+    return t && t.name ? { camp: t.name, level: typeof t.level === "number" ? t.level : 0 } : null;
+  });
+
+  const syncAlignmentTag = (next: { camp: string; level: number } | null) => {
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => t.type !== "alignment_set");
+      if (next) return [...filtered, { type: "alignment_set" as any, name: next.camp, level: next.level }];
+      return filtered;
+    });
+  };
+  const handleAlignmentSetToggle = (on: boolean) => {
+    const next = on ? { camp: alignmentSet?.camp || "bontarien", level: alignmentSet?.level ?? 0 } : null;
+    setAlignmentSet(next);
+    syncAlignmentTag(next);
+  };
+  const handleAlignmentCampChange = (camp: string) => {
+    const next = { camp, level: alignmentSet?.level ?? 0 };
+    setAlignmentSet(next);
+    syncAlignmentTag(next);
+  };
+  const handleAlignmentLevelChange = (level: number) => {
+    const clamped = Math.max(0, Math.min(100, level));
+    const next = { camp: alignmentSet?.camp || "bontarien", level: clamped };
+    setAlignmentSet(next);
+    syncAlignmentTag(next);
   };
 
   const handleInsertLink = () => {
@@ -2090,13 +1926,69 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-blue-400/90">
-            4. 🏷️ Activités & Contraintes ({activityTags.filter(t => !["prereq_text","dofus_link","pos_tags","tougli_box","info_sequence","item"].includes(t.type)).length})
+            4. 🎯 Alignement
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.activities ? "rotate-180" : ""}`} />
         </button>
         {openSections.activities && (
           <div className="p-3 pt-0 space-y-2 border-t border-white/5">
-            <ActivityTagsEditor tags={activityTags} onChange={setActivityTags} />
+            {/* ⚔️ Quête d'alignement : quand cochée, donne camp + niveau au perso */}
+            <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 space-y-2.5">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="alignSetToggle"
+                  checked={!!alignmentSet}
+                  onChange={e => handleAlignmentSetToggle(e.target.checked)}
+                  className="w-4 h-4 accent-indigo-500 rounded cursor-pointer"
+                />
+                <label htmlFor="alignSetToggle" className="flex items-center gap-1.5 text-xs font-bold text-indigo-200 cursor-pointer select-none">
+                  ⚔️ Quête d'alignement
+                  <span className="text-[10px] font-medium text-indigo-300/60">— quand un membre la coche, son alignement de rush prend ce camp + niveau</span>
+                </label>
+              </div>
+              {alignmentSet && (
+                <div className="flex flex-wrap items-center gap-2 pl-6">
+                  <span className="text-caption font-black text-indigo-300/80 uppercase tracking-widest">Camp</span>
+                  <button
+                    type="button"
+                    onClick={() => handleAlignmentCampChange("bontarien")}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
+                      alignmentSet.camp === "bontarien"
+                        ? "bg-blue-500/20 border-blue-500/50 text-blue-200"
+                        : "bg-zinc-900 border-white/5 text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    <img src="/ordres/bonta.png" alt="" className="w-4 h-4 object-contain" /> Bontarien
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAlignmentCampChange("brakmarien")}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
+                      alignmentSet.camp === "brakmarien"
+                        ? "bg-red-500/20 border-red-500/50 text-red-200"
+                        : "bg-zinc-900 border-white/5 text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    <img src="/ordres/brakmar.png" alt="" className="w-4 h-4 object-contain" /> Brakmarien
+                  </button>
+                  <div className="flex items-center gap-1.5 ml-2">
+                    <span className="text-caption font-black text-indigo-300/80 uppercase tracking-widest">Niveau</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={alignmentSet.level}
+                      onChange={e => handleAlignmentLevelChange(parseInt(e.target.value, 10) || 0)}
+                      className="w-16 bg-black/60 border border-indigo-500/30 rounded-lg px-2 py-1 text-xs text-indigo-200 text-center focus:outline-none"
+                    />
+                  </div>
+                  <span className="ml-auto text-caption text-indigo-300/60 italic">
+                    → tag: {'{ type: "alignment_set", name: "'}{alignmentSet.camp}{'", level: '}{alignmentSet.level}{' }'}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -2705,10 +2597,6 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                     placeholder="0–100"
                   />
                 </div>
-              </div>
-              <div>
-                <label className="text-caption text-zinc-600 mb-1 block">🏷️ Activités requises</label>
-                <ActivityTagsEditor tags={activityTags} onChange={setActivityTags} />
               </div>
               <div>
                 <label className="text-caption text-zinc-600 mb-1 block">💡 Tips</label>

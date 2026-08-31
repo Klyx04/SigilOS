@@ -20,8 +20,10 @@ interface CronTask {
   schedule: string;
   logFile: string;
   lastRun: string | null;
+  durationMs?: number | null;
   sizeBytes: number;
   status: "success" | "error" | "unknown";
+  summary?: string | null;
   lastLines: string[];
 }
 
@@ -33,10 +35,16 @@ interface CronStatusData {
 }
 
 function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
+  if (bytes === 0) return "";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
+
+function formatDuration(ms?: number | null): string {
+  if (!ms || ms <= 0) return "";
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
 }
 
 function formatRelativeTime(iso: string | null): string {
@@ -92,19 +100,34 @@ function TaskRow({ task }: { task: CronTask }) {
 
         <StatusBadge status={task.status} />
 
-        <span className="flex-1 font-medium text-sm text-foreground truncate">{task.name}</span>
+        <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+          <span className="font-medium text-sm text-foreground truncate">{task.name}</span>
+          {task.summary && (
+            <span className="text-xs text-muted-foreground truncate max-w-sm hidden lg:inline font-mono">
+              — {task.summary}
+            </span>
+          )}
+        </div>
 
         <span className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
           <Clock className="w-3 h-3" /> {task.schedule}
         </span>
 
+        {task.durationMs ? (
+          <span className="hidden md:inline px-1.5 py-0.5 rounded bg-surface border border-border text-caption font-mono text-muted-foreground">
+            {formatDuration(task.durationMs)}
+          </span>
+        ) : null}
+
         <span className="text-xs text-muted-foreground whitespace-nowrap">
           {formatRelativeTime(task.lastRun)}
         </span>
 
-        <span className="hidden md:block text-xs text-muted-foreground/60">
-          {formatBytes(task.sizeBytes)}
-        </span>
+        {task.sizeBytes > 0 && (
+          <span className="hidden md:block text-xs text-muted-foreground/60">
+            {formatBytes(task.sizeBytes)}
+          </span>
+        )}
       </button>
 
       {expanded && (
@@ -112,10 +135,18 @@ function TaskRow({ task }: { task: CronTask }) {
           <div className="flex items-center gap-2 text-xs text-muted-foreground border-t border-border pt-3">
             <Terminal className="w-3 h-3" />
             <code className="font-mono">{task.logFile}</code>
+            {task.durationMs && (
+              <span className="font-mono opacity-80">({formatDuration(task.durationMs)})</span>
+            )}
             {task.lastRun && (
               <span className="ml-auto opacity-60">{new Date(task.lastRun).toLocaleString("fr-FR")}</span>
             )}
           </div>
+          {task.summary && (
+            <div className="p-2.5 rounded-lg bg-surface border border-border text-xs text-foreground font-medium">
+              💡 <strong>Détail :</strong> {task.summary}
+            </div>
+          )}
           {task.lastLines.length > 0 ? (
             <pre className="text-xs font-mono bg-background border border-border rounded-lg p-3 overflow-x-auto max-h-48 overflow-y-auto text-muted-foreground leading-relaxed">
               {task.lastLines.join("\n")}

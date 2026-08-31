@@ -1792,6 +1792,14 @@ export async function closeRunWithContributions(
         (pid) => pid !== leaderProfileId
     );
 
+    // Remove Discord embed before deleting run from DB
+    try {
+        const { deleteDiscordRunEmbed } = await import("@/server/songes-service");
+        await deleteDiscordRunEmbed(ctx.guildId, runId);
+    } catch (_) {
+        // Non-fatal
+    }
+
     // Delete the run (Ménage Time)
     await db.dreamRun.delete({
         where: { id: runId },
@@ -1806,14 +1814,6 @@ export async function closeRunWithContributions(
             },
             data: { contributionPoints: { increment: pts } },
         });
-    }
-
-    // Remove Discord embed (fire-and-forget)
-    try {
-        const { deleteDiscordRunEmbed } = await import("@/server/songes-service");
-        await deleteDiscordRunEmbed(ctx.guildId, runId);
-    } catch (_) {
-        // Non-fatal
     }
 
     // Audit log

@@ -25,6 +25,7 @@ import {
     ShieldAlert,
     Coins,
     Ticket,
+    Key,
 } from "lucide-react";
 import { AdminCard } from "@/components/admin/admin-card";
 import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
@@ -93,7 +94,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Rôles par Réaction (Reaction Roles)",
                     description: "Panneaux de sélection de rôles interactifs avec boutons, menus déroulants et icônes pour Discord.",
                     accent: "violet",
-                    permission: (u) => u.canManageReactionRoles || u.isAdmin,
+                    permission: (u) => u.canManageReactionRoles,
                     tourId: "admin-overview-card-reaction-roles",
                 },
                 {
@@ -102,7 +103,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Bot Tickets & Support Discord",
                     description: "Gestion des formulaires d'intake, réclamations staff, notes internes et transcripts.",
                     accent: "amber",
-                    permission: (u) => u.canManageTickets || u.isAdmin,
+                    permission: (u) => u.canManageTickets,
                     tourId: "admin-overview-card-tickets",
                 },
                 {
@@ -170,6 +171,15 @@ function buildSections(guildId: string): AdminSection[] {
                     accent: "slate",
                     permission: (u) => u.canViewAuditLogs,
                     tourId: "admin-overview-card-logs",
+                },
+                {
+                    href: `/dashboard/${guildId}/admin/api-keys`,
+                    icon: Key,
+                    title: "Clés d'API & Dev",
+                    description: "Générez des jetons d'accès programmatiques sécurisés (Bearer Token) pour vos applications tierces.",
+                    accent: "amber",
+                    permission: (u) => u.isAdmin,
+                    tourId: "admin-overview-card-api-keys",
                 },
             ],
         },

@@ -81,11 +81,16 @@ export default async function PermissionsPage({
     const { getRbacUsersMappingEnabled } = await import("@/lib/platform-rbac");
     const rbacUsersMappingEnabled = await getRbacUsersMappingEnabled();
 
+    // #158 — Matrice RBAC Commandes Slash Discord
+    const { getGuildSlashCommandPermissionsAction } = await import("@/server/actions/slash-command-actions");
+    const { SlashCommandsRbacPanel } = await import("@/components/admin/SlashCommandsRbacPanel");
+    const slashPerms = await getGuildSlashCommandPermissionsAction(config.id);
+
     return (
         <div className="space-y-8 pb-12">
             <div data-tour="admin-permissions-header">
                 <UnifiedModuleHeader
-                    title="Permissions"
+                    title="Permissions & Commandes"
                     description={`Attribuez les droits aux rôles Discord et aux membres de ${config.name}`}
                     icon={Shield}
                     backHref={`/dashboard/${guildId}/admin`}
@@ -108,6 +113,14 @@ export default async function PermissionsPage({
                     currentMapping={currentMapping}
                     currentUsersMapping={currentUsersMapping}
                     usersMappingEnabled={rbacUsersMappingEnabled}
+                />
+            </div>
+
+            <div className="pt-8 border-t border-border">
+                <SlashCommandsRbacPanel
+                    guildId={config.id}
+                    initialMatrix={slashPerms.success ? slashPerms.data || [] : []}
+                    discordRoles={roles.map((r: any) => ({ id: r.id, name: r.name, color: r.color }))}
                 />
             </div>
         </div>

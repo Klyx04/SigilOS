@@ -158,43 +158,49 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                 </div>
 
                                 {/* TAB: ARCHIMONSTRES */}
-                                <TabsContent value="archis" className="m-0 space-y-8">
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-                                        {/* Left Column: Archimonstres List */}
-                                        <div className="space-y-4">
+                                <TabsContent value="archis" className="m-0 space-y-6">
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                        {/* Colonne Gauche (2/3) : Liste des Archimonstres de la zone */}
+                                        <div className="lg:col-span-2 space-y-3">
+                                            <div className="flex items-center justify-between pb-2 border-b border-border/40">
+                                                <span className="text-caption font-bold text-foreground/60 uppercase tracking-wider">
+                                                    Archimonstres du secteur ({archis.length})
+                                                </span>
+                                            </div>
+
                                             {archis.length > 0 ? (
-                                                <div className="grid gap-3">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                     {archis.map((archi) => {
                                                         const isMissing = archi.state === 'MANQUANT';
                                                         return (
                                                             <div 
                                                                 key={archi.id} 
-                                                                className={`group relative flex items-center gap-4 p-4 rounded-2xl transition-all border duration-300 ${
+                                                                className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${
                                                                     isMissing 
-                                                                        ? 'bg-rose-500/5 border-rose-500/10 hover:border-rose-500/30' 
-                                                                        : 'bg-emerald-500/5 border-emerald-500/10 hover:border-emerald-500/30'
+                                                                        ? 'bg-rose-500/5 border-rose-500/15 hover:border-rose-500/30' 
+                                                                        : 'bg-emerald-500/5 border-emerald-500/15 hover:border-emerald-500/30'
                                                                 }`}
                                                             >
-                                                                <div className="w-12 h-12 rounded-xl bg-[#020408] border border-border overflow-hidden flex items-center justify-center shrink-0">
-                                                                    <img src={archi.image} alt="" className="w-10 h-10 object-contain group- transition-transform duration-300" />
+                                                                <div className="w-10 h-10 rounded-xl bg-black/40 border border-border/60 overflow-hidden flex items-center justify-center shrink-0">
+                                                                    <img src={archi.image} alt="" className="w-8 h-8 object-contain" />
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
-                                                                    <p className={`text-sm font-black truncate leading-tight mb-1 uppercase italic tracking-tight ${isMissing ? 'text-rose-400' : 'text-emerald-400'}`}>
+                                                                    <p className={`text-xs font-bold truncate leading-tight ${isMissing ? 'text-rose-400' : 'text-emerald-400'}`}>
                                                                         {archi.name}
                                                                     </p>
-                                                                    <p className="text-caption font-bold text-foreground/20 uppercase tracking-[0.1em] italic line-clamp-2 leading-relaxed">
+                                                                    <p className="text-[11px] text-foreground/40 truncate">
                                                                         {archi.subzone || archi.zone || "Zone inconnue"}
                                                                     </p>
                                                                 </div>
                                                                 <div className="shrink-0">
                                                                     {isMissing ? (
-                                                                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500 text-foreground text-caption font-black uppercase italic shadow-lg shadow-rose-500/20">
-                                                                            <XCircle size={12} /> Manquant
-                                                                        </div>
+                                                                        <span className="px-2 py-0.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-bold">
+                                                                            Manquant
+                                                                        </span>
                                                                     ) : (
-                                                                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-caption font-black uppercase italic">
-                                                                            <CheckCircle2 size={12} /> {archi.owned > 1 ? `x${archi.owned}` : 'Capturé'}
-                                                                        </div>
+                                                                        <span className="px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold">
+                                                                            {archi.owned > 1 ? `x${archi.owned}` : 'Capturé'}
+                                                                        </span>
                                                                     )}
                                                                 </div>
                                                             </div>
@@ -202,70 +208,91 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                     })}
                                                 </div>
                                             ) : (
-                                                <div className="py-20 flex flex-col items-center justify-center gap-4 bg-surface border border-dashed border-border rounded-[2rem] px-10 text-center">
-                                                    <Ghost className="text-foreground/10" size={40} />
-                                                    <p className="text-caption font-black text-foreground/15 uppercase tracking-widest italic">
+                                                <div className="py-16 flex flex-col items-center justify-center gap-3 bg-surface/30 border border-dashed border-border rounded-2xl p-6 text-center">
+                                                    <Ghost className="text-foreground/20" size={32} />
+                                                    <p className="text-caption text-foreground/40 font-medium">
                                                         {error === "Compte non lié" 
                                                             ? "Liez votre compte Metamob pour voir vos archimonstres"
-                                                            : "Aucun archi-monstre détecté dans ce secteur"}
+                                                            : "Aucun archimonstre détecté dans ce secteur"}
                                                     </p>
                                                     {error === "Compte non lié" && (
                                                         <a 
                                                             href={`/dashboard/${guildId}/profile`}
-                                                            className="mt-4 px-8 py-3 rounded-2xl bg-amber-500 text-warning-foreground text-caption font-black uppercase italic shadow-2xl shadow-amber-500/40  active:scale-95 transition-all flex items-center gap-3"
+                                                            className="mt-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-caption font-bold transition-all flex items-center gap-2"
                                                         >
-                                                            <Sparkles size={16} /> Lier mon compte Metamob
+                                                            <Sparkles size={14} /> Lier mon compte Metamob
                                                         </a>
                                                     )}
                                                 </div>
                                             )}
                                         </div>
 
-                                        {/* Right Column: Donjons & Bestiaire (for context) */}
-                                        <div className="space-y-12">
-                                            {dungeons.length > 0 && (
-                                                <section className="space-y-6">
-                                                    <div className="flex items-center justify-between">
-                                                        <h3 className="text-amber-500 text-lg font-black uppercase italic tracking-widest flex items-center gap-4">
-                                                            <Swords size={20} /> Donjons de la Zone
-                                                        </h3>
+                                        {/* Colonne Droite (1/3) : Échanges Ocre Actifs & Donjons */}
+                                        <div className="space-y-6">
+                                            {/* Section Échanges de Guilde pour cette zone */}
+                                            <section className="space-y-3">
+                                                <div className="flex items-center justify-between pb-2 border-b border-border/40">
+                                                    <span className="text-caption font-bold text-amber-400 flex items-center gap-1.5 uppercase tracking-wider">
+                                                        <Coins size={13} /> Échanges disponibles ({trades.length})
+                                                    </span>
+                                                </div>
+
+                                                {tradesLoading ? (
+                                                    <div className="p-4 rounded-xl bg-surface/20 text-caption text-foreground/40 italic flex items-center gap-2">
+                                                        <Loader2 size={13} className="animate-spin" /> Recherche d'échanges de guilde...
                                                     </div>
-                                                    <div className="grid gap-3">
-                                                        {dungeons.map((dj) => (
-                                                            <div 
-                                                                key={dj.id} 
-                                                                className="group relative flex items-center gap-4 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 hover:border-amber-500/40 transition-all shadow-lg shadow-amber-500/5 cursor-default"
-                                                            >
-                                                                <div className="w-12 h-12 rounded-xl bg-[#020408] border border-border overflow-hidden flex items-center justify-center shrink-0">
-                                                                    {dj.imageUrl ? (
-                                                                        <img src={dj.imageUrl} alt="" className="w-10 h-10 object-contain group- transition-transform duration-300" />
-                                                                    ) : (
-                                                                        <Swords size={20} className="text-amber-500/40" />
+                                                ) : trades.length > 0 ? (
+                                                    <div className="space-y-2">
+                                                        {trades.map((t) => (
+                                                            <div key={t.id} className="p-3 rounded-xl bg-surface/50 border border-border/60 hover:border-amber-500/30 transition-all space-y-1.5">
+                                                                <div className="flex items-center gap-2">
+                                                                    {t.monsterImageUrl && (
+                                                                        <img src={t.monsterImageUrl} alt="" className="w-6 h-6 object-contain rounded bg-black/40 shrink-0" />
                                                                     )}
+                                                                    <span className="text-xs font-bold text-foreground truncate flex-1">{t.monsterName}</span>
+                                                                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                                                        Dispo
+                                                                    </span>
                                                                 </div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <p className="text-sm font-black text-foreground truncate leading-none mb-1 uppercase italic tracking-tight">{dj.name}</p>
-                                                                    <p className="text-caption font-bold text-amber-500/60 uppercase tracking-[0.1em] italic">Niveau {dj.level}</p>
-                                                                </div>
-                                                                <div className="shrink-0 flex items-center gap-2">
-                                                                    <span className="text-caption font-black text-foreground/30 uppercase tracking-widest italic">{dj.bossName}</span>
+                                                                <div className="text-[11px] text-foreground/50 flex items-center justify-between">
+                                                                    <span>Proposé par : <strong className="text-foreground/80">{t.requesterName}</strong></span>
+                                                                    {t.targetName && <span className="text-foreground/40">→ {t.targetName}</span>}
                                                                 </div>
                                                             </div>
                                                         ))}
                                                     </div>
-                                                </section>
-                                            )}
+                                                ) : (
+                                                    <div className="p-4 rounded-xl bg-surface/20 border border-dashed border-border/50 text-caption text-foreground/40 text-center">
+                                                        Aucun membre de la guilde ne propose d'échange actif sur cette zone pour le moment.
+                                                    </div>
+                                                )}
+                                            </section>
 
-                                            {monsters?.normalMonsters?.length > 0 && (
-                                                <section className="space-y-6">
-                                                    <h3 className="text-foreground/40 text-lg font-black uppercase italic tracking-widest flex items-center gap-4">
-                                                        <ChevronDown size={20} /> Faune Standard
-                                                    </h3>
-                                                    
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {monsters.normalMonsters.map((m: any) => (
-                                                            <div key={m.id} className="px-4 py-2 rounded-xl bg-surface border border-border text-caption font-black text-foreground/40 hover:text-foreground hover:bg-surface transition-all cursor-default uppercase italic tracking-tighter">
-                                                                {m.name}
+                                            {/* Donjons de la Zone */}
+                                            {dungeons.length > 0 && (
+                                                <section className="space-y-3">
+                                                    <div className="flex items-center justify-between pb-2 border-b border-border/40">
+                                                        <span className="text-caption font-bold text-amber-500 flex items-center gap-1.5 uppercase tracking-wider">
+                                                            <Swords size={13} /> Donjons ({dungeons.length})
+                                                        </span>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        {dungeons.map((dj) => (
+                                                            <div 
+                                                                key={dj.id} 
+                                                                className="flex items-center gap-3 p-3 rounded-xl bg-surface/50 border border-border/60 hover:border-amber-500/30 transition-all"
+                                                            >
+                                                                <div className="w-9 h-9 rounded-lg bg-black/40 border border-border/60 overflow-hidden flex items-center justify-center shrink-0">
+                                                                    {dj.imageUrl ? (
+                                                                        <img src={dj.imageUrl} alt="" className="w-7 h-7 object-contain" />
+                                                                    ) : (
+                                                                        <Swords size={16} className="text-amber-500/40" />
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="text-xs font-bold text-foreground truncate leading-none mb-0.5">{dj.name}</p>
+                                                                    <p className="text-[11px] text-amber-400/70">Niveau {dj.level} · {dj.bossName}</p>
+                                                                </div>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -420,92 +447,107 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
 
                                 {/* TAB: FAMILLES DE MONSTRES */}
                                 <TabsContent value="families" className="m-0">
-                                    <div className="space-y-12">
+                                    <div className="space-y-6">
                                         {monsters?.families?.length > 0 ? (
-                                            <div className="flex flex-col gap-12">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 {monsters.families.map((family: any) => {
                                                     const familyMonsters = monsters.normalMonsters.filter((m: any) => m.familyName === family.name);
-                                                    
+                                                    const familyImg = family.imageUrl
+                                                        ? (family.imageUrl.startsWith('/') || family.imageUrl.startsWith('http')
+                                                            ? family.imageUrl
+                                                            : `/api/assets-dofus/monsters/${family.imageUrl}`)
+                                                        : (familyMonsters[0]?.imageUrl || null);
+
                                                     return (
-                                                        <div key={family.id} className="group relative overflow-hidden rounded-[3rem] bg-gradient-to-br from-purple-500/10 via-black/40 to-transparent border border-purple-500/20 shadow-2xl p-10 md:p-14">
-                                                            {/* Background Glow */}
-                                                            <div className="absolute -top-24 -right-24 w-96 h-96 bg-purple-500/10 blur-[120px] rounded-full pointer-events-none" />
-                                                            <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-purple-500/5 blur-[120px] rounded-full pointer-events-none" />
-
-                                                            <div className="relative z-10 flex flex-col lg:flex-row gap-12 items-center lg:items-start">
-                                                                {/* Family Image - MEGA SIZE */}
-                                                                <div className="relative group/img shrink-0">
-                                                                    <div className="absolute -inset-4 bg-purple-500/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                                                                    <div className="w-48 h-48 md:w-64 md:h-64 rounded-[2.5rem] bg-black/60 border border-purple-500/30 flex items-center justify-center p-6 shadow-inner relative overflow-hidden">
-                                                                        <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/10 to-transparent opacity-50" />
-                                                                        {family.imageUrl ? (
-                                                                            <img src={family.imageUrl} alt={family.name} className="w-full h-full object-contain drop-shadow-[0_0_30px_rgba(168,85,247,0.4)] group- transition-transform duration-300" />
-                                                                        ) : (
-                                                                            <Ghost className="text-purple-500/20 w-32 h-32" />
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Family Info */}
-                                                                <div className="flex-1 text-center lg:text-left space-y-8">
-                                                                    <div>
-                                                                        <div className="flex items-center justify-center lg:justify-start gap-4 mb-4">
-                                                                            <span className="px-4 py-1.5 rounded-full bg-purple-500 text-foreground text-caption font-black uppercase tracking-widest italic shadow-lg shadow-purple-500/20">
-                                                                                Famille de Monstres
-                                                                            </span>
-                                                                        </div>
-                                                                        <h4 className="text-5xl md:text-7xl font-black text-foreground uppercase italic tracking-tighter leading-none mb-4 drop-shadow-2xl">
-                                                                            {family.name}
-                                                                        </h4>
-                                                                        {familyMonsters.length > 0 && (
-                                                                            <p className="text-body font-black text-purple-400/60 uppercase tracking-widest italic">
-                                                                                {familyMonsters.length} espèces détectées
-                                                                            </p>
-                                                                        )}
-                                                                    </div>
-
-                                                                    {/* Monstres List - PREMIUM GRID */}
-                                                                    {familyMonsters.length > 0 && (
-                                                                        <div className="space-y-6">
-                                                                            <h5 className="text-caption font-black text-foreground/30 uppercase tracking-widest italic flex items-center gap-4 justify-center lg:justify-start">
-                                                                                <div className="h-[1px] w-8 bg-surface" />
-                                                                                Membres de la famille
-                                                                                <div className="h-[1px] w-8 bg-surface" />
-                                                                            </h5>
-                                                                            
-                                                                            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
-                                                                                {familyMonsters.map((m: any) => (
-                                                                                    <div key={m.id} className="group/monster flex items-center gap-3 p-4 rounded-2xl bg-surface border border-border hover:border-purple-500/30 hover:bg-purple-500/5 transition-all cursor-default">
-                                                                                        <div className="w-10 h-10 rounded-xl bg-black/40 flex items-center justify-center p-1 border border-border group-hover/monster:border-purple-500/20 transition-colors">
-                                                                                            {m.imageUrl ? (
-                                                                                                <img src={m.imageUrl} alt={m.name} className="w-full h-full object-contain group-hover/monster:scale-110 transition-transform" />
-                                                                                            ) : (
-                                                                                                <Ghost size={16} className="text-foreground/10" />
-                                                                                            )}
-                                                                                        </div>
-                                                                                        <span className="text-caption font-bold text-foreground/60 group-hover/monster:text-foreground transition-colors uppercase italic truncate">
-                                                                                            {m.name}
-                                                                                        </span>
-                                                                                    </div>
-                                                                                ))}
-                                                                            </div>
-                                                                        </div>
+                                                        <div key={family.id} className="flex flex-col rounded-2xl bg-surface/60 border border-border/80 hover:border-purple-500/40 transition-all p-5 shadow-sm space-y-4">
+                                                            {/* Header Famille */}
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="w-14 h-14 rounded-xl bg-black/40 border border-border/60 flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
+                                                                    {familyImg ? (
+                                                                        <img
+                                                                            src={familyImg}
+                                                                            alt={family.name}
+                                                                            className="w-full h-full object-contain"
+                                                                            onError={(e) => {
+                                                                                // Fallback silencieux si l'image distante échoue
+                                                                                (e.target as HTMLElement).style.display = 'none';
+                                                                            }}
+                                                                        />
+                                                                    ) : (
+                                                                        <Ghost className="text-purple-400/30 w-7 h-7" />
                                                                     )}
                                                                 </div>
+
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-caption font-bold text-purple-400 uppercase tracking-wider">
+                                                                            Famille
+                                                                        </span>
+                                                                        {family.level && (
+                                                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-purple-300 font-semibold">
+                                                                                Niv. {family.level}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <h4 className="text-base font-bold text-foreground truncate">
+                                                                        {family.name}
+                                                                    </h4>
+                                                                    <p className="text-caption text-foreground/50">
+                                                                        {familyMonsters.length} espèce{familyMonsters.length > 1 ? 's' : ''} répertoriée{familyMonsters.length > 1 ? 's' : ''}
+                                                                    </p>
+                                                                </div>
                                                             </div>
+
+                                                            {/* Liste des monstres membres */}
+                                                            {familyMonsters.length > 0 && (
+                                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2 border-t border-border/40">
+                                                                    {familyMonsters.map((m: any) => {
+                                                                        const monsterImg = m.imageUrl
+                                                                            ? (m.imageUrl.startsWith('/') || m.imageUrl.startsWith('http')
+                                                                                ? m.imageUrl
+                                                                                : `/api/assets-dofus/monsters/${m.imageUrl}`)
+                                                                            : null;
+
+                                                                        return (
+                                                                            <div
+                                                                                key={m.id}
+                                                                                className="flex items-center gap-2 p-2 rounded-xl bg-background/50 border border-border/40 hover:border-purple-500/30 transition-colors"
+                                                                            >
+                                                                                <div className="w-7 h-7 rounded-lg bg-black/30 flex items-center justify-center shrink-0 overflow-hidden">
+                                                                                    {monsterImg ? (
+                                                                                        <img
+                                                                                            src={monsterImg}
+                                                                                            alt={m.name}
+                                                                                            className="w-full h-full object-contain"
+                                                                                            onError={(e) => {
+                                                                                                (e.target as HTMLElement).style.display = 'none';
+                                                                                            }}
+                                                                                        />
+                                                                                    ) : (
+                                                                                        <Ghost size={12} className="text-foreground/20" />
+                                                                                    )}
+                                                                                </div>
+                                                                                <span className="text-caption font-medium text-foreground/80 truncate">
+                                                                                    {m.name}
+                                                                                </span>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     );
                                                 })}
                                             </div>
                                         ) : (
-                                            <div className="py-24 rounded-[3rem] bg-surface border border-dashed border-border flex flex-col items-center justify-center gap-6">
-                                                <div className="w-20 h-20 rounded-full bg-purple-500/10 flex items-center justify-center border border-purple-500/20 shadow-inner">
-                                                    <Ghost className="text-purple-500" size={32} />
+                                            <div className="py-16 rounded-2xl bg-surface/40 border border-dashed border-border flex flex-col items-center justify-center gap-3">
+                                                <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
+                                                    <Ghost className="text-purple-400" size={24} />
                                                 </div>
-                                                <div className="text-center space-y-2">
-                                                    <h3 className="text-xl font-black text-foreground uppercase italic tracking-widest">Aucune Famille</h3>
-                                                    <p className="text-caption font-black text-foreground/30 uppercase tracking-widest italic max-w-md mx-auto">
-                                                        Aucune famille de monstre n'est référencée pour cette zone dans la base de données GOD.
+                                                <div className="text-center space-y-1">
+                                                    <h3 className="text-sm font-bold text-foreground">Aucune Famille Détectée</h3>
+                                                    <p className="text-caption text-foreground/40 max-w-sm mx-auto">
+                                                        Aucune famille de monstre n'est actuellement liée à cette zone.
                                                     </p>
                                                 </div>
                                             </div>

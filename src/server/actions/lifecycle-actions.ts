@@ -383,6 +383,14 @@ export async function deleteProfileByAdmin(guildId: string, profileId: string) {
             await db.user.delete({ where: { id: targetUserId } });
         }
 
+        // 3bis. Succession automatique si l'utilisateur supprimé était le propriétaire de la guilde (#230)
+        if (guildConfig?.ownerId === targetUserId || (targetDiscordId && guildConfig?.ownerId === targetDiscordId)) {
+            const { handleGuildOwnerSuccession } = await import("./guild-owner-actions");
+            await handleGuildOwnerSuccession(target.guildId, targetUserId).catch(err => {
+                logger.error("[Lifecycle] Failed auto-succession after owner deletion:", err);
+            });
+        }
+
         await createAuditLog({
             guildId,
             action: "MEMBER_PURGED" as any,

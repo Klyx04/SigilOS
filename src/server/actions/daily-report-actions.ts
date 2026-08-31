@@ -53,57 +53,140 @@ export async function sendDailySummaryReport(guildId: string, isManual = false) 
     }
 
     try {
-        const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const now = new Date();
+        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-        const [config, weeklyActiveUsers] = await Promise.all([
-            db.guildConfig.findUnique({
-                where: { discordGuildId: guildId },
-                select: {
-                    name: true,
-                    systemNotifyChannelId: true,
-                    _count: { select: { profiles: true } }
-                }
-            }),
-            db.userProfile.count({
-                where: {
-                    guild: { discordGuildId: guildId },
-                    status: "ACTIVE",
-                    lastSeen: { gte: lastWeek },
-                }
-            })
-        ]);
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: {
+                id: true,
+                name: true,
+                systemNotifyChannelId: true,
+            }
+        });
 
         if (!config?.systemNotifyChannelId) {
             return { success: false, error: "Canal de notification système non configuré pour cette guilde." };
         }
 
+        // 1. Nouveaux membres validés dans les dernières 24h
+        const newMembers = await db.userProfile.findMany({
+            where: {
+                guildId: config.id,
+                status: "ACTIVE",
+                createdAt: { gte: yesterday }
+            },
+            select: { pseudoDofus: true, discordNickname: true }
+        });
+
+        // 2. Départs / Archivages récents dans les dernières 24h
+        const archivedMembers = await db.userProfile.findMany({
+            where: {
+                guildId: config.id,
+                status: "ARCHIVED",
+                updatedAt: { gte: yesterday }
+            },
+            select: { pseudoDofus: true, discordNickname: true }
+        });
+
+        // 3. Absences déclarées pour la semaine ou en cours
+        const currentAbsences = await db.userProfile.findMany({
+            where: {
+                guildId: config.id,
+                status: "ACTIVE",
+                vacationEnd: { gte: now }
+            },
+            select: { pseudoDofus: true, discordNickname: true, vacationEnd: true }
+        });
+
+        // 4. Tickets de support ouverts
+        const openTicketsCount = await (db as any).ticket?.count?.({
+            where: {
+                guildId: config.id,
+                status: "OPEN"
+            }
+        }).catch(() => 0) || 0;
+
+        // 5. Missions / Validations en attente
+        const pendingProofsCount = await (db as any).proof?.count?.({
+            where: {
+                mission: { guildId: config.id },
+                status: "PENDING"
+            }
+        }).catch(() => 0) || 0;
+
+        // RÈGLE « DATA OR NOTHING » : Si aucun événement à signaler, on ne poste rien
+        const hasData = newMembers.length > 0 || 
+                        archivedMembers.length > 0 || 
+                        currentAbsences.length > 0 || 
+                        openTicketsCount > 0 || 
+                        pendingProofsCount > 0;
+
+        if (!hasData) {
+            logger.info(`[Daily Report] Aucun événement staff pour la guilde ${config.name} (${guildId}) — message sauté.`);
+            return { success: true, messageId: null, skipped: true };
+        }
+
         const { getAppBaseUrl } = await import("@/lib/utils");
-        const dashboardUrl = `${getAppBaseUrl()}/dashboard/${guildId}/admin/members`;
+        const dashboardUrl = `${getAppBaseUrl()}/dashboard/${guildId}`;
+
+        const fields: Array<{ name: string; value: string; inline?: boolean }> = [];
+
+        // Roster section
+        if (newMembers.length > 0 || archivedMembers.length > 0) {
+            const lines: string[] = [];
+            if (newMembers.length > 0) {
+                const names = newMembers.map(m => `\`${m.pseudoDofus || m.discordNickname}\``).join(", ");
+                lines.push(`✅ **${newMembers.length} arrivée(s)** : ${names}`);
+            }
+            if (archivedMembers.length > 0) {
+                const names = archivedMembers.map(m => `\`${m.pseudoDofus || m.discordNickname}\``).join(", ");
+                lines.push(`🚪 **${archivedMembers.length} départ(s) / archivage(s)** : ${names}`);
+            }
+            fields.push({
+                name: "👥 Mouvements du Roster",
+                value: lines.join("\n"),
+                inline: false
+            });
+        }
+
+        // Absences
+        if (currentAbsences.length > 0) {
+            const list = currentAbsences.slice(0, 5).map(m => {
+                const endStr = m.vacationEnd ? ` (jusqu'au ${m.vacationEnd.toLocaleDateString("fr-FR")})` : "";
+                return `• \`${m.pseudoDofus || m.discordNickname}\`${endStr}`;
+            }).join("\n");
+            fields.push({
+                name: `🏖️ Absences en cours (${currentAbsences.length})`,
+                value: list,
+                inline: false
+            });
+        }
+
+        // Modération & Vigilance
+        if (openTicketsCount > 0 || pendingProofsCount > 0) {
+            const lines: string[] = [];
+            if (openTicketsCount > 0) {
+                lines.push(`🚨 **${openTicketsCount}** ticket(s) support ouvert(s)`);
+            }
+            if (pendingProofsCount > 0) {
+                lines.push(`⏳ **${pendingProofsCount}** preuve(s) de mission à valider`);
+            }
+            fields.push({
+                name: "⚠️ Vigilance & Modération",
+                value: lines.join("\n"),
+                inline: false
+            });
+        }
 
         const embed = {
-            embedTitle: `📋 Rapport de guilde — ${config.name}`,
+            embedTitle: `🛡️ Rapport Staff — ${config.name}`,
             embedUrl: dashboardUrl,
-            embedDescription: `Résumé de l'activité de la guilde sur les dernières 24 heures.\n[Gérer les membres et l'audit ➡️](${dashboardUrl})`,
-            embedColor: 0x10b981, // Emerald
+            embedDescription: `Événements récents nécessitant l'attention du staff.\n[Accéder au Dashboard Staff ➡️](${dashboardUrl})`,
+            embedColor: 0x3b82f6, // Info blue
             embedThumbnail: "https://sigilos.fr/assets/ui/logo-v2.png",
-            fields: [
-                {
-                    name: "👥 Membres",
-                    value: `Inscrits sur SigilOS: **${config._count.profiles}**`,
-                    inline: true
-                },
-                {
-                    name: "⚙️ Services",
-                    value: "Tous les services sont opérationnels.",
-                    inline: true
-                },
-                {
-                    name: "📈 Activité (7 jours)",
-                    value: `Membres actifs: **${weeklyActiveUsers}**`,
-                    inline: false
-                }
-            ],
-            embedFooter: `SigilOS • Rapport du ${new Date().toLocaleDateString('fr-FR')}`,
+            fields,
+            embedFooter: `SigilOS • Rapport Staff du ${new Date().toLocaleDateString('fr-FR')}`,
         };
 
         const messageId = await sendChannelMessage(config.systemNotifyChannelId, "", embed);

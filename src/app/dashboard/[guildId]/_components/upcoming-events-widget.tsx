@@ -136,9 +136,9 @@ export function UpcomingEventsWidget({
                     })}
                 </div>
 
-                {events.length > 0 ? (
+                {activeEvents.length > 0 ? (
                     <>
-                        {events.map((event) => {
+                        {activeEvents.map((event) => {
                             const cfg = EVENT_CONFIG[event.type] ?? EVENT_CONFIG.OTHERS;
                             const Icon = cfg.icon;
                             const startTs = new Date(event.startDate).getTime();

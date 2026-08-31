@@ -21,7 +21,7 @@ export default async function ReactionRolesPage({
     const { guildId } = await params;
     const user = await getUserContext(guildId);
 
-    if (!user.canManageReactionRoles && !user.isAdmin) {
+    if (!user.canManageReactionRoles) {
         await logAdminAccessDenied(guildId, "/reaction-roles");
         return <AccessDenied />;
     }

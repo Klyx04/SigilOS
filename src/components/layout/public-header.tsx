@@ -20,6 +20,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ThemeToggle } from "./ThemeToggle";
 
 type NavItem = {
     label: string;
@@ -110,8 +111,9 @@ export function PublicHeader({ activePage, user, variant: _variant = "standard",
                         </nav>
                     </div>
 
-                    {/* Right: Auth */}
-                    <div className="flex items-center gap-3 sm:gap-5">
+                    {/* Right: Auth & Theme */}
+                    <div className="flex items-center gap-3 sm:gap-4">
+                        <ThemeToggle />
                         <AnimatePresence mode="wait">
                             {user ? (
                                 <motion.div 
@@ -197,17 +199,20 @@ export function PublicHeader({ activePage, user, variant: _variant = "standard",
                                 <SheetTrigger asChild>
                                     <button aria-label="Ouvrir le menu" className="w-10 h-10 flex items-center justify-center rounded-lg bg-surface border border-border text-foreground hover:bg-elevated transition-colors outline-none">
                                         <div className="space-y-1.5">
-                                            <div className="w-5 h-0.5 bg-background rounded-full" />
-                                            <div className="w-3 h-0.5 bg-background rounded-full ml-auto" />
-                                            <div className="w-5 h-0.5 bg-background rounded-full" />
+                                            <div className="w-5 h-0.5 bg-foreground/40 rounded-full" />
+                                            <div className="w-3 h-0.5 bg-foreground/40 rounded-full ml-auto" />
+                                            <div className="w-5 h-0.5 bg-foreground/40 rounded-full" />
                                         </div>
                                     </button>
                                 </SheetTrigger>
                                 <SheetContent side="right" className="w-[300px] bg-background border-l border-border p-0 overflow-hidden flex flex-col">
                                     <div className="p-6 pb-2 flex flex-col gap-1 mt-8">
-                                        <div className="flex items-center gap-2.5">
-                                            <Image src="/assets/ui/logo-v2.png" alt="SigilOS" width={28} height={28} className="object-contain" />
-                                            <span className="text-lg font-bold tracking-tight text-foreground">Sigil<span className="text-success">OS</span></span>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2.5">
+                                                <Image src="/assets/ui/logo-v2.png" alt="SigilOS" width={28} height={28} className="object-contain" />
+                                                <span className="text-lg font-bold tracking-tight text-foreground">Sigil<span className="text-success">OS</span></span>
+                                            </div>
+                                            <ThemeToggle />
                                         </div>
                                     </div>
 

@@ -47,10 +47,12 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
     const enabled = await isModuleEnabled(guildId, "quests");
     if (!enabled) return <AccessDenied />;
 
-    const [result, heatmapResult, globalCompletedResult] = await Promise.all([
+    const isDolmanax = dofusSlug === "dolmanax";
+    const [result, heatmapResult, globalCompletedResult, almanaxList] = await Promise.all([
         getDofusDetailWithChains(guildId, dofusSlug, character),
         getGuildHeatmapForDofus(guildId, dofusSlug),
         getUserCompletedQuestIds(guildId, character),
+        isDolmanax ? (await import("@/server/actions/resources-actions")).getUpcomingAlmanax() : Promise.resolve([]),
     ]);
 
     if (!result.success || !result.data) return notFound();
@@ -253,18 +255,12 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
 
             {dofusSlug === "dolmanax" && (
                 <div
-                    className="rounded-3xl p-6 border transition-all duration-300"
-                    style={{
-                        background: `linear-gradient(135deg, ${color}10 0%, var(--foreground)/[0.05] 100%)`,
-                        border: `1px solid ${color}25`,
-                    }}
+                    className="rounded-3xl p-6 border transition-all duration-300 bg-surface border-border"
                 >
-                    <div className="text-caption font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <span style={{ color }}>📖</span> Progression Almanax
-                    </div>
                     <DofusDolmanaxTracker
                         guildId={guildId}
                         initialPages={initialPages}
+                        upcomingAlmanax={almanaxList}
                         onSave={async (pages) => {
                             "use server";
                             await updateDolmanaxProgress(guildId, dofus.id, pages, character);

@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        if (!["monster", "achievement", "dungeon", "item", "legendary", "landing", "defi"].includes(type)) {
+        if (!["monster", "achievement", "dungeon", "item", "legendary", "landing", "defi", "module-icon"].includes(type)) {
             return NextResponse.json(
                 { success: false, error: "Invalid type" },
                 { status: 400 }

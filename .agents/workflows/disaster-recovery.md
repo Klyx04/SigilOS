@@ -4,121 +4,83 @@ description: Plan de Reprise d'Activité (PRA) — Restore depuis un backup chif
 
 # 🛡️ PRA SigilOS — Restauration depuis Cloudflare R2
 
-> À utiliser en cas de corruption de DB, perte du VPS, ou incident critique.
-> Les backups sont chiffrés AES-256 (GPG) et stockés sur Cloudflare R2.
+> À utiliser en cas de corruption de DB, bascule Beta ➔ Prod, perte du VPS, ou incident critique.
+> Les backups sont des dumps intégraux PostgreSQL (`pg_dumpall`), chiffrés AES-256 (GPG) et stockés sur Cloudflare R2.
 
 ---
 
-## Prérequis sur le VPS (ou nouvelle machine)
+## 🏗️ Ce qui est restauré lors d'un PRA
+Le dump `pg_dumpall` contient **100%** de l'état applicatif :
+- Profils utilisateurs (`User`, `Account`, `UserProfile`), mules, planning et disponibilités.
+- Builds Galerie de Stuff (`dofusBookLinks`), classes associées et tags.
+- Progression Quêtes Dofus, Dokille (20 krokilles) et Rush Sylvestre / Ganymède (`UserGuideProgress`, bookmarks, étapes).
+- Donjons, Songes Infinis (`DreamRun`), Défis (`Defi`), progression succès.
+- Catalogue de jeu local (`GameItem`, zones, monstres, boss).
+- Tickets de support, sondages, notes internes et logs.
+
+---
+
+## 📋 Prérequis sur le VPS
 
 ```bash
-# Vérifier que les outils sont disponibles
-aws --version      # AWS CLI (pour accès R2)
-gpg --version      # GPG (pour déchiffrement)
+# Vérifier les dépendances
+aws --version      # AWS CLI (accès R2)
+gpg --version      # GPG (déchiffrement AES-256)
 docker ps          # Docker opérationnel
 ```
 
 ---
 
-## Étape 1 — Lister les backups disponibles sur R2
+## 🚀 Procédure de Restauration Rapide (1-Clic Automatisé)
 
+### A. Restauration de la Prod depuis le dernier backup Beta (Bascule Jour J)
 ```bash
-# Charger les variables d'environnement
-source .env.prod
-
-# Lister les backups BÊTA (les plus récents en premier)
-AWS_ACCESS_KEY_ID=$R2_ACCESS_KEY_ID \
-AWS_SECRET_ACCESS_KEY=$R2_SECRET_ACCESS_KEY \
-aws s3 ls s3://$R2_BUCKET_NAME/ --endpoint-url $R2_ENDPOINT_URL | grep "sigilos_beta_" | sort -r
-
-# Lister les backups PROD
-aws s3 ls s3://$R2_BUCKET_NAME/ --endpoint-url $R2_ENDPOINT_URL | grep "sigilos_prod_" | sort -r
-```
-
-Note le nom du fichier à restaurer, ex: `sigilos_beta_2026-04-07_18-20-11.sql.gz.gpg`
-
----
-
-```bash
-# Option manuelle (si tu as le nom du fichier)
-./scripts/restore_db.sh beta sigilos_beta_2026-04-07_12-00-00.sql.gz.gpg
-
-# Option AUTOMATIQUE (Recommandé - télécharge le dernier backup BETA)
-bash ./scripts/restore_db.sh beta --download-latest
-```
-
----
-
-## Étape 3 — Déchiffrer le backup (AES-256 GPG)
-
-```bash
-# La clé est BACKUP_ENCRYPTION_KEY dans .env.prod
-source .env.prod
-
-echo "$BACKUP_ENCRYPTION_KEY" | gpg \
-  --batch \
-  --yes \
-  --passphrase-fd 0 \
-  --decrypt \
-  -o ~/restore/restore.sql.gz \
-  ~/restore/$BACKUP_FILE
-
-echo "✅ Déchiffré → ~/restore/restore.sql.gz"
-```
-
----
-
-Les étapes de déchiffrement et d'injection sont désormais automatisées par le script `restore_db.sh`. Il demande confirmation avant d'écraser les données.
-
-```bash
-# Pour la Bêta
-./scripts/restore_db.sh beta --download-latest
-
-# Pour la Prod
+# Télécharge automatiquement le dernier backup Beta sur R2, le déchiffre et l'injecte dans sigilos-db-prod :
 ./scripts/restore_db.sh prod --download-latest
 ```
 
----
-
-## Étape 5 — Redémarrer les containers
-
+### B. Restauration d'Urgence Prod (Dernier backup Prod)
 ```bash
-# Après restauration, forcer le redémarrage de l'app pour vider les caches Prisma
-docker restart sigilos-prod      # ou sigilos-beta
-docker restart sigilos-worker-prod  # si applicable
+# En cas d'incident sur la Prod :
+./scripts/restore_db.sh prod --download-latest
+```
+
+### C. Restauration d'un fichier spécifique
+```bash
+# Si tu souhaites cibler un timestamp précis :
+./scripts/restore_db.sh prod sigilos_prod_2026-08-31_04-00-00.sql.gz.gpg
 ```
 
 ---
 
-## Étape 6 — Vérification
+## 🔍 Étape de Vérification Post-Restauration
 
+Exécuter cette requête SQL pour valider le volume des données restaurées :
 ```bash
-# Compter les données restaurées
-docker exec sigilos-db-prod psql -U sigiluser -d sigilos -c "
-SELECT 'Users' AS t, COUNT(*) FROM \"User\"
-UNION ALL SELECT 'GuildConfig', COUNT(*) FROM \"GuildConfig\"
-UNION ALL SELECT 'UserProfile', COUNT(*) FROM \"UserProfile\"
-UNION ALL SELECT 'Missions', COUNT(*) FROM \"Mission\";
+docker exec sigilos-db-prod psql -U user -d sigilos -c "
+SELECT 'Comptes' AS entite, COUNT(*) FROM \"User\"
+UNION ALL SELECT 'Profils Membres', COUNT(*) FROM \"UserProfile\"
+UNION ALL SELECT 'Guildes', COUNT(*) FROM \"GuildConfig\"
+UNION ALL SELECT 'Items Siphonnés', COUNT(*) FROM \"GameItem\"
+UNION ALL SELECT 'Dofus', COUNT(*) FROM \"DofusItem\"
+UNION ALL SELECT 'Progression Dofus', COUNT(*) FROM \"UserDofusProgress\"
+UNION ALL SELECT 'Runs Songes', COUNT(*) FROM \"DreamRun\";
 "
 ```
 
 ---
 
-## 🕐 Fréquence des backups
+## 🔄 Redémarrage des Conteneurs
 
-Le script `scripts/backup_db.sh` tourne **chaque nuit à 4h00** via `maintenance.sh` (crontab).
-Les backups locaux sont conservés **3 jours**, les R2 selon la Lifecycle Policy du bucket.
-
----
-
-## 📞 Contacts d'urgence
-
-| Rôle | Contact |
-|------|---------|
-| Admin VPS | `sigiladmin` sur le serveur |
-| R2 Bucket | Cloudflare Dashboard → R2 → `sigilos-backups` |
+Pour vider les caches mémoire Prisma et forcer la reconnexion du pool de connexions :
+```bash
+docker restart sigilos-prod
+```
 
 ---
 
-> [!CAUTION]
-> Ne jamais restaurer un backup prod directement sur la beta sans vider les données de guilde beta d'abord. Utiliser `reset-beta.sh` avant si besoin.
+## 🕐 Fréquence & Rétention des Backups
+- **Fréquence :** Chaque nuit à **4h00** via `scripts/backup_db.sh` dans le crontab.
+- **Chiffrement :** Symétrique AES-256 avec la clé `BACKUP_ENCRYPTION_KEY`.
+- **Rétention Locale :** 3 jours (purgé automatiquement).
+- **Rétention R2 :** Géré par la Lifecycle Rule du bucket Cloudflare R2 `sigilos-backups`.

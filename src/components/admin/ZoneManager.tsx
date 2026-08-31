@@ -339,7 +339,7 @@ export default function ZoneManager() {
                         <Button
                             onClick={handleSyncDofusDb}
                             disabled={syncingZones}
-                            className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-sm transition-all"
+                            className="w-full md:w-auto bg-success hover:bg-success/90 text-success-foreground font-bold rounded-xl shadow-sm transition-all"
                         >
                             {syncingZones ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
                             <span>{syncingZones ? "Sync en cours…" : "Sync Zones (DofusDB)"}</span>
@@ -378,7 +378,7 @@ export default function ZoneManager() {
                         {ignoredZones.length > 0 && (
                             <button
                                 onClick={handleClearAllIgnored}
-                                className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold transition-all"
+                                className="px-3 py-1.5 rounded-lg bg-danger hover:bg-danger/90 text-danger-foreground font-bold transition-all"
                             >
                                 ♻️ Tout restaurer
                             </button>

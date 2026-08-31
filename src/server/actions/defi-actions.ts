@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import { db } from "@/lib/prisma";
 import { getUserContext, type ActionResponse } from "./user-actions";
 import { revalidatePath } from "next/cache";
+import { evaluateBadgeTriggersForProfile } from "./badge-triggers";
 
 // ============================================================================
 // Module « Défi » — progression « je l'ai fait » côté membre.
@@ -15,16 +16,36 @@ import { revalidatePath } from "next/cache";
 export async function getUserDefisData(guildId: string): Promise<ActionResponse<{
     defis: any[];
     completedDefiIds: string[];
-    progress: { defiId: string; profileId: string; completedAt: string | null }[];
+    members: { id: string; pseudo: string; image: string | null; dofusClass: string | null }[];
+    progress: { defiId: string; profileId: string; pseudo: string; image: string | null; dofusClass: string | null; completedAt: string | null }[];
 }>> {
     const user = await getUserContext(guildId);
     if (!user.canViewSucces) return { success: false, error: "Accès refusé" };
 
     try {
+        const guildProfiles = await db.userProfile.findMany({
+            where: { guildId: user.guildId || guildId, status: "ACTIVE" },
+            select: {
+                id: true,
+                pseudoDofus: true,
+                classe: true,
+                discordNickname: true,
+                user: { select: { name: true, image: true } },
+            },
+        });
+
+        const profileIds = guildProfiles.map((p) => p.id);
+
         const [defis, progress] = await Promise.all([
             db.defi.findMany({ orderBy: { name: "asc" } }),
-            db.userDefiProgress.findMany({ select: { defiId: true, profileId: true, completedAt: true } }),
+            db.userDefiProgress.findMany({
+                where: { profileId: { in: profileIds } },
+                select: { defiId: true, profileId: true, completedAt: true },
+            }),
         ]);
+
+        const profileMap = new Map(guildProfiles.map((p) => [p.id, p]));
+
         const completedDefiIds = progress
             .filter((p) => p.profileId === user.profileId)
             .map((p) => p.defiId);
@@ -34,11 +55,23 @@ export async function getUserDefisData(guildId: string): Promise<ActionResponse<
             data: {
                 defis,
                 completedDefiIds,
-                progress: progress.map((p) => ({
-                    defiId: p.defiId,
-                    profileId: p.profileId,
-                    completedAt: p.completedAt?.toISOString?.() ?? null,
+                members: guildProfiles.map((p) => ({
+                    id: p.id,
+                    pseudo: p.pseudoDofus || p.discordNickname || p.user?.name || "Membre",
+                    image: p.user?.image || null,
+                    dofusClass: p.classe || null,
                 })),
+                progress: progress.map((p) => {
+                    const prof = profileMap.get(p.profileId);
+                    return {
+                        defiId: p.defiId,
+                        profileId: p.profileId,
+                        pseudo: prof?.pseudoDofus || prof?.discordNickname || prof?.user?.name || "Membre",
+                        image: prof?.user?.image || null,
+                        dofusClass: prof?.classe || null,
+                        completedAt: p.completedAt?.toISOString?.() ?? null,
+                    };
+                }),
             },
         };
     } catch (error) {
@@ -69,6 +102,12 @@ export async function toggleDefiCompleted(
         await db.userDefiProgress.create({
             data: { profileId: user.profileId, defiId, source: "MANUAL" },
         });
+
+        // 🏅 Évaluation automatique des badges (#198.2 No-Code Rules Engine)
+        evaluateBadgeTriggersForProfile(user.profileId, "DEFI").catch((err) => {
+            logger.error("[BadgeTrigger] Error evaluating defi trigger:", err);
+        });
+
         return { success: true, data: { completed: true } };
     } catch (error) {
         logger.error("[toggleDefiCompleted] Error:", error);

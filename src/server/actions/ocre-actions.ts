@@ -2443,14 +2443,19 @@ export async function getZoneArchmonsters(guildId: string, zoneName: string): Pr
             const mSubzone = norm(m.subzone || "");
             const monsterSubzones = mSubzone.split(",").map(z => norm(z)).filter(Boolean);
 
-            // Matching : ON matche si l'un est égal OU inclus dans l'autre.
-            // → couvre les sous-mondes (ex: "Labyrinthe du Dragon Cochon") dont le nom
-            //   diffère légèrement entre la carte et Metamob.
-            const match = (parts: string[]) => parts.some(p =>
-                p.length > 0 && (p === normalizedZone || p.includes(normalizedZone) || normalizedZone.includes(p))
-            );
+            // Matching strict : Égalité exacte ou correspondance délimitée pour éviter que "Cimetière" matche "Cimetière primitif", "Cimetière de Grobe", etc.
+            const match = (parts: string[]) => parts.some(p => {
+                if (!p) return false;
+                // Égalité exacte après normalisation
+                if (p === normalizedZone) return true;
+                // Si la sous-zone Metamob est "Cimetière d'Amakna" et la carte "Cimetière", ou inversement, autoriser uniquement si c'est un préfixe/suffixe complet avec connecteur
+                return (
+                    p.startsWith(normalizedZone + ' ') || p.endsWith(' ' + normalizedZone) ||
+                    normalizedZone.startsWith(p + ' ') || normalizedZone.endsWith(' ' + p)
+                );
+            });
 
-            return match(monsterZones) || match(monsterSubzones);
+            return match(monsterSubzones) || (monsterSubzones.length === 0 && match(monsterZones));
         });
 
         // Sort: Missing first, then by name

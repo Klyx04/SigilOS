@@ -14,20 +14,44 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const startedAt = Date.now();
+
     try {
         const result = await sendGlobalStatusPing(false);
+        const durationMs = Date.now() - startedAt;
 
         if (!result.success) {
+            const { recordCronExecution } = await import("@/lib/cron-telemetry");
+            await recordCronExecution("discord_status", {
+                success: false,
+                durationMs,
+                summary: `Échec statut Discord: ${result.error}`,
+            });
             return NextResponse.json({ error: result.error }, { status: 500 });
         }
+
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("discord_status", {
+            success: true,
+            durationMs,
+            summary: `Statut Discord mis à jour (${result.action || "OK"})`,
+            details: result.stats,
+        });
 
         return NextResponse.json({ 
             success: true, 
             action: result.action,
-            stats: result.stats 
+            stats: result.stats,
+            durationMs
         });
     } catch (error: any) {
         console.error("[DiscordStatusCron] Error:", error);
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("discord_status", {
+            success: false,
+            durationMs: Date.now() - startedAt,
+            summary: `Erreur statut Discord: ${error.message}`,
+        });
         return NextResponse.json({ error: "Internal error" }, { status: 500 });
     }
 }

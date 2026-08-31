@@ -21,6 +21,7 @@ import { SkinLibrary } from "./skin-library";
 import { AlignmentSection } from "./alignment-section";
 import { LegendaryCrafting } from "./legendary-crafting";
 import { LegendaryPetToggle } from "./legendary-pet-toggle";
+import { BadgesVitrine } from "./badges-vitrine";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos } from "@/server/actions/profile-actions";
 import type { ContributorTier } from "@/server/actions/profile-actions";
@@ -497,6 +498,14 @@ export function ProfileBentoGrid({
                                 readOnly={!canEdit}
                             />
                         )}
+
+                        {/* Badges & Achievements Vitrine (#198.2) */}
+                        <div className="sm:col-span-2">
+                            <BadgesVitrine
+                                profileId={profile.id}
+                                displayName={displayName}
+                            />
+                        </div>
                     </div>
                 </TabsContent>
 

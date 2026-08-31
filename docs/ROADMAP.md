@@ -27,6 +27,16 @@
   (CU / privacy / install), vérifier `/legal/*`. **+ trancher la décision landing immersive** (`page.tsx`).
 
 ## 🔴 En cours / continuation
+ 
+- ✅ **Synchro Dokille, Outbox Discord, Tour Onboarding & Logs Audit Discord (31/08)** :
+  - **Synchro bidirectionnelle Dokille / Dolmanax** : Validation/invalidation globale synchronisée avec les 20 krokilles et quêtes.
+  - **Réagencement Prérequis Dokille** : Vulkania placé avant le Safari des Krokilles.
+  - **Contraste "Obtenu" Dofus** : Ratio YIQ dynamique pour dark/light mode.
+  - **Outbox Discord** : Correction du faux échec d'envoi (`outbox:${jobId}`).
+  - **Tour Onboarding** : Ciblage direct du composant Disponibilités (`[data-tour="profile-planning"]`) & conditionnement de « Présence & Feed » au mode vitrine.
+  - **Services Discord** : Affichage du surnom sur le serveur Discord (`discordNickname` / `pseudoDofus`) dans les réponses et notifications.
+  - **Admin Logs & Bot Gateway** : Résolution des surnoms serveur pour les cibles de logs et affichage du détail exact (`changeDetail` : rôles, surnom, arrivées, départs).
+  Vérifs : **vitest 429/429** · **tsc 0** · **build OK**.
 
 - ✅ **Refonte Complète Module Rush Sylvestre (28/08)** (`feat/dofusbook-spells-guide-refonte`, PR → dev) :
   - **Types partagés & Helpers purs** (`rush-guide-types.ts`, `rush-guide-utils.ts` avec 13 tests unitaires passés) : parsing exact `/travel`, détection déterministe des prérequis `isSequenceBlockedByPrereqs`, recherche de prochaine étape actionable ignorant les `info_sequence`.
@@ -35,6 +45,7 @@
   - **Overlay In-Game Redesign** (`GuideOverlayClient.tsx`) : Mode Normal + Mode Compact focalisé sur le jeu, gestion intelligente d'`Escape` et raccourci `/`.
   - **Overlay PiP toujours-au-dessus** (`use-guide-pip.ts`, modèle Ganymède) : clic direct `documentPictureInPicture.requestWindow()` + `createPortal(<GuideOverlayClient/>, pipWindow.document.body)` (une seule fenêtre, checkboxes synchronisées dashboard↔overlay). Fallback Firefox/Safari : **popup vierge + `createPortal`** (`openFallbackPopup`) — réutilise la session dashboard, plus de rebond `/dashboard/{guildId}`. Vérifs : **tsc 0** · **eslint 0 erreur**.
   - **Studio d'administration GOD** (`RushSylvestreAdminClient.tsx`) : `SequenceEditForm` en 8 sections accordéons progressives, indicateur de statut local non enregistré (`dirty`), et Aperçu Live en temps réel.
+  - **S4 « qui peut aider » (31/08)** : marquage GOD « 🔨 Métier requis » (texte seul) + `getSequenceHelpers` (garde guilde + Zod + rate-limit, jointures bulk profils ACTIFS + `UserDungeonProgress`) + badge « X peut aider » (dashboard + overlay, `RushHelperBadge`) + **[Inviter/Partager]** (`inviteHelperForSequence` + `listRushTextChannels`). **Option A** : métiers restent `string[]`, niveau inconnu → « à confirmer » (`uncertainHelpers`). Vérifs : **tsc 0** · **eslint 0 erreur** · **vitest 425/425** · **build OK**.
   Vérifs : **test:run 389/389** · **tsc 0** · **build OK**.
 
 - ✅ **Game Data — État des lieux & UI (27/08)** (`feat/chantier-2026-08-27-game-data-ui`, branche créée depuis `dev`, PR → dev) :

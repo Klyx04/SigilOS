@@ -52,6 +52,7 @@ import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButt
 import { RushChapterSidebar } from "./RushChapterSidebar";
 import { isSequenceBlockedByPrereqs } from "@/lib/rush-guide-utils";
 import { getAlignmentSet, collectCascadeUncheck } from "@/lib/rush-helpers";
+import { RushHelperBadge } from "@/components/rush/RushHelperBadge";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DungeonRef = { id: string; name: string; bossName: string; imageUrl?: string|null };
@@ -387,6 +388,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 </span>
               );
             })()}
+            <RushHelperBadge guildId={guildId} seq={seq} />
             {seq.isSuccess && (
               <span title="Succès" className="shrink-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}

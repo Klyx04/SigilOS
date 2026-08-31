@@ -12,6 +12,10 @@ import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { publishGuideEvent, parseStepKey, getCachedGuideProgress, invalidateGuideProgressCache } from "@/lib/guide-realtime";
 import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers, buildMilestoneStepKeys, type GuideProgressRow, type GuideProgressMember, type GuidePresenceMap } from "@/lib/guide-progress-helpers";
+import { z } from "zod";
+import { findSequenceHelpers, type RushHelperProfile, type RushHelperMetier } from "@/lib/rush-helpers";
+import { getJob } from "@/lib/dofus-assets";
+import type { RushSequence } from "@/types/rush-guide-types";
 
 /**
  * 🛡️ Trace une écriture God UNIQUEMENT si l'acteur est un sous-god (pas super-admin).
@@ -1260,6 +1264,214 @@ export async function resetRushAlignment(guildId: string, altPseudo?: string) {
   revalidatePath(`/dashboard/${guildId}/profile`);
   revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
   return { success: true };
+}
+
+// ===========================================================================
+// S4 « qui peut aider » — badges membre + [Inviter / Partager]
+// ===========================================================================
+
+const getSequenceHelpersSchema = z.object({
+  guildId: z.string().min(1),
+  sequenceId: z.string().min(1),
+});
+
+/**
+ * ── S4 « qui peut aider » — retourne les membres capables d'aider une séquence ──
+ * Résout en BULK les profils ACTIFS de la guilde (métiers + alignment) et leur
+ * progression donjons (`UserDungeonProgress`), puis délègue à `findSequenceHelpers`
+ * (helper pur, déjÀ testé). Garde guilde + Zod + rate-limit (fail-closed).
+ */
+export async function getSequenceHelpers(guildId: string, sequenceId: string) {
+  const parsed = getSequenceHelpersSchema.safeParse({ guildId, sequenceId });
+  if (!parsed.success) return { success: false, error: "Paramètres invalides" };
+
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) return { success: false, error: "Non autorisé" };
+  if (!ctx.profileId) return { success: false, error: "Profile ID manquant" };
+
+  const { success: rateOk } = await rateLimit(`guide-helpers:${ctx.profileId}`, 30, 60_000);
+  if (!rateOk) return { success: false, error: "Trop de requêtes, veuillez patienter." };
+
+  const sequence = await db.guideSequence.findUnique({
+    where: { id: sequenceId },
+    select: {
+      id: true,
+      subGuideRef: true,
+      subGuideName: true,
+      dungeonId: true,
+      dungeonIds: true,
+      alignReq: true,
+      alignOrderReq: true,
+      activityTags: true,
+      dungeon: { select: { id: true, name: true, bossName: true, imageUrl: true } },
+    },
+  });
+  if (!sequence) return { success: false, error: "Séquence introuvable" };
+
+  const [profiles, progress] = await Promise.all([
+    db.userProfile.findMany({
+      where: { guild: { discordGuildId: guildId }, status: "ACTIVE" },
+      select: {
+        id: true,
+        pseudoDofus: true,
+        discordNickname: true,
+        classe: true,
+        dofusLevel: true,
+        alignment: true,
+        alignmentOrder: true,
+        alignmentLevel: true,
+        metiers: true,
+        user: { select: { name: true, image: true } },
+      },
+    }),
+    db.userDungeonProgress.findMany({
+      where: { profile: { guild: { discordGuildId: guildId }, status: "ACTIVE" } },
+      select: { profileId: true, dungeonId: true },
+    }),
+  ]);
+
+  const dungeonIdsByProfile = new Map<string, Set<string>>();
+  for (const p of progress) {
+    if (!dungeonIdsByProfile.has(p.profileId)) dungeonIdsByProfile.set(p.profileId, new Set());
+    dungeonIdsByProfile.get(p.profileId)!.add(p.dungeonId);
+  }
+
+  const resolveMetiers = (metiers: unknown): RushHelperMetier[] => {
+    if (!Array.isArray(metiers)) return [];
+    return metiers.map((m) => {
+      if (typeof m === "string") {
+        const job = getJob(m);
+        return job?.name || m;
+      }
+      // format enrichi { name, level? } — conservé tel quel (retro-compat).
+      return m as RushHelperMetier;
+    });
+  };
+
+  const members: RushHelperProfile[] = profiles.map((p) => ({
+    profileId: p.id,
+    name: p.pseudoDofus || p.discordNickname || p.user?.name || "Membre",
+    avatar: p.user?.image || undefined,
+    classe: p.classe ?? null,
+    dofusLevel: p.dofusLevel ?? null,
+    alignment: p.alignment ?? null,
+    alignmentOrder: p.alignmentOrder ?? null,
+    alignmentLevel: p.alignmentLevel ?? null,
+    metiers: resolveMetiers(p.metiers),
+    completedDungeonIds: Array.from(dungeonIdsByProfile.get(p.id) || []),
+  }));
+
+  // Résolution des `dungeonIds` en objets { id, name } (le helper pur a besoin du nom).
+  const dungeonIdList = (sequence.dungeonIds || []).filter((id): id is string => typeof id === "string");
+  let dungeons: RushSequence["dungeons"] = [];
+  if (dungeonIdList.length > 0) {
+    const rows = await db.dungeon.findMany({
+      where: { id: { in: dungeonIdList } },
+      select: { id: true, name: true, bossName: true, imageUrl: true },
+    });
+    dungeons = rows;
+  }
+
+  const seqForHelpers: RushSequence = {
+    id: sequence.id,
+    subGuideRef: sequence.subGuideRef,
+    subGuideName: sequence.subGuideName,
+    isOptional: false,
+    order: 0,
+    dungeonId: sequence.dungeonId ?? null,
+    dungeonIds: dungeonIdList,
+    dungeon: sequence.dungeon ?? undefined,
+    dungeons: dungeons.length > 0 ? dungeons : undefined,
+    alignReq: sequence.alignReq ?? null,
+    alignOrderReq: sequence.alignOrderReq ?? null,
+    activityTags: Array.isArray(sequence.activityTags) ? (sequence.activityTags as any[]) : [],
+  };
+
+  const helpers = findSequenceHelpers(seqForHelpers, members);
+  return { success: true, ...helpers };
+}
+
+const inviteHelperSchema = z.object({
+  guildId: z.string().min(1),
+  sequenceId: z.string().min(1),
+  helperProfileId: z.string().min(1),
+  channelId: z.string().min(1),
+});
+
+/**
+ * ── S4 [Inviter / Partager] — poste un ping Discord vers un membre aidant ──
+ * Valide que le salon appartient bien à la guilde (fail-closed), résout le compte
+ * Discord du membre aidant, et poste une mention. Le corps de la mention est
+ * construit côté serveur (jamais passé brut par le client).
+ */
+export async function inviteHelperForSequence(
+  guildId: string,
+  sequenceId: string,
+  helperProfileId: string,
+  channelId: string
+) {
+  const parsed = inviteHelperSchema.safeParse({ guildId, sequenceId, helperProfileId, channelId });
+  if (!parsed.success) return { success: false, error: "Paramètres invalides" };
+
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) return { success: false, error: "Non autorisé" };
+  if (!ctx.profileId) return { success: false, error: "Profile ID manquant" };
+
+  const { success: rateOk } = await rateLimit(`guide-invite:${ctx.profileId}`, 10, 60_000);
+  if (!rateOk) return { success: false, error: "Trop de requêtes, veuillez patienter." };
+
+  const { validateChannelBelongsToGuild, postChannelMessage } = await import("@/server/discord");
+  const belongs = await validateChannelBelongsToGuild(channelId, guildId).catch(() => false);
+  if (!belongs) return { success: false, error: "Salon Discord invalide ou n'appartient pas à ce serveur" };
+
+  const [sequence, helper] = await Promise.all([
+    db.guideSequence.findUnique({
+      where: { id: sequenceId },
+      select: { subGuideName: true },
+    }),
+    db.userProfile.findUnique({
+      where: { id: helperProfileId },
+      select: {
+        user: {
+          select: { accounts: { where: { provider: "discord" }, select: { providerAccountId: true } } },
+        },
+      },
+    }),
+  ]);
+  if (!sequence) return { success: false, error: "Quête introuvable" };
+
+  const helperDiscordId = helper?.user?.accounts?.[0]?.providerAccountId;
+  if (!helperDiscordId) return { success: false, error: "Ce membre n'est pas relié à Discord" };
+
+  const questName = sequence.subGuideName || sequenceId;
+  const sender = ctx.name || "Un membre";
+  const mention = `<@${helperDiscordId}>`;
+
+  try {
+    await postChannelMessage(channelId, {
+      content: `${mention} — 🎯 ${sender} a besoin d'aide pour la quête **${questName}** du rush !`,
+    });
+    return { success: true };
+  } catch (err) {
+    logger.error("[inviteHelperForSequence] Discord post failed", { error: err });
+    return { success: false, error: "Impossible d'envoyer l'invitation sur Discord" };
+  }
+}
+
+/**
+ * Liste les salons TEXTUELS de la guilde pour le sélecteur d'invitation.
+ */
+export async function listRushTextChannels(guildId: string) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) return { success: false, error: "Non autorisé" };
+
+  const { fetchGuildChannels } = await import("@/server/discord");
+  const channels = await fetchGuildChannels(guildId).catch(() => []);
+  const text = channels
+    .filter((c) => c.type === 0)
+    .map((c) => ({ id: c.id, name: c.name || c.id }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return { success: true, channels: text };
 }
 
 // ===========================================================================

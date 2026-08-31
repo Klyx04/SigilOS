@@ -321,5 +321,22 @@ describe("rush-helpers", () => {
       const a1 = res.helpers.find((h) => h.profile.profileId === "a1")!;
       expect(a1.reasons).toContain("Alignement Bontarien 80");
     });
+
+    it("signale le niveau inconnu en « à confirmer » (Option A) sans le cacher", () => {
+      const seq = makeSeq({
+        activityTags: [{ type: "metier", name: "Façonneur", level: 200 }],
+      });
+      const members: RushHelperProfile[] = [
+        { profileId: "u1", name: "Alex", metiers: ["faconneur"] }, // slug métier, sans niveau
+        { profileId: "u2", name: "Béa", metiers: [{ name: "Façonneur", level: 200 }] },
+      ];
+      const res = findSequenceHelpers(seq, members);
+      // u1 possède le métier mais niveau inconnu → « à confirmer ».
+      expect(res.uncertainHelpers.map((h) => h.profile.profileId)).toEqual(["u1"]);
+      expect(res.uncertainHelpers[0].reasons).toContain("Métier Façonneur 200 (niveau à confirmer)");
+      // u2 a le niveau exact → aide réellement, pas « à confirmer ».
+      expect(res.helpers.map((h) => h.profile.profileId)).toEqual(["u2"]);
+      expect(res.uncertainHelpers.some((h) => h.profile.profileId === "u2")).toBe(false);
+    });
   });
 });

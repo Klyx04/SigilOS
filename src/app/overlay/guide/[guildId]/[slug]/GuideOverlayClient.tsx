@@ -720,6 +720,7 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
                   <React.Fragment key={seq.id}>
                     <RushOverlayQuestListItem
                       seq={seq}
+                      guildId={guildId}
                       isDone={isSeqDone}
                       isBookmarked={isBookmarked}
                       isExpanded={isExpanded}

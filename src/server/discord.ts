@@ -807,12 +807,12 @@ export async function sendChannelMessage(
     }
 
     // #223 P3.1 — Mode dégradé (outbox BullMQ/Redis) : on dépose l'écriture dans la file
-    // (retry persistant 429/5xx par le worker) au lieu d'un HTTP synchrone. L'ID du message
-    // est inconnu tant que la file n'a pas été flushée → null (le worker stocke la réponse).
+    // (retry persistant 429/5xx par le worker) au lieu d'un HTTP synchrone. L'ID du job
+    // est retourné sous forme `outbox:${jobId}` pour indiquer le succès de mise en file.
     if (isDiscordOutboxEnabled()) {
         const { enqueueDiscordWrite } = await import("@/server/discord-outbox");
-        await enqueueDiscordWrite({ kind: "postMessage", channelId, body });
-        return null;
+        const jobId = await enqueueDiscordWrite({ kind: "postMessage", channelId, body });
+        return `outbox:${jobId}`;
     }
 
     try {
@@ -1436,8 +1436,8 @@ export async function sendDiscordRawEmbed(
     // #223 P3.1 — Mode dégradé (outbox) : même file que sendChannelMessage (kind: postMessage).
     if (isDiscordOutboxEnabled()) {
         const { enqueueDiscordWrite } = await import("@/server/discord-outbox");
-        await enqueueDiscordWrite({ kind: "postMessage", channelId, body });
-        return null;
+        const jobId = await enqueueDiscordWrite({ kind: "postMessage", channelId, body });
+        return `outbox:${jobId}`;
     }
 
     try {

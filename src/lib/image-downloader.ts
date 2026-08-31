@@ -86,10 +86,11 @@ const IMAGE_SIZES = {
     item: 256,         // Items/Bonuses: 256px max
     legendary: 256,    // Legendary items: 256px max
     defi: 512,         // Défis : 512px max (illustration)
-    landing: 1920      // #140 — screens de la landing : 1920px max (captures plein écran)
+    landing: 1920,     // #140 — screens de la landing : 1920px max (captures plein écran)
+    "module-icon": 128 // Icônes de modules navbar (normalisées 128px max)
 };
 
-export type ImageType = "monster" | "achievement" | "dungeon" | "item" | "legendary" | "landing" | "defi";
+export type ImageType = "monster" | "achievement" | "dungeon" | "item" | "legendary" | "landing" | "defi" | "module-icon";
 
 /**
  * 🔒 CodeQL js/path-injection (fix PR #505) : répertoires de destination FIXES
@@ -107,6 +108,7 @@ function destDirFor(type: ImageType): string {
         case "legendary": return "public/game-data/legendary";
         case "defi": return "public/game-data/defis";
         case "landing": return "private_uploads/landing";
+        case "module-icon": return "public/assets/module-icons";
     }
 }
 

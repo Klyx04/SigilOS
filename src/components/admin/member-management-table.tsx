@@ -64,7 +64,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { updateMemberProfileStatus, updateMemberPseudo, updateMemberAnkamaId } from "@/server/actions/user-actions";
 import { deleteProfileByAdmin, reactivateProfileByAdmin, getGuildMemberBans, liftGuildMemberBan } from "@/server/actions/lifecycle-actions";
-import { transferGuildOwnership } from "@/server/actions/god-lifecycle-actions";
+import { transferGuildOwnershipAction } from "@/server/actions/guild-owner-actions";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
@@ -129,6 +129,8 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
     
     const [vacationTarget, setVacationTarget] = useState<Member | null>(null);
     const [archiveTarget, setArchiveTarget] = useState<{ id: string, name: string } | null>(null);
+    const [transferTarget, setTransferTarget] = useState<{ userId: string, memberName: string } | null>(null);
+    const [confirmationGuildName, setConfirmationGuildName] = useState("");
 
     // ── F-01 : exclusions (tombstones) — membres supprimés/bannis dont le profil n'existe plus ──
     const [excludedBans, setExcludedBans] = useState<any[]>([]);
@@ -290,15 +292,20 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
         }
     };
 
-    const handleTransferOwnership = async (userId: string, memberName: string) => {
-        if (!confirm(`⚠️ ATTENTION : Transférer la PROPRIÉTÉ de cette guilde à ${memberName} ?\n\nCette personne deviendra le nouvel administrateur principal.`)) return;
-        
-        setIsUpdating(userId);
+    const handleOpenTransferModal = (userId: string, memberName: string) => {
+        setTransferTarget({ userId, memberName });
+        setConfirmationGuildName("");
+    };
+
+    const handleExecuteTransferOwnership = async () => {
+        if (!transferTarget) return;
+        setIsUpdating(transferTarget.userId);
         try {
-            const res = await transferGuildOwnership(guildId, userId);
+            const res = await transferGuildOwnershipAction(guildId, transferTarget.userId, confirmationGuildName);
             if (res.success) {
-                toast.success(`Propriété transférée avec succès à ${memberName} !`);
-                window.location.reload(); // Refresh to update context
+                toast.success(`Propriété transférée avec succès à ${res.newOwnerName || transferTarget.memberName} !`);
+                setTransferTarget(null);
+                window.location.reload();
             } else {
                 toast.error(res.error || "Échec du transfert");
             }
@@ -697,10 +704,10 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                             {(isAdmin || isSuperAdmin) && (
                                                 <>
                                                     <DropdownMenuSeparator className="bg-surface" />
-                                                    {isSuperAdmin && (
-                                                        <DropdownMenuItem onClick={() => handleTransferOwnership(member.userId, getGameDisplayName(member) || "Membre")} className="gap-2 focus:bg-violet-600 focus:text-foreground text-violet-400 cursor-pointer text-caption font-black uppercase tracking-wider">
+                                                    {(isSuperAdmin || (ownerId && currentUserId === ownerId)) && !isProtected && member.status === "ACTIVE" && (
+                                                        <DropdownMenuItem onClick={() => handleOpenTransferModal(member.userId, getGameDisplayName(member) || "Membre")} className="gap-2 focus:bg-warning/15 focus:text-warning text-warning cursor-pointer text-caption font-black uppercase tracking-wider">
                                                             <UserCheck className="h-3.5 w-3.5" />
-                                                            Proprietaire
+                                                            Transférer Propriété
                                                         </DropdownMenuItem>
                                                     )}
                                                     {(isSuperAdmin || member.status !== "ACTIVE") && !isProtected && (
@@ -863,6 +870,59 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                         ));
                     }}
                 />
+            )}
+
+            {transferTarget && (
+                <Dialog open={!!transferTarget} onOpenChange={(open) => !open && setTransferTarget(null)}>
+                    <DialogContent className="sm:max-w-[460px] bg-background border-border text-foreground p-0 overflow-hidden rounded-[24px]">
+                        <div className="p-6 space-y-4">
+                            <DialogHeader>
+                                <DialogTitle className="text-lg font-black tracking-tight text-warning flex items-center gap-2">
+                                    <ShieldAlert className="w-5 h-5" />
+                                    Transférer la Propriété de Guilde
+                                </DialogTitle>
+                                <DialogDescription className="text-muted-foreground text-sm space-y-2 pt-2">
+                                    <p>
+                                        Vous êtes sur le point de transférer la <strong>propriété totale</strong> de cet espace SigilOS à <strong className="text-foreground">{transferTarget.memberName}</strong>.
+                                    </p>
+                                    <p className="text-danger/90 font-semibold text-xs">
+                                        ⚠️ Cette action est irréversible. Vous céderez vos droits d'administrateur principal.
+                                    </p>
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <div className="space-y-2 pt-2">
+                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                                    Tapez le nom de la guilde pour confirmer :
+                                </label>
+                                <Input
+                                    value={confirmationGuildName}
+                                    onChange={(e) => setConfirmationGuildName(e.target.value)}
+                                    placeholder="Nom exact de la guilde"
+                                    className="bg-surface border-border text-foreground"
+                                    autoFocus
+                                />
+                            </div>
+                        </div>
+
+                        <div className="px-6 py-4 bg-surface/50 border-t border-border flex justify-end gap-3">
+                            <Button 
+                                variant="ghost" 
+                                onClick={() => setTransferTarget(null)} 
+                                className="font-bold text-muted-foreground hover:text-foreground"
+                            >
+                                Annuler
+                            </Button>
+                            <Button
+                                onClick={handleExecuteTransferOwnership}
+                                disabled={!confirmationGuildName.trim() || isUpdating === transferTarget.userId}
+                                className="bg-warning hover:bg-warning/90 text-warning-foreground font-black px-6 rounded-xl"
+                            >
+                                {isUpdating === transferTarget.userId ? "Transfert en cours..." : "Confirmer le Transfert"}
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
             )}
         </div>
     );

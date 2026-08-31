@@ -22,6 +22,9 @@ import {
     UserPlus,
     Library,
     Clock,
+    Image as ImageIcon,
+    Award,
+    Key,
     type LucideIcon
 } from "lucide-react";
 
@@ -56,6 +59,8 @@ export const CONSOLE_PAGES: GodNavItem[] = [
     // Administration
     { id: "guilds", name: "Guildes & Users", icon: Settings2, color: "text-success", group: "administration", scope: "guilds", scopeLabel: "Guildes", brickId: "guilds" },
     { id: "delegates", name: "Sous-Gods", sub: "delegates", icon: Shield, color: "text-violet-400", group: "administration", scope: "users", scopeLabel: "Users", brickId: "delegates" },
+    { id: "api-keys", name: "Clés d'API & Dev", icon: Key, color: "text-amber-400", group: "administration", scope: "all", scopeLabel: "Toutes", brickId: "api-keys" },
+    { id: "slash-commands", name: "Commandes Slash", icon: Terminal, color: "text-accent", group: "administration", scope: "all", scopeLabel: "Toutes", brickId: "slash-commands" },
     { id: "security", name: "Sécurité & Logs", icon: ShieldAlert, color: "text-muted-foreground", group: "administration", scope: "logs", scopeLabel: "Logs", brickId: "security" },
     { id: "logs", name: "Audit Logs", sub: "logs", icon: History, color: "text-violet-400", group: "administration", scope: "all", scopeLabel: "Toutes", brickId: "logs" },
     { id: "tickets", name: "Tickets Support", icon: Ticket, color: "text-info", group: "administration", scope: "all", scopeLabel: "Toutes", brickId: "tickets" },
@@ -85,6 +90,8 @@ export const CONSOLE_PAGES: GodNavItem[] = [
     { id: "ticket-bot", name: "Bot Tickets Flotte", icon: Ticket, color: "text-amber-400", group: "tools", sub: "ticket-bot", scope: "all", scopeLabel: "Toutes", brickId: "overview" },
     { id: "onboarding", name: "Onboarding B2B", icon: UserPlus, color: "text-success", group: "tools", sub: "onboarding", scope: "all", scopeLabel: "Toutes", brickId: "onboarding" },
     { id: "landing", name: "Landing Screens", icon: Sparkles, color: "text-purple-400", group: "tools", sub: "landing", scope: "all", scopeLabel: "Toutes", brickId: "overview" },
+    { id: "module-icons", name: "Icônes Modules", icon: ImageIcon, color: "text-warning", group: "tools", scope: "all", scopeLabel: "Toutes", brickId: "overview" },
+    { id: "badges", name: "Studio Badges", icon: Award, color: "text-amber-400", group: "tools", sub: "badges", scope: "all", scopeLabel: "Toutes", brickId: "overview" },
 ];
 
 export const ALL_SCOPES_COUNT = 6;

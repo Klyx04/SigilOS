@@ -1054,7 +1054,7 @@ export default function InteractiveMapV2({
     };
 
     const handleNextRound = () => {
-        if (!socket) return;
+        if (!socket || gamePhase !== 'result') return;
         playSoundEffect('tick');
         socket.emit("geoguesser:game:next-round");
     };
@@ -1925,14 +1925,31 @@ export default function InteractiveMapV2({
                                 />
 
                                 {/* Floating Validation Overlay inside panel */}
-                                {selectedPosition && gamePhase === 'playing' && !isCurrentUserSpectator && (
+                                {selectedPosition && gamePhase === 'playing' && !isCurrentUserSpectator && !activeSession?.participants?.find((p: any) => p.userId === currentUserId)?.hasGuessed && (
                                     <div className="absolute bottom-6 inset-x-6 z-[1000] animate-in slide-in-from-bottom-6 duration-300">
                                         <button
                                             onClick={handleSubmitGuess}
-                                            className="w-full py-5 rounded-2xl bg-success hover:bg-success text-success-foreground font-black uppercase text-xs italic tracking-widest shadow-[0_20px_40px_rgba(16,185,129,0.3)] border border-success/50 transition-all active:scale-95 flex items-center justify-center gap-4"
+                                            className="w-full py-5 rounded-2xl bg-success hover:bg-success text-success-foreground font-black uppercase text-xs italic tracking-widest shadow-[0_20px_40px_rgba(16,185,129,0.3)] border border-success/50 transition-all active:scale-95 flex items-center justify-center gap-4 cursor-pointer"
                                         >
                                             Confirmer ma position <Target size={20} />
                                         </button>
+                                    </div>
+                                )}
+
+                                {/* Floating "Waiting for other players" overlay inside tactical map */}
+                                {gamePhase === 'playing' && !isCurrentUserSpectator && activeSession?.participants?.find((p: any) => p.userId === currentUserId)?.hasGuessed && (
+                                    <div className="absolute bottom-6 inset-x-6 z-[1000] animate-in slide-in-from-bottom-6 duration-300">
+                                        <div className="w-full py-4 px-6 rounded-2xl bg-emerald-950/90 backdrop-blur-xl border border-emerald-500/40 text-emerald-300 shadow-[0_20px_40px_rgba(16,185,129,0.25)] flex items-center justify-center gap-3">
+                                            <CheckCircle2 className="text-emerald-400 w-5 h-5 shrink-0" />
+                                            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 text-center sm:text-left">
+                                                <span className="font-black uppercase text-xs tracking-wider">Position validée !</span>
+                                                <span className="text-emerald-400/80 text-caption font-medium">
+                                                    {(activeSession?.participants?.filter((p: any) => !p.isSpectator).length || 1) > 1
+                                                        ? "En attente des autres joueurs..."
+                                                        : "Calcul des résultats..."}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
 

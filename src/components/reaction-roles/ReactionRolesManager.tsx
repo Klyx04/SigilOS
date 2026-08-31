@@ -302,6 +302,8 @@ export function ReactionRolesManager({
                 requiredRoleName: null,
                 blacklistedRoleId: null,
                 blacklistedRoleName: null,
+                extraRoleIds: [],
+                durationDays: null,
             }
         ]);
     };
@@ -369,6 +371,8 @@ export function ReactionRolesManager({
                 requiredRoleName: o.requiredRoleName || null,
                 blacklistedRoleId: o.blacklistedRoleId || null,
                 blacklistedRoleName: o.blacklistedRoleName || null,
+                extraRoleIds: o.extraRoleIds || [],
+                durationDays: o.durationDays ?? null,
             }))
         };
 
@@ -811,6 +815,74 @@ export function ReactionRolesManager({
                                                                 <option key={r.id} value={r.id}>Interdit si : {r.name}</option>
                                                             ))}
                                                         </select>
+                                                    </div>
+                                                </div>
+
+                                                {/* Pro Features: Multi-Roles & Timed Roles (#222) */}
+                                                <div className="pt-3 border-t border-border/50 grid grid-cols-1 sm:grid-cols-2 gap-3 text-caption">
+                                                    <div>
+                                                        <Label className="text-[11px] font-bold text-emerald-400 flex items-center gap-1 mb-1">
+                                                            <span>⏱️ Durée (Rôle Temporaire)</span>
+                                                        </Label>
+                                                        <select
+                                                            value={opt.durationDays ?? ""}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value ? parseInt(e.target.value, 10) : null;
+                                                                updateOption(idx, { durationDays: val });
+                                                            }}
+                                                            className="w-full h-8 px-2 text-xs rounded-xl bg-surface border border-border text-foreground font-semibold"
+                                                        >
+                                                            <option value="">Permanent (Pas d'expiration)</option>
+                                                            <option value="1">1 jour (24 heures)</option>
+                                                            <option value="3">3 jours</option>
+                                                            <option value="7">7 jours (1 semaine)</option>
+                                                            <option value="14">14 jours (2 semaines)</option>
+                                                            <option value="30">30 jours (1 mois)</option>
+                                                            <option value="90">90 jours (3 mois)</option>
+                                                            <option value="365">365 jours (1 an)</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div>
+                                                        <Label className="text-[11px] font-bold text-sky-400 flex items-center gap-1 mb-1">
+                                                            <span>➕ Rôles additionnels (Package Multi-rôles)</span>
+                                                        </Label>
+                                                        <div className="flex flex-wrap gap-1 items-center min-h-[32px] p-1 rounded-xl bg-surface border border-border">
+                                                            {(opt.extraRoleIds || []).map((rid: string) => {
+                                                                const r = discordRoles.find(dr => dr.id === rid);
+                                                                return (
+                                                                    <Badge key={rid} variant="outline" className="text-[10px] bg-sky-500/10 text-sky-400 border-sky-500/30 gap-1 px-1.5 py-0.5">
+                                                                        {r?.name || rid}
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const updated = (opt.extraRoleIds || []).filter((id: string) => id !== rid);
+                                                                                updateOption(idx, { extraRoleIds: updated });
+                                                                            }}
+                                                                            className="text-muted-foreground hover:text-danger ml-0.5"
+                                                                        >
+                                                                            ×
+                                                                        </button>
+                                                                    </Badge>
+                                                                );
+                                                            })}
+                                                            <select
+                                                                value=""
+                                                                onChange={(e) => {
+                                                                    if (!e.target.value) return;
+                                                                    const current = opt.extraRoleIds || [];
+                                                                    if (!current.includes(e.target.value)) {
+                                                                        updateOption(idx, { extraRoleIds: [...current, e.target.value] });
+                                                                    }
+                                                                }}
+                                                                className="h-6 px-1 text-[11px] bg-transparent border-none text-muted-foreground focus:outline-none cursor-pointer"
+                                                            >
+                                                                <option value="">+ Ajouter un rôle</option>
+                                                                {discordRoles.filter(r => r.id !== opt.roleId && !(opt.extraRoleIds || []).includes(r.id)).map(r => (
+                                                                    <option key={r.id} value={r.id}>+ {r.name}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>

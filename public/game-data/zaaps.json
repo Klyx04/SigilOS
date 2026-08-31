@@ -144,14 +144,6 @@
     "subArea": "Route de la Roche"
   },
   {
-    "id": 20,
-    "name": "Pics de Cania",
-    "x": -26,
-    "y": -60,
-    "worldId": 1,
-    "subArea": "Pics de Cania"
-  },
-  {
     "id": 21,
     "name": "Foire du Trool",
     "x": -11,
@@ -314,8 +306,8 @@
   {
     "id": 41,
     "name": "Village des Dopeuls",
-    "x": -26,
-    "y": -13,
+    "x": -34,
+    "y": -8,
     "worldId": 1,
     "subArea": "Village des Dopeuls"
   },

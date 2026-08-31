@@ -26,7 +26,7 @@ export default async function TicketsPage({ params }: TicketsPageProps) {
         redirect("/");
     }
 
-    if (!ctx.canManageTickets && !ctx.isAdmin) {
+    if (!ctx.canManageTickets) {
         redirect(`/dashboard/${guildId}`);
     }
 

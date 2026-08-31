@@ -176,11 +176,22 @@ export default auth(async (req) => {
         nextUrl.pathname.startsWith("/api/og"); 
 
     // ─── IP Rate Limiting on public unauthenticated API routes ────────────────
-    if (isPublicApi && !nextUrl.pathname.startsWith("/api/auth") && !nextUrl.pathname.startsWith("/api/storage")) {
+    // NOTE: /api/assets-dofus serves cached images/icons (like /api/storage) and must not be throttled at 60 req/min
+    if (
+        isPublicApi &&
+        !nextUrl.pathname.startsWith("/api/auth") &&
+        !nextUrl.pathname.startsWith("/api/storage") &&
+        !nextUrl.pathname.startsWith("/api/assets-dofus")
+    ) {
         const ip = getClientIp(req)
         // Discord interactions: 30 req/min (bots can legitimately hit this fast)
+        // DofusDB search proxy: 120 req/min (interactive search typing with debounce)
         // All other public routes: 60 req/min
-        const limit = nextUrl.pathname.startsWith("/api/discord/interactions") ? 30 : 60
+        const limit = nextUrl.pathname.startsWith("/api/discord/interactions")
+            ? 30
+            : nextUrl.pathname.startsWith("/api/dofusdb")
+            ? 120
+            : 60
         const allowed = ipRateLimit(`${ip}:${nextUrl.pathname.split("/")[2]}`, limit, 60_000)
 
         if (!allowed) {

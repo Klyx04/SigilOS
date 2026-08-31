@@ -704,8 +704,9 @@ function generateDescription(category: MissionCategory, payload: any): React.Rea
             );
         case "REGULATION":
             const targetName = payload.monsterName || payload.familyName || "monstres";
+            const zoneContext = payload.zoneName ? ` en ${payload.zoneName}` : " sur leur territoire";
             return (
-                <>Vaincre <span className="text-success font-medium">50 {targetName}</span> sur leur territoire</>
+                <>Vaincre <span className="text-success font-medium">50 {targetName}</span>{zoneContext}</>
             );
         case "ANOMALIE":
             const range = payload.levelRange || "200";

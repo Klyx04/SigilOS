@@ -454,6 +454,8 @@ model GuildConfig {
   ticketTranscripts                TicketTranscript[]
   ticketFeedbacks                  TicketFeedback[]
   ticketAuditLogs                  TicketAuditLog[]
+  apiKeys                          GuildApiKey[]
+  slashCommandPermissions          GuildSlashCommandPermission[]
 }
 
 model UserSkin {
@@ -682,6 +684,7 @@ model UserProfile {
   userDungeonAchievements    UserDungeonAchievement[]
   dungeonProgress            UserDungeonProgress[]
   defiProgress               UserDefiProgress[]
+  badges                     UserBadge[]
   legendaryCrafts            LegendaryItem[]            @relation("LegendaryCrafters")
   hasLegendaryPrerequisites  Boolean                    @default(false)
   hasLegendaryPet            Boolean                    @default(false)
@@ -1302,9 +1305,30 @@ model ReactionRoleOption {
   requiredRoleName    String?
   blacklistedRoleId   String?           // Rôle interdit (bloque l'attribution si possédé)
   blacklistedRoleName String?
+  /// Multi-rôles sur un seul clic (#222)
+  extraRoleIds        String[]          @default([])
+  /// Rôle temporaire (durée en jours ou null si permanent) (#222)
+  durationDays        Int?
   group               ReactionRoleGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@index([groupId])
+}
+
+/// Rôles temporaires actifs à révoquer à expiration (#222)
+model TimedRoleGrant {
+  id              String      @id @default(cuid())
+  guildId         String
+  discordGuildId  String
+  discordUserId   String
+  roleId          String
+  roleName        String?
+  grantedAt       DateTime    @default(now())
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  source          String      @default("REACTION_ROLE")
+
+  @@index([discordGuildId, expiresAt, revokedAt])
+  @@index([discordUserId])
 }
 
 model ReactionRoleIconPack {
@@ -1607,6 +1631,48 @@ model UserDefiProgress {
   @@index([defiId])
 }
 
+/// 🏅 #198.2 — Système de Badges & Succès Plateforme SigilOS
+model Badge {
+  id              String      @id @default(cuid())
+  slug            String      @unique
+  name            String
+  description     String?
+  imageUrl        String
+  rarity          String      @default("COMMON") // COMMON | RARE | EPIC | LEGENDARY | MYTHIC
+  category        String      @default("COMMUNITY") // COMMUNITY | GAMEPLAY | EVENT | STAFF | GUILD
+  isSecret        Boolean     @default(false)
+  isGodOnly       Boolean     @default(false)
+  sortOrder       Int         @default(0)
+  /// Déclencheur automatique (#198.2 No-Code Rules Engine)
+  triggerType     String      @default("MANUAL") // MANUAL | KOFI_DONATION | DOFUS_SPECIFIC | DOFUS_COUNT | DEFI_COUNT | SONGES_FLOOR | MISSIONS_COUNT
+  triggerValue    String?     // ex: "5", "200", "dofus-ocre"
+  triggerMetadata Json?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  userBadges  UserBadge[]
+
+  @@index([category])
+  @@index([rarity])
+  @@index([triggerType])
+}
+
+/// Attribution de badge à un profil de guilde
+model UserBadge {
+  id          String      @id @default(cuid())
+  badgeId     String
+  profileId   String
+  unlockedAt  DateTime    @default(now())
+  source      String      @default("MANUAL") // MANUAL | AUTOMATIC | EVENT
+  reason      String?
+  badge       Badge       @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  profile     UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, badgeId])
+  @@index([profileId])
+  @@index([badgeId])
+}
+
 model DreamBonus {
   id          String   @id @default(cuid())
   name        String   @unique
@@ -1634,6 +1700,31 @@ model GameQuest {
   updatedAt   DateTime @updatedAt
 
   @@index([category])
+}
+
+/// 📦 #38 — Catalogue complet d'items et ressources Dofus 3 (100% autonome et local-first).
+model GameItem {
+  id           String   @id @default(cuid())
+  ankamaId     Int      @unique
+  name         String
+  level        Int      @default(1)
+  typeId       Int?
+  typeName     String   @default("Item")
+  category     String   @default("equipment") // equipment | resources | consumables | cosmetics
+  description  String?  @db.Text
+  effects      Json?    // Array d'effets min/max avec caractéristique
+  recipe       Json?    // Array d'ingrédients [{ id, name, qty, iconUrl }]
+  hasRecipe    Boolean  @default(false)
+  iconUrl      String?
+  dataHash     String?  // MD5 des stats/recette pour détection différentielle (nerf/buff/modifs)
+  isDeprecated Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([name])
+  @@index([category])
+  @@index([typeName])
+  @@index([level])
 }
 
 /// 🖼️ #140 — Screens de la landing pilotés par le God (upload/suppression à la volée).
@@ -3098,5 +3189,45 @@ model TicketAuditLog {
   @@index([ticketId, createdAt])
   @@index([guildId, action])
 }
+
+// 🔐 #196 — Clés d'API Publique par guilde (scopes stricts, rate-limit, audit GOD)
+model GuildApiKey {
+  id              String      @id @default(cuid())
+  guildId         String
+  name            String
+  keyHash         String      @unique
+  prefix          String      // e.g. "sigil_live_ab12"
+  scopes          String[]    @default(["read:members"])
+  rateLimitPerMin Int         @default(60)
+  lastUsedAt      DateTime?
+  expiresAt       DateTime?
+  revokedAt       DateTime?
+  createdById     String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  guild           GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId])
+  @@index([prefix])
+  @@index([revokedAt])
+}
+
+// ⚡ #158 — Matrice RBAC Commandes Slash Discord par Guilde
+model GuildSlashCommandPermission {
+  id          String      @id @default(cuid())
+  guildId     String
+  commandName String      // e.g. "almanax", "dofus", "profil", "sorties", "defi"
+  roleIds     String[]    @default([])
+  isEnabled   Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  guild       GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, commandName])
+  @@index([guildId])
+}
+
 
 

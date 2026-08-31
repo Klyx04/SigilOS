@@ -281,9 +281,13 @@ export function ItemSearchPanel() {
         }
         setDbLoading(true);
         try {
-            const res = await fetch(`/api/dofusdb/search?q=${encodeURIComponent(q)}&limit=20`);
-            const data = await res.json();
-            setDbResults(data.data ?? []);
+            const res = await fetch(`/api/dofusdb/search?q=${encodeURIComponent(q.trim())}&limit=20`);
+            if (res.ok) {
+                const data = await res.json();
+                setDbResults(Array.isArray(data.data) ? data.data : []);
+            } else {
+                setDbResults([]);
+            }
         } catch {
             setDbResults([]);
         } finally {
@@ -295,7 +299,7 @@ export function ItemSearchPanel() {
         const timer = setTimeout(() => {
             if (dbQuery.trim().length >= 2) searchDB(dbQuery);
             else if (dbQuery.trim().length === 0) setDbResults([]);
-        }, 350);
+        }, 400);
         return () => clearTimeout(timer);
     }, [dbQuery, searchDB]);
 
@@ -306,13 +310,13 @@ export function ItemSearchPanel() {
             const res = await fetch(`/api/dofusdb/items/${item.id}`);
             if (res.ok) {
                 const detailed = await res.json();
-                if (!detailed.error) {
+                if (detailed && !detailed.error) {
                     setSelectedItem(detailed);
-                    if (detailed.hasRecipe) {
+                    if (detailed.hasRecipe || detailed.is_recipe_item) {
                         const recRes = await fetch(`/api/dofusdb/recipes/${item.id}`);
                         if (recRes.ok) {
                             const rec = await recRes.json();
-                            if (!rec.error) setRecipe(rec);
+                            if (rec && !rec.error) setRecipe(rec);
                         }
                     }
                 } else {

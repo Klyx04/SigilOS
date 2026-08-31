@@ -5,6 +5,7 @@ import { Check, Flag, BookmarkCheck, ChevronDown, ChevronUp, Lock } from "lucide
 import { cn } from "@/lib/utils";
 import { getSequenceCoord, getItemTags, isDungeonSequence } from "./overlay-utils";
 import { getAlignmentSet } from "@/lib/rush-helpers";
+import { RushHelperBadge } from "@/components/rush/RushHelperBadge";
 import type { RushSequence } from "@/types/rush-guide-types";
 
 interface RushOverlayQuestListItemProps {
@@ -23,6 +24,8 @@ interface RushOverlayQuestListItemProps {
   /** Quêtes prérequis (cliquables pour y sauter) */
   prereqs?: { seqId: string; milestoneId: string; name: string }[];
   onGoToPrereq?: (seqId: string, milestoneId: string) => void;
+  /** Identifiant de guilde pour le calcul « qui peut aider » (badge compact). */
+  guildId?: string;
 }
 
 /**
@@ -43,6 +46,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   isLocked = false,
   prereqs = [],
   onGoToPrereq,
+  guildId,
 }: RushOverlayQuestListItemProps) {
   const parsedCoord = getSequenceCoord(seq);
   const itemTags = getItemTags(seq.activityTags);
@@ -124,6 +128,10 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           >
             {name}
           </button>
+
+          {guildId && (
+            <RushHelperBadge guildId={guildId} seq={seq} variant="compact" className="mt-1" />
+          )}
 
           {/* Indicateurs 2e ligne */}
           {(parsedCoord || hasDungeon || itemTags.length > 0 || bookmarkers.length > 0 || alignmentSet) && (

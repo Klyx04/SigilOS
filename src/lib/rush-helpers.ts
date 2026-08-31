@@ -87,6 +87,8 @@ export type RushSequenceHelpers = {
   alignmentHelpers: RushAlignmentMatch[];
   /** Union des membres aidants (dédupliqués par profileId) + motifs lisibles. */
   helpers: { profile: RushHelperProfile; reasons: string[] }[];
+  /** Membres dont le niveau/tranche est INCONNU (métier/alignement requis) → « à confirmer ». */
+  uncertainHelpers: { profile: RushHelperProfile; reasons: string[] }[];
 };
 
 // ─── Normalisation (comparaison insensible casse/accents) ───────────────────
@@ -308,26 +310,29 @@ export function findSequenceHelpers(
     }
   }
 
-  const reasons = new Map<string, string[]>();
-  const addReason = (profileId: string, reason: string) => {
-    const list = reasons.get(profileId) || [];
+  const pushReason = (map: Map<string, string[]>, profileId: string, reason: string) => {
+    const list = map.get(profileId) || [];
     if (!list.includes(reason)) {
       list.push(reason);
-      reasons.set(profileId, list);
+      map.set(profileId, list);
     }
   };
+
+  const reasons = new Map<string, string[]>();
   for (const r of metierHelpers) {
-    addReason(
+    pushReason(
+      reasons,
       r.profile.profileId,
       r.requiredLevel ? `Métier ${r.metier} ${r.requiredLevel}` : `Métier ${r.metier}`
     );
   }
   for (const r of dungeonHelpers) {
-    addReason(r.profile.profileId, `Donjon ${r.dungeonName}`);
+    pushReason(reasons, r.profile.profileId, `Donjon ${r.dungeonName}`);
   }
   for (const r of alignmentHelpers) {
     const label = r.alignment.charAt(0).toUpperCase() + r.alignment.slice(1);
-    addReason(
+    pushReason(
+      reasons,
       r.profile.profileId,
       r.requiredLevel ? `Alignement ${label} ${r.requiredLevel}` : `Alignement ${label}`
     );
@@ -337,6 +342,40 @@ export function findSequenceHelpers(
     .filter((m) => reasons.has(m.profileId))
     .map((m) => ({ profile: m, reasons: reasons.get(m.profileId)! }));
 
-  return { metierHelpers, dungeonHelpers, alignmentHelpers, helpers };
+  // ── « Niveau à confirmer » (Option A) : le membre POSSÈDE le métier / camp requis
+  //    mais son niveau/tranche est inconnu → on le signale plutôt que de le cacher.
+  const uncertainReasons = new Map<string, string[]>();
+  for (const need of metierNeeds) {
+    for (const m of members) {
+      const r = matchMetier(need, m);
+      if (r.levelUnknown) {
+        const level = r.requiredLevel ?? "";
+        pushReason(
+          uncertainReasons,
+          r.profile.profileId,
+          level ? `Métier ${r.metier} ${level} (niveau à confirmer)` : `Métier ${r.metier} (niveau à confirmer)`
+        );
+      }
+    }
+  }
+  if (alignmentNeed) {
+    for (const m of members) {
+      const r = matchAlignment(alignmentNeed, m);
+      if (r.levelUnknown) {
+        const label = r.alignment.charAt(0).toUpperCase() + r.alignment.slice(1);
+        const level = r.requiredLevel ?? "";
+        pushReason(
+          uncertainReasons,
+          r.profile.profileId,
+          level ? `Alignement ${label} ${level} (niveau à confirmer)` : `Alignement ${label} (niveau à confirmer)`
+        );
+      }
+    }
+  }
+  const uncertainHelpers = members
+    .filter((m) => uncertainReasons.has(m.profileId))
+    .map((m) => ({ profile: m, reasons: uncertainReasons.get(m.profileId)! }));
+
+  return { metierHelpers, dungeonHelpers, alignmentHelpers, helpers, uncertainHelpers };
 }
 

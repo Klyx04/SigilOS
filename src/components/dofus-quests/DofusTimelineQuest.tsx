@@ -31,6 +31,7 @@ interface DofusTimelineQuestProps {
   presence?: DofusPresenceMember[];
   presenceConnected?: boolean;
   onFocusedQuestChange?: (questId: string | null) => void;
+  customSlotAfterPrerequisites?: React.ReactNode;
 }
 
 function parseObjectiveText(raw: string): string {
@@ -542,7 +543,7 @@ function QuiEstOuPanel({ synergy, guildName, currentUser, completedCount, totalQ
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────
-export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, completedIds, onToggleStatus, synergy, currentUser, metamobPseudo = null, prereqsByQuestId = {}, presence = [], presenceConnected = false, onFocusedQuestChange }: DofusTimelineQuestProps) {
+export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, completedIds, onToggleStatus, synergy, currentUser, metamobPseudo = null, prereqsByQuestId = {}, presence = [], presenceConnected = false, onFocusedQuestChange, customSlotAfterPrerequisites }: DofusTimelineQuestProps) {
   const [expandedQuest, setExpandedQuest] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [hideCompleted, setHideCompleted] = useState(false);
@@ -597,6 +598,16 @@ export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, complet
       return { ...chain, entries };
     }).filter((c: any) => c.entries.length > 0 || !hideCompleted);
   }, [chains, searchQuery, hideCompleted, completedIds]);
+
+  const { prereqChains, mainChains } = useMemo(() => {
+    const prereq: any[] = [];
+    const main: any[] = [];
+    filteredChains.forEach((c: any) => {
+      if (c.sectionType === "PREREQUISITE") prereq.push(c);
+      else main.push(c);
+    });
+    return { prereqChains: prereq, mainChains: main };
+  }, [filteredChains]);
 
   const handleQuestToggle = (questId: string, status: DofusQuestStatus) => {
     onToggleStatus(questId, status);
@@ -657,18 +668,34 @@ export function DofusTimelineQuest({ guildId, dofus, chains, dofusColor, complet
 
         {/* Timeline */}
         <div className="space-y-4">
-          {filteredChains.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Crosshair className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm font-bold uppercase tracking-widest">{searchQuery ? "Aucune quête trouvée" : "Toutes les quêtes sont terminées !"}</p>
-            </div>
-          ) : filteredChains.map((chain: any) => (
+          {prereqChains.map((chain: any) => (
             <ChainSection key={chain.id} chain={chain} color={dofusColor} completedIds={completedIds}
               onToggleStatus={handleQuestToggle} onQuestClick={handleQuestClick}
               expandedQuest={expandedQuest} setExpandedQuest={setExpandedQuest} guildId={guildId} synergy={synergyMap} currentUser={currentUser}
               collapsed={collapsedChains.has(chain.id)} onToggleCollapse={toggleChainCollapse}
               prereqsByQuestId={prereqsByQuestId} onFocusPrereq={handleFocusPrereq} presence={presence} metamobPseudo={metamobPseudo} />
           ))}
+
+          {customSlotAfterPrerequisites && (
+            <div className="my-4">
+              {customSlotAfterPrerequisites}
+            </div>
+          )}
+
+          {mainChains.map((chain: any) => (
+            <ChainSection key={chain.id} chain={chain} color={dofusColor} completedIds={completedIds}
+              onToggleStatus={handleQuestToggle} onQuestClick={handleQuestClick}
+              expandedQuest={expandedQuest} setExpandedQuest={setExpandedQuest} guildId={guildId} synergy={synergyMap} currentUser={currentUser}
+              collapsed={collapsedChains.has(chain.id)} onToggleCollapse={toggleChainCollapse}
+              prereqsByQuestId={prereqsByQuestId} onFocusPrereq={handleFocusPrereq} presence={presence} metamobPseudo={metamobPseudo} />
+          ))}
+
+          {filteredChains.length === 0 && !customSlotAfterPrerequisites && (
+            <div className="text-center py-12 text-muted-foreground">
+              <Crosshair className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p className="text-sm font-bold uppercase tracking-widest">{searchQuery ? "Aucune quête trouvée" : "Toutes les quêtes sont terminées !"}</p>
+            </div>
+          )}
         </div>
 
         <ScrollToTopButton />

@@ -1642,11 +1642,13 @@ export async function publishMissionsToDiscord(
             return { success: false, error: "L'API Discord n'a pas pu envoyer le message." };
         }
 
-        // Store the message ID for real-time updates
-        await db.guildConfig.update({
-            where: { id: guild.id },
-            data: { missionDiscordMessageId: `${guild.missionNotifyChannelId}:${messageId}` }
-        });
+        // Store the message ID for real-time updates (only if real snowflake)
+        if (!messageId.startsWith("outbox:")) {
+            await db.guildConfig.update({
+                where: { id: guild.id },
+                data: { missionDiscordMessageId: `${guild.missionNotifyChannelId}:${messageId}` }
+            });
+        }
 
         // Audit log
         await logAction({

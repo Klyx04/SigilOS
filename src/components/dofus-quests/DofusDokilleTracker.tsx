@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition, useMemo } from "react";
+import React, { useState, useTransition, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
     Footprints, 
@@ -93,14 +93,16 @@ export const KROKILLE_ZONES: KrokilleZone[] = [
     },
 ];
 
-const ALL_MONSTERS = KROKILLE_ZONES.flatMap(z => z.monsters);
-const TOTAL_MONSTERS = ALL_MONSTERS.length; // 20
+export const ALL_KROKILLE_MONSTERS = KROKILLE_ZONES.flatMap(z => z.monsters);
+export const ALL_MONSTERS = ALL_KROKILLE_MONSTERS;
+export const TOTAL_MONSTERS = ALL_KROKILLE_MONSTERS.length; // 20
 
 interface DofusDokilleTrackerProps {
     guildId: string;
     dofusId: string;
     dofusColor?: string;
     initialCaptured?: string[];
+    isObtained?: boolean;
     onSave?: (monsters: string[]) => Promise<{ success: boolean; error?: string }>;
 }
 
@@ -109,11 +111,23 @@ export function DofusDokilleTracker({
     dofusId,
     dofusColor = "#f59e0b",
     initialCaptured = [],
+    isObtained = false,
     onSave,
 }: DofusDokilleTrackerProps) {
-    const [captured, setCaptured] = useState<Set<string>>(new Set(initialCaptured));
+    const [captured, setCaptured] = useState<Set<string>>(() => {
+        if (isObtained) return new Set(ALL_KROKILLE_MONSTERS);
+        return new Set(initialCaptured);
+    });
     const [searchQuery, setSearchQuery] = useState("");
     const [isSaving, startSave] = useTransition();
+
+    useEffect(() => {
+        if (isObtained) {
+            setCaptured(new Set(ALL_KROKILLE_MONSTERS));
+        } else {
+            setCaptured(new Set(initialCaptured));
+        }
+    }, [initialCaptured, isObtained]);
 
     const capturedCount = captured.size;
     const progressPercent = Math.round((capturedCount / TOTAL_MONSTERS) * 100);

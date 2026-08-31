@@ -9,6 +9,7 @@ import { logger } from "@/lib/logger";
 import { publishDofusEvent } from "@/lib/dofus-realtime";
 import { rateLimit } from "@/lib/ratelimit";
 import { resolveDofusImageUrl } from "@/lib/dofus-image-url";
+import { ALL_KROKILLE_MONSTERS } from "@/components/dofus-quests/DofusDokilleTracker";
 
 export type ActionResponse<T = void> = {
     success: boolean;
@@ -1257,6 +1258,11 @@ export async function toggleDofusObtained(
     if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
     try {
+        const dofusItem = await (db as any).dofusItem.findUnique({
+            where: { id: dofusId },
+            select: { slug: true },
+        });
+
         let charactersToUpdate = [characterName];
         if (syncAllMules) {
             const profile = await db.userProfile.findUnique({
@@ -1269,6 +1275,19 @@ export async function toggleDofusObtained(
         }
 
         for (const charName of charactersToUpdate) {
+            let notesUpdate: string | null | undefined = undefined;
+            if (obtained) {
+                if (dofusItem?.slug === "dokille") {
+                    notesUpdate = `KROKILLES:${JSON.stringify(ALL_KROKILLE_MONSTERS)}`;
+                } else if (dofusItem?.slug === "dolmanax") {
+                    notesUpdate = "PAGES:365";
+                }
+            } else {
+                if (dofusItem?.slug === "dokille" || dofusItem?.slug === "dolmanax") {
+                    notesUpdate = null;
+                }
+            }
+
             await (db as any).playerDofusProgress.upsert({
                 where: {
                     profileId_dofusId_characterName: {
@@ -1280,6 +1299,8 @@ export async function toggleDofusObtained(
                 update: {
                     isObtained: obtained,
                     obtainedAt: obtained ? new Date() : null,
+                    completionPercent: obtained ? 100 : 0,
+                    ...(notesUpdate !== undefined ? { notes: notesUpdate } : {}),
                 },
                 create: {
                     profileId: ctx.profileId,
@@ -1288,53 +1309,44 @@ export async function toggleDofusObtained(
                     characterName: charName,
                     isObtained: obtained,
                     obtainedAt: obtained ? new Date() : null,
+                    completionPercent: obtained ? 100 : 0,
+                    notes: notesUpdate ?? null,
                 },
             });
 
-            // Si marqué comme obtenu, marquer toutes ses quêtes comme COMPLETED
-            if (obtained) {
-                const chains = await (db as any).dofusQuestChain.findMany({
-                    where: { dofusId },
-                    include: { entries: { select: { id: true } } },
-                });
-                const allEntryIds = chains.flatMap((c: any) => c.entries.map((e: any) => e.id));
+            // Mettre à jour toutes les quêtes de la chaîne
+            const chains = await (db as any).dofusQuestChain.findMany({
+                where: { dofusId },
+                include: { entries: { select: { id: true } } },
+            });
+            const allEntryIds = chains.flatMap((c: any) => c.entries.map((e: any) => e.id));
 
-                if (allEntryIds.length > 0) {
-                    // Use a transaction for bulk update
-                    await db.$transaction(
-                        allEntryIds.map((questId: string) =>
-                            (db as any).playerDofusQuestProgress.upsert({
-                                where: {
-                                    profileId_questId_characterName: { 
-                                        profileId: ctx.profileId!, 
-                                        questId,
-                                        characterName: charName 
-                                    },
-                                },
-                                update: { status: "COMPLETED", completedAt: new Date() },
-                                create: {
-                                    profileId: ctx.profileId!,
-                                    guildId: guildConfig.id,
+            if (allEntryIds.length > 0) {
+                const targetStatus = obtained ? "COMPLETED" : "NOT_STARTED";
+                const targetCompletedAt = obtained ? new Date() : null;
+
+                await db.$transaction(
+                    allEntryIds.map((questId: string) =>
+                        (db as any).playerDofusQuestProgress.upsert({
+                            where: {
+                                profileId_questId_characterName: { 
+                                    profileId: ctx.profileId!, 
                                     questId,
-                                    characterName: charName,
-                                    status: "COMPLETED",
-                                    completedAt: new Date(),
+                                    characterName: charName 
                                 },
-                            })
-                        )
-                    );
-                }
-                // Also update the completion percentage to 100
-                await (db as any).playerDofusProgress.update({
-                    where: {
-                        profileId_dofusId_characterName: {
-                            profileId: ctx.profileId,
-                            dofusId,
-                            characterName: charName,
-                        },
-                    },
-                    data: { completionPercent: 100 }
-                });
+                            },
+                            update: { status: targetStatus, completedAt: targetCompletedAt },
+                            create: {
+                                profileId: ctx.profileId!,
+                                guildId: guildConfig.id,
+                                questId,
+                                characterName: charName,
+                                status: targetStatus,
+                                completedAt: targetCompletedAt,
+                            },
+                        })
+                    )
+                );
             }
         }
 
@@ -1366,6 +1378,7 @@ export async function updateDolmanaxProgress(
     if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
     try {
+        const isDone = pages >= 365;
         const percent = Math.min(100, Math.round((pages / 365) * 100));
         const notes = `PAGES:${pages}`;
         
@@ -1377,17 +1390,50 @@ export async function updateDolmanaxProgress(
                     characterName,
                 },
             },
-            update: { completionPercent: percent, isObtained: pages >= 365, notes },
+            update: { completionPercent: percent, isObtained: isDone, notes },
             create: {
                 profileId: ctx.profileId,
                 guildId: guildConfig.id,
                 dofusId,
                 characterName,
                 completionPercent: percent,
-                isObtained: pages >= 365,
+                isObtained: isDone,
                 notes
             },
         });
+
+        if (isDone) {
+            const chains = await (db as any).dofusQuestChain.findMany({
+                where: { dofusId },
+                include: { entries: { select: { id: true } } },
+            });
+            const allEntryIds = chains.flatMap((c: any) => c.entries.map((e: any) => e.id));
+
+            if (allEntryIds.length > 0) {
+                await db.$transaction(
+                    allEntryIds.map((questId: string) =>
+                        (db as any).playerDofusQuestProgress.upsert({
+                            where: {
+                                profileId_questId_characterName: { 
+                                    profileId: ctx.profileId!, 
+                                    questId,
+                                    characterName 
+                                },
+                            },
+                            update: { status: "COMPLETED", completedAt: new Date() },
+                            create: {
+                                profileId: ctx.profileId!,
+                                guildId: guildConfig.id,
+                                questId,
+                                characterName,
+                                status: "COMPLETED",
+                                completedAt: new Date(),
+                            },
+                        })
+                    )
+                );
+            }
+        }
 
         revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
         return { success: true };
@@ -1420,6 +1466,7 @@ export async function updateDokilleProgress(
         const TOTAL_KROKILLES = 20;
         const uniqueMonsters = [...new Set(capturedMonsters)];
         const count = uniqueMonsters.length;
+        const isDone = count >= TOTAL_KROKILLES;
         const percent = Math.min(100, Math.round((count / TOTAL_KROKILLES) * 100));
         const notes = `KROKILLES:${JSON.stringify(uniqueMonsters)}`;
         
@@ -1431,17 +1478,51 @@ export async function updateDokilleProgress(
                     characterName,
                 },
             },
-            update: { completionPercent: percent, isObtained: count >= TOTAL_KROKILLES, notes },
+            update: { completionPercent: percent, isObtained: isDone, notes },
             create: {
                 profileId: ctx.profileId,
                 guildId: guildConfig.id,
                 dofusId,
                 characterName,
                 completionPercent: percent,
-                isObtained: count >= TOTAL_KROKILLES,
+                isObtained: isDone,
                 notes
             },
         });
+
+        // Si 20/20 monstres sont complétés, marquer aussi toutes les quêtes de la chaîne en COMPLETED
+        if (isDone) {
+            const chains = await (db as any).dofusQuestChain.findMany({
+                where: { dofusId },
+                include: { entries: { select: { id: true } } },
+            });
+            const allEntryIds = chains.flatMap((c: any) => c.entries.map((e: any) => e.id));
+
+            if (allEntryIds.length > 0) {
+                await db.$transaction(
+                    allEntryIds.map((questId: string) =>
+                        (db as any).playerDofusQuestProgress.upsert({
+                            where: {
+                                profileId_questId_characterName: { 
+                                    profileId: ctx.profileId!, 
+                                    questId,
+                                    characterName 
+                                },
+                            },
+                            update: { status: "COMPLETED", completedAt: new Date() },
+                            create: {
+                                profileId: ctx.profileId!,
+                                guildId: guildConfig.id,
+                                questId,
+                                characterName,
+                                status: "COMPLETED",
+                                completedAt: new Date(),
+                            },
+                        })
+                    )
+                );
+            }
+        }
 
         revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
         return { success: true };

@@ -360,7 +360,8 @@ client.on(Events.GuildDelete, async (guild) => {
 // Event: Member Add (Reactivation)
 // ========================
 client.on(Events.GuildMemberAdd, async (member) => {
-    console.log(`[Discord Bot] 👤 Member joined: ${member.user.tag} in ${member.guild.name}`);
+    const serverNickname = member.nickname || member.displayName || member.user.displayName || member.user.username;
+    console.log(`[Discord Bot] 👤 Member joined: ${serverNickname} (${member.user.tag}) in ${member.guild.name}`);
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -400,6 +401,7 @@ client.on(Events.GuildMemberAdd, async (member) => {
                     archivedAt: null,
                     archiveReason: null,
                     scheduledDeletion: null, // Cancel any pending hard delete
+                    discordNickname: member.nickname || member.user.username,
                 },
             });
 
@@ -414,11 +416,17 @@ client.on(Events.GuildMemberAdd, async (member) => {
                     targetId: member.user.id,
                     oldValue: { status: 'ARCHIVED' },
                     newValue: { status: 'ACTIVE' },
-                    metadata: { discordUserId: member.user.id, username: member.user.tag, reason: 'Returned to guild' },
+                    metadata: {
+                        discordUserId: member.user.id,
+                        username: member.user.tag,
+                        serverNickname,
+                        changeDetail: 'Arrivée sur le serveur Discord',
+                        reason: 'Nouveau membre / Réintégration',
+                    },
                 },
             });
 
-            console.log(`[Discord Bot] ✅ Reactivated profile for ${member.user.tag}`);
+            console.log(`[Discord Bot] ✅ Reactivated profile for ${serverNickname} (${member.user.tag})`);
         }
     } catch (error) {
         console.error(`[Discord Bot] Error handling GUILD_MEMBER_ADD:`, error);
@@ -429,7 +437,8 @@ client.on(Events.GuildMemberAdd, async (member) => {
 // Event: Member Remove
 // ========================
 client.on(Events.GuildMemberRemove, async (member) => {
-    console.log(`[Discord Bot] 👤 Member left: ${member.user.tag} from ${member.guild.name}`);
+    const serverNickname = member.nickname || member.displayName || member.user.displayName || member.user.username;
+    console.log(`[Discord Bot] 👤 Member left: ${serverNickname} (${member.user.tag}) from ${member.guild.name}`);
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -477,7 +486,13 @@ client.on(Events.GuildMemberRemove, async (member) => {
                     targetId: member.user.id,
                     oldValue: { status: 'ACTIVE' },
                     newValue: { status: 'ARCHIVED', archiveReason: 'LEFT' },
-                    metadata: { discordUserId: member.user.id, username: member.user.tag },
+                    metadata: {
+                        discordUserId: member.user.id,
+                        username: member.user.tag,
+                        serverNickname,
+                        changeDetail: 'Départ du serveur Discord',
+                        reason: 'A quitté le serveur Discord',
+                    },
                 },
             });
 
@@ -491,7 +506,7 @@ client.on(Events.GuildMemberRemove, async (member) => {
                 if (guildFull?.lifecycleNotifyChannelId) {
                     const channel = await client.channels.fetch(guildFull.lifecycleNotifyChannelId).catch(() => null);
                     if (channel && channel.isTextBased() && 'send' in channel) {
-                        const displayName = member.nickname || member.user.displayName || member.user.username;
+                        const displayName = serverNickname;
                         await channel.send({
                             embeds: [{
                                 title: '📤 Membre Parti (Discord)',
@@ -515,7 +530,7 @@ client.on(Events.GuildMemberRemove, async (member) => {
                 console.error('[Discord Bot] Failed to send lifecycle notification:', notifErr);
             }
 
-            console.log(`[Discord Bot] ✅ Archived profile for ${member.user.tag}`);
+            console.log(`[Discord Bot] ✅ Archived profile for ${serverNickname} (${member.user.tag})`);
         }
     } catch (error) {
         console.error(`[Discord Bot] Error handling GUILD_MEMBER_REMOVE:`, error);
@@ -523,12 +538,18 @@ client.on(Events.GuildMemberRemove, async (member) => {
 });
 
 // ========================
-// Event: Member Update (Nicknames)
+// Event: Member Update (Nicknames & Roles)
 // ========================
 client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
-    if (oldMember.nickname === newMember.nickname) return;
+    const oldNick = oldMember.nickname || oldMember.displayName;
+    const newNick = newMember.nickname || newMember.displayName;
+    const nickChanged = oldMember.nickname !== newMember.nickname;
 
-    console.log(`[Discord Bot] ✏️ Nickname changed: ${newMember.user.tag} (${oldMember.nickname || 'None'} -> ${newMember.nickname || 'None'})`);
+    const addedRoles = newMember.roles.cache.filter(r => !oldMember.roles.cache.has(r.id) && r.id !== newMember.guild.id);
+    const removedRoles = oldMember.roles.cache.filter(r => !newMember.roles.cache.has(r.id) && r.id !== newMember.guild.id);
+    const rolesChanged = addedRoles.size > 0 || removedRoles.size > 0;
+
+    if (!nickChanged && !rolesChanged) return;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -538,40 +559,81 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
 
         if (!guildConfig) return;
 
-        // Update profile cache
-        await db.userProfile.updateMany({
-            where: {
-                user: {
-                    accounts: {
-                        some: {
-                            provider: 'discord',
-                            providerAccountId: newMember.user.id
-                        }
-                    }
-                },
-                guildId: guildConfig.id
-            },
-            data: { discordNickname: newMember.nickname || newMember.user.username }
-        });
+        // Si le surnom a changé, mettre à jour le cache UserProfile
+        if (nickChanged) {
+            console.log(`[Discord Bot] ✏️ Nickname changed: ${newMember.user.tag} (${oldNick} -> ${newNick})`);
 
-        // Log audit
-        await db.auditLog.create({
-            data: {
-                guildId: guildConfig.id,
-                actorUserId: 'SYSTEM',
-                actorName: 'Discord Gateway Bot',
-                action: 'WEBHOOK_MEMBER_UPDATE',
-                targetType: 'PROFILE',
-                targetId: newMember.user.id,
-                oldValue: { nickname: oldMember.nickname },
-                newValue: { nickname: newMember.nickname },
-                metadata: {
-                    discordUserId: newMember.user.id,
-                    type: 'NICKNAME_CHANGE',
-                    username: newMember.user.tag
+            await db.userProfile.updateMany({
+                where: {
+                    user: {
+                        accounts: {
+                            some: {
+                                provider: 'discord',
+                                providerAccountId: newMember.user.id
+                            }
+                        }
+                    },
+                    guildId: guildConfig.id
                 },
-            },
-        });
+                data: { discordNickname: newMember.nickname || newMember.user.username }
+            });
+
+            // Log audit
+            await db.auditLog.create({
+                data: {
+                    guildId: guildConfig.id,
+                    actorUserId: 'SYSTEM',
+                    actorName: 'Discord Gateway Bot',
+                    action: 'WEBHOOK_MEMBER_UPDATE',
+                    targetType: 'PROFILE',
+                    targetId: newMember.user.id,
+                    oldValue: { nickname: oldMember.nickname || null },
+                    newValue: { nickname: newMember.nickname || null },
+                    metadata: {
+                        discordUserId: newMember.user.id,
+                        type: 'NICKNAME_CHANGE',
+                        username: newMember.user.tag,
+                        serverNickname: newNick,
+                        oldServerNickname: oldNick,
+                        changeDetail: `Surnom serveur : "${oldNick}" ➔ "${newNick}"`,
+                        reason: 'Modification de surnom sur le serveur Discord',
+                    },
+                },
+            });
+        }
+
+        // Si les rôles ont changé, logguer la modification de rôles Discord
+        if (rolesChanged) {
+            const addedNames = addedRoles.map(r => r.name);
+            const removedNames = removedRoles.map(r => r.name);
+            const parts: string[] = [];
+            if (addedNames.length > 0) parts.push(`+${addedNames.join(', +')}`);
+            if (removedNames.length > 0) parts.push(`-${removedNames.join(', -')}`);
+            const changeDetail = `Rôles Discord : ${parts.join(' | ')}`;
+
+            console.log(`[Discord Bot] 🛡️ Roles changed for ${newNick} (${newMember.user.tag}): ${changeDetail}`);
+
+            await db.auditLog.create({
+                data: {
+                    guildId: guildConfig.id,
+                    actorUserId: 'SYSTEM',
+                    actorName: 'Discord Gateway Bot',
+                    action: 'WEBHOOK_MEMBER_UPDATE',
+                    targetType: 'PROFILE',
+                    targetId: newMember.user.id,
+                    oldValue: { roles: oldMember.roles.cache.filter(r => r.id !== newMember.guild.id).map(r => r.name) },
+                    newValue: { roles: newMember.roles.cache.filter(r => r.id !== newMember.guild.id).map(r => r.name) },
+                    metadata: {
+                        discordUserId: newMember.user.id,
+                        type: 'ROLES_CHANGE',
+                        username: newMember.user.tag,
+                        serverNickname: newNick,
+                        changeDetail,
+                        reason: 'Attribution ou retrait de rôles Discord',
+                    },
+                },
+            });
+        }
     } catch (error) {
         console.error(`[Discord Bot] Error handling GUILD_MEMBER_UPDATE:`, error);
     }

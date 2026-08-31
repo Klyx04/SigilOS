@@ -110,10 +110,11 @@ const PROFILE_STEPS: TourStep[] = [
         placement: "right"
     },
     {
-        target: '[data-tour="profile-tab-planning"]',
+        target: '[data-tour="profile-planning"]',
         title: "Tes disponibilités",
         description: "Renseigne tes créneaux horaires pour faciliter l'organisation de runs de donjons ou de songes.",
-        placement: "right"
+        placement: "top",
+        module: "availability"
     },
     {
         target: '[data-tour="profile-tab-combat"]',
@@ -131,7 +132,8 @@ const PROFILE_STEPS: TourStep[] = [
         target: '[data-tour="profile-tab-activity"]',
         title: "Présence & Feed",
         description: "Gère ta présence et consulte l'activité récente de tes compagnons.",
-        placement: "right"
+        placement: "right",
+        module: "missions"
     },
     {
         target: '[data-tour="profile-tab-settings"]',
@@ -1315,13 +1317,25 @@ export function TourProvider({
     const isFirstAdminForGuild = !!user?.isFirstAdminForGuild;
     const isSuperAdmin = !!user?.isSuperAdmin;
 
-    // Filtre les steps selon modules actifs + permissions RBAC admin
+    // Filtre les steps selon modules actifs + permissions RBAC admin + mode vitrine
     const applyFilters = (steps: TourStep[]) => steps.filter(step => {
-        if (step.module && modules && !modules[step.module]) return false;
+        if (step.module && modules && !modules[step.module]) {
+            // Cas particulier : availability peut être couvert par calendar
+            if (step.module === "availability" && modules.calendar) {
+                // keep
+            } else {
+                return false;
+            }
+        }
         if (step.requiresPerm && user && user[step.requiresPerm] === false) return false;
+        // Si le mode vitrine des missions est activé (missionVitrineMode), masquer Présence & Feed
+        if (step.target === '[data-tour="profile-tab-activity"]' && (user?.missionVitrineMode || (modules && !modules.missions))) {
+            return false;
+        }
         return true;
     });
 
+    const profileSteps = applyFilters(PROFILE_STEPS);
     const adminOnboardingSteps = applyFilters(ADMIN_ONBOARDING_STEPS);
     const adminModulesSteps = applyFilters(ADMIN_MODULES_STEPS);
     const dashboardSteps = applyFilters(DASHBOARD_STEPS);
@@ -1355,7 +1369,7 @@ export function TourProvider({
 
     const getPhaseSteps = (phase: TourPhase): TourStep[] => {
         switch (phase) {
-            case "profile": return PROFILE_STEPS;
+            case "profile": return profileSteps;
             case "dashboard": return dashboardSteps;
             case "dashboardBricks": return dashboardBricksSteps;
             case "admin": return adminOnboardingSteps;

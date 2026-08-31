@@ -18,7 +18,7 @@ import { DofusIcon } from "@/components/dofus-quests/DofusIcon";
 import { getDofusColor } from "@/components/dofus-quests/dofus-colors";
 import { DofusOcreMetamob } from "@/components/dofus-quests/DofusOcreMetamob";
 import { DofusDolmanaxTracker } from "@/components/dofus-quests/DofusDolmanaxTracker";
-import { DofusDokilleTracker } from "@/components/dofus-quests/DofusDokilleTracker";
+import { DofusDokilleTracker, ALL_KROKILLE_MONSTERS } from "@/components/dofus-quests/DofusDokilleTracker";
 import { notFound } from "next/navigation";
 import { linkOcreAccount } from "@/server/actions/ocre-actions";
 import { DofusQuestBanner } from "@/components/dofus-quests/DofusQuestBanner";
@@ -76,6 +76,8 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
         } catch {
             initialCapturedKrokilles = [];
         }
+    } else if (dofusSlug === "dokille" && dofus.isObtained) {
+        initialCapturedKrokilles = [...ALL_KROKILLE_MONSTERS];
     }
 
     return (
@@ -271,20 +273,6 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                 </div>
             )}
 
-            {/* Dokille — Trackeur « Safari des Krokilles » */}
-            {dofusSlug === "dokille" && (
-                <DofusDokilleTracker
-                    guildId={guildId}
-                    dofusId={dofus.id}
-                    dofusColor={color}
-                    initialCaptured={initialCapturedKrokilles}
-                    onSave={async (monsters) => {
-                        "use server";
-                        return updateDokilleProgress(guildId, dofus.id, monsters, character);
-                    }}
-                />
-            )}
-
             <DofusQuestManagerV3
                 guildId={guildId}
                 dofus={dofus}
@@ -295,6 +283,21 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                 initialGlobalCompletedIds={globalCompletedResult.success ? globalCompletedResult.data : []}
                 prereqsByQuestId={prereqsByQuestId}
                 metamobPseudo={user.metamobPseudo}
+                customSlotAfterPrerequisites={
+                    dofusSlug === "dokille" ? (
+                        <DofusDokilleTracker
+                            guildId={guildId}
+                            dofusId={dofus.id}
+                            dofusColor={color}
+                            isObtained={dofus.isObtained}
+                            initialCaptured={dofus.isObtained ? ALL_KROKILLE_MONSTERS : initialCapturedKrokilles}
+                            onSave={async (monsters) => {
+                                "use server";
+                                return updateDokilleProgress(guildId, dofus.id, monsters, character);
+                            }}
+                        />
+                    ) : undefined
+                }
             />
         </div>
     );

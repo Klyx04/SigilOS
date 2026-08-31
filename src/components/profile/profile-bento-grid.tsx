@@ -153,20 +153,21 @@ export function ProfileBentoGrid({
     const initialTab = initialTabProp || searchParams.get("tab") || "overview";
     const [activeTab, setActiveTab] = useState(initialTab);
 
-    const { tourPhase, currentStep } = useTour();
+    const { tourPhase, activeStepData } = useTour();
 
-    // Synchronize activeTab with onboarding tour phase & step
+    // Synchronize activeTab with onboarding tour phase & active step target
     useEffect(() => {
-        if (tourPhase === "profile") {
-            if (currentStep === 4) setActiveTab("metiers");
-            else if (currentStep === 5) setActiveTab("planning");
-            else if (currentStep === 6) setActiveTab("combat");
-            else if (currentStep === 7) setActiveTab("dofus");
-            else if (currentStep === 8) setActiveTab("activity");
-            else if (currentStep === 9) setActiveTab("settings");
-            else if (currentStep >= 1 && currentStep <= 3) setActiveTab("overview");
+        if (tourPhase === "profile" && activeStepData?.target) {
+            const target = activeStepData.target;
+            if (target.includes("metiers")) setActiveTab("metiers");
+            else if (target.includes("planning")) setActiveTab("planning");
+            else if (target.includes("combat")) setActiveTab("combat");
+            else if (target.includes("dofus")) setActiveTab("dofus");
+            else if (target.includes("activity")) setActiveTab("activity");
+            else if (target.includes("settings")) setActiveTab("settings");
+            else if (target.includes("profile-header") || target.includes("profile-class") || target.includes("overview")) setActiveTab("overview");
         }
-    }, [currentStep, tourPhase]);
+    }, [activeStepData, tourPhase]);
 
     // Default permissions to true if not provided (internal consistency)
     const { 
@@ -624,7 +625,7 @@ export function ProfileBentoGrid({
                             </div>
 
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                <div className="lg:col-span-2">
+                                <div className="lg:col-span-2" data-tour="profile-planning">
                                     <AvailabilityHeatmap
                                         availability={localProfile.availability || {}}
                                         onSave={handleAvailabilitySave}

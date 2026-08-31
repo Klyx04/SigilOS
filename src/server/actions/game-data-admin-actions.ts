@@ -741,21 +741,20 @@ export async function siphonQuestsFromDofusDB(limit = 100): Promise<ActionRespon
     const userId = await requireSuperAdmin();
     if (!userId) return { success: false, error: "Accès refusé" };
 
-    const capped = Math.min(300, Math.max(10, Math.round(limit) || 100));
+    const capped = Math.min(500, Math.max(10, Math.round(limit) || 100));
 
     try {
         let created = 0;
         let skipped = 0;
         let errors = 0;
-        let fetched = 0;
-        let page = 1;
+        let skip = 0;
         const pageSize = 50;
+        let totalRemote = Infinity;
 
-        while (fetched < capped) {
-            const take = Math.min(pageSize, capped - fetched);
-            // DofusDB pagine via `$limit`/`$skip` (et NON `limit`/`page`, qui renvoient un
-            // `total:0` / `data:[]` → bug « 0 quête siphonnée »). `$skip` = offset cumulé.
-            const skip = (page - 1) * pageSize;
+        while (created < capped && skip < totalRemote) {
+            const take = pageSize;
+            // DofusDB pagine via `$limit`/`$skip`. On pagine continuellement jusqu'à importer
+            // `capped` NOUVELLES quêtes ou atteindre la fin de l'API DofusDB.
             const res = await fetch(`https://api.dofusdb.fr/quests?$limit=${take}&$skip=${skip}`, {
                 headers: { Accept: "application/json" },
                 signal: AbortSignal.timeout(15000),
@@ -768,11 +767,14 @@ export async function siphonQuestsFromDofusDB(limit = 100): Promise<ActionRespon
             }
 
             const json = await res.json();
+            if (typeof json?.total === "number") totalRemote = json.total;
             const data: any[] = Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : []);
 
             if (data.length === 0) break;
 
             for (const q of data) {
+                if (created >= capped) break;
+
                 const dofusDbId = Number(q?.id) || null;
                 const name = String(q?.name?.fr || q?.name || q?.className || "").trim();
                 if (!name) { errors++; continue; }
@@ -804,12 +806,10 @@ export async function siphonQuestsFromDofusDB(limit = 100): Promise<ActionRespon
                 }
             }
 
-            fetched += data.length;
+            skip += data.length;
 
             // Fin de pagination : DofusDB a renvoyé moins d'éléments que demandés.
             if (data.length < take) break;
-
-            page++;
         }
 
         if (created > 0) revalidatePath('/god/game-data');

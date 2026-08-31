@@ -1202,8 +1202,11 @@ export async function sendServiceReplyAction(
         }
 
         // 6. Notification Dashboard au récepteur
-        const senderName = await db.user.findUnique({ where: { id: actorUserId }, select: { name: true } });
-        const senderLabel = senderName?.name || (isProvider ? listing.profile.pseudoDofus || "Passeur" : "Client");
+        const senderProfile = await db.userProfile.findFirst({
+            where: { userId: actorUserId, guildId: guildConfig.id },
+            select: { discordNickname: true, pseudoDofus: true, user: { select: { name: true } } }
+        });
+        const senderLabel = senderProfile?.discordNickname || senderProfile?.pseudoDofus || senderProfile?.user?.name || (isProvider ? listing.profile.pseudoDofus || "Passeur" : "Client");
         const title = `Réponse de ${senderLabel} — ${listing.title}`;
 
         try {

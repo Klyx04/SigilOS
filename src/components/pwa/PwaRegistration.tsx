@@ -9,7 +9,29 @@ export function PwaRegistration() {
     useEffect(() => {
         if (typeof window !== "undefined" && "serviceWorker" in navigator && process.env.NODE_ENV === "production") {
             window.addEventListener("load", () => {
-                navigator.serviceWorker.register("/sw.js").catch(() => {
+                navigator.serviceWorker.register("/sw.js").then((registration) => {
+                    // ⚠️ FIX (icônes cassées après déploiement PWA) : le navigateur ne
+                    // re-vérifie `/sw.js` qu'à la navigation, et encore : seulement si
+                    // le script n'est pas mis en cache. Pour qu'un nouveau SW (ex. après
+                    // la correction cache-first) soit pris en compte IMMÉDIATEMENT, on
+                    // force `registration.update()` au chargement.
+                    registration.update().catch(() => {
+                        // Ignorer les erreurs — le navigateur réessaiera à la navigation.
+                    });
+
+                    // Dès qu'une nouvelle version est téléversée, elle va passer par
+                    // skipWaiting() + clients.claim() (déjà dans sw.js) → prend la main
+                    // sans rechargement. On notifie juste pour diagnostiquer.
+                    registration.addEventListener("updatefound", () => {
+                        const sw = registration.installing;
+                        if (!sw) return;
+                        sw.addEventListener("statechange", () => {
+                            if (sw.state === "activated") {
+                                console.info("[SW] Nouvelle version active (caches purgés).");
+                            }
+                        });
+                    });
+                }).catch(() => {
                     // Silently fail if SW unsupported
                 });
             });

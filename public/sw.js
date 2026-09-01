@@ -1,5 +1,5 @@
 // 🛡️ Service Worker SigilOS — PWA & Offline Caching (#197)
-const CACHE_NAME = 'sigilos-cache-v2';
+const CACHE_NAME = 'sigilos-cache-v3';
 const STATIC_ASSETS = [
     '/',
     '/manifest.webmanifest',
@@ -83,7 +83,10 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Network First with Cache Fallback for HTML and Guides
+    // HTML / RSC / API : Network First with Cache Fallback (navigations).
+    // ⚠️ Ne JAMAIS renvoyer le document racine pour une sous-ressource (image,
+    // `/_next/image`, chunk) qui échoue — sinon le navigateur reçoit du HTML en
+    // guise d'image → image cassée. On ne sert `/` que si c'est une navigation.
     event.respondWith(
         fetch(event.request).then((response) => {
             if (response && response.status === 200 && event.request.mode === 'navigate') {
@@ -96,7 +99,10 @@ self.addEventListener('fetch', (event) => {
         }).catch(async () => {
             const cached = await caches.match(event.request);
             if (cached) return cached;
-            return caches.match('/');
+            if (event.request.mode === 'navigate') {
+                return caches.match('/');
+            }
+            return new Response('', { status: 404 });
         })
     );
 });

@@ -171,6 +171,21 @@ const nextConfig: NextConfig = {
           { key: 'Cross-Origin-Resource-Policy', value: 'same-site' },
         ],
       },
+      // Service Worker & manifest — revalidation obligatoire pour que la PWA
+      // prenne immédiatement un nouveau SW (ex. correctif des icônes cassées).
+      // Sans no-cache, le navigateur garde l'ancien sw.js jusqu'à ~24h.
+      {
+        source: '/sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, must-revalidate' },
+        ],
+      },
+      {
+        source: '/manifest.webmanifest',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, must-revalidate' },
+        ],
+      },
     ];
   },
   // ==========================================================================

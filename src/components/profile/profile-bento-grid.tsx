@@ -32,6 +32,7 @@ import { ProfileReminderBanner } from "./profile-reminder-banner";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import type { AvailabilityMap, ForgemagieStatusId, GlobalAvailability } from "@/lib/dofus-assets";
+import { metierIds, type MetierEntry } from "@/lib/metiers";
 import { useTour } from "@/components/tour/tour-provider";
 
 interface ProfileBentoGridProps {
@@ -41,7 +42,7 @@ interface ProfileBentoGridProps {
         pseudoDofus?: string | null;
         classe?: string | null;
         classeSecondaires?: string[] | null;
-        metiers?: string[] | null;
+        metiers?: string[] | MetierEntry[] | null;
         forgemagieStatus?: string | null;
         fmPriceClassic?: number | null;
         fmPriceTrans?: number | null;
@@ -271,7 +272,7 @@ export function ProfileBentoGrid({
         }
     };
 
-    const handleJobsSave = async (jobs: string[]) => {
+    const handleJobsSave = async (jobs: MetierEntry[]) => {
         setLocalProfile(prev => ({ ...prev, metiers: jobs }));
         const res = await updateUserProfile({
             guildId,
@@ -706,7 +707,7 @@ export function ProfileBentoGrid({
                              <LegendaryCrafting 
                                  guildId={guildId}
                                  profileId={localProfile.id}
-                                 metiers={localProfile.metiers || []}
+                                 metiers={metierIds(localProfile.metiers)}
                                  readOnly={!canEdit}
                              />
                              {/* #69 — en lecture seule, la « Croquette Légendaire » n'apparaît QUE si

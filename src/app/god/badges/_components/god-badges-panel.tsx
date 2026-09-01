@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
+import { safeImageUrl, isSafeImageUrl } from "@/lib/security";
 import {
     Award,
     Plus,
@@ -239,8 +240,8 @@ export function GodBadgesPanel({ initialBadges = [] }: { initialBadges: any[] })
         }
 
         const autoSlug = formSlug.trim() || formName.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-        if (!formImageUrl.trim()) {
-            toast.error("Veuillez choisir ou importer une image pour ce badge.");
+        if (!formImageUrl.trim() || !isSafeImageUrl(formImageUrl)) {
+            toast.error("Veuillez fournir une image valide (URL http(s) ou chemin relatif).");
             return;
         }
 
@@ -250,7 +251,7 @@ export function GodBadgesPanel({ initialBadges = [] }: { initialBadges: any[] })
                 name: formName.trim(),
                 slug: autoSlug,
                 description: formDescription.trim() || null,
-                imageUrl: formImageUrl.trim(),
+                imageUrl: safeImageUrl(formImageUrl),
                 rarity: formRarity,
                 category: formCategory,
                 isSecret: formIsSecret,
@@ -500,7 +501,7 @@ export function GodBadgesPanel({ initialBadges = [] }: { initialBadges: any[] })
                             <div className="w-14 h-14 rounded-2xl bg-background border border-border flex items-center justify-center p-2 shrink-0 overflow-hidden shadow-inner">
                                 {formImageUrl ? (
                                     <img
-                                        src={formImageUrl}
+                                        src={safeImageUrl(formImageUrl)}
                                         alt="Aperçu"
                                         className="w-full h-full object-contain drop-shadow"
                                         onError={(e) => {

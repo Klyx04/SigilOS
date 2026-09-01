@@ -50,7 +50,9 @@ export async function createGuildApiKeyAction(input: z.infer<typeof createApiKey
         const rawEntropy = crypto.randomBytes(24).toString("hex");
         const rawApiKey = `sigil_live_${rawEntropy}`;
         const prefix = rawApiKey.slice(0, 16); // e.g. "sigil_live_ab1234"
-        const keyHash = crypto.createHash("sha256").update(rawApiKey).digest("hex");
+        // CodeQL — hash « insuffisant » : on passe à un KDF memory-hard (scrypt) avec sel aléatoire.
+        const keySalt = crypto.randomBytes(16).toString("hex");
+        const keyHash = `scrypt$${keySalt}$${crypto.scryptSync(rawApiKey, keySalt, 64).toString("hex")}`;
 
         const expiresAt = expiresInDays 
             ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000) 

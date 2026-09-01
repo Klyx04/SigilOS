@@ -27,12 +27,27 @@ export async function validateApiKey(
         };
     }
 
-    const keyHash = crypto.createHash("sha256").update(rawToken).digest("hex");
-
-    const apiKey = await db.guildApiKey.findUnique({
-        where: { keyHash },
+    // CodeQL — dual-scheme : legacy sha256 (clés existantes) puis scrypt (nouveau KDF memory-hard).
+    let apiKey = await db.guildApiKey.findUnique({
+        where: { keyHash: crypto.createHash("sha256").update(rawToken).digest("hex") },
         include: { guild: true }
     });
+
+    if (!apiKey) {
+        const prefix = rawToken.slice(0, 16);
+        const candidates = await db.guildApiKey.findMany({
+            where: { prefix },
+            include: { guild: true }
+        });
+        apiKey = candidates.find((c) => {
+            const stored = (c.keyHash as string) || "";
+            if (!stored.startsWith("scrypt$")) return false;
+            const [ , salt, expected ] = stored.split("$");
+            if (!salt || !expected) return false;
+            const actual = crypto.scryptSync(rawToken, salt, 64).toString("hex");
+            return crypto.timingSafeEqual(Buffer.from(actual), Buffer.from(expected));
+        }) ?? null;
+    }
 
     if (!apiKey) {
         return {

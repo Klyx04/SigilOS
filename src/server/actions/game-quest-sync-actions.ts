@@ -159,7 +159,10 @@ export async function syncDeltas(selectedIds: number[]) {
         for (let i = 0; i < selectedIds.length; i += batchSize) {
             const chunk = selectedIds.slice(i, i + batchSize);
             await Promise.all(
-                chunk.map(async (id) => {
+                chunk.map(async (rawId) => {
+                    // CodeQL SSRF — l'id vient d'une saisie utilisateur : on n'accepte qu'un entier ≥ 0.
+                    const id = Number(rawId);
+                    if (!Number.isInteger(id) || id < 0) return;
                     try {
                         const res = await fetch(`${DOFUSDB_API}/quests/${id}`, {
                             headers: { Accept: "application/json" },

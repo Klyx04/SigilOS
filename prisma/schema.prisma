@@ -456,6 +456,16 @@ model GuildConfig {
   ticketAuditLogs                  TicketAuditLog[]
   apiKeys                          GuildApiKey[]
   slashCommandPermissions          GuildSlashCommandPermission[]
+  // 👥 Module Cycle de vie des membres & Recrutement
+  trialEnabled                     Boolean                 @default(true)
+  trialDurationDays                Int                     @default(14)
+  muleLimitEnabled                 Boolean                 @default(true)
+  maxGuildMules                    Int                     @default(35)
+  recruitmentAlertChannelId        String?
+  arrivingRoleId                   String?
+  trialRoleId                      String?
+  confirmedRoleId                  String?
+  recruitmentWelcomeTemplate       String?
 }
 
 model UserSkin {
@@ -657,6 +667,15 @@ model UserProfile {
   pinnedNavItems             String[]                   @default([])
   lastGalleryShareAt         DateTime?
   userUpdatedAt              DateTime?                  @default(now())
+  // 👥 Cycle de vie membre & Recrutement
+  lifecycleStatus            String?                    @default("CONFIRMED")
+  trialEndsAt                DateTime?
+  recruitedById              String?
+  departureReason            String?
+  departureCategory          String?
+  staffNotes                 String?
+  recruitedByProfile         UserProfile?               @relation("RecruiterProfile", fields: [recruitedById], references: [id], onDelete: SetNull)
+  recruits                   UserProfile[]              @relation("RecruiterProfile")
   achievementSubmissions     AchievementSubmission[]
   djParticipations           DjSearchParticipant[]
   djSearchPosts              DjSearchPost[]

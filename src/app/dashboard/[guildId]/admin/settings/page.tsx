@@ -18,7 +18,7 @@ import { CalendarSettingsClient } from "../calendar/_components/calendar-setting
 import { MissionSettingsClient } from "../_components/mission-settings-client";
 import { MemberSyncButton } from "@/components/admin/member-sync-button";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
-import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 import { DofusSettingsClient } from "@/components/admin/dofus-settings-client";
 import { MemberStatsOverview } from "@/components/admin/member-stats-overview";
 import { MemberManagementTable } from "@/components/admin/member-management-table";
@@ -150,7 +150,7 @@ export default async function FeatureSettingsPage({
                     description="Intégrations Discord, Metamob, Dofus et gestion des membres"
                     icon={Settings}
                     backHref={`/dashboard/${guildId}/admin`}
-                    actions={<AdminTourReplay phase="adminSettings" />}
+                    actions={<ModuleHelpActions docSlug="admin-settings" docTitle="Paramètres Généraux" tourPhase="adminSettings" />}
                 />
             </div>
 

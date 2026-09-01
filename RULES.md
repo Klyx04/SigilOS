@@ -315,6 +315,52 @@ Le script `maintenance.sh` tourne chaque nuit à 4h00 pour purger les caches Doc
 
 ---
 
+## 📖 Règle de Documentation — OBLIGATOIRE
+
+> **Toute modification d'un module existant ou création d'un nouveau module implique une mise à jour (ou création) de sa documentation officielle dans `prisma/seed-docs.ts`.**
+
+### Déclencheurs obligatoires
+
+| Événement | Action requise |
+|-----------|----------------|
+| **Nouveau module créé** (`/admin/xxx`, `/dashboard/xxx`) | Créer un doc `slug: 'nom-du-module'` dans `seed-docs.ts` avec contenu HTML riche |
+| **Module existant modifié en profondeur** | Mettre à jour le contenu du doc correspondant |
+| **Nouveau champ Prisma ou nouvelle Server Action** | Documenter le nouveau comportement dans la doc du module concerné |
+| **Nouvelle permission RBAC ajoutée dans `permissions.ts`** | L'ajouter dans la doc `admin-permissions` (toutes les permissions doivent être documentées) |
+| **Nouveau module ajouté à la sidebar** (`app-sidebar.tsx`) | Lui associer un bouton `<ModuleHelpActions docSlug="..." />` |
+
+### Standard de Rédaction (Anti-AI-Slop)
+
+```typescript
+// ✅ OBLIGATOIRE : HTML sémantique, contenu concret et spécifique
+content: `
+<h2>Titre Clair et Fonctionnel</h2>
+<p>Explication pratique de ce que fait ce module, sans jargon inutile.</p>
+<div class="callout callout-tip">
+<strong>💡 Astuce clé</strong>
+Conseil pratique basé sur l'usage réel de la fonctionnalité.
+</div>
+<h3>Processus / Étapes</h3>
+<ol>
+  <li><strong>Étape 1 :</strong> Description concrète et sans ambiguïté.</li>
+</ol>
+`
+// ❌ INTERDIT : Markdown brut (non parsé), texte générique vide de sens,
+//              noms de rôles Discord en dur (@Membre, @Officier),
+//              chiffres ou exemples spécifiques à une guilde.
+```
+
+### Après chaque mise à jour de `seed-docs.ts`
+
+```bash
+# TOUJOURS exécuter pour synchroniser la DB locale
+npm run seed:docs
+
+# Le VPS est mis à jour automatiquement via scripts/deploy.sh (npm run seed:docs inclus)
+```
+
+---
+
 ## 📚 References
 
 - [.antigravity](./.antigravity) - Full project context

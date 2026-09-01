@@ -98,7 +98,62 @@
 6. **Scripts `.ps1` de refactoring ponctuel = HORS GIT** (seuls les scripts de build/déploiement/maintenance sont commités).
 7. **Captures d'écran** : pour tout retour visuel (UI, maquette, bug d'affichage, rendu carte/donjon/quête), **demander au user une capture d'écran** plutôt que de deviner.
 
-## 🗂️ Archives (tout est conservé, rien n’est supprimé)
+## 📚 Système de Documentation Intégré (DocDrawer)
+
+> Référence : `prisma/seed-docs.ts` · Contenu en base `DocPage` · `npm run seed:docs` pour synchroniser.
+
+### Architecture du système
+
+| Fichier | Rôle |
+|---------|------|
+| `prisma/seed-docs.ts` | Source de vérité de toutes les documentations (HTML sémantique) |
+| `src/components/doc/doc-drawer.tsx` | Slide-over contextuel (TOC auto, scroll-spy, plein écran) |
+| `src/components/doc/doc-drawer-context.tsx` | Context React global `openDoc(slug, title)` / `closeDoc()` |
+| `src/components/doc/module-help-actions.tsx` | Bouton `[ 📖 Documentation ]` + `[ ❓ Tutoriel ]` à placer dans chaque header de module |
+| `src/app/docs/layout.tsx` | Page de documentation complète avec sidebar catégorisée |
+| `src/app/docs/[...slug]/_components/doc-viewer.tsx` | Rendu d'une page doc avec TOC latérale droite |
+| `src/server/actions/doc-actions.ts` | RBAC : filtre les docs selon `isAdmin`/`isMember`/`PUBLIC` |
+| `src/components/doc/doc-content.tsx` | Sanitisation HTML + classes CSS (`callout-tip`, `callout-info`...) |
+
+### Intégration dans un module
+
+```tsx
+// Dans le header de chaque page de module (next to tour button)
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
+
+<ModuleHelpActions
+    docSlug="mon-module"          // Correspond au slug dans seed-docs.ts
+    docTitle="Titre du Module"    // Affiché dans le drawer
+    tourPhase="monModuleTour"     // Phase du tour interactif
+/>
+```
+
+### Niveaux d'accès (RBAC)
+
+| `accessLevel` | Visible par |
+|---------------|-------------|
+| `PUBLIC` | Tout visiteur non connecté |
+| `MEMBER` | Membres connectés avec accès dashboard |
+| `ADMIN` | Staff et administrateurs uniquement |
+
+### Classes CSS disponibles dans le contenu HTML
+
+```html
+<div class="callout callout-tip">💡 Astuce</div>
+<div class="callout callout-info">ℹ️ Information</div>
+<div class="callout callout-important">⚠️ Important</div>
+<div class="callout callout-warning">🚨 Attention</div>
+<table>...</table>   <!-- Tableaux stylés automatiquement -->
+<ol class="steps">   <!-- Liste d'étapes numérotées -->
+```
+
+### Déploiement VPS
+
+`scripts/deploy.sh` exécute automatiquement `npm run seed:docs` — les docs sont toujours à jour en prod.
+
+---
+
+## 🗂️ Archives (tout est conservé, rien n'est supprimé)
 
 - Historique complet des sessions : `src/temp/archive/contexte/CONTEXT-historique-complet-2026-08-21.md`
 - Historique complet du chantier (toutes demandes annotées) : `src/temp/archive/contexte/chantier-historique-complet-2026-08-21.md`

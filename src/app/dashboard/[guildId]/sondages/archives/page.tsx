@@ -5,6 +5,8 @@ import { getPolls } from "@/server/actions/poll-actions";
 import { PollList } from "@/components/sondages/poll-list";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
+
 export default async function PollArchivesPage({ params }: { params: Promise<{ guildId: string }> }) {
     const { guildId } = await params;
 
@@ -24,6 +26,7 @@ export default async function PollArchivesPage({ params }: { params: Promise<{ g
                 icon={History}
                 iconColor="#8b5cf6"
                 backHref={`/dashboard/${guildId}/sondages`}
+                actions={<ModuleHelpActions docSlug="sondages" docTitle="Sondages Communautaires" tourPhase="sondages" />}
             />
 
             <PollList

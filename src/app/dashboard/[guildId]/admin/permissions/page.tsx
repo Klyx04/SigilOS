@@ -9,7 +9,7 @@ import { getUserContext, getGuildMembers } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { type PermissionId } from "@/lib/permissions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
-import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 import { Shield, AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -94,7 +94,7 @@ export default async function PermissionsPage({
                     description={`Attribuez les droits aux rôles Discord et aux membres de ${config.name}`}
                     icon={Shield}
                     backHref={`/dashboard/${guildId}/admin`}
-                    actions={<AdminTourReplay phase="adminPermissions" />}
+                    actions={<ModuleHelpActions docSlug="admin-permissions" docTitle="Rôles & Permissions" tourPhase="adminPermissions" />}
                 />
             </div>
             <Alert className="bg-warning/10 border-warning/20 text-warning mb-8">

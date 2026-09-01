@@ -27,6 +27,12 @@
   restauration DB automatique (`./scripts/restore_db.sh prod --download-latest`), retrait du rewrite Caddy `maintenance.html`
   sur `sigilos.fr`, noindexer la beta, resoumettre le sitemap, vérifier `/legal/*`. **+ trancher la décision landing immersive** (`page.tsx`).
 
+- ✅ **Session 01/09/2026 — Recrutement & Cycle de Vie (#RH), Refonte Documentation & Unification Boutons d'Aide** :
+  - **Module Recrutement & Cycle de Vie (`/admin/recruitment`)** : Gestion des périodes d'essai J-X, annuaire des mules et personnages secondaires, historique des départs & exclusions, relances et alertes Discord automatiques. Modèle `MemberLifecycle`, actions serveur sécurisées et interface pro `MemberLifecycleManager.tsx`.
+  - **Documentation Exhaustive & Sécurisation God** : 28 fiches rédigées sans slop dans `prisma/seed-docs.ts` couvrant les 35 modules. Suppression stricte de tout bouton d'édition côté lecteur, gestion documentaire réservée à `/god/docs`.
+  - **Unification Globale des Boutons [Documentation] + [Tutoriel]** : Standardisation du binôme de boutons `ModuleHelpActions` (ouverture du tiroir latéral contextuel + tutoriel interactif) sur 100% des 35+ modules et sous-modules du Dashboard (Membres et Staff).
+  Vérifs : **vitest 458/458 (52 fichiers)** · **tsc 0** · **build OK**.
+
 - ✅ **Lot 3 : Performance & Optimistic UI (#186a) + PWA & Offline (#197) (31/08)** :
   - **#186a — Optimistic UI (Zero-Latency) & Virtualisation** : Hook `useOptimisticSet` (`use-optimistic-toggle.ts`) pour retours visuels 0ms et rollback automatique. Composant `VirtualList.tsx` pour scroll fluide 60-120 FPS.
   - **#197 — PWA (Progressive Web App) & Cache Offline** : Manifest enrichi (`src/app/manifest.ts`) avec raccourcis Quêtes/Almanax/Défis, icônes adaptatives maskable, Service Worker (`public/sw.js`) pour cache statique/offline et bannière d'installation 1-clic `PwaInstallBanner`.

@@ -44,15 +44,13 @@ export default async function GettingStartedPage({
             <AuroraBackground className="absolute inset-0 z-0 opacity-10 pointer-events-none" />
 
             <div className="relative z-10 space-y-8">
-                <div className="flex items-start justify-between gap-4 mx-1">
-                    <UnifiedModuleHeader
-                        title="Mise en route"
-                        description="Configurez votre guilde en suivant les étapes obligatoires, puis les recommandées"
-                        icon={Rocket}
-                        backHref={`/dashboard/${guildId}/admin`}
-                    />
-                    <AdminTourReplay phase="admin" />
-                </div>
+                <UnifiedModuleHeader
+                    title="Mise en route"
+                    description="Configurez votre guilde en suivant les étapes obligatoires, puis les recommandées"
+                    icon={Rocket}
+                    backHref={`/dashboard/${guildId}/admin`}
+                    actions={<AdminTourReplay phase="admin" />}
+                />
 
                 {/* Alerte critique si étapes obligatoires non complètes */}
                 {!progress.mandatoryComplete && (

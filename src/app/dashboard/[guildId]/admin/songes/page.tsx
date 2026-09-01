@@ -5,6 +5,7 @@ import AccessDenied from "@/components/access-denied";
 import { SongesSettingsClient } from "./_components/songes-settings-client";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { Moon } from "lucide-react";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
 export default async function SongesAdminPage({ params }: { params: Promise<{ guildId: string }> }) {
     const session = await auth();
@@ -21,6 +22,7 @@ export default async function SongesAdminPage({ params }: { params: Promise<{ gu
                 description="Configurez les notifications Discord pour les nouveaux étages de Songes."
                 imageSrc="/assets/ui/icons/songes.png"
                 backHref={`/dashboard/${guildId}/admin/settings`}
+                actions={<ModuleHelpActions docSlug="songes" docTitle="Notifications Songes" />}
             />
             <SongesSettingsClient guildId={guildId} />
         </div>

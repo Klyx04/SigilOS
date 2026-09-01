@@ -7,6 +7,7 @@ import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { Key } from "lucide-react";
 import { GuildApiKeysManager } from "@/components/admin/GuildApiKeysManager";
 import { getGuildApiKeysAction } from "@/server/actions/api-key-actions";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
 export default async function GuildApiKeysAdminPage({
     params
@@ -39,6 +40,7 @@ export default async function GuildApiKeysAdminPage({
                 description={`Gérez les jetons d'accès programmatiques sécurisés de ${config.name}`}
                 icon={Key}
                 backHref={`/dashboard/${guildId}/admin`}
+                actions={<ModuleHelpActions docSlug="admin-api-keys" docTitle="Clés d'API & Intégrations" tourPhase="adminApiKeys" />}
             />
 
             <GuildApiKeysManager

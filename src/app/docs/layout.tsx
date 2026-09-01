@@ -8,6 +8,7 @@ import { ResizableSidebar } from "./_components/resizable-sidebar";
 import { DocsSearch } from "@/components/doc/docs-search";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { getDocMeta, CATEGORY_META } from "@/lib/doc-meta";
 
 export default async function DocsLayout({
     children,
@@ -101,7 +102,22 @@ export default async function DocsLayout({
         if (!groupedDocs[cat]) groupedDocs[cat] = [];
         groupedDocs[cat].push(doc);
     });
-    const categories = Object.keys(groupedDocs).sort();
+    const categoryOrder = [
+        "Progression & Objectifs",
+        "Outils & Services",
+        "Communauté & Guilde",
+        "Administration & Staff",
+        "Spécifications Techniques"
+    ];
+
+    const categories = Object.keys(groupedDocs).sort((a, b) => {
+        const indexA = categoryOrder.indexOf(a);
+        const indexB = categoryOrder.indexOf(b);
+        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+        if (indexA !== -1) return -1;
+        if (indexB !== -1) return 1;
+        return a.localeCompare(b);
+    });
 
     return (
         <div className="flex h-screen h-[100dvh] overflow-hidden bg-background font-sans selection:bg-teal-500/30 text-foreground fixed inset-0 landing-theme dashboard-layout">
@@ -131,11 +147,11 @@ export default async function DocsLayout({
                 </div>
 
                 {/* Scrollable Content */}
-                <main className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar">
-                    <div className="container max-w-7xl mx-auto px-4 sm:px-8 py-12 flex flex-col lg:flex-row gap-16 relative items-start">
+                <main className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar" id="docs-main-scroll">
+                    <div className="w-full max-w-[1750px] mx-auto px-4 sm:px-8 py-8 flex flex-col lg:flex-row gap-8 xl:gap-10 relative items-start">
                         
                         {/* Docs Category Sidebar (Integrated & Premium) */}
-                        <aside className="hidden lg:block w-64 shrink-0 sticky top-6">
+                        <aside className="hidden lg:block w-72 xl:w-80 shrink-0 sticky top-6 max-h-[calc(100vh-8rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-white/5 pr-1">
                             <div className="space-y-10">
                                 {/* Search Section */}
                                 <div>
@@ -144,43 +160,55 @@ export default async function DocsLayout({
                                 </div>
 
                                 {/* Categories Navigation */}
-                                <nav className="space-y-10">
-                                    {categories.map(category => (
-                                        <div key={category} className="space-y-4">
-                                            <div className="flex items-center gap-3 px-1">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-teal-500 " />
-                                                <h4 className="text-caption font-black uppercase tracking-widest text-muted-foreground">
-                                                    {category}
-                                                </h4>
+                                <nav className="space-y-8">
+                                    {categories.map(category => {
+                                        const catMeta = CATEGORY_META[category] || {
+                                            icon: FileText,
+                                            color: "teal",
+                                            badgeClass: "bg-teal-500/10 text-teal-400 border-teal-500/20"
+                                        };
+                                        const CategoryIcon = catMeta.icon;
+
+                                        return (
+                                            <div key={category} className="space-y-2">
+                                                <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg bg-surface/40 border border-border">
+                                                    <CategoryIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                                    <h4 className="text-[11px] font-black uppercase tracking-wider text-muted-foreground truncate">
+                                                        {category}
+                                                    </h4>
+                                                </div>
+                                                
+                                                <ul className="space-y-0.5">
+                                                    {groupedDocs[category].map(doc => {
+                                                        const isSubPage = doc.slug.includes("/");
+                                                        const docMeta = getDocMeta(doc.slug);
+                                                        const DocIcon = docMeta.icon;
+
+                                                        return (
+                                                            <li key={doc.id}>
+                                                                <Link
+                                                                    href={`/docs/${doc.slug}`}
+                                                                    className={cn(
+                                                                        "group flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-body-sm font-bold transition-all duration-200 relative overflow-hidden",
+                                                                        "text-muted-foreground hover:text-foreground hover:bg-surface/80 border border-transparent hover:border-border",
+                                                                        isSubPage && "ml-3 border-l border-border rounded-l-none pl-3"
+                                                                    )}
+                                                                    title={doc.title}
+                                                                >
+                                                                    {/* Hover Accent */}
+                                                                    <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-teal-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                                    
+                                                                    <DocIcon className={cn("w-3.5 h-3.5 shrink-0 transition-colors opacity-70 group-hover:opacity-100", docMeta.textClass)} />
+                                                                    <span className="leading-snug text-xs line-clamp-2">{doc.title}</span>
+                                                                    <ArrowRight className="w-3 h-3 ml-auto opacity-0 -translate-x-2 group-hover:opacity-40 group-hover:translate-x-0 transition-all text-muted-foreground shrink-0" />
+                                                                </Link>
+                                                            </li>
+                                                        );
+                                                    })}
+                                                </ul>
                                             </div>
-                                            
-                                            <ul className="space-y-1">
-                                                {groupedDocs[category].map(doc => {
-                                                    const isSubPage = doc.slug.includes("/");
-                                                    return (
-                                                        <li key={doc.id}>
-                                                            <Link
-                                                                href={`/docs/${doc.slug}`}
-                                                                className={cn(
-                                                                    "group flex items-center gap-3 px-3 py-2.5 rounded-xl text-body-sm font-bold transition-all duration-300 relative overflow-hidden",
-                                                                    "text-muted-foreground hover:text-foreground hover:bg-background/[0.03] border border-transparent hover:border-border",
-                                                                    isSubPage && "ml-4 border-l border-border rounded-l-none pl-4"
-                                                                )}
-                                                                title={doc.title}
-                                                            >
-                                                                {/* Hover Accent */}
-                                                                <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-teal-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                                                
-                                                                <FileText className="w-4 h-4 text-muted-foreground group-hover:text-teal-400 transition-colors shrink-0" />
-                                                                <span className="truncate">{doc.title}</span>
-                                                                <ArrowRight className="w-3.5 h-3.5 ml-auto opacity-0 -translate-x-2 group-hover:opacity-40 group-hover:translate-x-0 transition-all text-muted-foreground" />
-                                                            </Link>
-                                                        </li>
-                                                    );
-                                                })}
-                                            </ul>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </nav>
                             </div>
                         </aside>

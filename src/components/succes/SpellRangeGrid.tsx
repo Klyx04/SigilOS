@@ -747,11 +747,11 @@ export function SpellRangeGrid({
                 )}
 
                 <div className="w-full flex flex-wrap items-center gap-2 mb-2 px-2 relative z-10">
-                    <div className="inline-flex items-center gap-1 bg-zinc-900 border border-white/10 rounded-lg p-0.5">
-                        <button type="button" onClick={() => setZoom((z) => Math.max(ZOOM_MIN, z - 0.25))} className="px-2 py-1 rounded-md text-xs font-black text-zinc-300 hover:text-white hover:bg-zinc-700 transition-all" title="Zoom arrière (Ctrl+molette)">−</button>
-                        <span className="text-[10px] font-bold text-zinc-400 px-1 tabular-nums w-9 text-center">{Math.round(zoom * 100)}%</span>
-                        <button type="button" onClick={() => setZoom((z) => Math.min(ZOOM_MAX, z + 0.25))} className="px-2 py-1 rounded-md text-xs font-black text-zinc-300 hover:text-white hover:bg-zinc-700 transition-all" title="Zoom avant">+</button>
-                        <button type="button" onClick={() => setZoom(1)} className="px-1.5 py-1 rounded-md text-[10px] font-bold text-zinc-400 hover:text-white hover:bg-zinc-700 transition-all" title="Réinitialiser le zoom">1:1</button>
+                    <div className="inline-flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
+                        <button type="button" onClick={() => setZoom((z) => Math.max(ZOOM_MIN, z - 0.25))} className="px-2 py-1 rounded-md text-xs font-black text-muted-foreground hover:text-foreground hover:bg-elevated transition-all" title="Zoom arrière (Ctrl+molette)">−</button>
+                        <span className="text-[10px] font-bold text-muted-foreground px-1 tabular-nums w-9 text-center">{Math.round(zoom * 100)}%</span>
+                        <button type="button" onClick={() => setZoom((z) => Math.min(ZOOM_MAX, z + 0.25))} className="px-2 py-1 rounded-md text-xs font-black text-muted-foreground hover:text-foreground hover:bg-elevated transition-all" title="Zoom avant">+</button>
+                        <button type="button" onClick={() => setZoom(1)} className="px-1.5 py-1 rounded-md text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-elevated transition-all" title="Réinitialiser le zoom">1:1</button>
                     </div>
                     <button
                         type="button"
@@ -759,8 +759,8 @@ export function SpellRangeGrid({
                         className={cn(
                             "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all",
                             placingAlly
-                                ? "bg-sky-500/20 border-sky-400 text-sky-300"
-                                : "bg-zinc-800 border-white/10 text-zinc-300 hover:text-white"
+                                ? "bg-sky-500/20 border-sky-400 text-sky-500 dark:text-sky-300"
+                                : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
                         )}
                     >
                         <Users className="w-3.5 h-3.5" />
@@ -773,8 +773,8 @@ export function SpellRangeGrid({
                             className={cn(
                                 "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all",
                                 showStartCells
-                                    ? "bg-amber-500/20 border-amber-400 text-amber-300"
-                                    : "bg-zinc-800 border-white/10 text-zinc-400 hover:text-white"
+                                    ? "bg-amber-500/20 border-amber-400 text-amber-500 dark:text-amber-300"
+                                    : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
                             )}
                             title="Placer le boss et les monstres sur leurs cases réelles"
                         >
@@ -782,7 +782,7 @@ export function SpellRangeGrid({
                         </button>
                     )}
                     {mapData && totalPlacements > 1 && (
-                        <div className="inline-flex items-center gap-1 bg-zinc-900 border border-white/10 rounded-lg p-0.5">
+                        <div className="inline-flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
                             <span className="text-[11px] font-bold text-zinc-400 pl-2">Placement :</span>
                             <select
                                 value={placementIndex}

@@ -54,6 +54,9 @@ import { getPlatformConfig } from "@/server/actions/god-mini-games-actions";
 import { getTelemetryStats } from "@/server/actions/telemetry-actions";
 import { TelemetryDashboard } from "./components/telemetry-dashboard";
 import { CronStatusPanel } from "./components/cron-status-panel";
+import { ModuleIconsManager } from "./components/module-icons-manager";
+import { GodBadgesPanel } from "./badges/_components/god-badges-panel";
+import { GodSlashCommandsPanel } from "./components/god-slash-commands-panel";
 import { getGodRoute } from "@/lib/god-route";
 
 
@@ -356,6 +359,34 @@ export default async function SuperAdminPage(props: {
                         </div>
                     )}
 
+                    {tab === "module-icons" && (
+                        <div className="space-y-8">
+                            <ModuleIconsManager />
+                        </div>
+                    )}
+
+                    {tab === "badges" && (
+                        <div className="space-y-8">
+                            <Suspense fallback={<div className="animate-pulse bg-surface h-96 rounded-3xl border border-border" />}>
+                                <BadgesServer />
+                            </Suspense>
+                        </div>
+                    )}
+
+                    {tab === "api-keys" && (
+                        <div className="space-y-8">
+                            <Suspense fallback={<div className="animate-pulse bg-surface h-96 rounded-3xl border border-border" />}>
+                                <GodApiKeysServer />
+                            </Suspense>
+                        </div>
+                    )}
+
+                    {tab === "slash-commands" && (
+                        <div className="space-y-8">
+                            <GodSlashCommandsPanel />
+                        </div>
+                    )}
+
                     {tab === "game-data" && (
                         <div className="space-y-12">
                             <div className="space-y-3 pb-8 border-b border-border">
@@ -626,5 +657,27 @@ async function TelemetryServer() {
         return <div className="p-8 text-center text-red-500 text-xs font-mono">Error loading telemetry data</div>;
     }
 }
+
+async function BadgesServer() {
+    try {
+        const { getBadgesCatalogAction } = await import("@/server/actions/badge-actions");
+        const res = await getBadgesCatalogAction();
+        return <GodBadgesPanel initialBadges={res.success ? res.data || [] : []} />;
+    } catch {
+        return <div className="p-8 text-center text-red-500 text-xs font-mono">Erreur lors du chargement des badges</div>;
+    }
+}
+
+async function GodApiKeysServer() {
+    try {
+        const { getPlatformApiKeysOverviewAction } = await import("@/server/actions/api-key-actions");
+        const { GodApiKeysPanel } = await import("./components/god-api-keys-panel");
+        const res = await getPlatformApiKeysOverviewAction();
+        return <GodApiKeysPanel initialKeys={res.success ? res.data || [] : []} />;
+    } catch {
+        return <div className="p-8 text-center text-red-500 text-xs font-mono">Erreur chargement clés API</div>;
+    }
+}
+
 
 

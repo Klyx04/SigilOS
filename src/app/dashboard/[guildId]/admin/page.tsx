@@ -25,9 +25,12 @@ import {
     ShieldAlert,
     Coins,
     Ticket,
+    Key,
+    UserCheck,
 } from "lucide-react";
 import { AdminCard } from "@/components/admin/admin-card";
 import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
 // ============================================================================
 // TYPES
@@ -93,7 +96,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Rôles par Réaction (Reaction Roles)",
                     description: "Panneaux de sélection de rôles interactifs avec boutons, menus déroulants et icônes pour Discord.",
                     accent: "violet",
-                    permission: (u) => u.canManageReactionRoles || u.isAdmin,
+                    permission: (u) => u.canManageReactionRoles,
                     tourId: "admin-overview-card-reaction-roles",
                 },
                 {
@@ -102,7 +105,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Bot Tickets & Support Discord",
                     description: "Gestion des formulaires d'intake, réclamations staff, notes internes et transcripts.",
                     accent: "amber",
-                    permission: (u) => u.canManageTickets || u.isAdmin,
+                    permission: (u) => u.canManageTickets,
                     tourId: "admin-overview-card-tickets",
                 },
                 {
@@ -141,11 +144,20 @@ function buildSections(guildId: string): AdminSection[] {
                 {
                     href: `/dashboard/${guildId}/admin/members`,
                     icon: Users,
-                    title: "Gestion des Membres",
-                    description: "Annuaire admin, synchronisation des pseudos, archivage et relances Discord.",
+                    title: "Audit & Gestion des Membres",
+                    description: "Audit Discord vs Dashboard, synchronisation des pseudos, archivage et relances Discord.",
                     accent: "cyan",
                     permission: (u) => u.canManageMembers || u.canManageRelance,
                     tourId: "admin-overview-card-members",
+                },
+                {
+                    href: `/dashboard/${guildId}/admin/recruitment`,
+                    icon: UserCheck,
+                    title: "Recrutement & Cycle de Vie",
+                    description: "Périodes d'essai J-X, annuaire guilde, gestion des mules et historique des départs.",
+                    accent: "emerald",
+                    permission: (u) => u.canManageMembers,
+                    tourId: "admin-overview-card-recruitment",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/points`,
@@ -170,6 +182,15 @@ function buildSections(guildId: string): AdminSection[] {
                     accent: "slate",
                     permission: (u) => u.canViewAuditLogs,
                     tourId: "admin-overview-card-logs",
+                },
+                {
+                    href: `/dashboard/${guildId}/admin/api-keys`,
+                    icon: Key,
+                    title: "Clés d'API & Dev",
+                    description: "Générez des jetons d'accès programmatiques sécurisés (Bearer Token) pour vos applications tierces.",
+                    accent: "amber",
+                    permission: (u) => u.isAdmin,
+                    tourId: "admin-overview-card-api-keys",
                 },
             ],
         },
@@ -258,7 +279,7 @@ export default async function AdminPage({
                     icon={Shield}
                     iconColor="#f43f5e"
                     backHref={`/dashboard/${guildId}`}
-                    actions={<AdminTourReplay phase="adminOverview" />}
+                    actions={<ModuleHelpActions docSlug="admin-getting-started" docTitle="Guide de Démarrage Admin" tourPhase="adminOverview" />}
                 />
             </div>
 

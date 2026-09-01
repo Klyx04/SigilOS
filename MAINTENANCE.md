@@ -46,6 +46,12 @@ Appelés depuis le crontab VPS (`crontab -l`) via
 - `/api/cron/sync-monster-stats` — **siphon local fiches monstres (DofusDB + Dofensive)** : pour chaque boss de donjon, fiche DofusDB (grades/drops/sorts) fusionnée avec les sorts de combat Dofensive (AP/portée/zone/cooldown/maxCast) → table `MonsterStat`. ⚠️ 1er run lourd (10-30 min, ~tous les boss × 6-8 requêtes) — runs suivants rapides (tout déjà frais). Fréquence recommandée : quotidien (`45 3 * * *`).
 - `/api/cron/check-links` — **vérificateur de liens multi-sources (HEAD)** : flague les slugs cassés DofusDB/Dofensive/DPLN (résultat en audit God, rien stocké). Fréquence recommandée : hebdomadaire (`15 4 * * 0`).
 
+### 📡 Télémétrie et Monitoring GOD (`/god?tab=cron-status`)
+Chaque tâche CRON enregistre automatiquement son état, sa durée et son résumé dans **Redis** via `recordCronExecution` (`src/lib/cron-telemetry.ts`).
+- **TTL automatique** : 7 jours (auto-nettoyage, pas d'accumulation de fichiers de log).
+- **Historisation** : les 10 dernières exécutions sont conservées.
+- **Guide complet d'ajout** : voir [.agents/workflows/add-cron-task.md](.agents/workflows/add-cron-task.md).
+
 ## ✅ Checklist Déploiement — Sync intelligente fiches boss (chantier 06/10, branche `feat/chantier-2026-09-07`)
 
 1. **Migration Prisma** (beta **et** prod) : `npx prisma migrate deploy` → `20261005010000_add_dofensive_sync_tables` (tables `DofensiveDungeon`, `DofensiveMap`, `MonsterStat`).

@@ -89,6 +89,7 @@ import { SupportOrb } from "@/components/shared/support-orb";
 import { db } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { GodBypassCookie } from "@/components/god-bypass-cookie";
+import { PwaRegistration, PwaInstallBanner } from "@/components/pwa/PwaRegistration";
 
 export default async function RootLayout({
   children,
@@ -113,8 +114,10 @@ export default async function RootLayout({
           <AuthProvider session={session}>
             <TooltipProvider>
               <GodBypassCookie />
+              <PwaRegistration />
               {children}
               {donationsEnabled && <SupportOrb />}
+              <PwaInstallBanner />
               <AppToaster />
             </TooltipProvider>
           </AuthProvider>

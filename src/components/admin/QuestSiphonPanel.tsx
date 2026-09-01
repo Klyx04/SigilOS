@@ -57,7 +57,7 @@ export function QuestSiphonPanel() {
                     <Input
                         type="number"
                         min={10}
-                        max={300}
+                        max={500}
                         value={limit}
                         onChange={e => setLimit(e.target.value)}
                         className="w-28 bg-black/40 border-border h-10 rounded-xl text-sm"

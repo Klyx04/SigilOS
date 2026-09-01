@@ -7,6 +7,8 @@ import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { MapViewer } from "@/components/worldmap/map-viewer";
 import { Map as MapIcon } from "lucide-react";
 
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
+
 type Props = {
     params: Promise<{ guildId: string }>;
     searchParams: Promise<{ x?: string; y?: string; zoom?: string; world?: string }>;
@@ -40,6 +42,7 @@ export default async function WorldMapPage({ params, searchParams }: Props) {
                     backHref={`/dashboard/${guildId}`}
                     compact={true}
                     className="mb-0"
+                    actions={<ModuleHelpActions docSlug="worldmap" docTitle="Carte Interactive Dofus HD" />}
                 />
             </div>
             <div className="flex-1 w-full relative">

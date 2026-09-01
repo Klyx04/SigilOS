@@ -247,15 +247,16 @@ export function RegulationForm({ payload, onPayloadChange, onTitleChange, onRank
         const family = families.find(f => f.id === familyId);
         if (family) {
             const currentPayload = payload as RegulationPayload;
+            const fallbackZone = (!currentPayload.zoneId && (family as any).zones?.[0]) ? (family as any).zones[0] : null;
             const newPayload: RegulationPayload = {
                 ...currentPayload,
                 familyId: family.id,
                 familyName: family.name,
                 imageUrl: family.imageUrl || (family.monsters?.[0]?.imageUrl ?? undefined),
                 targetCount: 50,
-                // Ensure zone fields are present
-                zoneId: currentPayload.zoneId,
-                zoneName: currentPayload.zoneName,
+                // Ensure zone fields are present (or auto-completed from family)
+                zoneId: currentPayload.zoneId || fallbackZone?.id,
+                zoneName: currentPayload.zoneName || fallbackZone?.name,
             };
             onPayloadChange(newPayload);
             onTitleChange(`Régulation des ${family.name}`);

@@ -20,6 +20,7 @@ import { getDiscordPublicUrl } from "@/lib/storage-utils";
 import { getDisplayName } from "@/lib/display-name";
 import { resolveDofusImageUrl } from "@/lib/dofus-image-url";
 import { PREFERRED_ACTIVITY_IDS } from "@/lib/profile-activities";
+import { metierIds } from "@/lib/metiers";
 import { postChannelMessage } from "@/server/discord";
 
 const rankingCache = new Map<string, { data: any[], expiresAt: number }>();
@@ -52,7 +53,14 @@ const UpdateProfileSchema = z.object({
         .regex(/^[a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\-\s\[\]]*$/, "Le pseudo ne doit contenir que des lettres, espaces, tirets et crochets (pas de chiffres ni d'autres caractères spéciaux)")
         .optional(),
     classe: z.string().optional(),
-    metiers: z.array(z.string()).optional(),
+    metiers: z.array(z.union([
+        z.string(),
+        z.object({
+            id: z.string().optional(),
+            name: z.string(),
+            level: z.number().int().min(1).max(200).optional(),
+        }),
+    ])).optional(),
     forgemagieStatus: z.enum(["FREE", "PAID", "UNAVAILABLE"]).optional(),
     fmPriceClassic: z.number().min(0, "Prix invalide").nullable().optional(),
     fmPriceTrans: z.number().min(0, "Prix invalide").nullable().optional(),
@@ -1673,8 +1681,8 @@ export async function getGuildMembers(
 
         if (filters?.job) {
             result = result.filter((p: any) => {
-                const jobs = (p.metiers as string[]) || [];
-                return jobs.includes(filters.job!);
+                const ids = metierIds(p.metiers);
+                return ids.includes(filters.job!);
             });
         }
 

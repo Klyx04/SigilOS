@@ -18,7 +18,7 @@ import { DofusIcon } from "@/components/dofus-quests/DofusIcon";
 import { getDofusColor } from "@/components/dofus-quests/dofus-colors";
 import { DofusOcreMetamob } from "@/components/dofus-quests/DofusOcreMetamob";
 import { DofusDolmanaxTracker } from "@/components/dofus-quests/DofusDolmanaxTracker";
-import { DofusDokilleTracker } from "@/components/dofus-quests/DofusDokilleTracker";
+import { DofusDokilleTracker, ALL_KROKILLE_MONSTERS } from "@/components/dofus-quests/DofusDokilleTracker";
 import { notFound } from "next/navigation";
 import { linkOcreAccount } from "@/server/actions/ocre-actions";
 import { DofusQuestBanner } from "@/components/dofus-quests/DofusQuestBanner";
@@ -47,10 +47,12 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
     const enabled = await isModuleEnabled(guildId, "quests");
     if (!enabled) return <AccessDenied />;
 
-    const [result, heatmapResult, globalCompletedResult] = await Promise.all([
+    const isDolmanax = dofusSlug === "dolmanax";
+    const [result, heatmapResult, globalCompletedResult, almanaxList] = await Promise.all([
         getDofusDetailWithChains(guildId, dofusSlug, character),
         getGuildHeatmapForDofus(guildId, dofusSlug),
         getUserCompletedQuestIds(guildId, character),
+        isDolmanax ? (await import("@/server/actions/resources-actions")).getUpcomingAlmanax() : Promise.resolve([]),
     ]);
 
     if (!result.success || !result.data) return notFound();
@@ -76,6 +78,8 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
         } catch {
             initialCapturedKrokilles = [];
         }
+    } else if (dofusSlug === "dokille" && dofus.isObtained) {
+        initialCapturedKrokilles = [...ALL_KROKILLE_MONSTERS];
     }
 
     return (
@@ -251,38 +255,18 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
 
             {dofusSlug === "dolmanax" && (
                 <div
-                    className="rounded-3xl p-6 border transition-all duration-300"
-                    style={{
-                        background: `linear-gradient(135deg, ${color}10 0%, var(--foreground)/[0.05] 100%)`,
-                        border: `1px solid ${color}25`,
-                    }}
+                    className="rounded-3xl p-6 border transition-all duration-300 bg-surface border-border"
                 >
-                    <div className="text-caption font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <span style={{ color }}>📖</span> Progression Almanax
-                    </div>
                     <DofusDolmanaxTracker
                         guildId={guildId}
                         initialPages={initialPages}
+                        upcomingAlmanax={almanaxList}
                         onSave={async (pages) => {
                             "use server";
                             await updateDolmanaxProgress(guildId, dofus.id, pages, character);
                         }}
                     />
                 </div>
-            )}
-
-            {/* Dokille — Trackeur « Safari des Krokilles » */}
-            {dofusSlug === "dokille" && (
-                <DofusDokilleTracker
-                    guildId={guildId}
-                    dofusId={dofus.id}
-                    dofusColor={color}
-                    initialCaptured={initialCapturedKrokilles}
-                    onSave={async (monsters) => {
-                        "use server";
-                        return updateDokilleProgress(guildId, dofus.id, monsters, character);
-                    }}
-                />
             )}
 
             <DofusQuestManagerV3
@@ -295,6 +279,21 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                 initialGlobalCompletedIds={globalCompletedResult.success ? globalCompletedResult.data : []}
                 prereqsByQuestId={prereqsByQuestId}
                 metamobPseudo={user.metamobPseudo}
+                customSlotAfterPrerequisites={
+                    dofusSlug === "dokille" ? (
+                        <DofusDokilleTracker
+                            guildId={guildId}
+                            dofusId={dofus.id}
+                            dofusColor={color}
+                            isObtained={dofus.isObtained}
+                            initialCaptured={dofus.isObtained ? ALL_KROKILLE_MONSTERS : initialCapturedKrokilles}
+                            onSave={async (monsters) => {
+                                "use server";
+                                return updateDokilleProgress(guildId, dofus.id, monsters, character);
+                            }}
+                        />
+                    ) : undefined
+                }
             />
         </div>
     );

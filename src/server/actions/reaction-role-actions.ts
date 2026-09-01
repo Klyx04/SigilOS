@@ -37,6 +37,8 @@ const ReactionRoleOptionSchema = z.object({
     requiredRoleName: z.string().nullable().optional(),
     blacklistedRoleId: z.string().nullable().optional(),
     blacklistedRoleName: z.string().nullable().optional(),
+    extraRoleIds: z.array(z.string()).default([]),
+    durationDays: z.number().nullable().optional(),
 });
 
 const ReactionRoleGroupSchema = z.object({
@@ -158,6 +160,8 @@ export async function createReactionRoleGroupAction(guildId: string, rawData: z.
                         requiredRoleName: opt.requiredRoleName || null,
                         blacklistedRoleId: opt.blacklistedRoleId || null,
                         blacklistedRoleName: opt.blacklistedRoleName || null,
+                        extraRoleIds: opt.extraRoleIds || [],
+                        durationDays: opt.durationDays || null,
                     }))
                 }
             },
@@ -228,6 +232,8 @@ export async function updateReactionRoleGroupAction(
                             requiredRoleName: opt.requiredRoleName || null,
                             blacklistedRoleId: opt.blacklistedRoleId || null,
                             blacklistedRoleName: opt.blacklistedRoleName || null,
+                            extraRoleIds: opt.extraRoleIds || [],
+                            durationDays: opt.durationDays || null,
                         }))
                     }
                 },
@@ -507,6 +513,36 @@ export async function internalHandleReactionRoleInteraction(params: {
                 if (res.success) {
                     addedRoles.push(option.roleName);
 
+                    // Multi-roles assignment (#222)
+                    if (option.extraRoleIds && option.extraRoleIds.length > 0) {
+                        for (const extraId of option.extraRoleIds) {
+                            const extraRes = await addGuildMemberRole(discordGuildId, discordUserId, extraId, `Reaction Role Extra Add [${group.name}]`);
+                            if (extraRes.success) {
+                                addedRoles.push(extraId);
+                            }
+                        }
+                    }
+
+                    // Timed Role Registration (#222)
+                    if (option.durationDays && option.durationDays > 0) {
+                        const expiresAt = new Date(Date.now() + option.durationDays * 24 * 60 * 60 * 1000);
+                        try {
+                            await (db as any).timedRoleGrant.create({
+                                data: {
+                                    guildId: group.guildId,
+                                    discordGuildId,
+                                    discordUserId,
+                                    roleId: option.roleId,
+                                    roleName: option.roleName,
+                                    expiresAt,
+                                    source: "REACTION_ROLE"
+                                }
+                            });
+                        } catch (e) {
+                            logger.error("[ReactionRoles] Failed to record TimedRoleGrant:", e);
+                        }
+                    }
+
                     // Automatic Swap / Removal of designated role (removeRoleId)
                     if (option.removeRoleId && memberRoles.has(option.removeRoleId)) {
                         const removeRes = await removeGuildMemberRole(
@@ -522,14 +558,42 @@ export async function internalHandleReactionRoleInteraction(params: {
                 }
             };
 
+            const executeRoleRevoke = async () => {
+                const res = await removeGuildMemberRole(discordGuildId, discordUserId, option.roleId, `Reaction Role Remove [${group.name}]`);
+                if (res.success) {
+                    removedRoles.push(option.roleName);
+
+                    // Remove extra roles if configured
+                    if (option.extraRoleIds && option.extraRoleIds.length > 0) {
+                        for (const extraId of option.extraRoleIds) {
+                            await removeGuildMemberRole(discordGuildId, discordUserId, extraId, `Reaction Role Extra Remove [${group.name}]`);
+                        }
+                    }
+
+                    // Mark timed grants revoked
+                    try {
+                        await (db as any).timedRoleGrant.updateMany({
+                            where: {
+                                discordGuildId,
+                                discordUserId,
+                                roleId: option.roleId,
+                                revokedAt: null
+                            },
+                            data: { revokedAt: new Date() }
+                        });
+                    } catch (e) {
+                        logger.error("[ReactionRoles] Failed to update TimedRoleGrant:", e);
+                    }
+                }
+            };
+
             if (group.mode === "VERIFY") {
                 if (!hasRole) {
                     await executeRoleGrant();
                 }
             } else if (group.mode === "REVERSE") {
                 if (hasRole) {
-                    const res = await removeGuildMemberRole(discordGuildId, discordUserId, option.roleId, `Reaction Role Reverse [${group.name}]`);
-                    if (res.success) removedRoles.push(option.roleName);
+                    await executeRoleRevoke();
                 }
             } else if (group.mode === "UNIQUE") {
                 // Remove all other roles in the group
@@ -541,16 +605,14 @@ export async function internalHandleReactionRoleInteraction(params: {
                 }
                 // Toggle current role
                 if (hasRole) {
-                    const res = await removeGuildMemberRole(discordGuildId, discordUserId, option.roleId, `Reaction Role Remove [${group.name}]`);
-                    if (res.success) removedRoles.push(option.roleName);
+                    await executeRoleRevoke();
                 } else {
                     await executeRoleGrant();
                 }
             } else {
                 // NORMAL mode: toggle
                 if (hasRole) {
-                    const res = await removeGuildMemberRole(discordGuildId, discordUserId, option.roleId, `Reaction Role Remove [${group.name}]`);
-                    if (res.success) removedRoles.push(option.roleName);
+                    await executeRoleRevoke();
                 } else {
                     // Check maxRoles constraint if configured
                     if (group.maxRoles) {
@@ -756,6 +818,50 @@ export async function getAvailableIconPacksForGuildAction(guildId: string): Prom
     } catch (error: any) {
         logger.error("[getAvailableIconPacksForGuildAction] Error:", error);
         return { success: false, error: error?.message || "Erreur chargement packs" };
+    }
+}
+
+/**
+ * ⏰ Traitement CRON des rôles temporaires expirés (#222)
+ * Révoque automatiquement les rôles arrivés à échéance sur Discord.
+ */
+export async function processExpiredTimedRolesAction(): Promise<ActionResponse<{ revokedCount: number }>> {
+    try {
+        const now = new Date();
+        const expiredGrants = await (db as any).timedRoleGrant.findMany({
+            where: {
+                expiresAt: { lte: now },
+                revokedAt: null
+            },
+            take: 100
+        });
+
+        let revokedCount = 0;
+
+        for (const grant of expiredGrants) {
+            try {
+                await removeGuildMemberRole(
+                    grant.discordGuildId,
+                    grant.discordUserId,
+                    grant.roleId,
+                    `Reaction Role Expired [Timed Auto-Revoke]`
+                );
+
+                await (db as any).timedRoleGrant.update({
+                    where: { id: grant.id },
+                    data: { revokedAt: now }
+                });
+
+                revokedCount++;
+            } catch (err) {
+                logger.error(`[processExpiredTimedRoles] Error revoking role ${grant.roleId} for user ${grant.discordUserId}:`, err);
+            }
+        }
+
+        return { success: true, data: { revokedCount } };
+    } catch (error: any) {
+        logger.error("[processExpiredTimedRolesAction] Error:", error);
+        return { success: false, error: "Échec du traitement des rôles temporaires expirés." };
     }
 }
 

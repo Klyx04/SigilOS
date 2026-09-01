@@ -29,6 +29,8 @@ export const GOD_BRICKS = [
     { id: "logs",           label: "Audit Logs (Archive)",   scope: null, group: "admin",       subGodAccess: false },
     { id: "delegates",      label: "Sous-Gods (accès)",     scope: null, group: "admin",       subGodAccess: false },
     { id: "onboarding",     label: "Onboarding B2B",        scope: null, group: "admin",       subGodAccess: false },
+    { id: "api-keys",       label: "Clés d'API & Dev",      scope: null, group: "admin",       subGodAccess: false },
+    { id: "slash-commands", label: "Commandes Slash",       scope: null, group: "admin",       subGodAccess: false },
 
     // ─── Guildes (sous-god partiel : whitelist + roster, SANS actions destructives) ──
     { id: "guilds",         label: "Guildes & Users",       scope: "guilds", group: "admin",    subGodAccess: true },

@@ -1636,6 +1636,287 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ type: 4, data: { content: "Commande inconnue", flags: 64 } });
         }
 
+        // ================================================================
+        // TYPE 4 — AUTOCOMPLETE (triggered when user types in a /command option)
+        // Must respond within 3 seconds. No signature needed beyond initial verify.
+        // ================================================================
+        if (payload.type === 4) {
+            const commandName = payload.data?.name;
+            const focusedOption = payload.data?.options?.find((o: any) => o.focused);
+
+            if (commandName === "dofus" && focusedOption?.name === "nom") {
+                const query = (focusedOption.value || "").toLowerCase();
+                const items = await db.dofusItem.findMany({
+                    select: { name: true, slug: true },
+                    orderBy: { displayOrder: "asc" },
+                    take: 25
+                });
+                const filtered = items
+                    .filter((i) => i.name.toLowerCase().includes(query))
+                    .slice(0, 25);
+
+                return NextResponse.json({
+                    type: 8, // APPLICATION_COMMAND_AUTOCOMPLETE_RESULT
+                    data: {
+                        choices: filtered.map((i) => ({
+                            name: i.name,
+                            value: i.slug
+                        }))
+                    }
+                });
+            }
+
+            // Default empty autocomplete for unhandled options
+            return NextResponse.json({ type: 8, data: { choices: [] } });
+        }
+
+        // ================================================================
+        // TYPE 2 — SLASH COMMAND (Application Command)
+        // ================================================================
+        if (payload.type === 2) {
+            const commandName: string = payload.data?.name;
+            const { guild_id, member } = payload;
+            const discordUserId: string = member?.user?.id || payload.user?.id;
+            const userRoleIds: string[] = member?.roles || [];
+
+            // RBAC Gate — check GuildSlashCommandPermission
+            if (guild_id) {
+                const guildConfig = await db.guildConfig.findUnique({
+                    where: { discordGuildId: guild_id },
+                    include: {
+                        slashCommandPermissions: {
+                            where: { commandName }
+                        }
+                    }
+                });
+
+                if (guildConfig) {
+                    const perm = guildConfig.slashCommandPermissions[0];
+                    if (perm && !perm.isEnabled) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: {
+                                content: "🚫 Cette commande est désactivée par le staff de ta guilde.",
+                                flags: 64
+                            }
+                        });
+                    }
+                    if (perm && perm.roleIds.length > 0) {
+                        const hasRole = userRoleIds.some((r) => perm.roleIds.includes(r));
+                        if (!hasRole) {
+                            return NextResponse.json({
+                                type: 4,
+                                data: {
+                                    content: "🚫 Tes rôles Discord ne t'autorisent pas à utiliser `/" + commandName + "`. Contacte un admin de ta guilde.",
+                                    flags: 64
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+
+            // ── /almanax ──────────────────────────────────────────────
+            if (commandName === "almanax") {
+                const appBaseUrl = getAppBaseUrl();
+                return NextResponse.json({
+                    type: 4,
+                    data: {
+                        embeds: [{
+                            title: "📅 Almanax du Jour",
+                            description: `Consulte les offrandes et bonus Almanax directement sur SigilOS.\n\n👉 [Ouvrir l'Almanax SigilOS](${appBaseUrl}/almanax)`,
+                            color: 0xF4A261,
+                            footer: { text: "SigilOS • Almanax" },
+                            timestamp: new Date().toISOString()
+                        }],
+                        flags: 0
+                    }
+                });
+            }
+
+            // ── /dofus ────────────────────────────────────────────────
+            if (commandName === "dofus") {
+                const slug = payload.data?.options?.find((o: any) => o.name === "nom")?.value;
+                const appBaseUrl = getAppBaseUrl();
+
+                if (!slug) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            content: "🥚 Utilise `/dofus nom:Ocre` pour consulter un Dofus spécifique !",
+                            flags: 64
+                        }
+                    });
+                }
+
+                const dofusItem = await db.dofusItem.findUnique({
+                    where: { slug },
+                    select: { name: true, description: true, imageUrl: true, rarity: true }
+                });
+
+                if (!dofusItem) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: `❌ Dofus \`${slug}\` introuvable dans la base SigilOS.`, flags: 64 }
+                    });
+                }
+
+                return NextResponse.json({
+                    type: 4,
+                    data: {
+                        embeds: [{
+                            title: `🥚 ${dofusItem.name}`,
+                            description: dofusItem.description || "Guide disponible sur SigilOS.",
+                            color: 0x7B5EA7,
+                            thumbnail: dofusItem.imageUrl ? { url: dofusItem.imageUrl } : undefined,
+                            fields: [
+                                { name: "Rareté", value: dofusItem.rarity, inline: true }
+                            ],
+                            url: `${appBaseUrl}/quetes?dofus=${slug}`,
+                            footer: { text: "SigilOS • Quêtes & Succès" }
+                        }],
+                        flags: 0
+                    }
+                });
+            }
+
+            // ── /profil ───────────────────────────────────────────────
+            if (commandName === "profil") {
+                const targetUser = payload.data?.resolved?.users;
+                const targetMember = payload.data?.options?.find((o: any) => o.name === "membre");
+                const lookupId = targetMember?.value || discordUserId;
+                const appBaseUrl = getAppBaseUrl();
+
+                const account = await db.account.findFirst({
+                    where: { provider: "discord", providerAccountId: lookupId },
+                    include: {
+                        user: {
+                            include: {
+                                profiles: {
+                                    where: guild_id ? { guild: { discordGuildId: guild_id } } : undefined,
+                                    take: 1,
+                                    select: {
+                                        pseudoDofus: true,
+                                        discordRoleName: true,
+                                        contributionPoints: true,
+                                        classe: true,
+                                        dofusLevel: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                const profile = account?.user?.profiles?.[0];
+                if (!profile) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            content: "❌ Ce membre n'a pas encore de profil SigilOS. Il doit se connecter sur le site !",
+                            flags: 64
+                        }
+                    });
+                }
+
+                return NextResponse.json({
+                    type: 4,
+                    data: {
+                        embeds: [{
+                            title: `🎖️ ${profile.pseudoDofus || "Membre SigilOS"}`,
+                            color: 0x5865F2,
+                            fields: [
+                                { name: "Rôle", value: profile.discordRoleName || "Membre", inline: true },
+                                { name: "Classe", value: profile.classe || "Non définie", inline: true },
+                                { name: "Points", value: `${profile.contributionPoints}`, inline: true }
+                            ],
+                            url: `${appBaseUrl}/profil`,
+                            footer: { text: "SigilOS • Profil" }
+                        }],
+                        flags: 0
+                    }
+                });
+            }
+
+            // ── /sorties ──────────────────────────────────────────────
+            if (commandName === "sorties") {
+                const appBaseUrl = getAppBaseUrl();
+                return NextResponse.json({
+                    type: 4,
+                    data: {
+                        embeds: [{
+                            title: "🚪 Sorties Ouvertes",
+                            description: `Consulte toutes les sorties donjons, quêtes et songes en cours dans ta guilde sur SigilOS.\n\n👉 [Voir les sorties](${appBaseUrl}/donjons)`,
+                            color: 0x57F287,
+                            footer: { text: "SigilOS • Sorties & Donjons" }
+                        }],
+                        flags: 0
+                    }
+                });
+            }
+
+            // ── /defi ─────────────────────────────────────────────────
+            if (commandName === "defi") {
+                const appBaseUrl = getAppBaseUrl();
+                return NextResponse.json({
+                    type: 4,
+                    data: {
+                        embeds: [{
+                            title: "⚔️ Défi Double Boss",
+                            description: `Consulte le défi double boss en cours, les bonus de points et le classement des participants.\n\n👉 [Voir le Défi](${appBaseUrl}/succes?tab=defi)`,
+                            color: 0xED4245,
+                            footer: { text: "SigilOS • Défi Boss" }
+                        }],
+                        flags: 0
+                    }
+                });
+            }
+
+            // ── /stats ────────────────────────────────────────────────
+            if (commandName === "stats") {
+                if (!guild_id) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "❌ Cette commande doit être utilisée dans un serveur Discord.", flags: 64 }
+                    });
+                }
+
+                const guildConfig = await db.guildConfig.findUnique({
+                    where: { discordGuildId: guild_id },
+                    select: { name: true, id: true }
+                });
+
+                if (!guildConfig) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "❌ Cette guilde n'est pas enregistrée sur SigilOS.", flags: 64 }
+                    });
+                }
+
+                const [memberCount] = await Promise.all([
+                    db.userProfile.count({ where: { guildId: guildConfig.id, status: "ACTIVE" } })
+                ]);
+
+                return NextResponse.json({
+                    type: 4,
+                    data: {
+                        embeds: [{
+                            title: `📊 Statistiques — ${guildConfig.name}`,
+                            color: 0xFEE75C,
+                            fields: [
+                                { name: "Membres Actifs", value: `${memberCount}`, inline: true }
+                            ],
+                            footer: { text: "SigilOS • Statistiques Guilde" },
+                            timestamp: new Date().toISOString()
+                        }],
+                        flags: 0
+                    }
+                });
+            }
+
+            return NextResponse.json({ type: 4, data: { content: "Commande inconnue.", flags: 64 } });
+        }
+
         return NextResponse.json({ error: "Unknown type" }, { status: 400 });
 
     } catch (error) {

@@ -59,9 +59,9 @@ const ACTION_LABELS: Record<string, string> = {
     MEMBER_ARCHIVED: "Membre archivé",
     MEMBER_BANNED: "Membre banni",
     MEMBER_PURGED: "Données purgées",
-    WEBHOOK_MEMBER_ADD: "Arrivée membre (Bot)",
-    WEBHOOK_MEMBER_REMOVE: "Départ membre (Bot)",
-    WEBHOOK_MEMBER_UPDATE: "Profil Discord modifié (Bot)",
+    WEBHOOK_MEMBER_ADD: "Arrivée Discord (Bot)",
+    WEBHOOK_MEMBER_REMOVE: "Départ Discord (Bot)",
+    WEBHOOK_MEMBER_UPDATE: "Événement Discord (Bot)",
     PLATFORM_ARRIVAL: "🚀 Arrivée Plateforme",
     PLATFORM_DEPARTURE: "👋 Départ Plateforme",
     PROFILE_ARCHIVED: "📁 Profil Archivé",
@@ -153,18 +153,24 @@ function formatDate(date: string): string {
 
 /**
  * Résout une cible de log en libellé lisible.
- * Priorité : pseudo d'utilisateur Discord / nom du soumetteur / description.
- * Fallback pour un ID brut (ex. snowflake Discord) : « Membre Discord (ID 1056…8180) »
- * pour que l'administrateur comprenne immédiatement de qui il s'agit (#89).
+ * Priorité : surnom sur le serveur Discord / pseudo Dofus / compte Discord / description.
+ * Si le surnom serveur est différent du nom de compte, retourne les deux pour clarté absolue.
  */
-function formatTargetLabel(targetId: string | null, meta: AuditMetadata | null): string {
+function formatTargetLabel(targetId: string | null, meta: AuditMetadata | null): { primary: string; secondary?: string } {
     const m = (meta || {}) as any;
-    const readable = m.username || m.submitterName || m.description;
-    if (readable) return String(readable);
-    if (targetId && targetId.length > 8) {
-        return `Membre Discord (ID ${targetId.slice(0, 4)}…${targetId.slice(-4)})`;
+    const serverName = m.serverNickname || m.guildNickname || m.pseudoDofus || m.displayName;
+    const accountTag = m.username || m.submitterName;
+    
+    if (serverName && accountTag && serverName !== accountTag && `@${accountTag}` !== serverName) {
+        return { primary: String(serverName), secondary: `@${accountTag}` };
     }
-    return targetId || "Membre Discord";
+    if (serverName) return { primary: String(serverName) };
+    if (accountTag) return { primary: String(accountTag) };
+    if (m.description) return { primary: String(m.description) };
+    if (targetId && targetId.length > 8) {
+        return { primary: `Membre Discord (ID ${targetId.slice(0, 4)}…${targetId.slice(-4)})` };
+    }
+    return { primary: targetId || "Membre Discord" };
 }
 
 function PermissionChangesDisplay({
@@ -461,47 +467,59 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                         Tentative d'accès non autorisé à <code className="bg-danger/30 px-1 rounded">{log.targetId}</code>
                                                     </span>
                                                 )}
-                                                {log.targetType === "PROFILE" && (
-                                                    <div className="space-y-1 mt-1">
-                                                        <div className="flex items-center gap-2 flex-wrap text-sm">
-                                                            <span className="text-muted-foreground">
-                                                                {log.action === "PROFILE_ARCHIVED"
-                                                                    ? "Archivage du profil de"
-                                                                    : log.action === "PROFILE_REACTIVATED"
-                                                                    ? "Réactivation du profil de"
-                                                                    : log.action === "WEBHOOK_MEMBER_UPDATE"
-                                                                    ? "Mise à jour Discord de"
-                                                                    : "Profil de"}
-                                                            </span>
-                                                            <span className="font-bold text-foreground">
-                                                                {formatTargetLabel(log.targetId, log.metadata)}
-                                                            </span>
-                                                            
-                                                            {(metadata as any).source && (
-                                                                <Badge variant="outline" className="text-caption px-1.5 py-0 h-4 font-black uppercase tracking-widest bg-info/10 text-info border-info/20">
-                                                                    {(metadata as any).source === "discord_button" ? "Discord" : "Dashboard"}
-                                                                </Badge>
+                                                {log.targetType === "PROFILE" && (() => {
+                                                    const labelInfo = formatTargetLabel(log.targetId, log.metadata);
+                                                    return (
+                                                        <div className="space-y-1 mt-1">
+                                                            <div className="flex items-center gap-2 flex-wrap text-sm">
+                                                                <span className="text-muted-foreground">
+                                                                    {log.action === "PROFILE_ARCHIVED"
+                                                                        ? "Archivage du profil de"
+                                                                        : log.action === "PROFILE_REACTIVATED"
+                                                                        ? "Réactivation du profil de"
+                                                                        : log.action === "WEBHOOK_MEMBER_ADD"
+                                                                        ? "Arrivée Discord de"
+                                                                        : log.action === "WEBHOOK_MEMBER_REMOVE"
+                                                                        ? "Départ Discord de"
+                                                                        : log.action === "WEBHOOK_MEMBER_UPDATE"
+                                                                        ? "Événement Discord sur"
+                                                                        : "Profil de"}
+                                                                </span>
+                                                                <span className="font-bold text-foreground">
+                                                                    {labelInfo.primary}
+                                                                </span>
+                                                                {labelInfo.secondary && (
+                                                                    <span className="text-xs text-muted-foreground font-normal">
+                                                                        ({labelInfo.secondary})
+                                                                    </span>
+                                                                )}
+                                                                
+                                                                {(metadata as any).source && (
+                                                                    <Badge variant="outline" className="text-caption px-1.5 py-0 h-4 font-black uppercase tracking-widest bg-info/10 text-info border-info/20">
+                                                                        {(metadata as any).source === "discord_button" ? "Discord" : "Dashboard"}
+                                                                    </Badge>
+                                                                )}
+                                                                {(metadata as any).reason && (
+                                                                    <span className="text-xs opacity-70 italic">({(metadata as any).reason})</span>
+                                                                )}
+                                                            </div>
+
+                                                            {(metadata as any).changeDetail && (
+                                                                <div className="text-xs text-info font-medium bg-info/10 px-2 py-0.5 rounded inline-block border border-info/20">
+                                                                    {(metadata as any).changeDetail}
+                                                                </div>
                                                             )}
-                                                            {(metadata as any).reason && (
-                                                                <span className="text-xs opacity-70 italic">({(metadata as any).reason})</span>
+
+                                                            {(metadata as any).points !== undefined && (
+                                                                <div className="flex items-center gap-3">
+                                                                    <span className="text-caption font-black text-success flex items-center gap-1">
+                                                                        <Plus className="w-2.5 h-2.5" /> {(metadata as any).points} Points Succès
+                                                                    </span>
+                                                                </div>
                                                             )}
                                                         </div>
-
-                                                        {(metadata as any).changeDetail && (
-                                                            <div className="text-xs text-info font-medium bg-info/10 px-2 py-0.5 rounded inline-block border border-info/20">
-                                                                {(metadata as any).changeDetail}
-                                                            </div>
-                                                        )}
-
-                                                        {(metadata as any).points !== undefined && (
-                                                            <div className="flex items-center gap-3">
-                                                                <span className="text-caption font-black text-success flex items-center gap-1">
-                                                                    <Plus className="w-2.5 h-2.5" /> {(metadata as any).points} Points Succès
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
+                                                    );
+                                                })()}
                                                 {log.targetType === "USER" && log.action === "USER_GDPR_DELETE" && (
                                                     <span className="text-danger">
                                                         Compte supprimé (RGPD)

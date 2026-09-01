@@ -14,6 +14,7 @@ import {
     Ban,
     LucideIcon,
 } from "lucide-react";
+import { ThemeToggle } from "./ThemeToggle";
 
 interface SubTab {
     id: string;
@@ -150,6 +151,7 @@ export function GodTopNav({ activeSection, onSectionChange, rightContent, unread
 
             {/* Right section */}
             <div className="ml-auto hidden md:flex items-center gap-6 flex-shrink-0">
+                <ThemeToggle />
                 {rightContent ?? (
                     <div className="flex flex-col items-end">
                         <span className={cn(

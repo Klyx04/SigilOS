@@ -10,6 +10,7 @@ import { Bug, AlertCircle, Link2, Gem } from "lucide-react";
 import Link from "next/link";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
 export default async function ArchimonstresPage({
     params
@@ -43,6 +44,7 @@ export default async function ArchimonstresPage({
                     icon={Gem}
                     iconColor="#eab308"
                     backHref={`/dashboard/${guildId}`}
+                    actions={<ModuleHelpActions docSlug="quete-ocre" docTitle="Bourse aux Archimonstres & Ocre" tourPhase="ocre" />}
                 />
 
                 {/* Content */}

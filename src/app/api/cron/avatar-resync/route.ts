@@ -44,6 +44,14 @@ export async function GET(req: NextRequest) {
             `[AvatarResyncCron] Done in ${durationMs}ms — updated: ${summary.totalUpdated}, unchanged: ${summary.totalUnchanged}, errors: ${summary.totalErrors}`
         );
 
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("avatar_resync", {
+            success: summary.failedGuilds.length === 0,
+            durationMs,
+            summary: `Resync avatars : ${summary.totalUpdated} mis à jour, ${summary.totalUnchanged} inchangés, ${summary.totalErrors} erreur(s)`,
+            details: summary,
+        });
+
         return NextResponse.json({
             success: true,
             durationMs,
@@ -52,6 +60,12 @@ export async function GET(req: NextRequest) {
         });
     } catch (error) {
         logger.error("[AvatarResyncCron] Fatal error:", { error });
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("avatar_resync", {
+            success: false,
+            durationMs: Date.now() - startedAt,
+            summary: `Erreur fatale: ${(error as Error).message || "Erreur interne"}`,
+        });
         return NextResponse.json({ error: "Internal error" }, { status: 500 });
     }
 }

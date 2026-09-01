@@ -7,6 +7,7 @@ import { logger } from "@/lib/logger";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { z } from "zod";
 import { downloadExternalImage } from "@/lib/image-downloader";
+import { metierIds } from "@/lib/metiers";
 
 
 export type ActionResponse<T = null> = {
@@ -45,8 +46,7 @@ export async function getLegendaryCraftingData(guildId: string, targetProfileId?
         if (!profile) return { success: false, error: "Profil introuvable" };
 
         // 1. Extraire les métiers niveau 200 (les métiers stockés sont déjà niveau 200)
-        const userMetiers = (profile.metiers as string[]) || [];
-        const jobsAt200 = userMetiers.map(m => m.toLowerCase());
+        const jobsAt200 = metierIds(profile.metiers).map(m => m.toLowerCase());
 
         // 2. Récupérer tous les items légendaires
         const allItems = await db.legendaryItem.findMany({
@@ -107,8 +107,7 @@ export async function syncLegendaryCrafts(guildId: string, hasPrerequisites: boo
 
         if (hasPrerequisites) {
             // Trouver les métiers du joueur
-            const userMetiers = (profile.metiers as string[]) || [];
-            const jobsAt200 = userMetiers.map(m => m.toLowerCase());
+            const jobsAt200 = metierIds(profile.metiers).map(m => m.toLowerCase());
 
             // Trouver les items correspondants
             const eligibleItems = await db.legendaryItem.findMany({

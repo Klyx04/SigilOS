@@ -10,6 +10,7 @@ import { verifyCronSecret } from "@/lib/cron-auth";
  * ✅ Protégé par x-cron-secret (fail-closed si secret absent)
  */
 export async function GET(req: Request) {
+    const startedAt = Date.now();
     try {
         // CRIT-02 FIX — suppression du fallback ?token= (secret dans l'URL = fuite dans les logs)
         if (!verifyCronSecret(req)) {
@@ -139,14 +140,30 @@ export async function GET(req: Request) {
             console.error("[Cron] God notification failed:", e);
         }
 
+        const durationMs = Date.now() - startedAt;
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("mission_reset", {
+            success: true,
+            durationMs,
+            summary: `Reset missions : ${guilds.length} guilde(s) notifiée(s)`,
+            details: { guildsCount: guilds.length, results },
+        });
+
         return NextResponse.json({
             message: "Notifications process completed",
             guildsCount: guilds.length,
-            results
+            results,
+            durationMs
         });
 
     } catch (error) {
         console.error("Cron Mission Management Reset Error:", error);
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("mission_reset", {
+            success: false,
+            durationMs: Date.now() - startedAt,
+            summary: `Erreur reset missions: ${(error as Error).message}`,
+        });
         return new NextResponse("Internal Server Error", { status: 500 });
     }
 }

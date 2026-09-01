@@ -102,9 +102,6 @@ export function SuccesClient({
                         );
                     })}
                 </div>
-                <div className="ml-auto flex flex-wrap items-center gap-3 shrink-0">
-                    <ModuleTourReplayButton phase="succes" />
-                </div>
             </div>
 
             {view === "moi" ? (

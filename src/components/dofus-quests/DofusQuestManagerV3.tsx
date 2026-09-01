@@ -24,6 +24,7 @@ interface DofusQuestManagerV3Props {
     prereqsByQuestId?: Record<string, { fromQuestId: string; name: string }[]>;
     /** #148 — pseudo Metamob du membre (liaison donjons « non relié »). */
     metamobPseudo?: string | null;
+    customSlotAfterPrerequisites?: React.ReactNode;
 }
 
 export function DofusQuestManagerV3({ 
@@ -35,7 +36,8 @@ export function DofusQuestManagerV3({
     selectedCharacter = "PRINCIPAL",
     initialGlobalCompletedIds = [],
     prereqsByQuestId = {},
-    metamobPseudo = null
+    metamobPseudo = null,
+    customSlotAfterPrerequisites,
 }: DofusQuestManagerV3Props) {
     const [synergy, setSynergy] = useState<Record<string, MemberOnQuest[]>>({});
     const [loadingSynergy, setLoadingSynergy] = useState(false);
@@ -159,6 +161,7 @@ export function DofusQuestManagerV3({
                 presence={dofusPresence.presence}
                 presenceConnected={dofusPresence.connectionStatus === "connected"}
                 onFocusedQuestChange={setFocusedQuestId}
+                customSlotAfterPrerequisites={customSlotAfterPrerequisites}
             />
         </div>
     );

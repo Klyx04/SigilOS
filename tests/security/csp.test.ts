@@ -108,6 +108,14 @@ describe("CSP nonce-based", () => {
             expect(directive).toContain("wss://localhost:*");
         });
 
+        it("keeps connect-src image CDNs (fetch() probes + SW revalidate)", () => {
+            const directive = headerValue.split(";").find(d => d.trim().startsWith("connect-src"))!;
+            expect(directive).toContain("https://cdn.discordapp.com");
+            expect(directive).toContain("https://media.discordapp.net");
+            expect(directive).toContain("https://api.dofusdu.de");
+            expect(directive).toContain("https://api.dofusdb.fr");
+        });
+
         it("keeps img-src CDNs (Discord, DofusDB, Ankama, Unsplash, Imgur)", () => {
             const directive = headerValue.split(";").find(d => d.trim().startsWith("img-src"))!;
             expect(directive).toContain("https://cdn.discordapp.com");

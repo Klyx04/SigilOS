@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,12 @@ interface OcreSyncButtonProps {
 
 export function OcreSyncButton({ guildId, lastSync }: OcreSyncButtonProps) {
     const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // Client-only hydration guard: `toLocaleString("fr-FR")` formats in the runtime's local
+    // timezone, which differs between the Node server (UTC) and the browser (local tz).
+    // Rendering it during SSR would create a text mismatch → React #418. Gated behind `mounted`.
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
@@ -39,7 +45,7 @@ export function OcreSyncButton({ guildId, lastSync }: OcreSyncButtonProps) {
 
     return (
         <div className="flex items-center gap-4">
-            {lastSync && (
+            {mounted && lastSync && (
                 <div className="hidden md:flex flex-col items-end opacity-50 hover:opacity-100 transition-opacity">
                     <span className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground leading-none mb-1.5">Dernière MAJ</span>
                     <span className="text-caption font-bold text-foreground tabular-nums leading-none">

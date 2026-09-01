@@ -32,6 +32,9 @@ import {
 } from "@/server/actions/optimized-guide-actions";
 import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB } from "@/server/actions/dofus-search-actions";
 import { DOFUS_WORLDS, DOFUS_JOBS } from "@/lib/dofus-assets";
+import { resolveRushSeqIcon } from "@/lib/rush-guide-utils";
+import { uploadImageFile } from "@/components/editor/utils/image-upload";
+import { isSafeImageUrl, safeImageUrl } from "@/lib/security";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -1176,9 +1179,9 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
-          {(seq as any).icon && (
+          {resolveRushSeqIcon((seq as any).icon) && (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={`/assets/icons/${(seq as any).icon}.png`} alt="" className="w-4 h-4 object-contain shrink-0" />
+            <img src={safeImageUrl(resolveRushSeqIcon((seq as any).icon) as string)} alt="" className="w-4 h-4 object-contain shrink-0" />
           )}
           <span className="text-xs text-zinc-300 font-medium">{seq.subGuideName || seq.subGuideRef}</span>
           {displayDungeons.length > 0 && (
@@ -1402,6 +1405,8 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
   const [note, setNote] = useState(seq.note || "");
   const [isSuccess, setIsSuccess] = useState(seq.isSuccess ?? false);
   const [icon, setIcon] = useState(seq.icon || "");
+  const [customIconUrl, setCustomIconUrl] = useState("");
+  const [uploadingIcon, setUploadingIcon] = useState(false);
   const [metamobMonsterId, setMetamobMonsterId] = useState(seq.metamobMonsterId ? String(seq.metamobMonsterId) : "");
   const [activityTags, setActivityTags] = useState<ActivityTag[]>(
     Array.isArray(seq.activityTags) ? seq.activityTags as ActivityTag[] : []
@@ -2132,7 +2137,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                   <button
                     key={val || "none"}
                     type="button"
-                    onClick={() => setIcon(val)}
+                    onClick={() => { setIcon(val); if (!val) setCustomIconUrl(""); }}
                     className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-caption font-black uppercase tracking-widest transition-all ${
                       icon === val ? "bg-indigo-500/20 border-indigo-500/40 text-indigo-300" : "bg-zinc-800/60 border-white/10 text-zinc-600 hover:text-zinc-400"
                     }`}
@@ -2146,6 +2151,56 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                     <span>{label}</span>
                   </button>
                 ))}
+              </div>
+
+              {/* Icône personnalisée — URL ou import d'image (S5) */}
+              <div className="mt-2 space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <input
+                    value={customIconUrl}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setCustomIconUrl(v);
+                      if (v.trim()) {
+                        setIcon(isSafeImageUrl(v) ? v.trim() : "");
+                      } else {
+                        setIcon("");
+                      }
+                    }}
+                    placeholder="URL d'image (https://… ou /uploads/…)"
+                    className="flex-1 bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-caption text-indigo-200/90 focus:outline-none focus:border-indigo-500/40 placeholder:text-zinc-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById("rush-icon-upload")?.click()}
+                    disabled={uploadingIcon}
+                    className="shrink-0 inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-white/10 bg-zinc-800/60 text-caption font-black text-zinc-300 hover:text-white transition-colors disabled:opacity-50"
+                  >
+                    {uploadingIcon ? "…" : "⬆ Importer"}
+                  </button>
+                  <input
+                    id="rush-icon-upload"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      setUploadingIcon(true);
+                      const url = await uploadImageFile(f);
+                      if (url) { setIcon(url); setCustomIconUrl(url); }
+                      setUploadingIcon(false);
+                      e.target.value = "";
+                    }}
+                  />
+                </div>
+                {resolveRushSeqIcon(icon) && (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={safeImageUrl(resolveRushSeqIcon(icon) as string)} alt="" className="w-6 h-6 object-contain rounded-md" />
+                )}
+                {customIconUrl.trim() && !isSafeImageUrl(customIconUrl) && (
+                  <p className="text-[10px] text-red-400/80">URL d'image non autorisée (http(s) ou chemin relatif uniquement).</p>
+                )}
               </div>
             </div>
           </div>

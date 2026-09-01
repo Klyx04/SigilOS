@@ -235,3 +235,17 @@ export function formatProgressLabel(
 ): string {
   return `${completed} / ${total} ${unit}`;
 }
+
+/**
+ * Résout l'icône d'une séquence Rush.
+ * - Clé preset (ex. "serie-de-quete", "icone-succes", "ocre") → `/assets/icons/<clé>.png`
+ * - URL absolue ou chemin relatif (import d'image via upload) → renvoyée telle quelle
+ * - Vide/null → null
+ */
+export function resolveRushSeqIcon(icon?: string | null | undefined): string | null {
+  if (!icon) return null;
+  const trimmed = icon.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith("/")) return trimmed;
+  return `/assets/icons/${trimmed}.png`;
+}

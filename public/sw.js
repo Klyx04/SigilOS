@@ -1,5 +1,5 @@
 // 🛡️ Service Worker SigilOS — PWA & Offline Caching (#197)
-const CACHE_NAME = 'sigilos-cache-v1';
+const CACHE_NAME = 'sigilos-cache-v2';
 const STATIC_ASSETS = [
     '/',
     '/manifest.webmanifest',
@@ -46,29 +46,38 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Cache First for static images, logos, avatars, fonts
+    // Network First with Cache Fallback for static images, logos, avatars, fonts.
+    // ⚠️ FIX (nav SPA = icônes cassées) : l'ancien `cache-first` faisait
+    // `fetch(...).catch(() => cachedResponse)` qui pouvait renvoyer `undefined`
+    // (→ `respondWith(undefined)` = `net::ERR_FAILED` = image cassée) quand le
+    // fetch réseau échouait sans entrée en cache. Ici : on revalide toujours le
+    // réseau, on met en cache les succès, et on retombe sur le cache puis un
+    // placeholder gracieux (jamais de réponse `undefined`).
     if (
         url.pathname.startsWith('/assets/') ||
         url.pathname.startsWith('/game-data/') ||
         url.pathname.endsWith('.webp') ||
         url.pathname.endsWith('.png') ||
         url.pathname.endsWith('.jpg') ||
+        url.pathname.endsWith('.jpeg') ||
+        url.pathname.endsWith('.gif') ||
         url.pathname.endsWith('.woff2')
     ) {
         event.respondWith(
-            caches.match(event.request).then((cachedResponse) => {
-                if (cachedResponse) {
-                    return cachedResponse;
+            fetch(event.request).then((networkResponse) => {
+                if (networkResponse && networkResponse.ok) {
+                    const responseClone = networkResponse.clone();
+                    caches.open(CACHE_NAME).then((cache) => {
+                        cache.put(event.request, responseClone);
+                    });
                 }
-                return fetch(event.request).then((networkResponse) => {
-                    if (networkResponse && networkResponse.status === 200) {
-                        const responseClone = networkResponse.clone();
-                        caches.open(CACHE_NAME).then((cache) => {
-                            cache.put(event.request, responseClone);
-                        });
-                    }
-                    return networkResponse;
-                }).catch(() => cachedResponse);
+                return networkResponse;
+            }).catch(async () => {
+                const cached = await caches.match(event.request);
+                if (cached) return cached;
+                // Fallback gracieux : logo plutôt qu'une image cassée.
+                const placeholder = await caches.match('/assets/ui/logo-v2.png');
+                return placeholder || new Response('', { status: 404 });
             })
         );
         return;

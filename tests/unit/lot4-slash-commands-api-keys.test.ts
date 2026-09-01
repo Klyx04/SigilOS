@@ -63,19 +63,20 @@ describe("🔐 Lot 4 — Public API & API Keys Management (#196)", () => {
         expect(API_SCOPES.length).toBe(4);
     });
 
-    it("should generate cryptographically secure API keys with valid sha256 hash and prefix", () => {
+    it("should generate a cryptographically secure API key hash (scrypt) and prefix", () => {
         const rawEntropy = crypto.randomBytes(24).toString("hex");
         const rawApiKey = `sigil_live_${rawEntropy}`;
         const prefix = rawApiKey.slice(0, 16);
-        const keyHash = crypto.createHash("sha256").update(rawApiKey).digest("hex");
+        const keySalt = crypto.randomBytes(16).toString("hex");
+        const keyHash = `scrypt$${keySalt}$${crypto.scryptSync(rawApiKey, keySalt, 64).toString("hex")}`;
 
         expect(rawApiKey.startsWith("sigil_live_")).toBe(true);
         expect(prefix.length).toBe(16);
-        expect(keyHash.length).toBe(64); // SHA-256 hex string
+        expect(keyHash.startsWith("scrypt$")).toBe(true);
 
-        // Verify that hashing same key produces same hash
-        const rehash = crypto.createHash("sha256").update(rawApiKey).digest("hex");
-        expect(rehash).toBe(keyHash);
+        // Deterministic with the same salt
+        const rehash = crypto.scryptSync(rawApiKey, keySalt, 64).toString("hex");
+        expect(rehash).toBe(keyHash.split("$")[2]);
     });
 });
 

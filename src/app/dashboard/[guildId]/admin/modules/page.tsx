@@ -5,7 +5,7 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { getGuildModules } from "@/server/actions/module-actions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
-import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 import { Puzzle, ShieldAlert } from "lucide-react";
 import { db } from "@/lib/prisma";
 import Link from "next/link";
@@ -43,7 +43,7 @@ export default async function AdminModulesPage({ params }: Props) {
                     description="Activez ou désactivez les fonctionnalités de votre guilde"
                     icon={Puzzle}
                     backHref={`/dashboard/${guildId}/admin`}
-                    actions={<AdminTourReplay phase="adminModulesMgmt" />}
+                    actions={<ModuleHelpActions docSlug="admin-modules" docTitle="Gestion des Modules" tourPhase="adminModulesMgmt" />}
                 />
             </div>
 

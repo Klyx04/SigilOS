@@ -26,9 +26,11 @@ import {
     Coins,
     Ticket,
     Key,
+    UserCheck,
 } from "lucide-react";
 import { AdminCard } from "@/components/admin/admin-card";
 import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
 // ============================================================================
 // TYPES
@@ -142,11 +144,20 @@ function buildSections(guildId: string): AdminSection[] {
                 {
                     href: `/dashboard/${guildId}/admin/members`,
                     icon: Users,
-                    title: "Gestion des Membres",
-                    description: "Annuaire admin, synchronisation des pseudos, archivage et relances Discord.",
+                    title: "Audit & Gestion des Membres",
+                    description: "Audit Discord vs Dashboard, synchronisation des pseudos, archivage et relances Discord.",
                     accent: "cyan",
                     permission: (u) => u.canManageMembers || u.canManageRelance,
                     tourId: "admin-overview-card-members",
+                },
+                {
+                    href: `/dashboard/${guildId}/admin/recruitment`,
+                    icon: UserCheck,
+                    title: "Recrutement & Cycle de Vie",
+                    description: "Périodes d'essai J-X, annuaire guilde, gestion des mules et historique des départs.",
+                    accent: "emerald",
+                    permission: (u) => u.canManageMembers,
+                    tourId: "admin-overview-card-recruitment",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/points`,
@@ -268,7 +279,7 @@ export default async function AdminPage({
                     icon={Shield}
                     iconColor="#f43f5e"
                     backHref={`/dashboard/${guildId}`}
-                    actions={<AdminTourReplay phase="adminOverview" />}
+                    actions={<ModuleHelpActions docSlug="admin-getting-started" docTitle="Guide de Démarrage Admin" tourPhase="adminOverview" />}
                 />
             </div>
 

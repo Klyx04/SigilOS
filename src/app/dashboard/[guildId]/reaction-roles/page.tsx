@@ -10,6 +10,8 @@ import { getReactionRoleGroupsAction } from "@/server/actions/reaction-role-acti
 import { ReactionRolesManager } from "@/components/reaction-roles/ReactionRolesManager";
 import { db } from "@/lib/prisma";
 
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
+
 export default async function ReactionRolesPage({
     params,
 }: {
@@ -58,6 +60,7 @@ export default async function ReactionRolesPage({
                 icon={Sparkles}
                 iconColor="#8b5cf6"
                 backHref={`/dashboard/${guildId}/admin`}
+                actions={<ModuleHelpActions docSlug="admin-reaction-roles" docTitle="Reaction Roles" tourPhase="reactionRoles" />}
             />
 
             <ReactionRolesManager

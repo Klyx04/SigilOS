@@ -97,6 +97,11 @@ run_conditional_seed() {
     else
         dim "⏭️  Seeding ignoré (game-data.json inchangé depuis le dernier déploiement)."
     fi
+
+    # Documentation synchronization
+    info "📚 Synchronisation de la documentation ${TARGET^^}..."
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" npm run seed:docs || warn "Seed docs ignoré ou non-critique"
+    ok "Documentation à jour."
 }
 
 # -----------------------------------------------------------------------------

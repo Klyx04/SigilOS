@@ -18,6 +18,11 @@ export type TourPhase =
     | "adminMembers"
     | "adminLogs"
     | "adminOverview"
+    | "adminPoints"
+    | "adminApiKeys"
+    | "adminRecruitment"
+    | "reactionRoles"
+    | "tickets"
     // Phases des tours MODULES (rejouables, filtrées par module actif + RBAC)
     | "missions"
     | "ladder"

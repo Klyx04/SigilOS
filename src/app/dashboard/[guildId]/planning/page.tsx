@@ -9,6 +9,8 @@ import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { CalendarClock } from "lucide-react";
 import AccessDenied from "@/components/access-denied";
 
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
+
 type Props = {
     params: Promise<{ guildId: string }>;
 };
@@ -56,6 +58,7 @@ export default async function PlanningPage({ params }: Props) {
                         icon={CalendarClock}
                         iconColor="#34d399"
                         backHref={`/dashboard/${guildId}`}
+                        actions={<ModuleHelpActions docSlug="planning" docTitle="Planning & Disponibilités" />}
                     />
                 </div>
                 <PlanningEditButton

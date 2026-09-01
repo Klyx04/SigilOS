@@ -32,6 +32,8 @@ import { OnboardingWizard } from "@/components/dashboard/onboarding-wizard";
 import { TourProvider } from "@/components/tour/tour-provider";
 import { TourOverlay } from "@/components/tour/tour-overlay";
 import { TourCompletion } from "@/components/tour/tour-completion";
+import { DocDrawerProvider } from "@/components/doc/doc-drawer-context";
+import { DocDrawer } from "@/components/doc/doc-drawer";
 
 export default async function DashboardLayout({
     children,
@@ -193,11 +195,14 @@ export default async function DashboardLayout({
         <NebulaClientWrapper>
             <GameProvider>
             <TelemetryTracker />
+            <DocDrawerProvider>
             <TourProvider guildId={guildId} modules={modules} user={user}>
                 <div className="dashboard-tour">
                     <TourOverlay />
                     <TourCompletion guildId={guildId} />
                 </div>
+                {/* Global Slide-Over Doc Drawer */}
+                <DocDrawer guildId={guildId} />
                 {/* V2 Phase 0 — teinte de guilde posée sur le root EXISTANT du dashboard
                     (pas de div empilé, ne casse pas le flex h-screen) :
                     --guild-hue / --guild-chroma-* / --success-hue → --accent / --ring /
@@ -298,6 +303,7 @@ export default async function DashboardLayout({
                 )}
             </GuildAccentStyle>
             </TourProvider>
+            </DocDrawerProvider>
             </GameProvider>
         </NebulaClientWrapper>
     );

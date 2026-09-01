@@ -5,6 +5,7 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { Coins } from "lucide-react";
 import { PointsSettingsClient } from "../_components/points-settings-client";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
 export default async function AdminPointsPage({
     params,
@@ -30,6 +31,7 @@ export default async function AdminPointsPage({
                 icon={Coins}
                 iconColor="#f59e0b"
                 backHref={`/dashboard/${guildId}/admin`}
+                actions={<ModuleHelpActions docSlug="admin-points" docTitle="Points de Contribution" tourPhase="adminPoints" />}
             />
             <PointsSettingsClient guildId={guildId} />
         </div>

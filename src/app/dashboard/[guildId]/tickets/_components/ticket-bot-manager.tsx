@@ -18,6 +18,7 @@ import { TicketCategoriesTab } from "./tabs/ticket-categories-tab";
 import { TicketSettingsTab } from "./tabs/ticket-settings-tab";
 import { TicketTranscriptsTab } from "./tabs/ticket-transcripts-tab";
 import { TicketAnalyticsTab } from "./tabs/ticket-analytics-tab";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
 interface TicketBotManagerProps {
     guildId: string;
@@ -111,6 +112,10 @@ export function TicketBotManager({
                             Gérez les formulaires d'intake, réclamations staff, notes privées et transcripts de votre guilde.
                         </p>
                     </div>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                    <ModuleHelpActions docSlug="admin-tickets" docTitle="Bot Tickets & Support" tourPhase="tickets" />
                 </div>
             </div>
 

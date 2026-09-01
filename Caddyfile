@@ -63,6 +63,10 @@ sigilos.fr {
     import rate_limit_base
     import error_page_429
 
+    # 🛰️ SW & manifest : revalidation obligatoire (voir beta.sigilos.fr).
+    header /sw.js Cache-Control "no-cache, must-revalidate"
+    header /manifest.webmanifest Cache-Control "no-cache, must-revalidate"
+
     @google path /google*.html
     handle @google {
         header Content-Type text/html
@@ -127,6 +131,14 @@ beta.sigilos.fr {
     # (304 si inchangé, 200 si nouveau) à chaque navigation. Aligné sur le comportement
     # des assets Next.js (« Cache-Control: no-cache, must-revalidate »).
     header /game-data/* Cache-Control "no-cache, must-revalidate"
+
+    # 🛰️ SW & manifest : revalidation OBLIGATOIRE. Sans ce header, le navigateur
+    # peut conserver l'ANCIEN `sw.js` (cache-first buggé) jusqu'à 24h après un
+    # déploiement → icônes/images cassées persistantes malgré le correctif PWA.
+    # no-cache + must-revalidate => le navigateur re-fetch `/sw.js` à chaque
+    # navigation et prend la nouvelle version (CACHE_NAME bumpé) immédiatement.
+    header /sw.js Cache-Control "no-cache, must-revalidate"
+    header /manifest.webmanifest Cache-Control "no-cache, must-revalidate"
 
     handle /game-data/* {
         root * /srv/game-data

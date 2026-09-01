@@ -53,6 +53,7 @@ import { RushChapterSidebar } from "./RushChapterSidebar";
 import { isSequenceBlockedByPrereqs } from "@/lib/rush-guide-utils";
 import { getAlignmentSet, collectCascadeUncheck } from "@/lib/rush-helpers";
 import { RushHelperBadge } from "@/components/rush/RushHelperBadge";
+import { MilestoneCelebrationBurst } from "@/components/dofus-quests/rush/MilestoneCelebration";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DungeonRef = { id: string; name: string; bossName: string; imageUrl?: string|null };
@@ -204,8 +205,8 @@ const DungeonGroup = memo(function DungeonGroup({
 });
 
 // ─── SequenceRow ──────────────────────────────────────────────────────────────
-const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focusedSeqId, accentColor, userAlignmentInfo, onToggleSeq, onDungeonClick, hideSeqCompleted }: {
-  seq: Sequence; ms: Milestone; isSeqCompleted: boolean; focusedSeqId?: string|null; accentColor: string; userAlignmentInfo: any; onToggleSeq?: ()=>void; onDungeonClick: (dungeonId: string, questName: string)=>void; hideSeqCompleted?: boolean;
+const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focusedSeqId, accentColor, userAlignmentInfo, onToggleSeq, onDungeonClick, hideSeqCompleted, isFirstVisible }: {
+  seq: Sequence; ms: Milestone; isSeqCompleted: boolean; focusedSeqId?: string|null; accentColor: string; userAlignmentInfo: any; onToggleSeq?: ()=>void; onDungeonClick: (dungeonId: string, questName: string)=>void; hideSeqCompleted?: boolean; isFirstVisible?: boolean;
 }) {
   const capturedMonsterSet=React.useContext(CapturedMonsterCtx);
   const capturedMonsterNames=React.useContext(CapturedMonsterNamesCtx);
@@ -252,7 +253,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           <button type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(singleName);}}
             className="w-full flex items-center gap-3 px-3 pb-3 pt-1.5 text-left group focus-visible:outline-2 focus-visible:outline-amber-400/50 rounded-2xl"
             aria-label={`Voir la quête requise : ${singleName}`}
-            data-tour="quest-prerequisite"
+            data-tour={isFirstVisible ? "quest-prerequisite" : undefined}
           >
             <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 shrink-0">
               <Lock className="w-3.5 h-3.5 text-amber-400" />
@@ -310,17 +311,19 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           {onToggleSeq && (
             <button
               type="button"
-              data-tour="quest-completion"
+              data-tour={isFirstVisible ? "quest-completion" : undefined}
               onClick={e => { e.stopPropagation(); onToggleSeq(); }}
-              className={`flex-shrink-0 w-4 h-4 flex items-center justify-center rounded border transition-all cursor-pointer ${
-                isSeqCompleted
-                  ? "bg-[#39bc95] border-[#39bc95] text-black"
-                  : "border-[#455060] hover:border-zinc-300 bg-transparent"
-              }`}
+              className={`flex-shrink-0 -m-1 w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg transition-all cursor-pointer group/check`}
               title={isSeqCompleted ? "Décocher" : "Valider"}
               aria-label={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"}
             >
-              {isSeqCompleted && <Check className="w-3 h-3 text-black stroke-[3]" />}
+              <span className={`flex items-center justify-center w-4 h-4 rounded border transition-all ${
+                isSeqCompleted
+                  ? "bg-[#39bc95] border-[#39bc95] text-black"
+                  : "border-[#455060] hover:border-zinc-300 bg-transparent"
+              }`}>
+                {isSeqCompleted && <Check className="w-3 h-3 text-black stroke-[3]" />}
+              </span>
             </button>
           )}
           {/* Nom + position + tags */}
@@ -768,6 +771,8 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   const totalQuests=nonInfoSeqs.length;
   const all=isCompleted||(totalQuests>0&&cs===totalQuests);
   const c=accentColor||"#10b981";
+  const visibleSeqs = ms.sequences.filter((s:any)=>!hideDone||!completedStepsSet.has(s.id));
+  const firstVisibleSeqId = visibleSeqs.find((s:any)=>!isInfoSequence(s))?.id;
 
   return (
     <div className={`relative transition-all duration-200 ${isCompleted?"opacity-60":isBookmarked?"opacity-100":"opacity-95 hover:opacity-100"}`}>
@@ -849,11 +854,11 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                   {ms.sequences.length===0 ? (
                     <div className="py-6 text-center text-zinc-600 text-caption font-black uppercase tracking-widest">Aucune quête</div>
                   ) : (
-                    ms.sequences.filter((s:any)=>!hideDone||!completedStepsSet.has(s.id)).map((s:any)=>(
+                    visibleSeqs.map((s:any)=>(
                       isInfoSequence(s) ? (
                         <InfoSequenceBanner key={s.id} seq={s} accentColor={c} />
                       ) : (
-                        <SequenceRow key={s.id} seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} userAlignmentInfo={userAlignmentInfo} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick}/>
+                        <SequenceRow key={s.id} seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} userAlignmentInfo={userAlignmentInfo} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick} isFirstVisible={s.id===firstVisibleSeqId}/>
                       )
                     ))
                   )}
@@ -896,8 +901,9 @@ const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=tr
   const ci=filteredMilestones.filter((m:any)=>m.type!=="INFO"&&completedIds.has(m.id)).length,ti=filteredMilestones.filter((m:any)=>m.type!=="INFO").length,all=ti>0&&ci===ti;
   const ac=milestones[0]?.accentColor||"#10b981";const hb=milestones.some((m:any)=>bookmarksByMs.has(m.id));const[open,setOpen]=useState(hb||chapterNum===1||!!searchFilter);
   useEffect(()=>{if(hb)setOpen(true);},[hb]);useEffect(()=>{if(searchFilter&&filteredMilestones.length>0)setOpen(true);},[searchFilter,filteredMilestones.length]);useEffect(()=>{if(focusedSeqId&&milestones.some((ms:any)=>ms.sequences.some((s:any)=>s.id===focusedSeqId)))setOpen(true);},[focusedSeqId,milestones]);
-  const vc=hideDone?filteredMilestones.filter((m:any)=>!completedIds.has(m.id)).length:filteredMilestones.length;
-  if(hideDone&&vc===0)return null;
+  const effHideDone=hideDone&&!searchFilter;
+  const vc=effHideDone?filteredMilestones.filter((m:any)=>!completedIds.has(m.id)).length:filteredMilestones.length;
+  if(effHideDone&&vc===0)return null;
   return (
     <div className="relative">
       {showHeader && (
@@ -931,7 +937,7 @@ const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=tr
               {filteredMilestones.filter((ms:any)=>!dofusFilter||ms.dofusId===dofusFilter).map((ms:any)=>{
                 if(ms.type==="INFO")return <div key={ms.id} className="-ml-2 my-1"><InfoBanner milestone={ms}/></div>;
                 const filteredSeqs = searchFilter ? ms.sequences.filter((s:any)=>searchFilter.has(s.id)) : ms.sequences;
-                return <div key={ms.id} data-ms-id={ms.id}><MilestoneRow ms={{...ms,sequences:filteredSeqs}} isCompleted={completedIds.has(ms.id)} completedStepsSet={completedStepsByMs.get(ms.id)||new Set()} isBookmarked={bookmarksByMs.has(ms.id)} membersHere={guildProgressByMs.get(ms.id)||[]} hideDone={hideDone} isLoading={loadingIds.has(ms.id)} onToggle={()=>onToggle(ms)} onToggleSequence={onToggleSequence} onReset={()=>onReset(ms)} accentColor={ms.accentColor||ac} userAlignmentInfo={userAlignmentInfo} focusedSeqId={focusedSeqId} onFocusSequence={onFocusSequence} onDungeonClick={onDungeonClick} isSearching={!!searchFilter}/></div>;
+                return <div key={ms.id} data-ms-id={ms.id}><MilestoneRow ms={{...ms,sequences:filteredSeqs}} isCompleted={completedIds.has(ms.id)} completedStepsSet={completedStepsByMs.get(ms.id)||new Set()} isBookmarked={bookmarksByMs.has(ms.id)} membersHere={guildProgressByMs.get(ms.id)||[]} hideDone={effHideDone} isLoading={loadingIds.has(ms.id)} onToggle={()=>onToggle(ms)} onToggleSequence={onToggleSequence} onReset={()=>onReset(ms)} accentColor={ms.accentColor||ac} userAlignmentInfo={userAlignmentInfo} focusedSeqId={focusedSeqId} onFocusSequence={onFocusSequence} onDungeonClick={onDungeonClick} isSearching={!!searchFilter}/></div>;
               })}
             </div>
           </motion.div>
@@ -1093,6 +1099,8 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
     setBookmarksByMs(next);
   }, [milestones]);
   const [hideDone,setHideDone]=useState(false);
+  const [celebrate,setCelebrate]=useState<{msId:string;title:string}|null>(null);
+  useEffect(()=>{ if(!celebrate)return; const t=setTimeout(()=>setCelebrate(null),1600); return ()=>clearTimeout(t); },[celebrate]);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   useEffect(() => {
@@ -1256,7 +1264,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
             router.refresh();
           }
         }
-        if(res.isCompleted&&!wasMilestoneCompleted){toast.success("✅ Bloc validé !",{duration:1500});}
+        if(res.isCompleted&&!wasMilestoneCompleted){toast.success("✅ Bloc validé !",{duration:1500});setCelebrate({msId:ms.id,title:ms.title});}
         else{toast.success(was?"Décocher":"✅ Validée !",{duration:1500});}
       }else{
         setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});
@@ -1269,7 +1277,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       toast.error("Erreur réseau");
     }finally{setLoading(ms.id,false);}
   },[completedStepsByMs,completedIds,guildId,effectiveAltPseudo,setLoading,blockedSeqIds,allCompletedSeqIds,milestones]);
-  const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo);if(!(res as any).success){setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error("Erreur");}else toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500});}catch{toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,guildId,effectiveAltPseudo,setLoading]);
+  const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo);if(!(res as any).success){setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error("Erreur");}else{ if(!was)setCelebrate({msId:ms.id,title:ms.title}); toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500}); }}catch{toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,guildId,effectiveAltPseudo,setLoading]);
   const handleReset=useCallback(async(ms:Milestone)=>{setCompletedIds(prev=>{const n=new Set(prev);n.delete(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,new Set);return n;});setLoading(ms.id,true);try{await resetMilestoneProgress(guildId,ms.id,effectiveAltPseudo);toast.success("Réinitialisée");}catch{setCompletedIds(prev=>new Set([...prev,ms.id]));toast.error("Erreur reset");}finally{setLoading(ms.id,false);}},[guildId,effectiveAltPseudo,setLoading]);
 
   // ─── Bookmark par séquence ─────────────────────────────────────────────
@@ -1844,6 +1852,9 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         </button>
       </div>
     )}
+    <AnimatePresence>
+      {celebrate && <MilestoneCelebrationBurst title={celebrate.title} tint="#d4a853" />}
+    </AnimatePresence>
     <GuildStatusPanel milestones={contentMilestones} guildProgress={guildProgress}/>
     {/* ── CSS grid responsive (timeline + sidebar) ── */}
     <style>{`

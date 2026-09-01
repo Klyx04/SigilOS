@@ -34,7 +34,7 @@ import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB } f
 import { DOFUS_WORLDS, DOFUS_JOBS } from "@/lib/dofus-assets";
 import { resolveRushSeqIcon } from "@/lib/rush-guide-utils";
 import { uploadImageFile } from "@/components/editor/utils/image-upload";
-import { isSafeImageUrl } from "@/lib/security";
+import { isSafeImageUrl, safeImageUrl } from "@/lib/security";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -1181,7 +1181,7 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
         <div className="flex items-center gap-1.5 flex-wrap">
           {resolveRushSeqIcon((seq as any).icon) && (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={resolveRushSeqIcon((seq as any).icon) as string} alt="" className="w-4 h-4 object-contain shrink-0" />
+            <img src={safeImageUrl(resolveRushSeqIcon((seq as any).icon) as string)} alt="" className="w-4 h-4 object-contain shrink-0" />
           )}
           <span className="text-xs text-zinc-300 font-medium">{seq.subGuideName || seq.subGuideRef}</span>
           {displayDungeons.length > 0 && (
@@ -2196,7 +2196,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                 </div>
                 {resolveRushSeqIcon(icon) && (
                   /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={resolveRushSeqIcon(icon) as string} alt="" className="w-6 h-6 object-contain rounded-md" />
+                  <img src={safeImageUrl(resolveRushSeqIcon(icon) as string)} alt="" className="w-6 h-6 object-contain rounded-md" />
                 )}
                 {customIconUrl.trim() && !isSafeImageUrl(customIconUrl) && (
                   <p className="text-[10px] text-red-400/80">URL d'image non autorisée (http(s) ou chemin relatif uniquement).</p>

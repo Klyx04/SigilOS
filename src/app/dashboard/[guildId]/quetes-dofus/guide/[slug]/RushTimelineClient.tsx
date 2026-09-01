@@ -51,6 +51,7 @@ import { QuestGroupRenderer, useQuestGroups } from "./QuestGroup";
 import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
 import { RushChapterSidebar } from "./RushChapterSidebar";
 import { isSequenceBlockedByPrereqs, resolveRushSeqIcon } from "@/lib/rush-guide-utils";
+import { safeImageUrl } from "@/lib/security";
 import { getAlignmentSet, collectCascadeUncheck } from "@/lib/rush-helpers";
 import { RushHelperBadge } from "@/components/rush/RushHelperBadge";
 import { MilestoneCelebrationBurst } from "@/components/dofus-quests/rush/MilestoneCelebration";
@@ -330,7 +331,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
             {resolveRushSeqIcon(seq.icon) && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={resolveRushSeqIcon(seq.icon) as string} alt="" className="w-4 h-4 object-contain shrink-0" loading="lazy" />
+              <img src={safeImageUrl(resolveRushSeqIcon(seq.icon) as string)} alt="" className="w-4 h-4 object-contain shrink-0" loading="lazy" />
             )}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/assets/icons/icone-quete.png" alt="" className="w-3 h-3 object-contain opacity-40 shrink-0" loading="lazy" />

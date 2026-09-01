@@ -78,11 +78,26 @@ export function buildCsp({ nonce, enforce }: BuildCspOptions): {
         "https://media.discordapp.net", // miroir fallback avatars Discord (#23)
     ].join(" ");
 
-    // ─── connect-src — Sentry (loader + tunnel) + WebSocket ────────────────
+    // ─── connect-src — Sentry (loader + tunnel) + WebSocket + CDN d'images ──
+    // Les images/avatars sont parfois chargés via `fetch()` (probe de validité
+    // d'avatar, préchargement, revalidation du Service Worker). Sans ces hosts,
+    // le `fetch()` cross-origin est bloqué par `connect-src` → image cassée /
+    // placeholder. On aligne donc `connect-src` sur les CDN de `img-src`.
     const connectSrc = [
         "'self'",
         "https://*.sentry.io https://sentry.io",
         "wss://*.sigilos.fr wss://localhost:*",
+        // CDN d'images chargés par fetch() (probes d'avatars/items, SW revalidate)
+        "https://cdn.discordapp.com https://media.discordapp.net",
+        "https://api.dofusdu.de https://api.dofusdb.fr https://static.dofusdb.fr https://dofusdb.s3.eu-west-3.amazonaws.com https://dofusdb.fr",
+        "https://www.dofusbook.net https://static.dofusbook.net https://s.d-bk.net",
+        "https://ganymede-dofus.com https://ganymede-app.com",
+        "https://cdn.static.dofensive.com",
+        "https://i.imgur.com https://images.unsplash.com https://unavatar.io",
+        "https://static.ankama.com https://www.ankama.com https://www.dofus.com https://www.dofuspourlesnoobs.com",
+        "https://static-cdn.jtvnw.net https://i.ytimg.com",
+        "https://dofusskinmanga.com https://barbofus.com https://www.barbofus.com https://static.barbofus.com",
+        "https://www.google.com https://*.gstatic.com",
     ].join(" ");
 
     // ─── script-src — nonce-based, PLUS aucun 'unsafe-inline' ──────────────

@@ -10,6 +10,7 @@ import { Hammer, Palmtree, Shield, ShieldCheck, Sparkles, Copy } from "lucide-re
 import { toast } from "sonner";
 import { getClass, DOFUS_JOBS } from "@/lib/dofus-assets";
 import { getDisplayName } from "@/lib/display-name";
+import { metierIds } from "@/lib/metiers";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -40,7 +41,7 @@ interface MemberCardProps {
 }
 
 export function MemberCard({ profile, guildId }: MemberCardProps) {
-    const jobs = Array.isArray(profile.metiers) ? (profile.metiers as string[]) : [];
+    const jobs = metierIds(profile.metiers);
     const topJobs = jobs.slice(0, 3);
     const remaining = jobs.length - 3;
 

@@ -14,7 +14,7 @@ import { publishGuideEvent, parseStepKey, getCachedGuideProgress, invalidateGuid
 import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers, buildMilestoneStepKeys, type GuideProgressRow, type GuideProgressMember, type GuidePresenceMap } from "@/lib/guide-progress-helpers";
 import { z } from "zod";
 import { findSequenceHelpers, type RushHelperProfile, type RushHelperMetier } from "@/lib/rush-helpers";
-import { getJob } from "@/lib/dofus-assets";
+import { normalizeMetiers } from "@/lib/metiers";
 import type { RushSequence } from "@/types/rush-guide-types";
 
 /**
@@ -1336,17 +1336,8 @@ export async function getSequenceHelpers(guildId: string, sequenceId: string) {
     dungeonIdsByProfile.get(p.profileId)!.add(p.dungeonId);
   }
 
-  const resolveMetiers = (metiers: unknown): RushHelperMetier[] => {
-    if (!Array.isArray(metiers)) return [];
-    return metiers.map((m) => {
-      if (typeof m === "string") {
-        const job = getJob(m);
-        return job?.name || m;
-      }
-      // format enrichi { name, level? } — conservé tel quel (retro-compat).
-      return m as RushHelperMetier;
-    });
-  };
+  const resolveMetiers = (metiers: unknown): RushHelperMetier[] =>
+    normalizeMetiers(metiers).map((m) => ({ name: m.name, level: m.level }));
 
   const members: RushHelperProfile[] = profiles.map((p) => ({
     profileId: p.id,

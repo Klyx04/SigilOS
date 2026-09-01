@@ -1,6 +1,6 @@
-# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-10-03)
+# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-10-04)
 
-**Status** : Fix Auth RBAC/Cache TTL opérationnel (résolution du bug intermittent 'Configuration en cours / Serveur Inconnu'). Refonte intégrale et technique des 2 guides de Raids Dofus 3.6 (Gouffre du Gigalodon & Sanctuaire des Jardins Éternels) avec paraphrase 100%, tableaux, boss et vraies mécaniques. Annuaire des guides dé-sloppé avec vignettes réelles du jeu Dofus compactes. Compilation `tsc` et build Next.js 16 validés (0 erreur).
+**Status** : Refonte et fiabilisation complète de la Worldmap HD (`ZoneDetailModal.tsx`) et du module de synchronisation des données de jeu (`game-data-actions.ts`). Les 83 Avis de Recherche du jeu sont cartographiés et persistés avec 100% de concordance sur les sous-zones officielles de `worldmap.json` (fiches DPNL enrichies, primes, milices et mécaniques tactiques). Filtrage strict des archimonstres par sous-zone (résolution de l'amalgame des cimetières/plainess) et intégration de la faune standard avec exclusion des pseudo-familles parasites. Compilation `tsc` et suites de tests validées à 100%.
 
 > ⚠️ **IMPORTANT : Le terminal est POWERSHELL, ne JAMAIS utiliser `&&`, toujours le point-virgule `;` pour chainer les commandes.**
 

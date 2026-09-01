@@ -21,12 +21,69 @@
 
 ## 🔴 Bloquant / Prod
 
-- **#57 — Ouverture prod** : checklist `docs/DECISION-OUVERTURE-LANDING.md`
-  (+ `src/temp/checklist-ouverture-prod-57.md`). Action VPS : retirer `rewrite * /maintenance.html`
-  sur `sigilos.fr`, noindexer la beta, resoumettre le sitemap, remplir les URLs Discord
-  (CU / privacy / install), vérifier `/legal/*`. **+ trancher la décision landing immersive** (`page.tsx`).
+- **#57 — Ouverture prod & PRA** : Guide maître Jour J `docs/GUIDE-DEPLOIEMENT-PROD-JOUR-J.md`
+  (+ `src/temp/checklist-ouverture-prod-57.md` & `docs/DECISION-OUVERTURE-LANDING.md`).
+  Actions VPS : 2 applications Discord isolées (Prod vs Beta), hardlinks des assets (`game-data` + `uploads`),
+  restauration DB automatique (`./scripts/restore_db.sh prod --download-latest`), retrait du rewrite Caddy `maintenance.html`
+  sur `sigilos.fr`, noindexer la beta, resoumettre le sitemap, vérifier `/legal/*`. **+ trancher la décision landing immersive** (`page.tsx`).
 
-## 🔴 En cours / continuation
+- ✅ **Session 01/09/2026 — Recrutement & Cycle de Vie (#RH), Refonte Documentation & Unification Boutons d'Aide** :
+  - **Module Recrutement & Cycle de Vie (`/admin/recruitment`)** : Gestion des périodes d'essai J-X, annuaire des mules et personnages secondaires, historique des départs & exclusions, relances et alertes Discord automatiques. Modèle `MemberLifecycle`, actions serveur sécurisées et interface pro `MemberLifecycleManager.tsx`.
+  - **Documentation Exhaustive & Sécurisation God** : 28 fiches rédigées sans slop dans `prisma/seed-docs.ts` couvrant les 35 modules. Suppression stricte de tout bouton d'édition côté lecteur, gestion documentaire réservée à `/god/docs`.
+  - **Unification Globale des Boutons [Documentation] + [Tutoriel]** : Standardisation du binôme de boutons `ModuleHelpActions` (ouverture du tiroir latéral contextuel + tutoriel interactif) sur 100% des 35+ modules et sous-modules du Dashboard (Membres et Staff).
+  Vérifs : **vitest 458/458 (52 fichiers)** · **tsc 0** · **build OK**.
+
+- ✅ **Lot 3 : Performance & Optimistic UI (#186a) + PWA & Offline (#197) (31/08)** :
+  - **#186a — Optimistic UI (Zero-Latency) & Virtualisation** : Hook `useOptimisticSet` (`use-optimistic-toggle.ts`) pour retours visuels 0ms et rollback automatique. Composant `VirtualList.tsx` pour scroll fluide 60-120 FPS.
+  - **#197 — PWA (Progressive Web App) & Cache Offline** : Manifest enrichi (`src/app/manifest.ts`) avec raccourcis Quêtes/Almanax/Défis, icônes adaptatives maskable, Service Worker (`public/sw.js`) pour cache statique/offline et bannière d'installation 1-clic `PwaInstallBanner`.
+  Vérifs : **vitest 448/448** · **tsc 0** · **build OK**.
+
+- ✅ **Lot 2 : Double Boss (#198.1), Badges & Rules Engine (#198.2) + Reaction Roles V2 Pro (#222) (31/08)** :
+  - **#198.1 — Double Boss & Défi Module + Icônes Dofus Quêtes** : Vignettes authentiques des Dofus dans les cartes de quêtes (`SuccesQuestsTab.tsx`), annuaire d'entraide guilde temps réel et support multi-boss 2 à 5 boss (`SuccesDefiTab.tsx` / `defi-actions.ts`).
+  - **#198.2 — Système de Badges, No-Code Rules Engine & Ko-fi** : Modèles `Badge` et `UserBadge`, studio GOD `/god/badges` avec Live Card Preview, upload drag-and-drop / presets, moteur de règles de déblocage automatique 100% No-Code (`badge-triggers.ts` pour Quêtes Dofus, Défis, Missions) et route Webhook Ko-fi (`/api/webhooks/kofi`).
+  - **#222 — Reaction Roles V2 Pro (DraftBot & Dyno Inspiration)** : Multi-rôles par sélection (`extraRoleIds`), rôles temporaires avec durée d'expiration (`durationDays`), enregistrement `TimedRoleGrant`, tâche de révocation automatique Discord (`processExpiredTimedRolesAction`), et éditeur pro dans `ReactionRolesManager.tsx`.
+  Vérifs : **vitest 445/445** · **tsc 0** · **build OK**.
+
+- ✅ **Lot 1 : Quick Wins & Robustesse Immédiate (31/08)** :
+  - **#199 — Tour Tuto Succès (Filtres & Défi)** : Reciblage de l'étape « Recherche et filtres » sur `[data-tour="succes-filters"]` et ajout de l'étape dédiée à l'onglet **Défi** (`[data-tour="succes-view-defi"]`) dans `tour-provider.tsx`.
+  - **#230 — Succession Automatique & Sécurisation Transfert** : Algorithme fail-safe de succession (`handleGuildOwnerSuccession`) si l'owner supprime son compte/quitte Discord (Owner Discord -> Officier `system:rbac` -> Ancien membre + audit log + alerte staff) + modale de confirmation manuelle par saisie du nom de guilde (`transferGuildOwnershipAction`). 6 tests unitaires passés (`guild-owner-succession.test.ts`).
+  - **#174 — Rappels Automatiques Discord Sorties Inactives** : Relances automatiques Discord + Notifications Dashboard pour les sorties Donjons/Quêtes/Songes inactives depuis > 72h avec clôture progressive (`inactive-posts-actions.ts`).
+  Vérifs : **vitest 438/438** · **tsc 0** · **build OK**.
+
+- ✅ **Harmonisation Dark/Light Mode & Tokens Sémantiques (31/08)** :
+  - **Switch Thème Public & God** : Intégration du `ThemeToggle` sur le `PublicHeader` (desktop + drawer mobile) et `GodTopNav`.
+  - **Suppression des classes en dur** : Nettoyage de `text-white` et `bg-zinc-900` au profit des tokens sémantiques `text-foreground`, `bg-surface`, `bg-background`, `border-border` dans `GeoguesserHUD.tsx`, `SpellRangeGrid.tsx`, `ZoneManager.tsx`.
+  - **Nettoyage CSS Global** : Correction de `.ganymade-step-text strong, b` dans `globals.css` vers `text-foreground` pour la lisibilité universelle dark/light.
+  Vérifs : **vitest 432/432** · **tsc 0** · **build OK**.
+
+- ✅ **Songes, Sidebar, Dolmanax, Grille Guilde & Rapport Staff #147 (31/08)** :
+  - **Clôture Songes & Embed Discord** : Déplacement de `deleteDiscordRunEmbed` avant `db.dreamRun.delete` dans `dream-run-actions.ts` (support Forum `type === 15` et Textuel `type === 0`).
+  - **Ordre Sidebar Dashboard** : `Donjons & Quêtes` en 1re position, `Songes` en 2e dans `NAV_TOOLS`.
+  - **Custom Module Icons GOD** : Onglet `/god?tab=module-icons` pour upload & compression WebP 128x128 max (`image-downloader.ts`).
+  - **Refonte Dolmanax (Anti-Slop / DPLN)** : Offrande du jour, bouton `+1 Page du Jour` net & lisible en dark/light mode, contrôles manuels et calendrier prévisionnel 7 jours.
+  - **Refonte Vue Guilde (Quêtes Dofus)** : Grille de cartes compacte 3 colonnes + Drawer d'entraide (membres en cours avec étape `🚩`, membres l'ayant obtenu, accès direct au guide).
+  - **Indexation Dofus & Quêtes dans Cmd+K** : Intégration de tous les Dofus (`db.dofusItem`) et étapes de quêtes (`db.dofusQuestEntry`) dans la recherche globale.
+  - **Chantier #147 — Rapport Quotidien Staff (« Data or Nothing »)** : `sendDailySummaryReport` n'envoie de message que si au moins un événement critique existe sur 24h (Arrivées, Départs/Archivages, Absences, Tickets ouverts, Preuves à valider). Si 0 événement → 0 message Discord.
+  - **Kralamoure Widget** : Confinement et adaptation du composant pour éviter tout débordement dans la sidebar 300px de `/quete-ocre`.
+  Vérifs : **vitest 432/432** · **tsc 0** · **build OK**.
+
+- ✅ **Correctif 429 & Autonomie Complète Items/Ressources #38 (31/08)** :
+  - **Débridage Rate-Limit `/api/assets-dofus`** : Sortie de `/api/assets-dofus` du rate-limiter strict 60 req/min (comme `/api/storage`) dans `src/proxy.ts`.
+  - **Rate-limit adaptatif `/api/dofusdb`** : Élévation à 120 req/min pour absorber la frappe interactive.
+  - **Cache Mémoire Serveur** : Cache in-process LRU/TTL 5 min sur la recherche multi-catégories Dofusdude/DofusDB et TTL 10 min sur les fiches items et recettes (`/api/dofusdb/items/[id]`, `/api/dofusdb/recipes/[id]`).
+  - **Chantier #38 Siphon & Autonomie Local-First** : Nouveau modèle Prisma `GameItem` indexé + migration `20261009000000_add_game_item_catalog` + action serveur `siphonGameItemsBatch` (lots de 50, hash MD5 différentiel, auto-siphon WebP non-bloquant).
+  - **Studio GOD & Bascule Modules** : Sous-onglet GOD « 📦 Items & Ressources » (`GameItemSiphonPanel`) + bascule local-first prioritaire pour l'Encyclopédie, les Services et le Coffre/Prêts.
+  Vérifs : **vitest 429/429** · **tsc 0** · **build OK**.
+
+- ✅ **Synchro Dokille, Outbox Discord, Tour Onboarding & Logs Audit Discord (31/08)** :
+  - **Synchro bidirectionnelle Dokille / Dolmanax** : Validation/invalidation globale synchronisée avec les 20 krokilles et quêtes.
+  - **Réagencement Prérequis Dokille** : Vulkania placé avant le Safari des Krokilles.
+  - **Contraste "Obtenu" Dofus** : Ratio YIQ dynamique pour dark/light mode.
+  - **Outbox Discord** : Correction du faux échec d'envoi (`outbox:${jobId}`).
+  - **Tour Onboarding** : Ciblage direct du composant Disponibilités (`[data-tour="profile-planning"]`) & conditionnement de « Présence & Feed » au mode vitrine.
+  - **Services Discord** : Affichage du surnom sur le serveur Discord (`discordNickname` / `pseudoDofus`) dans les réponses et notifications.
+  - **Admin Logs & Bot Gateway** : Résolution des surnoms serveur pour les cibles de logs et affichage du détail exact (`changeDetail` : rôles, surnom, arrivées, départs).
+  Vérifs : **vitest 429/429** · **tsc 0** · **build OK**.
 
 - ✅ **Refonte Complète Module Rush Sylvestre (28/08)** (`feat/dofusbook-spells-guide-refonte`, PR → dev) :
   - **Types partagés & Helpers purs** (`rush-guide-types.ts`, `rush-guide-utils.ts` avec 13 tests unitaires passés) : parsing exact `/travel`, détection déterministe des prérequis `isSequenceBlockedByPrereqs`, recherche de prochaine étape actionable ignorant les `info_sequence`.
@@ -35,6 +92,7 @@
   - **Overlay In-Game Redesign** (`GuideOverlayClient.tsx`) : Mode Normal + Mode Compact focalisé sur le jeu, gestion intelligente d'`Escape` et raccourci `/`.
   - **Overlay PiP toujours-au-dessus** (`use-guide-pip.ts`, modèle Ganymède) : clic direct `documentPictureInPicture.requestWindow()` + `createPortal(<GuideOverlayClient/>, pipWindow.document.body)` (une seule fenêtre, checkboxes synchronisées dashboard↔overlay). Fallback Firefox/Safari : **popup vierge + `createPortal`** (`openFallbackPopup`) — réutilise la session dashboard, plus de rebond `/dashboard/{guildId}`. Vérifs : **tsc 0** · **eslint 0 erreur**.
   - **Studio d'administration GOD** (`RushSylvestreAdminClient.tsx`) : `SequenceEditForm` en 8 sections accordéons progressives, indicateur de statut local non enregistré (`dirty`), et Aperçu Live en temps réel.
+  - **S4 « qui peut aider » (31/08)** : marquage GOD « 🔨 Métier requis » + `getSequenceHelpers` (garde guilde + Zod + rate-limit) + badge « X peut aider » (dashboard + overlay, `RushHelperBadge`) + **[Inviter/Partager]** (`inviteHelperForSequence` + `listRushTextChannels`). **Gap A** : `UserProfile.metiers` enrichi `[{id, name, level}]` — `src/lib/metiers.ts` (`normalizeMetiers`, rétro-compat `string[]` → niveau 200), éditeur profil avec niveau, consommateurs durcis, Zod élargi. **tsc 0** · **eslint 0 erreur** · **vitest 465/465** · **build OK**.
   Vérifs : **test:run 389/389** · **tsc 0** · **build OK**.
 
 - ✅ **Game Data — État des lieux & UI (27/08)** (`feat/chantier-2026-08-27-game-data-ui`, branche créée depuis `dev`, PR → dev) :

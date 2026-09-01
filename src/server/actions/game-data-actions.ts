@@ -119,7 +119,10 @@ export async function getMonsterFamilies(filters: { zoneId?: string; search?: st
         if (filters.search) whereClause.name = { contains: filters.search, mode: 'insensitive' };
         const families = await db.monsterFamily.findMany({
             where: whereClause,
-            include: { monsters: true },
+            include: {
+                monsters: true,
+                zones: { select: { id: true, name: true } }
+            },
             take: filters.search ? 20 : 100,
             orderBy: { name: 'asc' }
         });
@@ -357,8 +360,6 @@ export async function autoAssociateAllZoneFamilies(): Promise<ActionResponse<{
     if (!(await canAccessGameData())) return { success: false, error: 'Non autorisé' };
 
     try {
-        // Normalisation : minuscules + suppression des accents → matching robuste (casse/accents)
-        // sans risque de faux positif (on exige l'ÉGALITÉ des noms normalisés, pas un « contains »).
         const norm = (s: string | null | undefined) =>
             (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
@@ -372,38 +373,52 @@ export async function autoAssociateAllZoneFamilies(): Promise<ActionResponse<{
             select: { zone: true, subzone: true, name: true },
         });
 
-        // Index zone (normalisée) → archimonstres présents.
-        const archisByZone = new Map<string, string[]>();
+        // Index zone (normalisée) → monstres / archis présents
+        const monstersByZone = new Map<string, string[]>();
         for (const a of allArchis) {
             for (const zoneName of [a.zone, a.subzone]) {
                 if (!zoneName) continue;
                 const key = norm(zoneName);
-                const list = archisByZone.get(key) ?? [];
+                const list = monstersByZone.get(key) ?? [];
                 if (!list.includes(a.name)) list.push(a.name);
-                archisByZone.set(key, list);
+                monstersByZone.set(key, list);
             }
         }
 
-        // Diagnostic : nb d'archis portant une zone/sous-zone (source de l'association).
         const archisWithZone = allArchis.length;
 
-        // Précharge les familles par nom de monstre (nom exact, un seul par famille).
-        const allMonsters = await db.monster.findMany({ select: { name: true, familyId: true } });
+        // Précharge les familles
+        const allFamilies = await db.monsterFamily.findMany({
+            select: { id: true, name: true, monsters: { select: { id: true, name: true } } }
+        });
+
         const familyByMonsterName = new Map<string, string>();
-        for (const m of allMonsters) {
-            if (!familyByMonsterName.has(m.name)) familyByMonsterName.set(m.name, m.familyId);
+        const familyByName = new Map<string, string>();
+
+        for (const f of allFamilies) {
+            familyByName.set(norm(f.name), f.id);
+            for (const m of f.monsters) {
+                if (!familyByMonsterName.has(m.name)) familyByMonsterName.set(m.name, f.id);
+            }
         }
 
         let familiesLinked = 0;
         const matches: { zoneName: string; familyName: string }[] = [];
 
         for (const zone of zones) {
-            const monsterNames = archisByZone.get(norm(zone.name)) ?? [];
-            if (monsterNames.length === 0) continue;
-
+            const zNorm = norm(zone.name);
+            const monsterNames = monstersByZone.get(zNorm) ?? [];
             const linkedIds = new Set(zone.families.map(f => f.id));
             const familyIdsToLink = new Set<string>();
 
+            // 1. Correspondance directe par nom de famille contenue dans la zone (ex: "Porkass" dans "Plaine des Porkass")
+            for (const [fNorm, fId] of familyByName.entries()) {
+                if (fNorm.length >= 4 && (zNorm.includes(fNorm) || fNorm.includes(zNorm))) {
+                    if (!linkedIds.has(fId)) familyIdsToLink.add(fId);
+                }
+            }
+
+            // 2. Correspondance par les monstres de la zone
             for (const name of monsterNames) {
                 const fid = familyByMonsterName.get(name);
                 if (fid && !linkedIds.has(fid)) familyIdsToLink.add(fid);
@@ -566,6 +581,10 @@ export async function getZoneMonsters(zoneName: string): Promise<ActionResponse<
     families: any[];
 }>> {
     try {
+        const norm = (s: string | null | undefined) =>
+            (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        const zNorm = norm(zoneName);
+
         const zone = await db.zone.findFirst({
             where: { name: { contains: zoneName, mode: 'insensitive' } },
             include: {
@@ -577,32 +596,76 @@ export async function getZoneMonsters(zoneName: string): Promise<ActionResponse<
             }
         });
 
-        if (!zone) return { success: false, error: 'Zone introuvable' };
-
         const normalMonsters: any[] = [];
         const avisDeRecherche: any[] = [];
         const families: any[] = [];
+        const seenFamilies = new Set<string>();
 
-        zone.families.forEach(family => {
-            const isAvis = family.name.toLowerCase().includes('avis de recherche');
-            if (!isAvis) {
-                families.push({
-                    id: family.id,
-                    name: family.name,
-                    imageUrl: family.imageUrl,
-                    monstersCount: family.monsters.length
+        if (zone && zone.families.length > 0) {
+            zone.families.forEach(family => {
+                if (isIgnoredFamily(family.name)) return;
+                const isAvis = family.name.toLowerCase().includes('avis de recherche');
+                if (!isAvis && !seenFamilies.has(family.name)) {
+                    seenFamilies.add(family.name);
+                    families.push({
+                        id: family.id,
+                        name: family.name,
+                        imageUrl: family.imageUrl,
+                        level: family.level,
+                        monstersCount: family.monsters.length
+                    });
+                }
+                family.monsters.forEach(monster => {
+                    if (isAvis) {
+                        avisDeRecherche.push(monster);
+                    } else {
+                        normalMonsters.push({
+                            ...monster,
+                            familyName: family.name
+                        });
+                    }
                 });
-            }
-            family.monsters.forEach(monster => {
-                if (isAvis) avisDeRecherche.push(monster);
-                else normalMonsters.push({ ...monster, familyName: family.name });
             });
-        });
+        }
+
+        // Si la zone n'a pas de familles liées (ou zone non déclarée dans Zone), auto-détection dynamique stricte
+        if (families.length === 0) {
+            // 1. Chercher les familles dont le nom match strictement ou est préfixe/suffixe évident de la zone
+            const candidateFamilies = await db.monsterFamily.findMany({
+                include: { monsters: true }
+            });
+
+            for (const f of candidateFamilies) {
+                if (isIgnoredFamily(f.name)) continue;
+                const fNorm = norm(f.name);
+                const isExact = fNorm === zNorm;
+                const isDirectSub = fNorm.length >= 6 && zNorm.length >= 6 && (
+                    zNorm.startsWith(fNorm + ' ') || zNorm.endsWith(' ' + fNorm) ||
+                    fNorm.startsWith(zNorm + ' ') || fNorm.endsWith(' ' + zNorm)
+                );
+
+                if (isExact || isDirectSub) {
+                    if (!seenFamilies.has(f.name)) {
+                        seenFamilies.add(f.name);
+                        families.push({
+                            id: f.id,
+                            name: f.name,
+                            imageUrl: f.imageUrl,
+                            level: f.level,
+                            monstersCount: f.monsters.length
+                        });
+                        f.monsters.forEach(m => {
+                            normalMonsters.push({ ...m, familyName: f.name });
+                        });
+                    }
+                }
+            }
+        }
 
         return {
             success: true,
             data: {
-                zoneName: zone.name,
+                zoneName: zone?.name || zoneName,
                 normalMonsters,
                 avisDeRecherche,
                 families
@@ -617,52 +680,46 @@ export async function getZoneMonsters(zoneName: string): Promise<ActionResponse<
 /** Fetch bounties (Avis de recherche) for a specific zone from DofusDB */
 export async function getBountiesForZone(zoneName: string): Promise<ActionResponse<any[]>> {
     try {
-        const normalizedZone = zoneName.toLowerCase().trim();
-        const unaccentedZone = normalizedZone.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        const baseZone = unaccentedZone.replace(/^(cité d'|village d'|champs d'|forêt d'|prairies d'|bordure d'|massif d'|routes? d'|forêt |lac )/i, "").trim();
+        const norm = (s: string | null | undefined) =>
+            (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        const zNorm = norm(zoneName);
 
-        const localBounties = await db.bounty.findMany({
-            where: {
-                OR: [
-                    { zoneName: { contains: zoneName, mode: 'insensitive' } },
-                    { zoneName: { contains: normalizedZone, mode: 'insensitive' } },
-                    { zoneName: { contains: unaccentedZone, mode: 'insensitive' } },
-                    { zoneName: { contains: baseZone, mode: 'insensitive' } },
-                ]
-            }
+        const allLocalBounties = await db.bounty.findMany();
+        const localBounties = allLocalBounties.filter(b => {
+            if (!b.zoneName) return false;
+            const bNorm = norm(b.zoneName);
+            // Matching strict ou inclusion si longueur suffisante (>5 chars) pour éviter les faux positifs
+            return bNorm === zNorm || (bNorm.length >= 6 && zNorm.length >= 6 && (bNorm === zNorm || bNorm.startsWith(zNorm) || zNorm.startsWith(bNorm)));
         });
 
-        logger.debug(`[Bounties] Requested zone: "${zoneName}" -> normalized: "${normalizedZone}" -> base: "${baseZone}". Found local: ${localBounties.length}`);
+        logger.debug(`[Bounties] Requested zone: "${zoneName}". Found local: ${localBounties.length}`);
 
-        // 2. Fallback/Merge with DofusDB for dynamic data or missing entries
-        const regionMapping: Record<string, string[]> = {
-            'saharach': ['ali grothor', 'ka\'youloud', 'le khepricorne', 'simbadas'],
-            'frigost': ['monsieur pingouin', 'mekamouth', 'bouflouth'],
-            'pandala': ['le flib', 'marzwel le gobelin', 'musha l\'oni']
-        };
-
-        const response = await fetch(`https://api.dofusdb.fr/monsters?typeId=23&$limit=100&lang=fr`);
-        const data = await response.json();
-        const monsters = data.data || [];
-
-        const regionKey = Object.keys(regionMapping).find(k => normalizedZone.includes(k));
-        const regionalBounties = regionKey ? regionMapping[regionKey] : [];
+        // 2. Fetch direct depuis DofusDB avec vérification stricte des sous-zones (subareas)
+        let monsters: any[] = [];
+        try {
+            const response = await fetch(`https://api.dofusdb.fr/monsters?typeId=23&$limit=100&lang=fr`, {
+                signal: AbortSignal.timeout(5000)
+            });
+            if (response.ok) {
+                const data = await response.json();
+                monsters = data.data || [];
+            }
+        } catch {
+            // Fallback si DofusDB indisponible
+        }
 
         const externalFiltered = monsters.filter((m: any) => {
-            const subAreaMatch = m.subareas && m.subareas.some((sa: any) =>
-                sa.name.fr.toLowerCase().includes(normalizedZone) ||
-                normalizedZone.includes(sa.name.fr.toLowerCase())
-            );
-            if (subAreaMatch) return true;
-            if (regionalBounties.length > 0) {
-                return regionalBounties.includes(m.name.fr.toLowerCase());
-            }
-            return false;
+            if (!m.subareas || !Array.isArray(m.subareas)) return false;
+            return m.subareas.some((sa: any) => {
+                const saName = typeof sa.name === 'string' ? sa.name : sa.name?.fr || '';
+                const saNorm = norm(saName);
+                return saNorm === zNorm;
+            });
         });
 
-        // 3. Merged result: prioritize localDB info (like guide links), but fix minimap images
+        // 3. Merged result
         const merged = [...localBounties.map(b => {
-            const dofusDbMatch = monsters.find((m: any) => m.name.fr.toLowerCase() === b.name.toLowerCase());
+            const dofusDbMatch = monsters.find((m: any) => norm(m.name?.fr || m.name) === norm(b.name));
             let finalImage = b.imageUrl;
 
             if (finalImage && finalImage.startsWith('/images/bounties/') && dofusDbMatch) {
@@ -687,20 +744,21 @@ export async function getBountiesForZone(zoneName: string): Promise<ActionRespon
 
         // Add external bounties that aren't in local DB yet
         externalFiltered.forEach((m: any) => {
-            if (!merged.find(b => b.name.toLowerCase() === m.name.fr.toLowerCase())) {
+            const mNameFr = m.name?.fr || m.name;
+            if (!merged.find(b => norm(b.name) === norm(mNameFr))) {
                 merged.push({
                     id: m.id,
-                    name: m.name.fr,
+                    name: mNameFr,
                     imageUrl: m.img || `https://static.ankama.com/dofus/www/game/monsters/${m.id}.png`,
+                    mapUrl: null,
                     level: m.grades?.[0]?.level || 0,
-                    subarea: m.subareas?.[0]?.name?.fr || "Région",
+                    subarea: zoneName,
                     guideUrl: null,
                     doplons: 0,
-                    rewardType: 'Doplon',
+                    rewardType: "Doplon",
                     rewards: [],
                     milice: null,
-                    mechanics: null,
-                    mapUrl: null,
+                    mechanics: null
                 });
             }
         });
@@ -708,7 +766,7 @@ export async function getBountiesForZone(zoneName: string): Promise<ActionRespon
         return { success: true, data: merged };
     } catch (error) {
         logger.error('[getBountiesForZone] Error:', { error });
-        return { success: false, error: 'Erreur lors de la récupération des avis' };
+        return { success: false, error: 'Erreur lors du chargement des avis de recherche' };
     }
 }
 // #138 — cache mémoire 1h pour les fiches monstres (dofusdb externe, jusqu'à 5 requêtes/boss).
@@ -1378,6 +1436,125 @@ export async function updateGodBountyRecord(bountyId: string, data: {
     } catch (error) {
         logger.error('[updateGodBountyRecord] Error:', { error });
         return { success: false, error: 'Erreur lors de la mise à jour de l\'avis' };
+    }
+}
+
+/**
+ * 🛡️ Synchronisation automatique complète de tous les Avis de Recherche.
+ * Récupère tous les avis depuis DofusDB (typeId=23), déduit leurs sous-zones exactes,
+ * leurs niveaux, leurs types de récompenses, leurs URLs DPNL et leurs résumés tactiques.
+ */
+export async function syncBountiesCompleteFromDofusDb(): Promise<ActionResponse<{ synced: number; total: number }>> {
+    if (!(await canAccessBounties())) return { success: false, error: 'Non autorisé' };
+
+    try {
+        const response = await fetch(`https://api.dofusdb.fr/monsters?typeId=23&$limit=150&lang=fr`, {
+            headers: { 'Accept': 'application/json' },
+            signal: AbortSignal.timeout(15000)
+        });
+        if (!response.ok) return { success: false, error: 'Erreur de connexion à DofusDB' };
+
+        const json = await response.json();
+        const monsters: any[] = json.data || [];
+        let synced = 0;
+
+        for (const m of monsters) {
+            const name = typeof m.name === 'string' ? m.name : m.name?.fr;
+            if (!name || !name.trim()) continue;
+
+            const level = Array.isArray(m.grades) && m.grades.length > 0
+                ? m.grades[0].level || m.grades[0].grade
+                : (typeof m.level === 'number' ? m.level : 0);
+
+            const subarea = m.subareas && m.subareas.length > 0
+                ? (typeof m.subareas[0].name === 'string' ? m.subareas[0].name : m.subareas[0].name?.fr || '')
+                : null;
+
+            const imgUrl = m.img || (m.id ? `https://api.dofusdb.fr/img/monsters/${m.id}.png` : null);
+
+            // DPNL slug format
+            const cleanSlug = name
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/['\s]/g, '-');
+            const dpnlUrl = `https://www.dofuspourlesnoobs.com/on-recherche-${cleanSlug}.html`;
+
+            // Déduction de la milice & du type de récompense
+            let milice = "Astrub";
+            let rewardType = "Aviton";
+            let doplons = level * 10;
+
+            const subLower = (subarea || "").toLowerCase();
+            if (subLower.includes("frigost") || subLower.includes("glace") || subLower.includes("berg")) {
+                milice = "Bourgade de Frigost";
+                rewardType = "Kama de glace";
+            } else if (subLower.includes("saharach") || subLower.includes("dune")) {
+                milice = "Saharach";
+                rewardType = "Aviton";
+            } else if (subLower.includes("amakna") || subLower.includes("château")) {
+                milice = "Château d'Amakna";
+                rewardType = "Aviton";
+            } else if (subLower.includes("sufokia")) {
+                milice = "Sufokia";
+                rewardType = "Aviton";
+            } else if (subLower.includes("enutrosor") || subLower.includes("srambad") || subLower.includes("xelorium") || subLower.includes("ecaflipus")) {
+                milice = "Dimensions Divines";
+                rewardType = "Aviton";
+            }
+
+            const defaultRewards = [{ type: rewardType, amount: doplons }];
+
+            // Résumé tactique automatique
+            const spellsList = Array.isArray(m.spells) && m.spells.length > 0
+                ? m.spells.map((s: any) => typeof s.name === 'string' ? s.name : s.name?.fr).filter(Boolean).slice(0, 4).join(', ')
+                : null;
+            const defaultMechanics = `<p><strong>Zone de traque :</strong> ${subarea || 'Inconnue'}</p><p><strong>Niveau conseillé :</strong> ${level}</p>${spellsList ? `<p><strong>Capacités clés :</strong> ${spellsList}</p>` : ''}<p>Consultez la fiche complète sur DofusPourLesNoobs pour les états d'invulnérabilité et le placement idéal.</p>`;
+
+            const existing = await db.bounty.findUnique({
+                where: { name: name.trim() }
+            });
+
+            if (existing) {
+                await db.bounty.update({
+                    where: { id: existing.id },
+                    data: {
+                        level: existing.level || level,
+                        zoneName: existing.zoneName || subarea,
+                        imageUrl: existing.imageUrl || imgUrl,
+                        dpnlUrl: existing.dpnlUrl || dpnlUrl,
+                        milice: existing.milice || milice,
+                        rewardType: existing.rewardType || rewardType,
+                        doplons: existing.doplons || doplons,
+                        rewards: existing.rewards || defaultRewards,
+                        mechanics: existing.mechanics || defaultMechanics,
+                    }
+                });
+            } else {
+                await db.bounty.create({
+                    data: {
+                        name: name.trim(),
+                        level,
+                        zoneName: subarea,
+                        imageUrl: imgUrl,
+                        dpnlUrl,
+                        milice,
+                        rewardType,
+                        doplons,
+                        rewards: defaultRewards,
+                        mechanics: defaultMechanics,
+                    }
+                });
+            }
+
+            synced++;
+        }
+
+        await logGameDataWrite("sync-all-bounties", `synced-${synced}`);
+        return { success: true, data: { synced, total: monsters.length } };
+    } catch (error) {
+        logger.error('[syncBountiesCompleteFromDofusDb] Error:', { error });
+        return { success: false, error: 'Erreur lors de la synchronisation des avis' };
     }
 }
 
@@ -2177,10 +2354,30 @@ export async function addIgnoredFamily(name: string) {
     }
 }
 
+const DEFAULT_IGNORED_FAMILY_PATTERNS = [
+    "archimonstres",
+    "archimonstre",
+    "monstres de quête",
+    "monstres de quetes",
+    "alignement",
+    "avis de recherche",
+    "monstre d'alignement",
+    "pnj",
+    "invocation",
+    "garde",
+    "protecteur",
+    "tutorial",
+    "tutoriel",
+];
+
 function isIgnoredFamily(name?: string | null): boolean {
     if (!name) return false;
+    const lower = name.trim().toLowerCase();
+    if (DEFAULT_IGNORED_FAMILY_PATTERNS.some(pat => lower.includes(pat))) {
+        return true;
+    }
     const ignored = getIgnoredFamilies();
-    return ignored.includes(name.trim().toLowerCase());
+    return ignored.includes(lower);
 }
 
 export async function getIgnoredFamiliesAction(): Promise<ActionResponse<string[]>> {
@@ -3099,17 +3296,21 @@ export async function checkDofusDbApiHealth(): Promise<ActionResponse<{
 }
 
 /**
- * 🦎 Synchronisation automatique des Familles de Monstres depuis DofusDB (/monster-races).
- * Préserve les modifications manuelles tout en ajoutant les familles officielles manquantes.
+ * 🦎 Synchronisation automatique des Familles de Monstres et de leurs Créatures depuis DofusDB.
+ * 1. Synchronise les races/familles (/monster-races).
+ * 2. Synchronise les monstres individuels (/monsters) rattachés à chaque famille avec niveau et image.
+ * Préserve les modifications manuelles existantes.
  */
-export async function syncMonsterFamiliesFromDofusDb(): Promise<ActionResponse<{ synced: number; total: number }>> {
+export async function syncMonsterFamiliesFromDofusDb(): Promise<ActionResponse<{ synced: number; total: number; monstersSynced?: number }>> {
     if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
 
     try {
         let skip = 0;
         let total = 1;
         let synced = 0;
+        const familyRaceIdMap = new Map<number, string>(); // raceId (DofusDB) -> MonsterFamily.id
 
+        // 1. Sync des Familles / Races
         while (skip < total) {
             const res = await fetch(`https://api.dofusdb.fr/monster-races?$limit=50&$skip=${skip}`, {
                 headers: { 'Accept': 'application/json' },
@@ -3126,7 +3327,7 @@ export async function syncMonsterFamiliesFromDofusDb(): Promise<ActionResponse<{
                 if (!nameFr || !nameFr.trim()) continue;
                 if (isIgnoredFamily(nameFr)) continue;
 
-                await db.monsterFamily.upsert({
+                const family = await db.monsterFamily.upsert({
                     where: { name: nameFr.trim() },
                     update: {}, // Préserve les données manuelles existantes
                     create: {
@@ -3134,13 +3335,82 @@ export async function syncMonsterFamiliesFromDofusDb(): Promise<ActionResponse<{
                         level: null,
                     }
                 });
+                if (typeof item.id === 'number') {
+                    familyRaceIdMap.set(item.id, family.id);
+                }
                 synced++;
             }
             skip += items.length;
         }
 
-        await logGameDataWrite("sync-monster-families", `synced-${synced}`);
-        return { success: true, data: { synced, total } };
+        // 2. Sync des Monstres individuels par lots (/monsters)
+        let monsterSkip = 0;
+        let monsterTotal = 1;
+        let monstersSynced = 0;
+
+        while (monsterSkip < monsterTotal) {
+            const mRes = await fetch(`https://api.dofusdb.fr/monsters?$limit=50&$skip=${monsterSkip}`, {
+                headers: { 'Accept': 'application/json' },
+                signal: AbortSignal.timeout(15000)
+            });
+            if (!mRes.ok) break;
+            const mJson = await mRes.json();
+            monsterTotal = mJson.total || 0;
+            const mItems = mJson.data || [];
+            if (mItems.length === 0) break;
+
+            for (const m of mItems) {
+                const mName = typeof m.name === 'string' ? m.name : (m.name?.fr || m.name?.en || '');
+                if (!mName || !mName.trim()) continue;
+                
+                const raceId = m.race?.id || m.raceId || m.race;
+                const familyId = raceId ? familyRaceIdMap.get(raceId) : null;
+                if (!familyId) continue;
+
+                const level = Array.isArray(m.grades) && m.grades.length > 0
+                    ? m.grades[0].level || m.grades[0].grade
+                    : (typeof m.level === 'number' ? m.level : null);
+
+                const imgUrl = m.img || (m.id ? `https://api.dofusdb.fr/img/monsters/${m.id}.png` : null);
+
+                // Upsert du monstre
+                const existingMonster = await db.monster.findFirst({
+                    where: { name: mName.trim(), familyId }
+                });
+
+                if (existingMonster) {
+                    await db.monster.update({
+                        where: { id: existingMonster.id },
+                        data: {
+                            imageUrl: imgUrl || existingMonster.imageUrl,
+                            level: level || existingMonster.level
+                        }
+                    });
+                } else {
+                    await db.monster.create({
+                        data: {
+                            name: mName.trim(),
+                            familyId,
+                            imageUrl: imgUrl,
+                            level
+                        }
+                    });
+                }
+
+                // Si la famille n'a pas encore d'image ou de niveau représentatif, on prend celui du monstre
+                await db.monsterFamily.updateMany({
+                    where: { id: familyId, imageUrl: null },
+                    data: { imageUrl: imgUrl, level: level || undefined }
+                });
+
+                monstersSynced++;
+            }
+
+            monsterSkip += mItems.length;
+        }
+
+        await logGameDataWrite("sync-monster-families", `families-${synced}_monsters-${monstersSynced}`);
+        return { success: true, data: { synced, total, monstersSynced } };
     } catch (e: any) {
         logger.error('[syncMonsterFamiliesFromDofusDb] Error:', { error: e });
         return { success: false, error: 'Erreur lors de la synchronisation des familles' };

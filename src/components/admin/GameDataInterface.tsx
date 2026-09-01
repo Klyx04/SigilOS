@@ -15,6 +15,7 @@ import ArchimonstreManager from "./ArchimonstreManager";
 import { GameDataMonsterManager } from "./GameDataMonsterManager";
 import { DofusDbHarvestSyncManager } from "./DofusDbHarvestSyncManager";
 import { GameDataSiphonPanel } from "./GameDataSiphonPanel";
+import { GameItemSiphonPanel } from "./GameItemSiphonPanel";
 import DefiManager from "./DefiManager";
 
 
@@ -27,6 +28,9 @@ export default function GameDataInterface() {
                 <TabsList className="flex flex-nowrap justify-start gap-2 w-full bg-elevated/50 mb-6 p-2.5 rounded-2xl h-auto overflow-x-auto custom-scrollbar">
                     <TabsTrigger value="siphon" className="px-3.5 py-2 shrink-0 whitespace-nowrap rounded-xl font-bold gap-2 shadow-sm data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
                         🛡️ Siphon & Autonomie
+                    </TabsTrigger>
+                    <TabsTrigger value="items" className="px-3.5 py-2 shrink-0 whitespace-nowrap rounded-xl font-bold gap-2 data-[state=active]:bg-violet-600 data-[state=active]:text-white">
+                        📦 Items & Ressources
                     </TabsTrigger>
                     <TabsTrigger value="families" className="px-3.5 py-2 shrink-0 whitespace-nowrap rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                         🦎 Familles
@@ -65,6 +69,10 @@ export default function GameDataInterface() {
 
                 <TabsContent value="siphon" className="space-y-4">
                     <GameDataSiphonPanel />
+                </TabsContent>
+
+                <TabsContent value="items" className="space-y-4">
+                    <GameItemSiphonPanel />
                 </TabsContent>
 
                 <TabsContent value="families" className="space-y-4">

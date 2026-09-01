@@ -12,6 +12,7 @@ import {
     Joystick
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
 type HubCard = {
     href: string;
@@ -79,6 +80,7 @@ export default async function StuffHubPage({
                 icon={Briefcase}
                 iconColor="#6366f1"
                 backHref={`/dashboard/${guildId}`}
+                actions={<ModuleHelpActions docSlug="galerie-stuff" docTitle="Galerie & Outils" tourPhase="galerie" />}
             />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-300">

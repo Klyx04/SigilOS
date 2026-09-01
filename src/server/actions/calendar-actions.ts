@@ -445,7 +445,8 @@ export async function getUpcomingEvents(guildId: string, _days: number = 7) {
             where: {
                 guildId: guildConfig.id,
                 startDate: { gte: weekStart, lt: weekEnd },
-                status: { in: ["PUBLISHED", "COMPLETED"] }
+                endDate: { gte: now },
+                status: "PUBLISHED"
             },
             include: {
                 _count: { select: { participants: true } }

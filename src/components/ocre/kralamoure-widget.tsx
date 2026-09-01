@@ -202,21 +202,21 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId, isImpor
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
 
             {/* Top Row: Title & Badge */}
-            <div className="relative z-10 flex items-start justify-between mb-3">
-                <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                        <h4 className="font-black text-sm text-foreground tracking-tight">
-                            CHASSE KRALAMOURE
+            <div className="relative z-10 flex items-start justify-between gap-2 mb-2">
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 truncate">
+                        <h4 className="font-black text-xs text-foreground tracking-tight truncate">
+                            KRALAMOURE
                         </h4>
-                        {isUpcoming && <Sparkles className="h-3 w-3 text-warning animate-pulse" />}
+                        {isUpcoming && <Sparkles className="h-3 w-3 text-warning animate-pulse shrink-0" />}
                     </div>
-                    <p className="text-caption font-black text-pink-500 uppercase tracking-[0.1em]">
+                    <p className="text-caption font-bold text-pink-500 uppercase truncate">
                         {event.server.name}
                     </p>
                 </div>
 
                 {isImported && (
-                    <Badge className="bg-success/10 text-success border border-success/20 text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-md">
+                    <Badge className="bg-success/10 text-success border border-success/20 text-caption font-bold px-1.5 py-0.5 rounded-md shrink-0">
                         <CalendarCheck className="h-3 w-3 mr-1" />
                         Importé
                     </Badge>
@@ -224,57 +224,54 @@ function KralamoureEventCard({ event, index, canManageCalendar, guildId, isImpor
             </div>
 
             {/* Middle Row: Content & Time */}
-            <div className="relative z-10 flex items-end justify-between gap-4">
-                <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-3 text-caption font-bold text-muted-foreground">
-                        <span className="flex items-center gap-1">
+            <div className="relative z-10 flex flex-col gap-2">
+                <div className="flex items-center justify-between text-caption font-bold text-muted-foreground gap-2">
+                    <div className="flex items-center gap-2 truncate">
+                        <span className="flex items-center gap-1 shrink-0">
                             <Users className="h-3 w-3" />
                             {event.participants_count}
                         </span>
                         {(event.messages_count ?? 0) > 0 && (
-                            <span className="flex items-center gap-1">
+                            <span className="flex items-center gap-1 shrink-0">
                                 <MessageSquare className="h-3 w-3" />
                                 {event.messages_count}
                             </span>
                         )}
-                        <span className="opacity-40">par {event.creator}</span>
                     </div>
-
-                    {event.description && (
-                        <p className="text-caption text-muted-foreground/70 italic line-clamp-1 border-l-2 border-border pl-2">
-                            {event.description}
-                        </p>
-                    )}
+                    <span className="text-caption font-mono shrink-0" style={{ color: isImminent ? "#ef4444" : isUpcoming ? "#f59e0b" : undefined }}>
+                        {formatDistanceToNow(eventTime, { locale: fr, addSuffix: true })}
+                    </span>
                 </div>
 
-                <div className="text-right shrink-0">
-                    <p className={cn(
-                        "text-caption font-black uppercase tracking-wider mb-0.5",
-                        isImminent ? "text-danger" : isUpcoming ? "text-warning" : "text-muted-foreground"
-                    )}>
-                        {formatDistanceToNow(eventTime, { locale: fr, addSuffix: true })}
+                {event.description && (
+                    <p className="text-caption text-muted-foreground truncate border-l-2 border-border pl-2">
+                        {event.description}
                     </p>
-                    <div className="flex items-center gap-3">
-                        <span className="text-xl font-black text-foreground tabular-nums leading-none">
-                            {format(eventTime, "HH:mm", { locale: fr })}
-                        </span>
-                        
-                        {canManageCalendar && !isImported && (
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 rounded-lg bg-surface border-border hover:bg-pink-500 hover:text-foreground hover:border-pink-500 transition-all"
-                                onClick={handleImport}
-                                disabled={isImporting}
-                            >
-                                {isImporting ? (
-                                    <RefreshCw className="h-3 w-3 animate-spin" />
-                                ) : (
-                                    <CalendarPlus className="h-4 w-4" />
-                                )}
-                            </Button>
-                        )}
-                    </div>
+                )}
+
+                <div className="flex items-center justify-between pt-1 border-t border-border/40">
+                    <span className="text-base font-black text-foreground tabular-nums">
+                        {format(eventTime, "HH:mm", { locale: fr })}
+                    </span>
+
+                    {canManageCalendar && !isImported && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-caption rounded-lg bg-surface border-border hover:bg-pink-500 hover:text-foreground hover:border-pink-500 transition-all flex items-center gap-1 font-bold"
+                            onClick={handleImport}
+                            disabled={isImporting}
+                        >
+                            {isImporting ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                            ) : (
+                                <>
+                                    <CalendarPlus className="h-3.5 w-3.5" />
+                                    <span>Importer</span>
+                                </>
+                            )}
+                        </Button>
+                    )}
                 </div>
             </div>
         </motion.div>

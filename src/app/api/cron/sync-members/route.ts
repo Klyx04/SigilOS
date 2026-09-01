@@ -48,6 +48,14 @@ export async function GET(req: NextRequest) {
             );
         }
 
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("sync_members", {
+            success: summary.failedGuilds.length === 0,
+            durationMs,
+            summary: `Sync membres : ${summary.totalArchived} archivé(s), ${summary.totalReactivated} réactivé(s), ${summary.totalErrors} erreur(s)`,
+            details: summary,
+        });
+
         return NextResponse.json({
             success: true,
             durationMs,
@@ -57,6 +65,12 @@ export async function GET(req: NextRequest) {
         });
     } catch (error) {
         logger.error("[SyncMembersCron] Fatal error:", { error });
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("sync_members", {
+            success: false,
+            durationMs: Date.now() - startedAt,
+            summary: `Erreur fatale: ${(error as Error).message || "Erreur interne"}`,
+        });
         return NextResponse.json({ error: "Internal error" }, { status: 500 });
     }
 }

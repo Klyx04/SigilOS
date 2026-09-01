@@ -18,6 +18,11 @@ export type TourPhase =
     | "adminMembers"
     | "adminLogs"
     | "adminOverview"
+    | "adminPoints"
+    | "adminApiKeys"
+    | "adminRecruitment"
+    | "reactionRoles"
+    | "tickets"
     // Phases des tours MODULES (rejouables, filtrées par module actif + RBAC)
     | "missions"
     | "ladder"
@@ -110,10 +115,11 @@ const PROFILE_STEPS: TourStep[] = [
         placement: "right"
     },
     {
-        target: '[data-tour="profile-tab-planning"]',
+        target: '[data-tour="profile-planning"]',
         title: "Tes disponibilités",
         description: "Renseigne tes créneaux horaires pour faciliter l'organisation de runs de donjons ou de songes.",
-        placement: "right"
+        placement: "top",
+        module: "availability"
     },
     {
         target: '[data-tour="profile-tab-combat"]',
@@ -131,7 +137,8 @@ const PROFILE_STEPS: TourStep[] = [
         target: '[data-tour="profile-tab-activity"]',
         title: "Présence & Feed",
         description: "Gère ta présence et consulte l'activité récente de tes compagnons.",
-        placement: "right"
+        placement: "right",
+        module: "missions"
     },
     {
         target: '[data-tour="profile-tab-settings"]',
@@ -1238,14 +1245,14 @@ const SUCCES_STEPS: TourStep[] = [
     {
         target: '[data-tour="succes-views"]',
         title: "Navigation du Module Succès",
-        description: "Quatre vues complémentaires : « Mes Succès » pour cocher ta progression donjon par donjon, « Succès Commun » pour voir qui dans la guilde a validé quoi, « Fiches Boss » pour les sorts et simulations de combat, et « Quêtes & Succès » pour les quêtes associées.",
+        description: "Cinq vues complémentaires : « Mes Succès » pour cocher ta progression donjon par donjon, « Succès Commun » pour voir qui dans la guilde a validé quoi, « Fiches Boss » pour les sorts et simulations de combat, « Quêtes & Succès » pour les quêtes associées, et « Défis » pour les événements et challenges communautaires.",
         placement: "bottom",
         module: "succes",
     },
     {
-        target: '[data-tour="succes-view-quetes"]',
-        title: "Quêtes & Succès de Donjons",
-        description: "Suis toutes les quêtes de donjons (Tour du Monde, Quêtes de Dofus, Rush Sylvestre), recherche par membre et prévisualise les zones et coordonnées cartographiques.",
+        target: '[data-tour="succes-filters"]',
+        title: "Recherche et filtres",
+        description: "Recherche un donjon ou un boss par nom, filtre par statut (À faire / Finis) et par tranche de niveau pour cibler rapidement tes objectifs.",
         placement: "bottom",
         module: "succes",
     },
@@ -1264,9 +1271,9 @@ const SUCCES_STEPS: TourStep[] = [
         module: "succes",
     },
     {
-        target: '[data-tour="succes-search"]',
-        title: "Recherche et filtres",
-        description: "Recherche un donjon ou un boss par nom, filtre par statut (À faire / Finis) et par tranche de niveau.",
+        target: '[data-tour="succes-view-defi"]',
+        title: "Onglet Défis & Événements",
+        description: "Découvre les défis spéciaux et événements communautaires. Valide ta participation et crée des groupes dédiés.",
         placement: "bottom",
         module: "succes",
     },
@@ -1315,13 +1322,25 @@ export function TourProvider({
     const isFirstAdminForGuild = !!user?.isFirstAdminForGuild;
     const isSuperAdmin = !!user?.isSuperAdmin;
 
-    // Filtre les steps selon modules actifs + permissions RBAC admin
+    // Filtre les steps selon modules actifs + permissions RBAC admin + mode vitrine
     const applyFilters = (steps: TourStep[]) => steps.filter(step => {
-        if (step.module && modules && !modules[step.module]) return false;
+        if (step.module && modules && !modules[step.module]) {
+            // Cas particulier : availability peut être couvert par calendar
+            if (step.module === "availability" && modules.calendar) {
+                // keep
+            } else {
+                return false;
+            }
+        }
         if (step.requiresPerm && user && user[step.requiresPerm] === false) return false;
+        // Si le mode vitrine des missions est activé (missionVitrineMode), masquer Présence & Feed
+        if (step.target === '[data-tour="profile-tab-activity"]' && (user?.missionVitrineMode || (modules && !modules.missions))) {
+            return false;
+        }
         return true;
     });
 
+    const profileSteps = applyFilters(PROFILE_STEPS);
     const adminOnboardingSteps = applyFilters(ADMIN_ONBOARDING_STEPS);
     const adminModulesSteps = applyFilters(ADMIN_MODULES_STEPS);
     const dashboardSteps = applyFilters(DASHBOARD_STEPS);
@@ -1355,7 +1374,7 @@ export function TourProvider({
 
     const getPhaseSteps = (phase: TourPhase): TourStep[] => {
         switch (phase) {
-            case "profile": return PROFILE_STEPS;
+            case "profile": return profileSteps;
             case "dashboard": return dashboardSteps;
             case "dashboardBricks": return dashboardBricksSteps;
             case "admin": return adminOnboardingSteps;

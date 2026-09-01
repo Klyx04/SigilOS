@@ -139,6 +139,15 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
                     },
                 });
 
+                await createNotification(
+                    post.profile.userId,
+                    "SYSTEM_INFO",
+                    "Rappel Sortie Donjon/Quête",
+                    `Ton annonce **${postTitle}** est inactive depuis 7 jours. Pense à la clôturer si elle n'est plus d'actualité.`,
+                    `/dashboard/${post.guild.discordGuildId}/donjons-et-quetes`,
+                    post.guild.discordGuildId
+                ).catch(() => {});
+
                 djRemindersSent++;
             }
             // Seuil 2 : J+15 (Rappel 2)
@@ -160,6 +169,15 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
                     },
                 });
 
+                await createNotification(
+                    post.profile.userId,
+                    "SYSTEM_INFO",
+                    "Rappel Sortie Donjon/Quête (2/3)",
+                    `Ton annonce **${postTitle}** est sans activité depuis 15 jours.`,
+                    `/dashboard/${post.guild.discordGuildId}/donjons-et-quetes`,
+                    post.guild.discordGuildId
+                ).catch(() => {});
+
                 djRemindersSent++;
             }
             // Seuil 3 : J+20 (Rappel 3 - Ultime)
@@ -180,6 +198,15 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
                         },
                     },
                 });
+
+                await createNotification(
+                    post.profile.userId,
+                    "EVENT_REMINDER",
+                    "⚠️ Dernier Rappel Avant Clôture",
+                    `Ton annonce **${postTitle}** sera automatiquement clôturée sous 24h sans nouvelle interaction.`,
+                    `/dashboard/${post.guild.discordGuildId}/donjons-et-quetes`,
+                    post.guild.discordGuildId
+                ).catch(() => {});
 
                 djRemindersSent++;
             }

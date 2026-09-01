@@ -16,20 +16,44 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const startedAt = Date.now();
+
     try {
         const result = await cleanupGlobalAuditLogs();
+        const durationMs = Date.now() - startedAt;
 
         if (!result.success) {
+            const { recordCronExecution } = await import("@/lib/cron-telemetry");
+            await recordCronExecution("cleanup_logs", {
+                success: false,
+                durationMs,
+                summary: `Échec purge logs: ${result.error}`,
+            });
             return NextResponse.json({ error: result.error }, { status: 500 });
         }
 
+        const deletedCount = result.data?.deletedCount || 0;
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("cleanup_logs", {
+            success: true,
+            durationMs,
+            summary: `Purge logs : ${deletedCount} logs supprimés (> 30j)`,
+            details: { deletedCount },
+        });
+
         return NextResponse.json({
             success: true,
-            deletedCount: result.data?.deletedCount || 0,
-            message: `${result.data?.deletedCount || 0} logs supprimés (rétention > 30 jours)`
+            deletedCount,
+            message: `${deletedCount} logs supprimés (rétention > 30 jours)`
         });
     } catch (e: any) {
         console.error('[CRON Cleanup Logs] Error:', e);
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("cleanup_logs", {
+            success: false,
+            durationMs: Date.now() - startedAt,
+            summary: `Erreur interne: ${e.message}`,
+        });
         return NextResponse.json({ error: e.message || 'Internal Server Error' }, { status: 500 });
     }
 }

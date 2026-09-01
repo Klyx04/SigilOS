@@ -9,7 +9,7 @@ import { getUserContext, getGuildMembers } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { type PermissionId } from "@/lib/permissions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
-import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 import { Shield, AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -81,15 +81,20 @@ export default async function PermissionsPage({
     const { getRbacUsersMappingEnabled } = await import("@/lib/platform-rbac");
     const rbacUsersMappingEnabled = await getRbacUsersMappingEnabled();
 
+    // #158 — Matrice RBAC Commandes Slash Discord
+    const { getGuildSlashCommandPermissionsAction } = await import("@/server/actions/slash-command-actions");
+    const { SlashCommandsRbacPanel } = await import("@/components/admin/SlashCommandsRbacPanel");
+    const slashPerms = await getGuildSlashCommandPermissionsAction(config.id);
+
     return (
         <div className="space-y-8 pb-12">
             <div data-tour="admin-permissions-header">
                 <UnifiedModuleHeader
-                    title="Permissions"
+                    title="Permissions & Commandes"
                     description={`Attribuez les droits aux rôles Discord et aux membres de ${config.name}`}
                     icon={Shield}
                     backHref={`/dashboard/${guildId}/admin`}
-                    actions={<AdminTourReplay phase="adminPermissions" />}
+                    actions={<ModuleHelpActions docSlug="admin-permissions" docTitle="Rôles & Permissions" tourPhase="adminPermissions" />}
                 />
             </div>
             <Alert className="bg-warning/10 border-warning/20 text-warning mb-8">
@@ -108,6 +113,14 @@ export default async function PermissionsPage({
                     currentMapping={currentMapping}
                     currentUsersMapping={currentUsersMapping}
                     usersMappingEnabled={rbacUsersMappingEnabled}
+                />
+            </div>
+
+            <div className="pt-8 border-t border-border">
+                <SlashCommandsRbacPanel
+                    guildId={config.id}
+                    initialMatrix={slashPerms.success ? slashPerms.data || [] : []}
+                    discordRoles={roles.map((r: any) => ({ id: r.id, name: r.name, color: r.color }))}
                 />
             </div>
         </div>

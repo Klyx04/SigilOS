@@ -19,7 +19,7 @@ import { AdvancedEditor } from '@/components/editor/advanced-editor';
 import { AssetGalleryModal } from "@/components/admin/asset-gallery-modal";
 
 import { getAllBounties } from "@/server/actions/admin-actions";
-import { updateGodBountyRecord } from "@/server/actions/game-data-actions";
+import { updateGodBountyRecord, syncBountiesCompleteFromDofusDb } from "@/server/actions/game-data-actions";
 
 const REWARD_TYPES = [
     { id: "Aliton", label: "Alitons", icon: "/assets/avis/aliton.png" },
@@ -124,6 +124,28 @@ export default function GodBountiesPage() {
         setSelectedBounty({ ...selectedBounty, rewards: newRewards });
     };
 
+    const [syncingAll, setSyncingAll] = useState(false);
+
+    const handleSyncAllBounties = async () => {
+        if (!confirm("Voulez-vous synchroniser et pré-remplir automatiquement tous les avis de recherche depuis DofusDB & DPNL ?")) return;
+        setSyncingAll(true);
+        try {
+            const res = await syncBountiesCompleteFromDofusDb();
+            if (res.success && res.data) {
+                toast.success(`${res.data.synced} Avis synchronisés et pré-remplis avec succès !`);
+                const updated = await getAllBounties();
+                setBounties(updated);
+                setFilteredBounties(updated);
+            } else {
+                toast.error(res.error || "Erreur de synchronisation");
+            }
+        } catch {
+            toast.error("Erreur de connexion");
+        } finally {
+            setSyncingAll(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex-1 flex items-center justify-center min-h-screen bg-[#050505]">
@@ -154,14 +176,25 @@ export default function GodBountiesPage() {
                     </div>
                 </div>
 
-                <div className="relative w-full lg:w-96 group">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-amber-500 transition-colors" size={18} />
-                    <Input
-                        placeholder="Rechercher une cible..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="pl-12 bg-white/5 border-white/5 text-white font-bold italic h-12 rounded-2xl focus-visible:ring-amber-500/50 group-hover:bg-white/[0.07] transition-all"
-                    />
+                <div className="flex items-center gap-3">
+                    <Button
+                        onClick={handleSyncAllBounties}
+                        disabled={syncingAll}
+                        className="bg-amber-500 hover:bg-amber-400 text-black font-bold uppercase italic text-xs h-12 px-5 rounded-2xl flex items-center gap-2 shadow-lg shadow-amber-500/20"
+                    >
+                        {syncingAll ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                        Sync & Remplir Tous les Avis
+                    </Button>
+
+                    <div className="relative w-full lg:w-80 group">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-amber-500 transition-colors" size={18} />
+                        <Input
+                            placeholder="Rechercher une cible..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="pl-12 bg-white/5 border-white/5 text-white font-bold italic h-12 rounded-2xl focus-visible:ring-amber-500/50 group-hover:bg-white/[0.07] transition-all"
+                        />
+                    </div>
                 </div>
             </header>
 

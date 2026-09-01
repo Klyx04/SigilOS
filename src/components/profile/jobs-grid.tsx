@@ -7,37 +7,42 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Image from "next/image";
 import { Pencil, Check, X, Hammer, Info } from "lucide-react";
-import { DOFUS_JOBS, getForgemagieStatus, type ForgemagieStatusId } from "@/lib/dofus-assets";
+import { DOFUS_JOBS, getJob, getForgemagieStatus, type ForgemagieStatusId } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
+import { normalizeMetiers, metierIds, type MetierEntry } from "@/lib/metiers";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 interface JobsGridProps {
-    jobs?: string[];
+    jobs?: string[] | MetierEntry[] | null;
     forgemagieStatus?: ForgemagieStatusId;
-    onSaveJobs?: (jobs: string[]) => void;
+    onSaveJobs?: (jobs: MetierEntry[]) => void;
     onSaveForgemagieStatus?: (status: ForgemagieStatusId) => void;
     readOnly?: boolean;
 }
 
 export function JobsGrid({
-    jobs = [],
+    jobs,
     forgemagieStatus = "UNAVAILABLE",
     onSaveJobs,
     onSaveForgemagieStatus,
     readOnly = false,
 }: JobsGridProps) {
     const [isOpen, setIsOpen] = useState(false);
-    const [selectedJobs, setSelectedJobs] = useState<string[]>(jobs);
+    const [selectedJobs, setSelectedJobs] = useState<MetierEntry[]>(() => normalizeMetiers(jobs));
 
-
+    const jobsList = normalizeMetiers(jobs);
 
     const toggleJob = (jobId: string) => {
-        if (selectedJobs.includes(jobId)) {
-            setSelectedJobs(prev => prev.filter(j => j !== jobId));
-        } else {
-            setSelectedJobs(prev => [...prev, jobId]);
-        }
+        setSelectedJobs(prev => {
+            if (prev.some(s => s.id === jobId)) return prev.filter(s => s.id !== jobId);
+            const job = getJob(jobId);
+            return [...prev, { id: jobId, name: job?.name || jobId, level: 200 }];
+        });
+    };
+
+    const setJobLevel = (jobId: string, level: number) => {
+        setSelectedJobs(prev => prev.map(s => (s.id === jobId ? { ...s, level: Math.max(1, Math.min(200, level)) } : s)));
     };
 
     const handleSave = () => {
@@ -46,11 +51,11 @@ export function JobsGrid({
     };
 
     const handleOpen = () => {
-        setSelectedJobs(jobs);
+        setSelectedJobs(normalizeMetiers(jobs));
     };
 
     const allJobs = Object.values(DOFUS_JOBS).flat();
-    const activeJobsData = allJobs.filter(j => jobs.includes(j.id));
+    const activeJobsData = allJobs.filter(j => metierIds(jobs).includes(j.id));
 
     return (
         <div className="p-6 bg-surface rounded-3xl border border-border transition-colors hover:border-warning/30 group h-full flex flex-col">
@@ -81,9 +86,35 @@ export function JobsGrid({
                         </DialogTrigger>
                         <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 bg-background border-border">
                             <DialogHeader className="p-6 pb-2 border-b border-border">
-                                <DialogTitle className="text-xl">Gérer vos métiers (Niveau 200)</DialogTitle>
-                                <DialogDescription>Sélectionnez les métiers que vous maîtrisez au niveau maximum.</DialogDescription>
+                                <DialogTitle className="text-xl">Gérer vos métiers & niveaux</DialogTitle>
+                                <DialogDescription>Sélectionnez vos métiers puis indiquez leur niveau (par défaut 200).</DialogDescription>
                             </DialogHeader>
+                            {selectedJobs.length > 0 && (
+                                <div className="px-6 pt-4">
+                                    <div className="p-3 rounded-xl border border-border bg-surface/40 space-y-2">
+                                        <p className="text-caption font-black text-muted-foreground uppercase tracking-widest">Vos métiers & niveaux</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {selectedJobs.map(s => (
+                                                <div key={s.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-background border border-border text-caption font-bold">
+                                                    {s.name}
+                                                    <label className="text-muted-foreground font-medium">Niv.</label>
+                                                    <input
+                                                        type="number"
+                                                        min={1}
+                                                        max={200}
+                                                        value={s.level}
+                                                        onChange={e => setJobLevel(s.id, parseInt(e.target.value, 10) || 200)}
+                                                        className="w-14 bg-surface border border-border rounded px-1.5 py-0.5 text-xs text-center focus:outline-none"
+                                                    />
+                                                    <button type="button" onClick={() => toggleJob(s.id)} className="text-muted-foreground hover:text-danger" aria-label={`Retirer ${s.name}`}>
+                                                        <X className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             <div className="flex-1 overflow-hidden p-6">
                                 <Tabs defaultValue="Récolte" className="h-full flex flex-col">
                                     <TabsList className="grid w-full grid-cols-4 mb-6 bg-surface border border-border p-1 h-12 rounded-xl">
@@ -117,7 +148,7 @@ export function JobsGrid({
                                             <ScrollArea className="h-[50vh] pr-4">
                                                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 pb-4">
                                                     {categoryJobs.map(job => {
-                                                        const isSelected = selectedJobs.includes(job.id);
+                                                        const isSelected = selectedJobs.some(s => s.id === job.id);
                                                         return (
                                                             <button
                                                                 key={job.id}
@@ -170,7 +201,7 @@ export function JobsGrid({
                 )}
             </div>
 
-            {jobs.length > 0 ? (
+            {jobsList.length > 0 ? (
                 <div className="relative overflow-hidden rounded-xl border border-border bg-surface p-6 mb-6 transition-colors">
                     <div className="relative flex items-center gap-5">
                         <div className="relative flex items-center justify-center w-20 h-20 rounded-2xl bg-elevated border border-border shrink-0">
@@ -178,9 +209,9 @@ export function JobsGrid({
                             <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/5" />
                         </div>
                         <div>
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-1">Niveau 200</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-1">Métiers</p>
                             <h2 className="text-3xl font-bold text-foreground tracking-tight">
-                                {jobs.length} Métier{jobs.length > 1 ? 's' : ''}
+                                {jobsList.length} Métier{jobsList.length > 1 ? 's' : ''}
                             </h2>
                         </div>
                     </div>
@@ -191,7 +222,7 @@ export function JobsGrid({
                 </div>
             )}
 
-            {jobs.length > 0 && (
+            {jobsList.length > 0 && (
                 <div className="flex-1 mt-2 mb-6">
                     <Tabs defaultValue="Récolte" className="w-full flex flex-col">
                         <TabsList className="grid w-full grid-cols-4 bg-background/40 border border-border p-1 h-11 rounded-xl mb-6">
@@ -224,7 +255,7 @@ export function JobsGrid({
 
 
                         {Object.entries(DOFUS_JOBS).map(([category, categoryJobs]) => {
-                            const activeCategoryJobs = categoryJobs.filter(job => jobs.includes(job.id));
+                            const activeCategoryJobs = categoryJobs.filter(job => metierIds(jobs).includes(job.id));
                             
                             return (
                                 <TabsContent key={category} value={category} className="mt-0 focus-visible:outline-none">

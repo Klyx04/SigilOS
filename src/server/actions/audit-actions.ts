@@ -722,32 +722,112 @@ export async function getAuditLogs(
             }
         });
 
-        // Enrichir actorName avec le vrai surnom / pseudo Dofus du membre dans la guilde
+        // Enrichir actorName et targetName avec le vrai surnom / pseudo Dofus du membre dans la guilde
         const actorUserIds = [...new Set(logs.map(l => l.actorUserId).filter(id => id && id !== "SYSTEM"))];
-        const profiles = actorUserIds.length > 0 ? await db.userProfile.findMany({
-            where: {
-                guildId: guildConfig.id,
-                userId: { in: actorUserIds }
-            },
-            select: {
-                userId: true,
-                pseudoDofus: true,
-                discordNickname: true,
-                user: { select: { name: true } }
+        
+        // Collect target IDs (userIds or discordUserIds)
+        const targetUserIds: string[] = [];
+        const targetDiscordIds: string[] = [];
+        for (const log of logs) {
+            const meta = (log.metadata || {}) as any;
+            if (meta.discordUserId) targetDiscordIds.push(meta.discordUserId);
+            if (log.targetType === "PROFILE" || log.targetType === "USER") {
+                if (log.targetId) {
+                    if (/^\d{17,20}$/.test(log.targetId)) {
+                        targetDiscordIds.push(log.targetId);
+                    } else {
+                        targetUserIds.push(log.targetId);
+                    }
+                }
             }
-        }) : [];
+        }
+
+        const [profilesByUserId, profilesByDiscordId] = await Promise.all([
+            actorUserIds.length > 0 || targetUserIds.length > 0
+                ? db.userProfile.findMany({
+                    where: {
+                        guildId: guildConfig.id,
+                        userId: { in: [...new Set([...actorUserIds, ...targetUserIds])] }
+                    },
+                    select: {
+                        userId: true,
+                        pseudoDofus: true,
+                        discordNickname: true,
+                        user: { select: { name: true } }
+                    }
+                })
+                : [],
+            targetDiscordIds.length > 0
+                ? db.userProfile.findMany({
+                    where: {
+                        guildId: guildConfig.id,
+                        user: {
+                            accounts: {
+                                some: {
+                                    provider: "discord",
+                                    providerAccountId: { in: [...new Set(targetDiscordIds)] }
+                                }
+                            }
+                        }
+                    },
+                    select: {
+                        userId: true,
+                        pseudoDofus: true,
+                        discordNickname: true,
+                        user: {
+                            select: {
+                                name: true,
+                                accounts: {
+                                    where: { provider: "discord" },
+                                    select: { providerAccountId: true }
+                                }
+                            }
+                        }
+                    }
+                })
+                : []
+        ]);
 
         const nameMap = new Map<string, string>();
-        for (const p of profiles) {
-            const bestName = p.pseudoDofus || p.discordNickname || p.user?.name;
+        for (const p of profilesByUserId) {
+            const bestName = p.discordNickname || p.pseudoDofus || p.user?.name;
             if (bestName) nameMap.set(p.userId, bestName);
+        }
+
+        const discordIdNameMap = new Map<string, string>();
+        for (const p of profilesByDiscordId) {
+            const bestName = p.discordNickname || p.pseudoDofus || p.user?.name;
+            if (bestName) {
+                for (const acc of p.user.accounts) {
+                    discordIdNameMap.set(acc.providerAccountId, bestName);
+                }
+            }
         }
 
         const enrichedLogs = logs.map(log => {
             const enrichedActor = (log.actorUserId && nameMap.get(log.actorUserId)) || log.actorName;
+            let metadata = log.metadata as any;
+            
+            // Enrich metadata with resolved serverNickname if not already present
+            let targetResolvedName: string | undefined = undefined;
+            if (log.targetId) {
+                targetResolvedName = nameMap.get(log.targetId) || discordIdNameMap.get(log.targetId);
+            }
+            if (!targetResolvedName && metadata?.discordUserId) {
+                targetResolvedName = discordIdNameMap.get(metadata.discordUserId);
+            }
+
+            if (targetResolvedName && metadata && typeof metadata === "object") {
+                metadata = {
+                    ...metadata,
+                    serverNickname: metadata.serverNickname || targetResolvedName,
+                };
+            }
+
             return {
                 ...log,
-                actorName: enrichedActor
+                actorName: enrichedActor,
+                metadata,
             };
         });
 

@@ -1780,10 +1780,19 @@ export async function internalJoinDjPost(
                 ? (Number.isFinite(dungeonIndex) ? Math.max(0, Math.min(dungeonIndex as number, multiEntries.length - 1)) : undefined)
                 : undefined;
 
-        const existing = await (db as any).djSearchParticipant.findFirst({
-            where: { postId, profileId },
-        });
-        if (existing) return { success: false, error: "Tu as déjà rejoint ce groupe" };
+        // #26 multi-donjons : pour un post multi, on n'autorise pas de rejoindre le MÊME
+        // donjon deux fois (même dungeonIndex), mais on autorise de rejoindre des donjons différents.
+        // Pour un post simple (monodonjons), on bloque toute double inscription au post.
+        const existingWhere = multiEntries.length > 0 && joinedDungeonIndex != null
+            ? { postId, profileId, dungeonIndex: joinedDungeonIndex }
+            : { postId, profileId };
+        const existing = await (db as any).djSearchParticipant.findFirst({ where: existingWhere });
+        if (existing) return {
+            success: false,
+            error: multiEntries.length > 0
+                ? "Tu es déjà inscrit à ce donjon dans ce groupe"
+                : "Tu as déjà rejoint ce groupe",
+        };
 
         // #203 — capacité PAR donjon sur les posts multi (chaque donjon a sa propre taille de groupe).
         let entryMax = post.maxMembers;

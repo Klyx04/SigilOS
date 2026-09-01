@@ -354,12 +354,102 @@ export async function getTelemetryStats(filterGuildId?: string) {
             uniqueUsersCount: data.views > 0 ? Math.ceil(data.views / 3) : 1
         })).sort((a, b) => b.totalActions - a.totalActions);
 
-        // List of all available guilds for the dropdown selector
+        // 8. #34 / #194 — 7-Day x 24-Hour Activity Heatmap Matrix
+        const sevenDaysEvents = await dbAny.telemetryEvent.findMany({
+            where: withGuild({ createdAt: { gte: sevenDaysAgo } }),
+            select: { createdAt: true }
+        });
+
+        // Initialize 7 (days: 0=Dim, 1=Lun, ..., 6=Sam) x 24 (hours: 0..23)
+        const heatmapMatrix: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0));
+        let maxHeatmapValue = 0;
+
+        sevenDaysEvents.forEach((ev: any) => {
+            const d = new Date(ev.createdAt);
+            const day = d.getDay(); // 0-6
+            const hour = d.getHours(); // 0-23
+            heatmapMatrix[day][hour] += 1;
+            if (heatmapMatrix[day][hour] > maxHeatmapValue) {
+                maxHeatmapValue = heatmapMatrix[day][hour];
+            }
+        });
+
+        const dayNames = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+        const heatmapData = heatmapMatrix.map((hours, dayIndex) => ({
+            day: dayNames[dayIndex],
+            dayIndex,
+            hours: hours.map((count, hour) => ({
+                hour,
+                count,
+                intensity: maxHeatmapValue > 0 ? Number((count / maxHeatmapValue).toFixed(2)) : 0
+            }))
+        }));
+
+        // Build availableGuilds for the selector in the dashboard
         const availableGuilds = guildConfigs.map((g: any) => ({
             id: g.id,
-            discordGuildId: g.discordGuildId,
-            name: g.name || "Guilde sans nom"
+            name: g.name || "Guilde sans nom",
+            discordGuildId: g.discordGuildId
         }));
+
+        // 9. #34 / #194 — Funnel d'Activation Plateforme (Global)
+        const [totalAccountsCount, totalProfilesCount, activeQuestsUsersCount] = await Promise.all([
+            db.user.count(),
+            db.userProfile.count({ where: filterGuildId ? { guildId: filterGuildId } : undefined }),
+            (db as any).playerDofusProgress.groupBy({
+                by: ["profileId"],
+                _count: true
+            }).then((r: any[]) => r.length).catch(() => 0)
+        ]);
+
+        const activationFunnel = [
+            { step: "Comptes Créés", count: totalAccountsCount, dropoffRate: 0 },
+            { 
+                step: "Profils Configurés", 
+                count: totalProfilesCount, 
+                dropoffRate: totalAccountsCount > 0 ? Number((((totalAccountsCount - totalProfilesCount) / totalAccountsCount) * 100).toFixed(1)) : 0 
+            },
+            { 
+                step: "Quêtes / Succès Initiés", 
+                count: activeQuestsUsersCount, 
+                dropoffRate: totalProfilesCount > 0 ? Number((((totalProfilesCount - activeQuestsUsersCount) / totalProfilesCount) * 100).toFixed(1)) : 0 
+            },
+            { 
+                step: "Membres Actifs (7j)", 
+                count: uniqueUsers7d.length, 
+                dropoffRate: activeQuestsUsersCount > 0 ? Number((((activeQuestsUsersCount - uniqueUsers7d.length) / activeQuestsUsersCount) * 100).toFixed(1)) : 0 
+            }
+        ];
+
+        // 10. #34 / #194 — Matrice de Santé & Rétention des Guildes (Guild Health Index)
+        const guildHealthList = guildConfigs.map((g: any) => {
+            const guild7dActions = guildActivity.find((ga: any) => ga.guildId === g.id)?.count || 0;
+            let status: "THRIVING" | "HEALTHY" | "AT_RISK" | "DORMANT" = "DORMANT";
+            let score = 0;
+
+            if (guild7dActions >= 150) {
+                status = "THRIVING";
+                score = Math.min(100, 80 + Math.floor(guild7dActions / 50));
+            } else if (guild7dActions >= 40) {
+                status = "HEALTHY";
+                score = Math.min(79, 50 + Math.floor(guild7dActions / 5));
+            } else if (guild7dActions > 0) {
+                status = "AT_RISK";
+                score = Math.min(49, 20 + Math.floor(guild7dActions / 2));
+            } else {
+                status = "DORMANT";
+                score = 5;
+            }
+
+            return {
+                id: g.id,
+                discordGuildId: g.discordGuildId,
+                name: g.name || "Guilde sans nom",
+                actions7d: guild7dActions,
+                healthStatus: status,
+                healthScore: score
+            };
+        }).sort((a: any, b: any) => b.actions7d - a.actions7d);
 
         return {
             summary: {
@@ -379,6 +469,9 @@ export async function getTelemetryStats(filterGuildId?: string) {
             },
             availableGuilds,
             moduleStats,
+            heatmapData,
+            activationFunnel,
+            guildHealthList,
             liveEvents: liveEvents.map((e: any) => {
                 const resolvedGuildId = e.guildId || null;
                 return {
@@ -412,4 +505,56 @@ export async function getTelemetryStats(filterGuildId?: string) {
         throw err;
     }
 }
+
+/**
+ * Export telemetry data in CSV or JSON format for analytics
+ */
+export async function exportTelemetryDataAction(filterGuildId?: string, format: "json" | "csv" = "json") {
+    try {
+        const isAdmin = await isSuperAdmin();
+        if (!isAdmin) return { success: false, error: "Unauthorized" };
+
+        const where = filterGuildId ? { guildId: filterGuildId } : undefined;
+        const events = await dbAny.telemetryEvent.findMany({
+            where,
+            orderBy: { createdAt: "desc" },
+            take: 2000
+        });
+
+        if (format === "json") {
+            return {
+                success: true,
+                data: JSON.stringify(events, null, 2),
+                mimeType: "application/json",
+                fileName: `sigilos-telemetry-${new Date().toISOString().slice(0, 10)}.json`
+            };
+        }
+
+        // Generate CSV
+        const headers = ["id", "createdAt", "userId", "userName", "guildId", "eventType", "path", "elementId"];
+        const rows = events.map((e: any) => [
+            e.id,
+            e.createdAt ? new Date(e.createdAt).toISOString() : "",
+            e.userId || "",
+            `"${(e.userName || "").replace(/"/g, '""')}"`,
+            e.guildId || "",
+            e.eventType || "",
+            `"${(e.path || "").replace(/"/g, '""')}"`,
+            `"${(e.elementId || "").replace(/"/g, '""')}"`
+        ]);
+
+        const csvContent = [headers.join(","), ...rows.map((r: any) => r.join(","))].join("\n");
+
+        return {
+            success: true,
+            data: csvContent,
+            mimeType: "text/csv",
+            fileName: `sigilos-telemetry-${new Date().toISOString().slice(0, 10)}.csv`
+        };
+    } catch (err) {
+        logger.error("[exportTelemetryDataAction Error]:", err);
+        return { success: false, error: "Failed to export data" };
+    }
+}
+
 

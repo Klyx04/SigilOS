@@ -8,6 +8,8 @@ import AccessDenied from "@/components/access-denied";
 import { SuccesClient } from "@/components/succes/SuccesClient";
 import { SuccesAttributionBanner } from "@/components/succes/SuccesAttributionBanner";
 
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
+
 export const metadata = {
     title: "Mes Succès | SigilOS",
     description: "Coche, trouve, enchaîne. Ta checklist de succès de donjons et l'annuaire « qui a quoi » dans la guilde.",
@@ -38,7 +40,12 @@ export default async function SuccesPage({
                 icon={Trophy}
                 iconColor="#f59e0b"
                 backHref={`/dashboard/${guildId}`}
-                actions={<SuccesAttributionBanner />}
+                actions={
+                    <div className="flex items-center gap-3">
+                        <SuccesAttributionBanner />
+                        <ModuleHelpActions docSlug="succes" docTitle="Succès & Donjons" tourPhase="succes" />
+                    </div>
+                }
             />
 
             <Suspense

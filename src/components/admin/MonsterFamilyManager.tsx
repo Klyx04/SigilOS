@@ -149,7 +149,8 @@ export default function MonsterFamilyManager() {
         try {
             const res = await syncMonsterFamiliesFromDofusDb();
             if (res.success && res.data) {
-                toast.success(`${res.data.synced} Familles synchronisées depuis DofusDB !`);
+                const monsterInfo = res.data.monstersSynced ? ` et ${res.data.monstersSynced} monstres` : '';
+                toast.success(`${res.data.synced} Familles${monsterInfo} synchronisées depuis DofusDB !`);
                 await loadFamilies();
             } else {
                 toast.error(res.error || "Erreur de synchronisation");

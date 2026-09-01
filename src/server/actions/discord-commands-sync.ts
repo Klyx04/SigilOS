@@ -1,0 +1,188 @@
+"use server";
+
+import { isSuperAdmin } from "./super-admin-actions";
+import { SLASH_COMMANDS_CATALOG } from "@/lib/slash-commands-catalog";
+import { db } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
+
+const DISCORD_API_BASE = "https://discord.com/api/v10";
+
+/**
+ * Construit le payload Discord Application Command pour chaque commande du catalogue.
+ * On définit les options (autocomplétion) pour les commandes qui en ont besoin.
+ */
+function buildDiscordCommandPayloads() {
+    return [
+        {
+            name: "almanax",
+            description: "📅 Offrande & bonus Almanax du jour – prévisualise jusqu'à 7 jours",
+            options: [
+                {
+                    name: "date",
+                    description: "Date au format JJ/MM/AAAA (optionnel, défaut = aujourd'hui)",
+                    type: 3, // STRING
+                    required: false
+                }
+            ]
+        },
+        {
+            name: "dofus",
+            description: "🥚 Guide, prérequis et avancement guilde pour un Dofus spécifique",
+            options: [
+                {
+                    name: "nom",
+                    description: "Nom du Dofus (ex: Ocre, Vulbis, Turquoise...)",
+                    type: 3, // STRING
+                    required: true,
+                    autocomplete: true // ← déclenche l'autocomplete Discord
+                }
+            ]
+        },
+        {
+            name: "profil",
+            description: "🎖️ Fiche joueur – rang guilde, badges, Dofus obtenus et statistiques",
+            options: [
+                {
+                    name: "membre",
+                    description: "Mentionner un membre (optionnel, défaut = soi-même)",
+                    type: 6, // USER
+                    required: false
+                }
+            ]
+        },
+        {
+            name: "sorties",
+            description: "🚪 Liste les sorties donjons, songes et quêtes ouvertes dans la guilde",
+            options: [
+                {
+                    name: "type",
+                    description: "Filtrer par type de sortie",
+                    type: 3, // STRING
+                    required: false,
+                    choices: [
+                        { name: "Tous", value: "all" },
+                        { name: "Donjons", value: "dungeon" },
+                        { name: "Songes Infinis", value: "dream" },
+                        { name: "Quêtes", value: "quest" }
+                    ]
+                }
+            ]
+        },
+        {
+            name: "defi",
+            description: "⚔️ Défi double boss en cours – bonus de points et classement participants",
+            options: []
+        },
+        {
+            name: "stats",
+            description: "📊 Récapitulatif des succès, présences et activité de la guilde",
+            options: []
+        }
+    ];
+}
+
+/**
+ * Enregistre (PUT = upsert bulk) toutes les commandes slash sur UN serveur Discord spécifique.
+ * Utilise l'endpoint Guild Commands (instantané, pas de délai de propagation de 1h comme les globales).
+ */
+async function registerCommandsForGuild(discordGuildId: string): Promise<{
+    ok: boolean;
+    guildId: string;
+    error?: string;
+    count?: number;
+}> {
+    const appId = process.env.AUTH_DISCORD_ID || process.env.DISCORD_APPLICATION_ID;
+    const botToken = process.env.DISCORD_BOT_TOKEN;
+
+    if (!appId || !botToken) {
+        return { ok: false, guildId: discordGuildId, error: "Missing DISCORD_APPLICATION_ID or DISCORD_BOT_TOKEN" };
+    }
+
+    const payloads = buildDiscordCommandPayloads();
+    const url = `${DISCORD_API_BASE}/applications/${appId}/guilds/${discordGuildId}/commands`;
+
+    try {
+        const res = await fetch(url, {
+            method: "PUT",
+            headers: {
+                Authorization: `Bot ${botToken}`,
+                "Content-Type": "application/json",
+                "User-Agent": "DiscordBot (https://sigilos.fr, 1.0.0)"
+            },
+            body: JSON.stringify(payloads)
+        });
+
+        if (!res.ok) {
+            const errBody = await res.text();
+            logger.error("[SlashCommandSync] Discord API error", { guild: discordGuildId, status: res.status, body: errBody });
+            return { ok: false, guildId: discordGuildId, error: `Discord ${res.status}: ${errBody.slice(0, 200)}` };
+        }
+
+        const registered = await res.json() as any[];
+        logger.info(`[SlashCommandSync] ✅ ${registered.length} commandes enregistrées pour la guilde ${discordGuildId}`);
+        return { ok: true, guildId: discordGuildId, count: registered.length };
+    } catch (err) {
+        logger.error("[SlashCommandSync] Fetch error", { guild: discordGuildId, error: String(err) });
+        return { ok: false, guildId: discordGuildId, error: String(err) };
+    }
+}
+
+/**
+ * GOD Action — Déploie les commandes slash sur TOUTES les guildes SigilOS actives.
+ * Aussi appelable pour une seule guilde (guildId optionnel).
+ */
+export async function syncSlashCommandsToDiscordAction(targetGuildId?: string): Promise<{
+    success: boolean;
+    results: Array<{ ok: boolean; guildId: string; error?: string; count?: number }>;
+    error?: string;
+}> {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) {
+        return { success: false, results: [], error: "Unauthorized: Super-admin required" };
+    }
+
+    try {
+        let discordGuildIds: string[] = [];
+
+        if (targetGuildId) {
+            // Single guild sync
+            const guild = await db.guildConfig.findUnique({
+                where: { id: targetGuildId },
+                select: { discordGuildId: true }
+            });
+            if (!guild) return { success: false, results: [], error: "Guild not found" };
+            discordGuildIds = [guild.discordGuildId];
+        } else {
+            // All guilds
+            const guilds = await db.guildConfig.findMany({
+                where: { isActive: true },
+                select: { discordGuildId: true }
+            });
+            discordGuildIds = guilds.map(g => g.discordGuildId);
+        }
+
+        if (discordGuildIds.length === 0) {
+            return { success: false, results: [], error: "No active guilds found" };
+        }
+
+        // Run registrations sequentially (rate-limit safety — max 200 req/5s global)
+        const results: Array<{ ok: boolean; guildId: string; error?: string; count?: number }> = [];
+        for (const guildId of discordGuildIds) {
+            const res = await registerCommandsForGuild(guildId);
+            results.push(res);
+            // 300ms gap between guilds to respect Discord's rate limits
+            if (discordGuildIds.length > 1) {
+                await new Promise(r => setTimeout(r, 300));
+            }
+        }
+
+        const successCount = results.filter(r => r.ok).length;
+        return {
+            success: successCount > 0,
+            results
+        };
+    } catch (err) {
+        logger.error("[syncSlashCommandsToDiscordAction] Error", { error: String(err) });
+        return { success: false, results: [], error: String(err) };
+    }
+}

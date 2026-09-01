@@ -8,6 +8,7 @@ import AccessDenied from "@/components/access-denied";
 import { KamaWeeklySummary } from "@/components/kamas/kama-weekly-summary";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { getDofusWeek } from "@/lib/date-utils";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +66,7 @@ export default async function KamaWeeklySummaryPage({
                 icon={Coins}
                 iconColor="#f59e0b"
                 backHref={`/dashboard/${guildId}/kamas`}
+                actions={<ModuleHelpActions docSlug="kamas" docTitle="Récap Kamas de Semaine" />}
             />
 
             <KamaWeeklySummary

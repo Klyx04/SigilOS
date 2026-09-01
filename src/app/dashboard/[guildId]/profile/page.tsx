@@ -79,11 +79,8 @@ export default async function ProfilePage({ params, searchParams }: {
                     description="Gérez votre identité de guilde, votre classe et vos métiers."
                     imageSrc="/assets/ui/icons/profile.png"
                     backHref={`/dashboard/${guildId}`}
+                    actions={<ProfileTourReplayButton />}
                 />
-
-                <div className="flex justify-end">
-                    <ProfileTourReplayButton />
-                </div>
 
                 <ProfileBentoGrid
                     initialTab={initialTab}

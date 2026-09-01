@@ -458,14 +458,23 @@ export function SuccesQuestsTab({ guildId }: { guildId: string }) {
                                                                     <div className="flex items-start justify-between gap-2">
                                                                         <div className="space-y-1">
                                                                             <h5 className="text-xs font-black text-foreground leading-snug">{q.name}</h5>
-                                                                            {/* Guide ou Dofus SigilOS de rattachement avec lien direct */}
+                                                                            {/* Guide ou Dofus SigilOS de rattachement avec lien direct et icône */}
                                                                             {q.dofusName && (
                                                                                 <Link
                                                                                     href={`/dashboard/${guildId}/quetes-dofus`}
-                                                                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-accent hover:underline"
-                                                                                    title="Ouvrir le guide dans Quêtes Dofus"
+                                                                                    className="inline-flex items-center gap-1.5 text-[11px] font-bold text-accent hover:underline group"
+                                                                                    title={`Ouvrir le guide ${q.dofusName} dans Quêtes Dofus`}
                                                                                 >
-                                                                                    <BookOpen className="w-3 h-3 text-accent" />
+                                                                                    {q.dofusImageUrl ? (
+                                                                                        <img
+                                                                                            src={q.dofusImageUrl}
+                                                                                            alt={q.dofusName}
+                                                                                            className="w-4 h-4 object-contain rounded-xs shrink-0 drop-shadow-xs transition-transform group-hover:scale-110"
+                                                                                            loading="lazy"
+                                                                                        />
+                                                                                    ) : (
+                                                                                        <BookOpen className="w-3 h-3 text-accent shrink-0" />
+                                                                                    )}
                                                                                     <span>Guide : <strong>{q.dofusName}</strong></span>
                                                                                 </Link>
                                                                             )}

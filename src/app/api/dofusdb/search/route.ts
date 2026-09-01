@@ -13,6 +13,34 @@ const DOFUSDUDE_SEARCH_TYPES = ["equipment", "resources", "consumables", "cosmet
 
 const MAX_LIMIT = 24;
 
+// ─── Cache Mémoire Serveur (In-Memory LRU/TTL 5 min) ───────────────────────────
+interface SearchCacheEntry {
+    data: any[];
+    expiresAt: number;
+}
+const searchCache = new Map<string, SearchCacheEntry>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_CACHE_ENTRIES = 500;
+
+function getCachedSearch(key: string): any[] | null {
+    const entry = searchCache.get(key);
+    if (!entry) return null;
+    if (Date.now() > entry.expiresAt) {
+        searchCache.delete(key);
+        return null;
+    }
+    return entry.data;
+}
+
+function setCachedSearch(key: string, data: any[]): void {
+    if (searchCache.size >= MAX_CACHE_ENTRIES) {
+        // Eviction du plus vieux tiers
+        const keysToDelete = Array.from(searchCache.keys()).slice(0, 50);
+        keysToDelete.forEach((k) => searchCache.delete(k));
+    }
+    searchCache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
 /** Bornage defensif des donnees issues de l'API externe (RULES.md par.4). */
 function extractAnkamaIds(payload: unknown): number[] {
     if (!Array.isArray(payload)) return [];
@@ -34,8 +62,33 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ data: [] });
     }
 
+    const cacheKey = `${q.toLowerCase()}:${limit}`;
+    const cached = getCachedSearch(cacheKey);
+    if (cached) {
+        return NextResponse.json({ data: cached });
+    }
+
     try {
-        // 1. Chercher les identifiants uniques via Dofusdude (toutes les categories d'items).
+        // 0. LOCAL-FIRST : Recherche d'abord dans notre base locale GameItem (0ms, zéro dépendance réseau)
+        const { searchLocalGameItems } = await import("@/server/actions/game-item-actions");
+        const localRes = await searchLocalGameItems(q, "all", limit);
+        if (localRes.success && localRes.data && localRes.data.length > 0) {
+            // Adaptation du format attendu par les clients (name.fr, type.name.fr, etc.)
+            const formatted = localRes.data.map((item) => ({
+                id: item.ankamaId,
+                name: { fr: item.name },
+                level: item.level,
+                type: { name: { fr: item.typeName } },
+                description: item.description ? { fr: item.description } : undefined,
+                effects: item.effects,
+                hasRecipe: item.hasRecipe,
+                img: item.iconUrl || `/uploads/assets-dofus/items/${item.ankamaId}.webp`,
+            }));
+            setCachedSearch(cacheKey, formatted);
+            return NextResponse.json({ data: formatted });
+        }
+
+        // 1. Chercher les identifiants uniques via Dofusdude (toutes les categories d'items) en secours.
         //    Promise.allSettled : une categorie en echec ne casse pas les autres.
         const results = await Promise.allSettled(
             DOFUSDUDE_SEARCH_TYPES.map((type) =>
@@ -80,6 +133,10 @@ export async function GET(req: NextRequest) {
                     .map((id) => itemsMap.get(id))
                     .filter((it) => it !== undefined);
 
+                if (orderedData.length > 0) {
+                    setCachedSearch(cacheKey, orderedData);
+                }
+
                 return NextResponse.json({ data: orderedData });
             }
         }
@@ -99,7 +156,11 @@ export async function GET(req: NextRequest) {
         }
 
         const data = await res.json();
-        return NextResponse.json({ data: Array.isArray(data?.data) ? data.data : [] });
+        const fallbackData = Array.isArray(data?.data) ? data.data : [];
+        if (fallbackData.length > 0) {
+            setCachedSearch(cacheKey, fallbackData);
+        }
+        return NextResponse.json({ data: fallbackData });
 
     } catch (err) {
         logger.error("[DofusDB Search Proxy] Error", {

@@ -31,7 +31,7 @@ import {
   reorderRushSequences,
 } from "@/server/actions/optimized-guide-actions";
 import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB } from "@/server/actions/dofus-search-actions";
-import { DOFUS_WORLDS } from "@/lib/dofus-assets";
+import { DOFUS_WORLDS, DOFUS_JOBS } from "@/lib/dofus-assets";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -1580,6 +1580,39 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
     syncAlignmentTag(next);
   };
 
+  // ─── Métier requis (tag metier) — « qui peut aider » côté membre ──────────
+  const [metierTag, setMetierTag] = useState<{ name: string; level: number } | null>(() => {
+    const t = (seq.activityTags as any[])?.find((x: any) => x.type === "metier");
+    return t && t.name ? { name: t.name, level: typeof t.level === "number" ? t.level : 0 } : null;
+  });
+
+  const syncMetierTag = (next: { name: string; level: number } | null) => {
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => t.type !== "metier");
+      if (!next || !next.name) return filtered;
+      const tag: any = { type: "metier", name: next.name };
+      if (next.level > 0) tag.level = next.level;
+      return [...filtered, tag];
+    });
+  };
+  const handleMetierToggle = (on: boolean) => {
+    const first = Object.values(DOFUS_JOBS).flat()[0]?.name || "";
+    const next = on ? { name: metierTag?.name || first, level: metierTag?.level ?? 0 } : null;
+    setMetierTag(next);
+    syncMetierTag(next);
+  };
+  const handleMetierJobChange = (name: string) => {
+    const next = { name, level: metierTag?.level ?? 0 };
+    setMetierTag(next);
+    syncMetierTag(next);
+  };
+  const handleMetierLevelChange = (level: number) => {
+    const clamped = Math.max(0, Math.min(200, level));
+    const next = { name: metierTag?.name || "", level: clamped };
+    setMetierTag(next);
+    syncMetierTag(next);
+  };
+
   const handleInsertLink = () => {
     const label = prompt("Texte affiché pour le lien (ex: Le trésor de Totankama) :");
     if (!label) return;
@@ -1926,7 +1959,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-blue-400/90">
-            4. 🎯 Alignement
+            4. 🎯 Alignement & Métier requis
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.activities ? "rotate-180" : ""}`} />
         </button>
@@ -1988,6 +2021,51 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                   </span>
                 </div>
               )}
+
+              {/* 🔨 Métier requis : « qui peut aider » côté membre */}
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="metierToggle"
+                    checked={!!metierTag}
+                    onChange={e => handleMetierToggle(e.target.checked)}
+                    className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
+                  />
+                  <label htmlFor="metierToggle" className="flex items-center gap-1.5 text-xs font-bold text-amber-200 cursor-pointer select-none">
+                    🔨 Métier requis
+                    <span className="text-[10px] font-medium text-amber-300/60">— affiche « qui peut aider » via ce métier (badge membre)</span>
+                  </label>
+                </div>
+                {metierTag && (
+                  <div className="flex flex-wrap items-center gap-2 pl-6">
+                    <select
+                      value={metierTag.name}
+                      onChange={e => handleMetierJobChange(e.target.value)}
+                      className="bg-black/60 border border-amber-500/30 rounded-lg px-2 py-1.5 text-xs text-amber-200 focus:outline-none"
+                    >
+                      <option value="">— Choisir un métier —</option>
+                      {Object.values(DOFUS_JOBS).flat().map(j => (
+                        <option key={j.id} value={j.name}>{j.name}</option>
+                      ))}
+                    </select>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-caption font-black text-amber-300/80 uppercase tracking-widest">Niveau</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={200}
+                        value={metierTag.level}
+                        onChange={e => handleMetierLevelChange(parseInt(e.target.value, 10) || 0)}
+                        className="w-16 bg-black/60 border border-amber-500/30 rounded-lg px-2 py-1 text-xs text-amber-200 text-center focus:outline-none"
+                      />
+                    </div>
+                    <span className="ml-auto text-caption text-amber-300/60 italic">
+                      → tag: {'{ type: "metier", name: "'}{metierTag.name}{'", level: '}{metierTag.level}{' }'}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

@@ -768,7 +768,7 @@ html {
 }
 
 .ganymade-step-text b, .ganymade-step-text strong {
-  @apply text-white font-black;
+  @apply text-foreground font-black;
 }
 
 /* Custom Scrollbar Utility */

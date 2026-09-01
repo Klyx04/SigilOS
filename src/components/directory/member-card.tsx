@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { UserProfile, User } from "@prisma/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -41,6 +42,13 @@ interface MemberCardProps {
 }
 
 export function MemberCard({ profile, guildId }: MemberCardProps) {
+    // Client-only hydration guard: vacation/online states depend on `new Date()`, which
+    // differs between SSR and client hydration. Any member right at a vacation or 2-min
+    // activity boundary would render mismatched text → React #418. Gating behind `mounted`
+    // makes SSR and the first client render identical, then re-renders with the client clock.
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
+
     const jobs = metierIds(profile.metiers);
     const topJobs = jobs.slice(0, 3);
     const remaining = jobs.length - 3;
@@ -60,21 +68,21 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
         ? `#${profile.roleColor.toString(16).padStart(6, "0")}`
         : undefined;
 
-    // Check if on vacation
+    // Check if on vacation (client-only — see mounted guard above)
     const now = new Date();
     const vacationStart = profile.vacationStart ? new Date(profile.vacationStart) : null;
     const vacationEnd = profile.vacationEnd ? new Date(profile.vacationEnd) : null;
-    const isOnVacation = vacationStart && vacationStart <= now && (!vacationEnd || vacationEnd >= now);
-    const isUpcoming = vacationStart && vacationStart > now;
+    const isOnVacation = mounted && vacationStart && vacationStart <= now && (!vacationEnd || vacationEnd >= now);
+    const isUpcoming = mounted && vacationStart && vacationStart > now;
 
-    // Format vacation dates for tooltip
-    const vacationTooltip = (isOnVacation || isUpcoming)
+    // Format vacation dates for tooltip (client-only; static otherwise to keep SSR identical)
+    const vacationTooltip = mounted && (isOnVacation || isUpcoming)
         ? `Absent du ${format(vacationStart!, "d MMM", { locale: fr })}${vacationEnd ? ` au ${format(vacationEnd, "d MMM", { locale: fr })}` : " (indéfini)"}`
         : "";
 
-    // Check if online (last 2 minutes)
+    // Check if online (last 2 minutes) — client-only
     const activeThreshold = 2 * 60 * 1000;
-    const isOnline = profile.lastActivityAt && (new Date().getTime() - new Date(profile.lastActivityAt).getTime() < activeThreshold);
+    const isOnline = mounted && profile.lastActivityAt && (now.getTime() - new Date(profile.lastActivityAt).getTime() < activeThreshold);
 
     const alignmentData = getAlignment(profile.alignment || "");
     const orderData = profile.alignment && profile.alignmentOrder ? getOrder(profile.alignment, profile.alignmentOrder) : null;

@@ -46,6 +46,15 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // Cross-origin (CDN d'images, avatars Discord, dofusdu/dofusdb…) : ne PAS
+    // intercepter. Le navigateur gère ces requêtes via sa propre CSP (`img-src`),
+    // et un `fetch()` cross-origin depuis le SW serait bloqué par `connect-src`
+    // (header CSP posé sur sw.js) → image cassée / placeholder. On laisse donc le
+    // SW sortir du jeu : le navigateur fait sa requête réseau normale.
+    if (url.origin !== self.location.origin) {
+        return;
+    }
+
     // Network First with Cache Fallback for static images, logos, avatars, fonts.
     // ⚠️ FIX (nav SPA = icônes cassées) : l'ancien `cache-first` faisait
     // `fetch(...).catch(() => cachedResponse)` qui pouvait renvoyer `undefined`

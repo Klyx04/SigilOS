@@ -136,6 +136,41 @@ export function RushChapterSidebar({
     };
   }, [currentMilestones, completedSeqIds]);
 
+  // ─── S7 : « Ce qu'il faut prévoir » — donjons & métiers requis du chapitre ────
+  // Dérivés des séquences déjà passées au composant (aucun fetch supplémentaire).
+  const chapterDungeons = useMemo(() => {
+    const seen = new Map<string, { id?: string; name: string }>();
+    for (const ms of currentMilestones) {
+      for (const seq of ms.sequences) {
+        const list: { id?: string; name?: string }[] =
+          seq.dungeons && seq.dungeons.length > 0 ? seq.dungeons : seq.dungeon ? [seq.dungeon] : [];
+        for (const d of list) {
+          if (d?.name) seen.set(d.name.trim().toLowerCase(), { id: d.id, name: d.name });
+        }
+        // donjons aussi via tag type "donjon"
+        for (const tag of seq.activityTags || []) {
+          if (tag.type === "donjon" && tag.name) seen.set(tag.name.trim().toLowerCase(), { name: tag.name });
+        }
+      }
+    }
+    return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name, "fr"));
+  }, [currentMilestones]);
+
+  const chapterMetiers = useMemo(() => {
+    const seen = new Map<string, { name: string; level?: number }>();
+    for (const ms of currentMilestones) {
+      for (const seq of ms.sequences) {
+        for (const tag of seq.activityTags || []) {
+          if (tag.type === "metier" && tag.name) {
+            const key = tag.name.trim().toLowerCase();
+            if (!seen.has(key)) seen.set(key, { name: tag.name, level: tag.level });
+          }
+        }
+      }
+    }
+    return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name, "fr"));
+  }, [currentMilestones]);
+
   // Calcul & Consolidation des objets nécessaires
   const aggregatedItems = useMemo(() => {
     const itemMap = new Map<
@@ -291,6 +326,35 @@ export function RushChapterSidebar({
             <span className="font-mono font-bold text-[#f2f0e9]">{stats.tactique}</span>
           </div>
         </div>
+
+        {(chapterDungeons.length > 0 || chapterMetiers.length > 0) && (
+          <div className="flex flex-col gap-2 border-t border-[#28303a]/60 pt-2 mt-1">
+            {chapterDungeons.length > 0 && (
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-[#929aa5] px-1 mb-1">Donjons à prévoir</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {chapterDungeons.map((d) => (
+                    <span key={d.id || d.name} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#12161b] border border-[#28303a]/70 text-[11px] font-semibold text-[#f2f0e9]">
+                      🏰 {d.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {chapterMetiers.length > 0 && (
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-[#929aa5] px-1 mb-1">Métiers requis</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {chapterMetiers.map((m) => (
+                    <span key={m.name} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#12161b] border border-[#28303a]/70 text-[11px] font-semibold text-[#f2f0e9]">
+                      🔨 {m.name}{m.level ? ` ${m.level}` : ""}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ─── Objets & Ressources nécessaires ─── */}

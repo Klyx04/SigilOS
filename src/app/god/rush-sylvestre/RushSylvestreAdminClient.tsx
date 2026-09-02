@@ -29,6 +29,7 @@ import {
   updateRushSylvestreSettings,
   reorderRushMilestones,
   reorderRushSequences,
+  seedRushSylvestreFromGuide,
 } from "@/server/actions/optimized-guide-actions";
 import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB } from "@/server/actions/dofus-search-actions";
 import { DOFUS_WORLDS, DOFUS_JOBS } from "@/lib/dofus-assets";
@@ -238,6 +239,29 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
   const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
   const [addingStep, setAddingStep] = useState(false);
   const [activeTab, setActiveTab] = useState<"content" | "settings">("content");
+  const [importPreview, setImportPreview] = useState<null | { plan: { milestones: number; sequences: number; items: number; metiers: number; dungeons: number }; totalToCreate: number }>(null);
+  const [importing, startImport] = useTransition();
+
+  const runSeed = useCallback(async (apply: boolean) => {
+    startImport(async () => {
+      try {
+        const res = await seedRushSylvestreFromGuide({ apply });
+        if (res?.success) {
+          if (apply) {
+            toast.success(`Guide importé : ${res.created?.milestones ?? 0} jalons · ${res.created?.sequences ?? 0} quêtes`);
+            setImportPreview(null);
+            router.refresh();
+          } else {
+            setImportPreview(res as any);
+          }
+        } else {
+          toast.error("Échec de l'import");
+        }
+      } catch (e) {
+        toast.error("Erreur d'import");
+      }
+    });
+  }, [router]);
 
   // New step form
   const [newChapterNum, setNewChapterNum] = useState<number>(1);
@@ -486,9 +510,47 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                 </button>
               ))}
             </div>
+            <button onClick={() => runSeed(false)} disabled={importing}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-caption font-black uppercase tracking-widest bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/20 transition-all disabled:opacity-50"
+              title="Importer le guide Laniyelle (métiers, ressources, donjons)">
+              <Sparkles className="w-3 h-3" /> Importer
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Modal d'aperçu d'import */}
+      <AnimatePresence>
+        {importPreview && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={() => setImportPreview(null)}>
+            <motion.div initial={{ scale: 0.96, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, y: 10 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-purple-400" />
+                <h3 className="text-base font-black text-white">Importer le guide Laniyelle</h3>
+              </div>
+              <p className="text-sm text-zinc-400">Aperçu (aucune écriture). L'import est <b>non destructif</b> : il ne crée que les jalons/quêtes absents.</p>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <PreviewStat label="Jalons" value={importPreview.plan.milestones} />
+                <PreviewStat label="Quêtes" value={importPreview.plan.sequences} />
+                <PreviewStat label="Donjons" value={importPreview.plan.dungeons} />
+                <PreviewStat label="Objets" value={importPreview.plan.items} />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button onClick={() => setImportPreview(null)} disabled={importing}
+                  className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-200 bg-zinc-800 border border-white/10 transition-all">Annuler</button>
+                <button onClick={() => runSeed(true)} disabled={importing}
+                  className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30 transition-all disabled:opacity-50">
+                  {importing ? "Import…" : "Appliquer"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="max-w-6xl mx-auto px-6 py-8 space-y-6 relative">
         {activeTab === "content" && (
@@ -776,6 +838,15 @@ function StatPill({ label, value }: { label: string; value: number }) {
   return (
     <div className="text-center">
       <p className="text-xl font-black text-white">{value}</p>
+      <p className="text-caption text-zinc-500 uppercase tracking-widest">{label}</p>
+    </div>
+  );
+}
+
+function PreviewStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="px-3 py-2 rounded-xl bg-zinc-800/70 border border-white/10">
+      <p className="text-lg font-black text-white">{value}</p>
       <p className="text-caption text-zinc-500 uppercase tracking-widest">{label}</p>
     </div>
   );

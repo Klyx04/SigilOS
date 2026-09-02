@@ -3,6 +3,8 @@
 
 
 import { db } from "@/lib/prisma";
+import fs from "node:fs";
+import path from "node:path";
 import { getUserContext } from "./user-actions";
 import { auth } from "@/auth";
 import { isSuperAdmin, canAccessBrick } from "./super-admin-actions";
@@ -2567,6 +2569,235 @@ export async function getOrCreateRushSylvestreGuide() {
   }
 
   return guide;
+}
+
+/**
+ * (God) Seed le guide Rush Sylvestre depuis le dataset Laniyelle curé.
+ * - DRY-RUN par défaut (`apply:false`) : renvoie un aperçu sans rien écrire.
+ * - Idempotent & NON destructif : ne crée que les milestones/séquences absents
+ *   (clé = titre du milestone / nom de séquence). Aucun écrasement des retouches GOD.
+ */
+// ─────────────────────────────────────────────────────────────────────────────
+// Enrichissement NON destructif — réutilisé par le bouton « Importer » (seed).
+// Logique identique à scripts/seed-rush-sylvestre-enriched-cli.mjs : lit
+// `rush-sylvestre-guide.enriched.json`, retrouve chaque GuideSequence par
+// subGuideRef normalisé et remplit UNIQUEMENT les champs vides (jamais d'écrasement).
+// ─────────────────────────────────────────────────────────────────────────────
+function enrNorm(s = "") {
+  return (s || "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u2019']/g, " ").toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ").trim();
+}
+function enrNormK(s = "") {
+  return enrNorm((s || "").replace(/œ/gi, "oe").replace(/æ/gi, "ae"));
+}
+const enrClean = (s = "") => (s || "").replace(/[.!?\u00a0]+$/g, "");
+function enrTagKey(t: any = {}) {
+  return `${t.type || ""}|${t.name || ""}|${t.level ?? ""}|${t.count ?? ""}`;
+}
+function enrMergeTags(existing: any[], incoming: any[]) {
+  const out = Array.isArray(existing) ? [...existing] : [];
+  const seen = new Set(out.map(enrTagKey));
+  for (const t of incoming) { const k = enrTagKey(t); if (!seen.has(k)) { out.push(t); seen.add(k); } }
+  return out;
+}
+function enrBuildUpdate(seq: any, q: any) {
+  const data: any = {};
+  if (q.dofusdbUrl && !seq.dofusdbUrl) data.dofusdbUrl = q.dofusdbUrl;
+  if (q.dofuspourlesnoobsUrl && !seq.dofuspourlesnoobsUrl) data.dofuspourlesnoobsUrl = q.dofuspourlesnoobsUrl;
+  if (q.questDbIds && Array.isArray(q.questDbIds) && q.questDbIds.length && (!Array.isArray(seq.questDbIds) || !seq.questDbIds.length)) data.questDbIds = q.questDbIds;
+  if (q.mapPositions && Array.isArray(q.mapPositions) && q.mapPositions.length && (!Array.isArray(seq.mapPositions) || !seq.mapPositions.length)) data.mapPositions = q.mapPositions;
+  if (q.alignReq != null && seq.alignReq == null) data.alignReq = String(q.alignReq);
+  if (q.alignOrderReq != null && seq.alignOrderReq == null) data.alignOrderReq = q.alignOrderReq;
+  if (q.dungeonIds && Array.isArray(q.dungeonIds) && q.dungeonIds.length && (!Array.isArray(seq.dungeonIds) || !seq.dungeonIds.length)) data.dungeonIds = q.dungeonIds;
+  if (q.activityTags && Array.isArray(q.activityTags) && q.activityTags.length) {
+    const merged = enrMergeTags(seq.activityTags || [], q.activityTags);
+    if (merged.length !== (Array.isArray(seq.activityTags) ? seq.activityTags.length : 0)) data.activityTags = merged;
+  }
+  return data;
+}
+
+async function enrichRushSylvestreSequences(opts: { apply?: boolean } = {}) {
+  const apply = !!opts.apply;
+  let enriched: { quests?: any[] };
+  try {
+    enriched = JSON.parse(fs.readFileSync(path.join(process.cwd(), "src/data/rush-sylvestre-guide.enriched.json"), "utf8"));
+  } catch {
+    return { dryRun: !apply, matched: 0, unmatched: 0, updates: 0, error: "fichier enrichi introuvable" };
+  }
+  const quests = Array.isArray(enriched.quests) ? enriched.quests : [];
+  if (!quests.length) return { dryRun: !apply, matched: 0, unmatched: 0, updates: 0 };
+
+  const guide = await db.optimizedGuide.findUnique({
+    where: { slug: "rush-sylvestre" },
+    include: { milestones: { include: { sequences: true } } },
+  });
+  if (!guide) return { dryRun: !apply, matched: 0, unmatched: 0, updates: 0 };
+
+  const byRef = new Map<string, any[]>();
+  let totalSeqs = 0;
+  for (const ms of guide.milestones) {
+    for (const s of ms.sequences) {
+      totalSeqs++;
+      const k = enrNormK(enrClean(s.subGuideRef));
+      if (!byRef.has(k)) byRef.set(k, []);
+      byRef.get(k)!.push(s);
+    }
+  }
+
+  let matched = 0, unmatched = 0, updates = 0;
+  const toWrite: { id: string; data: any }[] = [];
+  const fieldsCount: Record<string, number> = {};
+  for (const q of quests) {
+    const matches = byRef.get(enrNormK(enrClean(q.name))) || [];
+    if (!matches.length) { unmatched++; continue; }
+    matched++;
+    for (const seq of matches) {
+      const data = enrBuildUpdate(seq, q);
+      const keys = Object.keys(data);
+      if (keys.length) {
+        toWrite.push({ id: seq.id, data });
+        updates++;
+        for (const f of keys) fieldsCount[f] = (fieldsCount[f] || 0) + 1;
+      }
+    }
+  }
+
+  if (apply) {
+    for (const w of toWrite) await db.guideSequence.update({ where: { id: w.id }, data: w.data });
+  }
+  return { dryRun: !apply, matched, unmatched, updates, totalSeqs, fieldsCount };
+}
+
+
+export async function seedRushSylvestreFromGuide(opts: { apply?: boolean } = {}) {
+  await requireRushAccess();
+  const apply = !!opts.apply;
+
+  const raw = fs.readFileSync(path.join(process.cwd(), "src/data/rush-sylvestre-guide.json"), "utf8");
+  const data = JSON.parse(raw) as {
+    preparation: { metiers: { name: string; level: number }[]; items: { name: string; ankamaId: number | null; imageUrl: string | null; quantity: number }[] };
+    milestones: { title: string; notes: string | null; succès: string; aide: string; dungeons: { name: string; id: string | null; imageUrl: string | null; totem: boolean; note?: string }[]; sequences: { name: string; dungeonIds: string[]; succès: string }[] }[];
+  };
+
+  // ── Détection du type de milestone ──
+  const detectType = (title: string): string => {
+    const t = (title || "").toLowerCase();
+    if (t.includes("alignement") || t.includes("ordre")) return "ALIGNEMENT";
+    if (t.includes("prérequis") || t.includes("pré-recquis") || t.includes("prerequis")) return "PREREQUIS";
+    if (t.includes("récupérer") || t.includes("recuperer") || t.includes("zone")) return "ZONE";
+    if (t.includes("dofus")) return "DOFUS";
+    return "QUETE_SERIE";
+  };
+
+  const guide = await getOrCreateRushSylvestreGuide();
+  const existingMs = await db.guideMilestone.findMany({
+    where: { guideId: guide.id },
+    select: { id: true, title: true },
+  });
+  const existingTitles = new Set(existingMs.map((m) => m.title.trim().toLowerCase()));
+  const plan = { milestones: 0, sequences: 0, items: 0, metiers: 0, dungeons: 0 };
+
+  const toCreate: { title: string; type: string; chapter: number; chapterLabel: string; order: number; tips: string | null; dungeons: { name: string; id: string | null; imageUrl: string | null }[]; sequences: { name: string; dungeonIds: string[]; note: string | null }[] }[] = [];
+
+  // ── Milestone « Préparation » (métiers + ressources) ──
+  if (!existingTitles.has("préparation")) {
+    toCreate.push({
+      title: "Préparation",
+      type: "PREREQUIS",
+      chapter: 0,
+      chapterLabel: "Préparation",
+      order: -1,
+      tips: "Métiers & ressources à préparer avant de lancer le rush.",
+      dungeons: [],
+      sequences: [
+        { name: "Métiers requis", dungeonIds: [], note: null },
+        { name: "Ressources à prévoir", dungeonIds: [], note: null },
+      ],
+    });
+    plan.metiers = data.preparation.metiers.length;
+    plan.items = data.preparation.items.length;
+  }
+
+  // ── Milestones du guide ──
+  data.milestones.forEach((ms, i) => {
+    const key = ms.title.trim().toLowerCase();
+    if (existingTitles.has(key)) return;
+    plan.milestones++;
+    plan.dungeons += ms.dungeons.length;
+    plan.sequences += ms.sequences.length;
+    toCreate.push({
+      title: ms.title,
+      type: detectType(ms.title),
+      chapter: i + 1,
+      chapterLabel: ms.title.slice(0, 42),
+      order: i,
+      tips: [ms.notes, ms.succès ? `Succès : ${ms.succès}` : "", ms.aide ? `Aide : ${ms.aide}` : ""].filter(Boolean).join(" · ") || null,
+      dungeons: ms.dungeons.filter((d) => d.id),
+      sequences: ms.sequences.map((s) => ({ name: s.name, dungeonIds: s.dungeonIds, note: ms.aide || null })),
+    });
+  });
+
+  if (!apply) {
+    const enrichment = await enrichRushSylvestreSequences({ apply: false });
+    return { success: true, dryRun: true, plan, guideId: guide.id, totalToCreate: toCreate.length, enrichment };
+  }
+
+  // ── Écriture (transaction) ──
+  const created = { milestones: 0, sequences: 0 };
+  await db.$transaction(async (tx) => {
+    for (const ms of toCreate) {
+      const milestone = await tx.guideMilestone.create({
+        data: {
+          guideId: guide.id,
+          type: ms.type as any,
+          chapter: ms.chapter,
+          chapterLabel: ms.chapterLabel,
+          title: ms.title,
+          tips: ms.tips,
+          order: ms.order,
+        },
+      });
+      created.milestones++;
+      for (let sIdx = 0; sIdx < ms.sequences.length; sIdx++) {
+        const s = ms.sequences[sIdx];
+        // séquence « Métiers requis » / « Ressources à prévoir » → tags dédiés
+        let activityTags: any[] = [];
+        if (ms.title === "Préparation" && s.name === "Métiers requis") {
+          activityTags = data.preparation.metiers.map((m) => ({ type: "metier", name: m.name, level: m.level }));
+        } else if (ms.title === "Préparation" && s.name === "Ressources à prévoir") {
+          activityTags = data.preparation.items.map((it) => ({ type: "item", name: it.name, count: it.quantity, imageUrl: it.imageUrl, id: it.ankamaId ? String(it.ankamaId) : undefined }));
+        } else {
+          activityTags = ms.dungeons.map((d) => ({ type: "donjon", name: d.name, id: d.id }));
+        }
+        await tx.guideSequence.create({
+          data: {
+            milestoneId: milestone.id,
+            order: sIdx,
+            subGuideRef: s.name,
+            subGuideName: s.name,
+            dungeonIds: ms.dungeons.map((d) => d.id).filter(Boolean) as string[],
+            tips: ms.title === "Préparation" ? undefined : (ms.tips ?? undefined),
+            note: s.note,
+            activityTags,
+          },
+        });
+        created.sequences++;
+      }
+    }
+  });
+
+  const enrichment = await enrichRushSylvestreSequences({ apply: true });
+  await logGodWrite({
+    action: "GOD_DATABASE_SYNC",
+    targetType: "DATA_SYNC",
+    targetId: "rush-sylvestre",
+    metadata: { op: "seed-laniyelle", dryRun: false, plan, created, enrichment },
+  });
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  return { success: true, dryRun: false, plan, created, guideId: guide.id, enrichment };
 }
 
 /**

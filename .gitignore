@@ -189,3 +189,4 @@ private_uploads/
 AUDIT_*.md
 src/audit-cyber
 src/audit-infra
+.lint-result.json

@@ -34,6 +34,7 @@ import { TourOverlay } from "@/components/tour/tour-overlay";
 import { TourCompletion } from "@/components/tour/tour-completion";
 import { DocDrawerProvider } from "@/components/doc/doc-drawer-context";
 import { DocDrawer } from "@/components/doc/doc-drawer";
+import { RushOverlayHost } from "./_components/rush-overlay-host";
 
 export default async function DashboardLayout({
     children,
@@ -281,6 +282,9 @@ export default async function DashboardLayout({
 
                 {/* Global Service Dialogue Modal — visible sur toute page / refresh */}
                 <ServiceReplyModal guildId={guildId} />
+
+                {/* Overlay Rush PiP persistant — survit à la navigation entre modules */}
+                <RushOverlayHost />
 
                 {/* Command Palette (Cmd+K) */}
                 <CommandMenu guildId={guildId} user={user} />

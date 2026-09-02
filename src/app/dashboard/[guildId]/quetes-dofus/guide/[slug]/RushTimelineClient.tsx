@@ -29,8 +29,10 @@ import LiveActivityTicker from "@/components/dofus-quests/LiveActivityTicker";
 import OcreProgressModal, { type OcreMonsterLite } from "@/components/dofus-quests/OcreProgressModal";
 import { useGuidePresence } from "@/hooks/use-guide-presence";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
-import { useDocumentPip, openFallbackPopup } from "@/hooks/use-guide-pip";
-import GuideOverlayClient from "@/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient";
+import { isDocumentPipSupported, openPipWindow, openFallbackPopup } from "@/hooks/use-guide-pip";
+import { useRushOverlayStore } from "@/store/rush-overlay-store";
+import type { RushMilestone } from "@/types/rush-guide-types";
+import type { GuideProgressRow } from "@/lib/guide-progress-helpers";
 import "./guide-styles.css";
 import { linkOcreAccount } from "@/server/actions/ocre-actions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -1043,30 +1045,46 @@ export default function RushTimelineClient({ guide, milestones, guildProgress, g
 const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[capturedOcreMonsterIds]);
   const capturedMonsterNamesMemo=useMemo(()=>capturedMonsterNames||[], [capturedMonsterNames]);
   const router=useRouter();const altPseudo=selectedCharacter!=="PRINCIPAL"?selectedCharacter:undefined;
-  const { pipWindow, openPip, closePip, isSupported } = useDocumentPip();
-  const [fallbackPopup, setFallbackPopup] = useState<Window | null>(null);
-  const fallbackPopupRef = useRef<Window | null>(null);
-  useEffect(() => { fallbackPopupRef.current = fallbackPopup; }, [fallbackPopup]);
-  // Ferme la popup fallback si la page dashboard est démontée (evite une popup « zombie »).
-  useEffect(() => () => { try { fallbackPopupRef.current?.close(); } catch {} }, []);
-  const closeFallbackPopup = useCallback(() => {
-    try { fallbackPopup?.close(); } catch {}
-    setFallbackPopup(null);
-  }, [fallbackPopup]);
+  // Overlay PiP : rendu géré par `RushOverlayHost` (monté dans le LAYOUT `[guildId]`,
+  // persistant). Ici on ne fait qu'ouvrir/fermer la fenêtre et figer les données.
+  const openOverlay = useRushOverlayStore((s) => s.open);
+  const closeOverlay = useRushOverlayStore((s) => s.close);
   const handleOverlayClick = useCallback(async () => {
-    if (pipWindow) { closePip(); return; }
-    if (fallbackPopup) { closeFallbackPopup(); return; }
-    if (isSupported) {
-      const win = await openPip({ width: 470, height: 640 });
-      if (win) return;
-      // requestWindow a échoué : bascule sur la popup vierge (fallback).
+    // Déjà ouvert → on le referme.
+    if (useRushOverlayStore.getState().win) {
+      closeOverlay();
+      return;
     }
-    // Navigateur sans Document PiP (Firefox/Safari) : popup vierge + createPortal.
-    // On réutilise la session du dashboard — pas de `window.open('/overlay/guide/...')`
-    // qui re-déclenche l'auth serveur (et peut rebondir sur `/dashboard/{guildId}`).
-    const popup = openFallbackPopup({ width: 470, height: 640 });
-    if (popup) setFallbackPopup(popup);
-  }, [pipWindow, fallbackPopup, closePip, closeFallbackPopup, openPip, isSupported]);
+    // Document Picture-in-Picture (Chrome/Edge), sinon popup vierge (Firefox/Safari).
+    let win: Window | null = null;
+    if (isDocumentPipSupported()) {
+      try {
+        win = await openPipWindow({ width: 470, height: 640 });
+      } catch {
+        win = null;
+      }
+    }
+    if (!win) win = openFallbackPopup({ width: 470, height: 640 });
+    if (!win) return;
+    // Fermeture native de la fenêtre (bouton PiP / croix) → on nettoie l'état.
+    win.addEventListener("pagehide", () => useRushOverlayStore.getState().onWindowGone());
+    openOverlay(win, {
+      guildId,
+      guide: {
+        id: guide.id,
+        name: guide.name,
+        slug: guide.slug,
+        description: guide.description ?? undefined,
+        imageUrl: guide.imageUrl ?? undefined,
+      },
+      milestones: milestones as RushMilestone[],
+      allProgress: guildProgress as GuideProgressRow[],
+      altPseudo: altPseudo ?? null,
+      character: selectedCharacter === "PRINCIPAL"
+        ? { pseudo: currentUserProfile?.pseudoDofus || "Principal", classe: currentUserProfile?.dofusClass || null, isMain: true }
+        : { pseudo: selectedCharacter, classe: (mules || []).find((m: any) => m.pseudo === selectedCharacter)?.classe || null, isMain: false },
+    });
+  }, [guildId, guide, milestones, guildProgress, altPseudo, selectedCharacter, mules, currentUserProfile, openOverlay, closeOverlay]);
   // Local copy of profile for optimistic alignment updates (sync profile<->rush)
   const [localProfile,setLocalProfile]=useState(currentUserProfile);
   useEffect(()=>{setLocalProfile(currentUserProfile);},[currentUserProfile]);
@@ -1078,7 +1096,12 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
     const m = new Map<string, string>();
     for (const ms of milestones) {
       const step = ms.playerProgress?.[0]?.currentStep;
-      if (step && step.startsWith("seq:")) m.set(ms.id, step.slice(4));
+      if (!step) continue;
+      // `setRushBookmark` stocke un seq.id BRUT (ex. "abc"); certaines vues legacy
+      // utilisent "seq:<id>". On normalise les deux et on valide contre les
+      // séquences du bloc (même logique que la projection serveur resolveSeqId).
+      const id = step.startsWith("seq:") ? step.slice(4) : step;
+      if ((ms.sequences || []).some((s: any) => s.id === id)) m.set(ms.id, id);
     }
     return m;
   });
@@ -1095,7 +1118,12 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
     const next = new Map<string, string>();
     milestones.forEach(ms => {
       const step = ms.playerProgress?.[0]?.currentStep;
-      if (step && step.startsWith("seq:")) next.set(ms.id, step.slice(4));
+      if (!step) return;
+      // Normalise brut / "seq:<id>" et valide contre les séquences du bloc pour
+      // ne pas croire un step-key Ganymède legacy (sinon le repère posé depuis
+      // l'overlay en seq.id brut était ignoré → republié vide → repère perdu).
+      const id = step.startsWith("seq:") ? step.slice(4) : step;
+      if ((ms.sequences || []).some((s: any) => s.id === id)) next.set(ms.id, id);
     });
     setBookmarksByMs(next);
   }, [milestones]);
@@ -1250,6 +1278,11 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     try{
       const res=await setRushSequenceProgress(guildId,ms.id,arr,effectiveAltPseudo);
       if((res as any).success){
+        // Validation → le repère de cette quête est retiré (soit validée, soit repère).
+        if(!was && bookmarksByMs.get(ms.id)===seqId){
+          setBookmarksByMs(prev=>{const n=new Map(prev);n.delete(ms.id);return n;});
+          await setRushBookmark(guildId,ms.id,null,effectiveAltPseudo).catch(()=>{});
+        }
         for(const [mid,set] of cascadeMsIds){
           const steps=new Set(completedStepsByMs.get(mid)||[]);
           for(const cid of set)steps.delete(cid);
@@ -1277,8 +1310,8 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.delete(ms.id):n.add(ms.id);return n;});
       toast.error("Erreur réseau");
     }finally{setLoading(ms.id,false);}
-  },[completedStepsByMs,completedIds,guildId,effectiveAltPseudo,setLoading,blockedSeqIds,allCompletedSeqIds,milestones]);
-  const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo);if(!(res as any).success){setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error("Erreur");}else{ if(!was)setCelebrate({msId:ms.id,title:ms.title}); toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500}); }}catch{toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,guildId,effectiveAltPseudo,setLoading]);
+  },[completedStepsByMs,completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,blockedSeqIds,allCompletedSeqIds,milestones]);
+  const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo);if(!(res as any).success){setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error("Erreur");}else{ if(!was){setCelebrate({msId:ms.id,title:ms.title}); if(bookmarksByMs.get(ms.id)){setBookmarksByMs(prev=>{const n=new Map(prev);n.delete(ms.id);return n;}); setRushBookmark(guildId,ms.id,null,effectiveAltPseudo).catch(()=>{});}} toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500}); }}catch{toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading]);
   const handleReset=useCallback(async(ms:Milestone)=>{setCompletedIds(prev=>{const n=new Set(prev);n.delete(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,new Set);return n;});setLoading(ms.id,true);try{await resetMilestoneProgress(guildId,ms.id,effectiveAltPseudo);toast.success("Réinitialisée");}catch{setCompletedIds(prev=>new Set([...prev,ms.id]));toast.error("Erreur reset");}finally{setLoading(ms.id,false);}},[guildId,effectiveAltPseudo,setLoading]);
 
   // ─── Bookmark par séquence ─────────────────────────────────────────────
@@ -1290,6 +1323,11 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       toast.warning("Prérequis non terminé — impossible de poser votre repère sur cette quête.");
       return;
     }
+    // 🚫 Soit validée, soit repère : refuser un repère sur une quête déjà validée.
+    if (!wasBookmarked && completedStepsByMs.get(ms.id)?.has(seqId)) {
+      toast.info("Cette quête est déjà validée — impossible d'y poser un repère.");
+      return;
+    }
     setBookmarksByMs(prev => {
       const next = new Map(prev);
       if (wasBookmarked) next.delete(ms.id);
@@ -1297,7 +1335,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       return next;
     });
     try { await setRushBookmark(guildId, ms.id, wasBookmarked ? null : seqId, effectiveAltPseudo); } catch {}
-  }, [bookmarksByMs, guildId, blockedSeqIds, effectiveAltPseudo]);
+  }, [bookmarksByMs, guildId, blockedSeqIds, completedStepsByMs, effectiveAltPseudo]);
   if(guide.isUnderConstruction)return<div className="flex flex-col items-center justify-center min-h-[400px] gap-6 p-8"><motion.div animate={{rotate:[0,-5,5,-5,0]}} transition={{repeat:Infinity,duration:3}} className="p-5 rounded-3xl bg-amber-500/10 border border-amber-500/20"><Construction className="w-12 h-12 text-amber-400"/></motion.div><div><h2 className="text-2xl font-black text-white mb-2">En construction 🚧</h2><p className="text-zinc-400 text-sm">Le staff prépare ce guide. Reviens bientôt !</p></div></div>;
   const handleScrollToPrereq = useCallback((seqName: string) => {
     let foundId: string | null = null;
@@ -1993,17 +2031,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       guildId={guildId}
     />
    </div></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider></GuildIdCtx.Provider>
-      {(pipWindow || fallbackPopup) && createPortal(
-        <GuideOverlayClient
-          guildId={guildId}
-          guide={{ name: guide.name, slug: guide.slug, description: guide.description ?? undefined, imageUrl: guide.imageUrl ?? undefined }}
-          milestones={milestones as any}
-          allProgress={guildProgress as any}
-          altPseudo={altPseudo ?? null}
-          onClose={() => { closePip(); closeFallbackPopup(); }}
-        />,
-        (pipWindow || fallbackPopup)!.document.body
-      )}
+
   <Dialog open={alignEditOpen} onOpenChange={setAlignEditOpen}>
     <DialogContent className="max-w-lg w-[95vw] bg-zinc-950 border-zinc-800 rounded-3xl p-0 overflow-hidden shadow-2xl">
       <DialogHeader className="p-6 pb-4 border-b border-white/5">

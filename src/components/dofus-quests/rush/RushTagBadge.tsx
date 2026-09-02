@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import type { RushActivityTag } from "@/types/rush-guide-types";
-import { RUSH_ACTIVITY_TAG_CONFIG, getMetierIconPath } from "@/lib/rush-guide-utils";
+import { RUSH_ACTIVITY_TAG_CONFIG } from "@/lib/rush-guide-utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
@@ -22,9 +22,6 @@ export function RushTagBadge({ tag, size = "sm", className }: RushTagBadgeProps)
 
   const config = RUSH_ACTIVITY_TAG_CONFIG[tag.type];
   const label = tag.name || config?.label || tag.type;
-  const iconPath =
-    tag.imageUrl ||
-    (tag.type === "metier" ? getMetierIconPath(tag.name) : config?.imagePath);
 
   return (
     <>
@@ -43,15 +40,9 @@ export function RushTagBadge({ tag, size = "sm", className }: RushTagBadgeProps)
           className
         )}
       >
-        {iconPath && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={iconPath}
-            alt={label}
-            className={cn("object-contain shrink-0", size === "sm" ? "w-3.5 h-3.5" : "w-4 h-4")}
-          />
+        {label && (
+          <span className="font-medium truncate max-w-[140px]">{label}</span>
         )}
-        <span className="font-medium truncate max-w-[140px]">{label}</span>
         {tag.level && (
           <span className="text-[10px] text-zinc-500 font-mono">Niv.{tag.level}</span>
         )}
@@ -64,12 +55,6 @@ export function RushTagBadge({ tag, size = "sm", className }: RushTagBadgeProps)
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="sm:max-w-[320px] bg-zinc-950/95 border-white/10 text-zinc-100 p-5 rounded-2xl">
           <DialogHeader className="flex flex-col items-center text-center gap-2">
-            {iconPath && (
-              <div className="w-14 h-14 rounded-2xl bg-zinc-900 border border-white/10 flex items-center justify-center p-2.5 shadow-xl">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={iconPath} alt={label} className="w-full h-full object-contain" />
-              </div>
-            )}
             <DialogTitle className="text-base font-bold font-serif text-zinc-100 mt-1">
               {config?.label || label}
             </DialogTitle>

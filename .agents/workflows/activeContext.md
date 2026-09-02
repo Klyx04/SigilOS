@@ -1,36 +1,30 @@
 # Active Context — SigilOS
 
-## Focus actuel
-Session 24/08/2026 : Chantiers #234 à #238+ (Isolation SuperAdmin/God, Vitrine lecture seule, RBAC Notifications, Synchro Embeds & Copie unitaire pseudos, Module Services complet avec ServiceRequest, Feedbacks/Livre d'or, Modération Admin et Synchro Discord bidirectionnelle).
+## État actuel (chantier Overlay Rush Sylvestre très mature + dashboard à finir)
+- ✅ **Module Rush Sylvestre** (guide) **fonctionnel** — S4 « qui peut aider » (métier+niveau), S6 micro-célébration, S5 éditeur GOD (import icônes), S7 contexte chapitre (PR #571–#576 mergés dans `dev`).
+- ✅ **Overlay Rush Sylvestre TRÈS MATURE** (`GuideOverlayClient` + `components/RushOverlay*`) : recherche globale accent-insensible, arbre de chapitres (`<select>` + progression), objectif doré « À FAIRE MAINTENANT », modale **Ressources** globale (bascule **Restantes/Toutes**, décrément en direct via `aggregateRushResources(milestones, completedSeqIds)`), modale Membres (qui est là), modale tutoriel, mode compact, header **7 boutons** (thème, ressources, masquer faites, tutoriel, dashboard, **bug**, **reset**) + puce **personnage** (pseudo+classe Main/Mule), validation « chapitre » fiable (synchro `completedStepsByMs` + rollback), blocs non cochables (`SEPARATEUR`/`INFO`/`DOFUS_OBTAINED`), `goToNextMs` saute les blocs faits, exclusivité validé/repère, **synchro dashboard↔overlay** via `BroadcastChannel` (`useGuideProgressSync`).
+- ✅ **Fix bug « repère disparaît après 2 s »** : le dashboard ne relisait que `seq:`-préfixé dans son effet `[milestones]` → il republiait un snapshot vide → l'overlay écrasait le repère. Normalisation brut/`seq:` + validation par séquences (init + resync) + `handleBookmark` préserve les autres blocs.
+- ✅ **Fiche Boss & Simulation tactique** (Dofensive) **TERMINÉ** — sync local-first (`DofensiveDungeon`/`DofensiveMap`/`MonsterStat`, crons `/api/cron/…`), refonte `SuccesBossGuide`, simulation AoE (`SpellRangeGrid`), sorts enrichis.
+- ✅ **Hygiène récente** : PWA icônes (#573), hydration #418 (#577), dé-duplication veille Discord (#578), télémétrie cron (#579), fix Prisma `sync-members` (#580).
 
-## Branche de travail
-`feat/chantier-2026-08-24-god-isolation-missions-notifs`
+## PR en cours
+- **#580** `fix/sync-members-prisma-include-select` — corrige erreur Prisma `include+select`. ✅ mergé.
+- **Ce chantier** (branche `fix/cron-maintenance-scripts`) : refonte/UX overlay + correctifs dashboard Rush + bug repère → PR vers `dev`.
 
-## Fichiers clés modifiés
-- `prisma/schema.prisma` : Modèles `ServiceFeedback` et `ServiceRequest` + enums.
-- `prisma/migrations/20260824120000_add_service_feedback/migration.sql`
-- `prisma/migrations/20260824140000_add_service_request/migration.sql`
-- `src/server/actions/user-actions.ts` : Isolation SuperAdmin / statut `isMember: false` si non-membre Discord.
-- `src/server/actions/notification-actions.ts` : Filtrage RBAC des notifications visibles.
-- `src/server/actions/service-actions.ts` : Persistance `ServiceRequest`, clôture, modération, récupération des demandes.
-- `src/server/actions/service-feedback-actions.ts` : Soumission avis, livre d'or, classements de satisfaction, modération.
-- `src/app/api/discord/interactions/route.ts` : Handlers boutons Discord `svc:reply` et `svc:close`.
-- `src/app/dashboard/[guildId]/services/page.tsx` & composants (`passages-client.tsx`, `service-requests-view.tsx`, `feedbacks-view.tsx`, `feedback-modal.tsx`, `service-card.tsx`).
-- `src/app/dashboard/[guildId]/missions/page.tsx` & `src/components/profile/profile-bento-grid.tsx` : Corrections mode vitrine / God.
+## Branche de travail actuelle
+`fix/cron-maintenance-scripts` (contient les 3 commits cron poussés + ce chantier overlay/dashboard Rush).
 
-**État des chantiers (Session 24/08/2026) :**
-  - ✅ **Chantier #234 :** Isolation Multi-tenant SuperAdmin (God) `isMember: false`.
-  - ✅ **Chantier #235 :** Mode lecture seule / Vitrine God (masquage validation & OCR si inactif).
-  - ✅ **Chantier #236 :** RBAC strict sur les notifications Dashboard.
-  - ✅ **Chantier #237 :** Synchro Embeds Discord (Songes/Calendrier/Sondages) & Copie unitaire des pseudos.
-  - ✅ **Chantiers #238 & #238+ :** Système complet de Feedback, ServiceRequest, Clôture passeur (Web + bouton Discord `svc:close`), Livre d'or, Modération Admin, auto-ouverture d'avis et synchro Discord.
-  - ✅ **Refonte UI/UX Anti-AI-slop :** Suppression de la bannière doublon, barre d'onglets unifiée, barres de filtres compactes et stables (suppression des scroll jumps).
-  - ✅ **Tour Guide Services 100% fonctionnel :** Découpage précis des cibles (Header -> Tabs unifiés -> CTA Publier -> Grille Marketplace -> Sidebar) sans imbrication ni auto-skip.
-  - ✅ **Chantier #239 :** Auto-clôture calendrier temps réel (`isCompleted` dynamique + auto-clôture backend `COMPLETED`).
-  - ✅ **Chantier #240 :** Suppression intégrale du Hub Raid (bouton, modale et server action — 0 code mort).
+## NEXT (priorités)
+- **🟡 Dashboard Rush Sylvestre — reste à finir (aligner sur l'overlay)** : ① modale **Ressources** globale + bascule **Restantes/Toutes** (l'overlay l'a via `aggregateRushResources`, le dashboard n'a que `RushChapterSidebar` par chapitre) ; ② « Signaler » (`QuestFeedbackButton`) pré-remplit le **contexte d'étape** (`context`) comme dans l'overlay (`overlayBugContext`) ; ③ puce **personnage** Main/Mule persistante dans le module (le sélecteur existe via `CharacterQuestSelector`, pas de badge) ; ④ supprimer `RushOverlayQuestPanel.tsx` (orphelin, non importé) ; ⑤ résoudre les ressources `kind:"unresolved"` (tâche données — re-run `scripts/resolve-rush-sylvestre-item-tags.mjs`).
+- **#223 Résilience Discord long terme** (échéance **16/11/2026**) — P3+ : outbox BullMQ/Redis écritures Discord, révocation session Auth.js sur `APPLICATION_DEAUTHORIZED`, rapatrier fetch directs (`dungeon-finder-actions`, `service-actions`, `profile-actions`, `god-discord-actions`), veille mensuelle changelog + jour J.
+- **Restes prioritaires** : #192 darkmode modale Succès · #186a perf (useOptimistic/prefetch/skeletons/virtualisation) · #129 responsivité · #34/#194 télémétrie God Insights · #197 PWA · #198 Badges · #196 API Webhooks · #143 dépendances API · #38 siphonnage WebP.
+- **Anti-slop restant** : worldmap, Songes, Guides · purge `AuroraBackground` · micro-typo.
 
-- **Vérifications :**
-  - `npx tsc --noEmit` : **0 erreur**.
-  - `npm run test:run` : **328/328 tests passés** (33 fichiers).
-  - `npm run build` : **Build Next.js de production réussi**.
-- Migrations locales appliquées (`npx prisma migrate deploy`).
+## Références clés
+- Backlog canonique : `docs/ROADMAP.md` (à lire en premier en mode plan).
+- Demandes ouvertes + annotations : `src/temp/chantier-actif.md`.
+- Plan maître #223 : `src/temp/refonte-long-terme-discord-compatibilite/PLAN-MAITRE-RESILIENCE-DISCORD-LONG-TERME.md` + `sigilos-discord-resilience.md`.
+- Dernier mémo détaillé : `src/temp/memo-2026-10-06-chantier-fiche-boss.md`.
+
+## Vérifications globales habituelles
+`npx tsc --noEmit` 0 · `npm run test:run` vert · `npm run build` OK · pas de `console.*` en prod.

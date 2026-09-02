@@ -1,7 +1,9 @@
 "use client";
 
-import React from "react";
-import { X, Sun, Moon, ExternalLink } from "lucide-react";
+import React, { useState } from "react";
+import { Sun, Moon, ExternalLink, Package, Eye, EyeOff, HelpCircle, RotateCcw, Crown, Users, Check, X } from "lucide-react";
+import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
+import { getClass } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
 
 interface RushOverlayHeaderProps {
@@ -14,7 +16,16 @@ interface RushOverlayHeaderProps {
   overallPct: number;
   isLightMode: boolean;
   onToggleTheme: () => void;
-  onClose: () => void;
+  onOpenResources: () => void;
+  hideCompleted: boolean;
+  onToggleHideCompleted: () => void;
+  onOpenTutorial: () => void;
+  /** Étape courante (ex: "Chapitre 3 · Quête X") pré-remplie dans le retour bug */
+  bugContext?: string;
+  /** Personnage courant affiché (pseudo + classe + main/mule) */
+  character?: { pseudo: string; classe: string | null; isMain: boolean };
+  /** Réinitialise toute la progression du guide */
+  onResetGuide?: () => void;
   className?: string;
 }
 
@@ -24,7 +35,6 @@ interface RushOverlayHeaderProps {
  * - Icône Dofus (œuf)
  * - Bascule thème Clair/Sombre
  * - Lien dashboard
- * - Bouton fermer (ne suppose pas window.close())
  */
 export function RushOverlayHeader({
   guideName,
@@ -36,12 +46,17 @@ export function RushOverlayHeader({
   overallPct,
   isLightMode,
   onToggleTheme,
-  onClose,
+  onOpenResources,
+  hideCompleted,
+  onToggleHideCompleted,
+  onOpenTutorial,
+  bugContext,
+  character,
+  onResetGuide,
   className,
 }: RushOverlayHeaderProps) {
-  const handleClose = () => {
-    onClose();
-  };
+  // Confirmation en 2 temps du reset (évite le reset accidentel).
+  const [confirmReset, setConfirmReset] = useState(false);
 
   return (
     <header
@@ -89,6 +104,35 @@ export function RushOverlayHeader({
             étapes ·{" "}
             <span className="font-bold text-[#39bc95]">{overallPct}%</span>
           </p>
+
+          {/* Personnage courant (pseudo + classe + main/mule) */}
+          {character && (
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="shrink-0 w-4 h-4 flex items-center justify-center rounded-md bg-[#181d23] border border-[#2a3646]">
+                {character.classe ? (
+                  (() => {
+                    const d = getClass(character.classe);
+                    return d ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={d.icon} alt={d.name} className="w-3.5 h-3.5 object-contain" />
+                    ) : (
+                      <Users className="w-3 h-3 text-blue-400" />
+                    );
+                  })()
+                ) : character.isMain ? (
+                  <Crown className="w-3 h-3 text-amber-500" />
+                ) : (
+                  <Users className="w-3 h-3 text-blue-400" />
+                )}
+              </span>
+              <span className={cn("text-[10px] font-semibold truncate", isLightMode ? "text-slate-700" : "text-[#c4cad2]")}>
+                {character.pseudo}
+              </span>
+              <span className={cn("text-[9px] font-mono uppercase font-bold", character.isMain ? "text-amber-500" : "text-blue-400")}>
+                {character.isMain ? "Main" : "Mule"}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Droite : actions + œuf Dofus */}
@@ -109,6 +153,55 @@ export function RushOverlayHeader({
             {isLightMode ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
           </button>
 
+          {/* Ressources (toutes étapes) */}
+          <button
+            type="button"
+            onClick={onOpenResources}
+            aria-label="Voir toutes les ressources à prévoir"
+            title="Ressources à prévoir"
+            className={cn(
+              "p-1.5 rounded-lg border transition-colors",
+              isLightMode
+                ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
+                : "bg-[#181d23] border-[#2a3646] text-[#d5a94e] hover:bg-[#1f2733]"
+            )}
+          >
+            <Package className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Masquer les quêtes terminées */}
+          <button
+            type="button"
+            onClick={onToggleHideCompleted}
+            aria-label={hideCompleted ? "Afficher les quêtes terminées" : "Masquer les quêtes terminées"}
+            title={hideCompleted ? "Afficher les quêtes terminées" : "Masquer les quêtes terminées"}
+            className={cn(
+              "p-1.5 rounded-lg border transition-colors",
+              hideCompleted
+                ? "bg-[#39bc95]/20 text-[#2b9f7d] border border-[#39bc95]/40"
+                : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:bg-[#1f2733]",
+              isLightMode && !hideCompleted && "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
+            )}
+          >
+            {hideCompleted ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+          </button>
+
+          {/* Tutoriel */}
+          <button
+            type="button"
+            onClick={onOpenTutorial}
+            aria-label="Aide / tutoriel de l'overlay"
+            title="Comment utiliser l'overlay"
+            className={cn(
+              "p-1.5 rounded-lg border transition-colors",
+              isLightMode
+                ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
+                : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
+            )}
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+          </button>
+
           {/* Dashboard */}
           <a
             href={`/dashboard/${guildId}/quetes-dofus/guide/${guideSlug}`}
@@ -126,6 +219,62 @@ export function RushOverlayHeader({
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
 
+          {/* Signaler un bug (étape courante pré-remplie) */}
+          <QuestFeedbackButton
+            guildId={guildId}
+            sourcePage={`guide:overlay:${guideSlug}`}
+            targetSlug={guideSlug}
+            compact
+            iconOnly
+            context={bugContext}
+            className={cn(
+              "p-1.5 rounded-lg border transition-colors",
+              isLightMode
+                ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
+                : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
+            )}
+          />
+
+          {/* Réinitialiser le guide (confirmation en 2 temps) */}
+          {confirmReset ? (
+            <span className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-[#e2726f]/50 bg-[#e2726f]/10 text-[#e2726f]">
+              <span className="text-[10px] font-bold">Reset ?</span>
+              <button
+                type="button"
+                onClick={() => {
+                  onResetGuide?.();
+                  setConfirmReset(false);
+                }}
+                aria-label="Confirmer la réinitialisation du guide"
+                className="p-0.5 rounded hover:bg-[#e2726f]/20 transition-colors"
+              >
+                <Check className="w-3 h-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmReset(false)}
+                aria-label="Annuler la réinitialisation"
+                className="p-0.5 rounded hover:bg-[#e2726f]/20 transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmReset(true)}
+              aria-label="Réinitialiser le guide"
+              title="Réinitialiser toute la progression du guide"
+              className={cn(
+                "p-1.5 rounded-lg border transition-colors",
+                isLightMode
+                  ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
+                  : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#e2726f] hover:bg-[#1f2733]"
+              )}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+          )}
 
           {/* Œuf Dofus */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -135,21 +284,6 @@ export function RushOverlayHeader({
             className="w-9 h-9 object-contain drop-shadow-md transition-transform hover:scale-105"
           />
 
-          {/* Fermer */}
-          <button
-            type="button"
-            onClick={handleClose}
-            aria-label="Fermer l'overlay"
-            title="Fermer"
-            className={cn(
-              "p-1 rounded-lg transition-colors",
-              isLightMode
-                ? "text-slate-400 hover:text-red-500 hover:bg-red-50"
-                : "text-[#4a5568] hover:text-red-400 hover:bg-red-950/20"
-            )}
-          >
-            <X className="w-4 h-4" />
-          </button>
         </div>
       </div>
 

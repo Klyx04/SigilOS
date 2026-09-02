@@ -280,14 +280,6 @@ async function syncMembershipStatusInternal(discordGuildId: string): Promise<Syn
                             where: { provider: "discord" },
                             select: { providerAccountId: true }
                         }
-                    },
-                    select: {
-                        name: true,
-                        image: true,
-                        accounts: {
-                            where: { provider: "discord" },
-                            select: { providerAccountId: true }
-                        }
                     }
                 }
             }

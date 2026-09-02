@@ -19,13 +19,17 @@ interface QuestFeedbackButtonProps {
     compact?: boolean;
     /** Classes custom pour uniformiser le rendu (ex: bandeau du guide) — remplace le style dégradé par défaut */
     className?: string;
+    /** Étape/position calculée (ex: "Chapitre 3 · Quête X") ajoutée au retour envoyé */
+    context?: string;
+    /** Icône seule (masque le libellé « Signaler ») — pour les header à espace réduit */
+    iconOnly?: boolean;
 }
 
 /**
  * Bouton « Signaler / Feedback » visible sur les pages du module
  * « Les Dofus Dofus ». Ouvre une modale avec les 8 catégories demandées.
  */
-export function QuestFeedbackButton({ guildId, sourcePage, targetSlug, compact = false, className }: QuestFeedbackButtonProps) {
+export function QuestFeedbackButton({ guildId, sourcePage, targetSlug, compact = false, className, context, iconOnly = false }: QuestFeedbackButtonProps) {
     const [open, setOpen] = useState(false);
     const [selectedType, setSelectedType] = useState<FeedbackType | null>(null);
     const [description, setDescription] = useState("");
@@ -53,6 +57,7 @@ export function QuestFeedbackButton({ guildId, sourcePage, targetSlug, compact =
                 targetSlug: targetSlug || null,
                 guildId,
                 userAgent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+                context: context || null,
             });
 
             if (res.success) {
@@ -78,8 +83,8 @@ export function QuestFeedbackButton({ guildId, sourcePage, targetSlug, compact =
                 title="Signaler un bug, proposer une amélioration ou un ajout"
             >
                 <Bug className={`${compact ? "w-3.5 h-3.5" : "w-4 h-4"} transition-transform group-hover:rotate-12`} />
-                <span className={className ? "whitespace-nowrap" : "hidden sm:inline"}>Signaler</span>
-                {!className && <span className="hidden sm:inline-block w-1.5 h-1.5 rounded-full bg-elevated animate-pulse ml-0.5" />}
+                {!iconOnly && <span className={className ? "whitespace-nowrap" : "hidden sm:inline"}>Signaler</span>}
+                {!iconOnly && !className && <span className="hidden sm:inline-block w-1.5 h-1.5 rounded-full bg-elevated animate-pulse ml-0.5" />}
             </button>
 
             <Dialog open={open} onOpenChange={(v) => { if (!v) close(); else setOpen(true); }}>
@@ -97,6 +102,17 @@ export function QuestFeedbackButton({ guildId, sourcePage, targetSlug, compact =
                         <p className="text-xs text-muted-foreground font-medium">
                             Ton retour est transmis directement à l'équipe (tracker interne + Discord). Choisis une catégorie :
                         </p>
+
+                        {/* Étape calculée (overlay) */}
+                        {context && (
+                            <div className="flex items-start gap-2.5 rounded-xl border border-border bg-surface/50 px-3 py-2">
+                                <span className="text-base leading-none">📍</span>
+                                <div className="min-w-0">
+                                    <p className="text-caption font-black uppercase tracking-widest text-muted-foreground">Position</p>
+                                    <p className="text-xs font-medium text-foreground break-words">{context}</p>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Choix de catégorie */}
                         <div className="grid gap-2">

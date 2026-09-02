@@ -75,6 +75,83 @@ export function getItemTags(tags: RushActivityTag[] | undefined): RushActivityTa
   return (tags || []).filter((t) => t.type === "item" && t.name);
 }
 
+/** Ressource agrégée (totaux dédupliqués + quantities sommées). */
+export type RushResourceAgg = {
+  key: string;
+  name: string;
+  id?: string;
+  imageUrl?: string;
+  url?: string;
+  count: number;
+  levels?: number[];
+  chapters?: number[];
+};
+
+/**
+ * 🛡️ Résolution locale-first des images d'items (comme ItemSearchPanel).
+ * -> /api/assets-dofus/items/{id} : proxy auto-siphon WebP (0 404, 0 appel externe visible).
+ * Fallback : URL distante (DofusDB) passée telle quelle via le proxy générique.
+ */
+export function resolveItemImage(id?: string | number | null, imageUrl?: string | null): string {
+  if (id != null && id !== "") {
+    const q = imageUrl ? `?url=${encodeURIComponent(imageUrl)}` : "";
+    return `/api/assets-dofus/items/${id}${q}`;
+  }
+  return imageUrl || "";
+}
+
+const normResourceName = (name = "") => name.trim().toLowerCase().replace(/\s+/g, " ");
+
+/**
+ * Agrège TOUTES les ressources `item` du guide (toutes étapes / tous chapitres),
+ * dédupliquées par nom normalisé et quantities sommées. Ignore les tags
+ * « instruction » (phrases d'action, pas des ressources) et les tags sans nom.
+ */
+export function aggregateRushResources(
+  milestones: RushMilestone[],
+  completedSeqIds?: Set<string>
+): RushResourceAgg[] {
+  const map = new Map<string, RushResourceAgg>();
+  for (const ms of milestones) {
+    for (const seq of ms.sequences) {
+      // Mode « restantes » : on ignore les ressources des quêtes déjà validées
+      // (elles sont "consommées"). Sans `completedSeqIds`, total statique.
+      if (completedSeqIds?.has(seq.id)) continue;
+      for (const tag of seq.activityTags || []) {
+        if (tag.type !== "item" || !tag.name) continue;
+        if ((tag as any).kind === "instruction") continue; // phrase d'action, pas une ressource
+        // Les entrées « … avec altération Idole de X » sont des DONJONS avec une
+        // altération d'idole, pas des objets (non mappés, sans icône DofusDB)
+        // → on les écarte de la liste des ressources à prévoir.
+        if ((tag as any).kind === "unresolved" && /avec altération/i.test(tag.name)) continue;
+        const key = `id:${tag.id ?? ""}|${normResourceName(tag.name)}`;
+        const existing = map.get(key);
+        const qty = tag.count ?? tag.quantity ?? 1;
+        if (!existing) {
+          map.set(key, {
+            key,
+            name: tag.name,
+            id: tag.id,
+            imageUrl: resolveItemImage(tag.id, tag.imageUrl),
+            url: tag.url,
+            count: qty,
+            levels: tag.level != null ? [tag.level] : [],
+            chapters: [ms.chapter],
+          });
+        } else {
+          existing.count += qty;
+          if (tag.id) existing.id = existing.id || tag.id;
+          if (tag.imageUrl) existing.imageUrl = existing.imageUrl || resolveItemImage(tag.id, tag.imageUrl);
+          if (tag.url) existing.url = existing.url || tag.url;
+          if (tag.level != null && !existing.levels!.includes(tag.level)) existing.levels!.push(tag.level);
+          if (!existing.chapters!.includes(ms.chapter)) existing.chapters!.push(ms.chapter);
+        }
+      }
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+}
+
 export type SequenceIcon = { src: string; alt: string };
 
 /**
@@ -133,6 +210,7 @@ export function isDungeonSequence(seq: RushSequence): boolean {
 
 /** Extrait tous les donjons d'une séquence (supporte donjon singulier et tableau). */
 export type DungeonInfo = {
+  id?: string;
   name: string | undefined;
   bossName: string | undefined;
   imageUrl: string | undefined;
@@ -146,6 +224,7 @@ export function getDungeons(seq: RushSequence): DungeonInfo[] {
   // Donjon singulier
   if (seq.dungeon) {
     result.push({
+      id: (seq.dungeon as any).id,
       name: seq.dungeon.name,
       bossName: seq.dungeon.bossName,
       imageUrl: seq.dungeon.imageUrl ?? undefined,
@@ -158,6 +237,7 @@ export function getDungeons(seq: RushSequence): DungeonInfo[] {
     for (const d of seqAny.dungeons) {
       if (!result.find((r) => r.name === d.name)) {
         result.push({
+          id: (d as any).id,
           name: d.name,
           bossName: d.bossName,
           imageUrl: d.imageUrl,

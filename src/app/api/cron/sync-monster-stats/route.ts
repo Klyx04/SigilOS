@@ -20,6 +20,8 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const startedAt = Date.now();
+
     try {
         const dungeonsRes = await getDungeonsWithAchievements();
         if (!dungeonsRes.success || !Array.isArray(dungeonsRes.data)) {
@@ -86,9 +88,24 @@ export async function GET(req: Request) {
             },
         });
 
+        // Télémétrie panel God « Tâches CRON »
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("sync_monster_stats", {
+            success: errors === 0,
+            durationMs: Date.now() - startedAt,
+            summary: `${synced} monstres synchronisés, ${errors} erreur(s) sur ${bosses.length}`,
+            details: { synced, errors, totalBosses: bosses.length },
+        });
+
         return NextResponse.json({ success: true, synced, errors });
     } catch (error: any) {
         logger.error("[Cron:SyncMonsterStats] Erreur globale:", { error: String(error) });
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("sync_monster_stats", {
+            success: false,
+            durationMs: Date.now() - startedAt,
+            summary: `Erreur: ${String(error)}`,
+        });
         return NextResponse.json({ error: "Internal Error" }, { status: 500 });
     }
 }

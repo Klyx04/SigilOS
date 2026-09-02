@@ -16,6 +16,8 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const startedAt = Date.now();
+
     try {
         const result = await syncDofensiveMaps();
         logger.info("[Cron:SyncDofensiveMaps] Synchronisation terminée:", result);
@@ -46,9 +48,24 @@ export async function GET(req: Request) {
             },
         });
 
+        // Télémétrie panel God « Tâches CRON »
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("sync_dofensive_maps", {
+            success: result.errors.length === 0,
+            durationMs: Date.now() - startedAt,
+            summary: `${result.synced} maps synchronisées, ${result.unchanged} inchangées (${result.errors.length} erreur(s))`,
+            details: { synced: result.synced, unchanged: result.unchanged, skippedFresh: result.skippedFresh, errors: result.errors.slice(0, 5) },
+        });
+
         return NextResponse.json({ success: true, result });
     } catch (error: any) {
         logger.error("[Cron:SyncDofensiveMaps] Erreur:", { error: String(error) });
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("sync_dofensive_maps", {
+            success: false,
+            durationMs: Date.now() - startedAt,
+            summary: `Erreur: ${String(error)}`,
+        });
         return NextResponse.json({ error: "Internal Error" }, { status: 500 });
     }
 }

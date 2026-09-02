@@ -47,6 +47,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const startedAt = Date.now();
+
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - PROOF_EXPIRY_DAYS);
 
@@ -461,5 +463,16 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info("[cleanup-proofs] Done", { stats: { ...stats, ...extraStats, ...kamaStats, ...missionStats, ...achievementStats } });
+
+    // Télémétrie panel God « Tâches CRON »
+    const { recordCronExecution } = await import("@/lib/cron-telemetry");
+    const totalErrors = stats.errors.length;
+    await recordCronExecution("cleanup_proofs", {
+        success: totalErrors === 0,
+        durationMs: Date.now() - startedAt,
+        summary: `Purge preuves : ${stats.filesDeleted} fichier(s) supprimé(s), ${totalErrors} erreur(s)`,
+        details: { ...stats, ...extraStats, ...kamaStats, ...missionStats, ...achievementStats },
+    });
+
     return NextResponse.json({ success: true, ...stats, ...extraStats, ...kamaStats, ...missionStats, ...achievementStats });
 }

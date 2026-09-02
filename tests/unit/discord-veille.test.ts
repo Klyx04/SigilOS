@@ -124,6 +124,58 @@ describe("runDiscordVeille — anomalies → alerte God", () => {
     });
 });
 
+describe("runDiscordVeille — déduplication des mots-clés", () => {
+    it("mêmes mots-clés que la veille précédente → PAS d'anomalie (déduplication)", async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-09-05T09:00:00.000Z"));
+        mockRedisGet.mockImplementation(async (key: string) => {
+            if (key === "discord:veille:last-keywords") {
+                return JSON.stringify(["Breaking Change", "Obfuscation", "November 16", "Webhook Events"]);
+            }
+            return null;
+        });
+        vi.stubGlobal("fetch", makeFetcher({ changelog: { ok: true, body: "Breaking Change / Obfuscation / November 16 / Webhook Events" } }));
+
+        const report = await runDiscordVeille();
+
+        expect(report.keywordsFound.length).toBeGreaterThan(0);
+        // Aucun NOUVEAU mot-clé → pas d'anomalie « Changelog »
+        expect(report.anomalies.some((a) => a.includes("Changelog"))).toBe(false);
+        expect(mockNotifyGod).not.toHaveBeenCalled();
+        // La baseline est bien re-persistée (le set last-keywords est appelé)
+        const setArgs = mockRedisSet.mock.calls.map((c) => c[0]);
+        expect(setArgs).toContain("discord:veille:last-keywords");
+    });
+
+    it("nouveau mot-clé au-delà de la baseline → anomalie citant le nouveau", async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-09-05T09:00:00.000Z"));
+        mockRedisGet.mockImplementation(async (key: string) => {
+            if (key === "discord:veille:last-keywords") return JSON.stringify(["Breaking Change"]);
+            return null;
+        });
+        vi.stubGlobal("fetch", makeFetcher({ changelog: { ok: true, body: "Breaking Change + API v11" } }));
+
+        const report = await runDiscordVeille();
+
+        expect(report.keywordsFound).toContain("API v11");
+        expect(report.anomalies.some((a) => a.includes("API v11"))).toBe(true);
+        expect(mockNotifyGod).toHaveBeenCalledTimes(1);
+    });
+
+    it("premier run (aucune baseline) avec mots-clés → anomalie (aucun angle mort)", async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-09-05T09:00:00.000Z"));
+        vi.stubGlobal("fetch", makeFetcher({ changelog: { ok: true, body: "Breaking Change" } }));
+
+        const report = await runDiscordVeille();
+
+        expect(report.keywordsFound).toContain("Breaking Change");
+        expect(report.anomalies.some((a) => a.includes("Breaking Change"))).toBe(true);
+        expect(mockNotifyGod).toHaveBeenCalledTimes(1);
+    });
+});
+
 describe("runDiscordVeille — fenêtre jour J (16/11/2026)", () => {
     it("avant la fenêtre : pas de rappel jour J", async () => {
         vi.useFakeTimers();

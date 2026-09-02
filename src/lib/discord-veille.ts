@@ -40,6 +40,7 @@ export const DISCORD_WATCH_KEYWORDS = [
 ];
 
 const LLMS_HASH_KEY = "discord:veille:llms-hash";
+const LAST_KEYWORDS_KEY = "discord:veille:last-keywords";
 const DAY_J_REMINDED_KEY = "discord:veille:day-j-reminded";
 const FETCH_TIMEOUT_MS = 15_000;
 const FETCH_MAX_CHARS = 150_000;
@@ -116,15 +117,32 @@ export async function runDiscordVeille(): Promise<DiscordVeilleReport> {
     const keywordsFound = await scanChangelog();
     const dayJ = dayJStatus();
 
+    // ─── Déduplication des mots-clés (anti-fatigue d'alarme) ─────────────────
+    // Le même standing (« Channel Obfuscation 16/11 ») traîne dans le changelog
+    // jusqu'à son application : sans dédup, chaque veille mensuelle re-pingait.
+    // On ne signale donc que ce qui est NOUVEAU par rapport à la dernière veille.
+    // Sans historique (`prevKeywordsRaw === null`), on signale comme avant
+    // (aucun angle mort) puis on fige la baseline pour les runs suivants.
+    const prevKeywordsRaw = await redis.get(LAST_KEYWORDS_KEY).catch(() => null);
+    let prevKeywords: string[] = [];
+    if (prevKeywordsRaw !== null) {
+        try { prevKeywords = JSON.parse(prevKeywordsRaw) as string[]; } catch { prevKeywords = []; }
+    }
+    const isFirstKeywordRun = prevKeywordsRaw === null;
+    const newKeywords = isFirstKeywordRun
+        ? keywordsFound
+        : keywordsFound.filter((kw) => !prevKeywords.includes(kw));
+
     const anomalies: string[] = [];
 
     if (!gatewayOk) anomalies.push("L'API Discord v10 ne répond pas (GET /api/v10/gateway) — vérifier.");
     if (changed) anomalies.push("docs.discord.com/llms.txt a changé depuis la dernière veille — relire le snapshot §2-6.");
-    if (keywordsFound.length > 0) {
-        anomalies.push(`Changelog Discord : mots-clés détectés — ${keywordsFound.join(", ")}.`);
+    if (newKeywords.length > 0) {
+        anomalies.push(`Changelog Discord : ${isFirstKeywordRun ? "mots-clés détectés" : "nouveaux mots-clés détectés"} — ${newKeywords.join(", ")}.`);
     }
 
-    // Persiste la nouvelle empreinte (après calcul réussi uniquement).
+    // Persiste la baseline des mots-clés + la nouvelle empreinte (après calcul réussi uniquement).
+    await redis.set(LAST_KEYWORDS_KEY, JSON.stringify(keywordsFound)).catch(() => {});
     if (hash) await redis.set(LLMS_HASH_KEY, hash).catch(() => {});
 
     // Rappel UNIQUE dans la fenêtre avant le jour J.

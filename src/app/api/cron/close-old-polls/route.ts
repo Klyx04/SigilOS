@@ -13,10 +13,20 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const startedAt = Date.now();
+
     try {
         const result = await autoCloseExpiredPolls();
 
         logger.info("[CRON Polls] Clôture des sondages expirés", result);
+
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("close_old_polls", {
+            success: true,
+            durationMs: Date.now() - startedAt,
+            summary: `${result.closed} sondage(s) fermé(s), ${result.deletedEmbeds} embed(s) nettoyé(s).`,
+            details: result,
+        });
 
         return NextResponse.json({
             success: true,
@@ -25,6 +35,12 @@ export async function GET(req: Request) {
         });
     } catch (e: any) {
         logger.error('[CRON Polls] Exception:', { error: e.message });
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("close_old_polls", {
+            success: false,
+            durationMs: Date.now() - startedAt,
+            summary: `Erreur: ${e.message || 'Internal Server Error'}`,
+        });
         return NextResponse.json({ error: e.message || 'Internal Server Error' }, { status: 500 });
     }
 }

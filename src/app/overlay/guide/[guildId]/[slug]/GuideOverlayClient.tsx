@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
-import { CheckCircle2, Eye, EyeOff, ExternalLink, Check, Users } from "lucide-react";
+import { CheckCircle2, Check, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -9,6 +9,7 @@ import {
   setRushSequenceProgress,
   setRushBookmark,
   applyRushAlignmentFromSequence,
+  resetGuideProgress,
 } from "@/server/actions/optimized-guide-actions";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { type GuideProgressRow } from "@/lib/guide-progress-helpers";
@@ -19,15 +20,19 @@ import { RushOverlayHeader } from "./components/RushOverlayHeader";
 import { RushOverlaySearch } from "./components/RushOverlaySearch";
 import { RushOverlayChapterTree } from "./components/RushOverlayChapterTree";
 import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem";
-import { RushOverlayQuestPanel } from "./components/RushOverlayQuestPanel";
+import { RushOverlayQuestDetailModal } from "./components/RushOverlayQuestDetailModal";
 import { RushOverlayFooter } from "./components/RushOverlayFooter";
 import { RushOverlayCompact } from "./components/RushOverlayCompact";
 import { RushCurrentObjective } from "@/components/dofus-quests/rush/RushCurrentObjective";
-import { getNextObjective } from "./components/overlay-utils";
+import { getNextObjective, aggregateRushResources } from "./components/overlay-utils";
+import { RushOverlayResourcesModal } from "./components/RushOverlayResourcesModal";
+import { RushOverlayMembersModal, type OverlayMember } from "./components/RushOverlayMembersModal";
+import { RushOverlayTutorialModal } from "./components/RushOverlayTutorialModal";
 
 // Dofus defs pour récupération des visuels d'œufs
 const DOFUS_DEFS: Record<string, { label: string; imageUrl: string; color: string }> = {
   argente: { label: "Argenté", imageUrl: "/module-dofus/Dofus_Argente.png", color: "#a8c0d6" },
+  argente_scintillant: { label: "Arg. Scintillant", imageUrl: "/module-dofus/Dofus_Argente_Scintillant.png", color: "#c0c0c0" },
   cawotte: { label: "Cawotte", imageUrl: "/module-dofus/Dofus_Cawotte.png", color: "#f59e0b" },
   dokoko: { label: "Dokoko", imageUrl: "/module-dofus/Dofus_Dokoko.png", color: "#a3e635" },
   emeraude: { label: "Émeraude", imageUrl: "/module-dofus/Dofus_Emeraude.png", color: "#10b981" },
@@ -35,28 +40,66 @@ const DOFUS_DEFS: Record<string, { label: string; imageUrl: string; color: strin
   turquoise: { label: "Turquoise", imageUrl: "/module-dofus/Dofus_Turquoise.png", color: "#06b6d4" },
   vulbis: { label: "Vulbis", imageUrl: "/module-dofus/Dofus_Vulbis.png", color: "#f97316" },
   ocre: { label: "Ocre", imageUrl: "/assets/icons/ocre.png", color: "#eab308" },
-  ébène: { label: "Ébène", imageUrl: "/module-dofus/Dofus_Ebene.png", color: "#6366f1" },
+  ebene: { label: "Ébène", imageUrl: "/module-dofus/Dofus_Ebene.png", color: "#6366f1" },
   ivoire: { label: "Ivoire", imageUrl: "/module-dofus/Dofus_Ivoire.png", color: "#f1f5f9" },
   abyssal: { label: "Abyssal", imageUrl: "/module-dofus/Dofus_Abyssal.png", color: "#3b82f6" },
   sylvestre: { label: "Sylvestre", imageUrl: "/module-dofus/Dofus_Sylvestre.png", color: "#39bc95" },
+  dolmanax: { label: "Dolmanax", imageUrl: "/module-dofus/Dofus_Dolmanax.png", color: "#ef4444" },
+  des_glaces: { label: "Des Glaces", imageUrl: "/module-dofus/Dofus_Des_Glaces.png", color: "#93c5fd" },
+  du_cauchemar: { label: "Du Cauchemar", imageUrl: "/module-dofus/Dofus_Du_Cauchemar.png", color: "#7c3aed" },
+  cauchemar: { label: "Du Cauchemar", imageUrl: "/module-dofus/Dofus_Du_Cauchemar.png", color: "#7c3aed" },
+  des_veilleurs: { label: "Des Veilleurs", imageUrl: "/module-dofus/Dofus_Veilleur.png", color: "#38bdf8" },
+  domakuro: { label: "Domakuro", imageUrl: "/module-dofus/Dofus_Domakuro.png", color: "#84cc16" },
+  dorigami: { label: "Dorigami", imageUrl: "/module-dofus/Dofus_Dorigami.png", color: "#f472b6" },
+  tachete: { label: "Tacheté", imageUrl: "/module-dofus/Dofus_Tacheté.png", color: "#c084fc" },
+  dom_de_pin: { label: "Dom de Pin", imageUrl: "/module-dofus/Dom_De_Pin.png", color: "#a3e635" },
 };
 
 type Props = {
   guildId: string;
-  guide: { name: string; slug: string; description?: string; imageUrl?: string };
+  guide: { id: string; name: string; slug: string; description?: string; imageUrl?: string };
   milestones: RushMilestone[];
   allProgress: GuideProgressRow[];
   altPseudo: string | null;
+  /** Personnage courant (principal ou mule) pour l'affichage. */
+  character?: { pseudo: string; classe: string | null; isMain: boolean };
   onClose?: () => void;
 };
 
-export default function GuideOverlayClient({ guildId, guide, milestones: rawMilestones, allProgress, altPseudo, onClose }: Props) {
+export default function GuideOverlayClient({ guildId, guide, milestones: rawMilestones, allProgress, altPseudo, character, onClose }: Props) {
   const effectiveAltPseudo = altPseudo ?? undefined;
+  // Repli si le personnage n'est pas fourni (accès direct à la page overlay).
+  const overlayCharacter = useMemo(
+    () =>
+      character ?? {
+        pseudo: effectiveAltPseudo || "Principal",
+        classe: null,
+        isMain: !effectiveAltPseudo,
+      },
+    [character, effectiveAltPseudo]
+  );
 
   const milestones = useMemo(
-    () => rawMilestones.filter((ms) => !["SEPARATEUR", "INFO", "DOFUS_OBTAINED"].includes(ms.type || "")),
+    () => rawMilestones.filter((ms) => !["INFO", "DOFUS_OBTAINED"].includes(ms.type || "")),
     [rawMilestones]
   );
+
+  // Détecte le Dofus associé à un jalon (via dofusId insensible aux accents, ou par correspondance du titre).
+  const getMsDofus = useCallback((ms?: RushMilestone | null) => {
+    if (!ms) return null;
+    const norm = (s?: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    if (ms.dofusId) {
+      const k = norm(ms.dofusId);
+      for (const [key, d] of Object.entries(DOFUS_DEFS)) {
+        if (norm(key) === k) return d;
+      }
+    }
+    const t = norm(ms.title);
+    for (const [key, d] of Object.entries(DOFUS_DEFS)) {
+      if (t.includes("dofus " + norm(key)) || (d.label && t.includes(norm(d.label)))) return d;
+    }
+    return null;
+  }, []);
 
   // ─── Thème Clair / Sombre ─────────────────────────────────────────────────
   const [isLightMode, setIsLightMode] = useState<boolean>(false);
@@ -80,6 +123,13 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
 
   // ─── Mode compact (jeu) ───────────────────────────────────────────────────
   const [isCompactMode, setIsCompactMode] = useState<boolean>(false);
+  const [showResources, setShowResources] = useState<boolean>(false);
+  const [membersModal, setMembersModal] = useState<{ title: string; members: OverlayMember[] } | null>(null);
+  const [showTutorial, setShowTutorial] = useState<boolean>(false);
+
+  const openChapterMembers = useCallback((members: OverlayMember[]) => {
+    setMembersModal({ title: "Sur ce chapitre", members });
+  }, []);
 
   // Mode jeu: replie l'overlay en mode compact.
   const enterGameMode = useCallback(() => {
@@ -137,7 +187,8 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
 
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const [hideCompleted, setHideCompleted] = useState<boolean>(false);
-  const [expandedSeqIds, setExpandedSeqIds] = useState<Set<string>>(new Set());
+  // Modale de détail d'une quête (remplace l'ancien accordéon).
+  const [detailSeq, setDetailSeq] = useState<{ ms: RushMilestone; seq: RushSequence } | null>(null);
 
   const toggleHideCompleted = useCallback(() => {
     setHideCompleted((prev) => {
@@ -157,16 +208,22 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
   const currentMs = milestones[currentMsIndex] || milestones[0] || null;
 
   const goToNextMs = useCallback(() => {
-    if (currentMsIndex < milestones.length - 1) {
-      setCurrentMsIndex((v) => v + 1);
-      setExpandedSeqIds(new Set());
+    // Avance au prochain bloc NON déjà validé (saute les blocs déjà cochés)
+    // pour toujours proposer le bloc suivant à valider. Les blocs non cochables
+    // (séparateur / info / « Dofus obtenu ») restent atteignables.
+    for (let i = currentMsIndex + 1; i < milestones.length; i++) {
+      if (!completedIds.has(milestones[i].id)) {
+        setCurrentMsIndex(i);
+        setDetailSeq(null);
+        return;
+      }
     }
-  }, [currentMsIndex, milestones.length]);
+  }, [currentMsIndex, milestones, completedIds]);
 
   const goToPrevMs = useCallback(() => {
     if (currentMsIndex > 0) {
       setCurrentMsIndex((v) => v - 1);
-      setExpandedSeqIds(new Set());
+      setDetailSeq(null);
     }
   }, [currentMsIndex]);
 
@@ -175,7 +232,7 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
       const idx = milestones.findIndex((m) => m.id === msId);
       if (idx >= 0 && idx !== currentMsIndex) {
         setCurrentMsIndex(idx);
-        setExpandedSeqIds(new Set());
+        setDetailSeq(null);
       }
     },
     [milestones, currentMsIndex]
@@ -216,6 +273,9 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
     return n;
   }, [milestones, completedStepsByMs]);
   const overallPct = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+
+  // Ressources agrégées sur TOUT le guide (bouton "Ressources" du header).
+  const allResources = useMemo(() => aggregateRushResources(milestones), [milestones]);
 
   const currentMsSeqs = contentSeqs(currentMs?.sequences || []);
   const currentMsDoneSeqs = currentMs ? completedStepsByMs.get(currentMs.id) || new Set<string>() : new Set<string>();
@@ -269,6 +329,14 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
     completedStepsByMs.forEach((steps) => steps.forEach((id) => all.add(id)));
     return all;
   }, [completedStepsByMs]);
+  // Mode « restantes » : on exclut les ressources des quêtes déjà cochées
+  // (décrément en direct selon l'avancement).
+  const remainingResources = useMemo(
+    () => aggregateRushResources(milestones, gateAllCompleted),
+    [milestones, gateAllCompleted]
+  );
+
+
 
   const prereqBySeq = useMemo(() => {
     const map = new Map<string, RushPrereqRef[]>();
@@ -291,12 +359,8 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
     (seqId: string, milestoneId: string) => {
       const idx = milestones.findIndex((m) => m.id === milestoneId);
       if (idx >= 0) {
-        if (idx !== currentMsIndex) {
-          setCurrentMsIndex(idx);
-          setExpandedSeqIds(new Set([seqId]));
-        } else {
-          setExpandedSeqIds((prev) => new Set([...prev, seqId]));
-        }
+        setCurrentMsIndex(idx);
+        setDetailSeq(null);
       }
       window.setTimeout(() => {
         document.getElementById(`overlay-seq-${seqId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -335,11 +399,32 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
         was ? n.delete(ms.id) : n.add(ms.id);
         return n;
       });
+      // Chapitre validé/dévalidé d'un coup → synchronise les quêtes cochées
+      // (sinon les cases ne se cochent pas toutes et les ressources ne sont
+      // pas décomptées pour ce chapitre).
+      const prevSteps = new Map(completedStepsByMs);
+      setCompletedStepsByMs((prev) => {
+        const n = new Map(prev);
+        n.set(ms.id, was ? new Set<string>() : new Set(ms.sequences.map((s) => s.id)));
+        return n;
+      });
       setLoadingIds((prev) => new Set([...prev, ms.id]));
       try {
         const res = await toggleMilestoneProgress(guildId, ms.id, !was, effectiveAltPseudo);
         if (!(res as any)?.success) throw new Error("Échec mutation");
+        // Chapitre validé d'un coup → son repère est retiré (soit validé, soit repère).
+        if (!was && bookmarksByMs.get(ms.id)) {
+          setBookmarksByMs((prev) => {
+            const n = new Map(prev);
+            n.delete(ms.id);
+            return n;
+          });
+          await setRushBookmark(guildId, ms.id, null, effectiveAltPseudo).catch(() => {});
+        }
+        // Chapitre complété d'un coup → passer automatiquement au suivant.
+        if (!was) goToNextMs();
       } catch {
+        setCompletedStepsByMs(prevSteps);
         setCompletedIds((prev) => {
           const n = new Set(prev);
           was ? n.add(ms.id) : n.delete(ms.id);
@@ -354,7 +439,7 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
         });
       }
     },
-    [completedIds, loadingIds, guildId, effectiveAltPseudo]
+    [completedIds, completedStepsByMs, loadingIds, bookmarksByMs, guildId, effectiveAltPseudo, goToNextMs]
   );
 
   const handleToggleSeq = useCallback(
@@ -411,6 +496,16 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
       try {
         const res = await setRushSequenceProgress(guildId, ms.id, Array.from(cur), effectiveAltPseudo);
         if (!(res as any)?.success) throw new Error("Échec mutation");
+        // Validation → le repère (« je suis ici ») de cette quête est retiré :
+        // une quête est soit validée, soit marquée d'un repère, jamais les deux.
+        if (!was && bookmarksByMs.get(ms.id) === seqId) {
+          setBookmarksByMs((prev) => {
+            const n = new Map(prev);
+            n.delete(ms.id);
+            return n;
+          });
+          await setRushBookmark(guildId, ms.id, null, effectiveAltPseudo).catch(() => {});
+        }
         // Cascade : persiste les milestones dépendants (quêtes décochées).
         for (const [mid, set] of cascadeMsIds) {
           const steps = new Set(completedStepsByMs.get(mid) || []);
@@ -444,20 +539,48 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
         toast.error("Erreur de synchronisation");
       }
     },
-    [completedStepsByMs, completedIds, guildId, effectiveAltPseudo, getSeqGate]
+    [completedStepsByMs, completedIds, bookmarksByMs, guildId, effectiveAltPseudo, getSeqGate]
   );
+
+  // Réinitialise TOUTE la progression du guide (synchro serveur + dashboard),
+  // et vide l'état local de l'overlay (blocs cochés, quêtes, repères).
+  const handleResetGuide = useCallback(async () => {
+    try {
+      const res = await resetGuideProgress(guildId, guide.id, effectiveAltPseudo);
+      if ((res as any)?.success) {
+        setCompletedIds(new Set());
+        setCompletedStepsByMs(new Map());
+        setBookmarksByMs(new Map());
+        setDetailSeq(null);
+        // Force le recalcul de la progression globale (header) à 0.
+        setCurrentMsIndex(0);
+        toast.success("Guide réinitialisé.");
+      } else {
+        toast.error("Échec de la réinitialisation.");
+      }
+    } catch {
+      toast.error("Erreur réseau lors de la réinitialisation.");
+    }
+  }, [guildId, guide.id, effectiveAltPseudo]);
 
   const handleBookmark = useCallback(
     async (ms: RushMilestone, seqId: string) => {
       const isAlready = bookmarksByMs.get(ms.id) === seqId;
-      if (!isAlready && getSeqGate(seqId).locked) {
-        toast.warning("Terminez d'abord les prérequis de cette quête.");
+      // Une quête validée ne peut pas porter de repère : soit validée, soit repère.
+      if (!isAlready && (completedStepsByMs.get(ms.id)?.has(seqId) || getSeqGate(seqId).locked)) {
+        toast.info(
+          completedStepsByMs.get(ms.id)?.has(seqId)
+            ? "Cette quête est déjà validée."
+            : "Terminez d'abord les prérequis de cette quête."
+        );
         return;
       }
       const prevMap = new Map(bookmarksByMs);
       setBookmarksByMs((prev) => {
-        const n = new Map<string, string>();
+        // Préserve les repères des AUTRES blocs (1 `bookmarksByMs` = Map<msId,seqId>).
+        const n = new Map(prev);
         if (!isAlready) n.set(ms.id, seqId);
+        else n.delete(ms.id);
         return n;
       });
       try {
@@ -468,16 +591,8 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
         toast.error("Erreur repère");
       }
     },
-    [bookmarksByMs, guildId, effectiveAltPseudo, getSeqGate]
+    [bookmarksByMs, completedStepsByMs, guildId, effectiveAltPseudo, getSeqGate]
   );
-
-  const toggleSeqAccordion = useCallback((seqId: string) => {
-    setExpandedSeqIds((prev) => {
-      const n = new Set(prev);
-      n.has(seqId) ? n.delete(seqId) : n.add(seqId);
-      return n;
-    });
-  }, []);
 
   // Filtrage des quêtes du milestone courant
   const visibleSequences = useMemo(() => {
@@ -498,12 +613,51 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
     return seqs;
   }, [currentMs, search, hideCompleted, currentMsDoneSeqs]);
 
+  // Recherche GLOBALE : matche sur TOUT le guide (tous chapitres), pas seulement
+  // le milestone courant. Un clic sur un résultat bascule vers son chapitre.
+  const globalResults = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    const out: { ms: RushMilestone; seq: RushSequence }[] = [];
+    for (const ms of milestones) {
+      for (const seq of ms.sequences) {
+        if (isInfoSequence(seq)) continue;
+        const dungeons = (seq as any).dungeons as { name?: string }[] | undefined;
+        const hit =
+          (seq.subGuideName || "").toLowerCase().includes(q) ||
+          (seq.tips || "").toLowerCase().includes(q) ||
+          (seq.note || "").toLowerCase().includes(q) ||
+          (seq.dungeon?.name || "").toLowerCase().includes(q) ||
+          !!dungeons?.some((d) => (d.name || "").toLowerCase().includes(q));
+        if (hit) out.push({ ms, seq });
+      }
+    }
+    return out;
+  }, [milestones, search]);
+
   const bookmarkSeqId = currentMs ? bookmarksByMs.get(currentMs.id) || null : null;
   const compactObjective = currentMs
     ? getNextObjective(currentMs.sequences, currentMsDoneSeqs, bookmarkSeqId, milestones, gateAllCompleted)
     : null;
 
   const msDone = currentMs ? completedIds.has(currentMs.id) : false;
+  // Blocs non cochables (pas de case à cocher, pas de validation de chapitre) :
+  // séparateur, bloc d'info et bloc « Dofus obtenu ».
+  const msIsInfoBlock = currentMs
+    ? ["SEPARATEUR", "INFO", "DOFUS_OBTAINED"].includes(currentMs.type || "")
+    : false;
+  const currentMsDofus = currentMs ? getMsDofus(currentMs) : null;
+  const currentMsTotal = currentMsSeqs.length;
+  const dofusDone = !!currentMsDofus && currentMsTotal > 0 && currentMsDoneCount >= currentMsTotal;
+
+  // Contexte exact de l'étape courante, pré-rempli dans le retour bug (overlay).
+  const overlayBugContext = useMemo(() => {
+    if (!currentMs) return undefined;
+    const parts = [`Chapitre ${currentMsIndex + 1}/${totalMs} — ${currentMs.title || "Jalon"}`];
+    const objective = compactObjective;
+    if (objective) parts.push(`Étape : ${objective.subGuideName || objective.subGuideRef || "?"}`);
+    return parts.join(" · ");
+  }, [currentMs, currentMsIndex, totalMs, compactObjective]);
 
   // ─── Rendu COMMUN ─────────────────────────────────────────────────────────
   // La fenêtre source et la fenêtre PiP (always-on-top) affichent le même
@@ -532,7 +686,13 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
             overallPct={overallPct}
             isLightMode={isLightMode}
             onToggleTheme={toggleTheme}
-            onClose={handleClose}
+            onOpenResources={() => setShowResources(true)}
+            hideCompleted={hideCompleted}
+            onToggleHideCompleted={toggleHideCompleted}
+            onOpenTutorial={() => setShowTutorial(true)}
+            bugContext={overlayBugContext}
+            character={overlayCharacter}
+            onResetGuide={handleResetGuide}
           />
 
           {/* ══ RECHERCHE ══ */}
@@ -566,8 +726,13 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
                 <button
                   type="button"
                   onClick={() => handleToggleMs(currentMs)}
-                  aria-label={msDone ? "Marquer le chapitre comme non terminé" : "Marquer le chapitre comme terminé"}
-                  className="shrink-0 rounded focus-visible:outline-2 focus-visible:outline-[#39bc95] focus-visible:outline-offset-1"
+                  disabled={msIsInfoBlock}
+                  aria-label={msIsInfoBlock ? "Bloc informatif" : msDone ? "Marquer le chapitre comme non terminé" : "Marquer le chapitre comme terminé"}
+                  className={
+                    msIsInfoBlock
+                      ? "shrink-0 cursor-default opacity-20"
+                      : "shrink-0 rounded focus-visible:outline-2 focus-visible:outline-[#39bc95] focus-visible:outline-offset-1"
+                  }
                 >
                   <span
                     className={`flex h-4 w-4 items-center justify-center rounded-md border transition-all ${
@@ -583,6 +748,26 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
                 </button>
 
                 <span className="font-serif font-bold text-xs text-[#39bc95] shrink-0">{currentMsIndex + 1}.</span>
+
+                {/* Icône Dofus à côté du bloc courant + animation à la complétion */}
+                {currentMsDofus && (
+                  <span className="relative shrink-0 flex items-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={currentMsDofus.imageUrl}
+                      alt={currentMsDofus.label}
+                      title={currentMsDofus.label}
+                      className={`h-5 w-5 object-contain drop-shadow ${dofusDone ? "animate-pulse" : ""}`}
+                    />
+                    {dofusDone && (
+                      <span
+                        className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-[#39bc95]"
+                        style={{ boxShadow: "0 0 6px 2px rgba(57,188,149,0.7)" }}
+                      />
+                    )}
+                  </span>
+                )}
+
                 <span
                   className={`font-serif font-bold text-xs truncate flex-1 leading-tight ${
                     isLightMode ? "text-slate-900" : "text-[#f2f0e9]"
@@ -591,49 +776,23 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
                 >
                   {currentMs.title || "Jalon"}
                 </span>
+                {dofusDone && (
+                  <span className="shrink-0 rounded-full border border-[#39bc95]/50 bg-[#39bc95]/15 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#39bc95]">
+                    Dofus obtenu
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center gap-1.5 shrink-0 pl-1">
                 <span className={`text-[11px] font-mono font-bold mr-1 ${isLightMode ? "text-slate-500" : "text-[#929aa5]"}`}>
                   {currentMsPct}%
                 </span>
-
-                <button
-                  type="button"
-                  onClick={toggleHideCompleted}
-                  aria-label={hideCompleted ? "Afficher les quêtes terminées" : "Masquer les quêtes terminées"}
-                  title={hideCompleted ? "Afficher les quêtes terminées" : "Masquer les quêtes terminées"}
-                  className={`p-1.5 rounded-lg transition-colors ${
-                    hideCompleted
-                      ? "bg-[#39bc95]/20 text-[#2b9f7d] border border-[#39bc95]/40"
-                      : isLightMode
-                        ? "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
-                        : "text-[#929aa5] hover:text-[#f2f0e9] hover:bg-[#181e25]"
-                  }`}
-                >
-                  {hideCompleted ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                </button>
-
-                <a
-                  href={`/dashboard/${guildId}/quetes-dofus/guide/${guide.slug}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Ouvrir le guide complet sur SigilOS"
-                  title="Ouvrir le guide complet sur SigilOS"
-                  className={`p-1.5 rounded-lg transition-colors ${
-                    isLightMode
-                      ? "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
-                      : "text-[#929aa5] hover:text-[#f2f0e9] hover:bg-[#181e25]"
-                  }`}
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
               </div>
             </div>
           )}
 
           {/* ══ OBJECTIF COURANT (épinglé — toujours visible) ══ */}
-          {!hideCompleted && compactObjective && (
+          {compactObjective && (
             <div className="px-3 pt-2">
               <RushCurrentObjective
                 sequence={compactObjective}
@@ -646,12 +805,25 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
 
           {/* ══ PRÉSENCE COMMUNAUTÉ ══ */}
           {chapterMembers.length > 0 && (
-            <div className="px-3 pt-2 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                openChapterMembers(
+                  chapterMembers.map((m) => ({
+                    name: m.name,
+                    avatar: m.avatar,
+                    subtitle: m.stepId ? "a posé un repère ici" : undefined,
+                  }))
+                )
+              }
+              title="Voir les membres sur ce chapitre"
+              className="px-3 pt-2 flex items-center gap-2 text-left"
+            >
               <Users className="w-3 h-3 text-[#39bc95]" />
               <span className="text-[9px] font-bold uppercase tracking-wide text-[#6e7784]">
                 Sur ce chapitre
               </span>
-              <div className="flex items-center -space-x-1.5">
+              <span className="flex items-center -space-x-1.5">
                 {chapterMembers.slice(0, 6).map((m, i) =>
                   m.avatar ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -673,16 +845,75 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
                     </span>
                   )
                 )}
-              </div>
+              </span>
               {chapterMembers.length > 6 && (
                 <span className="text-[9px] text-[#6e7784]">+{chapterMembers.length - 6}</span>
               )}
-            </div>
+            </button>
           )}
 
           {/* ══ LISTE DES QUÊTES + DÉTAILS ══ */}
           <main className="flex-1 overflow-y-auto p-3 space-y-2">
-            {visibleSequences.length === 0 ? (
+            {search.trim() ? (
+              globalResults.length === 0 ? (
+                <div className="py-12 text-center text-[#929aa5] text-xs">
+                  <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-[#39bc95] opacity-40" />
+                  <p className="font-bold font-serif text-sm text-[#f2f0e9]">Aucune quête ne correspond</p>
+                  <p className="text-[11px] text-[#6e7784] mt-0.5">Essayez un autre mot-clé.</p>
+                </div>
+              ) : (
+                globalResults.map(({ ms, seq }, i) => {
+                  const showMsHeader = i === 0 || globalResults[i - 1].ms.id !== ms.id;
+                  const isSeqDone = (completedStepsByMs.get(ms.id) || new Set<string>()).has(seq.id);
+                  const gate = getSeqGate(seq.id);
+                  return (
+                    <React.Fragment key={seq.id}>
+                      {showMsHeader && (
+                        <div className="flex items-center gap-1.5 pt-1 text-[9px] font-black uppercase tracking-[0.12em] text-[#d5a94e]">
+                          <span className="w-1 h-1 rounded-full bg-[#d5a94e]" />
+                          {ms.title || "Jalon"}
+                        </div>
+                      )}
+                      <RushOverlayQuestListItem
+                        seq={seq}
+                        isDone={isSeqDone}
+                        isBookmarked={bookmarksByMs.get(ms.id) === seq.id}
+                        isLightMode={isLightMode}
+                        isLocked={gate.locked}
+                        prereqs={gate.prereqs}
+                        onGoToPrereq={handleGoToPrereq}
+                        onToggle={() => handleToggleSeq(ms, seq.id)}
+                        onBookmark={() => handleBookmark(ms, seq.id)}
+                        onOpenDetail={() => setDetailSeq({ ms, seq })}
+                        bookmarkers={[]}
+                      />
+                    </React.Fragment>
+                  );
+                })
+              )
+            ) : msIsInfoBlock ? (
+              <div className="flex flex-col items-center gap-3 py-10 px-6 text-center select-none max-w-md mx-auto">
+                {currentMsDofus ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={currentMsDofus.imageUrl} alt={currentMsDofus.label} title={currentMsDofus.label} className="h-12 w-12 object-contain drop-shadow" />
+                ) : currentMs.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={currentMs.imageUrl} alt={currentMs.title} className="h-12 w-12 object-contain drop-shadow" />
+                ) : null}
+                <span className="text-[9px] font-black uppercase tracking-[0.22em]" style={{ color: currentMs.accentColor || "#a3e635" }}>
+                  {currentMs.type === "DOFUS_OBTAINED" ? "✦ Dofus obtenu ✦" : currentMs.type === "SEPARATEUR" ? "— Séparateur —" : "✦ Info ✦"}
+                </span>
+                <h3 className={`font-serif text-lg font-black uppercase tracking-wide ${isLightMode ? "text-slate-900" : "text-[#f2f0e9]"}`}>
+                  {currentMs.title}
+                </h3>
+                {(currentMs.description || currentMs.tips) && (
+                  <p className={`text-[12px] leading-relaxed ${isLightMode ? "text-slate-500" : "text-[#929aa5]"}`}>
+                    {currentMs.description || currentMs.tips}
+                  </p>
+                )}
+                <div className="h-px w-28" style={{ background: `linear-gradient(90deg, transparent, ${currentMs.accentColor || "#a3e635"})` }} />
+              </div>
+            ) : visibleSequences.length === 0 ? (
               <div className="py-12 text-center text-[#929aa5] text-xs">
                 <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-[#39bc95] opacity-40" />
                 <p className="font-bold font-serif text-sm text-[#f2f0e9]">
@@ -701,7 +932,7 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
                     <div
                       key={seq.id}
                       className={cn(
-                        "rounded-xl border px-3 py-2 text-[11px] leading-relaxed",
+                        "rounded-xl border px-4 py-3 text-[12px] leading-relaxed",
                         isLightMode
                           ? "bg-slate-50 border-slate-200 text-slate-500"
                           : "bg-[#0f1318]/70 border-[#1e2530]/60 text-[#8b95a0]"
@@ -715,32 +946,25 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
                 const isSeqDone = currentMsDoneSeqs.has(seq.id);
                 const gate = getSeqGate(seq.id);
                 const isBookmarked = bookmarkSeqId === seq.id;
-                const isExpanded = expandedSeqIds.has(seq.id);
                 return (
                   <React.Fragment key={seq.id}>
                     <RushOverlayQuestListItem
                       seq={seq}
-                      guildId={guildId}
                       isDone={isSeqDone}
                       isBookmarked={isBookmarked}
-                      isExpanded={isExpanded}
                       isLightMode={isLightMode}
                       isLocked={gate.locked}
                       prereqs={gate.prereqs}
                       onGoToPrereq={handleGoToPrereq}
                       onToggle={() => handleToggleSeq(currentMs, seq.id)}
                       onBookmark={() => handleBookmark(currentMs, seq.id)}
-                      onExpand={() => toggleSeqAccordion(seq.id)}
+                      onOpenDetail={() => setDetailSeq({ ms: currentMs, seq })}
                       bookmarkers={bookmarkersBySeq.get(seq.id) || []}
+                      onOpenBookmarkers={() => {
+                        const b = bookmarkersBySeq.get(seq.id) || [];
+                        setMembersModal({ title: "En attente ici", members: b.map((x) => ({ name: x.name, avatar: x.avatar })) });
+                      }}
                     />
-                    {isExpanded && (
-                      <RushOverlayQuestPanel
-                        milestone={currentMs}
-                        seq={seq}
-                        isDone={isSeqDone}
-                        isLightMode={isLightMode}
-                      />
-                    )}
                   </React.Fragment>
                 );
               })
@@ -775,6 +999,43 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
         />
       ) : null}
 
+      {/* ══ MODALE RESSOURCES GLOBALES (toutes étapes) ══ */}
+      {showResources && (
+        <RushOverlayResourcesModal
+          resources={remainingResources}
+          allResources={allResources}
+          isLightMode={isLightMode}
+          totalCount={allResources.length}
+          onClose={() => setShowResources(false)}
+        />
+      )}
+
+      {/* ══ MODALE MEMBRES (sur ce chapitre / je suis ici) ══ */}
+      {membersModal && (
+        <RushOverlayMembersModal
+          title={membersModal.title}
+          members={membersModal.members}
+          isLightMode={isLightMode}
+          onClose={() => setMembersModal(null)}
+        />
+      )}
+
+      {/* ══ MODALE DÉTAILS DE QUÊTE ══ */}
+      {detailSeq && (
+        <RushOverlayQuestDetailModal
+          milestone={detailSeq.ms}
+          seq={detailSeq.seq}
+          isDone={(completedStepsByMs.get(detailSeq.ms.id) || new Set<string>()).has(detailSeq.seq.id)}
+          isLightMode={isLightMode}
+          guildId={guildId}
+          onClose={() => setDetailSeq(null)}
+        />
+      )}
+
+      {/* ══ MODALE TUTORIEL ══ */}
+      {showTutorial && (
+        <RushOverlayTutorialModal isLightMode={isLightMode} onClose={() => setShowTutorial(false)} />
+      )}
     </div>
   );
 }

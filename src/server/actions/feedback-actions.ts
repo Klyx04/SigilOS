@@ -18,6 +18,8 @@ const feedbackSchema = z.object({
   targetSlug: z.string().trim().max(100).optional().nullable(),
   guildId: z.string().trim().min(1).max(64),
   userAgent: z.string().trim().max(500).optional().nullable(),
+  // Étape/position calculée (overlay) — facultative, ajoutée en tête du retour.
+  context: z.string().trim().max(300).optional().nullable(),
 });
 
 export type FeedbackInput = z.infer<typeof feedbackSchema>;
@@ -48,6 +50,12 @@ export async function submitQuestFeedbackAction(input: FeedbackInput) {
     return { success: false, error: "Données invalides. Merci de remplir tous les champs requis." };
   }
   const data = parsed.data;
+
+  // — Contexte d'étape (overlay) : ajouté en tête du retour pour être visible
+  //   côté God (tracker + Discord notif).
+  const description = data.context?.trim()
+    ? `📍 ${data.context.trim()}\n\n${data.description}`
+    : data.description;
 
   // — Auth
   const session = await auth();
@@ -100,7 +108,7 @@ export async function submitQuestFeedbackAction(input: FeedbackInput) {
         type: type as any,
         category,
         priority: "Normal",
-        description: `[${data.feedbackType}] ${data.description}`,
+        description: `[${data.feedbackType}] ${description}`,
         creatorId: session.user.id,
         feedbackType: data.feedbackType,
         sourcePage: data.sourcePage,
@@ -134,7 +142,7 @@ export async function submitQuestFeedbackAction(input: FeedbackInput) {
           "",
           {
             embedTitle: `${label?.emoji ?? "💬"} Feedback — ${category}`,
-            embedDescription: data.description,
+            embedDescription: description,
             embedColor: isBug ? 0xef4444 : 0x10b981,
             embedFooter: `${memberName} 🏷️ ${memberGuildName} • SigilOS`,
             embedUrl: `${appUrl}/god/bugs?ticket=${created.id}`,

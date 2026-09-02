@@ -27,6 +27,21 @@
   restauration DB automatique (`./scripts/restore_db.sh prod --download-latest`), retrait du rewrite Caddy `maintenance.html`
   sur `sigilos.fr`, noindexer la beta, resoumettre le sitemap, vérifier `/legal/*`. **+ trancher la décision landing immersive** (`page.tsx`).
 
+- ✅ **Session 01/09/2026 (suite) — Rush Sylvestre : correctifs, S6, S7, S5** (`dev` HEAD `4c6a395b`) :
+  - **Correctifs dashboard (reliquats 3/7/9)** (#572) : recherche + `hideDone` (un bloc entièrement terminé contenant un résultat reste visible via `effHideDone`) · cible de validation ≥36×36 desktop / 44×44 mobile · `data-tour` limité au premier contrôle visible (`isFirstVisible`).
+  - **S6 moments premium** (#572) : `MilestoneCelebrationBurst` — burst doré + label « Bloc validé ✦ » à la validation d'un bloc (cohérent `RushCurrentObjective`).
+  - **S7 contexte chapitre** (#574) : `RushChapterSidebar` enrichi — « 🏰 Donjons à prévoir » + « 🔨 Métiers requis » du chapitre (dérivés des séquences, zéro fetch).
+  - **S5 éditeur GOD** (#575, **🔸 open**) : import d'image pour l'icône de séquence (URL validée `isSafeImageUrl` + upload sécurisé `/api/upload`) + helper partagé `resolveRushSeqIcon` (clé preset → `/assets/icons/…`, sinon URL) ; CodeQL `js/xss-through-dom` corrigé via `safeImageUrl`.
+  - **Fix PWA icônes après nav SPA** (#573) : `public/sw.js` network-first + fallback cache/placehodler (plus de `respondWith(undefined)` → `net::ERR_FAILED`).
+  Vérifs : **vitest 465/465 (53 fichiers)** · **tsc 0** · **eslint 0 erreur** · **build OK**.
+
+- ✅ **Session 02/09/2026 — Overlay Rush Sylvestre très mature + correctifs dashboard** (branche `fix/cron-maintenance-scripts` → PR `dev`) :
+  - **Overlay** (`GuideOverlayClient` + `components/RushOverlay*`) : recherche globale accent-insensible (tout le guide), arbre de chapitres `<select>` + progression N/M, modale **Ressources** globale (bascule **Restantes/Toutes**, décrément en direct `aggregateRushResources(milestones, completedSeqIds)`), modale **Membres** qui est là, modale tutoriel, mode compact, header **7 boutons** (thème/ressources/masquer faites/tutoriel/dashboard/**bug**/**reset**) + puce **personnage** (pseudo+classe Main/Mule), validation « chapitre » fiable (synchro `completedStepsByMs` + rollback), blocs non cochables (`SEPARATEUR`/`INFO`/`DOFUS_OBTAINED`), `goToNextMs` saute les blocs faits, exclusivité validé/repère, bouton **bug** pré-remplit le contexte d'étape (`context`).
+  - **Fix bug repère « disparaît après 2 s »** : le dashboard (`RushTimelineClient`) ne relisait que `currentStep` préfixé `seq:` dans son effet `[milestones]` → il republiait un snapshot vide sur `BroadcastChannel` → l'overlay écrasait son repère. Normalisation brut/`seq:` + validation par séquences (init + resync) + `handleBookmark` préserve les autres blocs.
+  - **Reste dashboard** (voir `activeContext.md` NEXT) : modale Ressources globale + bascule Restantes/Toutes · contexte d'étape dans « Signaler » · puce personnage Main/Mule · suppression `RushOverlayQuestPanel.tsx` orphelin · ressources `kind:"unresolved"` (données).
+  - Vérifs : **tsc 0** · **eslint 0 erreur** (fichiers touchés).
+
+
 - ✅ **Session 01/09/2026 — Recrutement & Cycle de Vie (#RH), Refonte Documentation & Unification Boutons d'Aide** :
   - **Module Recrutement & Cycle de Vie (`/admin/recruitment`)** : Gestion des périodes d'essai J-X, annuaire des mules et personnages secondaires, historique des départs & exclusions, relances et alertes Discord automatiques. Modèle `MemberLifecycle`, actions serveur sécurisées et interface pro `MemberLifecycleManager.tsx`.
   - **Documentation Exhaustive & Sécurisation God** : 28 fiches rédigées sans slop dans `prisma/seed-docs.ts` couvrant les 35 modules. Suppression stricte de tout bouton d'édition côté lecteur, gestion documentaire réservée à `/god/docs`.

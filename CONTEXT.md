@@ -1,9 +1,10 @@
 # 🧠 CONTEXT — SigilOS (Contexte global à fournir à chaque prompt)
 
-> **Point d’entrée du contexte projet — VERSION CONDENSÉE (2026-08-21).**
+> **Point d’entrée du contexte projet — VERSION CONDENSÉE (mise à jour 2026-09-02).**
 > ⚠️ L’historique détaillé des sessions (avant le 21/08/2026) est archivé :
 > `src/temp/archive/contexte/CONTEXT-historique-complet-2026-08-21.md` — NON relu par les prompts.
-> Mémos / amorces anciens : `src/temp/archive/`. Rien n’a été supprimé.
+> 📌 **État actuel & prochaines priorités** : voir `/\.agents/workflows/activeContext.md` (léger, à jour) — c'est la référence pour « où on en est ».
+> Les sections ci-dessous décrivent l'**architecture & le produit** (stables). L'état du chantier évolue : suivez `activeContext.md` + la mémo de session `src/temp/memo-*.md` la plus récente.
 
 ---
 

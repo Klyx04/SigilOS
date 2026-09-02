@@ -93,17 +93,20 @@ export function RushOverlayCompact({
           <Maximize2 className="h-3.5 w-3.5" />
         </button>
 
+        {/* Fermer (seul X du mode compact) */}
         <button
           type="button"
           onClick={onClose}
           aria-label="Fermer l'overlay"
           title="Fermer"
           className={cn(
-            "shrink-0 p-1 rounded-lg transition-colors",
-            isLightMode ? "text-slate-400 hover:text-red-500 hover:bg-red-50" : "text-[#4a5568] hover:text-red-400 hover:bg-red-950/20"
+            "shrink-0 p-1.5 rounded-lg border transition-colors",
+            isLightMode
+              ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
+              : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-red-400 hover:bg-[#1f2733]"
           )}
         >
-          <X className="h-4 w-4" />
+          <X className="h-3.5 w-3.5" />
         </button>
       </div>
 

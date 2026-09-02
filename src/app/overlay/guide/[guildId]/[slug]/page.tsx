@@ -42,10 +42,20 @@ export default async function GuideOverlayPage({ params, searchParams }: Props) 
     allProgress = prog.allProgress || [];
   } catch { /* non-fatal */ }
 
+  const isMainChar = !character || character === "PRINCIPAL";
+  const overlayChar = isMainChar
+    ? {
+        pseudo: (user as any)?.pseudoDofus || (user as any)?.name || "Principal",
+        classe: (user as any)?.dofusClass || null,
+        isMain: true,
+      }
+    : { pseudo: character, classe: null, isMain: false };
+
   return (
     <GuideOverlayClient
       guildId={guildId}
       guide={{
+        id: guide.id,
         name: guide.name,
         slug: guide.slug,
         description: guide.description,
@@ -54,6 +64,7 @@ export default async function GuideOverlayPage({ params, searchParams }: Props) 
       milestones={guide.milestones as any[]}
       allProgress={allProgress}
       altPseudo={altPseudo || null}
+      character={overlayChar}
     />
   );
 }

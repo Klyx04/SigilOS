@@ -18,18 +18,16 @@ load_env() {
     fi
 }
 
-FALLBACK_URL="https://sigilos.fr"
-
-if [ -f "$ROOT_DIR/.env.prod" ]; then
-    load_env "$ROOT_DIR/.env.prod"
+# Environnement cible : on déduit de GOD_NOTIFY_BASE/NEXT_PUBLIC_APP_URL (défaut beta = cas courant).
+TARGET_BASE="${GOD_NOTIFY_BASE:-${NEXT_PUBLIC_APP_URL:-}}"
+if [ -n "$TARGET_BASE" ] && [[ "$TARGET_BASE" == *"sigilos.fr"* ]] && [[ "$TARGET_BASE" != *"beta."* ]]; then
+    ENV_FILE=".env.prod"
     FALLBACK_URL="https://sigilos.fr"
-elif [ -f "$ROOT_DIR/.env.beta" ]; then
-    load_env "$ROOT_DIR/.env.beta"
-    FALLBACK_URL="https://beta.sigilos.fr"
-elif [ -f "$ROOT_DIR/.env" ]; then
-    load_env "$ROOT_DIR/.env"
+else
+    ENV_FILE=".env.beta"
     FALLBACK_URL="https://beta.sigilos.fr"
 fi
+load_env "$ROOT_DIR/$ENV_FILE"
 
 # Nova API God Notify (Cloudflare proxy URL or internal if app is up)
 # → priorité à GOD_NOTIFY_BASE (surcharge par env), sinon NEXT_PUBLIC_APP_URL, sinon FALLBACK_URL.
@@ -141,12 +139,13 @@ if [ -z "$CONTAINER_NAME" ]; then
     send_alert "Maintenance échouée : Conteneur app introuvable."
 else
     echo "🚀 Exécution du Janitor dans : $CONTAINER_NAME"
-    # Utilise npx tsx directement (disponible dans l'image Node, pas besoin du .js buildé)
-    docker exec "$CONTAINER_NAME" npx tsx scripts/database-janitor.ts --execute 2>&1 | tee -a "$LOG_DIR/janitor.log"
+    # ⚠️ Le .ts requiert @prisma/adapter-pg (+ pg), ABSENTS de l'image standalone → `tsx` échoue.
+    # On exécute donc le .js (bundleé, n'utilise que @prisma/client) en priorité = voie fiable en cron.
+    docker exec "$CONTAINER_NAME" node scripts/database-janitor.js --execute 2>&1 | tee -a "$LOG_DIR/janitor.log"
     JANITOR_EXIT=${PIPESTATUS[0]}
     if [ "$JANITOR_EXIT" -ne 0 ]; then
-        echo "⚠️  tsx non disponible dans le container, tentative via node..."
-        docker exec "$CONTAINER_NAME" node scripts/database-janitor.js --execute 2>&1 | tee -a "$LOG_DIR/janitor.log"
+        echo "⚠️  node .js a échoué, tentative via tsx (si @prisma/adapter-pg est présent)..."
+        docker exec "$CONTAINER_NAME" npx tsx scripts/database-janitor.ts --execute 2>&1 | tee -a "$LOG_DIR/janitor.log"
         JANITOR_EXIT=${PIPESTATUS[0]}
     fi
     JANITOR_OK=$([ "$JANITOR_EXIT" -eq 0 ] && echo 0 || echo 1)

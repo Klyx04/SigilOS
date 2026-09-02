@@ -107,21 +107,25 @@ export function RushHelperBadge({
 
   if (variant === "compact") {
     const count = helpers.length;
-    const tooltip = helpers.length
-      ? helpers
-          .map((h) => `${h.profile.name || "Membre"} → ${h.reasons.join(", ")}${h.uncertain ? " (à confirmer)" : ""}`)
-          .join("\n")
-      : "Recherche de membres…";
+    const tooltip = loading
+      ? "Recherche des membres qui peuvent t'aider…"
+      : count
+        ? `${count} membre${count > 1 ? "s" : ""} peut/puvent aider :\n` +
+          helpers
+            .map((h) => `• ${h.profile.name || "Membre"} — ${h.reasons.join(", ")}${h.uncertain ? " (à confirmer)" : ""}`)
+            .join("\n")
+        : "Aucun membre ne peut t'aider sur cette quête pour l'instant.";
     return (
       <span
         className={cn(
-          "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md border border-[#d5a94e]/30 bg-[#1a1a0e]/80 text-[10px] font-bold text-[#d5a94e] shrink-0",
+          "inline-flex items-center gap-1 h-[18px] px-1.5 rounded border border-[#d5a94e]/30 bg-[#1a1a0e]/80 text-[10px] font-bold text-[#d5a94e] shrink-0",
           className
         )}
         title={tooltip}
+        aria-label={tooltip}
       >
-        {loading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Handshake className="w-2.5 h-2.5" />}
-        {count > 0 ? count : "?"}
+        {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Handshake className="w-3 h-3" />}
+        <span className="tabular-nums">{count > 0 ? count : "?"}</span>
       </span>
     );
   }

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Package, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { RushActivityTag } from "@/types/rush-guide-types";
+import { resolveItemImage } from "./overlay-utils";
 
 interface RushOverlayResourceListProps {
   items: RushActivityTag[];
@@ -65,10 +66,10 @@ export function RushOverlayResourceList({
                   : "bg-[#1c2129] border-[#2c3646]"
               )}
             >
-              {item.imageUrl ? (
+              {resolveItemImage(item.id, item.imageUrl) ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={item.imageUrl}
+                  src={resolveItemImage(item.id, item.imageUrl)}
                   alt={item.name || ""}
                   className="w-5 h-5 object-contain"
                   loading="lazy"

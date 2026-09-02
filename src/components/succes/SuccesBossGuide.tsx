@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Brain, Compass, ExternalLink, Flame, Info, Loader2, MapPin, ScrollText, Search, Shield, Swords, Target, Users, X, Zap, Gem } from "lucide-react";
 import { getDungeonsWithAchievements, getDungeonMonsters, getMonsterStats } from "@/server/actions/game-data-actions";
 import { getLinkedQuests } from "@/server/actions/dofus-quest-actions";
@@ -155,6 +156,12 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [selected, setSelected] = useState<BossDungeon | null>(null);
+    // Deep-link : l'overlay Rush ou un lien peut arriver sur `?dungeon={id}&view=boss`.
+    // On lit le paramètre pour ouvrir directement la fiche du bon boss (sinon on reste
+    // sur la liste de toutes les fiches).
+    const searchParams = useSearchParams();
+    const dungeonParam = searchParams.get("dungeon");
+    const deepLinkHandledRef = useRef(false);
     const [selectedDrop, setSelectedDrop] = useState<any>(null);
     const [selectedSpellId, setSelectedSpellId] = useState<number | undefined>(undefined);
     const [familyByDungeon, setFamilyByDungeon] = useState<Record<string, DungeonFamily>>({});
@@ -197,7 +204,20 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
         };
     }, []);
 
-    // 2. Charger les stats du monstre sélectionné à la demande (lazy-load avec mise en cache)
+    // 2. Deep-link `?dungeon={id}` : dès que la liste des donjons est chargée, on ouvre
+    //    directement la fiche du boss ciblé (au lieu de laisser l'onglet sur la liste).
+    useEffect(() => {
+        if (!dungeonParam || dungeons.length === 0) return;
+        if (deepLinkHandledRef.current) return;
+        const match = dungeons.find((d) => d.id === dungeonParam);
+        if (!match) return;
+        deepLinkHandledRef.current = true;
+        setSelected(match);
+        setSelectedSpellId(undefined);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    }, [dungeonParam, dungeons]);
+
+    // 3. Charger les stats du monstre sélectionné à la demande (lazy-load avec mise en cache)
     useEffect(() => {
         const d = selected;
         if (!d) return;

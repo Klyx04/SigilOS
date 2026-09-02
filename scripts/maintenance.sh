@@ -131,8 +131,13 @@ fi
 JANITOR_OK=1  # 0 = succès, 1 = échec (défaut échec)
 echo "🧹 Janitor de la base de données (GDPR + Logs)..."
 
-# Détection dynamique du conteneur prod en priorité, beta en fallback
-CONTAINER_NAME=$(docker ps --format '{{.Names}}' | grep -E "^sigilos-(prod|beta)$" | grep -v "db\|ws\|worker\|discord\|gateway\|exporter\|cadvisor\|prometheus\|grafana\|redis" | head -n 1)
+# Détection du conteneur app de l'ENVIRONNEMENT CIBLÉ (sigilos-prod / sigilos-beta)
+# → évite de viser le mauvais env quand prod ET beta tournent en parallèle (fin du head -n 1 ambigu).
+TARGET_SUFFIX="beta"
+if [ "$ENV_FILE" = ".env.prod" ]; then
+    TARGET_SUFFIX="prod"
+fi
+CONTAINER_NAME=$(docker ps --format '{{.Names}}' | grep -x "sigilos-${TARGET_SUFFIX}" | head -n 1)
 
 if [ -z "$CONTAINER_NAME" ]; then
     echo "❌ Erreur : Impossible de trouver un conteneur SigilOS app actif."

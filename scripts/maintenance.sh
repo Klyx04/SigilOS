@@ -32,11 +32,12 @@ elif [ -f "$ROOT_DIR/.env" ]; then
 fi
 
 # Nova API God Notify (Cloudflare proxy URL or internal if app is up)
-GOD_NOTIFY_URL="${NEXT_PUBLIC_APP_URL:-$FALLBACK_URL}"
-if [[ "$GOD_NOTIFY_URL" == *"localhost"* ]]; then
-    GOD_NOTIFY_URL="$FALLBACK_URL"
+# → priorité à GOD_NOTIFY_BASE (surcharge par env), sinon NEXT_PUBLIC_APP_URL, sinon FALLBACK_URL.
+GOD_NOTIFY_BASE="${GOD_NOTIFY_BASE:-${NEXT_PUBLIC_APP_URL:-$FALLBACK_URL}}"
+if [[ "$GOD_NOTIFY_BASE" == *"localhost"* ]]; then
+    GOD_NOTIFY_BASE="$FALLBACK_URL"
 fi
-export GOD_NOTIFY_URL="$GOD_NOTIFY_URL/api/god/notify"
+export GOD_NOTIFY_URL="$GOD_NOTIFY_BASE/api/god/notify"
 
 # Fallback for discord webhook if not set globally
 DISCORD_WEBHOOK_URL="${DISCORD_ADMIN_WEBHOOK:-}"
@@ -100,9 +101,15 @@ docker volume prune --force
 
 # 2. Nettoyage Système (APT & Logs)
 echo "📟 Nettoyage Système..."
-sudo apt-get update -q
-sudo apt-get autoremove -y && sudo apt-get autoclean
-sudo journalctl --vacuum-time=7d
+# ⚠️ En cron, `sudo` ne peut PAS demander de mot de passe (pas de TTY) → on passe `-n` pour ne JAMAIS bloquer.
+# Requiert un droit sudo NOPASSWD pour sigiladmin (visudo). Sinon on saute (non critique) au lieu de pendre.
+if sudo -n apt-get update -q 2>/dev/null; then
+    sudo -n apt-get autoremove -y 2>/dev/null || true
+    sudo -n apt-get autoclean 2>/dev/null || true
+    sudo -n journalctl --vacuum-time=7d 2>/dev/null || true
+else
+    echo "⚠️  sudo non interactif indisponible (NOPASSWD requis). Étapes APT/Logs système sautées."
+fi
 
 # 3. Rotation des Logs Locaux (SigilOS)
 echo "📜 Rotation des logs locaux..."
@@ -123,6 +130,7 @@ if [ "$DISK_USAGE" -gt 85 ]; then
 fi
 
 # 5. Nettoyage de la base de données (Janitor)
+JANITOR_OK=1  # 0 = succès, 1 = échec (défaut échec)
 echo "🧹 Janitor de la base de données (GDPR + Logs)..."
 
 # Détection dynamique du conteneur prod en priorité, beta en fallback
@@ -131,14 +139,17 @@ CONTAINER_NAME=$(docker ps --format '{{.Names}}' | grep -E "^sigilos-(prod|beta)
 if [ -z "$CONTAINER_NAME" ]; then
     echo "❌ Erreur : Impossible de trouver un conteneur SigilOS app actif."
     send_alert "Maintenance échouée : Conteneur app introuvable."
-    send_god_notif "[VPS] Maintenance ÉCHOUÉE" "Impossible de trouver un conteneur app actif pour lancer le Janitor." "VPS_MAINTENANCE" "false" "{ \"error\": \"container_not_found\" }"
 else
     echo "🚀 Exécution du Janitor dans : $CONTAINER_NAME"
     # Utilise npx tsx directement (disponible dans l'image Node, pas besoin du .js buildé)
-    docker exec "$CONTAINER_NAME" npx tsx scripts/database-janitor.ts --execute 2>&1 | tee -a "$LOG_DIR/janitor.log" || {
+    docker exec "$CONTAINER_NAME" npx tsx scripts/database-janitor.ts --execute 2>&1 | tee -a "$LOG_DIR/janitor.log"
+    JANITOR_EXIT=${PIPESTATUS[0]}
+    if [ "$JANITOR_EXIT" -ne 0 ]; then
         echo "⚠️  tsx non disponible dans le container, tentative via node..."
         docker exec "$CONTAINER_NAME" node scripts/database-janitor.js --execute 2>&1 | tee -a "$LOG_DIR/janitor.log"
-    }
+        JANITOR_EXIT=${PIPESTATUS[0]}
+    fi
+    JANITOR_OK=$([ "$JANITOR_EXIT" -eq 0 ] && echo 0 || echo 1)
 fi
 
 # 6. Sync des départs Discord (Filet de sécurité bot Gateway)
@@ -231,4 +242,9 @@ bash "$(dirname "$0")/audit.sh"
 
 echo "✨ VPS purifié et monitoré ! Espace libre : $(df -h / | tail -1 | awk '{print $4}')"
 FREE_SPACE=$(df -h / | tail -1 | awk '{print $4}')
-send_god_notif "[VPS] Maintenance Réussie" "Le script de purification a terminé son cycle quotidien." "VPS_MAINTENANCE" "true" "{ \"disk_usage\": \"$DISK_USAGE%\", \"free_space\": \"$FREE_SPACE\" }"
+# Statut final basé sur le Janitor (JANITOR_OK=0 → succès) : échec → ligne rouge + ping Discord.
+if [ "$JANITOR_OK" -eq 0 ]; then
+    send_god_notif "[VPS] Maintenance Réussie" "Le script de purification a terminé son cycle quotidien." "VPS_MAINTENANCE" "true" "{ \"disk_usage\": \"$DISK_USAGE%\", \"free_space\": \"$FREE_SPACE\", \"janitor_ok\": true }"
+else
+    send_god_notif "[VPS] Maintenance ÉCHOUÉE (Janitor)" "Le Janitor BDD a échoué — voir $LOG_DIR/janitor.log." "VPS_MAINTENANCE" "false" "{ \"disk_usage\": \"$DISK_USAGE%\", \"free_space\": \"$FREE_SPACE\", \"janitor_ok\": false }"
+fi

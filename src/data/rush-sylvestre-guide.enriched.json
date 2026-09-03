@@ -1545,7 +1545,7 @@
           "type": "item",
           "name": "Tranches horaires pour certains PNJ",
           "count": 1,
-          "kind": "unresolved"
+          "kind": "instruction"
         }
       ],
       "dungeonIds": []
@@ -4792,7 +4792,10 @@
           "type": "item",
           "name": "Bois d'Erable",
           "count": 8,
-          "kind": "unresolved"
+          "kind": "resource",
+          "id": 471,
+          "imageUrl": "https://api.dofusdb.fr/img/items/38153.png",
+          "url": "https://dofusdb.fr/database/item/471"
         },
         {
           "type": "item",
@@ -4846,7 +4849,10 @@
           "type": "item",
           "name": "Poils d’Arakne Malade",
           "count": 4,
-          "kind": "unresolved"
+          "kind": "resource",
+          "id": 388,
+          "imageUrl": "https://api.dofusdb.fr/img/items/54060.png",
+          "url": "https://dofusdb.fr/database/item/388"
         },
         {
           "type": "item",
@@ -5517,7 +5523,10 @@
           "type": "item",
           "name": "Corde d’escalade (30 x Chanvre + 5 x Fil de Soie + 1 x Fil de Néfileuse)",
           "count": 1,
-          "kind": "unresolved"
+          "kind": "resource",
+          "id": 9935,
+          "imageUrl": "https://api.dofusdb.fr/img/items/15170.png",
+          "url": "https://dofusdb.fr/database/item/9935"
         },
         {
           "type": "combat_vagues",
@@ -6221,19 +6230,19 @@
           "type": "item",
           "name": "Fabrique de foux d'artifice avec altération Idole de Viti Roussie",
           "count": 1,
-          "kind": "unresolved"
+          "kind": "instruction"
         },
         {
           "type": "item",
           "name": "Laboratoire du Tynril avec altération Idole de Viti Végétale",
           "count": 1,
-          "kind": "unresolved"
+          "kind": "instruction"
         },
         {
           "type": "item",
           "name": "Excavation du Mansot Royal avec altération Idole de Viti Glacée",
           "count": 1,
-          "kind": "unresolved"
+          "kind": "instruction"
         }
       ],
       "dungeonIds": [
@@ -6327,25 +6336,25 @@
           "type": "item",
           "name": "Repaire de Sphincter Cell avec altération Idole de Thomahon Nauséabonde",
           "count": 1,
-          "kind": "unresolved"
+          "kind": "instruction"
         },
         {
           "type": "item",
           "name": "Epave du Grolandais violent avec altération Idole de Thomahon Marine",
           "count": 1,
-          "kind": "unresolved"
+          "kind": "instruction"
         },
         {
           "type": "item",
           "name": "Canopée du Kimbo avec altération Idole de Thomahon Arboricole",
           "count": 1,
-          "kind": "unresolved"
+          "kind": "instruction"
         },
         {
           "type": "item",
           "name": "Hypogée de l'Obsidiantre avec altération Idole de Thomahon d'Obsidienne",
           "count": 1,
-          "kind": "unresolved"
+          "kind": "instruction"
         }
       ],
       "dungeonIds": [
@@ -6811,7 +6820,7 @@
           "type": "item",
           "name": "Alcool à 99% ou 1 000 kamas",
           "count": 1,
-          "kind": "unresolved"
+          "kind": "instruction"
         },
         {
           "type": "combat_vagues",
@@ -7351,19 +7360,19 @@
           "type": "item",
           "name": "Galerie du Phossile avec altération Idole de Foluk Dorée",
           "count": 1,
-          "kind": "unresolved"
+          "kind": "instruction"
         },
         {
           "type": "item",
           "name": "Grotte de Kanigroula avec altération Idole de Foluk Griffée",
           "count": 1,
-          "kind": "unresolved"
+          "kind": "instruction"
         },
         {
           "type": "item",
           "name": "Antre du Korriandre avec altération Idole de Foluk Féérique",
           "count": 1,
-          "kind": "unresolved"
+          "kind": "instruction"
         }
       ],
       "dungeonIds": [
@@ -7478,7 +7487,10 @@
           "type": "item",
           "name": "Ebonite",
           "count": 3,
-          "kind": "unresolved"
+          "kind": "resource",
+          "id": 746,
+          "imageUrl": "https://api.dofusdb.fr/img/items/40658.png",
+          "url": "https://dofusdb.fr/database/item/746"
         },
         {
           "type": "combat_vagues",
@@ -7757,7 +7769,10 @@
           "type": "item",
           "name": "Larme d’Eniripsa",
           "count": 5,
-          "kind": "unresolved"
+          "kind": "resource",
+          "id": 16415,
+          "imageUrl": "https://api.dofusdb.fr/img/items/12755.png",
+          "url": "https://dofusdb.fr/database/item/16415"
         },
         {
           "type": "item",
@@ -7772,7 +7787,10 @@
           "type": "item",
           "name": "Corde d’escalade",
           "count": 1,
-          "kind": "unresolved"
+          "kind": "resource",
+          "id": 9935,
+          "imageUrl": "https://api.dofusdb.fr/img/items/15170.png",
+          "url": "https://dofusdb.fr/database/item/9935"
         },
         {
           "type": "alignment_set",
@@ -9768,7 +9786,10 @@
           "type": "item",
           "name": "Bière d’Amakna",
           "count": 1,
-          "kind": "unresolved"
+          "kind": "resource",
+          "id": 351,
+          "imageUrl": "https://api.dofusdb.fr/img/items/37004.png",
+          "url": "https://dofusdb.fr/database/item/351"
         },
         {
           "type": "item",
@@ -11944,7 +11965,7 @@
           "type": "item",
           "name": "Songes Infinis Rêve III ou + et palier IV ou V (pour un drop)",
           "count": 1,
-          "kind": "unresolved"
+          "kind": "instruction"
         },
         {
           "type": "combat_vagues",
@@ -12214,7 +12235,7 @@
           "type": "item",
           "name": "Jus de cawotte fwelaté ou 100 000 kamas",
           "count": 1,
-          "kind": "unresolved"
+          "kind": "instruction"
         },
         {
           "type": "item",
@@ -12282,13 +12303,13 @@
           "type": "item",
           "name": "Vodkawa pour 1200 kamas",
           "count": 6,
-          "kind": "unresolved"
+          "kind": "instruction"
         },
         {
           "type": "item",
           "name": "Umeshushu pour 300 kamas",
           "count": 6,
-          "kind": "unresolved"
+          "kind": "instruction"
         },
         {
           "type": "item",

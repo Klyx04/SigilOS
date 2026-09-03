@@ -3,7 +3,7 @@
 import React from "react";
 import { Sparkles, ExternalLink, Compass } from "lucide-react";
 import type { RushSequence } from "@/types/rush-guide-types";
-import { parseCoordinates } from "@/lib/rush-guide-utils";
+import { getSequenceCoord } from "@/lib/rush-guide-utils";
 import { RushCoordinateChip } from "./RushCoordinateChip";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +24,8 @@ export function RushCurrentObjective({
 }: RushCurrentObjectiveProps) {
   const isOverlay = variant === "overlay";
   const name = sequence.subGuideName || sequence.subGuideRef;
-  const parsedCoord = parseCoordinates(name) || parseCoordinates(sequence.tips || "") || parseCoordinates(sequence.note || "");
+  // Coordonnée source : pos_tags (édition GOD) > titre > tips > note.
+  const parsedCoord = getSequenceCoord(sequence);
 
   // Lien DofusPourLesNoobs ou DofusDB
   const noobsUrl = sequence.dofuspourlesnoobsUrl || (sequence.activityTags?.find(t => t.type === "dofus_link" && t.url?.includes("dofuspourlesnoobs"))?.url);

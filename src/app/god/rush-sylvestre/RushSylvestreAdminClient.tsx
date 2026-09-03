@@ -28,6 +28,7 @@ import {
   upsertRushSequence,
   deleteRushSequence,
   updateRushSylvestreSettings,
+  updateRushUIConfig,
   reorderRushMilestones,
   reorderRushSequences,
   seedRushSylvestreFromGuide,
@@ -35,6 +36,7 @@ import {
 import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB } from "@/server/actions/dofus-search-actions";
 import { DOFUS_WORLDS, DOFUS_JOBS } from "@/lib/dofus-assets";
 import { resolveRushSeqIcon, getGuideMetiersRequires } from "@/lib/rush-guide-utils";
+import { resolveRushUIConfig, type RushUIConfig } from "@/lib/rush-ui-config";
 import { uploadImageFile } from "@/components/editor/utils/image-upload";
 import { isSafeImageUrl, safeImageUrl } from "@/lib/security";
 import { toast } from "sonner";
@@ -242,6 +244,18 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
   const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
   const [addingStep, setAddingStep] = useState(false);
   const [activeTab, setActiveTab] = useState<"content" | "settings" | "launch">("content");
+  // Config UI/UX éditable (pense-bête + options modale de lancement) — lue depuis le guide.
+  const [uiConfig, setUiConfig] = useState<RushUIConfig>(() => resolveRushUIConfig((initialGuide as any).rushUIConfig));
+  const [uiSaving, setUiSaving] = useState(false);
+  const handleSaveUiConfig = useCallback(async () => {
+    setUiSaving(true);
+    try {
+      const res = await updateRushUIConfig({ rushUIConfig: uiConfig });
+      if (res.success) { toast.success("Config UI enregistrée"); router.refresh(); }
+      else { toast.error((res as any).error || "Erreur"); }
+    } catch { toast.error("Erreur réseau"); }
+    finally { setUiSaving(false); }
+  }, [uiConfig, router]);
   const [importPreview, setImportPreview] = useState<null | { plan: { milestones: number; sequences: number; items: number; metiers: number; dungeons: number }; totalToCreate: number }>(null);
   const [importing, startImport] = useTransition();
 
@@ -852,6 +866,55 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                 👉 Face au membre : les métiers <b className="text-zinc-300">déjà déclarés</b> sur son profil apparaissent
                 cochés ✓ ; les manquants proposent un bouton « Déclarer » qui écrit dans son profil.
               </p>
+            </div>
+
+            {/* Config GOD éditable */}
+            <div className="p-6 bg-zinc-900/60 border border-white/5 rounded-2xl space-y-5">
+              <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                <Settings className="w-4 h-4 text-[#e6b96b]" /> Configurable
+              </h2>
+              <p className="text-xs text-zinc-400">
+                Éditez le <b className="text-zinc-200">pense-bête</b> + options de la modale de lancement (visible par tous).
+              </p>
+              <div className="space-y-2">
+                {([
+                  { k: "showMetamob", label: "Afficher la liaison Metamob" },
+                  { k: "showResetAlignment", label: "Afficher le reset d'alignement" },
+                  { k: "showMetiers", label: "Afficher la détection des métiers" },
+                ] as const).map((opt) => (
+                  <label key={opt.k} className="flex items-center justify-between p-2.5 rounded-lg bg-zinc-800/50 border border-white/5 cursor-pointer">
+                    <span className="text-xs font-bold text-zinc-100">{opt.label}</span>
+                    <input type="checkbox" checked={uiConfig.launch[opt.k]} onChange={(e) => setUiConfig((c) => ({ ...c, launch: { ...c.launch, [opt.k]: e.target.checked } }))} className="accent-amber-400" />
+                  </label>
+                ))}
+              </div>
+              <div className="h-px bg-white/5" />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-black text-white uppercase tracking-wider">Pense-bête</p>
+                  <button type="button" onClick={() => setUiConfig((c) => ({ ...c, penseBete: [...c.penseBete, { id: `s-${Date.now()}`, title: "Nouvelle section", items: [] }] }))} className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-black text-caption font-black uppercase">+ Section</button>
+                </div>
+                {uiConfig.penseBete.map((sec, si) => (
+                  <div key={sec.id || si} className="space-y-2 p-3 rounded-xl bg-[#121821] border border-white/5">
+                    <div className="flex items-center gap-2">
+                      <input value={sec.title} onChange={(e) => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], title: e.target.value }; return { ...c, penseBete: n }; })} className="flex-1 bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white" />
+                      <button type="button" onClick={() => setUiConfig((c) => ({ ...c, penseBete: c.penseBete.filter((_, j) => j !== si) }))} className="p-1.5 rounded-md text-red-400 hover:bg-red-950/40"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                    {sec.items.map((item, ii) => (
+                      <div key={item.id || ii} className="space-y-1 p-2 rounded-lg bg-black/30 border border-white/5">
+                        <input value={item.label} placeholder="Libellé" onChange={(e) => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: n[si].items.map((it, j) => (j === ii ? { ...it, label: e.target.value } : it)) }; return { ...c, penseBete: n }; })} className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white" />
+                        <input value={item.detail || ""} placeholder="Détail" onChange={(e) => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: n[si].items.map((it, j) => (j === ii ? { ...it, detail: e.target.value } : it)) }; return { ...c, penseBete: n }; })} className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white" />
+                        <input value={(item.metiers || []).join(", ")} placeholder="Métiers (séparés par des virgules)" onChange={(e) => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: n[si].items.map((it, j) => (j === ii ? { ...it, metiers: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) } : it)) }; return { ...c, penseBete: n }; })} className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white" />
+                        <button type="button" onClick={() => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: n[si].items.filter((_, j) => j !== ii) }; return { ...c, penseBete: n }; })} className="text-[10px] text-red-400 hover:underline">Retirer</button>
+                      </div>
+                    ))}
+                    <button type="button" onClick={() => setUiConfig((c) => { const n = [...c.penseBete]; n[si] = { ...n[si], items: [...n[si].items, { id: `i-${Date.now()}-${n[si].items.length}`, label: "" }] }; return { ...c, penseBete: n }; })} className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-caption font-black uppercase">+ Item</button>
+                  </div>
+                ))}
+              </div>
+              <button type="button" onClick={handleSaveUiConfig} disabled={uiSaving} className="w-full px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black uppercase tracking-wider disabled:opacity-50">
+                {uiSaving ? "Enregistrement…" : "Enregistrer la config"}
+              </button>
             </div>
           </motion.div>
         )}

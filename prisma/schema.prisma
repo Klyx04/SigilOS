@@ -2416,6 +2416,9 @@ model OptimizedGuide {
   isActive            Boolean              @default(false)
   isUnderConstruction Boolean              @default(false) // God toggle: affiche "En construction" côté membres
   displayMode         String               @default("TREE") // "TREE" | "TIMELINE" — mode d'affichage membre
+  // Config UI/UX GOD (édition membre) — pense-bête + options de la modale de lancement.
+  // Optionnel : si vide, l'app retombe sur les valeurs par défaut (voir rush-sylvestre-pense-bete.ts).
+  rushUIConfig        Json?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   steps               OptimizedGuideStep[]

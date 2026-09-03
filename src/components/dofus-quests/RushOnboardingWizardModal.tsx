@@ -47,6 +47,8 @@ type Props = {
   metiersDeclares?: string[];
   /** Préparation — déclare un métier manquant sur le profil (updateUserProfile). */
   onDeclareMetier?: (name: string, level: number) => void;
+  /** Options de la modale de lancement (éditées côté GOD). */
+  launchConfig?: { showMetamob: boolean; showResetAlignment: boolean; showMetiers: boolean };
 };
 
 export function RushOnboardingWizardModal({
@@ -66,6 +68,7 @@ export function RushOnboardingWizardModal({
   metiersRequires = [],
   metiersDeclares = [],
   onDeclareMetier,
+  launchConfig = { showMetamob: true, showResetAlignment: true, showMetiers: true },
 }: Props) {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
@@ -186,6 +189,7 @@ export function RushOnboardingWizardModal({
             {step === 2 && (
               <div className="space-y-4">
                 {/* Liaison Metamob */}
+                {launchConfig.showMetamob && (
                 <div className="p-3.5 rounded-2xl bg-zinc-900/60 border border-white/5 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <Link2 className="w-4 h-4 text-indigo-400 shrink-0" />
@@ -212,8 +216,10 @@ export function RushOnboardingWizardModal({
                     </button>
                   )}
                 </div>
+                )}
 
                 {/* Reset alignement */}
+                {launchConfig.showResetAlignment && (
                 <div className="p-3.5 rounded-2xl bg-zinc-900/60 border border-white/5 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <RotateCcw className="w-4 h-4 text-[#e6b96b] shrink-0" />
@@ -232,8 +238,10 @@ export function RushOnboardingWizardModal({
                     Réinitialiser
                   </button>
                 </div>
+                )}
 
                 {/* Métiers requis */}
+                {launchConfig.showMetiers && (
                 <div className="p-3.5 rounded-2xl bg-zinc-900/60 border border-white/5">
                   <p className="text-xs font-black text-white flex items-center gap-1.5 mb-2">
                     <Hammer className="w-3.5 h-3.5 text-[#e6b96b]" /> Métiers requis
@@ -280,6 +288,7 @@ export function RushOnboardingWizardModal({
                     </div>
                   )}
                 </div>
+                )}
               </div>
             )}
 

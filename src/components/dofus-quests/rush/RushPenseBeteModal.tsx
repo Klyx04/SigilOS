@@ -3,11 +3,13 @@
 import React from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ClipboardList, Hammer } from "lucide-react";
-import { RUSH_PENSE_BETE } from "@/data/rush-sylvestre-pense-bete";
+import { RUSH_PENSE_BETE, type RushPenseBeteSection } from "@/data/rush-sylvestre-pense-bete";
 
 interface RushPenseBeteModalProps {
   open: boolean;
   onClose: () => void;
+  /** Sections du pense-bête — fournies par la config GOD. Fallback sur la valeur statique. */
+  sections?: RushPenseBeteSection[];
   /** Clé de persistance par guide — gardée pour compat (contenu édité côté GOD). */
   storageKey?: string;
 }
@@ -17,7 +19,8 @@ interface RushPenseBeteModalProps {
  * préparer » en amont (métiers, prépa stuffs, captures, déplacement…).
  * Le contenu est édité côté GOD (onglet « Lancement »). Aucune interaction user.
  */
-export function RushPenseBeteModal({ open, onClose }: RushPenseBeteModalProps) {
+export function RushPenseBeteModal({ open, onClose, sections }: RushPenseBeteModalProps) {
+  const list = sections ?? RUSH_PENSE_BETE;
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-2xl w-[94vw] max-h-[86vh] flex flex-col bg-zinc-950 border-zinc-800 rounded-3xl p-0 overflow-hidden shadow-2xl">
@@ -40,7 +43,7 @@ export function RushPenseBeteModal({ open, onClose }: RushPenseBeteModalProps) {
 
         {/* Body */}
         <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6 custom-scrollbar">
-          {RUSH_PENSE_BETE.map((section) => (
+          {list.map((section) => (
             <div key={section.id} className="mt-5">
               <h3 className="text-[10px] font-black uppercase tracking-[0.16em] text-[#e6b96b] mb-2 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#e6b96b]/70" />

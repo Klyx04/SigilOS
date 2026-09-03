@@ -6,6 +6,7 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { logger } from "@/lib/logger";
 import { getOptimizedGuideDetail, getGuildOptimizedGuideProgress, listSubGuides } from "@/server/actions/optimized-guide-actions";
 import { getMemberProfile } from "@/server/actions/profile-actions";
+import { resolveRushUIConfig } from "@/lib/rush-ui-config";
 import { CharacterQuestSelector } from "@/components/dofus-quests/CharacterQuestSelector";
 import OptimizedGuideClient from "./OptimizedGuideClient";
 import RushTimelineClient from "./RushTimelineClient";
@@ -165,6 +166,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                             guildId={guildId}
                             selectedCharacter={character}
                             mules={mules}
+                            rushUIConfig={resolveRushUIConfig((guide as any).rushUIConfig)}
                             currentUserProfile={{
                                 alignment: userProfile.alignment,
                                 alignmentOrder: userProfile.alignmentOrder,

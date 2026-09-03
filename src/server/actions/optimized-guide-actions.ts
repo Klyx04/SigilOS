@@ -2878,6 +2878,30 @@ export async function updateRushSylvestreSettings(data: {
 }
 
 /**
+ * (God) Met à jour la config UI/UX du Rush (pense-bête + options modale de lancement).
+ * Champ `OptimizedGuide.rushUIConfig` (JsonB). Si vide, les membres retombent sur les défauts.
+ */
+export async function updateRushUIConfig(data: { rushUIConfig: unknown }) {
+  await requireRushAccess();
+
+  const guide = await db.optimizedGuide.update({
+    where: { slug: "rush-sylvestre" },
+    data: { rushUIConfig: data.rushUIConfig as any },
+  });
+
+  await logGodWrite({
+    action: "GOD_RUSH_UI_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: "rush-sylvestre",
+    metadata: { op: "update-rush-ui-config", data: data.rushUIConfig },
+  });
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  return { success: true, guide };
+}
+
+/**
  * (God) Upsert un chapitre (milestone) du Rush Sylvestre.
  */
 export async function upsertRushMilestone(data: {

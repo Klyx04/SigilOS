@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Copy, Check, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { parseCoordinates } from "@/lib/rush-guide-utils";
+import { copyToClipboard } from "@/lib/clipboard";
 import { cn } from "@/lib/utils";
 
 interface RushCoordinateChipProps {
@@ -26,9 +27,18 @@ export function RushCoordinateChip({
     return <span className={className}>{coordText}</span>;
   }
 
-  const handleCopy = (e: React.MouseEvent) => {
+  const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(parsed.travelCommand);
+    // Fallback execCommand : en overlay (webview/PiP) `navigator.clipboard`
+    // peut réussir l'appel mais échouer silencieusement → on vérifie le retour.
+    const ok = await copyToClipboard(parsed.travelCommand);
+    if (!ok) {
+      toast.error("Copie impossible", {
+        description: `Sélectionne et copie manuellement : ${parsed.travelCommand}`,
+        duration: 3000,
+      });
+      return;
+    }
     setCopied(true);
     toast.success(`Copié : ${parsed.travelCommand}`, {
       description: "Colle cette commande dans le chat Dofus pour te déplacer.",

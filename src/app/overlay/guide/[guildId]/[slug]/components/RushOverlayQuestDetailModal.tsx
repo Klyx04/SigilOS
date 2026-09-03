@@ -7,6 +7,7 @@ import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { RushOverlayDungeonCard } from "./RushOverlayDungeonCard";
 import { RushOverlayResourceList } from "./RushOverlayResourceList";
 import { RushOverlayTagSection } from "./RushOverlayTagSection";
+import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { classifyTags, getDungeons, getItemTags, getSequenceCoord, type TagClassification } from "./overlay-utils";
 
 interface RushOverlayQuestDetailModalProps {
@@ -94,7 +95,10 @@ export function RushOverlayQuestDetailModal({
               <p className={cn("mb-1.5 text-[9px] font-black uppercase tracking-[0.14em]", isLightMode ? "text-slate-400" : "text-[#6e7784]")}>📍 Position de lancement</p>
               <div className={cn("flex items-center gap-2 rounded-xl border px-3 py-2", isLightMode ? "bg-blue-50 border-blue-200" : "bg-[#111d2e] border-[#2a4a7a]/60")}>
                 <MapPin className={cn("w-3.5 h-3.5 shrink-0", isLightMode ? "text-blue-600" : "text-[#7baeff]")} />
-                <p className={cn("text-[11px] font-mono font-bold tabular-nums", isLightMode ? "text-blue-900" : "text-[#c5d8f5]")}>[{coord.x}, {coord.y}]</p>
+                <RushCoordinateChip
+                  coordText={`[${coord.x},${coord.y}]`}
+                  className={cn("h-[22px] px-2 rounded-lg text-[11px] font-mono font-bold tabular-nums", isLightMode ? "bg-transparent border-0 shadow-none text-blue-900" : "bg-transparent border-0 shadow-none text-[#c5d8f5]")}
+                />
               </div>
             </section>
           )}

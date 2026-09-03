@@ -4,7 +4,11 @@
  */
 
 import type { RushMilestone, RushSequence, RushActivityTag } from "@/types/rush-guide-types";
-import { parseCoordinates, RUSH_ACTIVITY_TAG_CONFIG, getMetierIconPath, isSequenceBlockedByPrereqs } from "@/lib/rush-guide-utils";
+import { parseCoordinates, getSequenceCoord, RUSH_ACTIVITY_TAG_CONFIG, getMetierIconPath, isSequenceBlockedByPrereqs, resolveItemImage } from "@/lib/rush-guide-utils";
+// Re-export du helper central pour compatibilité des consumers overlay.
+export { getSequenceCoord };
+// Re-export pour compatibilité des imports overlay (RushOverlayResourceList, …)
+export { resolveItemImage };
 
 // ─── Types locaux ─────────────────────────────────────────────────────────────
 
@@ -86,19 +90,6 @@ export type RushResourceAgg = {
   levels?: number[];
   chapters?: number[];
 };
-
-/**
- * 🛡️ Résolution locale-first des images d'items (comme ItemSearchPanel).
- * -> /api/assets-dofus/items/{id} : proxy auto-siphon WebP (0 404, 0 appel externe visible).
- * Fallback : URL distante (DofusDB) passée telle quelle via le proxy générique.
- */
-export function resolveItemImage(id?: string | number | null, imageUrl?: string | null): string {
-  if (id != null && id !== "") {
-    const q = imageUrl ? `?url=${encodeURIComponent(imageUrl)}` : "";
-    return `/api/assets-dofus/items/${id}${q}`;
-  }
-  return imageUrl || "";
-}
 
 const normResourceName = (name = "") => name.trim().toLowerCase().replace(/\s+/g, " ");
 
@@ -185,18 +176,6 @@ export function getSequenceIcons(seq: RushSequence): SequenceIcon[] {
   return out;
 }
 
-/** Extrait la coordonnée d'une séquence (pos_tag > titre > tips > note). */
-export function getSequenceCoord(seq: RushSequence): ParsedCoord {
-  const posTag = (seq.activityTags || []).find((t) => t.type === "pos_tags");
-  const posStr = posTag?.name ? String(posTag.name) : null;
-  return (
-    parseCoordinates(posStr || "") ||
-    parseCoordinates(seq.subGuideName || "") ||
-    parseCoordinates(seq.tips || "") ||
-    parseCoordinates((seq as any).note || "") ||
-    null
-  );
-}
 
 /** Détecte si une séquence nécessite un donjon. */
 export function isDungeonSequence(seq: RushSequence): boolean {

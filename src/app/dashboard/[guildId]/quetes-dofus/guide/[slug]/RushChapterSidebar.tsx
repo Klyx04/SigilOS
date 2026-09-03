@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { resolveItemImage } from "@/lib/rush-guide-utils";
 import { copyToClipboard } from "@/lib/clipboard";
+import { ResourceImage } from "@/components/dofus-quests/ResourceImage";
 
 type Sequence = {
   id: string;
@@ -392,8 +393,7 @@ export function RushChapterSidebar({
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   {item.imageUrl ? (
                     <div className="w-7 h-7 rounded-lg bg-[#0c1015] border border-[#2a323d] flex items-center justify-center shrink-0 overflow-hidden">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={item.imageUrl} alt={item.name} className="w-5.5 h-5.5 object-contain" />
+                      <ResourceImage id={item.id} imageUrl={item.imageUrl} alt={item.name} className="w-5.5 h-5.5 object-contain" />
                     </div>
                   ) : (
                     <div className="w-7 h-7 rounded-lg bg-[#161d27] border border-[#2a323d] flex items-center justify-center shrink-0">

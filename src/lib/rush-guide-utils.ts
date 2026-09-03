@@ -1,13 +1,49 @@
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
+const LOCAL_ASSET_PREFIXES = ["/uploads/assets-dofus/", "/assets-dofus/"];
+
 /**
  * 🛡️ Résolution locale-first des images d'items (comme ItemSearchPanel).
- * -> /api/assets-dofus/items/{id} : proxy auto-siphon WebP (0 404, 0 appel externe visible).
- * Fallback : URL distante (DofusDB) passée telle quelle via le proxy générique.
+ *
+ * Priorité (autonomie) :
+ * 1. Chemin local déjà fourni (WebP siphonné) -> servi en STATIQUE direct
+ *    (0 appel proxy, 0 dépendance DofusDB).
+ * 2. `id` numérique connu -> on tente directement le WebP local siphonné
+ *    `/uploads/assets-dofus/items/{id}.webp` (indépendant si le fichier existe).
+ * 3. `id` non numérique / inconnu -> proxy `/api/assets-dofus/items/{id}` qui
+ *    siphonne à la volée depuis DofusDB (fallback).
+ * 4. Sinon URL distante telle quelle.
+ *
  * Helper PUR (client-safe) partagé overlay + dashboard.
  */
 export function resolveItemImage(id?: string | number | null, imageUrl?: string | null): string {
+  // 1) Chemin local connu -> statique direct.
+  if (imageUrl && LOCAL_ASSET_PREFIXES.some((p) => imageUrl.startsWith(p))) {
+    return imageUrl;
+  }
+  // 2) id numérique -> WebP local siphonné (autonome).
+  if (id != null && id !== "" && /^\d+$/.test(String(id))) {
+    return `/uploads/assets-dofus/items/${id}.webp`;
+  }
+  // 3) id non numérique -> proxy (fallback ?url=).
   if (id != null && id !== "") {
     const q = imageUrl ? `?url=${encodeURIComponent(imageUrl)}` : "";
+    return `/api/assets-dofus/items/${id}${q}`;
+  }
+  // 4) URL distante / vide.
+  return imageUrl || "";
+}
+
+/**
+ * URL de secours (proxy) pour une image d'item — à utiliser comme `onError` /
+ * fallback quand `resolveItemImage` pointe vers un WebP local absent. Le proxy
+ * `/api/assets-dofus/items/{id}` sert le WebP localisé ou le siphonne à la
+ * volée depuis DofusDB (auto-healing), puis renvoie un placeholder (jamais 404).
+ */
+export function getItemImageFallback(id?: string | number | null, imageUrl?: string | null): string {
+  if (id != null && id !== "") {
+    // On ne passe jamais un chemin local comme source distante (ce n'est pas un URL).
+    const remote = imageUrl && !imageUrl.startsWith("/") ? imageUrl : null;
+    const q = remote ? `?url=${encodeURIComponent(remote)}` : "";
     return `/api/assets-dofus/items/${id}${q}`;
   }
   return imageUrl || "";

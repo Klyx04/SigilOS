@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { copyToClipboard } from "@/lib/clipboard";
 import type { RushActivityTag } from "@/types/rush-guide-types";
 import { resolveItemImage } from "./overlay-utils";
+import { ResourceImage } from "@/components/dofus-quests/ResourceImage";
 
 interface RushOverlayResourceListProps {
   items: RushActivityTag[];
@@ -69,12 +70,11 @@ export function RushOverlayResourceList({
               )}
             >
               {resolveItemImage(item.id, item.imageUrl) ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={resolveItemImage(item.id, item.imageUrl)}
+                <ResourceImage
+                  id={item.id}
+                  imageUrl={item.imageUrl}
                   alt={item.name || ""}
                   className="w-5 h-5 object-contain"
-                  loading="lazy"
                 />
               ) : (
                 <Package

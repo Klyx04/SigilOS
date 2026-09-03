@@ -2611,8 +2611,15 @@ function enrBuildUpdate(seq: any, q: any) {
   if (q.alignReq != null && seq.alignReq == null) data.alignReq = String(q.alignReq);
   if (q.alignOrderReq != null && seq.alignOrderReq == null) data.alignOrderReq = q.alignOrderReq;
   if (q.dungeonIds && Array.isArray(q.dungeonIds) && q.dungeonIds.length && (!Array.isArray(seq.dungeonIds) || !seq.dungeonIds.length)) data.dungeonIds = q.dungeonIds;
-  if (q.activityTags && Array.isArray(q.activityTags) && q.activityTags.length) {
-    const merged = enrMergeTags(seq.activityTags || [], q.activityTags);
+  // Positions GPS : mapPositions (structuré x,y) -> tag « pos_tags » (lu par GOD/Dashboard/Overlay).
+  // L'UI ne consomme que activityTags[pos_tags], jamais mapPositions directement.
+  const incomingTags = Array.isArray(q.activityTags) ? [...q.activityTags] : [];
+  const hasPosTag = Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "pos_tags");
+  if (!hasPosTag && Array.isArray(q.mapPositions) && q.mapPositions.length) {
+    incomingTags.push({ type: "pos_tags", name: q.mapPositions.map((p: any) => `${p.x}, ${p.y}`).join(" ; "), worldId: 1 });
+  }
+  if (incomingTags.length) {
+    const merged = enrMergeTags(seq.activityTags || [], incomingTags);
     if (merged.length !== (Array.isArray(seq.activityTags) ? seq.activityTags.length : 0)) data.activityTags = merged;
   }
   return data;
@@ -2702,7 +2709,8 @@ export async function seedRushSylvestreFromGuide(opts: { apply?: boolean } = {})
   const toCreate: { title: string; type: string; chapter: number; chapterLabel: string; order: number; tips: string | null; dungeons: { name: string; id: string | null; imageUrl: string | null }[]; sequences: { name: string; dungeonIds: string[]; note: string | null }[] }[] = [];
 
   // ── Milestone « Préparation » (métiers + ressources) ──
-  if (!existingTitles.has("préparation")) {
+  const prepMilestone = existingMs.find((m) => m.title.trim().toLowerCase() === "préparation");
+  if (!prepMilestone) {
     toCreate.push({
       title: "Préparation",
       type: "PREREQUIS",
@@ -2781,6 +2789,47 @@ export async function seedRushSylvestreFromGuide(opts: { apply?: boolean } = {})
             tips: ms.title === "Préparation" ? undefined : (ms.tips ?? undefined),
             note: s.note,
             activityTags,
+          },
+        });
+        created.sequences++;
+      }
+    }
+
+    // ── Idempotence « Préparation » existante ──
+    // Si le milestone « Préparation » existait déjà (base antérieure) mais sans
+    // la séquence « Ressources à prévoir » (ou « Métiers requis »), on l'ajoute
+    // avec les objets/métiers du dataset curé. Non destructif (insert seul).
+    if (prepMilestone) {
+      const existing = await tx.guideSequence.findMany({
+        where: { milestoneId: prepMilestone.id },
+        select: { subGuideName: true, subGuideRef: true, order: true },
+      });
+      const names = new Set(existing.map((s) => s.subGuideName || s.subGuideRef));
+      let nextOrder = existing.length ? Math.max(...existing.map((s) => s.order ?? 0)) + 1 : 1;
+      if (!names.has("Métiers requis")) {
+        plan.metiers = data.preparation.metiers.length;
+        await tx.guideSequence.create({
+          data: {
+            milestoneId: prepMilestone.id,
+            order: nextOrder++,
+            subGuideRef: "Métiers requis",
+            subGuideName: "Métiers requis",
+            dungeonIds: [],
+            activityTags: data.preparation.metiers.map((m) => ({ type: "metier", name: m.name, level: m.level })),
+          },
+        });
+        created.sequences++;
+      }
+      if (!names.has("Ressources à prévoir")) {
+        plan.items = data.preparation.items.length;
+        await tx.guideSequence.create({
+          data: {
+            milestoneId: prepMilestone.id,
+            order: nextOrder++,
+            subGuideRef: "Ressources à prévoir",
+            subGuideName: "Ressources à prévoir",
+            dungeonIds: [],
+            activityTags: data.preparation.items.map((it) => ({ type: "item", name: it.name, count: it.quantity, imageUrl: it.imageUrl, id: it.ankamaId ? String(it.ankamaId) : undefined })),
           },
         });
         created.sequences++;

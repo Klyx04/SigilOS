@@ -4,6 +4,7 @@ import React, { memo } from "react";
 import { Check, Flag, BookmarkCheck, Lock, Info, DoorOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSequenceCoord, getItemTags, isDungeonSequence } from "./overlay-utils";
+import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { getAlignmentSet } from "@/lib/rush-helpers";
 import type { RushSequence } from "@/types/rush-guide-types";
 
@@ -182,14 +183,17 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
               {parsedCoord && (
                 <span
                   className={cn(
-                    "inline-flex items-center h-[18px] px-1.5 rounded font-mono text-[9px] font-bold tabular-nums",
+                    "inline-flex items-center h-[18px] rounded",
                     isLightMode
                       ? "bg-blue-100 text-blue-600"
                       : "bg-[#1a2d4a]/80 text-[#7baeff]"
                   )}
                   title={`Position : ${parsedCoord.raw}`}
                 >
-                  [{parsedCoord.x},{parsedCoord.y}]
+                  <RushCoordinateChip
+                    coordText={`[${parsedCoord.x},${parsedCoord.y}]`}
+                    className="h-[18px] px-1.5 rounded text-[9px] font-bold tabular-nums bg-transparent border-0 shadow-none"
+                  />
                 </span>
               )}
               {hasDungeon && (

@@ -1190,16 +1190,30 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
   const tMs=contentMilestones.length;const completedCount=contentMilestones.filter(ms=>completedIds.has(ms.id)).length;
   // Ressources agrégées (toutes étapes) pour la modale globale — mêmes helpers que l'overlay.
   const resourcesAll=useMemo(()=>aggregateRushResources(milestones as any),[]);
-  const resourcesRemaining=useMemo(()=>aggregateRushResources(milestones as any,completedIds),[milestones,completedIds]);
   const overallPercent=tMs>0?Math.round((completedCount/tMs)*100):0;
   const activeMembersCount=useMemo(()=>new Set(guildProgress.map(p=>p.profileId)).size,[guildProgress]);
   const setLoading=useCallback((msId:string,val:boolean)=>setLoadingIds(prev=>{const n=new Set(prev);val?n.add(msId):n.delete(msId);return n;}),[]);
-  // Ensemble de toutes les séquences complétées (à travers tous les blocs)
+  // Ensemble de toutes les séquences complétées (à travers tous les blocs).
+  // Un bloc entièrement validé compte toutes ses quêtes (sinon les ressources
+  // « restantes » ne sont pas décomptées pour un chapitre validé d'un coup).
   const allCompletedSeqIds = useMemo(() => {
     const all = new Set<string>();
-    completedStepsByMs.forEach(steps => steps.forEach(id => all.add(id)));
+    for (const ms of milestones) {
+      if (completedIds.has(ms.id)) {
+        for (const s of ms.sequences) all.add(s.id);
+        continue;
+      }
+      const steps = completedStepsByMs.get(ms.id);
+      if (steps) for (const id of steps) all.add(id);
+    }
     return all;
-  }, [completedStepsByMs]);
+  }, [milestones, completedIds, completedStepsByMs]);
+  // Ressources restantes = totaux moins les quêtes déjà validées (synchro live
+  // avec l'overlay via BroadcastChannel → décrémente dès qu'on coche).
+  const resourcesRemaining = useMemo(
+    () => aggregateRushResources(milestones as any, allCompletedSeqIds),
+    [milestones, allCompletedSeqIds]
+  );
 
   // Séquences bloquées par un prérequis non terminé → impossible de cocher / poser un repère
   const blockedSeqIds = useMemo(() => {

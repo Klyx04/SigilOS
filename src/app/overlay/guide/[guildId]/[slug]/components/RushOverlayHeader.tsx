@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { Sun, Moon, ExternalLink, Package, Eye, EyeOff, HelpCircle, RotateCcw, Crown, Users, Check, X } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Sun, Moon, ExternalLink, Package, Eye, EyeOff, HelpCircle, RotateCcw, Crown, Users, Check, X, MoreVertical } from "lucide-react";
 import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
 import { getClass } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,8 @@ interface RushOverlayHeaderProps {
   /** Réinitialise toute la progression du guide */
   onResetGuide?: () => void;
   className?: string;
+  /** Overlay réduit (largeur/hauteur) : masque le contenu secondaire et groupe les actions. */
+  isNarrow?: boolean;
 }
 
 /**
@@ -54,14 +56,36 @@ export function RushOverlayHeader({
   character,
   onResetGuide,
   className,
+  isNarrow: isNarrowProp,
 }: RushOverlayHeaderProps) {
   // Confirmation en 2 temps du reset (évite le reset accidentel).
   const [confirmReset, setConfirmReset] = useState(false);
+  // Menu « plus » : regroupe les actions secondaires quand l'overlay est étroit.
+  const [moreOpen, setMoreOpen] = useState(false);
+  // Détection de largeur étroite → on groupe les actions secondaires dans un menu ⋯.
+  const [domNarrow, setDomNarrow] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 580px), (max-height: 640px)");
+    const update = () => setDomNarrow(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  // La prop `isNarrow` (ResizeObserver du conteneur) prime sur la détection window.
+  const narrow = typeof isNarrowProp === "boolean" ? isNarrowProp : domNarrow;
+
+  // Style commun des entrées du menu « plus » (dropdown).
+  const menuItemCls = cn(
+    "flex items-center gap-2 w-full px-3 py-2 text-left text-[11px] font-semibold transition-colors",
+    isLightMode ? "text-slate-700 hover:bg-slate-100" : "text-[#c4cad2] hover:bg-[#1f2733]"
+  );
 
   return (
     <header
       className={cn(
-        "shrink-0 flex flex-col gap-2 px-4 pt-3 pb-2.5 border-b",
+        "shrink-0 flex flex-col gap-2 border-b",
+        narrow ? "px-3 pt-2 pb-2" : "px-4 pt-3 pb-2.5",
         isLightMode
           ? "bg-gradient-to-b from-white to-slate-50 border-slate-200"
           : "bg-gradient-to-b from-[#131820] to-[#0b0d10] border-[#1e2530]",
@@ -71,15 +95,17 @@ export function RushOverlayHeader({
       <div className="flex items-start justify-between gap-3">
         {/* Gauche : branding + titre + compteur */}
         <div className="flex-1 min-w-0">
-          {/* Label discret */}
-          <span
-            className={cn(
-              "block text-[9px] font-black uppercase tracking-[0.15em] mb-0.5",
-              isLightMode ? "text-[#d5a94e]" : "text-[#d5a94e]/80"
-            )}
-          >
-            Guide de progression
-          </span>
+          {/* Label discret (masqué en overlay réduit pour gagner de la hauteur) */}
+          {!narrow && (
+            <span
+              className={cn(
+                "block text-[9px] font-black uppercase tracking-[0.15em] mb-0.5",
+                isLightMode ? "text-[#d5a94e]" : "text-[#d5a94e]/80"
+              )}
+            >
+              Guide de progression
+            </span>
+          )}
 
           {/* Nom du guide */}
           <h1
@@ -105,8 +131,8 @@ export function RushOverlayHeader({
             <span className="font-bold text-[#39bc95]">{overallPct}%</span>
           </p>
 
-          {/* Personnage courant (pseudo + classe + main/mule) */}
-          {character && (
+          {/* Personnage courant (masqué en overlay réduit) */}
+          {character && !narrow && (
             <div className="flex items-center gap-1.5 mt-1">
               <span className="shrink-0 w-4 h-4 flex items-center justify-center rounded-md bg-[#181d23] border border-[#2a3646]">
                 {character.classe ? (
@@ -136,7 +162,7 @@ export function RushOverlayHeader({
         </div>
 
         {/* Droite : actions + œuf Dofus */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="relative flex items-center gap-1.5 shrink-0">
           {/* Thème */}
           <button
             type="button"
@@ -186,6 +212,68 @@ export function RushOverlayHeader({
             {hideCompleted ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           </button>
 
+          {/* Signaler un bug (toujours visible) */}
+          <QuestFeedbackButton
+            guildId={guildId}
+            sourcePage={`guide:overlay:${guideSlug}`}
+            targetSlug={guideSlug}
+            compact
+            iconOnly
+            context={bugContext}
+            className={cn(
+              "p-1.5 rounded-lg border transition-colors",
+              isLightMode
+                ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
+                : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
+            )}
+          />
+
+          {narrow ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setMoreOpen((o) => !o)}
+                aria-label="Plus d'options"
+                title="Plus d'options"
+                className={cn(
+                  "p-1.5 rounded-lg border transition-colors",
+                  isLightMode
+                    ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
+                    : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
+                )}
+              >
+                <MoreVertical className="w-3.5 h-3.5" />
+              </button>
+              {moreOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
+                  <div
+                    className={cn(
+                      "absolute top-full right-0 mt-1 z-50 w-48 rounded-xl border py-1 shadow-2xl overflow-hidden",
+                      isLightMode ? "bg-white border-slate-200" : "bg-[#14181f] border-[#2a3646]"
+                    )}
+                  >
+                    <button type="button" onClick={() => { setMoreOpen(false); onOpenTutorial(); }} className={menuItemCls}>
+                      <HelpCircle className="w-3.5 h-3.5" /> Aide / tutoriel
+                    </button>
+                    <a
+                      href={`/dashboard/${guildId}/quetes-dofus/guide/${guideSlug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setMoreOpen(false)}
+                      className={menuItemCls}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" /> Guide complet
+                    </a>
+                    <button type="button" onClick={() => { setMoreOpen(false); setConfirmReset(true); }} className={cn(menuItemCls, "hover:text-[#e2726f]")}>
+                      <RotateCcw className="w-3.5 h-3.5" /> Réinitialiser
+                    </button>
+                  </div>
+                </>
+              )}
+            </>
+          ) : (
+            <>
           {/* Tutoriel */}
           <button
             type="button"
@@ -218,22 +306,6 @@ export function RushOverlayHeader({
           >
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
-
-          {/* Signaler un bug (étape courante pré-remplie) */}
-          <QuestFeedbackButton
-            guildId={guildId}
-            sourcePage={`guide:overlay:${guideSlug}`}
-            targetSlug={guideSlug}
-            compact
-            iconOnly
-            context={bugContext}
-            className={cn(
-              "p-1.5 rounded-lg border transition-colors",
-              isLightMode
-                ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
-                : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
-            )}
-          />
 
           {/* Réinitialiser le guide (confirmation en 2 temps) */}
           {confirmReset ? (
@@ -274,6 +346,8 @@ export function RushOverlayHeader({
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </button>
+          )}
+            </>
           )}
 
           {/* Œuf Dofus */}

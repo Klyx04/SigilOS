@@ -127,6 +127,23 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
   const [membersModal, setMembersModal] = useState<{ title: string; members: OverlayMember[] } | null>(null);
   const [showTutorial, setShowTutorial] = useState<boolean>(false);
 
+  // Détection fiable de la taille RÉELLE du panneau overlay (le `matchMedia` sur
+  // `window` ne reflète pas toujours la largeur d'un PiP / panneau redimensionnable).
+  // On observe le conteneur racine avec un ResizeObserver.
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [overlaySmall, setOverlaySmall] = useState<boolean>(false);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const w = entry?.contentRect?.width ?? el.clientWidth;
+      const h = entry?.contentRect?.height ?? el.clientHeight;
+      setOverlaySmall(w < 580 || h < 640);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const openChapterMembers = useCallback((members: OverlayMember[]) => {
     setMembersModal({ title: "Sur ce chapitre", members });
   }, []);
@@ -326,9 +343,19 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
   // Une quête ne peut être cochée que si toutes ses quêtes prérequis sont validées.
   const gateAllCompleted = useMemo(() => {
     const all = new Set<string>();
-    completedStepsByMs.forEach((steps) => steps.forEach((id) => all.add(id)));
+    // Un bloc entièrement validé compte toutes ses quêtes : sinon les ressources
+    // restantes (et le gating des prérequis) ignorent ses séquences si elles
+    // n'ont pas été cochées une à une.
+    for (const ms of milestones) {
+      if (completedIds.has(ms.id)) {
+        for (const s of ms.sequences) all.add(s.id);
+        continue;
+      }
+      const steps = completedStepsByMs.get(ms.id);
+      if (steps) for (const id of steps) all.add(id);
+    }
     return all;
-  }, [completedStepsByMs]);
+  }, [milestones, completedIds, completedStepsByMs]);
   // Mode « restantes » : on exclut les ressources des quêtes déjà cochées
   // (décrément en direct selon l'avancement).
   const remainingResources = useMemo(
@@ -666,6 +693,7 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
 
   return (
     <div
+      ref={rootRef}
       className={`relative flex flex-col h-screen overflow-hidden select-none transition-colors ${
         isLightMode ? "bg-[#f8fafc] text-[#0f172a]" : "bg-[#090b0e] text-[#f2f0e9]"
       }`}
@@ -685,6 +713,7 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
             completedSteps={completedSteps}
             overallPct={overallPct}
             isLightMode={isLightMode}
+            isNarrow={overlaySmall}
             onToggleTheme={toggleTheme}
             onOpenResources={() => setShowResources(true)}
             hideCompleted={hideCompleted}
@@ -798,6 +827,8 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
                 sequence={compactObjective}
                 milestoneTitle={currentMs?.title}
                 variant="overlay"
+                collapsible
+                defaultCollapsed={overlaySmall}
                 onNavigate={() => handleGoToPrereq(compactObjective.id, currentMs?.id || "")}
               />
             </div>
@@ -853,7 +884,7 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
           )}
 
           {/* ══ LISTE DES QUÊTES + DÉTAILS ══ */}
-          <main className="flex-1 overflow-y-auto p-3 space-y-2">
+          <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 space-y-2 custom-scrollbar">
             {search.trim() ? (
               globalResults.length === 0 ? (
                 <div className="py-12 text-center text-[#929aa5] text-xs">

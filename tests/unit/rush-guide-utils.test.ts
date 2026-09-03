@@ -7,6 +7,8 @@ import {
   findNextActionableSequence,
   formatProgressLabel,
   getMetierIconPath,
+  resolveItemImage,
+  getItemImageFallback,
 } from "@/lib/rush-guide-utils";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 
@@ -257,6 +259,49 @@ describe("rush-guide-utils", () => {
       expect(getMetierIconPath("Façonneur")).toBe("/assets/rush-sylvestre/faconneur.png");
       expect(getMetierIconPath("Bûcheron")).toBe("/assets/rush-sylvestre/bucheron.png");
       expect(getMetierIconPath()).toBe("/assets/rush-sylvestre/façonneur.png");
+    });
+  });
+
+  describe("resolveItemImage (locale-first)", () => {
+    it("sert directement un chemin local fourni (statique, sans proxy)", () => {
+      expect(resolveItemImage(14635, "/uploads/assets-dofus/items/14635.webp")).toBe(
+        "/uploads/assets-dofus/items/14635.webp"
+      );
+      expect(resolveItemImage(7018, "/assets-dofus/items/7018.webp")).toBe("/assets-dofus/items/7018.webp");
+    });
+
+    it("résout un id numérique vers le WebP local siphonné (autonomie)", () => {
+      expect(resolveItemImage(15990, "https://api.dofusdb.fr/img/items/3086.png")).toBe(
+        "/uploads/assets-dofus/items/15990.webp"
+      );
+      expect(resolveItemImage("14635")).toBe("/uploads/assets-dofus/items/14635.webp");
+    });
+
+    it("bascule sur le proxy pour un id non numérique (fallback ?url=)", () => {
+      const out = resolveItemImage("cmrwd97k", "https://api.dofusdb.fr/img/items/1.png");
+      expect(out).toBe("/api/assets-dofus/items/cmrwd97k?url=" + encodeURIComponent("https://api.dofusdb.fr/img/items/1.png"));
+    });
+
+    it("renvoie l'URL distante / vide en dernier recours", () => {
+      expect(resolveItemImage(undefined, "https://cdn.example/img.png")).toBe("https://cdn.example/img.png");
+      expect(resolveItemImage(undefined, undefined)).toBe("");
+    });
+  });
+
+  describe("getItemImageFallback (proxy)", () => {
+    it("passe l'URL distante comme source ?url=", () => {
+      const out = getItemImageFallback(15990, "https://api.dofusdb.fr/img/items/3086.png");
+      expect(out).toBe("/api/assets-dofus/items/15990?url=" + encodeURIComponent("https://api.dofusdb.fr/img/items/3086.png"));
+    });
+
+    it("ignore un chemin local (pas une source distante)", () => {
+      expect(getItemImageFallback(14635, "/uploads/assets-dofus/items/14635.webp")).toBe(
+        "/api/assets-dofus/items/14635"
+      );
+    });
+
+    it("renvoie l'URL distante sans id", () => {
+      expect(getItemImageFallback(undefined, "https://cdn.example/img.png")).toBe("https://cdn.example/img.png");
     });
   });
 });

@@ -32,6 +32,7 @@
 - 🟣 **Tech** — Nettoyer `as any` (~70 admin, ~64 timeline) ; confirmer suppression `RushOverlayQuestPanel.tsx` (orphelin).
 
 ## Références clés
+- 🎨 **SOURCE D'ICÔNES OFFICIELLE (permanente, tout module)** : `C:\Users\user\Desktop\dofus_assets` (~23 770 fichiers : icônes 1x/2x, items 2x, sorts, monstres, UI…). On peut y piocher des icônes pour n'importe quel module, **UNIQUEMENT après les avoir proposées au user ET validées** avant intégration.
 - Backlog canonique : `docs/ROADMAP.md` (à lire en premier en mode plan).
 - Demandes ouvertes + annotations : `src/temp/chantier-actif.md`.
 - Plan maître #223 : `src/temp/refonte-long-terme-discord-compatibilite/PLAN-MAITRE-RESILIENCE-DISCORD-LONG-TERME.md` + `sigilos-discord-resilience.md`.

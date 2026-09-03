@@ -2,7 +2,9 @@
 
 import React, { useState } from "react";
 import { Package, X, Search } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { copyToClipboard } from "@/lib/clipboard";
 import type { RushResourceAgg } from "./overlay-utils";
 
 interface RushOverlayResourcesModalProps {
@@ -64,12 +66,12 @@ export function RushOverlayResourcesModal({
             isLightMode ? "border-slate-200" : "border-[#28303a]/70"
           )}
         >
-          <div className="flex items-center gap-2">
-            <Package className={cn("w-4 h-4", isLightMode ? "text-amber-600" : "text-[#d5a94e]")} />
-            <h2 className={cn("text-sm font-bold font-serif", isLightMode ? "text-slate-900" : "text-[#f2f0e9]")}>
+          <div className="flex items-center gap-2 min-w-0">
+            <Package className={cn("w-4 h-4 shrink-0", isLightMode ? "text-amber-600" : "text-[#d5a94e]")} />
+            <h2 className={cn("text-sm font-bold font-serif min-w-0 truncate", isLightMode ? "text-slate-900" : "text-[#f2f0e9]")}>
               Ressources à prévoir
             </h2>
-            <span className={cn("text-[10px] font-mono tabular-nums font-bold", isLightMode ? "text-slate-400" : "text-[#6e7784]")}>
+            <span className={cn("text-[10px] font-mono tabular-nums font-bold shrink-0 whitespace-nowrap", isLightMode ? "text-slate-400" : "text-[#6e7784]")}>
               {list.length}
             </span>
           </div>
@@ -175,10 +177,20 @@ export function RushOverlayResourcesModal({
 
                 {/* Nom + méta */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <p className={cn("text-[12px] font-semibold truncate", isLightMode ? "text-slate-800" : "text-[#e8e4da]")}>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => { copyToClipboard(r.name).then((ok) => { if (ok) toast.success(`Nom copié : ${r.name}`, { duration: 1600 }); }); }}
+                      title={`Copier le nom « ${r.name} »`}
+                      aria-label={`Copier le nom ${r.name}`}
+                      className={cn(
+                        "text-[12px] font-semibold truncate min-w-0 flex-1 text-left",
+                        isLightMode ? "text-slate-800" : "text-[#e8e4da]",
+                        "hover:text-[#e6b96b] transition-colors cursor-pointer"
+                      )}
+                    >
                       {r.name}
-                    </p>
+                    </button>
                     {(r.levels?.length ?? 0) > 0 && (
                       <span className={cn("text-[9px] font-mono", isLightMode ? "text-slate-400" : "text-[#6e7784]")}>
                         Niv. {r.levels!.join("/")}

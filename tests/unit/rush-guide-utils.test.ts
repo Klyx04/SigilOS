@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   parseCoordinates,
+  getSequenceCoord,
   isInfoSequence,
   isSequenceBlockedByPrereqs,
   findNextActionableSequence,
@@ -33,6 +34,64 @@ describe("rush-guide-utils", () => {
     it("renvoie null si aucune coordonnée n'est présente", () => {
       expect(parseCoordinates("Parler au Capitaine")).toBeNull();
       expect(parseCoordinates("")).toBeNull();
+    });
+
+    it("extrait le format « pos_tags » saisi au GOD sans crochets (x, y)", () => {
+      const res = parseCoordinates("-81, -37");
+      expect(res).not.toBeNull();
+      expect(res?.x).toBe(-81);
+      expect(res?.y).toBe(-37);
+      expect(res?.worldId).toBeUndefined();
+      expect(res?.travelCommand).toBe("/travel -81,-37");
+    });
+
+    it("extrait la première coordonnée d'une liste pos_tags multi-points", () => {
+      const res = parseCoordinates("-2, 0 ; 10, -22");
+      expect(res).not.toBeNull();
+      expect(res?.x).toBe(-2);
+      expect(res?.y).toBe(0);
+    });
+  });
+
+  describe("getSequenceCoord", () => {
+    it("priorise le tag pos_tags sur le titre/tips", () => {
+      const seq: RushSequence = {
+        id: "s1",
+        subGuideRef: "Quête sans coords dans le titre",
+        subGuideName: "Quête sans coords dans le titre",
+        isOptional: false,
+        order: 0,
+        tips: "Position de lancement : Incarnam [2, -3]",
+        activityTags: [{ type: "pos_tags", name: "-81, -37" }],
+      };
+      const res = getSequenceCoord(seq);
+      expect(res?.x).toBe(-81);
+      expect(res?.y).toBe(-37);
+    });
+
+    it("retombe sur les tips en l'absence de pos_tags", () => {
+      const seq: RushSequence = {
+        id: "s2",
+        subGuideRef: "Q",
+        subGuideName: "Q",
+        isOptional: false,
+        order: 0,
+        tips: "Allez en [-12, 34]",
+      };
+      const res = getSequenceCoord(seq);
+      expect(res?.x).toBe(-12);
+      expect(res?.y).toBe(34);
+    });
+
+    it("renvoie null sans aucune coordonnée", () => {
+      const seq: RushSequence = {
+        id: "s3",
+        subGuideRef: "Sans coordonnée",
+        subGuideName: "Sans coordonnée",
+        isOptional: false,
+        order: 0,
+      };
+      expect(getSequenceCoord(seq)).toBeNull();
     });
   });
 

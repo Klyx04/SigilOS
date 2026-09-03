@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, X, ExternalLink } from "lucide-react";
+import { Search, X, ExternalLink, Eye, EyeOff } from "lucide-react";
 
 /** Version allégée d'OcreMonster (src/lib/metamob-client.ts) — pas de dépendance. */
 export type OcreMonsterLite = {
@@ -37,6 +37,7 @@ export default function OcreProgressModal({
 }) {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<Tab>("all");
+  const [hideOwned, setHideOwned] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -48,6 +49,7 @@ export default function OcreProgressModal({
         `${m.nameFr} ${m.zone ?? ""} ${m.subzone ?? ""}`.toLowerCase().includes(q)
       );
     }
+    if (hideOwned) list = list.filter(m => m.owned <= 0);
     // Possédés en premier, puis tri alphabétique.
     return [...list].sort((a, b) => {
       const aHas = a.owned > 0 ? 0 : 1;
@@ -55,7 +57,7 @@ export default function OcreProgressModal({
       if (aHas !== bHas) return aHas - bHas;
       return a.nameFr.localeCompare(b.nameFr, "fr");
     });
-  }, [monsters, query, tab]);
+  }, [monsters, query, tab, hideOwned]);
 
   const bossOwned = bossCount?.gathered ?? monsters.filter(m => m.type === "boss" && m.owned > 0).length;
   const archiOwned = archiCount?.gathered ?? monsters.filter(m => m.type === "archimonstre" && m.owned > 0).length;
@@ -114,13 +116,32 @@ export default function OcreProgressModal({
                 <span className="ocre-tab-count">{countByTab(t)}</span>
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => setHideOwned(v => !v)}
+              className={`inline-flex items-center gap-1.5 ml-auto px-2.5 py-1.5 rounded-lg border text-caption font-bold transition-colors ${
+                hideOwned
+                  ? "border-warning/40 bg-warning/10 text-warning"
+                  : "border-border bg-surface/60 text-muted-foreground hover:text-foreground"
+              }`}
+              title={hideOwned ? "Afficher aussi ceux déjà en poche" : "Masquer ceux déjà en poche"}
+            >
+              {hideOwned ? <Eye size={12} /> : <EyeOff size={12} />}
+              <span className="whitespace-nowrap">{hideOwned ? "Masqués" : "Masquer les possédés"}</span>
+            </button>
           </div>
         </DialogHeader>
 
         <ScrollArea className="max-h-[440px] px-2 py-2 no-scrollbar">
+          {filtered.length > 0 && (
+            <div className="px-1 pb-1.5 text-[11px] text-muted-foreground flex items-center justify-between gap-2">
+              <span>{filtered.length} affiché{filtered.length > 1 ? "s" : ""}</span>
+              {hideOwned && <span className="font-bold text-warning/80">Restants à récupérer</span>}
+            </div>
+          )}
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-muted-foreground italic text-sm">
-              {query ? "Aucun monstre ne correspond à la recherche" : "Aucun monstre dans cette catégorie"}
+              {query ? "Aucun monstre ne correspond à la recherche" : hideOwned ? "Tout est déjà en poche 🎉" : "Aucun monstre dans cette catégorie"}
             </div>
           ) : (
             <div className="space-y-1">

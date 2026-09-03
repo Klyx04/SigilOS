@@ -2,7 +2,9 @@
 
 import React, { useState } from "react";
 import { Package, ChevronDown } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { copyToClipboard } from "@/lib/clipboard";
 import type { RushActivityTag } from "@/types/rush-guide-types";
 import { resolveItemImage } from "./overlay-utils";
 
@@ -86,14 +88,19 @@ export function RushOverlayResourceList({
 
             {/* Nom + Niveau */}
             <div className="flex-1 min-w-0">
-              <p
+              <button
+                type="button"
+                onClick={() => { copyToClipboard(item.name || "").then((ok) => { if (ok) toast.success(`Nom copié : ${item.name}`, { duration: 1600 }); }); }}
+                title={`Copier le nom « ${item.name} »`}
+                aria-label={`Copier le nom ${item.name}`}
                 className={cn(
-                  "text-[11px] font-semibold truncate leading-tight",
-                  isLightMode ? "text-slate-800" : "text-[#e8e4da]"
+                  "text-[11px] font-semibold truncate leading-tight min-w-0 block w-full max-w-full text-left",
+                  isLightMode ? "text-slate-800" : "text-[#e8e4da]",
+                  "hover:text-[#d5a94e] transition-colors cursor-pointer"
                 )}
               >
                 {item.name}
-              </p>
+              </button>
               {item.level && (
                 <p
                   className={cn(

@@ -1,4 +1,17 @@
-import type { RushMilestone, RushSequence, RushActivityTag } from "@/types/rush-guide-types";
+import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
+/**
+ * 🛡️ Résolution locale-first des images d'items (comme ItemSearchPanel).
+ * -> /api/assets-dofus/items/{id} : proxy auto-siphon WebP (0 404, 0 appel externe visible).
+ * Fallback : URL distante (DofusDB) passée telle quelle via le proxy générique.
+ * Helper PUR (client-safe) partagé overlay + dashboard.
+ */
+export function resolveItemImage(id?: string | number | null, imageUrl?: string | null): string {
+  if (id != null && id !== "") {
+    const q = imageUrl ? `?url=${encodeURIComponent(imageUrl)}` : "";
+    return `/api/assets-dofus/items/${id}${q}`;
+  }
+  return imageUrl || "";
+}
 
 /**
  * Métadonnées graphiques des tags d'activité Rush Sylvestre
@@ -88,13 +101,33 @@ export function isInfoSequence(seq: RushSequence | null | undefined): boolean {
 }
 
 /**
+ * Extrait la coordonnée d'une séquence (pos_tag > titre > tips > note).
+ * Ordre de priorité aligné sur l'édition GOD : le tag technique `pos_tags`
+ * (saisi « x, y ; … ») est la source de vérité, puis on retombe sur le titre,
+ * les tips et la note (qui peuvent contenir « [x, y] »).
+ */
+export function getSequenceCoord(seq: RushSequence | null | undefined) {
+  if (!seq) return null;
+  const posTag = (seq.activityTags || []).find((t) => t.type === "pos_tags");
+  const posStr = posTag?.name ? String(posTag.name) : null;
+  return parseCoordinates(posStr || "") ||
+    parseCoordinates(seq.subGuideName || "") ||
+    parseCoordinates(seq.tips || "") ||
+    parseCoordinates(seq.note || "") ||
+    null;
+}
+
+/**
  * Analyse et extrait des coordonnées Dofus du format [x, y] ou [x, y, worldId]
  */
 export function parseCoordinates(
   text: string
 ): { x: number; y: number; worldId?: number; raw: string; travelCommand: string } | null {
   if (!text) return null;
-  const match = text.match(/\[\s*(-?\d+)\s*,\s*(-?\d+)(?:\s*,\s*(\d+))?\s*\]/);
+  // Priorité au format canonique [x, y] / [x, y, worldId] (tips, notes).
+  let match = text.match(/\[\s*(-?\d+)\s*,\s*(-?\d+)(?:\s*,\s*(\d+))?\s*\]/);
+  // Repli : format « pos_tags » saisi au GOD (x, y ; x2, y2) sans crochets.
+  if (!match) match = text.match(/(-?\d+)\s*,\s*(-?\d+)/);
   if (!match) return null;
 
   const x = parseInt(match[1], 10);

@@ -3,9 +3,12 @@
 import React, { useState, useMemo } from "react";
 import { 
   Package, Sword, Users, Sparkles, ExternalLink, 
-  Layers, Check, Copy, CheckCheck
+  Layers, Check, Copy, CheckCheck, DoorOpen
 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { resolveItemImage } from "@/lib/rush-guide-utils";
+import { copyToClipboard } from "@/lib/clipboard";
 
 type Sequence = {
   id: string;
@@ -42,6 +45,9 @@ interface RushChapterSidebarProps {
   completedSeqIds: Set<string>;
   activeMilestoneId?: string | null;
   className?: string;
+  /** Pilotage externe du chapitre sélectionné (sync au clic d'un chapitre dans le feed). */
+  selectedChapter?: number | "ALL";
+  onSelectChapter?: (chapter: number | "ALL") => void;
 }
 
 export function RushChapterSidebar({
@@ -49,6 +55,8 @@ export function RushChapterSidebar({
   completedSeqIds,
   activeMilestoneId,
   className,
+  selectedChapter: selectedChapterProp,
+  onSelectChapter,
 }: RushChapterSidebarProps) {
   // Liste des chapitres distincts
   const chapters = useMemo(() => {
@@ -81,8 +89,15 @@ export function RushChapterSidebar({
     return chapters[0]?.chapter || 1;
   }, [activeMilestoneId, milestones, chapters, completedSeqIds]);
 
-  const [selectedChapter, setSelectedChapter] = useState<number | "ALL">(defaultChapter);
+  const [internalChapter, setInternalChapter] = useState<number | "ALL">(defaultChapter);
   const [hideCompletedItems, setHideCompletedItems] = useState(false);
+  // Pilotage externe : si `selectedChapter` est fournie (clic d'un chapitre dans le
+  // feed), la sidebar est « contrôlée » ; sinon comportement autonome (défaut auto).
+  const selectedChapter = selectedChapterProp ?? internalChapter;
+  const handleSelectChapter = (c: number | "ALL") => {
+    setInternalChapter(c);
+    onSelectChapter?.(c);
+  };
 
   // Milestones du chapitre sélectionné (ou tous)
   const currentMilestones = useMemo(() => {
@@ -96,11 +111,6 @@ export function RushChapterSidebar({
   const stats = useMemo(() => {
     let totalSequences = 0;
     let completedSequences = 0;
-    let dungeons = 0;
-    let combatSolo = 0;
-    let combatGroupe = 0;
-    let tactique = 0;
-    let metier = 0;
 
     for (const ms of currentMilestones) {
       for (const seq of ms.sequences) {
@@ -108,17 +118,6 @@ export function RushChapterSidebar({
         if (completedSeqIds.has(seq.id)) {
           completedSequences++;
         }
-        for (const tag of seq.activityTags || []) {
-          // Ne compte pas les donjons ici, on les comptera via seq.dungeons
-          if (tag.type === "combat_solo") combatSolo++;
-          if (tag.type === "combat_plusieurs" || tag.type === "plusieurs_personnes") combatGroupe++;
-          if (tag.type === "combat_tactique" || tag.type === "combat_vagues") tactique++;
-          if (tag.type === "metier") metier++;
-        }
-        // Donjons : depuis seq.dungeons (tableau) ou seq.dungeon (singulier)
-        const seqAny = seq as any;
-        const djList: unknown[] = seqAny.dungeons?.length > 0 ? seqAny.dungeons : (seqAny.dungeon ? [seqAny.dungeon] : []);
-        dungeons += djList.length;
       }
     }
 
@@ -128,24 +127,19 @@ export function RushChapterSidebar({
       totalSequences,
       completedSequences,
       percent,
-      dungeons,
-      combatSolo,
-      combatGroupe,
-      tactique,
-      metier,
     };
   }, [currentMilestones, completedSeqIds]);
 
   // ─── S7 : « Ce qu'il faut prévoir » — donjons & métiers requis du chapitre ────
   // Dérivés des séquences déjà passées au composant (aucun fetch supplémentaire).
   const chapterDungeons = useMemo(() => {
-    const seen = new Map<string, { id?: string; name: string }>();
+    const seen = new Map<string, { id?: string; name: string; imageUrl?: string; bossName?: string }>();
     for (const ms of currentMilestones) {
       for (const seq of ms.sequences) {
-        const list: { id?: string; name?: string }[] =
+        const list: { id?: string; name?: string; imageUrl?: string; bossName?: string }[] =
           seq.dungeons && seq.dungeons.length > 0 ? seq.dungeons : seq.dungeon ? [seq.dungeon] : [];
         for (const d of list) {
-          if (d?.name) seen.set(d.name.trim().toLowerCase(), { id: d.id, name: d.name });
+          if (d?.name) seen.set(d.name.trim().toLowerCase(), { id: d.id, name: d.name, imageUrl: (d as any).imageUrl, bossName: (d as any).bossName });
         }
         // donjons aussi via tag type "donjon"
         for (const tag of seq.activityTags || []) {
@@ -199,7 +193,7 @@ export function RushChapterSidebar({
                 name: tag.name,
                 totalQuantity: 0,
                 remainingQuantity: 0,
-                imageUrl: tag.imageUrl,
+                imageUrl: resolveItemImage(tag.id, tag.imageUrl),
                 level: tag.level,
                 isCompleted: true,
               });
@@ -240,43 +234,55 @@ export function RushChapterSidebar({
   return (
     <aside
       className={cn(
-        "flex flex-col gap-3.5 bg-[#12161b] backdrop-blur-xl p-4 sm:p-5 rounded-2xl border border-[#28303a] shadow-xl transition-all",
+        "flex flex-col gap-3.5 bg-[#121821] backdrop-blur-xl p-4 sm:p-5 rounded-2xl border border-[#2a323d] shadow-xl transition-all",
         className
       )}
     >
-      {/* ─── Sélecteur de Chapitre ─── */}
-      <div className="flex items-center justify-between gap-2 border-b border-[#28303a]/70 pb-3">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <Layers className="w-4 h-4 text-[#d5a94e] shrink-0" />
-          <select
-            value={selectedChapter}
-            onChange={(e) => setSelectedChapter(e.target.value === "ALL" ? "ALL" : Number(e.target.value))}
-            aria-label="Sélectionner le chapitre"
-            className="w-full bg-[#181e25] border border-[#28303a] rounded-xl px-2.5 py-1.5 text-xs font-bold text-[#f2f0e9] focus:outline-none focus:border-[#39bc95]/50 truncate cursor-pointer hover:bg-[#1e252e] transition-colors"
-          >
-            {chapters.map((ch) => (
-              <option key={ch.chapter} value={ch.chapter}>
-                {ch.label}
-              </option>
-            ))}
-            <option value="ALL">🌟 Tout le Guide (Global)</option>
-          </select>
+      {/* Chapitres */}
+      <div className="flex items-center justify-between border-b border-[#2a323d]/70 pb-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <Layers className="w-4 h-4 text-[#e6b96b] shrink-0" />
+          <span className="text-xs font-black uppercase tracking-widest text-[#9aa7b4]">Chapitres</span>
         </div>
+        <span className="text-[10px] font-mono text-[#66707d]">{chapters.length}</span>
       </div>
 
+      {/* Rail des chapitres (scrollable) */}
+      <div className="flex flex-col gap-1 max-h-[340px] overflow-y-auto custom-scrollbar pr-1">
+        {chapters.map((ch) => {
+          const allSeq = ch.milestones.flatMap((m) => m.sequences);
+          const doneSeq = allSeq.filter((s) => completedSeqIds.has(s.id)).length;
+          const pct = allSeq.length > 0 ? Math.round((doneSeq / allSeq.length) * 100) : 0;
+          const active = selectedChapter === ch.chapter;
+          const isDone = allSeq.length > 0 && doneSeq === allSeq.length;
+          return (
+            <button key={ch.chapter} type="button" onClick={() => handleSelectChapter(ch.chapter)}
+              className={cn("w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl border transition-colors text-left",
+                active ? "bg-[#4fd1a5]/[0.08] border-[#4fd1a5]/25" : "border-transparent hover:bg-white/[0.03]")}>
+              <span className={cn("w-6 h-6 shrink-0 rounded-lg flex items-center justify-center text-[11px] font-bold font-mono border",
+                isDone ? "bg-[#4fd1a5] text-[#06301f] border-transparent" : active ? "bg-[#e6b96b] text-[#231400] border-transparent" : "bg-[#161d27] border-[#2a323d] text-[#9aa7b4]")}>{isDone ? "✓" : ch.chapter}</span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-xs font-semibold text-[#eef2f6] truncate">{ch.label}</span>
+                <span className="block h-1 rounded-full bg-white/[0.08] mt-1 overflow-hidden"><span className="block h-full bg-[#4fd1a5]" style={{ width: `${pct}%` }}/></span>
+              </span>
+              <span className="font-mono text-[10px] text-[#9aa7b4]">{doneSeq}/{allSeq.length}</span>
+            </button>
+          );
+        })}
+      </div>
       {/* ─── Progression du Chapitre ─── */}
-      <div className="flex items-center gap-4 bg-[#181e25] p-3.5 rounded-xl border border-[#28303a]/80">
+      <div className="flex items-center gap-4 bg-[#161d27] p-3.5 rounded-xl border border-[#2a323d]/80">
         <div className="relative w-12 h-12 shrink-0 flex items-center justify-center">
           <svg className="w-12 h-12 transform -rotate-90" viewBox="0 0 36 36">
             <path
-              className="text-[#242b35]"
+              className="text-[#272f3a]"
               strokeWidth="3.5"
               stroke="currentColor"
               fill="none"
               d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
             />
             <path
-              className="text-[#39bc95] transition-all duration-500"
+              className="text-[#4fd1a5] transition-all duration-500"
               strokeDasharray={`${stats.percent}, 100`}
               strokeWidth="3.5"
               strokeLinecap="round"
@@ -285,57 +291,36 @@ export function RushChapterSidebar({
               d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
             />
           </svg>
-          <span className="absolute font-mono font-bold text-xs text-[#f2f0e9]">{stats.percent}%</span>
+          <span className="absolute font-mono font-bold text-xs text-[#eef2f6]">{stats.percent}%</span>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#929aa5]">Progression</p>
-          <p className="text-sm font-bold text-[#f2f0e9] truncate">
+          <p className="text-[10px] font-black uppercase tracking-widest text-[#9aa7b4]">Progression</p>
+          <p className="text-sm font-bold text-[#eef2f6] truncate">
             {stats.completedSequences} / {stats.totalSequences}
-            <span className="text-xs font-normal text-[#929aa5] ml-1">quêtes</span>
+            <span className="text-xs font-normal text-[#9aa7b4] ml-1">quêtes</span>
           </p>
-          <p className="text-[11px] text-[#6e7784] truncate">{currentChapterLabel}</p>
+          <p className="text-[11px] text-[#78828f] truncate">{currentChapterLabel}</p>
         </div>
       </div>
 
-      {/* ─── Synthèse & Infos du Chapitre ─── */}
-      <div className="flex flex-col gap-2 bg-[#181e25]/60 p-3 rounded-xl border border-[#28303a]/80">
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#929aa5] px-1">Infos du chapitre</p>
-        <div className="grid grid-cols-2 gap-1.5 text-xs">
-          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-[#12161b] border border-[#28303a]/60">
-            <span className="flex items-center gap-1.5 text-[#929aa5]">
-              <span className="text-xs">🏰</span> Donjons
-            </span>
-            <span className="font-mono font-bold text-[#f2f0e9]">{stats.dungeons}</span>
-          </div>
-          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-[#12161b] border border-[#28303a]/60">
-            <span className="flex items-center gap-1.5 text-[#929aa5]">
-              <span className="text-xs">⚔️</span> Solo
-            </span>
-            <span className="font-mono font-bold text-[#f2f0e9]">{stats.combatSolo}</span>
-          </div>
-          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-[#12161b] border border-[#28303a]/60">
-            <span className="flex items-center gap-1.5 text-[#929aa5]">
-              <span className="text-xs">👥</span> Groupe
-            </span>
-            <span className="font-mono font-bold text-[#f2f0e9]">{stats.combatGroupe}</span>
-          </div>
-          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-[#12161b] border border-[#28303a]/60">
-            <span className="flex items-center gap-1.5 text-[#929aa5]">
-              <span className="text-xs">🧩</span> Tactique
-            </span>
-            <span className="font-mono font-bold text-[#f2f0e9]">{stats.tactique}</span>
-          </div>
-        </div>
-
-        {(chapterDungeons.length > 0 || chapterMetiers.length > 0) && (
-          <div className="flex flex-col gap-2 border-t border-[#28303a]/60 pt-2 mt-1">
+      {/* ─── Donjons & Métiers requis ─── */}
+      {(chapterDungeons.length > 0 || chapterMetiers.length > 0) && (
+        <div className="flex flex-col gap-2.5 bg-[#161d27]/60 p-3 rounded-xl border border-[#2a323d]/80">
             {chapterDungeons.length > 0 && (
               <div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-[#929aa5] px-1 mb-1">Donjons à prévoir</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-[#9aa7b4] px-1 mb-1">Donjons à prévoir</p>
                 <div className="flex flex-wrap gap-1.5">
                   {chapterDungeons.map((d) => (
-                    <span key={d.id || d.name} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#12161b] border border-[#28303a]/70 text-[11px] font-semibold text-[#f2f0e9]">
-                      🏰 {d.name}
+                    <span key={d.id || d.name} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#121821] border border-[#2a323d]/70 text-[11px] font-semibold text-[#eef2f6] min-w-0 max-w-full">
+                      <span className="w-4 h-4 rounded bg-[#0c1015] border border-[#2a323d] flex items-center justify-center shrink-0 overflow-hidden">
+                        {d.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={d.imageUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <DoorOpen className="w-2.5 h-2.5 text-[#5588cc]" />
+                        )}
+                      </span>
+                      <span className="truncate min-w-0">{d.name}</span>
                     </span>
                   ))}
                 </div>
@@ -343,38 +328,54 @@ export function RushChapterSidebar({
             )}
             {chapterMetiers.length > 0 && (
               <div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-[#929aa5] px-1 mb-1">Métiers requis</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-[#9aa7b4] px-1 mb-1">Métiers requis</p>
                 <div className="flex flex-wrap gap-1.5">
                   {chapterMetiers.map((m) => (
-                    <span key={m.name} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#12161b] border border-[#28303a]/70 text-[11px] font-semibold text-[#f2f0e9]">
-                      🔨 {m.name}{m.level ? ` ${m.level}` : ""}
+                    <span key={m.name} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#121821] border border-[#2a323d]/70 text-[11px] font-semibold text-[#eef2f6] min-w-0 max-w-full">
+                      <span className="truncate min-w-0">🔨 {m.name}{m.level ? ` ${m.level}` : ""}</span>
                     </span>
                   ))}
                 </div>
               </div>
             )}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* ─── Objets & Ressources nécessaires ─── */}
-      <div className="flex flex-col gap-2 bg-[#181e25]/60 p-3.5 rounded-xl border border-[#28303a]/80 flex-1 min-h-0">
-        <div className="flex items-center justify-between border-b border-[#28303a]/60 pb-2">
-          <div className="flex items-center gap-1.5">
-            <Package className="w-3.5 h-3.5 text-[#d5a94e]" />
-            <h4 className="text-[11px] font-black uppercase tracking-widest text-[#f2f0e9]">
-              Objets requis ({aggregatedItems.length})
+      <div className="flex flex-col gap-2 bg-[#161d27]/60 p-3.5 rounded-xl border border-[#2a323d]/80 flex-1 min-h-0">
+        <div className="flex items-center justify-between border-b border-[#2a323d]/60 pb-2">
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <Package className="w-3.5 h-3.5 text-[#e6b96b] shrink-0" />
+            <h4 className="text-[11px] font-black uppercase tracking-widest text-[#eef2f6] truncate min-w-0">
+              Objets requis
             </h4>
+            <span className="font-mono text-[10px] font-bold text-[#e6b96b] shrink-0 whitespace-nowrap">
+              ({aggregatedItems.length})
+            </span>
           </div>
           {aggregatedItems.length > 0 && (
-            <button
-              onClick={() => setHideCompletedItems((v) => !v)}
-              className="text-[10px] text-[#929aa5] hover:text-[#f2f0e9] font-bold uppercase tracking-wider transition-colors"
-            >
-              {hideCompletedItems ? "Tout voir" : "Masquer finis"}
-            </button>
+            <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-[#161d27] border border-[#2a323d] shrink-0">
+              <button
+                onClick={() => setHideCompletedItems(true)}
+                className={cn("px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-colors", hideCompletedItems ? "bg-[#4fd1a5] text-[#06301f]" : "text-[#9aa7b4] hover:text-[#eef2f6]")}
+              >
+                Restantes
+              </button>
+              <button
+                onClick={() => setHideCompletedItems(false)}
+                className={cn("px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-colors", !hideCompletedItems ? "bg-[#4fd1a5] text-[#06301f]" : "text-[#9aa7b4] hover:text-[#eef2f6]")}
+              >
+                Toutes
+              </button>
+            </div>
           )}
         </div>
+        {aggregatedItems.length > 0 && (
+          <div className="flex items-center justify-between text-[10px] text-[#9aa7b4]">
+            <span className="font-bold uppercase tracking-wider">Encore requis</span>
+            <span className="font-mono font-bold text-[#e6b96b]">{aggregatedItems.filter((it) => !it.isCompleted).length}</span>
+          </div>
+        )}
 
         {visibleItems.length > 0 ? (
           <div className="flex flex-col gap-1.5 max-h-[380px] overflow-y-auto custom-scrollbar pr-1">
@@ -384,33 +385,37 @@ export function RushChapterSidebar({
                 className={cn(
                   "flex items-center justify-between gap-2 p-2 rounded-xl border transition-all text-xs",
                   item.isCompleted
-                    ? "bg-[#0c0f13]/60 border-white/[0.04] opacity-40"
-                    : "bg-[#12161b] border-[#28303a]/80 hover:border-[#384352]"
+                    ? "bg-[#0e1319]/60 border-white/[0.04] opacity-40"
+                    : "bg-[#121821] border-[#2a323d]/80 hover:border-[#3a4550]"
                 )}
               >
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   {item.imageUrl ? (
-                    <div className="w-7 h-7 rounded-lg bg-[#090b0e] border border-[#28303a] flex items-center justify-center shrink-0 overflow-hidden">
+                    <div className="w-7 h-7 rounded-lg bg-[#0c1015] border border-[#2a323d] flex items-center justify-center shrink-0 overflow-hidden">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={item.imageUrl} alt={item.name} className="w-5.5 h-5.5 object-contain" />
                     </div>
                   ) : (
-                    <div className="w-7 h-7 rounded-lg bg-[#181e25] border border-[#28303a] flex items-center justify-center shrink-0">
-                      <Package className="w-3.5 h-3.5 text-[#d5a94e]" />
+                    <div className="w-7 h-7 rounded-lg bg-[#161d27] border border-[#2a323d] flex items-center justify-center shrink-0">
+                      <Package className="w-3.5 h-3.5 text-[#e6b96b]" />
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p
+                    <button
+                      type="button"
+                      onClick={() => { copyToClipboard(item.name).then((ok) => { if (ok) toast.success(`Nom copié : ${item.name}`, { duration: 1600 }); }); }}
+                      title={`Copier le nom « ${item.name} »`}
+                      aria-label={`Copier le nom ${item.name}`}
                       className={cn(
-                        "font-semibold truncate text-xs",
-                        item.isCompleted ? "line-through text-zinc-500" : "text-[#f2f0e9]"
+                        "font-semibold truncate text-xs text-left block w-full max-w-full",
+                        item.isCompleted ? "line-through text-zinc-500" : "text-[#eef2f6]",
+                        "hover:text-[#e6b96b] transition-colors cursor-pointer"
                       )}
-                      title={item.name}
                     >
                       {item.name}
-                    </p>
+                    </button>
                     {item.level && (
-                      <span className="text-[10px] text-[#929aa5] block">Niv. {item.level}</span>
+                      <span className="text-[10px] text-[#9aa7b4] block">Niv. {item.level}</span>
                     )}
                   </div>
                 </div>
@@ -420,8 +425,8 @@ export function RushChapterSidebar({
                     className={cn(
                       "font-mono font-bold text-xs px-2 py-0.5 rounded-md",
                       item.isCompleted
-                        ? "bg-[#12161b] text-zinc-600"
-                        : "bg-[#181e25] text-[#f2f0e9] border border-[#28303a]"
+                        ? "bg-[#121821] text-zinc-600"
+                        : "bg-[#161d27] text-[#eef2f6] border border-[#2a323d]"
                     )}
                   >
                     {hideCompletedItems
@@ -429,17 +434,17 @@ export function RushChapterSidebar({
                       : item.totalQuantity}
                   </span>
                   {item.isCompleted && (
-                    <Check className="w-3.5 h-3.5 text-[#39bc95] shrink-0" />
+                    <Check className="w-3.5 h-3.5 text-[#4fd1a5] shrink-0" />
                   )}
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="py-6 text-center text-[#929aa5] text-xs">
-            <Package className="w-6 h-6 mx-auto mb-1 opacity-30 text-[#d5a94e]" />
+          <div className="py-6 text-center text-[#9aa7b4] text-xs">
+            <Package className="w-6 h-6 mx-auto mb-1 opacity-30 text-[#e6b96b]" />
             <p className="font-bold">Aucune ressource répertoriée</p>
-            <p className="text-[10px] text-[#6e7784]">pour ce chapitre.</p>
+            <p className="text-[10px] text-[#78828f]">pour ce chapitre.</p>
           </div>
         )}
       </div>

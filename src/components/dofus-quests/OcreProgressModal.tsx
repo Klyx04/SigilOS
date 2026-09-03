@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, X, ExternalLink, Eye, EyeOff } from "lucide-react";
@@ -39,9 +39,13 @@ export default function OcreProgressModal({
   const [tab, setTab] = useState<Tab>("all");
   const [hideOwned, setHideOwned] = useState(false);
 
+  // Copie locale pour re-render immédiat sur +/− (Metamob patché en direct).
+  const [monstersList, setMonstersList] = useState<OcreMonsterLite[]>(monsters);
+  useEffect(() => setMonstersList(monsters), [monsters]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let list = monsters.filter(m => m.type === "boss" || m.type === "archimonstre");
+    let list = monstersList.filter(m => m.type === "boss" || m.type === "archimonstre");
     if (tab === "boss") list = list.filter(m => m.type === "boss");
     if (tab === "archi") list = list.filter(m => m.type === "archimonstre");
     if (q) {
@@ -57,10 +61,10 @@ export default function OcreProgressModal({
       if (aHas !== bHas) return aHas - bHas;
       return a.nameFr.localeCompare(b.nameFr, "fr");
     });
-  }, [monsters, query, tab, hideOwned]);
+  }, [monstersList, query, tab, hideOwned]);
 
-  const bossOwned = bossCount?.gathered ?? monsters.filter(m => m.type === "boss" && m.owned > 0).length;
-  const archiOwned = archiCount?.gathered ?? monsters.filter(m => m.type === "archimonstre" && m.owned > 0).length;
+  const bossOwned = bossCount?.gathered ?? monstersList.filter(m => m.type === "boss" && m.owned > 0).length;
+  const archiOwned = archiCount?.gathered ?? monstersList.filter(m => m.type === "archimonstre" && m.owned > 0).length;
 
   const countByTab = (t: Tab) => {
     if (t === "boss") return `${bossOwned}/${bossCount?.total ?? 51}`;
@@ -169,7 +173,7 @@ export default function OcreProgressModal({
                             e.stopPropagation();
                             if (m.owned <= 0) return;
                             const nextQty = Math.max(0, m.owned - 1);
-                            m.owned = nextQty;
+                            setMonstersList(prev => prev.map(x => x.id === m.id ? { ...x, owned: nextQty, state: nextQty > 1 ? "DOUBLON" : nextQty === 1 ? "POSSEDE" : "MANQUANT" } : x));
                             try {
                               const { updateUserMonsterQuantityAction } = await import("@/server/actions/ocre-actions");
                               await updateUserMonsterQuantityAction({ guildId, monsterId: m.id, quantity: nextQty });
@@ -187,7 +191,7 @@ export default function OcreProgressModal({
                           onClick={async (e) => {
                             e.stopPropagation();
                             const nextQty = m.owned + 1;
-                            m.owned = nextQty;
+                            setMonstersList(prev => prev.map(x => x.id === m.id ? { ...x, owned: nextQty, state: nextQty > 1 ? "DOUBLON" : "POSSEDE" } : x));
                             try {
                               const { updateUserMonsterQuantityAction } = await import("@/server/actions/ocre-actions");
                               await updateUserMonsterQuantityAction({ guildId, monsterId: m.id, quantity: nextQty });

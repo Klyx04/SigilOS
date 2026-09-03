@@ -80,6 +80,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
         altPseudos?: any[]; 
         dofusClass?: string | null;
         metamobPseudo?: string | null;
+        metiers?: any[];
         pseudoDofus?: string | null;
     } = {};
     try {
@@ -95,6 +96,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                 altPseudos: Array.isArray(p.altPseudos) ? p.altPseudos : [],
                 dofusClass: p.classe,
                 metamobPseudo: p.metamobPseudo,
+                metiers: p.metiers,
                 pseudoDofus: p.pseudoDofus,
             };
         }
@@ -170,6 +172,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                                 altPseudos: mules,
                                 dofusClass: userProfile.dofusClass,
                                 metamobPseudo: userProfile.metamobPseudo,
+                                metiers: userProfile.metiers,
                                 pseudoDofus: userProfile.pseudoDofus,
                             }}
                             ocreStats={ocreStats}

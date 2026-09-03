@@ -19,7 +19,8 @@ import {
   Settings, Construction, Check, X,
   Link2, Pencil, Layers, Sword, ExternalLink,
   BookOpen, AlertCircle, Info, GripVertical,
-  Star, MapPin, Trophy, Sparkles, Gem, AlignLeft, Lock, Search
+  Star, MapPin, Trophy, Sparkles, Gem, AlignLeft, Lock, Search,
+  ClipboardList, Hammer, RotateCcw,
 } from "lucide-react";
 import {
   upsertRushMilestone,
@@ -33,7 +34,7 @@ import {
 } from "@/server/actions/optimized-guide-actions";
 import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB } from "@/server/actions/dofus-search-actions";
 import { DOFUS_WORLDS, DOFUS_JOBS } from "@/lib/dofus-assets";
-import { resolveRushSeqIcon } from "@/lib/rush-guide-utils";
+import { resolveRushSeqIcon, getGuideMetiersRequires } from "@/lib/rush-guide-utils";
 import { uploadImageFile } from "@/components/editor/utils/image-upload";
 import { isSafeImageUrl, safeImageUrl } from "@/lib/security";
 import { toast } from "sonner";
@@ -234,11 +235,13 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
 
   const sortedMilestones = useMemo(() => sortMilestonesByOrder(localMilestones), [localMilestones]);
   const chapterCount = useMemo(() => countContentChapters(localMilestones), [localMilestones]);
+  // Métiers requis agrégés sur tout le guide — affichés dans l'onglet « Lancement ».
+  const launchMetiers = useMemo(() => getGuideMetiersRequires(localMilestones as any), [localMilestones]);
 
   const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(new Set());
   const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
   const [addingStep, setAddingStep] = useState(false);
-  const [activeTab, setActiveTab] = useState<"content" | "settings">("content");
+  const [activeTab, setActiveTab] = useState<"content" | "settings" | "launch">("content");
   const [importPreview, setImportPreview] = useState<null | { plan: { milestones: number; sequences: number; items: number; metiers: number; dungeons: number }; totalToCreate: number }>(null);
   const [importing, startImport] = useTransition();
 
@@ -502,11 +505,11 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
               </span>
             )}
             <div className="flex items-center p-1 bg-zinc-900 rounded-xl border border-white/5">
-              {(["content", "settings"] as const).map(t => (
+              {(["content", "settings", "launch"] as const).map(t => (
                 <button key={t} onClick={() => setActiveTab(t)}
                   className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-widest transition-all ${activeTab === t ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-300"}`}
                 >
-                  {t === "content" ? <><Layers className="w-3 h-3 inline mr-1" />Contenu</> : <><Settings className="w-3 h-3 inline mr-1" />Config</>}
+                  {t === "content" ? <><Layers className="w-3 h-3 inline mr-1" />Contenu</> : t === "launch" ? <><ClipboardList className="w-3 h-3 inline mr-1" />Lancement</> : <><Settings className="w-3 h-3 inline mr-1" />Config</>}
                 </button>
               ))}
             </div>
@@ -793,6 +796,66 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
             </div>
           </motion.div>
         )}
+        {activeTab === "launch" && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 max-w-xl">
+            <div className="p-6 bg-zinc-900/60 border border-white/5 rounded-2xl space-y-5">
+              <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                <ClipboardList className="w-4 h-4 text-[#e6b96b]" /> Lancement du Rush
+              </h2>
+              <p className="text-xs text-zinc-400">
+                Aperçu du parcours de lancement proposé aux membres. Les <b className="text-zinc-200">métiers requis</b> sont
+                <b className="text-zinc-200"> détectés automatiquement</b> à partir des séquences (tag « métier »).
+              </p>
+
+              <div className="h-px bg-white/5" />
+
+              {/* Parcours */}
+              <div className="space-y-2">
+                {[
+                  { icon: "spark", label: "Choix du personnage", desc: "Personnage principal ou mule (traçé par characterSlot)." },
+                  { icon: "link", label: "Liaison Metamob", desc: "Détecte si le pseudo est déjà relié (sinon bouton « Lier »)." },
+                  { icon: "reset", label: "Réinitialiser l'alignement", desc: "Action optionnelle proposée à l'utilisateur." },
+                ].map((s) => (
+                  <div key={s.label} className="flex items-center gap-2.5 p-3 rounded-xl bg-zinc-800/50 border border-white/5">
+                    {s.icon === "spark" ? <Sparkles className="w-4 h-4 text-indigo-400" /> : s.icon === "link" ? <Link2 className="w-4 h-4 text-emerald-400" /> : <RotateCcw className="w-4 h-4 text-[#e6b96b]" />}
+                    <div className="min-w-0">
+                      <p className="text-xs font-black text-white">{s.label}</p>
+                      <p className="text-caption text-zinc-500">{s.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="h-px bg-white/5" />
+
+              {/* Métiers requis détectés */}
+              <div>
+                <p className="text-xs font-black text-white flex items-center gap-1.5 mb-2">
+                  <Hammer className="w-3.5 h-3.5 text-[#e6b96b]" /> Métiers requis détectés ({launchMetiers.length})
+                </p>
+                {launchMetiers.length === 0 ? (
+                  <p className="text-caption text-zinc-500">Aucun métier requis sur ce guide.</p>
+                ) : (
+                  <div className="space-y-1">
+                    {launchMetiers.map((m) => (
+                      <div key={m.id} className="flex items-center justify-between px-2.5 py-2 rounded-lg bg-[#121821] border border-white/5">
+                        <span className="text-xs font-bold text-zinc-100">{m.name}</span>
+                        <span className="text-caption font-mono font-bold text-[#e6b96b]">Niv. {m.level}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="h-px bg-white/5" />
+              <p className="text-caption text-zinc-500">
+                👉 Face au membre : les métiers <b className="text-zinc-300">déjà déclarés</b> sur son profil apparaissent
+                cochés ✓ ; les manquants proposent un bouton « Déclarer » qui écrit dans son profil.
+              </p>
+            </div>
+          </motion.div>
+        )}
+
       </div>
       {/* Navigation flottante — pilule verticale */}
       {typeof document !== 'undefined' && createPortal(

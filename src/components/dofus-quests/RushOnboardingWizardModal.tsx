@@ -2,9 +2,10 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Users, CheckCircle, ArrowRight, ArrowLeft, Shield, Sparkles, ExternalLink } from "lucide-react";
+import { User, Users, CheckCircle, ArrowRight, ArrowLeft, Shield, Sparkles, ExternalLink, Check, Hammer, Link2, RotateCcw, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { getClass } from "@/lib/dofus-assets";
+import { getMetierIconPath } from "@/lib/rush-guide-utils";
 
 type CharacterOption = {
   id: string; // "PRINCIPAL" | mule pseudo
@@ -32,6 +33,20 @@ type Props = {
   onSelectCharacter: (charId: string) => void;
   activeMembers: ActiveMember[];
   hasNoClassDeclared?: boolean;
+  /** Préparation — liaison Metamob déjà effectuée ? */
+  metamobPseudo?: string | null;
+  /** Préparation — ouvre le dialog de liaison Metamob existant. */
+  onOpenMetamobLink?: () => void;
+  currentAlignment?: string | null;
+  currentAlignmentOrder?: string | null;
+  /** Préparation — réinitialise l'alignement courant (action existante). */
+  onResetAlignment?: () => void;
+  /** Préparation — métiers requis agrégés sur le guide (id canonique). */
+  metiersRequires?: { id: string; name: string; level: number }[];
+  /** Préparation — ids de métiers déjà déclarés sur le profil (slugs). */
+  metiersDeclares?: string[];
+  /** Préparation — déclare un métier manquant sur le profil (updateUserProfile). */
+  onDeclareMetier?: (name: string, level: number) => void;
 };
 
 export function RushOnboardingWizardModal({
@@ -43,8 +58,16 @@ export function RushOnboardingWizardModal({
   onSelectCharacter,
   activeMembers,
   hasNoClassDeclared = false,
+  metamobPseudo = null,
+  onOpenMetamobLink,
+  currentAlignment = null,
+  currentAlignmentOrder = null,
+  onResetAlignment,
+  metiersRequires = [],
+  metiersDeclares = [],
+  onDeclareMetier,
 }: Props) {
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
   if (!isOpen) return null;
 
@@ -64,24 +87,26 @@ export function RushOnboardingWizardModal({
           <div className="p-6 border-b border-white/5 bg-zinc-900/50 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-black text-xs">
-                {step}/3
+                {step}/4
               </div>
               <div>
                 <h3 className="text-sm font-black text-white uppercase tracking-wider">
                   {step === 1 && "Étape 1 : Choix de votre Personnage"}
-                  {step === 2 && "Étape 2 : Avancée des Membres"}
-                  {step === 3 && "Étape 3 : Prêt pour le Rush !"}
+                  {step === 2 && "Étape 2 : Préparation"}
+                  {step === 3 && "Étape 3 : Avancée des Membres"}
+                  {step === 4 && "Étape 4 : Prêt pour le Rush !"}
                 </h3>
                 <p className="text-caption text-zinc-400 font-medium">
                   {step === 1 && "Sélectionnez le personnage principal ou la mule avec laquelle vous rushez."}
-                  {step === 2 && "Découvrez où en sont vos coéquipiers de guilde."}
-                  {step === 3 && "Validation finale et lancement de la timeline."}
+                  {step === 2 && "Vérifiez votre liaison Metamob, votre alignement et vos métiers."}
+                  {step === 3 && "Découvrez où en sont vos coéquipiers de guilde."}
+                  {step === 4 && "Validation finale et lancement de la timeline."}
                 </p>
               </div>
             </div>
             {/* Step Indicators */}
             <div className="flex items-center gap-1.5">
-              {[1, 2, 3].map((s) => (
+              {[1, 2, 3, 4].map((s) => (
                 <div
                   key={s}
                   className={`w-2.5 h-2.5 rounded-full transition-all ${
@@ -157,8 +182,109 @@ export function RushOnboardingWizardModal({
               </div>
             )}
 
-            {/* STEP 2: Active Members Overview */}
+            {/* STEP 2: Préparation — Metamob / alignement / métiers */}
             {step === 2 && (
+              <div className="space-y-4">
+                {/* Liaison Metamob */}
+                <div className="p-3.5 rounded-2xl bg-zinc-900/60 border border-white/5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Link2 className="w-4 h-4 text-indigo-400 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-black text-white">Liaison Metamob</p>
+                      <p className="text-caption text-zinc-400">
+                        {metamobPseudo
+                          ? `Compte lié : ${metamobPseudo}`
+                          : "Non lié — optionnel mais recommandé pour tracker l'Ocre."}
+                      </p>
+                    </div>
+                  </div>
+                  {metamobPseudo ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-caption font-black shrink-0">
+                      <Check className="w-3 h-3" /> Lié
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={onOpenMetamobLink}
+                      className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-black text-caption font-black uppercase shrink-0"
+                    >
+                      Lier
+                    </button>
+                  )}
+                </div>
+
+                {/* Reset alignement */}
+                <div className="p-3.5 rounded-2xl bg-zinc-900/60 border border-white/5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <RotateCcw className="w-4 h-4 text-[#e6b96b] shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-black text-white">Réinitialiser l'alignement ?</p>
+                      <p className="text-caption text-zinc-400">
+                        {currentAlignment ? `Alignement actuel : ${currentAlignment}` : "Aucun alignement défini."}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onResetAlignment}
+                    className="px-2.5 py-1 rounded-lg bg-red-600/80 hover:bg-red-600 text-white text-caption font-black uppercase shrink-0"
+                  >
+                    Réinitialiser
+                  </button>
+                </div>
+
+                {/* Métiers requis */}
+                <div className="p-3.5 rounded-2xl bg-zinc-900/60 border border-white/5">
+                  <p className="text-xs font-black text-white flex items-center gap-1.5 mb-2">
+                    <Hammer className="w-3.5 h-3.5 text-[#e6b96b]" /> Métiers requis
+                  </p>
+                  {metiersRequires.length === 0 ? (
+                    <p className="text-caption text-zinc-400">Aucun métier requis détecté sur ce guide.</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {metiersRequires.map((m) => {
+                        const declared = metiersDeclares.includes(m.id);
+                        return (
+                          <div
+                            key={m.id}
+                            className="flex items-center justify-between gap-2 rounded-xl border border-white/5 bg-[#121821] px-2.5 py-2"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={getMetierIconPath(m.name)} alt="" className="w-6 h-6 object-contain rounded-md shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-[11px] font-bold text-zinc-100 truncate">
+                                  {m.name} <span className="text-zinc-500 font-mono">Niv. {m.level}</span>
+                                </p>
+                                <p className="text-[9px] font-bold text-zinc-500">
+                                  {declared ? "✓ Déclaré sur votre profil" : "Non déclaré"}
+                                </p>
+                              </div>
+                            </div>
+                            {declared ? (
+                              <span className="text-emerald-400 shrink-0">
+                                <CheckCircle2 className="w-4 h-4" />
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => onDeclareMetier?.(m.name, m.level)}
+                                className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-black text-caption font-black shrink-0"
+                              >
+                                Déclarer
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3: Active Members Overview */}
+            {step === 3 && (
               <div className="space-y-3">
                 <p className="text-xs text-zinc-300 font-medium">
                   {uniqueActiveMembers.length > 0
@@ -214,8 +340,8 @@ export function RushOnboardingWizardModal({
               </div>
             )}
 
-            {/* STEP 3: Ready to Rush */}
-            {step === 3 && (
+            {/* STEP 4: Ready to Rush */}
+            {step === 4 && (
               <div className="text-center py-4 space-y-4">
                 <div className="w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto ">
                   <CheckCircle className="w-8 h-8" />
@@ -247,7 +373,7 @@ export function RushOnboardingWizardModal({
             {step > 1 ? (
               <button
                 type="button"
-                onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3)}
+                onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3 | 4)}
                 className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-colors"
               >
                 <ArrowLeft className="w-3.5 h-3.5" /> Précédent
@@ -256,10 +382,10 @@ export function RushOnboardingWizardModal({
               <div />
             )}
 
-            {step < 3 ? (
+            {step < 4 ? (
               <button
                 type="button"
-                onClick={() => setStep((s) => (s + 1) as 1 | 2 | 3)}
+                onClick={() => setStep((s) => (s + 1) as 1 | 2 | 3 | 4)}
                 className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-md"
               >
                 Suivant <ArrowRight className="w-3.5 h-3.5" />

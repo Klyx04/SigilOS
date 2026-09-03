@@ -7,7 +7,7 @@ import {
   BookOpen, Flag, Users, RotateCcw, EyeOff, Eye, ExternalLink,
   BookmarkCheck, Loader2, CheckCheck,
   Sparkles, Construction, AlertTriangle, Sword, Lock, MapPin, Plus,
-  Pencil, Crown, ChevronRight, ListCollapse, Info, Check, Shield, Search, X, CircleHelp, Package,
+  Pencil, Crown, ChevronRight, ListCollapse, Info, Check, Shield, Search, X, CircleHelp, ClipboardList,
   Settings2, Ghost, Maximize2
 } from "lucide-react";
 
@@ -24,6 +24,7 @@ import { useRouter } from "next/navigation";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
 import MapPositionPopover from "@/components/dofus-quests/MapPositionPopover";
 import { RushOnboardingWizardModal } from "@/components/dofus-quests/RushOnboardingWizardModal";
+import { RushPenseBeteModal } from "@/components/dofus-quests/rush/RushPenseBeteModal";
 import { ResetConfirmModal } from "@/components/dofus-quests/ResetConfirmModal";
 import LiveActivityTicker from "@/components/dofus-quests/LiveActivityTicker";
 import OcreProgressModal, { type OcreMonsterLite } from "@/components/dofus-quests/OcreProgressModal";
@@ -53,9 +54,8 @@ import { QuestGroupRenderer, useQuestGroups } from "./QuestGroup";
 import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
 import { RushChapterSidebar } from "./RushChapterSidebar";
 import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal";
-import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
-import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isSequenceBlockedByPrereqs, resolveRushSeqIcon } from "@/lib/rush-guide-utils";
+import { isSequenceBlockedByPrereqs, resolveRushSeqIcon, getGuideMetiersRequires } from "@/lib/rush-guide-utils";
+import { metierIds } from "@/lib/metiers";
 import { safeImageUrl } from "@/lib/security";
 import { getAlignmentSet, collectCascadeUncheck } from "@/lib/rush-helpers";
 import { RushHelperBadge } from "@/components/rush/RushHelperBadge";
@@ -67,7 +67,7 @@ type ActivityTag = { type: string; name?: string; level?: number; count?: number
 type Sequence = { id: string; subGuideRef: string; subGuideName: string; stepFrom?: number|null; stepTo?: number|null; note?: string|null; isOptional: boolean; order: number; dungeon?: DungeonRef|null; dungeons?: DungeonRef[]; dofusdbUrl?: string|null; dofuspourlesnoobsUrl?: string|null; tips?: string|null; alignReq?: string|null; alignOrderReq?: number|null; isSuccess?: boolean; icon?: string | null; metamobMonsterId?: number|null; activityTags?: ActivityTag[]; };
 type Milestone = { id:string; title:string; subtitle?:string|null; description?:string|null; type:string; accentColor?:string|null; imageUrl?:string|null; chapter:number; chapterLabel:string; order:number; isOptional:boolean; tips?:string|null; dofusId?:string|null; sequences:Sequence[]; playerProgress?:{isCompleted:boolean;completedSteps?:any;currentStep?:string|null}[]; };
 type GuildMemberProgress = { profileId:string; milestoneId:string; isCompleted:boolean; userName:string; userAvatar?:string; currentStep?:string|null };
-type RushTimelineClientProps = { guide:{id:string;name:string;slug:string;description?:string|null;isUnderConstruction?:boolean;imageUrl?:string|null;isDiscordConfigured?:boolean}; milestones:Milestone[]; guildProgress:GuildMemberProgress[]; guildId:string; selectedCharacter?:string; mules?:any[]; currentUserProfile:{alignment?:string|null;alignmentOrder?:string|null;alignmentLevel?:number;altPseudos?:any[];dofusClass?:string|null;metamobPseudo?:string|null;pseudoDofus?:string|null;}; ocreStats?:{bosses?:{total:number;gathered:number};archis?:{total:number;gathered:number};progressPercent?:number;currentStep?:number;serverName?:string}|null; capturedOcreMonsterIds?:number[]; capturedMonsterNames?:string[]; ocreMonsters?:OcreMonsterLite[]; };
+type RushTimelineClientProps = { guide:{id:string;name:string;slug:string;description?:string|null;isUnderConstruction?:boolean;imageUrl?:string|null;isDiscordConfigured?:boolean}; milestones:Milestone[]; guildProgress:GuildMemberProgress[]; guildId:string; selectedCharacter?:string; mules?:any[]; currentUserProfile:{alignment?:string|null;alignmentOrder?:string|null;alignmentLevel?:number;altPseudos?:any[];dofusClass?:string|null;metamobPseudo?:string|null;metiers?:any[];pseudoDofus?:string|null;}; ocreStats?:{bosses?:{total:number;gathered:number};archis?:{total:number;gathered:number};progressPercent?:number;currentStep?:number;serverName?:string}|null; capturedOcreMonsterIds?:number[]; capturedMonsterNames?:string[]; ocreMonsters?:OcreMonsterLite[]; };
 const DOFUS_DEFS = [
   { id:"ocre", label:"Ocre", color:"#f59e0b", imageUrl:"/assets/icons/ocre.png" }, { id:"turquoise", label:"Turquoise", color:"#06b6d4", imageUrl:"/module-dofus/Dofus_Turquoise.png" },
   { id:"argente", label:"Argenté", color:"#a1a1aa", imageUrl:"/module-dofus/Dofus_Argente.png" }, { id:"argente_scintillant", label:"Arg. Scintillant", color:"#c0c0c0", imageUrl:"/module-dofus/Dofus_Argente_Scintillant.png" },
@@ -1150,7 +1150,7 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   const [resetLoading,setResetLoading]=useState(false);
   const [ocreModalOpen,setOcreModalOpen]=useState(false);
   const [rushLiveModalOpen,setRushLiveModalOpen]=useState(false);
-  const [resourcesModalOpen,setResourcesModalOpen]=useState(false);
+  const [penseBeteOpen,setPenseBeteOpen]=useState(false);
   // Chapitre actif partagé : sélectionnable depuis le feed (clic sur un header de
   // chapitre) ET depuis la sidebar « Chapitres ». `null` = auto (défaut sidebar).
   const [activeChapter,setActiveChapter]=useState<number|"ALL"|null>(null);
@@ -1188,9 +1188,28 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
   // ─── Guild progress by sequence (members with currentStep/bookmark on a specific seq) ──
   const guildProgressBySeq=useMemo(()=>{const m=new Map<string,GuildMemberProgress[]>;guildProgress.forEach(p=>{if(p.currentStep&&p.currentStep.startsWith("seq:")){const seqId=p.currentStep.slice(4);if(!m.has(seqId))m.set(seqId,[]);m.get(seqId)!.push(p);}});return m;},[guildProgress]);
   const tMs=contentMilestones.length;const completedCount=contentMilestones.filter(ms=>completedIds.has(ms.id)).length;
-  // Ressources agrégées (toutes étapes) pour la modale globale — mêmes helpers que l'overlay.
-  const resourcesAll=useMemo(()=>aggregateRushResources(milestones as any),[]);
   const overallPercent=tMs>0?Math.round((completedCount/tMs)*100):0;
+
+  // Métiers requis agrégés sur tout le guide (tags `metier`) — pour la modale de lancement.
+  const metiersRequires = useMemo(() => getGuideMetiersRequires(milestones as any), [milestones]);
+  // Ids de métiers déjà déclarés sur le profil (pour savoir si un métier requis est couvert).
+  const metiersDeclares = useMemo(() => metierIds((currentUserProfile as any)?.metiers), [currentUserProfile]);
+  const handleResetAlignment = useCallback(async () => {
+    try {
+      const res = await resetRushAlignment(guildId, effectiveAltPseudo);
+      if ((res as any).success) { toast.success("Alignement réinitialisé à 0"); router.refresh(); }
+      else { toast.error((res as any).error || "Erreur"); }
+    } catch { toast.error("Erreur réseau"); }
+  }, [guildId, effectiveAltPseudo, router]);
+  const handleDeclareMetier = useCallback(async (name: string, level: number) => {
+    try {
+      const current = Array.isArray((currentUserProfile as any)?.metiers) ? (currentUserProfile as any).metiers : [];
+      const res = await updateUserProfile({ guildId, metiers: [...current, { name, level }] } as any);
+      if ((res as any).success) { toast.success(`Métier ${name} déclaré`); router.refresh(); }
+      else { toast.error((res as any).error || "Erreur"); }
+    } catch { toast.error("Erreur réseau"); }
+  }, [guildId, currentUserProfile, router]);
+  
   const activeMembersCount=useMemo(()=>new Set(guildProgress.map(p=>p.profileId)).size,[guildProgress]);
   const setLoading=useCallback((msId:string,val:boolean)=>setLoadingIds(prev=>{const n=new Set(prev);val?n.add(msId):n.delete(msId);return n;}),[]);
   // Ensemble de toutes les séquences complétées (à travers tous les blocs).
@@ -1208,12 +1227,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     }
     return all;
   }, [milestones, completedIds, completedStepsByMs]);
-  // Ressources restantes = totaux moins les quêtes déjà validées (synchro live
-  // avec l'overlay via BroadcastChannel → décrémente dès qu'on coche).
-  const resourcesRemaining = useMemo(
-    () => aggregateRushResources(milestones as any, allCompletedSeqIds),
-    [milestones, allCompletedSeqIds]
-  );
+  // (modale ressources dashboard retirée — les ressources restent dans l'overlay)
 
   // Séquences bloquées par un prérequis non terminé → impossible de cocher / poser un repère
   const blockedSeqIds = useMemo(() => {
@@ -1642,13 +1656,13 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
 
             <button
               type="button"
-              onClick={() => setResourcesModalOpen(true)}
+              onClick={() => setPenseBeteOpen(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#2a323d] bg-[#161d27] hover:bg-[#1b2430] hover:border-[#4fd1a5]/40 text-xs font-bold text-[#c9d1da] hover:text-white transition-all shadow-sm"
-              title="Toutes les ressources à prévoir sur le guide (icônes + quantités)"
-              aria-label="Ouvrir les ressources"
+              title="Pense-bête : choses à savoir / à préparer en amont pour ce rush"
+              aria-label="Ouvrir le pense-bête"
             >
-              <Package className="w-3.5 h-3.5 text-[#e6b96b]" />
-              Ressources
+              <ClipboardList className="w-3.5 h-3.5 text-[#e6b96b]" />
+              Pense-bête
             </button>
           </div>
         </div>
@@ -1996,7 +2010,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       document.body
     )}
     {djModal.open&&<DjPostCreateModal isOpen={true} onClose={()=>setDjModal({open:false})} onCreated={()=>{}} guildId={guildId} initialDungeonId={djModal.dungeonId} initialQuestName={djModal.questName}/>}
-    {wizardOpen&&<RushOnboardingWizardModal isOpen={true} guildId={guildId} onClose={handleWizardClose} characters={(()=>{const mainChar={id:"PRINCIPAL",name:currentUserProfile?.pseudoDofus||"Principal",isMule:false,dofusClass:currentUserProfile?.dofusClass,level:200};const mappedMules=(mules||[]).map((m:any)=>({id:m.pseudo||m.id,name:m.pseudo||m.id,isMule:true,dofusClass:m.classe||null,level:m.level||200}));return[mainChar,...mappedMules];})()} selectedCharacter={selectedCharacter} onSelectCharacter={(c:string)=>router.push(`?character=${encodeURIComponent(c)}`)} activeMembers={guildProgress.map(p=>{const tc=contentMilestones.length;const mp=guildProgress.filter(x=>x.profileId===p.profileId);const d=mp.filter(x=>x.isCompleted).length;const pct=tc>0?Math.round((d/tc)*100):0;return{profileId:p.profileId,userName:p.userName,userAvatar:p.userAvatar,percent:pct};})}/>}
+    {wizardOpen&&<RushOnboardingWizardModal isOpen={true} guildId={guildId} onClose={handleWizardClose} characters={(()=>{const mainChar={id:"PRINCIPAL",name:currentUserProfile?.pseudoDofus||"Principal",isMule:false,dofusClass:currentUserProfile?.dofusClass,level:200};const mappedMules=(mules||[]).map((m:any)=>({id:m.pseudo||m.id,name:m.pseudo||m.id,isMule:true,dofusClass:m.classe||null,level:m.level||200}));return[mainChar,...mappedMules];})()} selectedCharacter={selectedCharacter} onSelectCharacter={(c:string)=>router.push(`?character=${encodeURIComponent(c)}`)} activeMembers={guildProgress.map(p=>{const tc=contentMilestones.length;const mp=guildProgress.filter(x=>x.profileId===p.profileId);const d=mp.filter(x=>x.isCompleted).length;const pct=tc>0?Math.round((d/tc)*100):0;return{profileId:p.profileId,userName:p.userName,userAvatar:p.userAvatar,percent:pct};})} metamobPseudo={currentUserProfile?.metamobPseudo} onOpenMetamobLink={() => setMetamobLinkOpen(true)} currentAlignment={resolvedCharacterInfo.alignment} currentAlignmentOrder={resolvedCharacterInfo.alignmentOrder} onResetAlignment={handleResetAlignment} metiersRequires={metiersRequires} metiersDeclares={metiersDeclares} onDeclareMetier={handleDeclareMetier}/>}
     {continueModalOpen&&bookmarkedMsId&&(()=>{const ms=milestones.find(m=>m.id===bookmarkedMsId);if(!ms)return null;return<div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-black/60" onClick={()=>setContinueModalOpen(false)}><div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl" onClick={e=>e.stopPropagation()}><div className="flex items-center gap-3 mb-3"><Flag className="w-5 h-5 text-emerald-400"/><h3 className="text-sm font-black text-white" style={{fontFamily:"var(--font-cinzel)"}}>Reprendre ?</h3></div><p className="text-xs text-zinc-400 mb-4">Tu étais à <strong className="text-white">{ms.title}</strong>.</p><div className="flex gap-2"><button onClick={()=>{const el=document.querySelector(`[data-ms-id="${bookmarkedMsId}"]`);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});setContinueModalOpen(false);}} className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-caption font-black uppercase tracking-widest">Reprendre</button><button onClick={()=>setContinueModalOpen(false)} className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-caption font-black uppercase tracking-widest">Plus tard</button></div></div></div>;})()}
     {resetModalOpen&&<ResetConfirmModal
       isOpen={resetModalOpen}
@@ -2076,15 +2090,11 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       guildId={guildId}
     />
 
-    {resourcesModalOpen && (
-      <RushOverlayResourcesModal
-        resources={resourcesRemaining}
-        allResources={resourcesAll}
-        isLightMode={false}
-        totalCount={resourcesAll.length}
-        onClose={() => setResourcesModalOpen(false)}
-      />
-    )}
+    <RushPenseBeteModal
+      open={penseBeteOpen}
+      onClose={() => setPenseBeteOpen(false)}
+      storageKey={`rush-sylvestre-pense-bete-${guide.id}`}
+    />
    </div></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider></GuildIdCtx.Provider>
 
   <Dialog open={alignEditOpen} onOpenChange={setAlignEditOpen}>

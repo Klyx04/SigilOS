@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { copyToClipboard } from "@/lib/clipboard";
 import type { RushResourceAgg } from "./overlay-utils";
+import { ResourceImage } from "@/components/dofus-quests/ResourceImage";
 
 interface RushOverlayResourcesModalProps {
   /** Ressources « restantes » (quêtes cochées exclues). */
@@ -168,8 +169,7 @@ export function RushOverlayResourcesModal({
                   )}
                 >
                   {r.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={r.imageUrl} alt={r.name} className="w-7 h-7 object-contain" loading="lazy" />
+                    <ResourceImage id={r.id} imageUrl={r.imageUrl} alt={r.name} className="w-7 h-7 object-contain" />
                   ) : (
                     <Package className={cn("w-4 h-4", isLightMode ? "text-amber-400" : "text-[#d5a94e]/60")} />
                   )}

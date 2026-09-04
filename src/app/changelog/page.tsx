@@ -75,7 +75,7 @@ export default async function ChangelogPage() {
                                     "description": entry.summary || `${entry.title} — Mise à jour SigilOS ${entry.version}`,
                                     "articleSection": entry.category,
                                 })),
-                            ]),
+                            ]).replace(/</g, "\\u003c"),
                         }}
                     />
 

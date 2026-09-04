@@ -63,6 +63,10 @@ sigilos.fr {
     import rate_limit_base
     import error_page_429
 
+    # 🔒 Vitrine : CSP de base + Permissions-Policy (E-INF-01, fail-closed, pas d'inline).
+    header Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+    header Permissions-Policy "camera=(), microphone=(), geolocation=()"
+
     # 🛰️ SW & manifest : revalidation obligatoire (voir beta.sigilos.fr).
     header /sw.js Cache-Control "no-cache, must-revalidate"
     header /manifest.webmanifest Cache-Control "no-cache, must-revalidate"
@@ -71,6 +75,12 @@ sigilos.fr {
     handle @google {
         header Content-Type text/html
         respond "google-site-verification: google77dc76da1868d7bd.html" 200
+    }
+
+    # 🤖 robots.txt statique (E-INF-01/SEO) — DOIT passer avant le rewrite maintenance.
+    handle /robots.txt {
+        header Content-Type text/plain
+        respond "User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /dashboard/\nDisallow: /god/\nSitemap: https://sigilos.fr/sitemap.xml" 200
     }
 
     # 🎨 Assets de la vitrine (fond bg-guild, screenshots, icônes, logo) — file_server

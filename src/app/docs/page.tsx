@@ -60,7 +60,7 @@ export default async function DocsHubPage() {
                             { "@type": "ListItem", "position": 1, "name": "Accueil", "item": getAppBaseUrl() },
                             { "@type": "ListItem", "position": 2, "name": "Documentation", "item": `${getAppBaseUrl()}/docs` },
                         ],
-                    }),
+                    }).replace(/</g, "\\u003c"),
                 }}
             />
             <div className="space-y-12">

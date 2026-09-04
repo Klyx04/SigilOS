@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Sparkles, ExternalLink, Compass, ChevronDown, ChevronUp } from "lucide-react";
+import { Sparkles, Compass, ChevronDown, ChevronUp } from "lucide-react";
 import type { RushSequence } from "@/types/rush-guide-types";
 import { getSequenceCoord } from "@/lib/rush-guide-utils";
 import { RushCoordinateChip } from "./RushCoordinateChip";
@@ -38,10 +38,6 @@ export function RushCurrentObjective({
   const name = sequence.subGuideName || sequence.subGuideRef;
   // Coordonnée source : pos_tags (édition GOD) > titre > tips > note.
   const parsedCoord = getSequenceCoord(sequence);
-
-  // Lien DofusPourLesNoobs ou DofusDB
-  const noobsUrl = sequence.dofuspourlesnoobsUrl || (sequence.activityTags?.find(t => t.type === "dofus_link" && t.url?.includes("dofuspourlesnoobs"))?.url);
-  const dofusdbUrl = sequence.dofusdbUrl || (sequence.activityTags?.find(t => t.type === "dofus_link" && t.url?.includes("dofusdb"))?.url);
 
   return (
     <div
@@ -101,50 +97,12 @@ export function RushCurrentObjective({
             )}
           </div>
 
-          {/* Actions Rapides : Coordonnées & Liens (rangée unique, scroll horizontal) */}
-          <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto shrink-0 mt-1 sm:mt-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {parsedCoord && (
-            <RushCoordinateChip coordText={parsedCoord.raw} showIcon />
-          )}
-
-          {noobsUrl && (
-            <a
-              href={noobsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 border border-white/10 transition-colors"
-              title="Ouvrir le guide DofusPourLesNoobs"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=16"
-                alt="Noobs"
-                className="w-3 h-3 rounded-sm"
-              />
-              <span>Noobs</span>
-              <ExternalLink className="w-2.5 h-2.5 opacity-60" />
-            </a>
-          )}
-
-          {dofusdbUrl && (
-            <a
-              href={dofusdbUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 border border-white/10 transition-colors"
-              title="Ouvrir la fiche DofusDB"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=16"
-                alt="DofusDB"
-                className="w-3 h-3 rounded-sm"
-              />
-              <span>DofusDB</span>
-              <ExternalLink className="w-2.5 h-2.5 opacity-60" />
-            </a>
-          )}
-        </div>
+          {/* Action rapide : coordonnées — les liens Noobs/DofusDB sont dans la modale de détails */}
+          <div className="flex items-center gap-1.5 shrink-0 mt-1 sm:mt-0">
+            {parsedCoord && (
+              <RushCoordinateChip coordText={parsedCoord.raw} showIcon />
+            )}
+          </div>
       </div>
       )}
     </div>

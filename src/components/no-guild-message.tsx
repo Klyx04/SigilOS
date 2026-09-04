@@ -51,7 +51,7 @@ export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
                                 Accès Restreint
                             </h1>
                             <p className="text-muted-foreground text-sm leading-relaxed">
-                                Votre compte Discord n'est associé à aucune guilde active sur SigilOS.
+                                Votre compte Discord n&apos;est associé à aucune guilde active sur SigilOS et vous n&apos;administrez aucun serveur éligible.
                             </p>
                         </div>
 
@@ -61,7 +61,7 @@ export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
                                 <RefreshCw className="h-4 w-4 text-warning shrink-0 mt-0.5" />
                                 <div className="flex-1 min-w-0">
                                     <p className="text-caption text-warning/90 font-semibold leading-relaxed">
-                                        Vérification des accès en cours — l'API Discord répond avec un léger délai.
+                                        Vérification des accès en cours — l&apos;API Discord répond avec un léger délai.
                                     </p>
                                     <button
                                         onClick={() => window.location.reload()}
@@ -75,15 +75,15 @@ export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
 
                         {/* CTAs */}
                         <div className="flex flex-col gap-3 pt-2">
-                            {/* PRIMARY — Demander l'accès */}
+                            {/* PRIMARY — Demander l'accès ou Déployer */}
                             <button
                                 onClick={() => setShowModal(true)}
                                 className="group relative w-full h-14 rounded-xl bg-success hover:bg-success text-success-foreground font-bold text-sm transition-colors active:scale-[0.99] overflow-hidden flex flex-col items-center justify-center"
                             >
-                                <span className="text-caption opacity-80 mb-0.5">Chef de Guilde ?</span>
+                                <span className="text-caption opacity-80 mb-0.5">Chef ou Admin de Guilde ?</span>
                                 <div className="flex items-center gap-2">
                                     <Crown className="w-4 h-4" />
-                                    <span>Inscrire ma Guilde</span>
+                                    <span>Installer ou Inscrire ma Guilde</span>
                                 </div>
                             </button>
 

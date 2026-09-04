@@ -13,6 +13,7 @@ const updateSlashPermSchema = z.object({
     guildId: z.string().min(1),
     commandName: z.string().min(1),
     roleIds: z.array(z.string()),
+    channelIds: z.array(z.string()).default([]),
     isEnabled: z.boolean()
 });
 
@@ -21,13 +22,27 @@ const updateSlashPermSchema = z.object({
  */
 export async function getGuildSlashCommandPermissionsAction(guildId: string) {
     try {
-        const user = await getUserContext(guildId);
+        const config = await db.guildConfig.findFirst({
+            where: {
+                OR: [
+                    { id: guildId },
+                    { discordGuildId: guildId }
+                ]
+            },
+            select: { id: true, discordGuildId: true }
+        });
+
+        if (!config) {
+            return { success: false, error: "Guild not found" };
+        }
+
+        const user = await getUserContext(config.discordGuildId || guildId);
         if (!user.isAuthenticated || !user.isMember) {
             return { success: false, error: "Unauthorized" };
         }
 
         const permissions = await db.guildSlashCommandPermission.findMany({
-            where: { guildId }
+            where: { guildId: config.id }
         });
 
         const permMap = new Map(permissions.map(p => [p.commandName, p]));
@@ -37,7 +52,8 @@ export async function getGuildSlashCommandPermissionsAction(guildId: string) {
             return {
                 command: cmd,
                 isEnabled: existing ? existing.isEnabled : true,
-                roleIds: existing ? existing.roleIds : []
+                roleIds: existing ? existing.roleIds : [],
+                channelIds: existing ? existing.channelIds : []
             };
         });
 
@@ -61,8 +77,23 @@ export async function updateGuildSlashCommandPermissionAction(input: z.infer<typ
             return { success: false, error: "Validation failed" };
         }
 
-        const { guildId, commandName, roleIds, isEnabled } = parsed.data;
-        const user = await getUserContext(guildId);
+        const { guildId, commandName, roleIds, channelIds, isEnabled } = parsed.data;
+
+        const config = await db.guildConfig.findFirst({
+            where: {
+                OR: [
+                    { id: guildId },
+                    { discordGuildId: guildId }
+                ]
+            },
+            select: { id: true, discordGuildId: true }
+        });
+
+        if (!config) {
+            return { success: false, error: "Guild not found" };
+        }
+
+        const user = await getUserContext(config.discordGuildId || guildId);
 
         if (!user.isAuthenticated || (!user.isAdmin && !user.canManageRBAC)) {
             return { success: false, error: "Forbidden: Admin or RBAC permission required" };
@@ -71,27 +102,29 @@ export async function updateGuildSlashCommandPermissionAction(input: z.infer<typ
         const updated = await db.guildSlashCommandPermission.upsert({
             where: {
                 guildId_commandName: {
-                    guildId,
+                    guildId: config.id,
                     commandName
                 }
             },
             create: {
-                guildId,
+                guildId: config.id,
                 commandName,
                 roleIds,
+                channelIds,
                 isEnabled
             },
             update: {
                 roleIds,
+                channelIds,
                 isEnabled
             }
         });
 
         await logAction({
-            guildId,
+            guildId: config.discordGuildId || guildId,
             action: "RBAC_UPDATE",
             targetType: "PERMISSION",
-            newValue: { commandName, roleIdsCount: roleIds.length, isEnabled }
+            newValue: { commandName, roleIdsCount: roleIds.length, channelIdsCount: channelIds.length, isEnabled }
         }).catch(() => {});
 
         return { success: true, data: updated };
@@ -107,7 +140,8 @@ export async function updateGuildSlashCommandPermissionAction(input: z.infer<typ
 export async function checkSlashCommandExecutionAllowed(
     discordGuildId: string,
     commandName: string,
-    userRoleIds: string[]
+    userRoleIds: string[],
+    channelId?: string
 ): Promise<{ allowed: boolean; reason?: string }> {
     try {
         const guild = await db.guildConfig.findUnique({
@@ -132,6 +166,11 @@ export async function checkSlashCommandExecutionAllowed(
                 const hasRole = userRoleIds.some(r => perm.roleIds.includes(r));
                 if (!hasRole) {
                     return { allowed: false, reason: "Rôle requis non possédé pour lancer cette commande" };
+                }
+            }
+            if (channelId && perm.channelIds.length > 0) {
+                if (!perm.channelIds.includes(channelId)) {
+                    return { allowed: false, reason: "Cette commande n'est pas autorisée dans ce salon Discord" };
                 }
             }
         }

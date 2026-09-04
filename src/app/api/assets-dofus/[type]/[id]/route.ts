@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
 import { ASSET_DIRS, ensureAssetDirsExist } from '@/lib/dofus-asset-siphon';
+import { assertSafeUrl } from '@/lib/image-downloader';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +12,24 @@ const REMOTE_BASE_URLS = {
     items: 'https://api.dofusdb.fr/img/items',
     spells: 'https://api.dofusdb.fr/img/spells',
 };
+
+// 🔒 SSRF fail-closed : seuls ces hôtes sont autorisés pour `?url=` et les
+// redirections d'images DofusDB (monsterData.img). Tout le reste → placeholder.
+const ALLOWED_IMAGE_HOSTS = new Set(['api.dofusdb.fr']);
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+function getAllowedRemoteUrl(raw: string | null): string | null {
+    if (!raw) return null;
+    let u: URL;
+    try {
+        u = new URL(raw);
+    } catch {
+        return null;
+    }
+    if (u.protocol !== 'https:') return null;
+    if (!ALLOWED_IMAGE_HOSTS.has(u.hostname.toLowerCase())) return null;
+    return u.toString();
+}
 
 /**
  * 🛡️ Proxy & Siphon Automatique à la Volée (Zero 404 in DevTools)
@@ -56,15 +75,72 @@ export async function GET(
             }
         }
 
+        // 1.5 Source Prioritaire Locale : Assets officiels HD sur la machine (C:\Users\user\Desktop\dofus_assets)
+        // Permet un rendu instantané (0ms), zéro dépendance DofusDB, 100% autonome
+        const desktopDirMap: Record<string, string> = {
+            monsters: 'C:\\Users\\user\\Desktop\\dofus_assets\\monsters_2x',
+            spells: 'C:\\Users\\user\\Desktop\\dofus_assets\\spells_2x',
+            items: 'C:\\Users\\user\\Desktop\\dofus_assets\\items_2x',
+        };
+        const desktopDir = desktopDirMap[assetType];
+        if (desktopDir) {
+            const candidateFiles = [
+                path.join(desktopDir, `${safeId}.png`),
+                path.join(desktopDir, `${safeId}.webp`),
+            ];
+            for (const desktopFile of candidateFiles) {
+                if (fs.existsSync(desktopFile)) {
+                    try {
+                        const rawBuffer = fs.readFileSync(desktopFile);
+                        const webpBuffer = await sharp(rawBuffer)
+                            .webp({ quality: 85, effort: 4 })
+                            .toBuffer();
+                        fs.writeFileSync(localFilePath, webpBuffer);
+                        return new NextResponse(webpBuffer, {
+                            headers: {
+                                'Content-Type': 'image/webp',
+                                'Cache-Control': 'public, max-age=31536000, immutable',
+                            },
+                        });
+                    } catch {}
+                }
+            }
+        }
+
         // 2. Sinon, on siphonne à la volée depuis la source (Auto Self-Healing)
-        const urlParam = req.nextUrl.searchParams.get('url');
+        // 🔒 `?url=` durci : hôte allowlisté + assertSafeUrl (DNS + IP privées) + HTTPS only.
+        const rawUrlParam = req.nextUrl.searchParams.get('url');
+        const safeUrlParam = getAllowedRemoteUrl(rawUrlParam);
+
+        // Si une URL est fournie et qu'on peut en extraire un id numérique pour chercher sur le desktop
+        if (safeUrlParam) {
+            const urlMatch = safeUrlParam.match(/\/(\d+)\.(png|webp|jpg)/i);
+            if (urlMatch && desktopDir) {
+                const altDesktopFile = path.join(desktopDir, `${urlMatch[1]}.png`);
+                if (fs.existsSync(altDesktopFile)) {
+                    try {
+                        const rawBuffer = fs.readFileSync(altDesktopFile);
+                        const webpBuffer = await sharp(rawBuffer)
+                            .webp({ quality: 85, effort: 4 })
+                            .toBuffer();
+                        fs.writeFileSync(localFilePath, webpBuffer);
+                        return new NextResponse(webpBuffer, {
+                            headers: {
+                                'Content-Type': 'image/webp',
+                                'Cache-Control': 'public, max-age=31536000, immutable',
+                            },
+                        });
+                    } catch {}
+                }
+            }
+        }
 
         // Guard : si l'ID n'est pas purement numérique (ex: CUID Prisma comme "cmrwd97k..."),
         // on ne peut pas faire un lookup DofusDB fiable → on tente uniquement le ?url= fourni
         // sinon on renvoie directement le placeholder pour éviter de retourner le mauvais monstre.
         const isNumericId = /^\d+$/.test(safeId);
 
-        let remoteUrl = urlParam || (isNumericId ? `${REMOTE_BASE_URLS[assetType]}/${safeId}.png` : null);
+        const remoteUrl = safeUrlParam || (isNumericId ? `${REMOTE_BASE_URLS[assetType]}/${safeId}.png` : null);
 
         let downloaded = false;
         let inputBuffer: Buffer | null = null;
@@ -72,6 +148,8 @@ export async function GET(
         // Tentative 1 : Téléchargement direct depuis remoteUrl (si disponible)
         if (remoteUrl) {
             try {
+                // 🔒 SSRF : re-valide DNS/IP juste avant fetch (anti-rebinding), fail-closed.
+                await assertSafeUrl(remoteUrl);
                 const remoteRes = await fetch(remoteUrl, {
                     headers: {
                         Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
@@ -81,7 +159,19 @@ export async function GET(
                 });
 
                 if (remoteRes.ok) {
+                    const contentType = remoteRes.headers.get('content-type') || '';
+                    // 🔒 Rejette HTML/JS déguisés (fail-closed, évite XSS via image).
+                    if (!contentType.startsWith('image/') && !contentType.startsWith('application/octet-stream')) {
+                        throw new Error('Contenu non-image rejeté');
+                    }
+                    const contentLength = Number(remoteRes.headers.get('content-length') || '0');
+                    if (contentLength > MAX_IMAGE_BYTES) {
+                        throw new Error('Image trop volumineuse');
+                    }
                     const arrayBuffer = await remoteRes.arrayBuffer();
+                    if (arrayBuffer.byteLength > MAX_IMAGE_BYTES) {
+                        throw new Error('Image trop volumineuse');
+                    }
                     inputBuffer = Buffer.from(arrayBuffer);
                     downloaded = true;
                 }
@@ -126,14 +216,22 @@ export async function GET(
                 });
                 if (monsterRes.ok) {
                     const monsterData = await monsterRes.json();
-                    const realImgUrl = monsterData.img;
-                    if (realImgUrl && realImgUrl.startsWith('http')) {
+                    const realImgUrl = getAllowedRemoteUrl(monsterData.img);
+                    if (realImgUrl) {
+                        await assertSafeUrl(realImgUrl);
                         const imgRes = await fetch(realImgUrl, {
                             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
                             signal: AbortSignal.timeout(6_000),
                         });
                         if (imgRes.ok) {
+                            const contentType = imgRes.headers.get('content-type') || '';
+                            if (!contentType.startsWith('image/') && !contentType.startsWith('application/octet-stream')) {
+                                throw new Error('Contenu non-image rejeté');
+                            }
                             const arrayBuffer = await imgRes.arrayBuffer();
+                            if (arrayBuffer.byteLength > MAX_IMAGE_BYTES) {
+                                throw new Error('Image trop volumineuse');
+                            }
                             inputBuffer = Buffer.from(arrayBuffer);
                             downloaded = true;
                         }

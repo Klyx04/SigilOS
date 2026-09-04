@@ -19,16 +19,35 @@ export type GuardResult = {
  * @param context - Human-readable name of the action/page being accessed (for logging)
  * @returns GuardResult with authorization status
  */
-export async function requireGuildAdmin(guildId: string, context: string = "Accès Dashboard Admin"): Promise<GuardResult> {
+export async function requireGuildAdmin(
+    guildId: string, 
+    context: string = "Accès Dashboard Admin",
+    options: { allowOnboarding?: boolean } = {}
+): Promise<GuardResult> {
     const session = await auth();
     if (!session?.user?.id) {
         return { isAuthorized: false, error: "Unauthorized" };
     }
 
     // Platform Guard: Is the guild allowed/active?
-    const allowed = await isGuildAllowed(guildId);
-    if (!allowed) {
-        return { isAuthorized: false, error: "This guild is currently deactivated or banned." };
+    if (!options.allowOnboarding) {
+        const allowed = await isGuildAllowed(guildId);
+        if (!allowed) {
+            return { isAuthorized: false, error: "This guild is currently deactivated or banned." };
+        }
+    } else {
+        const isBanned = await db.platformBan.findFirst({
+            where: { discordId: guildId, entityType: "GUILD" }
+        });
+        if (isBanned) {
+            return { isAuthorized: false, error: "This guild has been banned from SigilOS." };
+        }
+        const existingAllowed = await db.allowedGuild.findUnique({
+            where: { discordGuildId: guildId }
+        });
+        if (existingAllowed && !existingAllowed.isActive) {
+            return { isAuthorized: false, error: "This guild is currently deactivated." };
+        }
     }
 
     const account = await db.account.findFirst({

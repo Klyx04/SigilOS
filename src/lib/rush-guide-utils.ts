@@ -105,12 +105,12 @@ export const RUSH_ACTIVITY_TAG_CONFIG: Record<
   metier: {
     label: "Métier requis",
     color: "#eab308",
-    imagePath: "/assets/rush-sylvestre/façonneur.png",
+    imagePath: "/assets/rush-sylvestre/faconneur.png",
   },
   solver: {
     label: "Solver",
     color: "#10b981",
-    imagePath: "/assets/rush-sylvestre/solver.png",
+    imagePath: "/assets/icons/dofusdb.png",
   },
 };
 
@@ -118,7 +118,7 @@ export const RUSH_ACTIVITY_TAG_CONFIG: Record<
  * Normalise le chemin d'icône pour un métier donné
  */
 export function getMetierIconPath(metierName?: string): string {
-  if (!metierName) return "/assets/rush-sylvestre/façonneur.png";
+  if (!metierName) return "/assets/rush-sylvestre/faconneur.png";
   const normalized = metierName
     .toLowerCase()
     .normalize("NFD")

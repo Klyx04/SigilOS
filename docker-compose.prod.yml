@@ -427,10 +427,10 @@ services:
   # 📊 CADVISOR (Docker Container Metrics)
   # ===========================================================================
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: sigilos-cadvisor
     restart: always
-    privileged: true
+    # 🔒 E-INF-05 : plus de privileged (escalade). cAdvisor fonctionne sans, avec devices en ro.
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro

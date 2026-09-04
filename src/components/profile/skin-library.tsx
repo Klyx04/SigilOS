@@ -259,14 +259,6 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
     };
 
 
-    const getProviderIcon = (provider: string) => {
-        switch (provider) {
-            case "BARBOFUS": return "/assets/ui/icons/barbofus.png";
-            case "DOFUSSKINMANGA": return "/assets/ui/icons/dofusskinmanga.png"; 
-            default: return null;
-        }
-    };
-
     return (
         <div className="flex flex-col gap-6">
             {/* Header / Actions */}

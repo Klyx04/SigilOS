@@ -433,6 +433,32 @@ export async function POST(request: NextRequest) {
                             data: { content: `❌ ${res.error || "Impossible de clôturer la demande."}`, flags: 64 },
                         });
                     }
+                } else if (action === "cancel") {
+                    const requestId = entityId;
+                    if (!requestId) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Identifiant de demande manquant.", flags: 64 },
+                        });
+                    }
+
+                    const { cancelServiceRequestAction } = await import("@/server/actions/service-actions");
+                    const res = await cancelServiceRequestAction(guild_id, requestId, member.user.id);
+
+                    if (res.success) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: {
+                                content: "🗑️ **Demande de service annulée avec succès !** Le message a été retiré.",
+                                flags: 64,
+                            },
+                        });
+                    } else {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: `❌ ${res.error || "Impossible d'annuler la demande."}`, flags: 64 },
+                        });
+                    }
                 }
             } else if (prefix === "userreq") {
                 if (action === "reply") {
@@ -1666,6 +1692,123 @@ export async function POST(request: NextRequest) {
                 });
             }
 
+            if (commandName === "boss" && focusedOption?.name === "nom") {
+                const query = (focusedOption.value || "").trim().toLowerCase();
+                const dungeons = await db.dungeon.findMany({
+                    where: query ? {
+                        OR: [
+                            { bossName: { contains: query, mode: "insensitive" } },
+                            { name: { contains: query, mode: "insensitive" } },
+                        ]
+                    } : undefined,
+                    select: { bossName: true, name: true, level: true },
+                    orderBy: { level: "desc" },
+                    take: 25
+                });
+
+                const seen = new Set<string>();
+                const choices: { name: string; value: string }[] = [];
+                for (const d of dungeons) {
+                    if (d.bossName && !seen.has(d.bossName.toLowerCase())) {
+                        seen.add(d.bossName.toLowerCase());
+                        choices.push({
+                            name: `${d.bossName} (Niv. ${d.level} • ${d.name})`.slice(0, 100),
+                            value: d.bossName.slice(0, 100)
+                        });
+                        if (choices.length >= 25) break;
+                    }
+                }
+
+                if (choices.length < 25) {
+                    const stats = await db.monsterStat.findMany({
+                        where: query ? { monsterName: { contains: query, mode: "insensitive" } } : undefined,
+                        select: { monsterName: true, dungeonName: true },
+                        take: 25 - choices.length
+                    });
+                    for (const s of stats) {
+                        if (s.monsterName && !seen.has(s.monsterName.toLowerCase())) {
+                            seen.add(s.monsterName.toLowerCase());
+                            choices.push({
+                                name: s.dungeonName ? `${s.monsterName} (${s.dungeonName})`.slice(0, 100) : s.monsterName.slice(0, 100),
+                                value: s.monsterName.slice(0, 100)
+                            });
+                            if (choices.length >= 25) break;
+                        }
+                    }
+                }
+
+                return NextResponse.json({
+                    type: 8,
+                    data: { choices }
+                });
+            }
+
+            if (commandName === "monstre" && focusedOption?.name === "nom") {
+                const query = (focusedOption.value || "").trim().toLowerCase();
+                const seen = new Set<string>();
+                const choices: { name: string; value: string }[] = [];
+
+                const monsters = await db.monster.findMany({
+                    where: query ? { name: { contains: query, mode: "insensitive" } } : undefined,
+                    select: { name: true, level: true, family: { select: { name: true } } },
+                    orderBy: { name: "asc" },
+                    take: 25
+                });
+                for (const m of monsters) {
+                    if (m.name && !seen.has(m.name.toLowerCase())) {
+                        seen.add(m.name.toLowerCase());
+                        const meta = [m.level ? `Niv. ${m.level}` : null, m.family?.name].filter(Boolean).join(" • ");
+                        choices.push({
+                            name: meta ? `${m.name} (${meta})`.slice(0, 100) : m.name.slice(0, 100),
+                            value: m.name.slice(0, 100)
+                        });
+                        if (choices.length >= 25) break;
+                    }
+                }
+
+                if (choices.length < 25 && query) {
+                    const archis = await db.archimonstre.findMany({
+                        where: { name: { contains: query, mode: "insensitive" } },
+                        select: { name: true, level: true, zone: true },
+                        take: 25 - choices.length
+                    });
+                    for (const a of archis) {
+                        if (a.name && !seen.has(a.name.toLowerCase())) {
+                            seen.add(a.name.toLowerCase());
+                            const meta = [a.level ? `Niv. ${a.level}` : null, a.zone].filter(Boolean).join(" • ");
+                            choices.push({
+                                name: `🌟 ${a.name}${meta ? ` (${meta})` : ""}`.slice(0, 100),
+                                value: a.name.slice(0, 100)
+                            });
+                            if (choices.length >= 25) break;
+                        }
+                    }
+                }
+
+                if (choices.length < 25) {
+                    const stats = await db.monsterStat.findMany({
+                        where: query ? { monsterName: { contains: query, mode: "insensitive" } } : undefined,
+                        select: { monsterName: true },
+                        take: 25 - choices.length
+                    });
+                    for (const s of stats) {
+                        if (s.monsterName && !seen.has(s.monsterName.toLowerCase())) {
+                            seen.add(s.monsterName.toLowerCase());
+                            choices.push({
+                                name: s.monsterName.slice(0, 100),
+                                value: s.monsterName.slice(0, 100)
+                            });
+                            if (choices.length >= 25) break;
+                        }
+                    }
+                }
+
+                return NextResponse.json({
+                    type: 8,
+                    data: { choices }
+                });
+            }
+
             // Default empty autocomplete for unhandled options
             return NextResponse.json({ type: 8, data: { choices: [] } });
         }
@@ -1681,6 +1824,7 @@ export async function POST(request: NextRequest) {
 
             // RBAC Gate — check GuildSlashCommandPermission
             if (guild_id) {
+                const channelId: string = payload.channel_id || payload.channel?.id || "";
                 const guildConfig = await db.guildConfig.findUnique({
                     where: { discordGuildId: guild_id },
                     include: {
@@ -1700,6 +1844,18 @@ export async function POST(request: NextRequest) {
                                 flags: 64
                             }
                         });
+                    }
+                    if (perm && perm.channelIds && perm.channelIds.length > 0) {
+                        if (!channelId || !perm.channelIds.includes(channelId)) {
+                            const allowedChannels = perm.channelIds.map((cId: string) => `<#${cId}>`).join(", ");
+                            return NextResponse.json({
+                                type: 4,
+                                data: {
+                                    content: `🚫 La commande \`/${commandName}\` n'est pas autorisée dans ce salon.\n👉 Salon(s) autorisé(s) : ${allowedChannels}`,
+                                    flags: 64
+                                }
+                            });
+                        }
                     }
                     if (perm && perm.roleIds.length > 0) {
                         const hasRole = userRoleIds.some((r) => perm.roleIds.includes(r));
@@ -1907,6 +2063,154 @@ export async function POST(request: NextRequest) {
                                 { name: "Membres Actifs", value: `${memberCount}`, inline: true }
                             ],
                             footer: { text: "SigilOS • Statistiques Guilde" },
+                            timestamp: new Date().toISOString()
+                        }],
+                        flags: 0
+                    }
+                });
+            }
+
+            // ── /boss ─────────────────────────────────────────────────
+            if (commandName === "boss") {
+                const monsterName = payload.data?.options?.find((o: any) => o.name === "nom")?.value?.trim();
+                const appBaseUrl = getAppBaseUrl();
+
+                if (!monsterName) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            content: "💀 Utilise `/boss nom:Comte Harebourg` pour consulter la fiche d'un boss !",
+                            flags: 64
+                        }
+                    });
+                }
+
+                const { getMonsterStats } = await import("@/server/actions/game-data-actions");
+                const res = await getMonsterStats(monsterName);
+
+                if (!res.success || !res.data) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            content: `❌ Boss « ${monsterName} » introuvable.\n💡 Tape les premières lettres et choisis dans la liste déroulante d'autocomplétion !`,
+                            flags: 64
+                        }
+                    });
+                }
+
+                const mob = res.data;
+                const g = mob.grades?.[mob.grades.length - 1] || mob.grades?.[0];
+                const resists = g?.resists || {};
+
+                const fields: { name: string; value: string; inline?: boolean }[] = [
+                    { name: "❤️ PV", value: g?.lifePoints ? Number(g.lifePoints).toLocaleString("fr-FR") : "—", inline: true },
+                    { name: "⚡ PA / PM", value: `${g?.actionPoints ?? "—"} / ${g?.movementPoints ?? "—"}`, inline: true },
+                    { name: "📍 Coordonnées", value: mob.coordinates ? `[${mob.coordinates.x}, ${mob.coordinates.y}]` : "Donjon", inline: true },
+                    {
+                        name: "🛡️ Résistances",
+                        value: `⚪ ${resists.neutral ?? 0}%  •  🟤 ${resists.earth ?? 0}%  •  🔴 ${resists.fire ?? 0}%\n🔵 ${resists.water ?? 0}%  •  🟢 ${resists.air ?? 0}%`,
+                        inline: false
+                    }
+                ];
+
+                if (mob.spells && mob.spells.length > 0) {
+                    const topSpells = mob.spells.slice(0, 4).map((s: any) => {
+                        const po = s.range > 0 ? `${s.minRange > 0 ? `${s.minRange}-` : ""}${s.range} PO` : "CàC";
+                        const los = s.castTestLos ? "" : " (Sans LdV)";
+                        return `• **${s.name}** (${s.apCost} PA • ${po}${los})`;
+                    }).join("\n");
+                    fields.push({ name: "⚔️ Sorts majeurs", value: topSpells, inline: false });
+                }
+
+                if (mob.drops && mob.drops.length > 0) {
+                    const topDrops = mob.drops.slice(0, 3).map((d: any) => `• ${d.name} (${d.percent}%)`).join("\n");
+                    fields.push({ name: "💎 Drops notables", value: topDrops, inline: false });
+                }
+
+                return NextResponse.json({
+                    type: 4,
+                    data: {
+                        embeds: [{
+                            title: `💀 ${mob.name} (Niv. ${g?.level || "?"})`,
+                            color: 0xED4245,
+                            thumbnail: mob.imageUrl ? { url: mob.imageUrl } : undefined,
+                            fields,
+                            url: `${appBaseUrl}/donjons?boss=${encodeURIComponent(mob.name)}`,
+                            footer: { text: "SigilOS • Bestiaire & Boss" },
+                            timestamp: new Date().toISOString()
+                        }],
+                        flags: 0
+                    }
+                });
+            }
+
+            // ── /monstre ──────────────────────────────────────────────
+            if (commandName === "monstre") {
+                const monsterName = payload.data?.options?.find((o: any) => o.name === "nom")?.value?.trim();
+                const appBaseUrl = getAppBaseUrl();
+
+                if (!monsterName) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            content: "👾 Utilise `/monstre nom:Bouftou` pour consulter la fiche d'un monstre !",
+                            flags: 64
+                        }
+                    });
+                }
+
+                const { getMonsterStats } = await import("@/server/actions/game-data-actions");
+                const res = await getMonsterStats(monsterName);
+
+                if (!res.success || !res.data) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            content: `❌ Monstre « ${monsterName} » introuvable.\n💡 Tape les premières lettres et choisis dans la liste déroulante d'autocomplétion !`,
+                            flags: 64
+                        }
+                    });
+                }
+
+                const mob = res.data;
+                const g = mob.grades?.[mob.grades.length - 1] || mob.grades?.[0];
+                const resists = g?.resists || {};
+
+                const fields: { name: string; value: string; inline?: boolean }[] = [
+                    { name: "❤️ PV", value: g?.lifePoints ? Number(g.lifePoints).toLocaleString("fr-FR") : "—", inline: true },
+                    { name: "⚡ PA / PM", value: `${g?.actionPoints ?? "—"} / ${g?.movementPoints ?? "—"}`, inline: true },
+                    { name: "📍 Coordonnées", value: mob.coordinates ? `[${mob.coordinates.x}, ${mob.coordinates.y}]` : "Monde", inline: true },
+                    {
+                        name: "🛡️ Résistances",
+                        value: `⚪ ${resists.neutral ?? 0}%  •  🟤 ${resists.earth ?? 0}%  •  🔴 ${resists.fire ?? 0}%\n🔵 ${resists.water ?? 0}%  •  🟢 ${resists.air ?? 0}%`,
+                        inline: false
+                    }
+                ];
+
+                if (mob.spells && mob.spells.length > 0) {
+                    const topSpells = mob.spells.slice(0, 4).map((s: any) => {
+                        const po = s.range > 0 ? `${s.minRange > 0 ? `${s.minRange}-` : ""}${s.range} PO` : "CàC";
+                        const los = s.castTestLos ? "" : " (Sans LdV)";
+                        return `• **${s.name}** (${s.apCost} PA • ${po}${los})`;
+                    }).join("\n");
+                    fields.push({ name: "⚔️ Sorts majeurs", value: topSpells, inline: false });
+                }
+
+                if (mob.drops && mob.drops.length > 0) {
+                    const topDrops = mob.drops.slice(0, 3).map((d: any) => `• ${d.name} (${d.percent}%)`).join("\n");
+                    fields.push({ name: "💎 Drops notables", value: topDrops, inline: false });
+                }
+
+                return NextResponse.json({
+                    type: 4,
+                    data: {
+                        embeds: [{
+                            title: `👾 ${mob.name} (Niv. ${g?.level || "?"})`,
+                            color: 0x3498DB,
+                            thumbnail: mob.imageUrl ? { url: mob.imageUrl } : undefined,
+                            fields,
+                            url: `${appBaseUrl}/monde?search=${encodeURIComponent(mob.name)}`,
+                            footer: { text: "SigilOS • Bestiaire & Monstres" },
                             timestamp: new Date().toISOString()
                         }],
                         flags: 0

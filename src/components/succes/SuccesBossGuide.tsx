@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Brain, Compass, ExternalLink, Flame, Info, Loader2, MapPin, ScrollText, Search, Shield, Swords, Target, Users, X, Zap, Gem } from "lucide-react";
+import { Brain, Compass, ExternalLink, Flame, Info, Loader2, MapPin, PictureInPicture2, ScrollText, Search, Shield, Swords, Target, Users, X, Zap, Gem } from "lucide-react";
+import { useBossOverlay } from "@/hooks/use-boss-overlay";
 import { getDungeonsWithAchievements, getDungeonMonsters, getMonsterStats } from "@/server/actions/game-data-actions";
 import { getLinkedQuests } from "@/server/actions/dofus-quest-actions";
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
@@ -150,6 +151,7 @@ interface LinkedQuestsData {
 }
 
 export function SuccesBossGuide({ guildId }: { guildId: string }) {
+    const { openBossOverlay, isOpen: isOverlayOpen } = useBossOverlay(guildId);
     const [dungeons, setDungeons] = useState<BossDungeon[]>([]);
     const [statsByBoss, setStatsByBoss] = useState<Record<string, MonsterStats>>({});
     const [loadingStatsByBoss, setLoadingStatsByBoss] = useState<Record<string, boolean>>({});
@@ -396,6 +398,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                 </p>
             </div>
 
+
             {!selected && (filtered.length === 0 ? (
                 <div className="py-16 text-center text-muted-foreground border border-dashed border-border rounded-2xl bg-background/40">
                     <Swords className="w-10 h-10 mx-auto mb-3 opacity-20" />
@@ -503,6 +506,25 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                     <button
                                         type="button"
                                         onClick={() => {
+                                            openBossOverlay({
+                                                monsterName: activeMonsterName ?? selected.bossName,
+                                                dungeonName: selected.name,
+                                            });
+                                        }}
+                                        title="Ouvrir la fiche dans l'Encyclopédie Overlay"
+                                        className={cn(
+                                            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors",
+                                            isOverlayOpen
+                                                ? "border-amber-500/50 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25"
+                                                : "border-amber-500/30 bg-amber-500/8 text-amber-400/80 hover:bg-amber-500/15 hover:text-amber-300 hover:border-amber-500/50"
+                                        )}
+                                    >
+                                        <PictureInPicture2 className="w-3.5 h-3.5" />
+                                        {isOverlayOpen ? "Encyclopédie ouverte" : "Encyclopédie Overlay"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
                                             setSelected(null);
                                             setSelectedSpellId(undefined);
                                         }}
@@ -543,7 +565,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                     <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
                                         {/* PV */}
                                         <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-surface border border-border/70" title="Points de Vie">
-                                            <img src="/assets/module-succes/vitalité.png" alt="PV" className="w-4 h-4 object-contain" />
+                                            <img src="/assets/module-succes/vitalite.png" alt="PV" className="w-4 h-4 object-contain" />
                                             <span className="text-sm font-bold text-foreground tabular-nums">
                                                 {g ? g.lifePoints?.toLocaleString("fr-FR") : "-"}
                                             </span>
@@ -1058,7 +1080,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                         key={idx}
                                         type="button"
                                         onClick={() => setSelectedDrop(drop)}
-                                        title={`${drop.name} — ${drop.percent}%`}
+                                        title={`${drop.name} — ${drop.percent > 0 && drop.percent < 0.01 ? parseFloat(drop.percent.toFixed(3)) : parseFloat(Number(drop.percent || 0).toFixed(2))}%`}
                                         className="flex items-center gap-2.5 rounded-xl bg-surface border border-border p-2 text-left hover:bg-elevated hover:border-border-strong transition-colors"
                                     >
                                         <div className="w-9 h-9 rounded-lg bg-background border border-border p-1 flex items-center justify-center shrink-0 overflow-hidden">
@@ -1066,7 +1088,9 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                         </div>
                                         <div className="min-w-0">
                                             <p className="text-xs font-semibold text-foreground truncate">{drop.name}</p>
-                                            <span className="text-[11px] font-bold text-info">{drop.percent}%</span>
+                                            <span className="text-[11px] font-bold text-info">
+                                                {drop.percent > 0 && drop.percent < 0.01 ? parseFloat(drop.percent.toFixed(3)) : parseFloat(Number(drop.percent || 0).toFixed(2))}%
+                                            </span>
                                         </div>
                                     </button>
                                 ))}
@@ -1117,8 +1141,8 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                 <h3 className="text-sm font-bold text-foreground">{selectedDrop.name}</h3>
                                 <p className="text-xs text-info font-bold mt-1">
                                     Taux de drop : {selectedDrop.percentByGrade?.length
-                                        ? `${Math.min(...selectedDrop.percentByGrade)} % – ${Math.max(...selectedDrop.percentByGrade)} % (grade 1-5)`
-                                        : `${selectedDrop.percent}%`}
+                                        ? `${Math.min(...selectedDrop.percentByGrade) < 0.01 ? parseFloat(Math.min(...selectedDrop.percentByGrade).toFixed(3)) : parseFloat(Number(Math.min(...selectedDrop.percentByGrade) || 0).toFixed(2))} % – ${Math.max(...selectedDrop.percentByGrade) < 0.01 ? parseFloat(Math.max(...selectedDrop.percentByGrade).toFixed(3)) : parseFloat(Number(Math.max(...selectedDrop.percentByGrade) || 0).toFixed(2))} % (grade 1-5)`
+                                        : `${selectedDrop.percent > 0 && selectedDrop.percent < 0.01 ? parseFloat(selectedDrop.percent.toFixed(3)) : parseFloat(Number(selectedDrop.percent || 0).toFixed(2))}%`}
                                 </p>
                                 <div className="flex gap-2 mt-5">
                                     <button

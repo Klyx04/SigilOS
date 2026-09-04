@@ -733,8 +733,26 @@ export async function processPollVote(
     profileId: string,
     optionId: string
 ): Promise<ActionResponse<{ action: "voted" | "removed" }>> {
+    // 🔒 Fail-closed anti-impersonation : le votant est toujours dérivé de la session,
+    // le `profileId` client est ignoré s'il ne correspond pas au profil du caller.
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
     try {
         const guildConfig = await db.guildConfig.findUniqueOrThrow({ where: { discordGuildId } });
+
+        const me = await db.userProfile.findFirst({
+            where: { userId: session.user.id, guildId: guildConfig.id, status: "ACTIVE" },
+            select: { id: true },
+        });
+        if (!me) return { success: false, error: "Profil introuvable" };
+        // Ignore le param client (anti-impersonation) — le vote est toujours pour soi.
+        if (profileId !== me.id) {
+            logger.warn("[Polls] processPollVote profileId mismatch — forced to self", { discordGuildId });
+        }
+        const effectiveProfileId = me.id;
+
+        const rl = await rateLimit(`poll:vote:${session.user.id}:${discordGuildId}`, 30, 60_000);
+        if (!rl.success) return { success: false, error: "Trop de votes, réessaie dans une minute." };
 
         // Get option + poll
         const option = await db.pollOption.findUnique({
@@ -756,7 +774,7 @@ export async function processPollVote(
 
         // Check existing vote on this option
         const existingVote = await db.pollVote.findUnique({
-            where: { optionId_voterId: { optionId, voterId: profileId } },
+            where: { optionId_voterId: { optionId, voterId: effectiveProfileId } },
         });
 
         if (existingVote) {
@@ -771,7 +789,7 @@ export async function processPollVote(
         if (!option.poll.allowMultipleVotes) {
             await (db as any).pollVote.deleteMany({
                 where: {
-                    voterId: profileId,
+                    voterId: effectiveProfileId,
                     option: { pollId: option.poll.id },
                 },
             });
@@ -779,7 +797,7 @@ export async function processPollVote(
 
         // Cast vote
         await (db as any).pollVote.create({
-            data: { optionId, voterId: profileId },
+            data: { optionId, voterId: effectiveProfileId },
         });
 
         revalidatePath(`/dashboard/${discordGuildId}/sondages`);
@@ -801,7 +819,7 @@ export async function processPollVote(
 
         return { success: true, data: { action: "voted" } };
     } catch (error) {
-        logger.error("[Polls] processPollVote error", { error, optionId, profileId });
+        logger.error("[Polls] processPollVote error", { error, optionId });
         return { success: false, error: "Erreur lors du vote" };
     }
 }

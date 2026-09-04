@@ -17,8 +17,26 @@ export function isDocumentPipSupported(): boolean {
  */
 export function preparePipDocument(win: Window): Document {
   const doc = win.document as Document;
+  if (doc.documentElement) {
+    doc.documentElement.style.height = "100%";
+    doc.documentElement.style.margin = "0";
+    doc.documentElement.style.padding = "0";
+    doc.documentElement.style.overflow = "hidden";
+    doc.documentElement.classList.add("dark");
+    if (document.documentElement.className) {
+      document.documentElement.classList.forEach((cls) => {
+        doc.documentElement.classList.add(cls);
+      });
+    }
+  }
+  doc.body.style.height = "100%";
   doc.body.style.margin = "0";
+  doc.body.style.padding = "0";
   doc.body.style.overflow = "hidden";
+  doc.body.style.backgroundColor = "#0b0c10";
+  doc.body.style.color = "#f4f4f5";
+
+  // Copie des feuilles de style via <style>
   for (const sheet of Array.from(document.styleSheets)) {
     try {
       const css = Array.from(sheet.cssRules)
@@ -31,6 +49,17 @@ export function preparePipDocument(win: Window): Document {
       // stylesheet cross-origin — ignoré
     }
   }
+
+  // Copie des balises <link rel="stylesheet"> (polices, CSS dist)
+  document.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
+    try {
+      const cloned = doc.createElement("link");
+      cloned.rel = "stylesheet";
+      cloned.href = (link as HTMLLinkElement).href;
+      doc.head.appendChild(cloned);
+    } catch {}
+  });
+
   return doc;
 }
 

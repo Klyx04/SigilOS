@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
-import { fetchGuildRoles } from "@/server/discord";
+import { fetchGuildRoles, fetchGuildChannels } from "@/server/discord";
 import { PermissionsManager } from "@/app/dashboard/[guildId]/admin/_components/permissions-manager";
 import { onboardGuild } from "@/server/actions/admin-actions";
 import { redirect } from "next/navigation";
@@ -52,10 +52,14 @@ export default async function PermissionsPage({
     if (!config) return <div>Fatal: Configuration not found after onboarding.</div>;
 
     let roles: any[] = [];
+    let rawChannels: any[] = [];
     let membersData: any = { members: [] };
     try {
-        roles = await fetchGuildRoles(guildId);
-        membersData = await getGuildMembers(guildId);
+        [roles, rawChannels, membersData] = await Promise.all([
+            fetchGuildRoles(guildId),
+            fetchGuildChannels(guildId).catch(() => []),
+            getGuildMembers(guildId)
+        ]);
     } catch (e) {
         return (
             <div className="p-6 flex flex-col gap-4">
@@ -71,6 +75,10 @@ export default async function PermissionsPage({
             </div>
         );
     }
+
+    const discordChannels = rawChannels
+        .filter((c: any) => c.type === 0 || c.type === 5)
+        .map((c: any) => ({ id: c.id, name: c.name || "salon" }));
 
     const currentMapping = (config.rolesMapping || {}) as Record<string, PermissionId[]>;
     const currentUsersMapping = ((config as any).usersMapping || {}) as Record<string, PermissionId[]>;
@@ -121,6 +129,7 @@ export default async function PermissionsPage({
                     guildId={config.id}
                     initialMatrix={slashPerms.success ? slashPerms.data || [] : []}
                     discordRoles={roles.map((r: any) => ({ id: r.id, name: r.name, color: r.color }))}
+                    discordChannels={discordChannels}
                 />
             </div>
         </div>

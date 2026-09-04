@@ -68,7 +68,7 @@ export default async function GuidesPage() {
                                     { "@type": "ListItem", "position": 1, "name": "Accueil", "item": getAppBaseUrl() },
                                     { "@type": "ListItem", "position": 2, "name": "Guides", "item": `${getAppBaseUrl()}/guides` },
                                 ],
-                            }),
+                            }).replace(/</g, "\\u003c"),
                         }}
                     />
 

@@ -144,6 +144,62 @@ export async function getOptimizedGuidesLite(guildId?: string) {
   return { success: true, guides };
 }
 
+/**
+ * 🌐 Version publique de lecture d'un guide optimisé (0-login, sans guildId ni profil).
+ * Lit le catalogue maître sans toucher aux données membres ni écrire en base.
+ */
+export async function getPublicGuideDetail(slug: string) {
+  if (!slug || typeof slug !== "string") {
+    return { success: false, error: "Slug invalide" };
+  }
+
+  const guide = await db.optimizedGuide.findUnique({
+    where: { slug },
+    include: {
+      milestones: {
+        orderBy: { order: "asc" },
+        include: {
+          sequences: {
+            orderBy: { order: "asc" },
+            include: { dungeon: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!guide) return { success: false, error: "Guide introuvable" };
+
+  // Resolve all dungeons from dungeonIds for each sequence
+  const allDungeonIds = new Set<string>();
+  for (const ms of guide.milestones) {
+    for (const seq of ms.sequences) {
+      if (Array.isArray((seq as any).dungeonIds)) {
+        for (const did of (seq as any).dungeonIds) {
+          if (did) allDungeonIds.add(did);
+        }
+      }
+    }
+  }
+  if (allDungeonIds.size > 0) {
+    const dungeons = await db.dungeon.findMany({
+      where: { id: { in: Array.from(allDungeonIds) } },
+      select: { id: true, name: true, bossName: true, imageUrl: true, level: true },
+    });
+    const dungeonMap = new Map(dungeons.map((d) => [d.id, d]));
+    for (const ms of guide.milestones) {
+      for (const seq of ms.sequences) {
+        const ids = (seq as any).dungeonIds as string[] | undefined;
+        if (ids && ids.length > 0) {
+          (seq as any).dungeons = ids.map((id) => dungeonMap.get(id)).filter(Boolean);
+        }
+      }
+    }
+  }
+
+  return { success: true, guide };
+}
+
 export async function getOptimizedGuideDetail(slug: string, guildId: string, altPseudo?: string) {
 
   const ctx = await getUserContext(guildId);
@@ -1417,13 +1473,15 @@ export async function inviteHelperForSequence(
   const belongs = await validateChannelBelongsToGuild(channelId, guildId).catch(() => false);
   if (!belongs) return { success: false, error: "Salon Discord invalide ou n'appartient pas à ce serveur" };
 
+  // 🔒 Anti-oracle + anti cross-guilde : la séquence reste globale (guide partagé),
+  // mais le helper DOIT appartenir à la guilde appelante. Erreur unique (fail-closed).
   const [sequence, helper] = await Promise.all([
     db.guideSequence.findUnique({
       where: { id: sequenceId },
       select: { subGuideName: true },
     }),
-    db.userProfile.findUnique({
-      where: { id: helperProfileId },
+    db.userProfile.findFirst({
+      where: { id: helperProfileId, guild: { discordGuildId: guildId }, status: "ACTIVE" },
       select: {
         user: {
           select: { accounts: { where: { provider: "discord" }, select: { providerAccountId: true } } },
@@ -1431,10 +1489,10 @@ export async function inviteHelperForSequence(
       },
     }),
   ]);
-  if (!sequence) return { success: false, error: "Quête introuvable" };
+  if (!sequence || !helper?.user) return { success: false, error: "Cible introuvable" };
 
   const helperDiscordId = helper?.user?.accounts?.[0]?.providerAccountId;
-  if (!helperDiscordId) return { success: false, error: "Ce membre n'est pas relié à Discord" };
+  if (!helperDiscordId) return { success: false, error: "Cible introuvable" };
 
   const questName = sequence.subGuideName || sequenceId;
   const sender = ctx.name || "Un membre";

@@ -820,6 +820,30 @@ export async function siphonQuestsFromDofusDB(limit = 100): Promise<ActionRespon
     }
 }
 
+/**
+ * Action d'administration (GOD) pour déclencher le siphonnage intégral
+ * des donjons, monstres de salles et familles de boss DofusDB.
+ * Met à jour public/game-data/dungeon-monsters.json.
+ */
+export async function siphonDungeonMonstersDatasetAction(): Promise<ActionResponse<{
+    totalDungeons: number;
+    totalMonsters: number;
+    totalBossFamilies: number;
+}>> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+
+    try {
+        const { siphonDungeonMonstersDataset } = await import("@/lib/dungeon-monsters-siphon");
+        const result = await siphonDungeonMonstersDataset();
+        revalidatePath('/god/game-data');
+        return { success: true, data: result };
+    } catch (error: any) {
+        logger.error('[siphonDungeonMonstersDatasetAction] Error:', error);
+        return { success: false, error: error?.message || 'Erreur lors du siphonnage des monstres et donjons' };
+    }
+}
+
 
 // ===========================
 // DUNGEON ACHIEVEMENTS (Manual management)

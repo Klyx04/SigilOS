@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { Trophy } from "lucide-react";
 import { LadderClient } from "./_components/ladder-client";
 import { getUserContext } from "@/server/actions/user-actions";
 import AccessDenied from "@/components/access-denied";
@@ -47,8 +46,7 @@ export default async function LadderPage({ params }: Props) {
                     <UnifiedModuleHeader
                         title="Classement de Guilde"
                         description="Découvrez les membres les plus actifs et leur progression en jeu."
-                        icon={Trophy}
-                        iconColor="#f59e0b"
+                        imageSrc="/assets/dofus/game-icons/ranking-gold.png"
                         backHref={`/dashboard/${guildId}`}
                         actions={<ModuleTourReplayButton phase="ladder" />}
                     />

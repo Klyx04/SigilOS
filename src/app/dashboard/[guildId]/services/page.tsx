@@ -77,6 +77,7 @@ export default async function ServicesPage({ params }: { params: Promise<{ guild
                 <Suspense fallback={<div className="h-64 flex items-center justify-center text-muted-foreground text-sm">Chargement des services...</div>}>
                     <PassagesClient
                         guildId={guildId}
+                        userId={user.id}
                         profileId={user.profileId || undefined}
                         isAdmin={isAdmin}
                         canCreate={user.canViewServices}

@@ -12,6 +12,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // 1. Static public routes (indexable, 200, pas de zone privée ni 404)
     const staticRoutes: MetadataRoute.Sitemap = [
         { url: `${baseUrl}/`, lastModified: now, changeFrequency: "weekly", priority: 1 },
+        { url: `${baseUrl}/guides/rush-sylvestre`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
+        { url: `${baseUrl}/boss`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
         { url: `${baseUrl}/almanax`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
         { url: `${baseUrl}/guilds`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
         { url: `${baseUrl}/guides`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
@@ -76,6 +78,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         }
     } catch (error) {
         console.error("[Sitemap] Error fetching almanax dates:", error);
+    }
+
+    // Boss & Donjons publics : fiches tactiques Dofensive indexables
+    try {
+        const dungeons = await db.dungeon.findMany({
+            select: { id: true, updatedAt: true },
+        });
+        for (const d of dungeons) {
+            routes.push({
+                url: `${baseUrl}/boss/${d.id}`,
+                lastModified: d.updatedAt ?? now,
+                changeFrequency: "monthly",
+                priority: 0.6,
+            });
+        }
+    } catch (error) {
+        console.error("[Sitemap] Error fetching boss pages:", error);
     }
 
     return routes;

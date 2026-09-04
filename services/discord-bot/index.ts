@@ -709,6 +709,74 @@ client.on(Events.MessageCreate, async (message) => {
         lastDiscordMessageAt: new Date(),
         ...incrementData
     }, 'Message');
+
+    // 1bis. DÉTECTION D'ACTIVITÉ SUR LES POSTS DJ/QUÊTES & SONGES
+    // Si des membres discutent dans le salon ou thread lié à un post, on actualise
+    // updatedAt pour éviter les faux rappels d'inactivité (J+7) du CRON.
+    try {
+        const channelId = message.channelId;
+        const now = new Date();
+
+        // Si le salon est un thread, le channelId peut être le thread ou son parent
+        const isThread = message.channel.isThread?.() || false;
+        const parentId = isThread ? (message.channel as any).parentId : null;
+        const candidateChannelIds = [channelId, parentId].filter(Boolean) as string[];
+
+        // A. Posts Donjon / Quête
+        const openDjPosts = await db.djSearchPost.findMany({
+            where: {
+                discordChannelId: { in: candidateChannelIds },
+                status: { in: ["OPEN", "FULL"] }
+            },
+            select: { id: true, dungeonsJson: true }
+        });
+
+        if (openDjPosts.length > 0) {
+            for (const p of openDjPosts) {
+                const currentJson = (p.dungeonsJson && typeof p.dungeonsJson === "object") ? p.dungeonsJson : {};
+                await db.djSearchPost.update({
+                    where: { id: p.id },
+                    data: {
+                        updatedAt: now,
+                        lastReminderAt: null,
+                        dungeonsJson: {
+                            ...(Array.isArray(p.dungeonsJson) ? { _items: p.dungeonsJson } : currentJson),
+                            _autoReminderCount: 0 // Réinitialise les rappels si les membres discutent
+                        }
+                    }
+                });
+            }
+            console.log(`[Discord Bot] 💬 Activité détectée sur ${openDjPosts.length} post(s) DJ/Quête (salon ${channelId}) — updatedAt actualisé.`);
+        }
+
+        // B. Runs Songes
+        const activeRuns = await db.dreamRun.findMany({
+            where: {
+                discordChannelId: { in: candidateChannelIds },
+                status: { in: ["RECRUITING", "IN_PROGRESS"] }
+            },
+            select: { id: true }
+        });
+
+        if (activeRuns.length > 0) {
+            for (const r of activeRuns) {
+                await db.dreamRun.update({
+                    where: { id: r.id },
+                    data: {
+                        updatedAt: now,
+                        lastReminderAt: null
+                    }
+                });
+                // Nettoyer les rappels passés car il y a eu de l'activité
+                await (db as any).dreamRunReminder.deleteMany({
+                    where: { runId: r.id }
+                }).catch(() => {});
+            }
+            console.log(`[Discord Bot] 💬 Activité détectée sur ${activeRuns.length} run(s) Songes (salon ${channelId}) — updatedAt actualisé.`);
+        }
+    } catch (actErr) {
+        console.error('[Discord Bot] Erreur détection activité salon post:', actErr);
+    }
 });
 
 // 2. TRACK VOICE SESSIONS

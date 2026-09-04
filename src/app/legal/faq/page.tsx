@@ -33,10 +33,10 @@ const FAQ_SECTIONS: FaqSection[] = [
         icon: HelpCircle,
         items: [
             { q: "Qu'est-ce que SigilOS ?", a: "SigilOS est un outil web de gestion de guilde pour Dofus, relié à votre serveur Discord. Il regroupe au même endroit le suivi des quêtes et de la progression, les sorties et événements, le calendrier, l'annuaire, les guides ainsi que le suivi des archimonstres. L'accès se fait uniquement via Discord." },
-            { q: "Comment créer l'espace de ma guilde ?", a: "Depuis la page d'accueil, le bouton « Créer l'espace de ma guilde » ouvre une demande d'accès. Vous pouvez aussi rejoindre le serveur Discord officiel du projet et ouvrir un ticket. La création est réservée au meneur de guilde ou à un officier habilité." },
-            { q: "Comment se connecter ?", a: "La connexion se fait uniquement avec votre compte Discord (OAuth2). Il n'existe ni compte ni mot de passe SigilOS : vous vous connectez à Discord, puis vous accédez aux guildes où vous êtes membre. SigilOS ne récupère que votre identité et la liste de vos serveurs." },
-            { q: "Est-ce que SigilOS est gratuit ?", a: "Oui. SigilOS est gratuit et sans publicité pour les guildes qui en font la demande et obtiennent un accès." },
-            { q: "Pourquoi ne vois-je pas ma guilde après connexion ?", a: "Il faut que votre guilde soit déjà enregistrée sur SigilOS et que vous en soyez membre avec un rôle actif. Sinon, contactez un meneur ou un officier de votre guilde, ou formulez une demande d'accès sur le serveur Discord officiel." },
+            { q: "Comment installer SigilOS pour ma guilde ?", a: "Connectez-vous directement avec votre compte Discord. Si vous êtes administrateur du serveur de votre guilde, l'installation se fait immédiatement en autonomie en 1 clic. Vous pouvez également ouvrir un ticket sur notre serveur Discord officiel si vous préférez un accompagnement VIP." },
+            { q: "Comment se connecter ?", a: "La connexion se fait uniquement avec votre compte Discord (OAuth2). Il n'existe ni compte ni mot de passe SigilOS : vous vous connectez à Discord, puis vous accédez aux guildes où vous êtes membre ou administrateur. SigilOS ne récupère que votre identité et la liste de vos serveurs." },
+            { q: "Est-ce que SigilOS est gratuit ?", a: "Oui. SigilOS est 100% gratuit et sans publicité pour toutes les guildes Dofus." },
+            { q: "Pourquoi ne vois-je pas ma guilde après connexion ?", a: "Si votre guilde n'est pas encore configurée et que vous administrez son serveur Discord, vous pouvez la déployer en 1 clic depuis votre tableau de bord. Si vous êtes simple membre, demandez à un meneur ou un officier d'installer SigilOS sur le serveur Discord." },
         ],
     },
     {

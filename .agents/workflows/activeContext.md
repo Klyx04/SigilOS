@@ -1,5 +1,18 @@
 # Active Context — SigilOS
 
+## Chantier du jour (2026-09-04, suite) — Rush Sylvestre : refonte visuelle anti-slop + fil conducteur imagé
+> Branche `feat/chantier-2026-09-04-cyber-rescan` — **rush non committé** (commit + PR `dev` à faire).
+> Référence vs concurrent **Duffus** (capture) : consigne **inspiration, pas recopie** (100 % assets locaux).
+- ✅ **Bug header ressources sidebar** (`RushChapterSidebar.tsx`) : titre écrasé → header 2 lignes, toggle compact, libellé Total/Encore selon mode, quantités `×`.
+- ✅ **Fil conducteur** : ancres œufs 40px jalons liés + vignettes 32px chapitres (`RushTimelineClient.tsx`) ; strip `DofusProgressStrip` **branché puis retiré** (doublon + couverture `dofusId` trop faible — fichier conservé).
+- ✅ **Panneau guilde** (`GuildStatusPanel.tsx`) : clic = filtre timeline + détail membres en ligne (top 8 + déplieur) ; modale vide supprimée ; **fix `%` jamais calculé**.
+- ✅ **Hero diet** : 4 cartes KPI → 1 barre de statut ; boutons ghost unifiés ; **Signaler → icône** ; **Overlay → seul primaire** ; Niv.200 conservé.
+- ✅ **Ambiance** : halo hero + glow œuf teintés au Dofus actif (CSS statique, 0 coût) + **particules** `GuideParticles` teintées + toggle Options persisté (défaut ON, reduced-motion OK).
+- ✅ **Feedback overlay natif** (`RushOverlayFeedbackPanel.tsx`, nouveau) : le `Dialog` Radix portalait vers le document principal → formulaire `fixed` viewport overlay ; modale dashboard intacte.
+- ✅ **Vérifs** : `tsc` 0 · `eslint` 0 erreur · 64/64 tests rush (`test:run` complet + `build` **non faits**).
+- 🔴 **Reste n°1 (data, côté God)** : **backfill `dofusId`** (sélecteur existant) — débloque strip + panneau + ancres + vignettes. Puis check visuel + commit/PR.
+- 📄 Mémo : `src/temp/memo-2026-09-04-rush-refonte-visuelle.md` · Maquettes : `src/temp/refonte-rush-sylvestre-2026.html`, `src/temp/refonte-guide-sylvestre/09-refonte-ui-ux-2026.md`.
+
 ## Chantier du jour (2026-09-04) — Rush Sylvestre : Pense-bête + modale de lancement + config GOD (PR #588)
 > Branche `feat/chantier-2026-09-03-rush-ui-pense-bete` (9 commits) → PR #588 (base `dev`), **MERGEABLE**.
 - ✅ **Retrait bouton + modale « Ressources » du dashboard** (conservés dans l'overlay).

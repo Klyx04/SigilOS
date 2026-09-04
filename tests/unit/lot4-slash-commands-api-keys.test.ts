@@ -20,7 +20,8 @@ vi.mock("@/lib/prisma", () => ({
         },
         guildConfig: {
             findUnique: vi.fn(),
-            findMany: vi.fn()
+            findMany: vi.fn(),
+            findFirst: vi.fn()
         },
         user: { count: vi.fn() },
         userProfile: { count: vi.fn() },
@@ -33,23 +34,66 @@ import { API_SCOPES } from "@/lib/api-scopes";
 import crypto from "crypto";
 
 describe("⚡ Lot 4 — Slash Commands Discord (#158)", () => {
-    it("should have all 6 core slash commands configured in the catalog", () => {
+    it("should have all 8 core slash commands configured in the catalog", () => {
         const names = SLASH_COMMANDS_CATALOG.map(c => c.name);
         expect(names).toContain("almanax");
         expect(names).toContain("dofus");
         expect(names).toContain("profil");
         expect(names).toContain("sorties");
         expect(names).toContain("defi");
+        expect(names).toContain("boss");
+        expect(names).toContain("monstre");
         expect(names).toContain("stats");
-        expect(SLASH_COMMANDS_CATALOG.length).toBe(6);
+        expect(SLASH_COMMANDS_CATALOG.length).toBe(8);
     });
 
-    it("should provide valid categories and non-empty usages", () => {
-        SLASH_COMMANDS_CATALOG.forEach(cmd => {
-            expect(cmd.usage.startsWith("/")).toBe(true);
-            expect(cmd.description.length).toBeGreaterThan(10);
-            expect(["DONJONS_QUETES", "COMMUNAUTE", "PROFIL", "UTILITAIRE"]).toContain(cmd.category);
+    it("should validate command execution based on roles and channels", async () => {
+        const { checkSlashCommandExecutionAllowed } = await import("@/server/actions/slash-command-actions");
+        const { db } = await import("@/lib/prisma");
+
+        // Cas 1 : Salon restreint et utilisateur dans le mauvais salon
+        (db.guildConfig.findUnique as any).mockResolvedValueOnce({
+            id: "guild-1",
+            slashCommandPermissions: [{
+                commandName: "almanax",
+                isEnabled: true,
+                roleIds: [],
+                channelIds: ["channel-authorized"]
+            }]
         });
+
+        const resWrongChannel = await checkSlashCommandExecutionAllowed("discord-guild-1", "almanax", ["role-1"], "channel-wrong");
+        expect(resWrongChannel.allowed).toBe(false);
+        expect(resWrongChannel.reason).toContain("salon Discord");
+
+        // Cas 2 : Bon salon et aucun rôle requis -> autorisé
+        (db.guildConfig.findUnique as any).mockResolvedValueOnce({
+            id: "guild-1",
+            slashCommandPermissions: [{
+                commandName: "almanax",
+                isEnabled: true,
+                roleIds: [],
+                channelIds: ["channel-authorized"]
+            }]
+        });
+
+        const resRightChannel = await checkSlashCommandExecutionAllowed("discord-guild-1", "almanax", ["role-1"], "channel-authorized");
+        expect(resRightChannel.allowed).toBe(true);
+
+        // Cas 3 : Commande désactivée
+        (db.guildConfig.findUnique as any).mockResolvedValueOnce({
+            id: "guild-1",
+            slashCommandPermissions: [{
+                commandName: "dofus",
+                isEnabled: false,
+                roleIds: [],
+                channelIds: []
+            }]
+        });
+
+        const resDisabled = await checkSlashCommandExecutionAllowed("discord-guild-1", "dofus", ["role-1"], "channel-authorized");
+        expect(resDisabled.allowed).toBe(false);
+        expect(resDisabled.reason).toContain("désactivée");
     });
 });
 

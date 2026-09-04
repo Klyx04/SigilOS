@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Clock, CheckCircle2, MessageSquare, Star, ArrowRight, UserCheck, ShieldCheck, Search, Filter } from "lucide-react";
+import { Clock, CheckCircle2, MessageSquare, Star, ArrowRight, UserCheck, ShieldCheck, Search, Filter, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
@@ -52,13 +52,30 @@ export function ServiceRequestsView({
         });
     };
 
+    const handleCancelRequest = (requestId: string, serviceTitle: string) => {
+        if (!window.confirm(`Es-tu sûr de vouloir annuler la demande pour "${serviceTitle}" ? Cette action supprimera la demande et le message Discord.`)) {
+            return;
+        }
+        startTransition(async () => {
+            const { cancelServiceRequestAction } = await import("@/server/actions/service-actions");
+            const res = await cancelServiceRequestAction(guildId, requestId);
+            if (res.success) {
+                toast.success("Demande annulée avec succès !", {
+                    description: `La demande pour "${serviceTitle}" a été supprimée.`,
+                });
+            } else {
+                toast.error(res.error || "Erreur lors de l'annulation de la demande");
+            }
+        });
+    };
+
     const filteredRequests = requests.filter((r) => {
         // Status filter
         if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
 
         // Role filter
-        if (roleFilter === "CLIENT" && r.clientProfileId !== currentProfileId) return false;
-        if (roleFilter === "PROVIDER" && r.providerProfileId !== currentProfileId) return false;
+        if (roleFilter === "CLIENT" && r.clientProfileId !== currentProfileId && r.clientUserId !== currentUserId) return false;
+        if (roleFilter === "PROVIDER" && r.providerProfileId !== currentProfileId && r.providerUserId !== currentUserId) return false;
 
         // Search text
         if (!search) return true;
@@ -212,8 +229,8 @@ export function ServiceRequestsView({
                     {filteredRequests.map((r) => {
                         const clientName = r.clientProfile?.pseudoDofus || r.clientProfile?.discordNickname || r.clientName;
                         const providerName = r.providerProfile?.pseudoDofus || r.providerProfile?.discordNickname || r.providerProfile?.user?.name || "Passeur";
-                        const isProvider = r.providerProfileId === currentProfileId;
-                        const isClient = r.clientProfileId === currentProfileId;
+                        const isProvider = r.providerProfileId === currentProfileId || (!!currentUserId && r.providerUserId === currentUserId);
+                        const isClient = r.clientProfileId === currentProfileId || (!!currentUserId && r.clientUserId === currentUserId);
 
                         return (
                             <Card key={r.id} className="bg-surface/60 border-border/80 hover:bg-surface/80 transition-colors">
@@ -286,7 +303,21 @@ export function ServiceRequestsView({
 
                                     {/* Right: Actions */}
                                     <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end pt-2 md:pt-0 border-t md:border-t-0 border-border/50">
-                                        {/* Passeur : Clôturer */}
+                                        {/* Client ou Admin : Annuler */}
+                                        {(isClient || isAdmin) && r.status !== "CLOSED" && (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                disabled={isPending}
+                                                onClick={() => handleCancelRequest(r.id, r.listing.title)}
+                                                className="h-8 text-xs font-bold border-danger/40 text-danger hover:bg-danger/10 hover:border-danger/60 transition-colors"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                                                Annuler la demande
+                                            </Button>
+                                        )}
+
+                                        {/* Passeur ou Admin : Clôturer */}
                                         {(isProvider || isAdmin) && r.status !== "CLOSED" && (
                                             <Button
                                                 size="sm"

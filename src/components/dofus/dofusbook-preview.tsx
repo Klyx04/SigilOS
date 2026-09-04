@@ -313,15 +313,17 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
     }
 
     const cardContent = (
-        <div className={cn("group w-full max-w-[320px] mx-auto relative overflow-hidden bg-background/80 backdrop-blur-2xl border border-border rounded-[2.5rem] p-5 sm:p-6 transition-all hover:border-success/50 cursor-pointer shadow-lg", className)}>
-            <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 rounded-full blur-[80px] opacity-20 pointer-events-none transition-colors duration-300" style={{ backgroundColor: `${glowColor}33` }} />
+        <div className={cn("group w-full max-w-[320px] mx-auto relative overflow-hidden bg-surface/90 backdrop-blur-2xl border border-border/90 rounded-[2.5rem] p-5 sm:p-6 transition-all duration-300 hover:border-success/60 hover:shadow-2xl hover:shadow-success/10 cursor-pointer shadow-lg", className)}>
+            {/* Ambient Background Aura */}
+            <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 rounded-full blur-[80px] opacity-30 pointer-events-none transition-colors duration-300" style={{ backgroundColor: `${glowColor}44` }} />
+            <div className="absolute bottom-0 left-0 -ml-12 -mb-12 w-40 h-40 rounded-full blur-[80px] opacity-20 pointer-events-none transition-colors duration-300" style={{ backgroundColor: `${classArtColor}33` }} />
 
             <div className="flex flex-col gap-4 relative z-10 h-full">
                 {/* Header */}
                 <div className="flex items-center gap-3">
-                    <div className="relative w-11 h-11 shrink-0 bg-surface rounded-2xl border border-border flex items-center justify-center overflow-hidden shadow-sm">
+                    <div className="relative w-11 h-11 shrink-0 bg-background/80 rounded-2xl border border-border/80 flex items-center justify-center overflow-hidden shadow-sm ring-1 ring-white/5">
                         <div
-                            className="absolute inset-0 opacity-20 blur-md"
+                            className="absolute inset-0 opacity-30 blur-md"
                             style={{ backgroundColor: classArtColor }}
                         />
                         {(data?.classId || guessedClassId) > 0 ? (
@@ -330,28 +332,28 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                 alt={data?.className || "Class"}
                                 width={38}
                                 height={38}
-                                className="object-contain p-0.5 relative z-10"
+                                className="object-contain p-0.5 relative z-10 drop-shadow-sm group-hover:scale-105 transition-transform"
                             />
                         ) : (
                             <Users className="w-5 h-5 text-muted-foreground relative z-10" />
                         )}
                     </div>
                     <div className="flex-1 min-w-0">
-                        <h3 className="font-black text-body-sm text-foreground truncate uppercase tracking-tight leading-tight" title={title || data?.name}>{title || data?.name || "Build Dofusbook"}</h3>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="px-1.5 py-0.2 rounded-md bg-elevated border border-border text-[10px] font-black text-muted-foreground uppercase tracking-tighter">
+                        <h3 className="font-extrabold text-sm text-foreground truncate uppercase tracking-tight leading-tight group-hover:text-success transition-colors" title={title || data?.name}>{title || data?.name || "Build Dofusbook"}</h3>
+                        <div className="flex items-center gap-1.5 mt-1">
+                            <span className="px-2 py-0.5 rounded-lg bg-background border border-border/80 text-[10px] font-extrabold text-foreground tracking-tight shadow-2xs">
                                 Lvl {data?.level || "???"}
                             </span>
-                            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest truncate">{resolvedClassName}</p>
+                            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider truncate">{resolvedClassName}</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Mini Equipment Grid Preview avec icône rehaussée sur piédestal */}
-                <div className="relative aspect-square w-full bg-surface/90 p-2.5 rounded-[2.2rem] border border-border flex items-center justify-center shadow-md">
+                <div className="relative aspect-square w-full bg-background/60 p-2.5 rounded-[2.2rem] border border-border/80 flex items-center justify-center shadow-inner group-hover:border-border transition-colors">
                     <div className="absolute inset-0 overflow-hidden rounded-[2.2rem] flex items-center justify-center pointer-events-none z-0">
                         {(data?.classId || guessedClassId) > 0 && (
-                            <div className="absolute w-28 h-28 rounded-full blur-[40px] opacity-25" style={{ backgroundColor: classArtColor }} />
+                            <div className="absolute w-32 h-32 rounded-full blur-[45px] opacity-35" style={{ backgroundColor: classArtColor }} />
                         )}
                     </div>
 

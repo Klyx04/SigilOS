@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { HeroHeader } from "./hero-header";
 import { ClassDisplay } from "./class-display";
@@ -26,7 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos } from "@/server/actions/profile-actions";
 import type { ContributorTier } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
-import { UserCircle, LayoutDashboard, Shield, Sparkles, Users, Calendar, Trophy, Settings, Hammer, Wrench, Activity } from "lucide-react";
+import { UserCircle, LayoutDashboard, Shield, Sparkles, Users, Calendar, Trophy, Settings, Hammer, Wrench, Activity, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { ProfileReminderBanner } from "./profile-reminder-banner";
 import { cn } from "@/lib/utils";
@@ -154,6 +154,35 @@ export function ProfileBentoGrid({
     const searchParams = useSearchParams();
     const initialTab = initialTabProp || searchParams.get("tab") || "overview";
     const [activeTab, setActiveTab] = useState(initialTab);
+    const tabsScrollRef = useRef<HTMLDivElement>(null);
+    const [canScrollLeft, setCanScrollLeft] = useState(false);
+    const [canScrollRight, setCanScrollRight] = useState(false);
+
+    const updateScrollState = useCallback(() => {
+        const el = tabsScrollRef.current;
+        if (!el) return;
+        setCanScrollLeft(el.scrollLeft > 4);
+        setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    }, []);
+
+    useEffect(() => {
+        const el = tabsScrollRef.current;
+        if (!el) return;
+        updateScrollState();
+        el.addEventListener("scroll", updateScrollState, { passive: true });
+        const ro = new ResizeObserver(updateScrollState);
+        ro.observe(el);
+        return () => {
+            el.removeEventListener("scroll", updateScrollState);
+            ro.disconnect();
+        };
+    }, [updateScrollState]);
+
+    const scrollTabs = useCallback((dir: "left" | "right") => {
+        const el = tabsScrollRef.current;
+        if (!el) return;
+        el.scrollBy({ left: dir === "left" ? -160 : 160, behavior: "smooth" });
+    }, []);
 
     const { tourPhase, activeStepData } = useTour();
 
@@ -415,26 +444,44 @@ export function ProfileBentoGrid({
                 />
             </div>
 
-            {/* Sigma 2026 Sleek Glass Navigation Bar (Horizontal Figma 2026 UX) */}
+            {/* Sigma 2026 Sleek Glass Navigation Bar */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
-                <div className="sticky top-20 z-30 w-full bg-background/90 backdrop-blur-xl border border-border p-2 rounded-2xl shadow-2xl overflow-x-auto scrollbar-width-none [&::-webkit-scrollbar]:hidden">
-                    <TabsList className="bg-transparent flex flex-row items-center gap-1.5 h-auto justify-start border-none w-max">
+                <div className="sticky top-20 z-30 w-full min-w-0 relative">
+                    {/* Scroll shadow + arrow — left */}
+                    <div className={cn(
+                        "absolute left-0 top-0 bottom-0 z-10 flex items-center pl-1 pointer-events-none transition-opacity duration-200",
+                        canScrollLeft ? "opacity-100" : "opacity-0"
+                    )}>
+                        <button
+                            aria-label="Faire défiler vers la gauche"
+                            onClick={() => scrollTabs("left")}
+                            className="pointer-events-auto flex items-center justify-center w-7 h-7 rounded-xl bg-surface/90 border border-border/80 shadow-md text-muted-foreground hover:text-foreground hover:bg-elevated transition-all"
+                        >
+                            <ChevronLeft className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    <div
+                        ref={tabsScrollRef}
+                        className="w-full bg-surface/75 dark:bg-surface/80 backdrop-blur-2xl border border-border/80 p-1.5 rounded-2xl shadow-xl shadow-black/10 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    >
+                        <TabsList className="bg-transparent inline-flex flex-row items-center gap-1 h-auto justify-start border-none min-w-max p-0">
                         {(() => {
                             const hasServices = !readOnly || ((localProfile as any).activeServices && (localProfile as any).activeServices.length > 0);
                             const ALL_TABS = [
-                                { id: "overview", label: "Général", icon: UserCircle, activeColor: "text-success", bgActive: "bg-success/15 border-success/30 text-success " },
-                                { id: "intro", label: "Présentation", icon: LayoutDashboard, activeColor: "text-sky-400", bgActive: "bg-sky-500/15 border-sky-500/30 text-sky-300 " },
-                                { id: "dofus", label: "Quêtes Dofus", icon: Sparkles, activeColor: "text-warning", bgActive: "bg-warning/15 border-warning/30 text-warning " },
-                                { id: "combat", label: "Stuffs", icon: Shield, activeColor: "text-danger", bgActive: "bg-danger/15 border-danger/30 text-danger " },
-                                { id: "skins", label: "Skins", icon: Sparkles, activeColor: "text-pink-400", bgActive: "bg-pink-500/15 border-pink-500/30 text-pink-300 " },
-                                { id: "mules", label: "Mules", icon: Users, activeColor: "text-info", bgActive: "bg-info/15 border-info/30 text-info " },
-                                { id: "achievements", label: "Succès", icon: Trophy, activeColor: "text-warning", bgActive: "bg-warning/15 border-warning/30 text-warning " },
-                                { id: "metiers", label: "Métiers", icon: Hammer, activeColor: "text-warning", bgActive: "bg-warning/15 border-warning/30 text-warning " },
-                                { id: "artisanat", label: "Légendaire", icon: Sparkles, activeColor: "text-fuchsia-400", bgActive: "bg-fuchsia-500/15 border-fuchsia-500/30 text-fuchsia-300 " },
-                                { id: "activity", label: "Présence & Feed", icon: Activity, activeColor: "text-info", bgActive: "bg-info/15 border-info/30 text-info " },
-                                ...(canViewPlanning ? [{ id: "planning", label: "Planning", icon: Calendar, activeColor: "text-info", bgActive: "bg-info/15 border-info/30 text-info " }] : []),
-                                ...(hasServices ? [{ id: "services", label: "Services Proposés", icon: Wrench, activeColor: "text-warning", bgActive: "bg-warning/15 border-warning/30 text-warning " }] : []),
-                                ...(canEdit ? [{ id: "settings", label: "Réglages", icon: Settings, activeColor: "text-foreground", bgActive: "bg-elevated border-border-strong text-foreground" }] : []),
+                                { id: "overview", label: "Général", icon: UserCircle, activeColor: "text-emerald-400", bgActive: "bg-emerald-500/15 border-emerald-500/30 text-emerald-300 shadow-sm shadow-emerald-500/10" },
+                                { id: "intro", label: "Présentation", icon: LayoutDashboard, activeColor: "text-sky-400", bgActive: "bg-sky-500/15 border-sky-500/30 text-sky-300 shadow-sm shadow-sky-500/10" },
+                                { id: "dofus", label: "Quêtes Dofus", icon: Sparkles, activeColor: "text-amber-400", bgActive: "bg-amber-500/15 border-amber-500/30 text-amber-300 shadow-sm shadow-amber-500/10" },
+                                { id: "combat", label: "Stuffs", icon: Shield, activeColor: "text-rose-400", bgActive: "bg-rose-500/15 border-rose-500/30 text-rose-300 shadow-sm shadow-rose-500/10" },
+                                { id: "skins", label: "Skins", icon: Sparkles, activeColor: "text-pink-400", bgActive: "bg-pink-500/15 border-pink-500/30 text-pink-300 shadow-sm shadow-pink-500/10" },
+                                { id: "mules", label: "Mules", icon: Users, activeColor: "text-cyan-400", bgActive: "bg-cyan-500/15 border-cyan-500/30 text-cyan-300 shadow-sm shadow-cyan-500/10" },
+                                { id: "achievements", label: "Succès", icon: Trophy, activeColor: "text-yellow-400", bgActive: "bg-yellow-500/15 border-yellow-500/30 text-yellow-300 shadow-sm shadow-yellow-500/10" },
+                                { id: "metiers", label: "Métiers", icon: Hammer, activeColor: "text-amber-400", bgActive: "bg-amber-500/15 border-amber-500/30 text-amber-300 shadow-sm shadow-amber-500/10" },
+                                { id: "artisanat", label: "Légendaire", icon: Sparkles, activeColor: "text-fuchsia-400", bgActive: "bg-fuchsia-500/15 border-fuchsia-500/30 text-fuchsia-300 shadow-sm shadow-fuchsia-500/10" },
+                                { id: "activity", label: "Présence & Feed", icon: Activity, activeColor: "text-indigo-400", bgActive: "bg-indigo-500/15 border-indigo-500/30 text-indigo-300 shadow-sm shadow-indigo-500/10" },
+                                ...(canViewPlanning ? [{ id: "planning", label: "Planning", icon: Calendar, activeColor: "text-blue-400", bgActive: "bg-blue-500/15 border-blue-500/30 text-blue-300 shadow-sm shadow-blue-500/10" }] : []),
+                                ...(hasServices ? [{ id: "services", label: "Services Proposés", icon: Wrench, activeColor: "text-orange-400", bgActive: "bg-orange-500/15 border-orange-500/30 text-orange-300 shadow-sm shadow-orange-500/10" }] : []),
+                                ...(canEdit ? [{ id: "settings", label: "Réglages", icon: Settings, activeColor: "text-foreground", bgActive: "bg-elevated border-border-strong text-foreground shadow-sm" }] : []),
                             ].filter(t => !isEmpty[t.id]);
 
                             return ALL_TABS.map((tab) => {
@@ -445,19 +492,37 @@ export function ProfileBentoGrid({
                                         value={tab.id}
                                         data-tour={`profile-tab-${tab.id}`}
                                         className={cn(
-                                            "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border cursor-pointer shrink-0",
+                                            "relative flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold tracking-wide transition-all border cursor-pointer shrink-0 select-none",
                                             isActive
-                                                ? cn("scale-[1.02]", tab.bgActive)
-                                                : "bg-muted/40 border-border text-muted-foreground hover:text-foreground hover:bg-surface hover:border-border"
+                                                ? cn("scale-[1.01]", tab.bgActive)
+                                                : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-surface-hover/80 hover:border-border/40"
                                         )}
                                     >
-                                        <tab.icon className={cn("w-3.5 h-3.5", isActive ? tab.activeColor : "text-muted-foreground")} />
+                                        <tab.icon className={cn("w-3.5 h-3.5 transition-colors", isActive ? tab.activeColor : "text-muted-foreground/80")} />
                                         <span>{tab.label}</span>
+                                        {isActive && (
+                                            <span className="absolute bottom-0 left-3 right-3 h-[2px] bg-current opacity-80 rounded-full" />
+                                        )}
                                     </TabsTrigger>
                                 );
                             });
                         })()}
                     </TabsList>
+                    </div>
+
+                    {/* Scroll shadow + arrow — right */}
+                    <div className={cn(
+                        "absolute right-0 top-0 bottom-0 z-10 flex items-center pr-1 pointer-events-none transition-opacity duration-200",
+                        canScrollRight ? "opacity-100" : "opacity-0"
+                    )}>
+                        <button
+                            aria-label="Faire défiler vers la droite"
+                            onClick={() => scrollTabs("right")}
+                            className="pointer-events-auto flex items-center justify-center w-7 h-7 rounded-xl bg-surface/90 border border-border/80 shadow-md text-muted-foreground hover:text-foreground hover:bg-elevated transition-all"
+                        >
+                            <ChevronRight className="w-4 h-4" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Main Content Area (Full Width) */}

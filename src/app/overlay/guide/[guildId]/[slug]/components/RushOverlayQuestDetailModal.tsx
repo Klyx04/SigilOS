@@ -9,6 +9,7 @@ import { RushOverlayResourceList } from "./RushOverlayResourceList";
 import { RushOverlayTagSection } from "./RushOverlayTagSection";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { classifyTags, getDungeons, getItemTags, getSequenceCoord, type TagClassification } from "./overlay-utils";
+import { resolveDofusLocalImage } from "@/lib/dofus-image-url";
 
 interface RushOverlayQuestDetailModalProps {
   milestone: RushMilestone;
@@ -46,42 +47,54 @@ export function RushOverlayQuestDetailModal({
   const name = seq.subGuideName || seq.subGuideRef || milestone.title;
   const noobsUrl = seq.dofuspourlesnoobsUrl;
   const dbUrl = seq.dofusdbUrl;
+  const dofusImg = resolveDofusLocalImage(milestone.title) || resolveDofusLocalImage(name);
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center p-3">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3">
       <button
         type="button"
         aria-label="Fermer"
         onClick={onClose}
-        className={cn("absolute inset-0 bg-black/60 backdrop-blur-sm", isLightMode && "bg-slate-900/40")}
+        className={cn("fixed inset-0 bg-black/70 backdrop-blur-md", isLightMode && "bg-slate-900/50")}
       />
       <div
         className={cn(
-          "relative z-10 flex flex-col w-full max-w-[420px] max-h-[82vh] rounded-2xl border overflow-hidden shadow-2xl",
+          "relative z-10 flex flex-col w-full max-w-[420px] max-h-[85vh] rounded-2xl border overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-150",
           isLightMode ? "bg-white border-slate-200" : "bg-[#111419] border-[#2a3646]"
         )}
       >
         {/* Header */}
         <div
           className={cn(
-            "flex items-start justify-between gap-2 px-4 py-3 border-b shrink-0",
+            "flex items-start justify-between gap-3 px-4 py-3.5 border-b shrink-0",
             isLightMode ? "border-slate-200" : "border-[#28303a]/70"
           )}
         >
-          <div className="min-w-0">
-            <div className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.12em] text-[#e5c16e]">
-              {!isDone && <Sparkles className="w-3 h-3 text-[#d5a94e]" />}
-              <span>{isDone ? "Quête validée" : "Détails de la quête"}</span>
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            {dofusImg && (
+              <div className="relative shrink-0 w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center p-1 shadow-sm">
+                <img
+                  src={dofusImg}
+                  alt={milestone.title}
+                  className="w-full h-full object-contain drop-shadow-[0_0_10px_rgba(230,185,107,0.4)]"
+                />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.12em] text-[#e5c16e]">
+                {!isDone && <Sparkles className="w-3 h-3 text-[#d5a94e]" />}
+                <span>{isDone ? "Quête validée" : "Détails de la quête"}</span>
+              </div>
+              <h2 className={cn("mt-0.5 text-sm font-bold leading-snug truncate", isLightMode ? "text-slate-900" : "text-[#f2f0e9]")}>{name}</h2>
+              <p className={cn("mt-0.5 text-[10px] truncate", isLightMode ? "text-slate-500" : "text-[#6e7784]")}>{milestone.title}</p>
             </div>
-            <h2 className={cn("mt-0.5 text-sm font-bold leading-snug", isLightMode ? "text-slate-900" : "text-[#f2f0e9]")}>{name}</h2>
-            <p className={cn("mt-0.5 text-[10px]", isLightMode ? "text-slate-500" : "text-[#6e7784]")}>{milestone.title}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Fermer"
             className={cn(
-              "shrink-0 p-1.5 rounded-lg transition-colors",
+              "shrink-0 p-1.5 rounded-lg transition-colors cursor-pointer",
               isLightMode ? "text-slate-400 hover:text-red-500 hover:bg-red-50" : "text-[#6e7784] hover:text-red-400 hover:bg-[#1c2129]"
             )}
           >

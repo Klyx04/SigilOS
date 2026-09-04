@@ -19,13 +19,21 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    // Rate limit: 5 guild onboards per minute per user
-    const rateLimitResult = await rateLimit(`onboard:${session.user.id}`, 5, 60000);
+    // Rate limit anti-abus : max 3 créations de guilde par tranche de 10 minutes par compte
+    const rateLimitResult = await rateLimit(`onboard:${session.user.id}`, 3, 600000);
     if (!rateLimitResult.success) {
-        return { success: false, error: "Too many requests. Please wait before onboarding another guild." };
+        return { success: false, error: "Trop de requêtes de déploiement. Veuillez patienter 10 minutes." };
     }
 
     try {
+        // 0. Vérification PlatformBan (fail-closed)
+        const bannedGuild = await db.platformBan.findFirst({
+            where: { discordId: guildId, entityType: "GUILD" }
+        });
+        if (bannedGuild) {
+            return { success: false, error: "Ce serveur Discord a été banni de la plateforme SigilOS." };
+        }
+
         // 1. Check if already exists (Idempotency)
         const existing = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
@@ -68,18 +76,42 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
             return { success: true };
         }
 
-        // 2. SECURITY CHECK: Verify User is Admin of this Guild
+        // 2. SECURITY CHECK: Verify User is Admin of this Guild (allowing initial onboarding)
         const { requireGuildAdmin } = await import("./guards");
-        const guard = await requireGuildAdmin(guildId, "Initialisation de Guilde");
+        const guard = await requireGuildAdmin(guildId, "Initialisation de Guilde", { allowOnboarding: true });
 
         if (!guard.isAuthorized) {
-            return { success: false, error: guard.error || "Insufficient permissions" };
+            return { success: false, error: guard.error || "Permissions insuffisantes" };
         }
 
         const discordUserId = guard.discordUserId!;
         const guildInfo = await fetchGuild(guildId);
 
-        // 3. Create Config (Safe to proceed)
+        // 3. Auto-whitelist entry in AllowedGuild for autonomous onboarding
+        const existingAllowed = await db.allowedGuild.findUnique({
+            where: { discordGuildId: guildId }
+        });
+        const isAutonomous = !existingAllowed;
+
+        if (!existingAllowed) {
+            await db.allowedGuild.create({
+                data: {
+                    discordGuildId: guildId,
+                    name: guildInfo.name,
+                    tier: "COMMUNITY",
+                    notes: "Onboarding en autonomie",
+                    isActive: true,
+                    addedBy: discordUserId,
+                }
+            });
+        } else if (!existingAllowed.isActive) {
+            await db.allowedGuild.update({
+                where: { discordGuildId: guildId },
+                data: { isActive: true }
+            });
+        }
+
+        // 4. Create Config (Safe to proceed)
         await db.guildConfig.create({
             data: {
                 discordGuildId: guildId,
@@ -93,20 +125,39 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
         const { invalidateGuildCache } = await import("./user-actions");
         await invalidateGuildCache(guildId);
 
-        // 🔄 Invalide le cache Redis `guild_allowed:{id}` (TTL 60s) pour éviter un
-        // flash "AccessDenied" si un `false` périmé était en cache avant le déploiement.
+        // 🔄 Invalide le cache Redis `guild_allowed:{id}` (TTL 60s)
         const { invalidateAllowedGuildCache } = await import("./super-admin-actions");
         await invalidateAllowedGuildCache(guildId);
 
         revalidatePath(`/dashboard/${guildId}`);
 
-        // 📝 LOG ACTION
+        // 🔔 ALERTE TEMPS RÉEL TOUR DE CONTRÔLE GOD
+        try {
+            const { notifyGod } = await import("./god-notif-actions");
+            await notifyGod({
+                title: isAutonomous ? "🚀 Déploiement Autonome Réussi" : "✨ Déploiement Guilde Réussi",
+                message: `La guilde **${guildInfo.name}** (\`${guildId}\`) a été déployée avec succès.\n👤 Déployée par : <@${discordUserId}> (${session.user.name || "Inconnu"})\n🏷️ Type : **${isAutonomous ? "AUTONOME" : "VIP / WHITELIST"}**`,
+                type: "SYSTEM",
+                success: true,
+                metadata: {
+                    guildId,
+                    guildName: guildInfo.name,
+                    discordUserId,
+                    type: isAutonomous ? "AUTONOME" : "WHITELIST",
+                    operation: "ONBOARD_GUILD"
+                }
+            });
+        } catch (notifErr) {
+            logger.warn("[Onboard] Failed to dispatch notifyGod:", notifErr);
+        }
+
+        // 📝 LOG ACTION AUDIT
         await logAction({
             guildId,
             action: "WEBHOOK_GUILD_CREATE",
             targetType: "GUILD",
             targetId: guildId,
-            metadata: { operation: "ONBOARD_GUILD", guildName: guildInfo.name }
+            metadata: { operation: "ONBOARD_GUILD", guildName: guildInfo.name, isAutonomous }
         });
 
         return { success: true };

@@ -418,8 +418,14 @@ export async function updateServiceListing(
             return { success: false, error: "Accès refusé" };
         }
 
-        const listing = await db.serviceListing.findUnique({
-            where: { id: listingId },
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const listing = await db.serviceListing.findFirst({
+            where: { id: listingId, guildId: guildConfig.id },
             select: { profileId: true, guildId: true },
         });
         if (!listing) return { success: false, error: "Annonce introuvable" };
@@ -461,8 +467,14 @@ export async function toggleServiceStatus(
             return { success: false, error: "Accès refusé" };
         }
 
-        const listing = await db.serviceListing.findUnique({
-            where: { id: listingId },
+        const statusGuild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!statusGuild) return { success: false, error: "Guilde introuvable" };
+
+        const listing = await db.serviceListing.findFirst({
+            where: { id: listingId, guildId: statusGuild.id },
             select: { profileId: true, status: true },
         });
         if (!listing) return { success: false, error: "Annonce introuvable" };
@@ -507,8 +519,14 @@ export async function deleteServiceListing(
             return { success: false, error: "Accès refusé" };
         }
 
-        const listing = await db.serviceListing.findUnique({
-            where: { id: listingId },
+        const deleteGuild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!deleteGuild) return { success: false, error: "Guilde introuvable" };
+
+        const listing = await db.serviceListing.findFirst({
+            where: { id: listingId, guildId: deleteGuild.id },
             select: { profileId: true, discordChannelId: true, discordMessageId: true },
         });
         if (!listing) return { success: false, error: "Annonce introuvable" };
@@ -664,6 +682,7 @@ export async function contactPasseurAction(
             where: { id: listingId },
             select: {
                 id: true,
+                guildId: true,
                 category: true,
                 title: true,
                 status: true,
@@ -690,6 +709,8 @@ export async function contactPasseurAction(
             where: { discordGuildId: guildId },
             select: { servicesNotifyChannelId: true, id: true },
         });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+        if (listing.guildId !== guildConfig.id) return { success: false, error: "Annonce introuvable" };
 
         if (!guildConfig?.servicesNotifyChannelId) {
             return {

@@ -291,6 +291,12 @@ export async function refreshBuildMetadata(
     if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
 
     try {
+        const galleryGuild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!galleryGuild) return { success: false, error: "Guilde introuvable" };
+
         const { revalidatePath } = await import("next/cache");
         const isDofusRoom = /dofusroom\.com/.test(buildUrl);
         if (isDofusRoom) {
@@ -306,8 +312,8 @@ export async function refreshBuildMetadata(
         previewData = res.data;
 
         // 2. Update user profile dofusBookLinks
-        const profile = await db.userProfile.findUnique({
-            where: { id: profileId },
+        const profile = await db.userProfile.findFirst({
+            where: { id: profileId, guildId: galleryGuild.id },
             select: { id: true, dofusBookLinks: true }
         });
 
@@ -912,9 +918,16 @@ export async function shareGalleryItemOnDiscord(
  */
 export async function handleDiscordGalleryDelete(discordGuildId: string, discordMessageId: string): Promise<void> {
     try {
+        // 🔒 Scopé guilde : résout d'abord la guilde interne, puis ne touche que ses rows.
+        const deleteGuild = await db.guildConfig.findUnique({
+            where: { discordGuildId },
+            select: { id: true },
+        });
+        if (!deleteGuild) return;
+
         // 1. Try to find and delete in UserSkin
         const skin = await db.userSkin.findFirst({
-            where: { discordMessageId },
+            where: { discordMessageId, profile: { guildId: deleteGuild.id } },
             select: { id: true }
         });
 
@@ -926,12 +939,8 @@ export async function handleDiscordGalleryDelete(discordGuildId: string, discord
         }
 
         // 2. Try to find in UserProfile (JSON dofusBookLinks)
-        // Find the guild internal ID first
-        const guild = await db.guildConfig.findUnique({
-            where: { discordGuildId },
-            select: { id: true }
-        });
-        if (!guild) return;
+        // Guild déjà résolue en `deleteGuild` (scopé, fail-closed).
+        const guild = deleteGuild;
 
         // Fetch all active profiles in the guild
         const profiles = await db.userProfile.findMany({

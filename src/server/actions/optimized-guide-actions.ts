@@ -1417,13 +1417,15 @@ export async function inviteHelperForSequence(
   const belongs = await validateChannelBelongsToGuild(channelId, guildId).catch(() => false);
   if (!belongs) return { success: false, error: "Salon Discord invalide ou n'appartient pas à ce serveur" };
 
+  // 🔒 Anti-oracle + anti cross-guilde : la séquence reste globale (guide partagé),
+  // mais le helper DOIT appartenir à la guilde appelante. Erreur unique (fail-closed).
   const [sequence, helper] = await Promise.all([
     db.guideSequence.findUnique({
       where: { id: sequenceId },
       select: { subGuideName: true },
     }),
-    db.userProfile.findUnique({
-      where: { id: helperProfileId },
+    db.userProfile.findFirst({
+      where: { id: helperProfileId, guild: { discordGuildId: guildId }, status: "ACTIVE" },
       select: {
         user: {
           select: { accounts: { where: { provider: "discord" }, select: { providerAccountId: true } } },
@@ -1431,10 +1433,10 @@ export async function inviteHelperForSequence(
       },
     }),
   ]);
-  if (!sequence) return { success: false, error: "Quête introuvable" };
+  if (!sequence || !helper?.user) return { success: false, error: "Cible introuvable" };
 
   const helperDiscordId = helper?.user?.accounts?.[0]?.providerAccountId;
-  if (!helperDiscordId) return { success: false, error: "Ce membre n'est pas relié à Discord" };
+  if (!helperDiscordId) return { success: false, error: "Cible introuvable" };
 
   const questName = sequence.subGuideName || sequenceId;
   const sender = ctx.name || "Un membre";

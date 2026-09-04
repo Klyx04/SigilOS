@@ -120,7 +120,7 @@ export default async function GuildPresentationPage({ params }: Props) {
                 type="application/ld+json"
                 nonce={nonce}
                 // nosemgrep
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
             />
             <GuildPublicView guild={guild} foundedYear={foundedYear} isMember={userContext.isMember} user={session?.user} />
         </>

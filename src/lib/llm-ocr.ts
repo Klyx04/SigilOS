@@ -92,7 +92,7 @@ export interface OcrRequest {
 // CONFIGURATION & ENVIROMENT
 // =============================================================================
 
-const OCR_SPACE_API_KEY = process.env.OCR_SPACE_API_KEY || 'helloworld';
+const OCR_SPACE_API_KEY = process.env.OCR_SPACE_API_KEY || '';
 const OCR_SPACE_URL = 'https://api.ocr.space/parse/image';
 const AUTO_VALIDATE_THRESHOLD = parseInt(process.env.OCR_AUTO_VALIDATE_THRESHOLD || '70', 10);
 
@@ -126,7 +126,8 @@ async function callOcrSpace(
     imageBase64: string,
     language: string = 'fre'
 ): Promise<string> {
-    if (!OCR_SPACE_API_KEY) {
+    // 🔒 Fail-closed RGPD : interdit la clé démo partagée `helloworld` (quota tiers + transfert US non consenti).
+    if (!OCR_SPACE_API_KEY || OCR_SPACE_API_KEY === 'helloworld') {
         throw new Error('OCR_SPACE_API_KEY is not configured');
     }
 

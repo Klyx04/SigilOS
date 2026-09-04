@@ -172,7 +172,7 @@ export async function getClassSpells(classId: number, charLevel: number = 200): 
 
     try {
         const spells = await withCache<ClassSpellDamage[]>(
-            `dofusbook:class-spells:v3:${classId}:lvl${charLevel}`,
+            `dofusbook:class-spells:v4:${classId}:lvl${charLevel}`,
             86400,
             async () => {
                 // 1. Trouve la classe dans /breeds

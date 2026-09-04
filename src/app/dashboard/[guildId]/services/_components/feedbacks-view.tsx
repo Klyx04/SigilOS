@@ -6,11 +6,10 @@ import { moderateServiceFeedback } from "@/server/actions/service-actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Star, MessageSquareHeart, Trophy, Award, ThumbsUp, Calendar, Search, ShieldAlert, EyeOff, Trash2, Loader2 } from "lucide-react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Star, MessageSquareHeart, Trophy, Award, ThumbsUp, Calendar, EyeOff, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Input } from "@/components/ui/input";
 import { CATEGORY_LABELS } from "@/server/actions/services-constants";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { type DofusClass } from "@/lib/dofus-assets";
@@ -34,8 +33,10 @@ export function FeedbacksView({
     onSearchQueryChange,
 }: FeedbacksViewProps) {
     const [localSearch, setLocalSearch] = useState("");
+    // Recherche pilotée par la barre globale du parent (anti double-search) ; fallback local sinon.
     const search = searchQuery !== undefined ? searchQuery : localSearch;
-    const setSearch = onSearchQueryChange || setLocalSearch;
+    void setLocalSearch;
+    void onSearchQueryChange;
     const [isPending, startTransition] = useTransition();
 
     const handleModerate = (feedbackId: string, action: "hide" | "delete") => {
@@ -126,16 +127,7 @@ export function FeedbacksView({
                 </Card>
             </div>
 
-            {/* Search Bar */}
-            <div className="relative">
-                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Rechercher par passeur, client, service ou commentaire..."
-                    className="pl-10 h-11 bg-surface/60 border-border"
-                />
-            </div>
+            {/* Recherche via la barre globale du parent (pas de 2e search ici — anti-CLS) */}
 
             {/* Classement des Passeurs */}
             <div className="space-y-3">

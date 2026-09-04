@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getClassName, processDofusbookRawData } from "@/lib/dofusbook-utils";
+import { canonicalClassId, getClassName, processDofusbookRawData } from "@/lib/dofusbook-utils";
 
 // Matériau minimal d'un build Dofusbook (suffisant pour `processDofusbookRawData`).
 function buildRaw(overrides: Record<string, unknown> = {}) {
@@ -63,5 +63,34 @@ describe("getClassName", () => {
 
     it("renvoie « Inconnu » pour un id hors bornes", () => {
         expect(getClassName(99)).toBe("Inconnu");
+    });
+});
+
+describe("canonicalClassId (filtre galerie : Forgelance 19 vs 20)", () => {
+    it("garde la numérotation Dofusbook 1-19 telle quelle", () => {
+        expect(canonicalClassId(1)).toBe(1);
+        expect(canonicalClassId(9)).toBe(9);
+        expect(canonicalClassId(19)).toBe(19);
+        expect(canonicalClassId("9")).toBe(9);
+    });
+
+    it("convertit le breed DofusDB / l'id d'icône 20 vers Forgelance = 19", () => {
+        expect(canonicalClassId(20)).toBe(19);
+        expect(canonicalClassId("20")).toBe(19);
+    });
+
+    it("résout les slugs et noms legacy (insensible accents/casse)", () => {
+        expect(canonicalClassId("forgelance")).toBe(19);
+        expect(canonicalClassId("Forgelance")).toBe(19);
+        expect(canonicalClassId("Cra")).toBe(9);
+        expect(canonicalClassId("ecaflip")).toBe(6);
+    });
+
+    it("retourne 0 pour l'inconnu (ni build ni filtre ne matchent)", () => {
+        expect(canonicalClassId(0)).toBe(0);
+        expect(canonicalClassId(99)).toBe(0);
+        expect(canonicalClassId("zzz")).toBe(0);
+        expect(canonicalClassId(null)).toBe(0);
+        expect(canonicalClassId(undefined)).toBe(0);
     });
 });

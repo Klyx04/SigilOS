@@ -9,13 +9,18 @@ import { getClassName } from "@/lib/dofusbook-utils";
 
 const frNumber = new Intl.NumberFormat("fr-FR");
 
-/** Libellé + couleur par élément (cohérent avec les tags de la galerie). */
-const ELEMENT_META: Record<SpellElementKey, { label: string; color: string; bg: string; border: string }> = {
-    terre: { label: "Terre", color: "text-[#9D753E]", bg: "bg-[#9D753E]/10", border: "border-[#9D753E]/30" },
-    feu: { label: "Feu", color: "text-[#E33E19]", bg: "bg-[#E33E19]/10", border: "border-[#E33E19]/30" },
-    eau: { label: "Eau", color: "text-[#5AC2FF]", bg: "bg-[#5AC2FF]/10", border: "border-[#5AC2FF]/30" },
-    air: { label: "Air", color: "text-[#88C72B]", bg: "bg-[#88C72B]/10", border: "border-[#88C72B]/30" },
-    neutre: { label: "Neutre", color: "text-[#E2E2E2]", bg: "bg-[#E2E2E2]/10", border: "border-[#E2E2E2]/30" },
+/**
+ * Libellé + icône + token couleur par élément.
+ * Icônes = `/assets/module-succes/*` (vraies icônes Dofus, même mapping que
+ * `SuccesBossGuide`) ; couleurs = tokens sémantiques (cohérents fiche boss :
+ * Terre→warning, Feu→danger, Eau→info, Air→success).
+ */
+const ELEMENT_META: Record<SpellElementKey, { label: string; icon: string; text: string }> = {
+    terre: { label: "Terre", icon: "/assets/module-succes/terre.png", text: "text-warning" },
+    feu: { label: "Feu", icon: "/assets/module-succes/Intelligence.png", text: "text-danger" },
+    eau: { label: "Eau", icon: "/assets/module-succes/eau.png", text: "text-info" },
+    air: { label: "Air", icon: "/assets/module-succes/Agility.png", text: "text-success" },
+    neutre: { label: "Neutre", icon: "/assets/module-succes/neutre.png", text: "text-foreground" },
 };
 
 const KIND_LABEL: Record<string, string> = { sorts: "% Do Sorts", melee: "% Do Mêlée", distance: "% Do Dist." };
@@ -200,23 +205,23 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
     return (
         <div className="flex flex-col gap-5">
             {/* 1. Bandeau Stats du Build */}
-            <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-surface/40 backdrop-blur-md border border-border rounded-2xl">
+            <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-surface border border-border rounded-2xl">
                 <div className="flex flex-wrap items-center gap-2 text-caption">
                     <span className="px-2.5 py-1 bg-surface border border-border rounded-xl font-medium text-muted-foreground">
-                        Puissance <span className="text-foreground font-black tabular-nums">{build.elements.pu || 0}</span>
+                        Puissance <span className="text-foreground font-bold tabular-nums">{build.elements.pu || 0}</span>
                     </span>
                     <span className="px-2.5 py-1 bg-surface border border-border rounded-xl font-medium text-muted-foreground">
-                        % Do Sorts <span className="text-foreground font-black tabular-nums">{pctSorts}%</span>
+                        % Do Sorts <span className="text-foreground font-bold tabular-nums">{pctSorts}%</span>
                     </span>
                     <span className="px-2.5 py-1 bg-surface border border-border rounded-xl font-medium text-muted-foreground">
-                        % Do Mêlée <span className="text-foreground font-black tabular-nums">{pctMelee}%</span>
+                        % Do Mêlée <span className="text-foreground font-bold tabular-nums">{pctMelee}%</span>
                     </span>
                     <span className="px-2.5 py-1 bg-surface border border-border rounded-xl font-medium text-muted-foreground">
-                        % Do Dist. <span className="text-foreground font-black tabular-nums">{pctDist}%</span>
+                        % Do Dist. <span className="text-foreground font-bold tabular-nums">{pctDist}%</span>
                     </span>
                     {(build.damages.critique || 0) > 0 && (
-                        <span className="px-2.5 py-1 bg-[#f24254]/10 border border-[#f24254]/30 rounded-xl font-medium text-[#f24254]">
-                            Do Crit. <span className="font-black tabular-nums">+{build.damages.critique}</span>
+                        <span className="px-2.5 py-1 bg-danger/10 border border-danger/30 rounded-xl font-medium text-danger">
+                            Do Crit. <span className="font-bold tabular-nums">+{build.damages.critique}</span>
                         </span>
                     )}
                 </div>
@@ -234,9 +239,9 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                         type="button"
                         onClick={() => setVariantFilter("all")}
                         className={cn(
-                            "px-3 py-1.5 rounded-lg text-caption font-bold transition-all cursor-pointer",
+                            "px-3 py-1.5 rounded-lg text-caption font-bold transition-colors cursor-pointer",
                             variantFilter === "all"
-                                ? "bg-elevated text-foreground shadow-sm"
+                                ? "bg-elevated text-foreground"
                                 : "text-muted-foreground hover:text-foreground"
                         )}
                     >
@@ -246,9 +251,9 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                         type="button"
                         onClick={() => setVariantFilter("base")}
                         className={cn(
-                            "px-3 py-1.5 rounded-lg text-caption font-bold transition-all cursor-pointer",
+                            "px-3 py-1.5 rounded-lg text-caption font-bold transition-colors cursor-pointer",
                             variantFilter === "base"
-                                ? "bg-elevated text-foreground shadow-sm"
+                                ? "bg-elevated text-foreground"
                                 : "text-muted-foreground hover:text-foreground"
                         )}
                     >
@@ -258,9 +263,9 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                         type="button"
                         onClick={() => setVariantFilter("variant")}
                         className={cn(
-                            "px-3 py-1.5 rounded-lg text-caption font-bold transition-all cursor-pointer",
+                            "px-3 py-1.5 rounded-lg text-caption font-bold transition-colors cursor-pointer",
                             variantFilter === "variant"
-                                ? "bg-elevated text-foreground shadow-sm"
+                                ? "bg-elevated text-foreground"
                                 : "text-muted-foreground hover:text-foreground"
                         )}
                     >
@@ -273,7 +278,8 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                     {(["all", "terre", "feu", "eau", "air", "neutre", "utility"] as const).map((elem) => {
                         const isSelected = elementFilter === elem;
                         const label = elem === "all" ? "Tous" : elem === "utility" ? "Utilitaires" : ELEMENT_META[elem]?.label;
-                        const colorClass = elem === "all" || elem === "utility" ? "text-foreground" : ELEMENT_META[elem]?.color;
+                        const icon = elem === "all" || elem === "utility" ? null : ELEMENT_META[elem]?.icon;
+                        const colorClass = elem === "all" || elem === "utility" ? "text-foreground" : ELEMENT_META[elem]?.text;
 
                         return (
                             <button
@@ -281,12 +287,16 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                                 type="button"
                                 onClick={() => setElementFilter(elem)}
                                 className={cn(
-                                    "px-2.5 py-1 rounded-lg text-caption font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap",
+                                    "px-2.5 py-1 rounded-lg text-caption font-bold uppercase transition-colors cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5",
                                     isSelected
                                         ? "bg-foreground text-background"
-                                        : "bg-surface/60 border border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                                        : "bg-surface border border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground"
                                 )}
                             >
+                                {icon && (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={icon} alt="" aria-hidden="true" className="w-3.5 h-3.5 object-contain" loading="lazy" />
+                                )}
                                 <span className={isSelected ? "text-background" : colorClass}>{label}</span>
                             </button>
                         );
@@ -323,19 +333,19 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                             <div
                                 key={sp.id}
                                 className={cn(
-                                    "flex flex-col gap-2.5 bg-surface/40 backdrop-blur-md p-4 rounded-2xl border transition-all duration-200 group/spell",
-                                    sp.isVariant ? "border-border/80 hover:border-purple-500/40" : "border-border hover:border-success/30",
+                                    "flex flex-col gap-2.5 bg-surface p-4 rounded-2xl border transition-colors",
+                                    sp.isVariant ? "border-border/80 hover:border-info/30" : "border-border hover:border-success/30",
                                     sp.isUtility && "opacity-90"
                                 )}
                             >
                                 {/* En-tête du sort */}
                                 <div className="flex items-start gap-3">
-                                    <div className="w-11 h-11 rounded-xl bg-elevated border border-border flex items-center justify-center overflow-hidden shrink-0 shadow-sm relative group/icon">
+                                    <div className="w-11 h-11 rounded-xl bg-elevated border border-border flex items-center justify-center overflow-hidden shrink-0 relative">
                                         {sp.imageUrl ? (
                                             // eslint-disable-next-line @next/next/no-img-element
                                             <img src={sp.imageUrl} alt={sp.name} className="w-full h-full object-contain p-0.5" loading="lazy" />
                                         ) : (
-                                            <Zap className={cn("w-5 h-5", meta?.color ?? "text-muted-foreground")} />
+                                            <Zap className={cn("w-5 h-5", meta?.text ?? "text-muted-foreground")} />
                                         )}
                                     </div>
 
@@ -347,15 +357,19 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                                         </div>
                                         <div className="flex items-center gap-1.5 mt-0.5">
                                             {sp.isVariant ? (
-                                                <span className="px-1.5 py-0.2 bg-purple-500/15 border border-purple-500/30 text-purple-300 text-[10px] font-black rounded uppercase tracking-wider">
+                                                <span className="px-1.5 py-0.5 bg-info/10 border border-info/20 text-info text-[10px] font-bold rounded uppercase">
                                                     Variante
                                                 </span>
                                             ) : (
-                                                <span className="px-1.5 py-0.2 bg-surface border border-border text-muted-foreground text-[10px] font-bold rounded uppercase tracking-wider">
+                                                <span className="px-1.5 py-0.5 bg-surface border border-border text-muted-foreground text-[10px] font-bold rounded uppercase">
                                                     Base
                                                 </span>
                                             )}
-                                            <span className={cn("text-[11px] font-bold uppercase tracking-wider", meta?.color ?? "text-muted-foreground")}>
+                                            <span className={cn("inline-flex items-center gap-1 text-[11px] font-bold uppercase", meta?.text ?? "text-muted-foreground")}>
+                                                {!sp.isUtility && meta && (
+                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                    <img src={meta.icon} alt="" aria-hidden="true" className="w-3.5 h-3.5 object-contain" loading="lazy" />
+                                                )}
                                                 {sp.isUtility ? "Utilitaire" : meta?.label}
                                             </span>
                                         </div>
@@ -375,9 +389,9 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                                                         title={`Grade ${g.grade} (Niveau ${g.minPlayerLevel ?? 1})`}
                                                         onClick={() => setGradeSel((prev) => ({ ...prev, [sp.id]: g.grade }))}
                                                         className={cn(
-                                                            "min-w-6 h-6 px-1.5 rounded-lg text-[11px] font-black tabular-nums transition-all cursor-pointer",
+                                                            "min-w-6 h-6 px-1.5 rounded-lg text-[11px] font-bold tabular-nums transition-colors cursor-pointer",
                                                             isCurrent
-                                                                ? "bg-foreground text-background shadow-sm"
+                                                                ? "bg-foreground text-background"
                                                                 : isAccessible
                                                                     ? "bg-surface border border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground"
                                                                     : "bg-surface/30 border border-border/40 text-muted-foreground/40 hover:text-muted-foreground"
@@ -397,25 +411,25 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
 
                                 {/* Caractéristiques : PA / Portée / Crit */}
                                 <div className="grid grid-cols-3 gap-1.5 text-center my-0.5">
-                                    <div className="bg-surface/60 rounded-xl py-1.5 border border-border/50">
-                                        <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
-                                            <Zap className="w-3 h-3 text-[#008cfc]" /> AP
+                                    <div className="bg-surface rounded-xl py-1.5 border border-border/50">
+                                        <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground font-bold uppercase">
+                                            <Zap className="w-3 h-3 text-info" /> AP
                                         </div>
-                                        <p className="text-label font-black text-foreground tabular-nums">{sp.gAp}</p>
+                                        <p className="text-label font-bold text-foreground tabular-nums">{sp.gAp}</p>
                                     </div>
-                                    <div className="bg-surface/60 rounded-xl py-1.5 border border-border/50">
-                                        <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
-                                            <Target className="w-3 h-3 text-[#389f81]" /> Portée
+                                    <div className="bg-surface rounded-xl py-1.5 border border-border/50">
+                                        <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground font-bold uppercase">
+                                            <Target className="w-3 h-3 text-success" /> Portée
                                         </div>
-                                        <p className="text-label font-black text-foreground tabular-nums">
+                                        <p className="text-label font-bold text-foreground tabular-nums">
                                             {sp.gMax <= 1 ? (sp.gMax === 0 ? "0" : "1 (mêlée)") : `${sp.gMin > 1 ? `${sp.gMin}–` : ""}${sp.gMax}`}
                                         </p>
                                     </div>
-                                    <div className="bg-surface/60 rounded-xl py-1.5 border border-border/50">
-                                        <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
-                                            <Sword className="w-3 h-3 text-[#f24254]" /> Crit
+                                    <div className="bg-surface rounded-xl py-1.5 border border-border/50">
+                                        <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground font-bold uppercase">
+                                            <Sword className="w-3 h-3 text-danger" /> Crit
                                         </div>
-                                        <p className="text-label font-black text-foreground tabular-nums">{sp.gCrit}%</p>
+                                        <p className="text-label font-bold text-foreground tabular-nums">{sp.gCrit}%</p>
                                     </div>
                                 </div>
 
@@ -428,7 +442,11 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                                                     const lineMeta = ELEMENT_META[sp.dmgLines[idx]?.element ?? "neutre"];
                                                     return (
                                                         <div key={idx} className="flex items-baseline justify-between text-caption">
-                                                            <span className={cn("font-medium", lineMeta?.color ?? "text-muted-foreground")}>
+                                                            <span className={cn("inline-flex items-center gap-1.5 font-medium", lineMeta?.text ?? "text-muted-foreground")}>
+                                                                {lineMeta && (
+                                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                                    <img src={lineMeta.icon} alt="" aria-hidden="true" className="w-3.5 h-3.5 object-contain" loading="lazy" />
+                                                                )}
                                                                 {lineMeta?.label} {frNumber.format(p.theoMin)}–{frNumber.format(p.theoMax)}
                                                             </span>
                                                             <span className="text-[10px] text-muted-foreground italic">
@@ -438,16 +456,16 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                                                     );
                                                 })}
                                                 <div className="flex items-baseline justify-between border-t border-border/50 pt-1.5 mt-0.5">
-                                                    <span className="text-caption font-bold text-muted-foreground uppercase tracking-wide">Total</span>
-                                                    <span className={cn("font-black text-body-sm tabular-nums", meta?.color ?? "text-foreground")}>
+                                                    <span className="text-caption font-bold text-muted-foreground uppercase">Total par lancer</span>
+                                                    <span className={cn("font-bold text-body-sm tabular-nums", meta?.text ?? "text-foreground")}>
                                                         {frNumber.format(sp.result.theoMin)}–{frNumber.format(sp.result.theoMax)}
                                                     </span>
                                                 </div>
                                                 <div className="flex items-baseline justify-between">
-                                                    <span className="text-caption font-bold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                                                    <span className="text-caption font-bold text-muted-foreground uppercase flex items-center gap-1">
                                                         Critique
                                                     </span>
-                                                    <span className="font-black text-body-sm tabular-nums text-[#f24254]">
+                                                    <span className="font-bold text-body-sm tabular-nums text-danger">
                                                         {frNumber.format(sp.result.critMin)}–{frNumber.format(sp.result.critMax)}
                                                     </span>
                                                 </div>
@@ -461,14 +479,14 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                                                     <span className="text-[10px] text-muted-foreground italic">{KIND_LABEL[sp.kind]}</span>
                                                 </div>
                                                 <div className="flex items-baseline justify-between">
-                                                    <span className="text-caption font-bold text-muted-foreground uppercase tracking-wide">Dégâts</span>
-                                                    <span className={cn("font-black text-body-sm tabular-nums", meta?.color ?? "text-foreground")}>
+                                                    <span className="text-caption font-bold text-muted-foreground uppercase">Dégâts</span>
+                                                    <span className={cn("font-bold text-body-sm tabular-nums", meta?.text ?? "text-foreground")}>
                                                         {frNumber.format(sp.result.theoMin)}–{frNumber.format(sp.result.theoMax)}
                                                     </span>
                                                 </div>
                                                 <div className="flex items-baseline justify-between">
-                                                    <span className="text-caption font-bold text-muted-foreground uppercase tracking-wide">Critique</span>
-                                                    <span className="font-black text-body-sm tabular-nums text-[#f24254]">
+                                                    <span className="text-caption font-bold text-muted-foreground uppercase">Critique</span>
+                                                    <span className="font-bold text-body-sm tabular-nums text-danger">
                                                         {frNumber.format(sp.result.critMin)}–{frNumber.format(sp.result.critMax)}
                                                     </span>
                                                 </div>
@@ -499,7 +517,8 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
             )}
 
             <p className="text-caption text-muted-foreground italic mt-2">
-                Dégâts théoriques calculés selon la formule Dofus 2 : base × (1 + (stat + puissance)/100) + dommages fixes, majorés par les % dommages sorts/distance/mêlée.
+                Dégâts théoriques (formule Dofus 2 : base × (1 + (stat + puissance)/100) + dommages fixes, majorés par les % sorts/distance/mêlée).
+                Le total cumule les lignes du sort par lancer — comparez les lignes unitaires avec Dofusbook / DofusDB.
             </p>
         </div>
     );

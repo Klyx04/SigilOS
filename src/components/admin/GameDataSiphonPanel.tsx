@@ -29,6 +29,8 @@ import {
     type SiphonDashboardStats,
     type SiphonInventoryItem,
 } from '@/server/actions/asset-siphon-actions';
+import { siphonDungeonMonstersDatasetAction } from '@/server/actions/game-data-admin-actions';
+import { toast } from 'sonner';
 
 export function GameDataSiphonPanel() {
     const [stats, setStats] = useState<SiphonDashboardStats | null>(null);
@@ -44,7 +46,31 @@ export function GameDataSiphonPanel() {
     // Logs et progression
     const [logs, setLogs] = useState<string[]>([]);
     const [isSiphoning, setIsSiphoning] = useState(false);
+    const [isSiphoningDataset, setIsSiphoningDataset] = useState(false);
     const [progressValue, setProgressValue] = useState(0);
+
+    const handleSiphonDungeonDataset = async () => {
+        setIsSiphoningDataset(true);
+        setLogs((prev) => ['🚀 Siphonnage du catalogue Donjons & Familles DofusDB en cours...', ...prev]);
+        try {
+            const res = await siphonDungeonMonstersDatasetAction();
+            if (res.success && res.data) {
+                const data = res.data;
+                toast.success(`Catalogue synchronisé : ${data.totalDungeons} donjons et ${data.totalMonsters} monstres archivés en local !`);
+                setLogs((prev) => [
+                    `✅ Catalogue 100% à jour : ${data.totalDungeons} donjons, ${data.totalMonsters} monstres (${data.totalBossFamilies} familles).`,
+                    ...prev
+                ]);
+                await loadData();
+            } else {
+                toast.error(res.error || 'Erreur lors du siphon du catalogue');
+            }
+        } catch (e: any) {
+            toast.error(`Erreur : ${e.message}`);
+        } finally {
+            setIsSiphoningDataset(false);
+        }
+    };
 
     const loadData = async () => {
         setLoading(true);
@@ -260,6 +286,16 @@ export function GameDataSiphonPanel() {
                             ⚠️ À siphoner
                         </button>
                     </div>
+
+                    <Button
+                        onClick={handleSiphonDungeonDataset}
+                        disabled={isSiphoningDataset || isPending}
+                        className="rounded-xl font-black bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white shadow-lg shadow-amber-950/30 gap-2"
+                        title="Récupère et fige l'intégralité des donjons, familles et monstres de DofusDB en local (public/game-data/dungeon-monsters.json)"
+                    >
+                        {isSiphoningDataset ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />}
+                        Siphoner Donjons & Familles
+                    </Button>
 
                     <Button
                         onClick={handleSiphonAllMissing}

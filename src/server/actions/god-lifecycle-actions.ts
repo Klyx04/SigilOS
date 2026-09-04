@@ -461,11 +461,41 @@ export async function banEntity(type: 'GUILD' | 'USER', discordId: string, reaso
             }
         });
 
+        if (type === 'GUILD') {
+            // 1. Désactiver la guilde en base de données
+            await db.allowedGuild.updateMany({
+                where: { discordGuildId: discordId },
+                data: { isActive: false }
+            });
+            await db.guildConfig.updateMany({
+                where: { discordGuildId: discordId },
+                data: { isActive: false }
+            });
+
+            // 2. Invalider immédiatement les caches Redis pour couper tout accès
+            try {
+                const { invalidateGuildCache } = await import("./user-actions");
+                const { invalidateAllowedGuildCache } = await import("./super-admin-actions");
+                await invalidateGuildCache(discordId);
+                await invalidateAllowedGuildCache(discordId);
+            } catch (cacheErr) {
+                logger.warn(`[Ban] Failed to invalidate caches for guild ${discordId}:`, cacheErr);
+            }
+
+            // 3. Expulser le bot du serveur Discord
+            try {
+                const { leaveGuild } = await import("@/server/discord");
+                await leaveGuild(discordId);
+            } catch (botErr) {
+                logger.warn(`[Ban] Failed to force bot to leave guild ${discordId}:`, botErr);
+            }
+        }
+
         // 🔔 NOTIFY GOD
         const adminName = session?.user?.name || "Super Admin";
         const { notifyGod } = await import('./god-notif-actions');
         await notifyGod({
-            title: type === 'GUILD' ? "🚫 Guilde Bannie" : "🚫 Utilisateur Banni",
+            title: type === 'GUILD' ? "🚫 Guilde Bannie & Bot Expulsé" : "🚫 Utilisateur Banni",
             message: `**${type}** \`${discordId}\` a été banni de la plateforme (Raison: ${reason}).\n👤 Par: **${adminName}**`,
             type: "SYSTEM",
             success: false,

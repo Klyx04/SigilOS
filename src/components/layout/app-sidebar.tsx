@@ -46,6 +46,7 @@ import {
     CalendarClock,
     Ticket,
     UserCheck,
+    Terminal,
 } from "lucide-react";
 import { SidebarSearch } from "./sidebar-search";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -191,32 +192,32 @@ export function AppSidebar({
 
     // 1. HORS SECTION
     const NAV_GLOBAL = [
-        { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, color: "indigo", visible: user.isMember && user.canViewDashboard, isDashboard: true },
+        { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, imgSrc: "/assets/nav/grid.png", exact: true, color: "indigo", visible: user.isMember && user.canViewDashboard, isDashboard: true },
     ];
 
     // 3. PROGRESSION
     const NAV_PROGRESSION = [
-        { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "amber", tourKey: "missions", visible: user.canViewMissions && modules.missions },
-        { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "amber", tourKey: "ladder", visible: user.canViewLadder && modules.ladder },
-        { name: "Succès", href: `/dashboard/${guildId}/succes`, icon: Award, color: "amber", tourKey: "succes", visible: user.canViewSucces && modules.succes },
-        { name: "Les Dofus", href: `/dashboard/${guildId}/quetes-dofus`, imgSrc: "/module-dofus/Dofus_Sylvestre.png", color: "amber", tourKey: "quetes", visible: user.canViewQuests && modules.quests },
-        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, imgSrc: "/assets/icons/ocre.png", color: "amber", tourKey: "ocre", visible: user.canViewOcre && modules.ocre },
+        { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, imgSrc: "/assets/nav/quests.png", color: "amber", tourKey: "missions", visible: user.canViewMissions && modules.missions },
+        { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, imgSrc: "/assets/nav/trophy.png", color: "amber", tourKey: "ladder", visible: user.canViewLadder && modules.ladder },
+        { name: "Succès/Fiches BOSS", href: `/dashboard/${guildId}/succes`, icon: Award, imgSrc: "/assets/nav/achievement.png", color: "amber", tourKey: "succes", visible: user.canViewSucces && modules.succes },
+        { name: "Les guides", href: `/dashboard/${guildId}/quetes-dofus`, imgSrc: "/assets/nav/sylvestre-white.png", color: "amber", tourKey: "quetes", visible: user.canViewQuests && modules.quests },
+        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, imgSrc: "/assets/nav/archimonster.png", color: "amber", tourKey: "ocre", visible: user.canViewOcre && modules.ocre },
     ];
 
     // 4. OUTILS
     const NAV_TOOLS: any[] = [
-        { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Swords, color: "indigo", tourKey: "donjons", visible: user.canViewQuests && modules.donjons },
-        { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "indigo", tourKey: "songes", visible: user.canViewSonges && modules.songes },
-        { name: "Galerie Guilde", href: `/dashboard/${guildId}/galerie-stuff`, icon: Star, color: "indigo", tourKey: "galerie", visible: user.canViewStuffGallery && modules.gallery },
-        { name: "Services Guilde", href: `/dashboard/${guildId}/services`, icon: Activity, color: "indigo", tourKey: "services", visible: user.canViewServices && modules.services },
-        { name: "Planning", href: `/dashboard/${guildId}/planning`, icon: CalendarClock, color: "indigo", tourKey: "availability", visible: user.canViewAvailability && modules.availability },
+        { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Swords, imgSrc: "/assets/nav/boss.png", color: "indigo", tourKey: "donjons", visible: user.canViewQuests && modules.donjons },
+        { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, imgSrc: "/assets/nav/infinite.png", color: "indigo", tourKey: "songes", visible: user.canViewSonges && modules.songes },
+        { name: "Galerie Guilde", href: `/dashboard/${guildId}/galerie-stuff`, icon: Star, imgSrc: "/assets/nav/panoplie.png", color: "indigo", tourKey: "galerie", visible: user.canViewStuffGallery && modules.gallery },
+        { name: "Services Guilde", href: `/dashboard/${guildId}/services`, icon: Activity, imgSrc: "/assets/nav/exchange.png", color: "indigo", tourKey: "services", visible: user.canViewServices && modules.services },
+        { name: "Planning", href: `/dashboard/${guildId}/planning`, icon: CalendarClock, imgSrc: "/assets/nav/hourglass.png", color: "indigo", tourKey: "availability", visible: user.canViewAvailability && modules.availability },
     ];
 
     // 5. AUTRES
     const NAV_OTHERS = [
-        { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Gamepad2, color: "cyan", tourKey: "minigames", visible: user.canViewMiniGames },
-        { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Gavel, color: "cyan", tourKey: "polls", visible: user.canViewPolls && modules.polls },
-        { name: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, color: "cyan", visible: user.canViewWorldmap && modules.worldmap },
+        { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Gamepad2, imgSrc: "/assets/nav/dice.png", color: "cyan", tourKey: "minigames", visible: user.canViewMiniGames },
+        { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Gavel, imgSrc: "/assets/nav/chat.png", color: "cyan", tourKey: "polls", visible: user.canViewPolls && modules.polls },
+        { name: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, imgSrc: "/assets/nav/world.png", color: "cyan", visible: user.canViewWorldmap && modules.worldmap },
         { name: "Roadmap", href: "/roadmap", icon: Rocket, color: "amber", visible: roadmapEnabled },
     ];
 
@@ -240,6 +241,7 @@ export function AppSidebar({
             `/dashboard/${guildId}/admin/logs`,
             `/dashboard/${guildId}/reaction-roles`,
             `/dashboard/${guildId}/tickets`,
+            `/dashboard/${guildId}/admin/commandes`,
         ]
     };
 
@@ -251,13 +253,15 @@ export function AppSidebar({
         ...NAV_TOOLS,
         ...NAV_OTHERS,
         NAV_ADMIN_TOP,
-        { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "emerald", visible: user.canViewRoster },
-        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "emerald", visible: user.canViewCalendar },
-        { name: "Ressources Dofus", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "emerald", visible: user.canViewResources && modules.resources },
+        { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, imgSrc: "/assets/nav/genealogy.png", color: "emerald", visible: user.canViewRoster },
+        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, imgSrc: "/assets/nav/calendar.png", color: "emerald", visible: user.canViewCalendar },
+        { name: "Ressources Dofus", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, imgSrc: "/assets/nav/resources.png", color: "emerald", visible: user.canViewResources && modules.resources },
+        { name: "Commandes Bot Discord", href: `/dashboard/${guildId}/commandes`, icon: Terminal, imgSrc: "/assets/nav/cog.png", color: "emerald", visible: user.canViewCommands },
         { 
             name: "La guilde", 
             href: `/dashboard/${guildId}/guild-hub`, 
             icon: Sparkles, 
+            imgSrc: "/assets/nav/guild.png",
             color: "emerald",
             visible: (user.canViewWelcome || user.canViewPresentation || user.canViewStats),
             aliases: [
@@ -270,6 +274,7 @@ export function AppSidebar({
         // ADMIN SUB-ROUTES (Searchable & Pinnable)
         { name: "Paramètres Généraux", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, color: "amber", visible: user.canViewSettings },
         { name: "Rôles & Permissions", href: `/dashboard/${guildId}/admin/permissions`, icon: Shield, color: "zinc", visible: user.canManageRBAC },
+        { name: "Commandes Slash Discord", href: `/dashboard/${guildId}/admin/commandes`, icon: Terminal, color: "emerald", visible: user.canManageRBAC || user.isAdmin },
         { name: "Gestion des Modules", href: `/dashboard/${guildId}/admin/modules`, icon: Hammer, color: "indigo", visible: user.isDiscordAdmin },
         { name: "Identité de Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, color: "emerald", visible: user.canEditPresentation },
         { name: "Gestion des Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, color: "emerald", visible: user.canManageMissions },
@@ -308,6 +313,48 @@ export function AppSidebar({
         .filter(item => item && item.visible !== false) as any[];
 
     const [hiddenOpen, setHiddenOpen] = useState(true);
+
+    // Navbar redimensionnable à la volée (desktop) : largeur persistée en
+    // localStorage, propagée au layout via la variable CSS --app-sidebar-width
+    // (consommée uniquement par le layout dashboard fixe).
+    const APP_SIDEBAR_DEFAULT = 280;
+    const APP_SIDEBAR_MIN = 232;
+    const APP_SIDEBAR_MAX = 400;
+    const [sidebarWidth, setSidebarWidth] = useState(APP_SIDEBAR_DEFAULT);
+    const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+    const sidebarRef = useRef<HTMLDivElement>(null);
+    const sidebarWidthRef = useRef(sidebarWidth);
+    useEffect(() => {
+        sidebarWidthRef.current = sidebarWidth;
+        document.documentElement.style.setProperty("--app-sidebar-width", `${sidebarWidth}px`);
+    }, [sidebarWidth]);
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem("sigilos-app-sidebar-width");
+            if (saved) {
+                const parsed = parseInt(saved, 10);
+                if (!Number.isNaN(parsed)) setSidebarWidth(Math.min(Math.max(parsed, APP_SIDEBAR_MIN), APP_SIDEBAR_MAX));
+            }
+        } catch { /* localStorage indisponible — largeur par défaut */ }
+    }, []);
+    useEffect(() => {
+        if (!isResizingSidebar) return;
+        const onMove = (e: MouseEvent) => {
+            const left = sidebarRef.current?.getBoundingClientRect().left ?? 0;
+            const next = Math.min(Math.max(e.clientX - left, APP_SIDEBAR_MIN), APP_SIDEBAR_MAX);
+            setSidebarWidth(next);
+        };
+        const onUp = () => {
+            setIsResizingSidebar(false);
+            try { localStorage.setItem("sigilos-app-sidebar-width", String(sidebarWidthRef.current)); } catch { /* ignore */ }
+        };
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+        return () => {
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+        };
+    }, [isResizingSidebar]);
 
     const handleTogglePin = async (href: string) => {
         // Optimistic Update
@@ -352,7 +399,7 @@ export function AppSidebar({
     };
 
     return (
-        <div className={cn("flex flex-col h-full bg-background border-r border-border", className)}>
+        <div ref={sidebarRef} className={cn("relative flex flex-col h-full bg-background border-r border-border", className)}>
 
             {/* 1. HEADER: BRAND & GUILD SWITCHER */}
             <div className="p-4 pb-2 space-y-4">
@@ -550,6 +597,7 @@ export function AppSidebar({
                                                     name: "La guilde", 
                                                     href: `/dashboard/${guildId}/guild-hub`, 
                                                     icon: Sparkles, 
+                                                    imgSrc: "/assets/nav/guild.png",
                                                     color: "emerald",
                                                     tourKey: "la-guilde",
                                                     aliases: [
@@ -576,7 +624,7 @@ export function AppSidebar({
                                     !localHiddenHrefs.includes(`/dashboard/${guildId}/members`) && (
                                         <NavItem 
                                             key={`nav-roster`}
-                                            item={{ name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "emerald", tourKey: "annuaire" }} 
+                                                item={{ name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, imgSrc: "/assets/nav/genealogy.png", color: "emerald", tourKey: "annuaire" }} 
                                             isActive={checkIsActive(`/dashboard/${guildId}/members`)} 
                                             isPinned={false}
                                             onPin={handleTogglePin}
@@ -591,7 +639,7 @@ export function AppSidebar({
                                     !localHiddenHrefs.includes(`/dashboard/${guildId}/calendar`) && (
                                         <NavItem 
                                             key={`nav-calendar`}
-                                            item={{ name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "emerald", tourKey: "calendar" }} 
+                                                item={{ name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, imgSrc: "/assets/nav/calendar.png", color: "emerald", tourKey: "calendar" }} 
                                             isActive={checkIsActive(`/dashboard/${guildId}/calendar`)} 
                                             isPinned={false}
                                             onPin={handleTogglePin}
@@ -606,12 +654,27 @@ export function AppSidebar({
                                     !localHiddenHrefs.includes(`/dashboard/${guildId}/ressources`) && (
                                         <NavItem 
                                             key={`nav-resources`}
-                                            item={{ name: "Ressources Dofus", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "emerald", tourKey: "ressources" }} 
+                                                item={{ name: "Ressources Dofus", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, imgSrc: "/assets/nav/resources.png", color: "emerald", tourKey: "ressources" }} 
                                             isActive={checkIsActive(`/dashboard/${guildId}/ressources`)} 
                                             isPinned={false}
                                             onPin={handleTogglePin}
                                             onHide={handleToggleHide}
                                             unreadCount={getUnreadCount(`/dashboard/${guildId}/ressources`)}
+                                        />
+                                    )}
+
+                                    {/* Commandes Bot - Direct Link */}
+                                    {user.canViewCommands && 
+                                    !localPinnedHrefs.includes(`/dashboard/${guildId}/commandes`) && 
+                                    !localHiddenHrefs.includes(`/dashboard/${guildId}/commandes`) && (
+                                        <NavItem 
+                                            key={`nav-commandes`}
+                                                item={{ name: "Commandes Bot Discord", href: `/dashboard/${guildId}/commandes`, icon: Terminal, imgSrc: "/assets/nav/cog.png", color: "emerald", tourKey: "commandes" }} 
+                                            isActive={checkIsActive(`/dashboard/${guildId}/commandes`)} 
+                                            isPinned={false}
+                                            onPin={handleTogglePin}
+                                            onHide={handleToggleHide}
+                                            unreadCount={0}
                                         />
                                     )}
                                 </motion.div>
@@ -811,6 +874,16 @@ export function AppSidebar({
                     </div>
                 )}
             </div>
+            {/* Poignée de redimensionnement (desktop, largeur persistée) */}
+            <div
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setIsResizingSidebar(true); }}
+                title="Élargir / rétrécir la navbar — largeur sauvegardée"
+                aria-hidden="true"
+                className={cn(
+                    "absolute top-0 right-0 bottom-0 w-1.5 cursor-col-resize hover:bg-success/60 transition-colors z-20 hidden lg:block",
+                    isResizingSidebar && "bg-success"
+                )}
+            />
         </div>
     );
 }
@@ -917,14 +990,11 @@ function NavItem({
             {/* Glassmorphism Shine Effect */}
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-white/[0.02] opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none" />
 
-            {/* Framer Motion Indicator */}
+            {/* Framer Motion Indicator — neutre (fini le vert) */}
             {isActive && (
                 <motion.div
                     layoutId="sidebar-active-pill"
-                    className={cn(
-                        "absolute left-0 top-0 bottom-0 w-[3px]",
-                        scheme.accent
-                    )}
+                    className="absolute left-0 top-0 bottom-0 w-[3px] bg-white/30"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -934,17 +1004,16 @@ function NavItem({
             {/* Icon Container */}
             <div className={cn(
                 "relative transition-colors duration-150 shrink-0 flex items-center justify-center rounded-xl z-20",
-                "p-1.5 bg-surface border border-border group-hover:border-border-strong",
+                item.imgSrc
+                    ? "p-1.5 bg-[#161d27] border border-[#2a323d] group-hover:border-[#3a4550]"
+                    : "p-1.5 bg-surface border border-border group-hover:border-border-strong",
                 isActive 
-                    ? cn(scheme.bg, scheme.text, scheme.border, "shadow-inner shadow-black/20") 
+                    ? "bg-white/[0.06] border-white/15 text-foreground shadow-inner shadow-black/20"
                     : (!item.imgSrc ? cn(scheme.text, "opacity-70 group-hover:opacity-100") : "text-muted-foreground group-hover:text-foreground")
             )}>
-                {/* Neon Icon Glow */}
+                {/* Neon Icon Glow — neutre */}
                 {isActive && (
-                    <div className={cn(
-                        "absolute inset-0  opacity-40 -z-10",
-                        scheme.accent
-                    )} />
+                    <div className="absolute inset-0 opacity-40 -z-10 bg-white/10" />
                 )}
 
                 {item.imgSrc ? (
@@ -958,7 +1027,7 @@ function NavItem({
                             fill 
                             sizes="24px"
                             className={cn("object-contain transition-colors duration-150", 
-                                !isActive && "opacity-80 saturate-100 group-hover:opacity-100",
+                                !isActive && "saturate-100",
                                 isActive && ""
                             )} 
                         />

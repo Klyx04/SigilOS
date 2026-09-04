@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Eye, EyeOff, HelpCircle, Loader2, Map as MapIcon, Move, RotateCcw, Sparkles, Users, Zap } from "lucide-react";
+import { Check, ChevronDown, Eye, EyeOff, Grid, HelpCircle, Loader2, Map as MapIcon, Move, RotateCcw, Sparkles, Swords, Users, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getDofensiveMap, type DofensiveMapData, type DofensiveMapLite } from "@/server/actions/dofensive-actions";
 import {
@@ -77,6 +77,8 @@ interface SpellRangeGridProps {
     onGradeChange?: (idx: number) => void;
     /** Monstres de la famille du donjon pour peupler la salle selon le butin (4..8). */
     monsters?: { id: number; name: string; isBoss?: boolean; imageUrl?: string | null }[];
+    /** Mode compact optimisé pour l'overlay PiP (largeur réduite, zoom libre, marges réduites). */
+    compact?: boolean;
 }
 
 // Ligne de Bresenham entre deux cellules (grille orthogonale) — pour la ligne de vue.
@@ -117,6 +119,7 @@ export function SpellRangeGrid({
     activeGradeIndex,
     onGradeChange,
     monsters,
+    compact = false,
 }: SpellRangeGridProps) {
     // Sort actif — le parent peut contrôler la sélection (activeSpellId/onSelectSpell) ;
     // sinon l'état interne prend le relais (cas de la démo /demo/boss-sim).
@@ -166,10 +169,34 @@ export function SpellRangeGrid({
     const [mapLoading, setMapLoading] = useState(false);
     const [mapError, setMapError] = useState<string | null>(null);
 
+    // Menus dropdowns personnalisés (remplacement des <select> natifs disgracieux)
+    const [isMapMenuOpen, setIsMapMenuOpen] = useState(false);
+    const [isSpellMenuOpen, setIsSpellMenuOpen] = useState(false);
+    const mapMenuRef = useRef<HTMLDivElement>(null);
+    const spellMenuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+            if (mapMenuRef.current && !mapMenuRef.current.contains(e.target as Node)) {
+                setIsMapMenuOpen(false);
+            }
+            if (spellMenuRef.current && !spellMenuRef.current.contains(e.target as Node)) {
+                setIsSpellMenuOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        document.addEventListener("touchstart", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+            document.removeEventListener("touchstart", handleClickOutside);
+        };
+    }, []);
+
     // Index du placement actif (1..N) et Butin (4..8)
     const [placementIndex, setPlacementIndex] = useState<number>(1);
     const [lootCount, setLootCount] = useState<number>(4);
     const [showRulesModal, setShowRulesModal] = useState<boolean>(false);
+    const [showCompactLegend, setShowCompactLegend] = useState<boolean>(false);
 
     const gridRows = mapData ? mapData.cells.length : GRID_SIZE;
     const gridCols = mapData && mapData.cells[0] ? mapData.cells[0].length : GRID_SIZE;
@@ -299,6 +326,12 @@ export function SpellRangeGrid({
         return dungeonMaps;
     }, [dungeonMaps, bossName]);
 
+    const currentMapName = useMemo(() => {
+        if (selectedMapId === "empty") return "Map vide";
+        const found = shownMaps.find((m) => m.id === selectedMapId);
+        return found ? (found.isBoss ? `⚔ ${found.name}` : found.name) : "Map vide";
+    }, [selectedMapId, shownMaps]);
+
     // Reset / garde de cohérence quand le boss (et donc ses maps) change.
     // Sélection automatique de la première map de combat du boss (si présente).
     useEffect(() => {
@@ -320,6 +353,7 @@ export function SpellRangeGrid({
 
     // Chargement de la map sélectionnée : grille + placements de départ réels.
     useEffect(() => {
+        setPan({ x: 0, y: 0 });
         if (selectedMapId === "empty") {
             setMapData(null);
             setMapError(null);
@@ -363,7 +397,66 @@ export function SpellRangeGrid({
         }
     };
 
+    // Pan / Drag de la carte avec la souris (clic maintenu / glisser avec la main)
+    const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState<boolean>(false);
+    const isPointerDownRef = useRef<boolean>(false);
+    const isDraggingRef = useRef<boolean>(false);
+    const justDraggedRef = useRef<boolean>(false);
+    const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+    const panStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+    const handlePointerDown = (e: React.PointerEvent) => {
+        // Clic gauche (0) ou clic molette (1)
+        if (e.button !== 0 && e.button !== 1) return;
+        const target = e.target as HTMLElement;
+        if (target.closest("button") || target.closest("select") || target.closest("input") || target.closest("[data-no-drag]")) return;
+
+        isPointerDownRef.current = true;
+        isDraggingRef.current = false;
+        dragStartRef.current = { x: e.clientX, y: e.clientY };
+        panStartRef.current = { ...pan };
+
+
+    };
+
+    const handlePointerMove = (e: React.PointerEvent) => {
+        if (!isPointerDownRef.current) return;
+        const dx = e.clientX - dragStartRef.current.x;
+        const dy = e.clientY - dragStartRef.current.y;
+
+        if (!isDraggingRef.current && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+            isDraggingRef.current = true;
+            setIsDragging(true);
+        }
+
+        if (isDraggingRef.current) {
+            setPan({
+                x: Math.round(panStartRef.current.x + dx),
+                y: Math.round(panStartRef.current.y + dy),
+            });
+        }
+    };
+
+    const handlePointerUp = (e: React.PointerEvent) => {
+        if (!isPointerDownRef.current) return;
+        isPointerDownRef.current = false;
+
+        if (isDraggingRef.current) {
+            justDraggedRef.current = true;
+            setTimeout(() => {
+                justDraggedRef.current = false;
+            }, 80);
+            setIsDragging(false);
+            isDraggingRef.current = false;
+        }
+
+
+    };
+
     const handleCellClick = (x: number, y: number) => {
+        // Ignorer le clic si l'utilisateur était en train de déplacer la carte
+        if (isDraggingRef.current || justDraggedRef.current) return;
         if (isObstacle(x, y)) return;
 
         if (placingAlly) {
@@ -404,8 +497,8 @@ export function SpellRangeGrid({
     };
 
     // Zoom de la carte (boutons + molette).
-    const [zoom, setZoom] = useState(1);
-    const ZOOM_MIN = 0.5;
+    const [zoom, setZoom] = useState(compact ? 0.7 : 1);
+    const ZOOM_MIN = 0.3;
     const ZOOM_MAX = 3.5;
     const zoomRef = useRef<HTMLDivElement | null>(null);
     // Marqueur SVG du lanceur (boss) — sert au « recentrage auto sur le lanceur ».
@@ -414,14 +507,14 @@ export function SpellRangeGrid({
         const el = zoomRef.current;
         if (!el) return;
         const onWheel = (e: WheelEvent) => {
-            if (e.ctrlKey || e.metaKey) {
+            if (compact || e.ctrlKey || e.metaKey) {
                 e.preventDefault();
-                setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z - e.deltaY * 0.002)));
+                setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Number((z - e.deltaY * 0.0015).toFixed(2)))));
             }
         };
         el.addEventListener("wheel", onWheel, { passive: false });
         return () => el.removeEventListener("wheel", onWheel);
-    }, []);
+    }, [compact]);
 
     const minRange = currentSpell?.minRange ?? 0;
     const maxRange = currentSpell?.range ?? 0;
@@ -556,6 +649,7 @@ export function SpellRangeGrid({
 
     // Recentre sur la case de départ du boss (map) ou le centre (grille libre).
     const recenter = () => {
+        setPan({ x: 0, y: 0 });
         if (mapData && mapData.enemyCells.length) {
             const p = cellIdToXY(mapData.enemyCells[0]);
             setCasterPos({ x: p.x, y: p.y });
@@ -653,198 +747,558 @@ export function SpellRangeGrid({
     const freeOriginY = 20;
 
     return (
-        <div className="space-y-3 rounded-2xl bg-surface border border-border p-4 sm:p-5 shadow-xs">
+        <div className={cn(compact ? "flex flex-col h-full space-y-1.5 p-0 bg-transparent border-0 shadow-none min-h-0" : "space-y-3 rounded-2xl bg-surface border border-border p-4 sm:p-5 shadow-xs")}>
             {/* Toolbar Simulation Compacte : Choix du sort & Paramètres de portée */}
-            <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-background border border-border rounded-xl">
-                <div className="flex flex-wrap items-center gap-2.5">
-                    <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5 shrink-0">
-                        <Zap className="w-3.5 h-3.5 text-warning" /> Sort simulé :
-                    </span>
-                    <select
-                        value={currentSpell?.id ?? ""}
-                        onChange={(e) => {
-                            const found = spells.find((s) => s.id === Number(e.target.value));
-                            if (found) selectSpell(found);
-                        }}
-                        className="bg-surface border border-border text-foreground text-xs font-bold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-warning/40 max-w-[280px]"
-                    >
-                        {spells.map((s) => (
-                            <option key={s.id} value={s.id}>
-                                {s.name} ({s.apCost ? `${s.apCost} PA · ` : ""}{s.minRange === s.range ? `${s.range} PO` : `${s.minRange ?? 0}-${s.range ?? 0} PO`})
-                            </option>
-                        ))}
-                    </select>
-
-                    {/* Badges résumés du sort */}
-                    {currentSpell && (
-                        <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-info/10 text-info border border-info/20">
-                                {currentSpell.apCost || 0} PA
-                            </span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-accent/10 text-accent border border-accent/20">
-                                {minRange === maxRange ? `${maxRange} PO` : `${minRange} à ${maxRange} PO`}
-                            </span>
-                            <span className={cn(
-                                "text-[10px] font-bold px-2 py-0.5 rounded-md border",
-                                castTestLos ? "bg-muted/15 text-muted-foreground border-border" : "bg-success/15 text-success border-success/30 font-black"
-                            )}>
-                                {castTestLos ? "Ligne de vue" : "Sans Ligne de Vue"}
-                            </span>
-                            {currentSpell.zone && currentSpell.zone.shape !== "Inconnue" && (
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-warning/10 text-warning border border-warning/20">
-                                    Zone {currentSpell.zone.shape}
-                                </span>
-                            )}
-                        </div>
-                    )}
-                </div>
-
-                <button
-                    type="button"
-                    onClick={recenter}
-                    className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-foreground bg-surface border border-border px-2.5 py-1.5 rounded-lg transition-colors shadow-2xs shrink-0"
-                >
-                    <RotateCcw className="w-3.5 h-3.5" /> Recentrer
-                </button>
-            </div>
-
-            {/* SIMULATION TACTIQUE (style Dofensive / Dofus) */}
-            <div className="relative rounded-2xl bg-[#161614] border border-border p-2 sm:p-4 overflow-x-auto flex flex-col items-center justify-center select-none shadow-inner">
-                <div className="w-full flex items-center justify-between text-xs text-zinc-400 mb-2 px-2">
-                    <span className="font-bold text-zinc-300">
-                        Entité : <strong className="text-amber-400">{bossName}</strong>
-                    </span>
-                    <span className="text-zinc-500">
-                        Carte : <strong className="text-zinc-400">{mapData ? mapData.name : "Map Tactique Isométrique"}</strong>
-                        {mapData?.coordinates ? ` · ${mapData.coordinates.x}, ${mapData.coordinates.y}` : ""} · {reachableCount} cases couvertes
-                    </span>
-                </div>
-
-                {/* Sélecteur de map (salles du donjon) */}
-                {shownMaps.length > 0 && (
-                    <div className="w-full flex flex-wrap items-center gap-2 mb-2 px-2 relative z-10">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-zinc-400">
-                            <MapIcon className="w-3.5 h-3.5 text-amber-400" /> Salle :
+            {!compact && (
+                <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-background border border-border rounded-xl">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                        <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5 shrink-0">
+                            <Zap className="w-3.5 h-3.5 text-warning" /> Sort simulé :
                         </span>
                         <select
-                            value={selectedMapId === "empty" ? "" : String(selectedMapId)}
-                            onChange={(e) => setSelectedMapId(e.target.value ? Number(e.target.value) : "empty")}
-                            className="bg-zinc-900 border border-white/10 text-zinc-200 text-xs font-bold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400/40 max-w-[320px]"
+                            value={currentSpell?.id ?? ""}
+                            onChange={(e) => {
+                                const found = spells.find((s) => s.id === Number(e.target.value));
+                                if (found) selectSpell(found);
+                            }}
+                            className="bg-surface border border-border text-foreground text-xs font-bold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-warning/40 max-w-[280px]"
                         >
-                            <option value="">Map vide</option>
-                            {shownMaps.map((m) => (
-                                <option key={m.id} value={m.id}>{m.isBoss ? "⚔ " : ""}{m.name}</option>
+                            {spells.map((s) => (
+                                <option key={s.id} value={s.id}>
+                                    {s.name} ({s.apCost ? `${s.apCost} PA · ` : ""}{s.minRange === s.range ? `${s.range} PO` : `${s.minRange ?? 0}-${s.range ?? 0} PO`})
+                                </option>
                             ))}
                         </select>
-                        {mapLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />}
-                        {mapData && (
-                            <span className="text-[11px] text-zinc-400">
-                                Obstacles &amp; salle chargés
-                            </span>
-                        )}
-                        {mapError && <span className="text-[11px] text-red-400">{mapError}</span>}
-                    </div>
-                )}
 
-                <div className="w-full flex flex-wrap items-center gap-2 mb-2 px-2 relative z-10">
-                    <div className="inline-flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
-                        <button type="button" onClick={() => setZoom((z) => Math.max(ZOOM_MIN, z - 0.25))} className="px-2 py-1 rounded-md text-xs font-black text-muted-foreground hover:text-foreground hover:bg-elevated transition-all" title="Zoom arrière (Ctrl+molette)">−</button>
-                        <span className="text-[10px] font-bold text-muted-foreground px-1 tabular-nums w-9 text-center">{Math.round(zoom * 100)}%</span>
-                        <button type="button" onClick={() => setZoom((z) => Math.min(ZOOM_MAX, z + 0.25))} className="px-2 py-1 rounded-md text-xs font-black text-muted-foreground hover:text-foreground hover:bg-elevated transition-all" title="Zoom avant">+</button>
-                        <button type="button" onClick={() => setZoom(1)} className="px-1.5 py-1 rounded-md text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-elevated transition-all" title="Réinitialiser le zoom">1:1</button>
+                        {/* Badges résumés du sort */}
+                        {currentSpell && (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-info/10 text-info border border-info/20">
+                                    {currentSpell.apCost || 0} PA
+                                </span>
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-accent/10 text-accent border border-accent/20">
+                                    {minRange === maxRange ? `${maxRange} PO` : `${minRange} à ${maxRange} PO`}
+                                </span>
+                                <span className={cn(
+                                    "text-[10px] font-bold px-2 py-0.5 rounded-md border",
+                                    castTestLos ? "bg-muted/15 text-muted-foreground border-border" : "bg-success/15 text-success border-success/30 font-black"
+                                )}>
+                                    {castTestLos ? "Ligne de vue" : "Sans Ligne de Vue"}
+                                </span>
+                                {currentSpell.zone && currentSpell.zone.shape !== "Inconnue" && (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-warning/10 text-warning border border-warning/20">
+                                        Zone {currentSpell.zone.shape}
+                                    </span>
+                                )}
+                            </div>
+                        )}
                     </div>
+
                     <button
                         type="button"
-                        onClick={() => { setPlacingAlly((v) => !v); setSelectedAlly(null); }}
-                        className={cn(
-                            "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all",
-                            placingAlly
-                                ? "bg-sky-500/20 border-sky-400 text-sky-500 dark:text-sky-300"
-                                : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
-                        )}
+                        onClick={recenter}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-foreground bg-surface border border-border px-2.5 py-1.5 rounded-lg transition-colors shadow-2xs shrink-0"
                     >
-                        <Users className="w-3.5 h-3.5" />
-                        {placingAlly ? "Clique sur une case pour poser/retirer un allié" : `Alliés ${allies.length}/${MAX_ALLIES}`}
+                        <RotateCcw className="w-3.5 h-3.5" /> Recentrer
                     </button>
-                    {mapData && (
-                        <button
-                            type="button"
-                            onClick={toggleStartCells}
-                            className={cn(
-                                "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all",
-                                showStartCells
-                                    ? "bg-amber-500/20 border-amber-400 text-amber-500 dark:text-amber-300"
-                                    : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
+                </div>
+            )}
+
+            {/* SIMULATION TACTIQUE */}
+            <div
+                className={cn(
+                    "relative rounded-xl bg-[#161614] border border-white/10 flex flex-col items-center select-none shadow-inner",
+                    compact
+                        ? "p-1.5 flex-1 min-h-0 justify-start overflow-y-auto overflow-x-hidden [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.15)_transparent]"
+                        : "p-2 sm:p-4 justify-center overflow-x-auto",
+                    isDragging ? "cursor-grabbing" : "cursor-grab"
+                )}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerUp}
+                style={{ touchAction: "none" }}
+            >
+                {/* Mode compact : barre d'outils épurée en 2 lignes (sticky en haut) */}
+                {compact ? (
+                    <div className="w-full space-y-1.5 mb-1.5 px-1 relative z-20 shrink-0 sticky top-0 bg-[#161614]/95 backdrop-blur-md pb-1.5 border-b border-white/5" data-no-drag>
+                        {/* Ligne 1 : Choix du Sort + Choix de la Salle */}
+                        <div className="flex items-center gap-1.5 w-full">
+                            {/* Sélecteur de sort stylé */}
+                            <div ref={spellMenuRef} className="relative flex-1 min-w-0">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsSpellMenuOpen((prev) => !prev);
+                                        setIsMapMenuOpen(false);
+                                    }}
+                                    className={cn(
+                                        "w-full flex items-center justify-between gap-1.5 bg-zinc-900/95 border rounded-lg px-2 py-1 text-[11px] font-bold transition-all",
+                                        isSpellMenuOpen
+                                            ? "border-amber-500/50 bg-amber-500/[0.1] text-amber-300 shadow-md shadow-black/40"
+                                            : "border-white/10 hover:border-white/20 text-amber-400 hover:bg-zinc-800"
+                                    )}
+                                    title={currentSpell ? `${currentSpell.name} (${currentSpell.apCost ?? 0} PA · ${currentSpell.minRange === currentSpell.range ? `${currentSpell.range} PO` : `${currentSpell.minRange ?? 0}-${currentSpell.range ?? 0} PO`})` : "Sélectionner un sort"}
+                                >
+                                    <div className="flex items-center gap-1.5 min-w-0 truncate">
+                                        {currentSpell?.imageUrl ? (
+                                            <img
+                                                src={`/api/assets-dofus/spells/${currentSpell.id}?url=${encodeURIComponent(currentSpell.imageUrl)}`}
+                                                alt=""
+                                                className="w-3.5 h-3.5 object-contain rounded shrink-0"
+                                                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                                            />
+                                        ) : (
+                                            <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                        )}
+                                        <span className="truncate">{currentSpell?.name ?? "Sort"}</span>
+                                        {currentSpell && (
+                                            <span className="text-[9px] font-semibold text-white/50 shrink-0">
+                                                ({currentSpell.apCost ?? 0} PA · {currentSpell.minRange === currentSpell.range ? `${currentSpell.range} PO` : `${currentSpell.minRange ?? 0}-${currentSpell.range ?? 0} PO`})
+                                            </span>
+                                        )}
+                                    </div>
+                                    <ChevronDown
+                                        className={cn(
+                                            "w-3 h-3 text-zinc-400 transition-transform duration-200 shrink-0",
+                                            isSpellMenuOpen && "rotate-180 text-amber-400"
+                                        )}
+                                    />
+                                </button>
+
+                                {isSpellMenuOpen && (
+                                    <div className="absolute left-0 top-full mt-1 w-64 sm:w-72 max-h-56 overflow-y-auto rounded-xl bg-[#121218]/95 backdrop-blur-md border border-white/15 shadow-2xl p-1 z-50 animate-in fade-in zoom-in-95 duration-100 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent]">
+                                        <div className="px-2 py-1 text-[9px] font-bold text-white/40 uppercase tracking-wider">
+                                            Sorts de combat ({spells.length})
+                                        </div>
+                                        {spells.map((s) => {
+                                            const isSelected = currentSpell?.id === s.id;
+                                            return (
+                                                <button
+                                                    key={s.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        selectSpell(s);
+                                                        setIsSpellMenuOpen(false);
+                                                    }}
+                                                    className={cn(
+                                                        "w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg text-[11px] text-left transition-colors mt-0.5",
+                                                        isSelected
+                                                            ? "bg-amber-500/15 border border-amber-500/30 text-amber-300 font-semibold"
+                                                            : "text-zinc-300 hover:text-white hover:bg-white/[0.06]"
+                                                    )}
+                                                >
+                                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                        {s.imageUrl ? (
+                                                            <img
+                                                                src={`/api/assets-dofus/spells/${s.id}?url=${encodeURIComponent(s.imageUrl)}`}
+                                                                alt=""
+                                                                className="w-4 h-4 object-contain rounded shrink-0"
+                                                                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                                                            />
+                                                        ) : (
+                                                            <Zap className="w-4 h-4 text-amber-400/60 shrink-0" />
+                                                        )}
+                                                        <span className="truncate font-medium">{s.name}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1 shrink-0 text-[10px]">
+                                                        <span className="text-amber-400 font-bold">{s.apCost ?? 0} PA</span>
+                                                        <span className="text-sky-400 font-bold">
+                                                            {s.minRange === s.range ? `${s.range} PO` : `${s.minRange ?? 0}-${s.range ?? 0} PO`}
+                                                        </span>
+                                                        {isSelected && <Check className="w-3 h-3 text-amber-400 ml-1" />}
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Sélecteur de salle / map stylé */}
+                            {shownMaps.length > 0 && (
+                                <div ref={mapMenuRef} className="relative flex-1 min-w-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsMapMenuOpen((prev) => !prev);
+                                            setIsSpellMenuOpen(false);
+                                        }}
+                                        className={cn(
+                                            "w-full flex items-center justify-between gap-1.5 bg-zinc-900/95 border rounded-lg px-2 py-1 text-[11px] font-medium transition-all",
+                                            isMapMenuOpen
+                                                ? "border-amber-500/50 bg-amber-500/[0.1] text-amber-300 shadow-md shadow-black/40"
+                                                : "border-white/10 hover:border-white/20 text-zinc-300 hover:text-white hover:bg-zinc-800"
+                                        )}
+                                        title={currentMapName}
+                                    >
+                                        <div className="flex items-center gap-1.5 min-w-0 truncate">
+                                            {selectedMapId === "empty" ? (
+                                                <Grid className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                                            ) : (
+                                                <MapIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                            )}
+                                            <span className="truncate">{currentMapName}</span>
+                                        </div>
+                                        <ChevronDown
+                                            className={cn(
+                                                "w-3 h-3 text-zinc-400 transition-transform duration-200 shrink-0",
+                                                isMapMenuOpen && "rotate-180 text-amber-400"
+                                            )}
+                                        />
+                                    </button>
+
+                                    {isMapMenuOpen && (
+                                        <div className="absolute right-0 top-full mt-1 w-64 max-h-56 overflow-y-auto rounded-xl bg-[#121218]/95 backdrop-blur-md border border-white/15 shadow-2xl p-1 z-50 animate-in fade-in zoom-in-95 duration-100 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent]">
+                                            <div className="px-2 py-1 text-[9px] font-bold text-white/40 uppercase tracking-wider">
+                                                Salles du Donjon
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedMapId("empty");
+                                                    setIsMapMenuOpen(false);
+                                                }}
+                                                className={cn(
+                                                    "w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg text-[11px] text-left transition-colors",
+                                                    selectedMapId === "empty"
+                                                        ? "bg-amber-500/15 border border-amber-500/30 text-amber-300 font-semibold"
+                                                        : "text-zinc-300 hover:text-white hover:bg-white/[0.06]"
+                                                )}
+                                            >
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <Grid className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                                                    <span className="truncate">Map vide (Grille 17×17)</span>
+                                                </div>
+                                                {selectedMapId === "empty" && <Check className="w-3 h-3 text-amber-400 shrink-0" />}
+                                            </button>
+
+                                            {shownMaps.map((m) => {
+                                                const isSelected = selectedMapId === m.id;
+                                                return (
+                                                    <button
+                                                        key={m.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedMapId(m.id);
+                                                            setIsMapMenuOpen(false);
+                                                        }}
+                                                        className={cn(
+                                                            "w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg text-[11px] text-left transition-colors mt-0.5",
+                                                            isSelected
+                                                                ? "bg-amber-500/15 border border-amber-500/30 text-amber-300 font-semibold"
+                                                                : "text-zinc-300 hover:text-white hover:bg-white/[0.06]"
+                                                        )}
+                                                    >
+                                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                            {m.isBoss ? (
+                                                                <Swords className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                                            ) : (
+                                                                <MapIcon className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                                                            )}
+                                                            <span className="truncate" title={m.name}>{m.name}</span>
+                                                        </div>
+                                                        {m.isBoss && (
+                                                            <span className="text-[8px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
+                                                                Boss
+                                                            </span>
+                                                        )}
+                                                        {isSelected && <Check className="w-3 h-3 text-amber-400 shrink-0" />}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
                             )}
-                            title="Placer le boss et les monstres sur leurs cases réelles"
-                        >
-                            <MapIcon className="w-3.5 h-3.5" /> Placements de départ
-                        </button>
-                    )}
-                    {mapData && totalPlacements > 1 && (
-                        <div className="inline-flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
-                            <span className="text-[11px] font-bold text-zinc-400 pl-2">Placement :</span>
-                            <select
-                                value={placementIndex}
-                                onChange={(e) => {
-                                    const nextIdx = Number(e.target.value);
-                                    setPlacementIndex(nextIdx);
-                                    if (mapData) {
-                                        setShowStartCells(true);
-                                        applyStartCells(mapData, true, nextIdx);
-                                    }
-                                }}
-                                className="bg-zinc-800 border border-white/10 text-amber-400 text-xs font-black rounded-md px-2 py-1 focus:outline-none cursor-pointer"
-                            >
-                                {Array.from({ length: totalPlacements }).map((_, i) => (
-                                    <option key={i + 1} value={i + 1}>
-                                        Placement {i + 1} / {totalPlacements}
-                                    </option>
-                                ))}
-                            </select>
+                            {mapLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400 shrink-0" />}
+                        </div>
+
+                        {/* Ligne 2 : Zoom + Placement + Butin + Toggles */}
+                        <div className="flex items-center justify-between gap-1 flex-wrap text-[10px]">
+                            {/* Zoom controls */}
+                            <div className="inline-flex items-center bg-zinc-900 border border-white/10 rounded-md p-0.5">
+                                <button type="button" onClick={() => setZoom((z) => Math.max(ZOOM_MIN, Number((z - 0.2).toFixed(2))))} className="px-1.5 py-0.5 font-black text-zinc-400 hover:text-white" title="Zoom arrière">−</button>
+                                <span className="px-1 font-bold text-zinc-300 tabular-nums text-[9px]">{Math.round(zoom * 100)}%</span>
+                                <button type="button" onClick={() => setZoom((z) => Math.min(ZOOM_MAX, Number((z + 0.2).toFixed(2))))} className="px-1.5 py-0.5 font-black text-zinc-400 hover:text-white" title="Zoom avant">+</button>
+                                <button type="button" onClick={() => { setZoom(0.6); setPan({ x: 0, y: 0 }); }} className="px-1.5 py-0.5 font-bold text-amber-400 hover:text-amber-300" title="Ajuster et recentrer">Fit</button>
+                            </div>
+
+                            {/* Placement & Butin compacts */}
+                            {mapData && (
+                                <div className="inline-flex items-center gap-1">
+                                    {totalPlacements > 1 && (
+                                        <select
+                                            value={placementIndex}
+                                            onChange={(e) => {
+                                                const nextIdx = Number(e.target.value);
+                                                setPlacementIndex(nextIdx);
+                                                setShowStartCells(true);
+                                                applyStartCells(mapData, true, nextIdx);
+                                            }}
+                                            className="bg-zinc-900 border border-white/10 text-amber-400 text-[10px] font-bold rounded-md px-1.5 py-0.5 focus:outline-none"
+                                        >
+                                            {Array.from({ length: totalPlacements }).map((_, i) => (
+                                                <option key={i + 1} value={i + 1}>P{i + 1}</option>
+                                            ))}
+                                        </select>
+                                    )}
+
+                                    <select
+                                        value={lootCount}
+                                        onChange={(e) => {
+                                            const nextLoot = Number(e.target.value);
+                                            setLootCount(nextLoot);
+                                            setShowStartCells(true);
+                                            applyStartCells(mapData, true, placementIndex);
+                                        }}
+                                        className="bg-zinc-900 border border-white/10 text-sky-400 text-[10px] font-bold rounded-md px-1.5 py-0.5 focus:outline-none"
+                                    >
+                                        {[4, 5, 6, 7, 8].map((b) => (
+                                            <option key={b} value={b}>B{b}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            {/* Actions rapides icônes */}
+                            <div className="inline-flex items-center gap-1">
+                                <button
+                                    type="button"
+                                    onClick={() => { setPlacingAlly((v) => !v); setSelectedAlly(null); }}
+                                    className={cn(
+                                        "px-1.5 py-0.5 rounded-md border text-[10px] font-semibold transition-colors flex items-center gap-1",
+                                        placingAlly ? "bg-sky-500/20 border-sky-400 text-sky-300" : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-white"
+                                    )}
+                                    title="Placer des alliés"
+                                >
+                                    <Users className="w-3 h-3" />
+                                    <span>{allies.length}</span>
+                                </button>
+
+                                {mapData && (
+                                    <button
+                                        type="button"
+                                        onClick={toggleStartCells}
+                                        className={cn(
+                                            "px-1.5 py-0.5 rounded-md border text-[10px] font-semibold transition-colors",
+                                            showStartCells ? "bg-amber-500/20 border-amber-400 text-amber-300" : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-white"
+                                        )}
+                                        title="Toggle placements de départ"
+                                    >
+                                        <MapIcon className="w-3 h-3" />
+                                    </button>
+                                )}
+
+                                <button
+                                    type="button"
+                                    onClick={recenter}
+                                    className="p-1 rounded-md bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white"
+                                    title="Recentrer le boss"
+                                >
+                                    <RotateCcw className="w-3 h-3" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    /* Mode complet standard */
+                    <>
+                        <div className="w-full flex items-center justify-between text-xs text-zinc-400 mb-2 px-2">
+                            <span className="font-bold text-zinc-300">
+                                Entité : <strong className="text-amber-400">{bossName}</strong>
+                            </span>
+                            <span className="text-zinc-500">
+                                Carte : <strong className="text-zinc-400">{mapData ? mapData.name : "Map Tactique Isométrique"}</strong>
+                                {mapData?.coordinates ? ` · ${mapData.coordinates.x}, ${mapData.coordinates.y}` : ""} · {reachableCount} cases couvertes
+                            </span>
+                        </div>
+
+                        {/* Sélecteur de map (salles du donjon) */}
+                        {shownMaps.length > 0 && (
+                            <div className="w-full flex flex-wrap items-center gap-2 mb-2 px-2 relative z-10">
+                                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-zinc-400">
+                                    <MapIcon className="w-3.5 h-3.5 text-amber-400" /> Salle :
+                                </span>
+                                <div ref={mapMenuRef} className="relative min-w-[240px] max-w-[360px]">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsMapMenuOpen((prev) => !prev)}
+                                        className={cn(
+                                            "w-full flex items-center justify-between gap-2 bg-zinc-900/90 border rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all",
+                                            isMapMenuOpen
+                                                ? "border-amber-500/50 bg-amber-500/[0.08] text-amber-300"
+                                                : "border-white/10 hover:border-white/20 text-zinc-200 hover:bg-zinc-800"
+                                        )}
+                                        title={currentMapName}
+                                    >
+                                        <div className="flex items-center gap-2 min-w-0 truncate">
+                                            {selectedMapId === "empty" ? (
+                                                <Grid className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                                            ) : (
+                                                <MapIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                            )}
+                                            <span className="truncate">{currentMapName}</span>
+                                        </div>
+                                        <ChevronDown className={cn("w-3.5 h-3.5 text-zinc-400 transition-transform duration-200 shrink-0", isMapMenuOpen && "rotate-180 text-amber-400")} />
+                                    </button>
+
+                                    {isMapMenuOpen && (
+                                        <div className="absolute left-0 top-full mt-1 w-full max-h-60 overflow-y-auto rounded-xl bg-[#121218]/95 backdrop-blur-md border border-white/15 shadow-2xl p-1 z-50 animate-in fade-in zoom-in-95 duration-100 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent]">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedMapId("empty");
+                                                    setIsMapMenuOpen(false);
+                                                }}
+                                                className={cn(
+                                                    "w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors",
+                                                    selectedMapId === "empty"
+                                                        ? "bg-amber-500/15 border border-amber-500/30 text-amber-300 font-semibold"
+                                                        : "text-zinc-300 hover:text-white hover:bg-white/[0.06]"
+                                                )}
+                                            >
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <Grid className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                                                    <span>Map vide</span>
+                                                </div>
+                                                {selectedMapId === "empty" && <Check className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                                            </button>
+                                            {shownMaps.map((m) => {
+                                                const isSelected = selectedMapId === m.id;
+                                                return (
+                                                    <button
+                                                        key={m.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedMapId(m.id);
+                                                            setIsMapMenuOpen(false);
+                                                        }}
+                                                        className={cn(
+                                                            "w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors mt-0.5",
+                                                            isSelected
+                                                                ? "bg-amber-500/15 border border-amber-500/30 text-amber-300 font-semibold"
+                                                                : "text-zinc-300 hover:text-white hover:bg-white/[0.06]"
+                                                        )}
+                                                    >
+                                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                            {m.isBoss ? <Swords className="w-3.5 h-3.5 text-amber-400 shrink-0" /> : <MapIcon className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
+                                                            <span className="truncate" title={m.name}>{m.name}</span>
+                                                        </div>
+                                                        {m.isBoss && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Boss</span>}
+                                                        {isSelected && <Check className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                                {mapLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />}
+                                {mapError && <span className="text-[11px] text-red-400">{mapError}</span>}
+                            </div>
+                        )}
+
+                        <div className="w-full flex flex-wrap items-center gap-2 mb-2 px-2 relative z-10">
+                            <div className="inline-flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
+                                <button type="button" onClick={() => setZoom((z) => Math.max(ZOOM_MIN, Number((z - 0.2).toFixed(2))))} className="px-2 py-1 rounded-md text-xs font-black text-muted-foreground hover:text-foreground hover:bg-elevated transition-all" title="Zoom arrière">−</button>
+                                <span className="text-[10px] font-bold text-muted-foreground px-1 tabular-nums w-9 text-center">{Math.round(zoom * 100)}%</span>
+                                <button type="button" onClick={() => setZoom((z) => Math.min(ZOOM_MAX, Number((z + 0.2).toFixed(2))))} className="px-2 py-1 rounded-md text-xs font-black text-muted-foreground hover:text-foreground hover:bg-elevated transition-all" title="Zoom avant">+</button>
+                                <button type="button" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="px-1.5 py-1 rounded-md text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-elevated transition-all" title="1:1 (recentrer)">1:1</button>
+                            </div>
                             <button
                                 type="button"
-                                onClick={() => setShowRulesModal(true)}
-                                className="p-1 text-zinc-400 hover:text-amber-400 transition-colors pr-1.5"
-                                title="Comment fonctionnent les règles de placement sur Dofus ?"
+                                onClick={() => { setPlacingAlly((v) => !v); setSelectedAlly(null); }}
+                                className={cn(
+                                    "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all",
+                                    placingAlly
+                                        ? "bg-sky-500/20 border-sky-400 text-sky-500 dark:text-sky-300"
+                                        : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
+                                )}
                             >
-                                <HelpCircle className="w-3.5 h-3.5" />
+                                <Users className="w-3.5 h-3.5" />
+                                {placingAlly ? "Clique sur une case pour poser/retirer un allié" : `Alliés ${allies.length}/${MAX_ALLIES}`}
                             </button>
+                            {mapData && (
+                                <button
+                                    type="button"
+                                    onClick={toggleStartCells}
+                                    className={cn(
+                                        "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all",
+                                        showStartCells
+                                            ? "bg-amber-500/20 border-amber-400 text-amber-500 dark:text-amber-300"
+                                            : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
+                                    )}
+                                    title="Placer le boss et les monstres sur leurs cases réelles"
+                                >
+                                    <MapIcon className="w-3.5 h-3.5" /> Placements de départ
+                                </button>
+                            )}
+                            {mapData && totalPlacements > 1 && (
+                                <div className="inline-flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
+                                    <span className="text-[11px] font-bold text-zinc-400 pl-2">Placement :</span>
+                                    <select
+                                        value={placementIndex}
+                                        onChange={(e) => {
+                                            const nextIdx = Number(e.target.value);
+                                            setPlacementIndex(nextIdx);
+                                            if (mapData) {
+                                                setShowStartCells(true);
+                                                applyStartCells(mapData, true, nextIdx);
+                                            }
+                                        }}
+                                        className="bg-zinc-800 border border-white/10 text-amber-400 text-xs font-black rounded-md px-2 py-1 focus:outline-none cursor-pointer"
+                                    >
+                                        {Array.from({ length: totalPlacements }).map((_, i) => (
+                                            <option key={i + 1} value={i + 1}>
+                                                Placement {i + 1} / {totalPlacements}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowRulesModal(true)}
+                                        className="p-1 text-zinc-400 hover:text-amber-400 transition-colors pr-1.5"
+                                        title="Comment fonctionnent les règles de placement sur Dofus ?"
+                                    >
+                                        <HelpCircle className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            )}
+                            {mapData && (
+                                <div className="inline-flex items-center gap-1 bg-zinc-900 border border-white/10 rounded-lg p-0.5">
+                                    <span className="text-[11px] font-bold text-zinc-400 pl-2">Butin :</span>
+                                    <select
+                                        value={lootCount}
+                                        onChange={(e) => {
+                                            const nextLoot = Number(e.target.value);
+                                            setLootCount(nextLoot);
+                                            if (mapData) {
+                                                setShowStartCells(true);
+                                                applyStartCells(mapData, true, placementIndex);
+                                            }
+                                        }}
+                                        className="bg-zinc-800 border border-white/10 text-sky-400 text-xs font-black rounded-md px-2 py-1 focus:outline-none cursor-pointer"
+                                    >
+                                        {[4, 5, 6, 7, 8].map((b) => (
+                                            <option key={b} value={b}>
+                                                Butin {b} ({b} monstres)
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                            {allies.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setAllies([])}
+                                    className="inline-flex items-center gap-1 text-xs font-bold text-zinc-400 hover:text-white bg-zinc-800 border border-white/10 px-2.5 py-1.5 rounded-lg transition-all"
+                                >
+                                    <RotateCcw className="w-3 h-3" /> Vider
+                                </button>
+                            )}
                         </div>
-                    )}
-                    {mapData && (
-                        <div className="inline-flex items-center gap-1 bg-zinc-900 border border-white/10 rounded-lg p-0.5">
-                            <span className="text-[11px] font-bold text-zinc-400 pl-2">Butin :</span>
-                            <select
-                                value={lootCount}
-                                onChange={(e) => {
-                                    const nextLoot = Number(e.target.value);
-                                    setLootCount(nextLoot);
-                                    if (mapData) {
-                                        setShowStartCells(true);
-                                        applyStartCells(mapData, true, placementIndex);
-                                    }
-                                }}
-                                className="bg-zinc-800 border border-white/10 text-sky-400 text-xs font-black rounded-md px-2 py-1 focus:outline-none cursor-pointer"
-                            >
-                                {[4, 5, 6, 7, 8].map((b) => (
-                                    <option key={b} value={b}>
-                                        Butin {b} ({b} monstres)
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
-                    {allies.length > 0 && (
-                        <button
-                            type="button"
-                            onClick={() => setAllies([])}
-                            className="inline-flex items-center gap-1 text-xs font-bold text-zinc-400 hover:text-white bg-zinc-800 border border-white/10 px-2.5 py-1.5 rounded-lg transition-all"
-                        >
-                            <RotateCcw className="w-3 h-3" /> Vider
-                        </button>
-                    )}
-                </div>
+                    </>
+                )}
 
                 {/* Bandeau Composition de la salle */}
                 {mapData && showStartCells && monsterPlacements.length > 0 && (
@@ -878,13 +1332,18 @@ export function SpellRangeGrid({
 
                 <div
                     ref={zoomRef}
-                    className="flex justify-center relative z-0 w-full"
-                    style={{ transform: `scale(${zoom})`, transformOrigin: "top center", transition: "transform 0.15s ease-out" }}
+                    className={cn("flex justify-center relative z-0 w-full shrink-0 select-none", compact ? "my-auto py-1" : "")}
+                    style={{
+                        transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
+                        transformOrigin: "center center",
+                        transition: isDragging ? "none" : "transform 0.15s ease-out",
+                        willChange: isDragging ? "transform" : "auto",
+                    }}
                 >
                 <svg
                     viewBox={`${viewX} ${viewY} ${viewW} ${viewH}`}
                     className="w-full h-auto drop-shadow-2xl"
-                    style={{ minWidth: "380px" }}
+                    style={{ minWidth: compact ? "100%" : "380px" }}
                 >
                     {/* Fond noir (le vide autour des maps ressort en noir franc) */}
                     {mapData && <rect x={viewX} y={viewY} width={viewW} height={viewH} fill="#050505" />}
@@ -1205,30 +1664,72 @@ export function SpellRangeGrid({
                 </svg>
                 </div>
 
-                {/* Légende */}
-                <div className="w-full flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-3 px-2 text-[10px] font-bold text-zinc-400">
-                    <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#6b1d1d", border: "1px solid #c53030" }} /> Boss (lanceur)</span>
-                    <span className="inline-flex items-center gap-1.5"><img src="/assets/module-succes/feca.webp" alt="" className="w-4 h-4 object-contain rounded-[3px]" /> Joueur (allié)</span>
-                    <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#79b638" }} /> Portée du sort (cibles)</span>
-                    <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#e0a320", border: "1px solid #ffcf5e" }} /> Zone d'effet / AoE (cercle, croix...)</span>
-                    <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#8a3a30", border: "1px solid #c65a4a" }} /> Départ Joueurs (Rouge)</span>
-                    <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#2e5a8a", border: "1px solid #4a86c4" }} /> Départ Monstres (Bleu)</span>
-                    <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#1e3a5f", border: "1px solid #3b82f6" }} /> Allié hors de portée</span>
-                    <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#a11c1c", border: "1px solid #ef4444" }} /> Allié touché par la zone</span>
-                    {mapData && (
-                        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#8D8A66" }} /> Sol</span>
-                    )}
-                    {mapData && (
-                        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#777358", border: "1px solid #5C5945" }} /> Obstacle</span>
-                    )}
-                    {mapData && (
-                        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#050505", border: "1px solid #3a3a3a" }} /> Trou / case impossible</span>
-                    )}
-                </div>
+                {/* Légende & Astuces */}
+                {compact ? (
+                    <div className="w-full mt-2 pt-1.5 border-t border-white/5 shrink-0">
+                        <button
+                            type="button"
+                            onClick={() => setShowCompactLegend((v) => !v)}
+                            className="w-full flex items-center justify-between px-2 py-1 rounded-md text-[10px] font-bold text-zinc-400 hover:text-white hover:bg-white/[0.04] transition-colors"
+                        >
+                            <span className="flex items-center gap-1.5">
+                                <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
+                                {showCompactLegend ? "Masquer la légende" : "Légende des couleurs & astuces"}
+                            </span>
+                            <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", showCompactLegend && "rotate-180 text-amber-400")} />
+                        </button>
+                        {showCompactLegend && (
+                            <div className="mt-2 space-y-2 animate-in fade-in duration-150 px-1">
+                                <div className="w-full flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[9px] font-bold text-zinc-400">
+                                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#6b1d1d", border: "1px solid #c53030" }} /> Boss (lanceur)</span>
+                                    <span className="inline-flex items-center gap-1"><img src="/assets/module-succes/feca.webp" alt="" className="w-3.5 h-3.5 object-contain rounded-[2px]" /> Joueur (allié)</span>
+                                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#79b638" }} /> Portée du sort</span>
+                                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#e0a320", border: "1px solid #ffcf5e" }} /> Zone d'effet / AoE</span>
+                                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#8a3a30", border: "1px solid #c65a4a" }} /> Départ Joueurs (Rouge)</span>
+                                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#2e5a8a", border: "1px solid #4a86c4" }} /> Départ Monstres (Bleu)</span>
+                                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#1e3a5f", border: "1px solid #3b82f6" }} /> Hors portée</span>
+                                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#a11c1c", border: "1px solid #ef4444" }} /> Touché par zone</span>
+                                    {mapData && (
+                                        <>
+                                            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#8D8A66" }} /> Sol</span>
+                                            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#777358", border: "1px solid #5C5945" }} /> Obstacle</span>
+                                            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#050505", border: "1px solid #3a3a3a" }} /> Trou</span>
+                                        </>
+                                    )}
+                                </div>
+                                <p className="text-[10px] text-zinc-500 leading-tight">
+                                    💡 Cliquez sur un losange pour déplacer le Boss (re-cliquez pour pivoter). Cliquez un Féca pour le sélectionner, une case pour le déplacer. « Placements de départ » pose boss + monstres sur leurs cases réelles.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <>
+                        <div className="w-full flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-3 px-2 text-[10px] font-bold text-zinc-400">
+                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#6b1d1d", border: "1px solid #c53030" }} /> Boss (lanceur)</span>
+                            <span className="inline-flex items-center gap-1.5"><img src="/assets/module-succes/feca.webp" alt="" className="w-4 h-4 object-contain rounded-[3px]" /> Joueur (allié)</span>
+                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#79b638" }} /> Portée du sort (cibles)</span>
+                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#e0a320", border: "1px solid #ffcf5e" }} /> Zone d'effet / AoE (cercle, croix...)</span>
+                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#8a3a30", border: "1px solid #c65a4a" }} /> Départ Joueurs (Rouge)</span>
+                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#2e5a8a", border: "1px solid #4a86c4" }} /> Départ Monstres (Bleu)</span>
+                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#1e3a5f", border: "1px solid #3b82f6" }} /> Allié hors de portée</span>
+                            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#a11c1c", border: "1px solid #ef4444" }} /> Allié touché par la zone</span>
+                            {mapData && (
+                                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#8D8A66" }} /> Sol</span>
+                            )}
+                            {mapData && (
+                                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#777358", border: "1px solid #5C5945" }} /> Obstacle</span>
+                            )}
+                            {mapData && (
+                                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] inline-block" style={{ background: "#050505", border: "1px solid #3a3a3a" }} /> Trou / case impossible</span>
+                            )}
+                        </div>
 
-                <p className="text-[11px] text-zinc-400 mt-2 text-center">
-                    💡 Cliquez sur un losange pour déplacer le Boss (re-cliquez sur lui pour le faire pivoter). Cliquez un Féca pour le sélectionner, une case pour le déplacer, re-cliquez pour l'orienter. « Placements de départ » pose boss + alliés sur leurs cases réelles.
-                </p>
+                        <p className="text-[11px] text-zinc-400 mt-2 text-center">
+                            💡 Cliquez sur un losange pour déplacer le Boss (re-cliquez sur lui pour le faire pivoter). Cliquez un Féca pour le sélectionner, une case pour le déplacer, re-cliquez pour l'orienter. « Placements de départ » pose boss + alliés sur leurs cases réelles.
+                        </p>
+                    </>
+                )}
             </div>
 
             {/* Modale d'explication des règles de placement Dofus */}

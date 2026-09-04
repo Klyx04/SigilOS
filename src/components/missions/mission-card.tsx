@@ -81,7 +81,7 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
         borderColor: "border-danger/40",
         headerGradient: "from-[#a11a21]/90 via-[#d32f2f]/80 to-[#6b0f14]/90",
         bannerImage: "/banners/donjon.png",
-        fallbackImage: "/assets/missions/donjon.png",
+        fallbackImage: "/banners/donjon.png",
         glowColor: "rgba(244, 63, 94, 0.4)",
         ringColor: "#f43f5e",
         label: "Donjon"
@@ -93,7 +93,7 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
         borderColor: "border-success/40",
         headerGradient: "from-[#4b6b1a]/90 via-[#7cb342]/80 to-[#2d4010]/90",
         bannerImage: "/banners/regulation.png",
-        fallbackImage: "/assets/missions/regulation.png",
+        fallbackImage: "/banners/regulation.png",
         glowColor: "rgba(52, 211, 153, 0.4)",
         ringColor: "#10b981",
         label: "Régulation"
@@ -129,7 +129,7 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
         borderColor: "border-warning/40",
         headerGradient: "from-[#7d5b1a]/90 via-[#ffa000]/80 to-[#4d3810]/90",
         bannerImage: "/banners/expedition.png",
-        fallbackImage: "/assets/missions/expedition.png",
+        fallbackImage: "/banners/expedition.png",
         glowColor: "rgba(251, 191, 36, 0.4)",
         ringColor: "#fbbf24",
         label: "Expédition"
@@ -400,7 +400,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                                     <div className="absolute inset-0 z-20 flex items-center justify-center">
                                         <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-warning/95 border-2 border-border-strong flex items-center justify-center overflow-hidden">
                                             <Image
-                                                src="/exclamation.png"
+                                                src="/assets/icons/exclamation.png"
                                                 alt="Objectif manuel"
                                                 width={80}
                                                 height={80}
@@ -415,7 +415,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                             /* OBJECTIF MANUEL sans image — l'icône exclamation EST le visuel principal */
                             <div className="w-full h-full flex items-center justify-center">
                                 <Image
-                                    src="/exclamation.png"
+                                    src="/assets/icons/exclamation.png"
                                     alt="Objectif manuel"
                                     width={96}
                                     height={96}
@@ -469,13 +469,13 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                                 {mission.xpReward && (
                                     <div className="flex items-center justify-center gap-2 px-2.5 py-1 bg-black/40 rounded-lg border border-border shadow-md min-w-[70px] sm:min-w-[85px]">
                                         <span className="text-foreground font-mono text-xs sm:text-sm font-black">{mission.xpReward}</span>
-                                        <Image src="/PA.png" alt="PA" width={18} height={18} className="object-contain" loading="lazy" />
+                                        <Image src="/assets/icons/pa.png" alt="PA" width={18} height={18} className="object-contain" loading="lazy" />
                                     </div>
                                 )}
                                 {mission.guildatonsReward && (
                                     <div className="flex items-center justify-center gap-2 px-2.5 py-1 bg-black/40 rounded-lg border border-border shadow-md min-w-[70px] sm:min-w-[85px]">
                                         <span className="text-foreground font-mono text-xs sm:text-sm font-black">{mission.guildatonsReward}</span>
-                                        <Image src="/guildatons.png" alt="Guildatons" width={18} height={18} className="object-contain" loading="lazy" />
+                                        <Image src="/assets/icons/guildatons.png" alt="Guildatons" width={18} height={18} className="object-contain" loading="lazy" />
                                     </div>
                                 )}
                                 {config.label && (

@@ -63,7 +63,7 @@ function getStatusConfig(member: KamaWeeklyMemberSummary): StatusConfig {
 function KamasVioletIcon({ size = 16 }: { size?: number }) {
     return (
         <Image
-            src="/kamas-violet.png"
+            src="/assets/icons/kamas-violet.png"
             alt="🟣"
             width={size}
             height={size}
@@ -314,7 +314,7 @@ export function KamaWeeklySummary({ data, isOfficer, guildId }: KamaWeeklySummar
                     <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
                         <div className="flex items-center gap-3.5 flex-1 min-w-0">
                             <div className="p-2.5 rounded-xl bg-violet-500/10 border border-violet-500/20 shrink-0">
-                                <Image src="/kamas-violet.png" alt="🟣" width={24} height={24} />
+                                <Image src="/assets/icons/kamas-violet.png" alt="🟣" width={24} height={24} />
                             </div>
                             <div>
                                 <p className="text-sm font-black text-foreground uppercase tracking-wide flex items-center gap-2">
@@ -345,7 +345,7 @@ export function KamaWeeklySummary({ data, isOfficer, guildId }: KamaWeeklySummar
                 {/* ── Stats cards ── */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <StatCard
-                        icon={<Image src="/kamas-violet.png" alt="🟣" width={18} height={18} />}
+                        icon={<Image src="/assets/icons/kamas-violet.png" alt="🟣" width={18} height={18} />}
                         label="Total Kamas Violets"
                         value={totalPurpleKamas}
                         color="violet"

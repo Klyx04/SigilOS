@@ -23,6 +23,14 @@ export async function GET(req: Request) {
     const startedAt = Date.now();
 
     try {
+        // 1. Mise à jour automatique du catalogue Donjons & Familles (100% local-first)
+        try {
+            const { siphonDungeonMonstersDataset } = await import("@/lib/dungeon-monsters-siphon");
+            await siphonDungeonMonstersDataset();
+        } catch (e) {
+            logger.warn("[Cron:SyncMonsterStats] Échec de la mise à jour du dataset donjons:", { error: String(e) });
+        }
+
         const dungeonsRes = await getDungeonsWithAchievements();
         if (!dungeonsRes.success || !Array.isArray(dungeonsRes.data)) {
             return NextResponse.json({ error: "Impossible de récupérer les donjons" }, { status: 500 });

@@ -258,7 +258,7 @@ describe("rush-guide-utils", () => {
     it("normalise le nom de métier pour le chemin d'icône", () => {
       expect(getMetierIconPath("Façonneur")).toBe("/assets/rush-sylvestre/faconneur.png");
       expect(getMetierIconPath("Bûcheron")).toBe("/assets/rush-sylvestre/bucheron.png");
-      expect(getMetierIconPath()).toBe("/assets/rush-sylvestre/façonneur.png");
+      expect(getMetierIconPath()).toBe("/assets/rush-sylvestre/faconneur.png");
     });
   });
 

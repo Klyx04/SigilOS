@@ -35,6 +35,7 @@ type Tab = "services" | "demandes" | "feedbacks" | "prets" | "coffre";
 
 interface PassagesClientProps {
     guildId: string;
+    userId?: string;
     profileId?: string;
     isAdmin: boolean;
     canCreate: boolean;
@@ -62,6 +63,7 @@ interface PassagesClientProps {
 
 export function PassagesClient({
     guildId,
+    userId,
     profileId,
     isAdmin,
     canCreate,
@@ -430,6 +432,7 @@ export function PassagesClient({
                 <ServiceRequestsView
                     guildId={guildId}
                     requests={requests}
+                    currentUserId={userId}
                     currentProfileId={profileId}
                     isAdmin={isAdmin}
                     onLeaveFeedback={(req) => setFeedbackTarget({

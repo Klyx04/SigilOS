@@ -140,8 +140,8 @@ export function DungeonFinderClient({
     return (
         <div className="space-y-8">
             <div className="space-y-5">
-                {/* Toolbar */}
-                <div className="flex flex-col xl:flex-row xl:items-start gap-4">
+                {/* Toolbar — sticky sous la navbar : dissociée du scroll des résultats */}
+                <div className="flex flex-col xl:flex-row xl:items-start gap-4 sticky top-14 z-20 bg-background/95 backdrop-blur-md pb-3">
                     <div className="flex-1">
                         <DjFiltersBar
                             filters={filters}
@@ -226,7 +226,7 @@ export function DungeonFinderClient({
                     </div>
                 ) : (
                     <div
-                        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" data-tour="donjons-list"
+                        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 min-h-[420px] content-start" data-tour="donjons-list"
                     >
                         {filteredPosts.map((post) => (
                             <DjPostCard

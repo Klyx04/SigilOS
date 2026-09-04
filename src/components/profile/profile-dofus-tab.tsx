@@ -157,15 +157,17 @@ export function ProfileDofusTab({ guildId, profileId, readOnly = false }: Profil
                     {/* Dofus Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         {list.map(item => (
-                            <div
+                            <Link
                                 key={item.slug}
+                                href={`/dashboard/${guildId}/quetes-dofus/${item.slug}`}
                                 className={cn(
-                                    "p-3.5 rounded-2xl border transition-all flex items-center gap-3 relative overflow-hidden",
+                                    "group p-3.5 rounded-2xl border transition-all flex items-center gap-3 relative overflow-hidden",
+                                    "hover:scale-[1.02] hover:shadow-lg active:scale-[0.99]",
                                     item.isObtained
-                                        ? "bg-success/20 border-success/30"
+                                        ? "bg-success/20 border-success/30 hover:border-success/60 hover:bg-success/25"
                                         : item.progressPercent > 0
-                                        ? "bg-warning/20 border-warning/30"
-                                        : "bg-surface/40 border-border opacity-60"
+                                        ? "bg-warning/20 border-warning/30 hover:border-warning/60 hover:bg-warning/25"
+                                        : "bg-surface/40 border-border opacity-60 hover:opacity-100 hover:border-border-strong"
                                 )}
                             >
                                 <div className="w-10 h-10 rounded-xl bg-black/60 border border-border flex items-center justify-center shrink-0 p-1">
@@ -215,7 +217,10 @@ export function ProfileDofusTab({ guildId, profileId, readOnly = false }: Profil
                                         />
                                     </div>
                                 </div>
-                            </div>
+
+                                {/* Arrow hint on hover */}
+                                <ArrowRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                            </Link>
                         ))}
                     </div>
 

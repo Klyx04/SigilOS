@@ -215,7 +215,7 @@ export default async function DashboardLayout({
 
 
                 {/* 1. DESKTOP SIDEBAR (Fixed) */}
-                <div data-tour="sidebar-root" className="dashboard-sidebar hidden lg:flex w-[280px] flex-col fixed inset-y-0 z-50">
+                <div data-tour="sidebar-root" className="dashboard-sidebar hidden lg:flex w-[var(--app-sidebar-width,280px)] flex-col fixed inset-y-0 z-50">
                     <AppSidebar
                         guildId={guildId}
                         user={user}
@@ -231,7 +231,7 @@ export default async function DashboardLayout({
                 <PresenceHeartbeat guildId={guildId} />
 
                 {/* 2. MAIN CONTENT AREA */}
-                <div className="flex-1 flex flex-col lg:pl-[280px] h-full overflow-hidden">
+                <div className="flex-1 flex flex-col lg:pl-[var(--app-sidebar-width,280px)] h-full overflow-hidden">
                     {/* Top Navigation - Fixed at top of content area */}
                     <div className="dashboard-topnav flex-shrink-0 z-50 border-b border-border bg-background">
                         <TopNav
@@ -243,7 +243,7 @@ export default async function DashboardLayout({
                     </div>
 
                     {/* Scrollable Main Content area */}
-                    <main data-scroll-container="true" className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                    <main data-scroll-container="true" className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent [scrollbar-gutter:stable]">
                         <div className="relative z-10">
                             {/* System Announcement Banner */}
                             <Suspense fallback={null}>
@@ -283,7 +283,7 @@ export default async function DashboardLayout({
                 {/* Global Service Dialogue Modal — visible sur toute page / refresh */}
                 <ServiceReplyModal guildId={guildId} />
 
-                {/* Overlay Rush PiP persistant — survit à la navigation entre modules */}
+                {/* Overlay Rush persistant — survit à la navigation entre modules */}
                 <RushOverlayHost />
 
                 {/* Command Palette (Cmd+K) */}

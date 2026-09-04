@@ -37,24 +37,24 @@ export default function manifest(): MetadataRoute.Manifest {
         ],
         shortcuts: [
             {
-                name: 'Quêtes Dofus & Guides',
-                short_name: 'Quêtes',
-                description: 'Guides interactifs des 26 Dofus et suivi d\'étapes',
-                url: '/succes?view=quetes',
+                name: 'Guides Quêtes Dofus & Rush',
+                short_name: 'Guides',
+                description: 'Guides interactifs des Dofus et suivi d\'étapes avec overlay in-game',
+                url: '/guides',
                 icons: [{ src: '/assets/ui/logo-v2.png', sizes: '192x192' }]
             },
             {
                 name: 'Almanax du Jour',
                 short_name: 'Almanax',
-                description: 'Offrande Méryde du jour et kamas',
+                description: 'Offrande Méryde du jour, bonus et gains de kamas',
                 url: '/almanax',
                 icons: [{ src: '/assets/ui/logo-v2.png', sizes: '192x192' }]
             },
             {
-                name: 'Défis & Doubles Boss',
-                short_name: 'Défis',
-                description: 'Matchmaking et succès Double Boss de guilde',
-                url: '/succes?view=defi',
+                name: 'Encyclopédie Boss & Stratégies',
+                short_name: 'Boss',
+                description: 'Stratégies, doubles boss et guides donjons Dofus',
+                url: '/boss',
                 icons: [{ src: '/assets/ui/logo-v2.png', sizes: '192x192' }]
             }
         ]

@@ -1,15 +1,17 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Sun, Moon, ExternalLink, Package, Eye, EyeOff, HelpCircle, RotateCcw, Crown, Users, Check, X, MoreVertical } from "lucide-react";
-import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
+import { Sun, Moon, ExternalLink, Package, Eye, EyeOff, HelpCircle, RotateCcw, Crown, Users, Check, X, MoreVertical, Bug } from "lucide-react";
+import { RushOverlayFeedbackPanel } from "./RushOverlayFeedbackPanel";
 import { getClass } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
+
+import { toast } from "sonner";
 
 interface RushOverlayHeaderProps {
   guideName: string;
   guideSlug: string;
-  guildId: string;
+  guildId?: string;
   dofusImageUrl: string;
   totalSteps: number;
   completedSteps: number;
@@ -29,6 +31,8 @@ interface RushOverlayHeaderProps {
   className?: string;
   /** Overlay réduit (largeur/hauteur) : masque le contenu secondaire et groupe les actions. */
   isNarrow?: boolean;
+  /** Mode invité sans guilde ni compte */
+  isGuest?: boolean;
 }
 
 /**
@@ -41,7 +45,7 @@ interface RushOverlayHeaderProps {
 export function RushOverlayHeader({
   guideName,
   guideSlug,
-  guildId,
+  guildId = "public",
   dofusImageUrl,
   totalSteps,
   completedSteps,
@@ -57,9 +61,12 @@ export function RushOverlayHeader({
   onResetGuide,
   className,
   isNarrow: isNarrowProp,
+  isGuest = false,
 }: RushOverlayHeaderProps) {
   // Confirmation en 2 temps du reset (évite le reset accidentel).
   const [confirmReset, setConfirmReset] = useState(false);
+  // Panneau de retour intégré à l'overlay (jamais la modale dashboard).
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   // Menu « plus » : regroupe les actions secondaires quand l'overlay est étroit.
   const [moreOpen, setMoreOpen] = useState(false);
   // Détection de largeur étroite → on groupe les actions secondaires dans un menu ⋯.
@@ -154,8 +161,8 @@ export function RushOverlayHeader({
               <span className={cn("text-[10px] font-semibold truncate", isLightMode ? "text-slate-700" : "text-[#c4cad2]")}>
                 {character.pseudo}
               </span>
-              <span className={cn("text-[9px] font-mono uppercase font-bold", character.isMain ? "text-amber-500" : "text-blue-400")}>
-                {character.isMain ? "Main" : "Mule"}
+              <span className={cn("text-[9px] font-mono uppercase font-bold", isGuest ? "text-emerald-400" : character.isMain ? "text-amber-500" : "text-blue-400")}>
+                {isGuest ? "Invité" : character.isMain ? "Main" : "Mule"}
               </span>
             </div>
           )}
@@ -212,21 +219,37 @@ export function RushOverlayHeader({
             {hideCompleted ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           </button>
 
-          {/* Signaler un bug (toujours visible) */}
-          <QuestFeedbackButton
-            guildId={guildId}
-            sourcePage={`guide:overlay:${guideSlug}`}
-            targetSlug={guideSlug}
-            compact
-            iconOnly
-            context={bugContext}
+          {/* Signaler un bug / retour */}
+          <button
+            type="button"
+            onClick={() => {
+              if (isGuest) {
+                toast.info("Une remarque ou un bug ? Rejoignez notre Discord !", { duration: 2500 });
+                return;
+              }
+              setFeedbackOpen(true);
+            }}
+            aria-label="Signaler un bug ou faire un retour"
+            title="Signaler un bug, proposer une amélioration ou un ajout"
             className={cn(
               "p-1.5 rounded-lg border transition-colors",
               isLightMode
                 ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
                 : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
             )}
-          />
+          >
+            <Bug className="w-3.5 h-3.5" />
+          </button>
+          {!isGuest && feedbackOpen && (
+            <RushOverlayFeedbackPanel
+              guildId={guildId}
+              sourcePage={`guide:overlay:${guideSlug}`}
+              targetSlug={guideSlug}
+              context={bugContext}
+              isLightMode={isLightMode}
+              onClose={() => setFeedbackOpen(false)}
+            />
+          )}
 
           {narrow ? (
             <>
@@ -257,7 +280,7 @@ export function RushOverlayHeader({
                       <HelpCircle className="w-3.5 h-3.5" /> Aide / tutoriel
                     </button>
                     <a
-                      href={`/dashboard/${guildId}/quetes-dofus/guide/${guideSlug}`}
+                      href={isGuest ? `/guides/${guideSlug}` : `/dashboard/${guildId}/quetes-dofus/guide/${guideSlug}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={() => setMoreOpen(false)}
@@ -290,9 +313,9 @@ export function RushOverlayHeader({
             <HelpCircle className="w-3.5 h-3.5" />
           </button>
 
-          {/* Dashboard */}
+          {/* Dashboard / Guide web */}
           <a
-            href={`/dashboard/${guildId}/quetes-dofus/guide/${guideSlug}`}
+            href={isGuest ? `/guides/${guideSlug}` : `/dashboard/${guildId}/quetes-dofus/guide/${guideSlug}`}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Ouvrir le guide complet"

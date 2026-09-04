@@ -1,7 +1,7 @@
 const STEPS = [
     {
-        title: "Demander l'accès",
-        description: "Un chef ou admin Discord ouvre un ticket depuis le Discord SigilOS.",
+        title: "Connecter votre Discord",
+        description: "Installez SigilOS en autonomie en 1 clic si vous êtes administrateur, ou demandez un accompagnement VIP par ticket.",
     },
     {
         title: "Configurer",

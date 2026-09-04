@@ -2072,7 +2072,7 @@ export async function getLinkedQuests(
                     select: {
                         sectionName: true,
                         sectionType: true,
-                        dofus: { select: { name: true, nameShort: true, imageUrl: true } },
+                        dofus: { select: { name: true, nameShort: true, imageUrl: true, successName: true, slug: true } },
                     },
                 },
             },
@@ -2122,16 +2122,31 @@ export async function getLinkedQuests(
         const quests = linked.map((q: any) => {
             const mine = progress.find((p: any) => p.profileId === ctx.profileId && p.questId === q.id);
             const questProgress = progress.filter((p: any) => p.questId === q.id);
-            const guildCompleted = questProgress.filter((p: any) => p.status === "COMPLETED").length;
-            const guildInProgress = questProgress.filter((p: any) => p.status === "IN_PROGRESS").length;
-            const members = questProgress
-                .filter((p: any) => p.status === "COMPLETED" || p.status === "IN_PROGRESS")
-                .map((p: any) => ({
-                    profileId: p.profileId,
-                    pseudo: p.profile?.pseudoDofus || p.profile?.user?.name || "Membre",
-                    avatarUrl: p.profile?.user?.image || null,
-                    status: p.status as "COMPLETED" | "IN_PROGRESS",
-                }));
+
+            // Déduplication stricte par profil unique (COMPLETED prioritaire sur IN_PROGRESS)
+            const uniqueProfileMap = new Map<string, {
+                profileId: string;
+                pseudo: string;
+                avatarUrl: string | null;
+                status: "COMPLETED" | "IN_PROGRESS";
+            }>();
+
+            for (const p of questProgress) {
+                if (!p.profileId || (p.status !== "COMPLETED" && p.status !== "IN_PROGRESS")) continue;
+                const existing = uniqueProfileMap.get(p.profileId);
+                if (!existing || (existing.status !== "COMPLETED" && p.status === "COMPLETED")) {
+                    uniqueProfileMap.set(p.profileId, {
+                        profileId: p.profileId,
+                        pseudo: p.profile?.pseudoDofus || p.profile?.user?.name || "Membre",
+                        avatarUrl: p.profile?.user?.image || null,
+                        status: p.status as "COMPLETED" | "IN_PROGRESS",
+                    });
+                }
+            }
+
+            const members = Array.from(uniqueProfileMap.values());
+            const guildCompleted = members.filter((m) => m.status === "COMPLETED").length;
+            const guildInProgress = members.filter((m) => m.status === "IN_PROGRESS").length;
 
             return {
                 id: q.id,
@@ -2140,8 +2155,15 @@ export async function getLinkedQuests(
                 stepOrder: q.stepOrder,
                 zone: q.zone ?? null,
                 chainName: q.chain?.sectionName ?? null,
-                dofusName: q.chain?.dofus?.name || q.chain?.sectionName || null,
+                dofusName: q.chain?.dofus?.name || null,
+                dofusSlug: q.chain?.dofus?.slug || null,
                 dofusImageUrl: q.chain?.dofus?.imageUrl || null,
+                dofusSuccessName: q.chain?.dofus?.successName || null,
+                level: q.level ?? null,
+                npcName: q.npcName ?? null,
+                coords: q.coords ?? null,
+                dofusdbId: q.dofusdbId ?? null,
+                objectives: Array.isArray(q.objectives) ? q.objectives : [],
                 isRush: !!q.isSynergyCandidate || ((q.chain?.sectionType || "").toLowerCase().includes("rush")),
                 myStatus: mine?.status ?? "NOT_STARTED",
                 guildCompleted,

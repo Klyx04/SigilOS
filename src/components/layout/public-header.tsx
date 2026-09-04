@@ -30,11 +30,11 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
     { label: "Produit", href: "/#produit", id: "produit" },
+    { label: "Rush Sylvestre", href: "/guides/rush-sylvestre", id: "rush" },
+    { label: "Fiches Boss", href: "/boss", id: "boss" },
     { label: "Almanax", href: "/almanax", id: "almanax" },
-    { label: "Annuaire", href: "/guilds", id: "annuaire" },
     { label: "Guides", href: "/guides", id: "guides" },
-    { label: "Changelog", href: "/changelog", id: "changelog" },
-    { label: "Statut", href: "/status", id: "status" },
+    { label: "Annuaire", href: "/guilds", id: "annuaire" },
 ];
 
 interface PublicHeaderProps {
@@ -84,8 +84,8 @@ export function PublicHeader({ activePage, user, variant: _variant = "standard",
                                 className="object-contain"
                                 priority
                             />
-                            <span className="text-lg font-bold tracking-tight text-foreground leading-none">
-                                Sigil<span className="text-success">OS</span>
+                            <span className={cn("text-lg font-bold tracking-tight leading-none transition-colors", scrolled ? "text-foreground" : "text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]")}>
+                                Sigil<span className={scrolled ? "text-success" : "text-amber-300"}>OS</span>
                             </span>
                         </Link>
 
@@ -100,8 +100,10 @@ export function PublicHeader({ activePage, user, variant: _variant = "standard",
                                         className={cn(
                                             "px-3 py-1.5 rounded-md text-body-sm font-medium transition-colors",
                                             isActive
-                                                ? "text-foreground bg-surface"
-                                                : "text-muted-foreground hover:text-foreground hover:bg-surface"
+                                                ? scrolled ? "text-foreground bg-surface" : "text-white bg-white/10"
+                                                : scrolled
+                                                  ? "text-muted-foreground hover:text-foreground hover:bg-surface"
+                                                  : "text-white/80 hover:text-white hover:bg-white/10"
                                         )}
                                     >
                                         {item.label}
@@ -111,9 +113,8 @@ export function PublicHeader({ activePage, user, variant: _variant = "standard",
                         </nav>
                     </div>
 
-                    {/* Right: Auth & Theme */}
+                    {/* Right: Auth */}
                     <div className="flex items-center gap-3 sm:gap-4">
-                        <ThemeToggle />
                         <AnimatePresence mode="wait">
                             {user ? (
                                 <motion.div 

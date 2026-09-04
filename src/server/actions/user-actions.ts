@@ -191,6 +191,7 @@ export type UserContext = {
     canViewDocs: boolean;
     canViewAdminDocs: boolean;
     canViewResources: boolean;
+    canViewCommands: boolean;
     canManageResources: boolean;
     canViewProfile: boolean;
     canManageMembers: boolean;
@@ -340,6 +341,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewDocs: false,
         canViewAdminDocs: false,
         canViewResources: false,
+        canViewCommands: false,
         canManageResources: false,
         canViewProfile: false,
         canManageMembers: false,
@@ -943,6 +945,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canViewStats = permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal || noRolesConfigured;
     const canViewDocs = permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal;
     const canViewAdminDocs = permissionSet.has(PERMISSIONS.STAFF_CONTENT) || isAdminFinal;
+    const canViewCommands = permissionSet.has(PERMISSIONS.COMMANDS_VIEW) || permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal || noRolesConfigured;
     const canViewRoster = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal;
     // Module Disponibilités : accès communauté OU permission dédiée `availability:view`.
     // Le module toggle (`mod.availability`) reste le verrou principal (applyModule).
@@ -1032,6 +1035,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewStats: !!applyModule(!!mod?.stats, !!canViewStats),
         canViewDocs: !!applyModule(!!mod?.docs, !!canViewDocs),
         canViewAdminDocs: !!canViewAdminDocs,
+        canViewCommands: !!canViewCommands,
         canViewResources: !!applyModule(!!mod?.resources, true),
         canManageResources: !!canManageResources,
         canViewProfile: !!applyModule(!!mod?.profile, true),
@@ -1264,10 +1268,21 @@ export async function getGuildsSeparated(): Promise<{
     });
     const allowedGuildStatusMap = new Map(allAllowedGuilds.map(g => [g.discordGuildId, { isActive: g.isActive, name: g.name }]));
 
-    // BUGFIX: isAllowedForDeployment must check that the allowedGuild is ACTIVE, not just exists
+    // Fetch platform bans for guilds to filter out banned servers
+    const bannedGuilds = await db.platformBan.findMany({
+        where: { entityType: "GUILD" },
+        select: { discordId: true }
+    });
+    const bannedGuildIdSet = new Set(bannedGuilds.map(b => b.discordId));
+
+    // Autonomous & Pre-whitelisted eligibility:
+    // A guild is allowed for deployment if NOT banned in PlatformBan
+    // AND NOT explicitly deactivated (isActive === false) in AllowedGuild by God.
     const isAllowedForDeployment = (guildId: string) => {
+        if (bannedGuildIdSet.has(guildId)) return false;
         const status = allowedGuildStatusMap.get(guildId);
-        return status ? status.isActive : false;
+        if (status && status.isActive === false) return false;
+        return true;
     };
 
     const validatedActive = await Promise.all(

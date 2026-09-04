@@ -1,7 +1,7 @@
 import { NebulaClientWrapper } from "@/components/layout/nebula-client-wrapper";
 import Script from "next/script";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
-import { HeroSection } from "@/components/landing/hero-section";
+import { DofusHeroSection } from "@/components/landing/dofus-hero-section";
 import { ProblemSolution } from "@/components/landing/problem-solution";
 import { ProductStory } from "@/components/landing/product-story";
 import { ThreePillars } from "@/components/landing/three-pillars";
@@ -12,6 +12,7 @@ import { PublicHeader } from "@/components/layout/public-header";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { HowItWorks } from "@/components/landing/how-it-works";
+import { ToolsBentoShowcase } from "@/components/landing/tools-bento-showcase";
 import { FaqSection } from "@/components/landing/faq-section";
 import { PreFooterCta } from "@/components/landing/pre-footer-cta";
 import { getPublicLandingScreens } from "@/server/actions/landing-screen-actions";
@@ -23,22 +24,71 @@ const baseUrl = getAppBaseUrl();
 
 const jsonLd = {
   "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "name": "SigilOS",
-  "applicationCategory": "GameApplication",
-  "operatingSystem": "Web",
-  "url": baseUrl,
-  "description": "SigilOS réunit quêtes, sorties, membres et progression Dofus dans un espace partagé, relié à Discord. Gratuit pour les guildes.",
-  "offers": {
-    "@type": "Offer",
-    "price": "0",
-    "priceCurrency": "EUR",
-  },
-  "creator": {
-    "@type": "Organization",
-    "name": "SigilOS",
-    "url": baseUrl,
-  },
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "name": "SigilOS",
+      "applicationCategory": "GameApplication",
+      "operatingSystem": "Web",
+      "url": baseUrl,
+      "description": "SigilOS réunit quêtes, sorties, membres et progression Dofus dans un espace partagé, relié à Discord. Gratuit pour les guildes.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "EUR",
+      },
+      "creator": {
+        "@type": "Organization",
+        "name": "SigilOS",
+        "url": baseUrl,
+      },
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Comment se connecter à SigilOS ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Uniquement via votre compte Discord (OAuth2). Il n'existe ni compte ni mot de passe SigilOS : vous vous connectez à Discord, puis vous accédez aux guildes où vous êtes membre ou administrateur."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Combien ça coûte ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "C'est 100% gratuit et sans publicité pour toutes les guildes Dofus."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Comment créer l'espace de ma guilde ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Si vous êtes administrateur Discord de votre serveur de guilde, vous pouvez installer SigilOS immédiatement en autonomie en 1 clic. Un accompagnement manuel par ticket Discord reste également disponible."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Demandez-vous mon mot de passe Ankama ou mon e-mail ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Non, jamais. Vous connectez uniquement votre compte Discord. SigilOS ne demande aucun mot de passe de jeu et ne collecte aucune adresse e-mail."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Comment intégrer les archimonstres (Ocre) ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Ajoutez votre pseudo Dofus et votre clé API Metamob en lecture seule. SigilOS synchronise vos captures pour que toute la guilde s'entraide sur la quête du Dofus Ocre."
+          }
+        }
+      ]
+    }
+  ]
 };
 
 export default async function Home({
@@ -71,15 +121,12 @@ export default async function Home({
     redirect(`/auth/error?error=${info.error}`);
   }
 
-  // Un membre connecté disposant d'au moins une guilde accessible est aiguillé
-  // directement vers son QG (le portail /dashboard redirige déjà seul vers la
-  // 1ʳᵉ guilde s'il n'y en a qu'une). Évite de rester bloqué sur la landing
-  // après le login ("je ne peux pas entrer direct"). Les non-connectés et les
-  // membres sans guilde accessible voient toujours la page d'accueil publique.
+  // Un membre connecté disposant d'au moins une guilde accessible ou éligible au déploiement
+  // est aiguillé directement vers son QG / dashboard.
   if (session?.user) {
     const { getGuildsSeparated } = await import("@/server/actions/user-actions");
     const separated = await getGuildsSeparated();
-    if (separated.active.length > 0) {
+    if (separated.active.length > 0 || separated.pending.length > 0) {
       redirect("/dashboard");
     }
   }
@@ -102,8 +149,11 @@ export default async function Home({
 
         <main className="flex-1 w-full relative z-10 flex flex-col">
 
-          {/* Hero */}
-          <HeroSection user={session?.user} userGuilds={userGuilds} heroImageUrl={heroImageUrl} />
+          {/* Hero — Dofus Unity Immersive */}
+          <DofusHeroSection user={session?.user} userGuilds={userGuilds} />
+
+          {/* Outils & Overlay Compagnon Bento Showcase (Gratuit / Sans Inscription) */}
+          <ToolsBentoShowcase />
 
           {/* Problème / solution */}
           <ProblemSolution />

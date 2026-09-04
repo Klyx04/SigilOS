@@ -5,7 +5,7 @@ import { getMyWeeklyKamaStatus, getKamaStats } from "@/server/actions/kama-actio
 import { getUserProfile } from "@/server/actions/profile-actions";
 import { MissionBoard } from "@/components/missions/mission-board";
 import { redirect } from "next/navigation";
-import { ScrollText, Eye } from "lucide-react";
+import { Eye } from "lucide-react";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import AccessDenied from "@/components/access-denied";
 import { MissionsErrorState } from "@/components/missions/missions-error-state";
@@ -113,8 +113,7 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
                 <UnifiedModuleHeader
                     title="Missions de Guilde"
                     description={`Semaine ${week} • Année ${year} | Relevez les défis pour faire briller votre guilde.`}
-                    icon={ScrollText}
-                    iconColor="#ef4444"
+                    imageSrc="/assets/dofus/game-icons/parchment.png"
                     backHref={`/dashboard/${guildId}`}
                     actions={<ModuleTourReplayButton phase="missions" />}
                 />

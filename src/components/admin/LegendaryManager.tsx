@@ -35,7 +35,7 @@ import Image from "next/image";
 const LEGENDARY_JOBS = [
     { id: "bijoutier",  name: "Bijoutier",   icon: "/assets/dofus/jobs/bijoutier.png" },
     { id: "cordonnier", name: "Cordonnier",  icon: "/assets/dofus/jobs/cordonnier.png" },
-    { id: "faconneur",  name: "Façonneur",   icon: "/assets/dofus/jobs/façonneur.png" },
+    { id: "faconneur",  name: "Façonneur",   icon: "/assets/dofus/jobs/faconneur.png" },
     { id: "sculpteur",  name: "Sculpteur",   icon: "/assets/dofus/jobs/sculpteur.png" },
     { id: "tailleur",   name: "Tailleur",    icon: "/assets/dofus/jobs/tailleur.png" },
 ];

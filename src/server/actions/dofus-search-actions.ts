@@ -47,7 +47,7 @@ export async function searchItemsDofusDB(query: string) {
             data: (data.data || []).map((it: any) => ({
                 id: it.id.toString(),
                 name: it.name.fr,
-                imageUrl: it.img || (it.iconId ? `https://static.dofusdb.fr/items/illustr/${it.iconId}.png` : "/assets/icons/default-item.png"),
+                imageUrl: it.img || (it.iconId ? `https://static.dofusdb.fr/items/illustr/${it.iconId}.png` : "/assets/missions/fragment.png"),
                 level: it.level || 1
             }))
         };
@@ -79,7 +79,7 @@ export async function searchItemsLocalThenDofusDB(query: string) {
             data: (data.data || []).map((it: any) => ({
                 id: it.id.toString(),
                 name: it.name?.fr || it.name || "Item",
-                imageUrl: it.img || (it.iconId ? `https://static.dofusdb.fr/items/illustr/${it.iconId}.png` : "/assets/icons/default-item.png"),
+                imageUrl: it.img || (it.iconId ? `https://static.dofusdb.fr/items/illustr/${it.iconId}.png` : "/assets/missions/fragment.png"),
                 level: it.level || 1,
                 typeId: it.type?.id,
                 typeName: it.type?.name?.fr

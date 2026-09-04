@@ -36,7 +36,8 @@ export async function getGuildSlashCommandPermissionsAction(guildId: string) {
             return { success: false, error: "Guild not found" };
         }
 
-        const user = await getUserContext(config.discordGuildId || guildId);
+        const actualGuildId = config.discordGuildId || (typeof guildId === "string" && /^\d+$/.test(guildId) ? guildId : undefined);
+        const user = await getUserContext(actualGuildId);
         if (!user.isAuthenticated || !user.isMember) {
             return { success: false, error: "Unauthorized" };
         }
@@ -93,7 +94,8 @@ export async function updateGuildSlashCommandPermissionAction(input: z.infer<typ
             return { success: false, error: "Guild not found" };
         }
 
-        const user = await getUserContext(config.discordGuildId || guildId);
+        const actualGuildId = config.discordGuildId || (typeof guildId === "string" && /^\d+$/.test(guildId) ? guildId : undefined);
+        const user = await getUserContext(actualGuildId);
 
         if (!user.isAuthenticated || (!user.isAdmin && !user.canManageRBAC)) {
             return { success: false, error: "Forbidden: Admin or RBAC permission required" };

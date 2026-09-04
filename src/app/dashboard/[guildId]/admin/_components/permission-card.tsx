@@ -1,7 +1,7 @@
 "use client";
 
 import { MultiSelect, type Option } from "@/components/ui/multi-select";
-import { type PermissionId, PERMISSION_DETAILS } from "@/lib/permissions";
+import { type PermissionId, PERMISSION_DETAILS, PERMISSIONS } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { Lock } from "lucide-react";
 
@@ -122,7 +122,11 @@ export function PermissionCard({
                         options={allRoles}
                         selected={selectedRoleIds}
                         onChange={locked ? () => {} : onRolesChange}
-                        placeholder="Public (Tous les membres)"
+                        placeholder={
+                            permissionId === PERMISSIONS.DASHBOARD_LOGIN
+                                ? "Tous les membres (accès de base)"
+                                : "Aucun rôle assigné (Admins uniquement)"
+                        }
                         className="bg-muted/50 border-border hover:border-border-strong transition-colors text-foreground"
                     />
                 </div>

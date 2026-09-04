@@ -1,4 +1,5 @@
-import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
+import type { RushMilestone, RushSequence, RushActivityTag } from "@/types/rush-guide-types";
+import { getJob } from "@/lib/dofus-assets";
 const LOCAL_ASSET_PREFIXES = ["/uploads/assets-dofus/", "/assets-dofus/"];
 
 /**
@@ -125,6 +126,31 @@ export function getMetierIconPath(metierName?: string): string {
     .replace(/ç/g, "c")
     .trim();
   return `/assets/rush-sylvestre/${normalized}.png`;
+}
+
+/**
+ * Métiers requis AGRÉGÉS sur tout le guide (tags `metier` de toutes les séquences),
+ * dédupliqués par id canonique, avec le niveau max rencontré.
+ * Utilisé par le GOD (aperçu) et la modale de lancement (détection).
+ */
+export function getGuideMetiersRequires(
+  milestones: RushMilestone[]
+): { id: string; name: string; level: number }[] {
+  const seen = new Map<string, { id: string; name: string; level: number }>();
+  for (const ms of milestones) {
+    for (const seq of ms.sequences) {
+      for (const tag of (seq.activityTags || []) as RushActivityTag[]) {
+        if (tag.type !== "metier" || !tag.name) continue;
+        const job = getJob(tag.name);
+        const id = job?.id || tag.name.trim().toLowerCase();
+        const name = job?.name || tag.name;
+        const level = typeof tag.level === "number" ? tag.level : 200;
+        const cur = seen.get(id);
+        if (!cur || level > cur.level) seen.set(id, { id, name, level });
+      }
+    }
+  }
+  return [...seen.values()];
 }
 
 /**

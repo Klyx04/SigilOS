@@ -5,6 +5,7 @@ import { getUserContext } from "./user-actions";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
+import { canonicalClassId } from "@/lib/dofusbook-utils";
 import { logger } from "@/lib/logger";
 import { getGameDisplayName } from "@/lib/display-name";
 
@@ -245,9 +246,12 @@ export async function getStuffGalleryPage(
             allBuilds = allBuilds.filter(b => tags.every(t => b.tags?.includes(t)));
         }
 
-        // Apply class filter server-side
+        // Apply class filter server-side — comparaison canonisée : les builds
+        // stockent la numérotation Dofusbook (Forgelance = 19) tandis que le
+        // filtre envoie l'id extrait de l'icône (breed DofusDB, Forgelance = 20).
         if (classId) {
-            allBuilds = allBuilds.filter(b => String(b.classId) === classId);
+            const wanted = canonicalClassId(classId);
+            allBuilds = allBuilds.filter(b => wanted !== 0 && canonicalClassId(b.classId) === wanted);
         }
 
         // Apply source filter server-side

@@ -148,7 +148,22 @@ export function DocViewer({
                     </div>
                 </header>
 
-                <DocContent content={content} />
+                {(() => {
+                    const EXTENDED_SEPARATOR = /<!--\s*(?:MORE|EXTENDED)\s*-->/i;
+                    const renderedContent = content.match(EXTENDED_SEPARATOR)
+                        ? content.replace(
+                            EXTENDED_SEPARATOR,
+                            `<div class="my-12 pt-8 border-t border-teal-500/20 flex items-center gap-3 not-prose">
+                                <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-teal-500/10 border border-teal-500/20 text-xs font-black uppercase tracking-wider text-teal-400">
+                                    📚 Approfondissements & Données Avancées
+                                </span>
+                                <span class="h-px bg-teal-500/20 flex-1"></span>
+                            </div>`
+                        )
+                        : content;
+
+                    return <DocContent content={renderedContent} />;
+                })()}
 
                 <DocPagination prev={prev} next={next} />
             </article>

@@ -9,9 +9,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Clock, CheckCircle2, MessageSquare, Star, ArrowRight, UserCheck, ShieldCheck, Search, Filter, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Input } from "@/components/ui/input";
 import { CATEGORY_LABELS } from "@/server/actions/services-constants";
-import { ServiceCategory, ServiceRequestStatus } from "@prisma/client";
+import { ServiceRequestStatus } from "@prisma/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +22,8 @@ interface ServiceRequestsViewProps {
     isAdmin?: boolean;
     onLeaveFeedback?: (req: ServiceRequestWithDetails) => void;
     onReply?: (req: ServiceRequestWithDetails) => void;
+    searchQuery?: string;
+    onSearchQueryChange?: (q: string) => void;
 }
 
 export function ServiceRequestsView({
@@ -33,8 +34,14 @@ export function ServiceRequestsView({
     isAdmin = false,
     onLeaveFeedback,
     onReply,
+    searchQuery,
+    onSearchQueryChange,
 }: ServiceRequestsViewProps) {
-    const [search, setSearch] = useState("");
+    const [localSearch, setLocalSearch] = useState("");
+    // Recherche pilotée par le parent quand fournie (barre globale unique) ; fallback local sinon.
+    const search = searchQuery ?? localSearch;
+    void setLocalSearch;
+    void onSearchQueryChange;
     const [statusFilter, setStatusFilter] = useState<"ALL" | ServiceRequestStatus>("ALL");
     const [roleFilter, setRoleFilter] = useState<"ALL" | "CLIENT" | "PROVIDER">("ALL");
     const [isPending, startTransition] = useTransition();
@@ -134,18 +141,9 @@ export function ServiceRequestsView({
                 </Card>
             </div>
 
-            {/* Filter toolbar */}
-            <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
-                <div className="relative flex-1">
-                    <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Rechercher par service, passeur, client..."
-                        className="pl-10 h-10 bg-surface/60 border-border text-sm"
-                    />
-                </div>
-
+            {/* Filter toolbar — recherche gérée par la barre globale du parent (anti double-search + anti-CLS).
+                Ici uniquement les pills, hauteur fixe min-h-[36px]. */}
+            <div className="flex items-center gap-2 flex-wrap pt-1 min-h-[36px]">
                 <div className="flex items-center gap-2 flex-wrap">
                     {/* Role Filter */}
                     <div className="bg-surface/80 border border-border p-1 rounded-xl flex items-center gap-1 text-xs">
@@ -217,9 +215,9 @@ export function ServiceRequestsView({
                 </div>
             </div>
 
-            {/* List of Requests */}
+            {/* List of Requests — même gabarit min-h que les autres onglets (anti-CLS) */}
             {filteredRequests.length === 0 ? (
-                <Card className="bg-surface/40 border-border/60 p-12 text-center">
+                <Card className="bg-surface/40 border-border/60 min-h-[300px] flex items-center justify-center p-12 text-center">
                     <p className="text-sm text-muted-foreground">
                         Aucune demande trouvée avec ces critères.
                     </p>

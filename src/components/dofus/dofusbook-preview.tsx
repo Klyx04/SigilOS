@@ -532,22 +532,23 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                     {/* ─── COLONNE GAUCHE (4 cols) : Caractéristiques & Éléments & Résistances ─── */}
                                     <div className="lg:col-span-4 flex flex-col gap-4">
                                         
-                                        {/* 1. Éléments Primaires (Badges stylisés à la Dofus / Duffus) */}
+                                        {/* 1. Éléments Primaires (vraies icônes Dofus : set officiel `assets/dofus/stats/*`) */}
                                         <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-3 gap-2">
-                                            {[
-                                                { label: "Vitalité", val: data.stats?.vit ?? 0, icon: "❤️", color: "text-[#ff4d4d]", bg: "bg-[#ff4d4d]/10", border: "border-[#ff4d4d]/20" },
-                                                { label: "Sagesse", val: data.elements?.sa ?? 0, icon: "🔮", color: "text-[#c084fc]", bg: "bg-[#c084fc]/10", border: "border-[#c084fc]/20" },
-                                                { label: "Force", val: data.elements?.fo ?? 0, icon: "🪨", color: "text-[#9D753E]", bg: "bg-[#9D753E]/10", border: "border-[#9D753E]/20" },
-                                                { label: "Intelligence", val: data.elements?.in ?? 0, icon: "🔥", color: "text-[#E33E19]", bg: "bg-[#E33E19]/10", border: "border-[#E33E19]/20" },
-                                                { label: "Chance", val: data.elements?.ch ?? 0, icon: "💧", color: "text-[#5AC2FF]", bg: "bg-[#5AC2FF]/10", border: "border-[#5AC2FF]/20" },
-                                                { label: "Agilité", val: data.elements?.ag ?? 0, icon: "🍃", color: "text-[#88C72B]", bg: "bg-[#88C72B]/10", border: "border-[#88C72B]/20" },
-                                            ].map((el) => (
-                                                <div key={el.label} className={cn("flex flex-col p-2.5 rounded-2xl border backdrop-blur-md", el.bg, el.border)}>
-                                                    <div className="flex items-center justify-between text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                                            {([
+                                                { label: "Vitalité", val: data.stats?.vit ?? 0, img: "/assets/dofus/stats/pv.png", text: "text-danger", bg: "bg-danger/10", border: "border-danger/20" },
+                                                { label: "Sagesse", val: data.elements?.sa ?? 0, img: "/assets/dofus/stats/sagesse.png", text: "text-foreground", bg: "bg-surface", border: "border-border" },
+                                                { label: "Force", val: data.elements?.fo ?? 0, img: "/assets/module-succes/terre.png", text: "text-warning", bg: "bg-warning/10", border: "border-warning/20" },
+                                                { label: "Intelligence", val: data.elements?.in ?? 0, img: "/assets/module-succes/Intelligence.png", text: "text-danger", bg: "bg-danger/10", border: "border-danger/20" },
+                                                { label: "Chance", val: data.elements?.ch ?? 0, img: "/assets/module-succes/eau.png", text: "text-info", bg: "bg-info/10", border: "border-info/20" },
+                                                { label: "Agilité", val: data.elements?.ag ?? 0, img: "/assets/module-succes/Agility.png", text: "text-success", bg: "bg-success/10", border: "border-success/20" },
+                                            ] as { label: string; val: number; img: string; text: string; bg: string; border: string }[]).map((el) => (
+                                                <div key={el.label} className={cn("flex flex-col p-2.5 rounded-2xl border", el.bg, el.border)}>
+                                                    <div className="flex items-center justify-between text-[11px] font-bold text-muted-foreground uppercase">
                                                         <span>{el.label}</span>
-                                                        <span>{el.icon}</span>
+                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                        <img src={el.img} alt="" aria-hidden="true" className="w-4 h-4 object-contain" loading="lazy" />
                                                     </div>
-                                                    <span className={cn("text-lg font-black tabular-nums mt-0.5", el.color)}>
+                                                    <span className={cn("text-lg font-bold tabular-nums mt-0.5", el.text)}>
                                                         {el.val}
                                                     </span>
                                                 </div>
@@ -555,88 +556,108 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                         </div>
 
                                         {/* 2. Tableau des Caractéristiques de Combat */}
-                                        <div className="bg-surface/40 backdrop-blur-md p-4 sm:p-5 rounded-[2rem] border border-border flex flex-col gap-3">
+                                        <div className="bg-surface p-4 sm:p-5 rounded-[2rem] border border-border flex flex-col gap-3">
                                             <div className="flex items-center justify-between border-b border-border pb-2">
-                                                <h4 className="text-caption font-black text-foreground/80 uppercase tracking-widest flex items-center gap-1.5">
+                                                <h4 className="text-caption font-bold text-foreground/80 uppercase flex items-center gap-1.5">
                                                     <Move className="w-3.5 h-3.5 text-success" /> Statistiques Générales
                                                 </h4>
-                                                <span className="text-caption font-bold text-muted-foreground">
-                                                    Puissance <strong className="text-foreground font-black tabular-nums">+{data.elements?.pu ?? 0}</strong>
+                                                <span className="text-caption font-bold text-muted-foreground inline-flex items-center gap-1">
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img src="/assets/dofus/stats/puissance.png" alt="" aria-hidden="true" className="w-3.5 h-3.5 object-contain" loading="lazy" />
+                                                    Puissance <strong className="text-foreground font-bold tabular-nums">+{data.elements?.pu ?? 0}</strong>
                                                 </span>
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-caption">
-                                                {[
-                                                    { label: "Points d'Action (PA)", val: data.stats?.pa ?? 0, icon: "⭐", color: "text-[#008cfc]" },
-                                                    { label: "Points de Mouvement", val: data.stats?.pm ?? 0, icon: "🛹", color: "text-[#2cb14b]" },
-                                                    { label: "Portée (PO)", val: data.stats?.po ?? 0, icon: "👁️", color: "text-[#389f81]" },
-                                                    { label: "% Coup Critique", val: `${data.stats?.cc ?? 0}%`, icon: "🎯", color: "text-[#f24254]" },
-                                                    { label: "Invocations", val: data.stats?.invo ?? 0, icon: "🦊", color: "text-[#f59f0f]" },
-                                                    { label: "Soins", val: data.stats?.so ?? 0, icon: "➕", color: "text-[#ef3f3f]" },
-                                                    { label: "Initiative", val: data.stats?.ini ?? 0, icon: "⚡", color: "text-foreground" },
-                                                    { label: "Prospection", val: data.stats?.pp ?? 0, icon: "🔎", color: "text-[#5AC2FF]" },
-                                                    { label: "Fuite", val: data.stats?.fuite ?? 0, icon: "💨", color: "text-[#5AC2FF]" },
-                                                    { label: "Tacle", val: data.stats?.tacle ?? 0, icon: "🛡️", color: "text-success" },
-                                                    { label: "Retrait PA / PM", val: `${data.stats?.retpa ?? 0} / ${data.stats?.retpm ?? 0}`, icon: "⌛", color: "text-warning" },
-                                                    { label: "Do Critique", val: data.damages?.critique ?? 0, icon: "💥", color: "text-[#f24254]" },
-                                                ].map((s) => (
+                                                {([
+                                                    { label: "Points d'Action (PA)", val: data.stats?.pa ?? 0, img: "/assets/dofus/stats/pa.png", color: "text-info" },
+                                                    { label: "Points de Mouvement", val: data.stats?.pm ?? 0, img: "/assets/dofus/stats/pm.png", color: "text-success" },
+                                                    { label: "Portée (PO)", val: data.stats?.po ?? 0, img: "/assets/dofus/stats/po.png", color: "text-success" },
+                                                    { label: "% Coup Critique", val: `${data.stats?.cc ?? 0}%`, img: "/assets/dofus/stats/critique.png", color: "text-danger" },
+                                                    { label: "Invocations", val: data.stats?.invo ?? 0, img: "/assets/dofus/stats/invocation.png", color: "text-warning" },
+                                                    { label: "Soins", val: data.stats?.so ?? 0, img: "/assets/dofus/stats/soin.png", color: "text-danger" },
+                                                    { label: "Initiative", val: data.stats?.ini ?? 0, img: "/assets/dofus/stats/initiative.png", color: "text-foreground" },
+                                                    { label: "Prospection", val: data.stats?.pp ?? 0, img: "/assets/dofus/stats/pp.png", color: "text-info" },
+                                                    { label: "Fuite", val: data.stats?.fuite ?? 0, img: "/assets/dofus/stats/fuite.png", color: "text-info" },
+                                                    { label: "Tacle", val: data.stats?.tacle ?? 0, img: "/assets/dofus/stats/tacle.png", color: "text-success" },
+                                                    { label: "Retrait PA / PM", val: `${data.stats?.retpa ?? 0} / ${data.stats?.retpm ?? 0}`, img: "/assets/dofus/stats/sablier.png", color: "text-warning" },
+                                                    { label: "Do Critique", val: data.damages?.critique ?? 0, img: "/assets/dofus/stats/dmgCritique.png", color: "text-danger" },
+                                                ] as { label: string; val: number | string; img: string; color: string }[]).map((s) => (
                                                     <div key={s.label} className="flex items-center justify-between py-1 border-b border-border/40 hover:border-border transition-colors">
-                                                        <span className="text-muted-foreground truncate">{s.label}</span>
-                                                        <span className={cn("font-black tabular-nums whitespace-nowrap ml-2", s.color)}>{s.val}</span>
+                                                        <span className="text-muted-foreground truncate inline-flex items-center gap-1.5 min-w-0">
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                            <img src={s.img} alt="" aria-hidden="true" className="w-3.5 h-3.5 object-contain shrink-0" loading="lazy" />
+                                                            <span className="truncate">{s.label}</span>
+                                                        </span>
+                                                        <span className={cn("font-bold tabular-nums whitespace-nowrap ml-2", s.color)}>{s.val}</span>
                                                     </div>
                                                 ))}
                                             </div>
                                         </div>
 
                                         {/* 3. Dommages Fixes & % Dommages */}
-                                        <div className="bg-surface/40 backdrop-blur-md p-4 sm:p-5 rounded-[2rem] border border-border flex flex-col gap-3">
-                                            <h4 className="text-caption font-black text-foreground/80 uppercase tracking-widest flex items-center gap-1.5 border-b border-border pb-2">
+                                        <div className="bg-surface p-4 sm:p-5 rounded-[2rem] border border-border flex flex-col gap-3">
+                                            <h4 className="text-caption font-bold text-foreground/80 uppercase flex items-center gap-1.5 border-b border-border pb-2">
                                                 <Zap className="w-3.5 h-3.5 text-warning" /> Dommages Fixes & %
                                             </h4>
 
                                             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-caption">
-                                                {[
-                                                    { label: "Do Terre", val: data.damages?.terre ?? 0, color: "text-[#9D753E]" },
-                                                    { label: "Do Feu", val: data.damages?.feu ?? 0, color: "text-[#E33E19]" },
-                                                    { label: "Do Eau", val: data.damages?.eau ?? 0, color: "text-[#5AC2FF]" },
-                                                    { label: "Do Air", val: data.damages?.air ?? 0, color: "text-[#88C72B]" },
-                                                    { label: "Do Neutre", val: data.damages?.neutre ?? 0, color: "text-[#E2E2E2]" },
+                                                {([
+                                                    { label: "Do Terre", val: data.damages?.terre ?? 0, img: "/assets/dofus/stats/terre.png", color: "text-warning" },
+                                                    { label: "Do Feu", val: data.damages?.feu ?? 0, img: "/assets/dofus/stats/feu.png", color: "text-danger" },
+                                                    { label: "Do Eau", val: data.damages?.eau ?? 0, img: "/assets/dofus/stats/eau.png", color: "text-info" },
+                                                    { label: "Do Air", val: data.damages?.air ?? 0, img: "/assets/dofus/stats/air.png", color: "text-success" },
+                                                    { label: "Do Neutre", val: data.damages?.neutre ?? 0, img: "/assets/dofus/stats/neutre.png", color: "text-foreground" },
                                                     { label: "Do Généraux", val: data.damages?.general ?? 0, color: "text-foreground" },
-                                                ].map((d) => (
+                                                ] as { label: string; val: number; img?: string; color: string }[]).map((d) => (
                                                     <div key={d.label} className="flex items-center justify-between py-0.5 border-b border-border/40">
-                                                        <span className="text-muted-foreground font-medium">{d.label}</span>
-                                                        <span className={cn("font-black tabular-nums", d.color)}>+{d.val}</span>
+                                                        <span className="text-muted-foreground font-medium inline-flex items-center gap-1.5 min-w-0">
+                                                            {d.img && (
+                                                                // eslint-disable-next-line @next/next/no-img-element
+                                                                <img src={d.img} alt="" aria-hidden="true" className="w-3.5 h-3.5 object-contain shrink-0" loading="lazy" />
+                                                            )}
+                                                            <span className="truncate">{d.label}</span>
+                                                        </span>
+                                                        <span className={cn("font-bold tabular-nums", d.color)}>+{d.val}</span>
                                                     </div>
                                                 ))}
                                             </div>
 
                                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1">
                                                 {[
-                                                    { label: "% Do Sorts", val: data.damages?.sorts ?? 0 },
-                                                    { label: "% Do Mêlée", val: data.damages?.melee ?? 0 },
-                                                    { label: "% Do Dist.", val: data.damages?.distance ?? 0 },
-                                                    { label: "% Do Armes", val: data.damages?.armes ?? 0 },
+                                                    { label: "% Do Sorts", val: data.damages?.sorts ?? 0, img: "/assets/dofus/stats/dmgSort.png" },
+                                                    { label: "% Do Mêlée", val: data.damages?.melee ?? 0, img: "/assets/dofus/stats/dmgMelee.png" },
+                                                    { label: "% Do Dist.", val: data.damages?.distance ?? 0, img: "/assets/dofus/stats/dmgDistance.png" },
+                                                    { label: "% Do Armes", val: data.damages?.armes ?? 0, img: "/assets/dofus/stats/dmgArme.png" },
                                                 ].map((p) => (
-                                                    <div key={p.label} className="flex flex-col items-center bg-surface/60 px-2 py-1.5 rounded-xl border border-border">
-                                                        <span className="text-[10px] text-muted-foreground font-bold uppercase">{p.label}</span>
-                                                        <span className="font-black text-foreground text-caption tabular-nums">+{p.val}%</span>
+                                                    <div key={p.label} className="flex flex-col items-center bg-surface px-2 py-1.5 rounded-xl border border-border">
+                                                        <span className="text-[10px] text-muted-foreground font-bold uppercase inline-flex items-center gap-1">
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                            <img src={p.img} alt="" aria-hidden="true" className="w-3 h-3 object-contain" loading="lazy" />
+                                                            {p.label}
+                                                        </span>
+                                                        <span className="font-bold text-foreground text-caption tabular-nums">+{p.val}%</span>
                                                     </div>
                                                 ))}
                                             </div>
                                         </div>
 
-                                        {/* 4. Résistances élémentaires */}
-                                        <div className="bg-surface/40 backdrop-blur-md p-3.5 rounded-2xl border border-border flex items-center justify-between gap-1.5">
+                                        {/* 4. Résistances élémentaires (icônes bouclier du set officiel) */}
+                                        <div className="bg-surface p-3.5 rounded-2xl border border-border flex items-center justify-between gap-1.5">
                                             {[
-                                                { label: "Neutre", val: data.resists?.neutre ?? 0, color: "text-[#E2E2E2]", bg: "bg-[#E2E2E2]/15" },
-                                                { label: "Terre", val: data.resists?.terre ?? 0, color: "text-[#9D753E]", bg: "bg-[#9D753E]/15" },
-                                                { label: "Feu", val: data.resists?.feu ?? 0, color: "text-[#E33E19]", bg: "bg-[#E33E19]/15" },
-                                                { label: "Eau", val: data.resists?.eau ?? 0, color: "text-[#5AC2FF]", bg: "bg-[#5AC2FF]/15" },
-                                                { label: "Air", val: data.resists?.air ?? 0, color: "text-[#88C72B]", bg: "bg-[#88C72B]/15" },
+                                                { label: "Neutre", val: data.resists?.neutre ?? 0, img: "/assets/dofus/stats/resNeutre.png", color: "text-foreground", bg: "bg-surface" },
+                                                { label: "Terre", val: data.resists?.terre ?? 0, img: "/assets/dofus/stats/resTerre.png", color: "text-warning", bg: "bg-warning/10" },
+                                                { label: "Feu", val: data.resists?.feu ?? 0, img: "/assets/dofus/stats/resFeu.png", color: "text-danger", bg: "bg-danger/10" },
+                                                { label: "Eau", val: data.resists?.eau ?? 0, img: "/assets/dofus/stats/resEau.png", color: "text-info", bg: "bg-info/10" },
+                                                { label: "Air", val: data.resists?.air ?? 0, img: "/assets/dofus/stats/resAir.png", color: "text-success", bg: "bg-success/10" },
                                             ].map((r) => (
                                                 <div key={r.label} className={cn("flex-1 flex flex-col items-center py-1.5 px-1 rounded-xl border border-border/60", r.bg)}>
-                                                    <span className="text-[10px] text-muted-foreground font-bold uppercase">{r.label}</span>
-                                                    <span className={cn("font-black text-caption tabular-nums mt-0.5", r.color)}>
+                                                    <span className="text-[10px] text-muted-foreground font-bold uppercase inline-flex items-center gap-1">
+                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                        <img src={r.img} alt="" aria-hidden="true" className="w-3 h-3 object-contain" loading="lazy" />
+                                                        {r.label}
+                                                    </span>
+                                                    <span className={cn("font-bold text-caption tabular-nums mt-0.5", r.color)}>
                                                         {r.val}%
                                                     </span>
                                                 </div>
@@ -710,27 +731,32 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                             </div>
                                         </div>
 
-                                        {/* Bandeau Vitals Proéminent (❤️ PdV · ⭐ PA · 🛹 PM · 👁️ PO · 🎯 Crit) */}
-                                        <div className="flex flex-wrap items-center justify-center gap-2 bg-surface/80 backdrop-blur-md px-4 py-2 rounded-2xl border border-border shadow-lg z-10">
+                                        {/* Bandeau Vitals (set officiel `assets/dofus/stats/*`) */}
+                                        <div className="flex flex-wrap items-center justify-center gap-2 bg-surface px-4 py-2 rounded-2xl border border-border z-10">
                                             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-elevated rounded-xl">
-                                                <span className="text-sm">❤️</span>
-                                                <span className="font-black text-body-sm text-foreground tabular-nums">{data.stats?.vit ?? 0}</span>
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src="/assets/dofus/stats/pv.png" alt="Vitalité" className="w-4 h-4 object-contain" loading="lazy" />
+                                                <span className="font-bold text-body-sm text-foreground tabular-nums">{data.stats?.vit ?? 0}</span>
                                             </div>
-                                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#008cfc]/10 border border-[#008cfc]/20 rounded-xl">
-                                                <span className="text-sm">⭐</span>
-                                                <span className="font-black text-body-sm text-[#008cfc] tabular-nums">{data.stats?.pa ?? 0} PA</span>
+                                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-info/10 border border-info/20 rounded-xl">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-4 h-4 object-contain" loading="lazy" />
+                                                <span className="font-bold text-body-sm text-info tabular-nums">{data.stats?.pa ?? 0} PA</span>
                                             </div>
-                                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#2cb14b]/10 border border-[#2cb14b]/20 rounded-xl">
-                                                <span className="text-sm">🛹</span>
-                                                <span className="font-black text-body-sm text-[#2cb14b] tabular-nums">{data.stats?.pm ?? 0} PM</span>
+                                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-success/10 border border-success/20 rounded-xl">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src="/assets/dofus/stats/pm.png" alt="PM" className="w-4 h-4 object-contain" loading="lazy" />
+                                                <span className="font-bold text-body-sm text-success tabular-nums">{data.stats?.pm ?? 0} PM</span>
                                             </div>
-                                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#389f81]/10 border border-[#389f81]/20 rounded-xl">
-                                                <span className="text-sm">👁️</span>
-                                                <span className="font-black text-body-sm text-[#389f81] tabular-nums">{data.stats?.po ?? 0} PO</span>
+                                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-success/10 border border-success/20 rounded-xl">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src="/assets/dofus/stats/po.png" alt="PO" className="w-4 h-4 object-contain" loading="lazy" />
+                                                <span className="font-bold text-body-sm text-success tabular-nums">{data.stats?.po ?? 0} PO</span>
                                             </div>
-                                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#f24254]/10 border border-[#f24254]/20 rounded-xl">
-                                                <span className="text-sm">🎯</span>
-                                                <span className="font-black text-body-sm text-[#f24254] tabular-nums">{data.stats?.cc ?? 0}%</span>
+                                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-danger/10 border border-danger/20 rounded-xl">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src="/assets/dofus/stats/critique.png" alt="Critique" className="w-4 h-4 object-contain" loading="lazy" />
+                                                <span className="font-bold text-body-sm text-danger tabular-nums">{data.stats?.cc ?? 0}%</span>
                                             </div>
                                         </div>
 

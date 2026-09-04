@@ -671,11 +671,9 @@ export async function handleGdprDeletionRequest() {
         let ownedCount = 0;
         let blockedGuildName = "";
 
-        // Send notifications BEFORE deletion while we still have profile data
-        for (const profile of userProfiles) {
-            await sendLifecycleNotification(profile.guild.discordGuildId, profile, "DELETED", "RGPD (Suppression de compte)");
-        }
-
+        // 🔒 VÉRIFICATION STRICTE DE PROPRIÉTÉ EN PREMIER (Fail-Closed)
+        // Ne JAMAIS envoyer de notification Discord ou d'audit log de suppression
+        // tant qu'on n'a pas validé que le compte est autorisé à être supprimé !
         for (const profile of userProfiles) {
             let currentOwnerId = (profile.guild as any).ownerId;
 
@@ -700,8 +698,24 @@ export async function handleGdprDeletionRequest() {
                 ownedCount++;
                 blockedGuildName = profile.guild.name;
             }
+        }
 
-            // Create Audit Log BEFORE deletion so it persist in God Dashboard
+        // Si l'utilisateur possède au moins une guilde, on BLOQUE IMMÉDIATEMENT sans AUCUNE notification
+        if (ownedCount > 0) {
+            logger.warn(`[GDPR Deletion] Blocked: User is technical owner of ${ownedCount} guilds (ex: ${blockedGuildName})`);
+            return {
+                success: false,
+                error: `Impossible de supprimer : vous êtes propriétaire de ${ownedCount} guilde(s) (ex: ${blockedGuildName}). Transférez la propriété sur Discord d'abord.`
+            };
+        }
+
+        // ✅ L'utilisateur n'est propriétaire d'aucune guilde : la suppression est autorisée.
+        // On peut maintenant envoyer les notifications Discord et créer les audit logs.
+        for (const profile of userProfiles) {
+            // Notification Discord de suppression de compte
+            await sendLifecycleNotification(profile.guild.discordGuildId, profile, "DELETED", "RGPD (Suppression de compte)");
+
+            // Audit log de suppression RGPD
             try {
                 await createAuditLog({
                     guildId: profile.guild.discordGuildId,
@@ -718,16 +732,7 @@ export async function handleGdprDeletionRequest() {
                 });
             } catch (auditErr) {
                 logger.error(`[GDPR Deletion] Audit log failed for guild ${profile.guild.name}:`, auditErr);
-                // Don't block deletion if audit log fails, but it's bad
             }
-        }
-
-        if (ownedCount > 0) {
-            logger.warn(`[GDPR Deletion] Blocked: User is technical owner of ${ownedCount} guilds`);
-            return {
-                success: false,
-                error: `Impossible de supprimer : vous êtes propriétaire de ${ownedCount} guilde(s) (ex: ${blockedGuildName}). Transférez la propriété sur Discord d'abord.`
-            };
         }
 
         // Supprimons simplement le user (Cascade s'occupe du reste)

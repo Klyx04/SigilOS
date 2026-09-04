@@ -344,10 +344,10 @@ export function RushChapterSidebar({
 
       {/* ─── Objets & Ressources nécessaires ─── */}
       <div className="flex flex-col gap-2 bg-[#161d27]/60 p-3.5 rounded-xl border border-[#2a323d]/80 flex-1 min-h-0">
-        <div className="flex items-center justify-between border-b border-[#2a323d]/60 pb-2">
-          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+        <div className="flex flex-col gap-2 border-b border-[#2a323d]/60 pb-2">
+          <div className="flex items-center gap-1.5 min-w-0">
             <Package className="w-3.5 h-3.5 text-[#e6b96b] shrink-0" />
-            <h4 className="text-[11px] font-black uppercase tracking-widest text-[#eef2f6] truncate min-w-0">
+            <h4 className="text-[11px] font-black uppercase tracking-widest text-[#eef2f6] truncate min-w-0 flex-1">
               Objets requis
             </h4>
             <span className="font-mono text-[10px] font-bold text-[#e6b96b] shrink-0 whitespace-nowrap">
@@ -355,16 +355,16 @@ export function RushChapterSidebar({
             </span>
           </div>
           {aggregatedItems.length > 0 && (
-            <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-[#161d27] border border-[#2a323d] shrink-0">
+            <div className="grid grid-cols-2 gap-0.5 p-0.5 rounded-lg bg-[#161d27] border border-[#2a323d]">
               <button
                 onClick={() => setHideCompletedItems(true)}
-                className={cn("px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-colors", hideCompletedItems ? "bg-[#4fd1a5] text-[#06301f]" : "text-[#9aa7b4] hover:text-[#eef2f6]")}
+                className={cn("px-1.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider transition-colors text-center", hideCompletedItems ? "bg-[#4fd1a5] text-[#06301f]" : "text-[#9aa7b4] hover:text-[#eef2f6]")}
               >
                 Restantes
               </button>
               <button
                 onClick={() => setHideCompletedItems(false)}
-                className={cn("px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-colors", !hideCompletedItems ? "bg-[#4fd1a5] text-[#06301f]" : "text-[#9aa7b4] hover:text-[#eef2f6]")}
+                className={cn("px-1.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider transition-colors text-center", !hideCompletedItems ? "bg-[#4fd1a5] text-[#06301f]" : "text-[#9aa7b4] hover:text-[#eef2f6]")}
               >
                 Toutes
               </button>
@@ -373,8 +373,8 @@ export function RushChapterSidebar({
         </div>
         {aggregatedItems.length > 0 && (
           <div className="flex items-center justify-between text-[10px] text-[#9aa7b4]">
-            <span className="font-bold uppercase tracking-wider">Encore requis</span>
-            <span className="font-mono font-bold text-[#e6b96b]">{aggregatedItems.filter((it) => !it.isCompleted).length}</span>
+            <span className="font-bold uppercase tracking-wider">{hideCompletedItems ? "Encore requis" : "Total"}</span>
+            <span className="font-mono font-bold text-[#e6b96b]">{hideCompletedItems ? aggregatedItems.filter((it) => !it.isCompleted).length : aggregatedItems.length}</span>
           </div>
         )}
 
@@ -430,8 +430,8 @@ export function RushChapterSidebar({
                     )}
                   >
                     {hideCompletedItems
-                      ? item.remainingQuantity
-                      : item.totalQuantity}
+                      ? `×${item.remainingQuantity}`
+                      : `×${item.totalQuantity}`}
                   </span>
                   {item.isCompleted && (
                     <Check className="w-3.5 h-3.5 text-[#4fd1a5] shrink-0" />

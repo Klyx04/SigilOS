@@ -18,9 +18,9 @@ describe("📱 Lot 3 — PWA & Performance (#197 & #186a)", () => {
         it("contient des raccourcis d'application configurés", () => {
             const m = manifest();
             const shortcutNames = m.shortcuts?.map((s) => s.short_name);
-            expect(shortcutNames).toContain("Quêtes");
+            expect(shortcutNames).toContain("Guides");
             expect(shortcutNames).toContain("Almanax");
-            expect(shortcutNames).toContain("Défis");
+            expect(shortcutNames).toContain("Boss");
         });
     });
 

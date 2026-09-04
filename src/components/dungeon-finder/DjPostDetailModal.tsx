@@ -235,25 +235,25 @@ export function DjPostDetailModal({
                             <div className="flex flex-wrap items-center gap-2 shrink-0">
                                 {post.dungeon?.dofuspourlesnoobsUrl && (
                                     <a href={post.dungeon.dofuspourlesnoobsUrl} target="_blank" rel="noopener noreferrer"
-                                        className="text-caption font-bold text-warning hover:text-warning border border-warning/40 hover:border-warning/50 bg-warning/20 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5 shadow-sm">
+                                        className="text-caption font-bold text-muted-foreground hover:text-foreground border border-border hover:bg-elevated rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5 shadow-sm">
                                         <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" /> DofusPourLesNoobs
                                     </a>
                                 )}
                                 {post.dungeon?.dofensiveUrl && (
                                     <a href={post.dungeon.dofensiveUrl} target="_blank" rel="noopener noreferrer"
-                                        className="text-caption font-bold text-success hover:text-success border border-success/40 hover:border-success/50 bg-success/20 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5 shadow-sm">
+                                        className="text-caption font-bold text-muted-foreground hover:text-foreground border border-border hover:bg-elevated rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5 shadow-sm">
                                         <span>🛡️</span> Dofensive
                                     </a>
                                 )}
                                 {post.questUrl && post.questUrl.includes("dofuspourlesnoobs") && !post.dungeon?.dofuspourlesnoobsUrl && (
                                     <a href={post.questUrl} target="_blank" rel="noopener noreferrer"
-                                        className="text-caption font-bold text-warning hover:text-warning border border-warning/40 hover:border-warning/50 bg-warning/20 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5">
+                                        className="text-caption font-bold text-muted-foreground hover:text-foreground border border-border hover:bg-elevated rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5">
                                         <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" /> DofusPourLesNoobs
                                     </a>
                                 )}
                                 {post.questId && post.questId !== -1 && (
                                     <a href={`https://dofusdb.fr/fr/database/quest/${post.questId}`} target="_blank" rel="noopener noreferrer"
-                                        className="text-caption font-bold text-foreground hover:text-foreground border border-border hover:border-border bg-surface rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5">
+                                        className="text-caption font-bold text-muted-foreground hover:text-foreground border border-border hover:bg-elevated rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5">
                                         <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="DofusDB" className="w-3.5 h-3.5 rounded-sm" /> DofusDB
                                     </a>
                                 )}
@@ -361,18 +361,6 @@ export function DjPostDetailModal({
                                     <div className="flex-1 min-w-0 z-10">
                                         <div className="flex items-center gap-1.5">
                                             <p className="text-sm font-black text-foreground truncate drop-shadow-sm">{displayName(post.profile)}</p>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const name = displayName(post.profile);
-                                                    navigator.clipboard.writeText(`/w ${name}`);
-                                                    toast.success(`/w ${name} copié dans le presse-papier !`);
-                                                }}
-                                                className="p-1 text-muted-foreground/60 hover:text-foreground rounded hover:bg-white/5 transition-colors"
-                                                title={`Copier /w ${displayName(post.profile)}`}
-                                            >
-                                                <Copy className="w-3.5 h-3.5" />
-                                            </button>
                                         </div>
                                         <span className="text-caption text-warning/80 font-bold flex items-center mt-0.5"><Crown className="w-3 h-3 mr-1 inline" /> Créateur du groupe</span>
                                     </div>
@@ -389,18 +377,6 @@ export function DjPostDetailModal({
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap">
                                                     <p className="text-sm font-bold text-foreground truncate group-hover:text-foreground transition-colors">{displayName(p.profile)}</p>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const name = displayName(p.profile);
-                                                            navigator.clipboard.writeText(`/w ${name}`);
-                                                            toast.success(`/w ${name} copié dans le presse-papier !`);
-                                                        }}
-                                                        className="p-1 text-muted-foreground/60 hover:text-foreground rounded hover:bg-white/5 transition-colors"
-                                                        title={`Copier /w ${displayName(p.profile)}`}
-                                                    >
-                                                        <Copy className="w-3.5 h-3.5" />
-                                                    </button>
                                                     {p.classe && <Badge variant="outline" className="text-caption h-4 border-border text-muted-foreground px-1.5">{p.classe}</Badge>}
                                                     {(post.dungeonsJson as any[])?.length > 0 && p.dungeonIndex != null && (post.dungeonsJson as any[])[p.dungeonIndex]?.name && (
                                                         <Badge variant="outline" className="text-caption h-4 border-info text-info px-1.5 max-w-[120px] truncate">
@@ -507,10 +483,10 @@ export function DjPostDetailModal({
                                         </p>
                                     </div>
                                 )}
-                                <div className="bg-surface/40 rounded-xl p-4 border border-border grid grid-cols-1 sm:grid-cols-3 gap-4 shadow-inner">
-                                    <div className="sm:col-span-1">
+                                <div className="bg-surface/40 rounded-xl p-4 border border-border grid grid-cols-1 gap-4 shadow-inner">
+                                    <div>
                                         <label className="text-caption text-muted-foreground font-bold uppercase tracking-widest block mb-2">Ta classe</label>
-                                        <div className="grid grid-cols-6 gap-1.5 p-2 rounded-xl bg-surface border border-border shadow-inner">
+                                        <div className="grid grid-cols-7 sm:grid-cols-10 gap-2 p-2 rounded-xl bg-surface border border-border shadow-inner">
                                             {DOFUS_CLASSES.map((c) => {
                                                 const isSelected = classe === c.name;
                                                 return (
@@ -529,7 +505,7 @@ export function DjPostDetailModal({
                                                         <img
                                                             src={c.icon}
                                                             alt={c.name}
-                                                            className="w-5 h-5 object-contain drop-shadow-md group-hover/class:scale-110 transition-transform"
+                                                            className="w-7 h-7 object-contain drop-shadow-md group-hover/class:scale-110 transition-transform"
                                                             onError={(e) => e.currentTarget.style.display = 'none'}
                                                         />
                                                     </button>
@@ -537,7 +513,7 @@ export function DjPostDetailModal({
                                             })}
                                         </div>
                                     </div>
-                                    <div className="sm:col-span-2">
+                                    <div>
                                         <label className="text-caption text-muted-foreground font-bold uppercase tracking-widest block mb-1.5">Message (opt.)</label>
                                         <input
                                             type="text"

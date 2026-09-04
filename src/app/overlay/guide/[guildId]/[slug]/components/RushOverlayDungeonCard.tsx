@@ -40,7 +40,9 @@ export function RushOverlayDungeonCard({
 
       <div className="mt-1.5 space-y-0.5">
         {dungeons.map((dj, i) => {
-          const href = guildId && dj?.id ? `/dashboard/${guildId}/succes?dungeon=${encodeURIComponent(dj.id)}&view=boss` : null;
+          const href = dj?.id ? `/boss/${encodeURIComponent(dj.id)}` : (guildId && dj?.id ? `/dashboard/${guildId}/succes?dungeon=${encodeURIComponent(dj.id)}&view=boss` : null);
+          const rawName = dj?.name || "Donjon";
+          const bossDisplayName = dj?.bossName || rawName.replace(/^Donjon (du |de la |de l'|de |des )/i, "");
           const inner = (
             <>
               <div
@@ -51,7 +53,7 @@ export function RushOverlayDungeonCard({
               >
                 {dj.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={dj.imageUrl} alt={dj.name || "Donjon"} className="w-full h-full object-cover" loading="lazy" />
+                  <img src={dj.imageUrl} alt={bossDisplayName} className="w-full h-full object-cover" loading="lazy" />
                 ) : (
                   <DoorOpen className={cn("w-4 h-4", isLightMode ? "text-blue-500" : "text-[#5588cc]")} />
                 )}
@@ -60,12 +62,10 @@ export function RushOverlayDungeonCard({
                 )}
               </div>
               <div className="flex-1 min-w-0 text-left">
-                <p className={cn("text-[12px] font-bold truncate", isLightMode ? "text-blue-900" : "text-[#c5d8f5]")}>{dj.name || "Donjon"}</p>
-                {dj.bossName && (
-                  <p className={cn("text-[10px] truncate", isLightMode ? "text-blue-600/70" : "text-[#7baeff]/60")}>Boss : {dj.bossName}</p>
-                )}
+                <p className={cn("text-[12px] font-bold truncate", isLightMode ? "text-blue-900" : "text-[#c5d8f5]")}>{bossDisplayName}</p>
+                <p className={cn("text-[10px] truncate", isLightMode ? "text-blue-600/70" : "text-[#7baeff]/60")}>{dj.name || "Donjon"}</p>
               </div>
-              <ExternalLink className={cn("w-3.5 h-3.5 shrink-0", isLightMode ? "text-blue-600" : "text-[#7baeff]")} />
+              <ExternalLink className={cn("w-3.5 h-3.5 shrink-0 transition-transform group-hover:translate-x-0.5", isLightMode ? "text-blue-600" : "text-[#7baeff]")} />
             </>
           );
           return href ? (
@@ -74,10 +74,10 @@ export function RushOverlayDungeonCard({
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              title={`Fiche boss : ${dj.bossName || dj.name}`}
+              title={`Voir la fiche boss de ${bossDisplayName}`}
               className={cn(
-                "flex items-center gap-2.5 rounded-lg px-1.5 py-1.5 transition-colors",
-                isLightMode ? "hover:bg-blue-100/60" : "hover:bg-[#16294a]/40"
+                "group flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors border border-transparent",
+                isLightMode ? "hover:bg-blue-100/60 hover:border-blue-200" : "hover:bg-[#16294a]/60 hover:border-[#2a4a7a]/60"
               )}
             >
               {inner}

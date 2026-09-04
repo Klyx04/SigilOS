@@ -144,6 +144,62 @@ export async function getOptimizedGuidesLite(guildId?: string) {
   return { success: true, guides };
 }
 
+/**
+ * 🌐 Version publique de lecture d'un guide optimisé (0-login, sans guildId ni profil).
+ * Lit le catalogue maître sans toucher aux données membres ni écrire en base.
+ */
+export async function getPublicGuideDetail(slug: string) {
+  if (!slug || typeof slug !== "string") {
+    return { success: false, error: "Slug invalide" };
+  }
+
+  const guide = await db.optimizedGuide.findUnique({
+    where: { slug },
+    include: {
+      milestones: {
+        orderBy: { order: "asc" },
+        include: {
+          sequences: {
+            orderBy: { order: "asc" },
+            include: { dungeon: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!guide) return { success: false, error: "Guide introuvable" };
+
+  // Resolve all dungeons from dungeonIds for each sequence
+  const allDungeonIds = new Set<string>();
+  for (const ms of guide.milestones) {
+    for (const seq of ms.sequences) {
+      if (Array.isArray((seq as any).dungeonIds)) {
+        for (const did of (seq as any).dungeonIds) {
+          if (did) allDungeonIds.add(did);
+        }
+      }
+    }
+  }
+  if (allDungeonIds.size > 0) {
+    const dungeons = await db.dungeon.findMany({
+      where: { id: { in: Array.from(allDungeonIds) } },
+      select: { id: true, name: true, bossName: true, imageUrl: true, level: true },
+    });
+    const dungeonMap = new Map(dungeons.map((d) => [d.id, d]));
+    for (const ms of guide.milestones) {
+      for (const seq of ms.sequences) {
+        const ids = (seq as any).dungeonIds as string[] | undefined;
+        if (ids && ids.length > 0) {
+          (seq as any).dungeons = ids.map((id) => dungeonMap.get(id)).filter(Boolean);
+        }
+      }
+    }
+  }
+
+  return { success: true, guide };
+}
+
 export async function getOptimizedGuideDetail(slug: string, guildId: string, altPseudo?: string) {
 
   const ctx = await getUserContext(guildId);

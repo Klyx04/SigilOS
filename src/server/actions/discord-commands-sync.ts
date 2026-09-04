@@ -74,6 +74,32 @@ function buildDiscordCommandPayloads() {
             options: []
         },
         {
+            name: "boss",
+            description: "👑 Fiche d'un Boss de donjon – PV, résistances, sorts et mécaniques",
+            options: [
+                {
+                    name: "nom",
+                    description: "Nom du boss (ex: Comte Harebourg, Vortex...)",
+                    type: 3, // STRING
+                    required: true,
+                    autocomplete: true
+                }
+            ]
+        },
+        {
+            name: "monstre",
+            description: "👾 Fiche d'un monstre ou archimonstre – caractéristiques, zone et butins",
+            options: [
+                {
+                    name: "nom",
+                    description: "Nom du monstre ou archimonstre",
+                    type: 3, // STRING
+                    required: true,
+                    autocomplete: true
+                }
+            ]
+        },
+        {
             name: "stats",
             description: "📊 Récapitulatif des succès, présences et activité de la guilde",
             options: []

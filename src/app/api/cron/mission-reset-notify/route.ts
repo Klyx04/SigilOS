@@ -93,7 +93,7 @@ export async function GET(req: Request) {
                     embedDescription,
                     embedColor: 0x6366f1, // Indigo
                     mentionContent: pings,
-                    embedThumbnail: "https://sigilos.fr/assets/ui/mission-reset.png",
+                    embedThumbnail: "https://sigilos.fr/assets/icons/icone-quete.png",
                     components: [
                         {
                             type: 1, // Action Row
@@ -132,7 +132,7 @@ export async function GET(req: Request) {
                         embedColor: 0x8b5cf6, // Violet
                         mentionContent: ping,
                         embedFooter: "SigilOS Platform Management",
-                        embedThumbnail: "https://sigilos.fr/assets/ui/icons/admin-reset.png"
+                        embedThumbnail: "https://sigilos.fr/assets/ui/logo-v2.png"
                     }
                 );
             }

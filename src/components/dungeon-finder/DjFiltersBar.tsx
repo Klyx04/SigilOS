@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Search, X, Swords, Map, Zap, Users, Star, RotateCcw } from "lucide-react";
+import { Search, X, Swords, Map, Zap, Users, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface DjFiltersState {
@@ -87,14 +87,14 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                    {/* Mode Selector */}
-                    <div className="flex bg-surface/80 border border-border rounded-xl p-1 h-11 items-center">
+                    {/* Mode Selector — 4 segments à largeur fixe (aucun décalage au toggle) */}
+                    <div className="grid grid-cols-4 bg-surface/80 border border-border rounded-xl p-1 h-11 items-stretch w-[336px] shrink-0" role="group" aria-label="Type de post">
                         {[
-                            { value: "", label: "Tous", icon: null, active: "bg-info text-info-foreground" },
-                            { value: "DONJON", label: "DJ", icon: Swords, active: "bg-danger text-danger-foreground" },
-                            { value: "QUETE", label: "Quête", icon: Map, active: "bg-success text-success-foreground" },
-                            { value: "DEFI", label: "Défi", icon: Zap, active: "bg-amber-500 text-white" },
-                        ].map(({ value, label, icon: Icon, active }) => {
+                            { value: "", label: "Tous", icon: null },
+                            { value: "DONJON", label: "DJ", icon: Swords },
+                            { value: "QUETE", label: "Quête", icon: Map },
+                            { value: "DEFI", label: "Défi", icon: Zap },
+                        ].map(({ value, label, icon: Icon }) => {
                             const isActive = filters.mode === value;
                             return (
                                 <button
@@ -102,48 +102,54 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                                     onClick={() => onChange({ ...filters, mode: value })}
                                     aria-pressed={isActive}
                                     className={cn(
-                                        "flex items-center justify-center gap-1.5 px-4 h-full rounded-lg text-caption font-black transition-colors",
-                                        isActive ? active : "text-muted-foreground hover:text-foreground"
+                                        "flex items-center justify-center gap-1 px-1 rounded-lg text-caption font-black transition-colors min-w-0",
+                                        isActive ? "bg-info text-info-foreground" : "text-muted-foreground hover:text-foreground"
                                     )}
                                 >
-                                    {Icon && <Icon className="w-3.5 h-3.5" />}
-                                    <span className="uppercase tracking-wider">{label}</span>
+                                    {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
+                                    <span className="uppercase tracking-wider truncate">{label}</span>
                                 </button>
                             );
                         })}
                     </div>
 
-                    {/* Advanced Filter Toggle */}
+                    {/* Advanced Filter Toggle — largeur fixe (le compteur ne déplace rien) */}
                     <button
                         onClick={() => setShowAdvanced(!showAdvanced)}
-                        className={`relative flex items-center gap-2 px-4 rounded-xl text-caption font-black h-11 transition-all border ${showAdvanced || hasActiveAdvancedFilters
+                        aria-expanded={showAdvanced}
+                        className={`flex items-center justify-center gap-2 px-4 rounded-xl text-caption font-black h-11 transition-all border min-w-[132px] ${showAdvanced || hasActiveAdvancedFilters
                             ? "bg-surface border-border-strong text-foreground"
                             : "bg-surface/50 border-border text-muted-foreground hover:text-foreground hover:bg-surface"
                             }`}
                     >
-                        <Users className="w-3.5 h-3.5" />
+                        <Users className="w-3.5 h-3.5 shrink-0" />
                         Filtres
-                        {hasActiveAdvancedFilters && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-background" />
+                        {hasActiveFilters && (
+                            <span className="font-mono tabular-nums text-[10px] opacity-80">{filtered}/{total}</span>
                         )}
                     </button>
 
-                    {/* Reset */}
-                    {hasActiveFilters && (
-                        <button
-                            onClick={() => onChange({ ...DEFAULT_FILTERS })}
-                            className="flex items-center justify-center w-11 h-11 rounded-xl text-muted-foreground hover:text-danger border border-border hover:border-danger/50 bg-surface/50 hover:bg-danger/30 transition-colors shrink-0"
-                            title="Reset"
-                        >
-                            <RotateCcw className="w-4 h-4" />
-                        </button>
-                    )}
+                    {/* Reset — toujours monté (désactivé), icône X distincte du refresh données */}
+                    <button
+                        onClick={() => onChange({ ...DEFAULT_FILTERS })}
+                        disabled={!hasActiveFilters}
+                        className="flex items-center justify-center w-11 h-11 rounded-xl text-muted-foreground border border-border bg-surface/50 transition-colors shrink-0 enabled:hover:text-danger enabled:hover:border-danger/50 enabled:hover:bg-danger/30 disabled:opacity-30 disabled:cursor-default"
+                        title="Effacer les filtres"
+                        aria-label="Effacer les filtres"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
                 </div>
             </div>
 
-            {/* Row 2: Advanced Filters — collapse en CSS léger (opti) */}
-            {showAdvanced && (
-                <div className="overflow-hidden animate-in fade-in-0 slide-in-from-top-2 duration-200">
+            {/* Row 2: Advanced Filters — hauteur animée (la page ne saute plus) */}
+            <div
+                className={cn(
+                    "grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none",
+                    showAdvanced ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                )}
+            >
+                <div className="overflow-hidden">
                         <div className="flex flex-wrap items-center gap-2 p-3 bg-surface/50 border border-border rounded-2xl shadow-inner mb-2">
                             {/* Level presets */}
                             <span className="text-caption font-black text-muted-foreground uppercase tracking-widest mr-2">Niveau</span>
@@ -158,7 +164,7 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                                             : "bg-surface text-muted-foreground border-transparent hover:bg-surface hover:text-foreground"
                                             }`}
                                     >
-                                        Lvl {preset.label}
+                                        {preset.label}
                                     </button>
                                 );
                             })}
@@ -189,14 +195,14 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                             />
 
                             {/* Results count */}
-                            {hasActiveFilters && (
+                            {hasActiveFilters && showAdvanced && (
                                 <span className="ml-auto text-caption text-muted-foreground font-black uppercase tracking-widest">
                                     {filtered}/{total} RÉSULTATS
                                 </span>
                             )}
                         </div>
                         </div>
-            )}
+            </div>
         </div>
     );
 }
@@ -215,7 +221,7 @@ function ToggleChip({
             onClick={onToggle}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-caption font-bold border transition-colors ${active
                 ? colorClass
-                : "bg-surface text-muted-foreground border-border hover:bg-surface hover:text-foreground"
+                : "bg-background text-muted-foreground border-border hover:bg-elevated hover:text-foreground"
                 }`}
         >
             {icon}

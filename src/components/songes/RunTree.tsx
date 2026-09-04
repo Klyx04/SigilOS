@@ -380,7 +380,7 @@ export function RunTree({ guildId, currentFloor, runId, isLeader, runStatus, lea
                         <div className="absolute inset-0 bg-cyan-500/10 blur-xl rounded-full animate-pulse" />
                         <div className="relative z-10 w-12 h-12">
                             <Image
-                                src="/assets/songes/départ.png"
+                                src="/assets/songes/depart.png"
                                 alt="Départ"
                                 fill
                                 className="object-contain"

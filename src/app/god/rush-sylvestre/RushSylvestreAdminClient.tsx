@@ -166,9 +166,9 @@ const ACTIVITY_TAGS: { type: ActivityTagType; imagePath: string; label: string; 
   { type: "donjon",             imagePath: "/assets/rush-sylvestre/donjon.png",             label: "Donjon requis",   color: "#3b82f6" },
   { type: "plusieurs_personnes",imagePath: "/assets/rush-sylvestre/plusieurs-personnes.png",label: "Multi joueurs",   color: "#10b981" },
   { type: "sort",               imagePath: "/assets/rush-sylvestre/sort.png",               label: "Sort requis",     color: "#ec4899" },
-  { type: "metier",             imagePath: "/assets/rush-sylvestre/façonneur.png",          label: "Métier requis",   color: "#eab308", hasName: true, hasLevel: true },
-  { type: "solver",             imagePath: "/assets/rush-sylvestre/solver.png",             label: "Solver requis",   color: "#10b981", hasUrl: true },
-  { type: "quest_group",        imagePath: "/assets/rush-sylvestre/group.png",              label: "À faire ensemble", color: "#f59e0b", hasName: true },
+  { type: "metier",             imagePath: "/assets/rush-sylvestre/faconneur.png",          label: "Métier requis",   color: "#eab308", hasName: true, hasLevel: true },
+  { type: "solver",             imagePath: "/assets/icons/dofusdb.png",                            label: "Solver requis",   color: "#10b981", hasUrl: true },
+  { type: "quest_group",        imagePath: "/assets/rush-sylvestre/plusieurs-personnes.png",      label: "À faire ensemble", color: "#f59e0b", hasName: true },
 ];
 
 function getMilestoneTypeInfo(type?: MilestoneType) {

@@ -39,6 +39,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     .filter(Boolean);
                 if (discordId && superAdminIds.includes(discordId)) return true;
 
+                // 1b. Check PlatformBan for user
+                try {
+                    const userBan = await prisma.platformBan.findFirst({
+                        where: { discordId, entityType: "USER" }
+                    });
+                    if (userBan) {
+                        logger.warn(`[Auth Security] Blocked sign-in for banned user ${discordId}: ${userBan.reason}`);
+                        return "/auth/error?error=Banned";
+                    }
+                } catch (e) {
+                    logger.error("[Auth Security] Error checking platformBan for user:", { error: (e as Error).message });
+                }
+
                 // Helper fail-closed : journalise le refus (observabilité God) puis
                 // renvoie le résultat du sign-in (false = refus sans redirect ciblée).
                 const deny = async (reason: "NO_MANAGED_GUILD" | "DISCORD_API_ERROR", withManagedGuildError: boolean) => {
@@ -73,7 +86,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                         if (await isKnownManagedMember()) return true;
                         return deny("DISCORD_API_ERROR", false);
                     }
-                    const userGuilds = await res.json() as { id: string }[];
+                    const userGuilds = await res.json() as { id: string; owner?: boolean; permissions?: string }[];
                     const userGuildIds = userGuilds.map(g => g.id);
 
                     // 3. Check if any guild is registered in SigilOS
@@ -91,7 +104,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
                     if (allowedCount > 0) return true;
 
-                    // 5. Discord OK mais la guilde n'est pas encore remontée (latence) :
+                    // 5. Onboarding Autonome : Si l'utilisateur est propriétaire ou administrateur
+                    // d'au moins un serveur Discord non banni, on l'autorise à entrer sur le portail
+                    // pour qu'il puisse déployer SigilOS en un clic.
+                    const adminGuilds = userGuilds.filter(g => {
+                        if (g.owner) return true;
+                        if (!g.permissions) return false;
+                        try {
+                            return (BigInt(g.permissions) & 0x8n) === 0x8n;
+                        } catch {
+                            return false;
+                        }
+                    });
+
+                    if (adminGuilds.length > 0) {
+                        const adminGuildIds = adminGuilds.map(g => g.id);
+                        const bannedGuilds = await prisma.platformBan.findMany({
+                            where: { discordId: { in: adminGuildIds }, entityType: "GUILD" },
+                            select: { discordId: true }
+                        });
+                        const bannedSet = new Set(bannedGuilds.map(b => b.discordId));
+                        const eligibleAdminGuilds = adminGuilds.filter(g => !bannedSet.has(g.id));
+
+                        if (eligibleAdminGuilds.length > 0) {
+                            return true;
+                        }
+                    }
+
+                    // 6. Discord OK mais la guilde n'est pas encore remontée (latence) :
                     //    on tolère un membre ACTIVE connu d'une guilde gérée.
                     if (await isKnownManagedMember()) return true;
 

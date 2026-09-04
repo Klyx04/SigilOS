@@ -115,7 +115,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                 return (
                     <div className="flex items-center gap-1.5 font-black">
                         <span>{entry.value.toLocaleString()}</span>
-                        <Image src="/PA.png" alt="PA" width={16} height={16} className="object-contain" />
+                        <Image src="/assets/icons/pa.png" alt="PA" width={16} height={16} className="object-contain" />
                     </div>
                 );
             case "contribution":
@@ -128,14 +128,14 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                 return (
                     <div className="flex items-center gap-1.5 font-black">
                         <span>{Number(entry.totalXpBigInt || 0).toLocaleString()}</span>
-                        <Image src="/PA.png" alt="PA" width={16} height={16} className="object-contain" />
+                        <Image src="/assets/icons/pa.png" alt="PA" width={16} height={16} className="object-contain" />
                     </div>
                 );
             case "guildatons":
                 return (
                     <div className="flex items-center gap-1.5 font-black text-warning">
                         <span>{entry.value.toLocaleString()}</span>
-                        <Image src="/guildatons.png" alt="G" width={16} height={16} className="object-contain" />
+                        <Image src="/assets/icons/guildatons.png" alt="G" width={16} height={16} className="object-contain" />
                     </div>
                 );
             case "discord":
@@ -227,10 +227,10 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
     };
 
     const categories = ([
-        { id: "activity", label: "Activité", icon: "/PA.png", isImage: true, color: "#10b981" },
+        { id: "activity", label: "Activité", icon: "/assets/icons/pa.png", isImage: true, color: "#10b981" },
         // « Général » (XP des membres) en 2e position pour être immédiatement visible.
         { id: "general", label: "Général", icon: TrendingUp, isImage: false, color: "#3b82f6" },
-        { id: "guildatons", label: "Guildatons", icon: "/guildatons.png", isImage: true, color: "#eab308" },
+        { id: "guildatons", label: "Guildatons", icon: "/assets/icons/guildatons.png", isImage: true, color: "#eab308" },
         { id: "raids", label: "Raids", icon: Swords, isImage: false, color: "#ef4444" },
         { id: "discord", label: "Discord", icon: MessageSquare, isImage: false, color: "#818cf8" },
         { id: "contribution", label: "Contribution", icon: HandHeart, isImage: false, color: "#a855f7" },

@@ -15,7 +15,7 @@ import AlignmentModal from "./AlignmentModal";
 import OcreProgressModal, { type OcreMonsterLite } from "./OcreProgressModal";
 import { QuestFeedbackButton } from "./QuestFeedbackButton";
 import { DofusPageOptions } from "./DofusPageOptions";
-import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
+
 
 // #148 — Styles du guide (Rush Sylvestre / Ganymède) : bandeau à l'identique.
 import "@/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/guide-styles.css";
@@ -266,11 +266,10 @@ export function DofusQuestBanner({ guildId, dofusSlug, dofusColor, mainCharacter
                     </div>
                 </div>
             </div>
-            {/* Actions : Signaler · Options · Tutoriel */}
+            {/* Actions : Signaler · Options */}
             <div className="flex flex-wrap items-center gap-2 pt-2">
                 <QuestFeedbackButton guildId={guildId} sourcePage={`dofus:${dofusSlug}`} targetSlug={dofusSlug}
                     className="px-2.5 py-1.5 rounded-lg bg-danger/10 border border-danger/20 text-danger hover:bg-danger/20 text-caption font-black uppercase tracking-widest" />
-                <ModuleTourReplayButton phase="quetesDofus" />
                 <div className="ml-auto"><DofusPageOptions guildId={guildId} dofusSlug={dofusSlug} baseColor={dofusColor} /></div>
             </div>
 

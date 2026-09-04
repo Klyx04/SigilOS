@@ -46,6 +46,20 @@ export const SLASH_COMMANDS_CATALOG: SlashCommandDefinition[] = [
         defaultRoles: ["MEMBER", "OFFICER", "LEADER"]
     },
     {
+        name: "boss",
+        description: "Consulte la fiche d'un boss de donjon : PV, résistances élémentaires, sorts et tactique",
+        usage: "/boss <nom>",
+        category: "DONJONS_QUETES",
+        defaultRoles: ["MEMBER", "OFFICER", "LEADER"]
+    },
+    {
+        name: "monstre",
+        description: "Recherche un monstre ou archimonstre : caractéristiques, zone, drops et stats",
+        usage: "/monstre <nom>",
+        category: "DONJONS_QUETES",
+        defaultRoles: ["MEMBER", "OFFICER", "LEADER"]
+    },
+    {
         name: "stats",
         description: "Récapitulatif des succès collectifs, présences et activité de la guilde",
         usage: "/stats",

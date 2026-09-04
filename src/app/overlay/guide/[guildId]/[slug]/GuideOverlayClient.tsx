@@ -51,22 +51,33 @@ const DOFUS_DEFS: Record<string, { label: string; imageUrl: string; color: strin
   des_veilleurs: { label: "Des Veilleurs", imageUrl: "/module-dofus/Dofus_Veilleur.png", color: "#38bdf8" },
   domakuro: { label: "Domakuro", imageUrl: "/module-dofus/Dofus_Domakuro.png", color: "#84cc16" },
   dorigami: { label: "Dorigami", imageUrl: "/module-dofus/Dofus_Dorigami.png", color: "#f472b6" },
-  tachete: { label: "Tacheté", imageUrl: "/module-dofus/Dofus_Tacheté.png", color: "#c084fc" },
+  tachete: { label: "Tacheté", imageUrl: "/module-dofus/Dofus_Tachete.png", color: "#c084fc" },
   dom_de_pin: { label: "Dom de Pin", imageUrl: "/module-dofus/Dom_De_Pin.png", color: "#a3e635" },
 };
 
 type Props = {
-  guildId: string;
+  guildId?: string;
   guide: { id: string; name: string; slug: string; description?: string; imageUrl?: string };
   milestones: RushMilestone[];
-  allProgress: GuideProgressRow[];
-  altPseudo: string | null;
+  allProgress?: GuideProgressRow[];
+  altPseudo?: string | null;
   /** Personnage courant (principal ou mule) pour l'affichage. */
   character?: { pseudo: string; classe: string | null; isMain: boolean };
   onClose?: () => void;
+  /** Mode invité / démo sans compte ni guilde */
+  isGuest?: boolean;
 };
 
-export default function GuideOverlayClient({ guildId, guide, milestones: rawMilestones, allProgress, altPseudo, character, onClose }: Props) {
+export default function GuideOverlayClient({
+  guildId = "public",
+  guide,
+  milestones: rawMilestones,
+  allProgress = [],
+  altPseudo = null,
+  character,
+  onClose,
+  isGuest = false,
+}: Props) {
   const effectiveAltPseudo = altPseudo ?? undefined;
   // Repli si le personnage n'est pas fourni (accès direct à la page overlay).
   const overlayCharacter = useMemo(
@@ -166,8 +177,16 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
     }
   }, [onClose]);
 
-  // ─── Progression Locale Optimiste ─────────────────────────────────────────
+  // ─── Progression Locale Optimiste / Guest LocalStorage ───────────────────────
+  const storagePrefix = `sigil_guest_${guide.slug}_`;
+
   const [completedIds, setCompletedIds] = useState<Set<string>>(() => {
+    if (isGuest && typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(`${storagePrefix}completed_ms`);
+        if (raw) return new Set(JSON.parse(raw));
+      } catch {}
+    }
     const s = new Set<string>();
     milestones.forEach((ms) => {
       if (ms.playerProgress?.[0]?.isCompleted) s.add(ms.id);
@@ -176,6 +195,19 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
   });
 
   const [completedStepsByMs, setCompletedStepsByMs] = useState<Map<string, Set<string>>>(() => {
+    if (isGuest && typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(`${storagePrefix}steps`);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const m = new Map<string, Set<string>>();
+          for (const [k, v] of Object.entries(parsed)) {
+            m.set(k, new Set(v as string[]));
+          }
+          return m;
+        }
+      } catch {}
+    }
     const m = new Map<string, Set<string>>();
     milestones.forEach((ms) => {
       const ids = ms.playerProgress?.[0]?.completedStepIds;
@@ -185,6 +217,15 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
   });
 
   const [bookmarksByMs, setBookmarksByMs] = useState<Map<string, string>>(() => {
+    if (isGuest && typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(`${storagePrefix}bookmarks`);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          return new Map(Object.entries(parsed));
+        }
+      } catch {}
+    }
     const m = new Map<string, string>();
     milestones.forEach((ms) => {
       const bk = ms.playerProgress?.[0]?.bookmarkedSeqId;
@@ -196,7 +237,7 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
   // ─── Synchro dashboard ↔ overlay (BroadcastChannel, même navigateur) ─────
   // Aligne « ce qui est coché » entre la fenêtre du module et l'overlay.
   useGuideProgressSync(
-    guildId,
+    isGuest ? `guest:${guide.slug}` : guildId,
     guide.slug,
     { completedIds, completedStepsByMs, bookmarksByMs },
     { setCompletedIds, setCompletedStepsByMs, setBookmarksByMs }
@@ -435,6 +476,33 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
         n.set(ms.id, was ? new Set<string>() : new Set(ms.sequences.map((s) => s.id)));
         return n;
       });
+      if (isGuest) {
+        if (typeof window !== "undefined") {
+          try {
+            const nextCompleted = was
+              ? Array.from(completedIds).filter((id) => id !== ms.id)
+              : [...Array.from(completedIds), ms.id];
+            localStorage.setItem(`${storagePrefix}completed_ms`, JSON.stringify(nextCompleted));
+            const stepsObj: Record<string, string[]> = {};
+            prevSteps.forEach((set, k) => {
+              stepsObj[k] = Array.from(set);
+            });
+            stepsObj[ms.id] = was ? [] : ms.sequences.map((s) => s.id);
+            localStorage.setItem(`${storagePrefix}steps`, JSON.stringify(stepsObj));
+
+            if (!was && bookmarksByMs.get(ms.id)) {
+              setBookmarksByMs((prev) => {
+                const n = new Map(prev);
+                n.delete(ms.id);
+                localStorage.setItem(`${storagePrefix}bookmarks`, JSON.stringify(Object.fromEntries(n)));
+                return n;
+              });
+            }
+          } catch {}
+        }
+        if (!was) goToNextMs();
+        return;
+      }
       setLoadingIds((prev) => new Set([...prev, ms.id]));
       try {
         const res = await toggleMilestoneProgress(guildId, ms.id, !was, effectiveAltPseudo);
@@ -520,6 +588,44 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
         }
         return n;
       });
+      if (isGuest) {
+        if (typeof window !== "undefined") {
+          try {
+            const stepsObj: Record<string, string[]> = {};
+            completedStepsByMs.forEach((set, k) => {
+              stepsObj[k] = Array.from(set);
+            });
+            stepsObj[ms.id] = Array.from(cur);
+            for (const [mid, set] of cascadeMsIds) {
+              const currentSt = new Set(completedStepsByMs.get(mid) || []);
+              for (const cid of set) currentSt.delete(cid);
+              stepsObj[mid] = Array.from(currentSt);
+            }
+            localStorage.setItem(`${storagePrefix}steps`, JSON.stringify(stepsObj));
+
+            const nextCompleted = new Set(completedIds);
+            allChecked ? nextCompleted.add(ms.id) : nextCompleted.delete(ms.id);
+            for (const [mid, set] of cascadeMsIds) {
+              const m = milestones.find((mm) => mm.id === mid);
+              if (!m) continue;
+              const reg = m.sequences.filter((s) => !isInfoSequence(s));
+              const steps = new Set(completedStepsByMs.get(mid) || []);
+              for (const cid of set) steps.delete(cid);
+              const done = reg.length > 0 && reg.every((s) => steps.has(s.id));
+              done ? nextCompleted.add(mid) : nextCompleted.delete(mid);
+            }
+            localStorage.setItem(`${storagePrefix}completed_ms`, JSON.stringify(Array.from(nextCompleted)));
+
+            if (!was && bookmarksByMs.get(ms.id) === seqId) {
+              const nextBk = new Map(bookmarksByMs);
+              nextBk.delete(ms.id);
+              setBookmarksByMs(nextBk);
+              localStorage.setItem(`${storagePrefix}bookmarks`, JSON.stringify(Object.fromEntries(nextBk)));
+            }
+          } catch {}
+        }
+        return;
+      }
       try {
         const res = await setRushSequenceProgress(guildId, ms.id, Array.from(cur), effectiveAltPseudo);
         if (!(res as any)?.success) throw new Error("Échec mutation");
@@ -572,6 +678,22 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
   // Réinitialise TOUTE la progression du guide (synchro serveur + dashboard),
   // et vide l'état local de l'overlay (blocs cochés, quêtes, repères).
   const handleResetGuide = useCallback(async () => {
+    if (isGuest) {
+      setCompletedIds(new Set());
+      setCompletedStepsByMs(new Map());
+      setBookmarksByMs(new Map());
+      setDetailSeq(null);
+      setCurrentMsIndex(0);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.removeItem(`${storagePrefix}completed_ms`);
+          localStorage.removeItem(`${storagePrefix}steps`);
+          localStorage.removeItem(`${storagePrefix}bookmarks`);
+        } catch {}
+      }
+      toast.success("Guide réinitialisé.");
+      return;
+    }
     try {
       const res = await resetGuideProgress(guildId, guide.id, effectiveAltPseudo);
       if ((res as any)?.success) {
@@ -588,7 +710,7 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
     } catch {
       toast.error("Erreur réseau lors de la réinitialisation.");
     }
-  }, [guildId, guide.id, effectiveAltPseudo]);
+  }, [guildId, guide.id, effectiveAltPseudo, isGuest, storagePrefix]);
 
   const handleBookmark = useCallback(
     async (ms: RushMilestone, seqId: string) => {
@@ -610,6 +732,18 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
         else n.delete(ms.id);
         return n;
       });
+      if (isGuest) {
+        if (typeof window !== "undefined") {
+          try {
+            const nextBk = new Map(bookmarksByMs);
+            if (!isAlready) nextBk.set(ms.id, seqId);
+            else nextBk.delete(ms.id);
+            localStorage.setItem(`${storagePrefix}bookmarks`, JSON.stringify(Object.fromEntries(nextBk)));
+          } catch {}
+        }
+        toast.success(isAlready ? "Repère retiré" : "📍 Repère posé ici !", { duration: 1500 });
+        return;
+      }
       try {
         await setRushBookmark(guildId, ms.id, isAlready ? null : seqId, effectiveAltPseudo);
         toast.success(isAlready ? "Repère retiré" : "📍 Repère posé ici !", { duration: 1500 });
@@ -618,7 +752,7 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
         toast.error("Erreur repère");
       }
     },
-    [bookmarksByMs, completedStepsByMs, guildId, effectiveAltPseudo, getSeqGate]
+    [bookmarksByMs, completedStepsByMs, guildId, effectiveAltPseudo, getSeqGate, isGuest, storagePrefix]
   );
 
   // Filtrage des quêtes du milestone courant
@@ -722,6 +856,7 @@ export default function GuideOverlayClient({ guildId, guide, milestones: rawMile
             bugContext={overlayBugContext}
             character={overlayCharacter}
             onResetGuide={handleResetGuide}
+            isGuest={isGuest}
           />
 
           {/* ══ RECHERCHE ══ */}

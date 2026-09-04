@@ -28,10 +28,10 @@ const getFloorType = (floor: number): RoomType => {
 };
 
 const ROOM_IMAGES: Record<RoomType, string> = {
-    combat: "/songes/salle_combat.png",
-    fontaine: "/songes/salle_fontaine.png",
-    faveur: "/songes/salle_faveur.png",
-    boss: "/songes/salle_boss.png",
+    combat: "/songes/combat_token.png",
+    fontaine: "/songes/background_dreams.png",
+    faveur: "/songes/salle0.png",
+    boss: "/songes/boss_token.png",
 };
 
 const ROOM_LABELS: Record<RoomType, string> = {

@@ -5,7 +5,6 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { MapViewer } from "@/components/worldmap/map-viewer";
-import { Map as MapIcon } from "lucide-react";
 
 import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
@@ -38,7 +37,7 @@ export default async function WorldMapPage({ params, searchParams }: Props) {
                 <UnifiedModuleHeader
                     title="Carte du Monde"
                     description="Explorez le monde des Douze"
-                    icon={MapIcon}
+                    imageSrc="/assets/nav/world.png"
                     backHref={`/dashboard/${guildId}`}
                     compact={true}
                     className="mb-0"

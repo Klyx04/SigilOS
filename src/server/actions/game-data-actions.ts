@@ -13,6 +13,36 @@ import { sanitizeHtml } from "@/lib/security";
 import { getLocalMonsterStat, persistMonsterStat } from "@/lib/dofensive-sync";
 import { getDofensiveDungeonForBoss } from "@/server/actions/dofensive-actions";
 
+const normStr = (s: string | null | undefined): string =>
+    (s ?? "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]/g, "")
+        .trim();
+
+let localDungeonMonstersDataCache: {
+    updatedAt: string;
+    totalDungeons: number;
+    totalMonsters: number;
+    dungeons: any[];
+    monsters: any[];
+} | null = null;
+
+function getLocalDungeonMonstersData() {
+    if (localDungeonMonstersDataCache) return localDungeonMonstersDataCache;
+    try {
+        const filePath = path.join(process.cwd(), 'public', 'game-data', 'dungeon-monsters.json');
+        if (fs.existsSync(filePath)) {
+            localDungeonMonstersDataCache = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+            return localDungeonMonstersDataCache;
+        }
+    } catch (e) {
+        logger.error("[getLocalDungeonMonstersData] Erreur lecture dungeon-monsters.json:", { error: e });
+    }
+    return null;
+}
+
 type ActionResponse<T = void> = {
     success: boolean;
     error?: string;
@@ -233,6 +263,102 @@ export async function getDungeonsWithAchievements(): Promise<ActionResponse<any[
         return { success: false, error: 'Erreur lors du chargement' };
     }
 }
+
+export interface BestiaireEntry {
+    id: string;
+    name: string;
+    bossName: string;
+    level: number;
+    imageUrl?: string | null;
+    dofensiveUrl?: string | null;
+    dpnlUrl?: string | null;
+    dofusdbId?: number | null;
+    dofensiveMonsterName?: string | null;
+    dofensiveDungeonName?: string | null;
+    isOcreQuest: boolean;
+    type: 'boss' | 'monstre';
+}
+
+/**
+ * Retourne la liste unifiée pour l'overlay Bestiaire :
+ * - Boss de donjons
+ * - Monstres réguliers (archis / monstres sauvages)
+ * - Données nécessaires pour filtrer Boss Donjons, Monstres, Boss Ocre
+ */
+export async function getBestiaireCatalog(): Promise<ActionResponse<BestiaireEntry[]>> {
+    try {
+        const dungeons = await db.dungeon.findMany({
+            orderBy: { level: 'asc' },
+            select: {
+                id: true,
+                name: true,
+                bossName: true,
+                level: true,
+                imageUrl: true,
+                dofensiveUrl: true,
+                dpnlUrl: true,
+                dofuspourlesnoobsUrl: true,
+                dofusdbId: true,
+                dofensiveMonsterName: true,
+                dofensiveDungeonName: true,
+                isOcreQuest: true,
+            }
+        });
+
+        const bossEntries: BestiaireEntry[] = dungeons
+            .filter(d => d && (d.bossName || d.name))
+            .map(d => ({
+                id: d.id,
+                name: d.name,
+                bossName: d.bossName || d.name,
+                level: d.level ?? 0,
+                imageUrl: d.imageUrl ?? null,
+                dofensiveUrl: d.dofensiveUrl ?? null,
+                dpnlUrl: d.dpnlUrl ?? d.dofuspourlesnoobsUrl ?? null,
+                dofusdbId: d.dofusdbId ?? null,
+                dofensiveMonsterName: d.dofensiveMonsterName ?? null,
+                dofensiveDungeonName: d.dofensiveDungeonName ?? null,
+                isOcreQuest: !!d.isOcreQuest,
+                type: 'boss',
+            }));
+
+        // Onglet "Monstres" = TOUS les monstres des familles et salles de boss de donjons.
+        // Lu en local depuis public/game-data/dungeon-monsters.json (0ms, 100% autonome, zéro dépendance DofusDB).
+        const localData = getLocalDungeonMonstersData();
+        let monsterEntries: BestiaireEntry[] = [];
+
+        if (localData?.monsters?.length) {
+            const seenNames = new Set<string>();
+            monsterEntries = localData.monsters
+                .filter((m: any) => {
+                    const k = normStr(m.name);
+                    if (!k || seenNames.has(k)) return false;
+                    seenNames.add(k);
+                    return true;
+                })
+                .map((m: any) => ({
+                    id: `mob-${m.id}`,
+                    name: m.raceName || "Famille",
+                    bossName: m.name,
+                    level: m.level || 0,
+                    imageUrl: m.imageUrl || null,
+                    dofensiveUrl: null,
+                    dpnlUrl: null,
+                    dofusdbId: m.id || null,
+                    dofensiveMonsterName: m.name,
+                    dofensiveDungeonName: null,
+                    isOcreQuest: false,
+                    type: 'monstre' as const,
+                }));
+        }
+
+        return { success: true, data: [...bossEntries, ...monsterEntries] };
+    } catch (error) {
+        logger.error('[getBestiaireCatalog] Error:', { error });
+        return { success: false, error: 'Erreur lors du chargement du bestiaire' };
+    }
+}
+
 
 /** Advanced dungeon search — supports event-only and zone filtering */
 export async function searchDungeonsAdvanced(filters: {
@@ -1231,16 +1357,45 @@ export async function getMonsterStats(
                 drops: monster.drops?.map((d: any) => {
                     const item = itemsMap[d.objectId];
                     const iconId = item?.iconId || d.objectId;
-                    const gradePercents = [d.percentDropForGrade1, d.percentDropForGrade2, d.percentDropForGrade3, d.percentDropForGrade4, d.percentDropForGrade5]
-                        .filter((pg): pg is number => typeof pg === 'number');
-                    const rawPercent = d.percentDropForGrade5 ?? d.percentDropForGrade1 ?? d.minPercentDrop ?? d.percent ?? 0;
-                    const formattedPercent = parseFloat(Number(rawPercent).toFixed(3));
+
+                    // Fallback de taux (conditionnels, globaux ou sans grade explicite)
+                    const fallbackDrop = (d.minPercentDrop > 0 ? d.minPercentDrop : null)
+                        ?? (d.maxPercentDrop > 0 ? d.maxPercentDrop : null)
+                        ?? (d.percent > 0 ? d.percent : null);
+
+                    const rawGrades = [
+                        d.percentDropForGrade1,
+                        d.percentDropForGrade2,
+                        d.percentDropForGrade3,
+                        d.percentDropForGrade4,
+                        d.percentDropForGrade5
+                    ];
+
+                    const gradePercents = rawGrades.map((pg) => {
+                        if (typeof pg === 'number' && pg > 0) return pg;
+                        if (fallbackDrop !== null && fallbackDrop !== undefined) return fallbackDrop;
+                        return typeof pg === 'number' ? pg : 0;
+                    });
+
+                    // Choix du taux représentatif (premier grade non-nul, ou fallback)
+                    const firstNonZero = gradePercents.find((p) => p > 0);
+                    const rawPercent = firstNonZero ?? fallbackDrop ?? d.percentDropForGrade5 ?? d.percentDropForGrade1 ?? 0;
+
+                    // Formateur intelligent : DofusDB arrondit à 2 décimales si >= 0.01 (ex: 0.045% -> 0.05%), 3 décimales si < 0.01
+                    const formatRate = (val: number): number => {
+                        if (!val || val <= 0) return 0;
+                        if (val < 0.01) return parseFloat(val.toFixed(3));
+                        return parseFloat(val.toFixed(2));
+                    };
+
+                    const formattedPercent = formatRate(rawPercent);
+
                     return {
                         objectId: d.objectId,
                         name: item?.name?.fr || "Objet",
                         imageUrl: item?.img || `https://static.dofusdb.fr/items/illustr/${iconId}.png`,
                         percent: formattedPercent,
-                        percentByGrade: gradePercents.length > 0 ? gradePercents.map((pg) => parseFloat(Number(pg).toFixed(3))) : undefined
+                        percentByGrade: gradePercents.map(formatRate)
                     };
                 }) || [],
                 spells: spellsArr.map(s => {
@@ -1302,6 +1457,84 @@ export async function getDungeonMonsters(
     const cached = dungeonFamilyCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
         return { success: true, data: cached.data };
+    }
+
+    const localData = getLocalDungeonMonstersData();
+    if (localData) {
+        const bNorm = normStr(bossName);
+        const dNorm = dungeonName ? normStr(dungeonName.replace(/\s*\(\d+\)$/, "")) : "";
+
+        // 1. Recherche par correspondance donjon
+        let matchedDungeon = localData.dungeons.find((d: any) => {
+            if (dNorm && (d.cleanName === dNorm || d.cleanName.includes(dNorm) || dNorm.includes(d.cleanName))) {
+                return true;
+            }
+            if (bNorm && d.bosses?.some((b: any) => normStr(b.name) === bNorm)) {
+                return true;
+            }
+            return false;
+        });
+
+        if (!matchedDungeon && bNorm) {
+            // Chercher par présence dans les monstres du donjon
+            matchedDungeon = localData.dungeons.find((d: any) =>
+                d.monsters?.some((m: any) => normStr(m.name) === bNorm)
+            );
+        }
+
+        if (matchedDungeon) {
+            // Fusionner les monstres du donjon et de la famille pour une complétude totale
+            const mapById = new Map<number, { id: number; name: string; imageUrl: string | null; isBoss: boolean }>();
+
+            // Priorité aux monstres du donjon (salles réelles)
+            (matchedDungeon.monsters || []).forEach((m: any) => {
+                mapById.set(m.id, {
+                    id: m.id,
+                    name: m.name,
+                    imageUrl: m.imageUrl || null,
+                    isBoss: !!m.isBoss,
+                });
+            });
+
+            // Ajouter également les monstres de la famille si absents
+            (matchedDungeon.familyMonsters || []).forEach((m: any) => {
+                if (!mapById.has(m.id)) {
+                    mapById.set(m.id, {
+                        id: m.id,
+                        name: m.name,
+                        imageUrl: m.imageUrl || null,
+                        isBoss: !!m.isBoss,
+                    });
+                }
+            });
+
+            const monsters = Array.from(mapById.values());
+            if (monsters.length > 0) {
+                const result = { familyId: matchedDungeon.raceId ?? null, monsters };
+                dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
+                return { success: true, data: result };
+            }
+        }
+
+        // 2. Recherche par monstre isolé dans localData.monsters
+        if (bNorm) {
+            const mob = localData.monsters.find((m: any) => normStr(m.name) === bNorm);
+            if (mob?.raceId) {
+                const famMobs = localData.monsters
+                    .filter((m: any) => m.raceId === mob.raceId)
+                    .map((m: any) => ({
+                        id: m.id,
+                        name: m.name,
+                        imageUrl: m.imageUrl || null,
+                        isBoss: !!m.isBoss,
+                    }));
+                if (famMobs.length > 0) {
+                    const result = { familyId: mob.raceId, monsters: famMobs };
+                    dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
+                    return { success: true, data: result };
+                }
+            }
+        }
     }
 
     try {

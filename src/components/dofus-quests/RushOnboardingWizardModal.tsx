@@ -49,6 +49,10 @@ type Props = {
   onDeclareMetier?: (name: string, level: number) => void;
   /** Options de la modale de lancement (éditées côté GOD). */
   launchConfig?: { showMetamob: boolean; showResetAlignment: boolean; showMetiers: boolean };
+  /** Réinitialise la progression d'un AUTRE personnage (id = "PRINCIPAL" | pseudo mule). */
+  onResetCharacter?: (id: string) => void;
+  /** id du personnage en cours de reset (pour spinner/disable). */
+  resettingId?: string | null;
 };
 
 export function RushOnboardingWizardModal({
@@ -69,6 +73,8 @@ export function RushOnboardingWizardModal({
   metiersDeclares = [],
   onDeclareMetier,
   launchConfig = { showMetamob: true, showResetAlignment: true, showMetiers: true },
+  onResetCharacter,
+  resettingId = null,
 }: Props) {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
@@ -182,6 +188,30 @@ export function RushOnboardingWizardModal({
                     );
                   })}
                 </div>
+                {characters.length > 1 && onResetCharacter && (
+                  <div className="mt-4 p-3 rounded-2xl bg-zinc-900/60 border border-white/10">
+                    <p className="text-xs font-black text-zinc-300 uppercase tracking-wider mb-2">↺ Réinitialiser un autre personnage</p>
+                    <div className="space-y-1.5">
+                      {characters.filter(c => c.id !== selectedCharacter).map(c => (
+                        <div key={c.id} className="flex items-center justify-between gap-2">
+                          <span className="text-xs text-zinc-300 flex items-center gap-2 min-w-0">
+                            <User className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                            <span className="truncate">{c.name}</span>
+                            {c.isMule && <span className="text-[9px] text-blue-300 uppercase shrink-0">Mule</span>}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => onResetCharacter?.(c.id)}
+                            disabled={resettingId === c.id}
+                            className="px-2 py-1 rounded-lg bg-red-600/80 hover:bg-red-600 text-white text-caption font-black uppercase shrink-0 disabled:opacity-50"
+                          >
+                            {resettingId === c.id ? "…" : "Réinitialiser"}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

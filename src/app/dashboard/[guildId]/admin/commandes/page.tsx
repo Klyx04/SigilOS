@@ -47,13 +47,28 @@ export default async function AdminCommandesPage({ params }: Props) {
         return <AccessDenied />;
     }
 
-    const [slashPermsRes, rawRoles, rawChannels] = await Promise.all([
-        getGuildSlashCommandPermissionsAction(config.id),
-        fetchGuildRoles(guildId).catch(() => []),
-        fetchGuildChannels(guildId).catch(() => [])
+    const actualDiscordId = config.discordGuildId || (typeof guildId === "string" && /^\d+$/.test(guildId) ? guildId : "");
+
+    const [permissions, rawRoles, rawChannels] = await Promise.all([
+        db.guildSlashCommandPermission.findMany({
+            where: { guildId: config.id }
+        }),
+        actualDiscordId ? fetchGuildRoles(actualDiscordId).catch(() => []) : [],
+        actualDiscordId ? fetchGuildChannels(actualDiscordId).catch(() => []) : []
     ]);
 
-    const slashPerms = slashPermsRes.success && slashPermsRes.data ? slashPermsRes.data : [];
+    const { SLASH_COMMANDS_CATALOG } = await import("@/lib/slash-commands-catalog");
+    const permMap = new Map(permissions.map(p => [p.commandName, p]));
+
+    const slashPerms = SLASH_COMMANDS_CATALOG.map(cmd => {
+        const existing = permMap.get(cmd.name);
+        return {
+            command: cmd,
+            isEnabled: existing ? existing.isEnabled : true,
+            roleIds: existing ? existing.roleIds : [],
+            channelIds: existing ? existing.channelIds : []
+        };
+    });
 
     const discordRoles = rawRoles.map((r: any) => ({
         id: r.id,

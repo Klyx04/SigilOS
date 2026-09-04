@@ -25,6 +25,8 @@ import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal
 import MapPositionPopover from "@/components/dofus-quests/MapPositionPopover";
 import { RushOnboardingWizardModal } from "@/components/dofus-quests/RushOnboardingWizardModal";
 import { RushPenseBeteModal } from "@/components/dofus-quests/rush/RushPenseBeteModal";
+import { RushTagBadge } from "@/components/dofus-quests/rush/RushTagBadge";
+import { classifyTags } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
 import { ResetConfirmModal } from "@/components/dofus-quests/ResetConfirmModal";
 import LiveActivityTicker from "@/components/dofus-quests/LiveActivityTicker";
 import OcreProgressModal, { type OcreMonsterLite } from "@/components/dofus-quests/OcreProgressModal";
@@ -409,6 +411,23 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 <img src="/assets/icons/succes.png" alt="Succès" className="w-3.5 h-3.5 opacity-60" />
               </span>
             )}
+            {/* Badges d'activité — pack « +N » (réutilise la classification overlay) */}
+            {(() => {
+              const cls = classifyTags((seq as any).activityTags);
+              if (cls.nature.length === 0 && cls.condition.length === 0) return null;
+              const nature = cls.nature.slice(0, 3);
+              return (
+                <div className="flex items-center gap-1 shrink-0">
+                  {nature.map((t, i) => <RushTagBadge key={i} tag={t} size="sm" />)}
+                  {cls.nature.length > 3 && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-[#1c2129] border border-[#2c3646] text-[#6e7784]" title={`${cls.nature.length} tags d'activité`}>+{cls.nature.length - 3}</span>
+                  )}
+                  {cls.condition.length > 0 && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-[#1e1a2e] border border-[#3a3356] text-[#a5b4fc]">{cls.condition.length} cond.</span>
+                  )}
+                </div>
+              );
+            })()}
             {seq.isOptional && (
               <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-zinc-800/50 text-zinc-500 border border-white/5 shrink-0">Bonus</span>
             )}
@@ -1121,7 +1140,7 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
     setBookmarksByMs(next);
   }, [milestones]);
   const [hideDone,setHideDone]=useState(false);
-  const [celebrate,setCelebrate]=useState<{msId:string;title:string}|null>(null);
+  const [celebrate,setCelebrate]=useState<{msId:string;title:string;tint?:string}|null>(null);
   useEffect(()=>{ if(!celebrate)return; const t=setTimeout(()=>setCelebrate(null),1600); return ()=>clearTimeout(t); },[celebrate]);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
@@ -1184,6 +1203,21 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   // Temps réel WS (Phase 1) : plus de polling router.refresh() toutes les 2 min.
   // La présence est portée par useGuidePresence (voir plus bas).
 const contentMilestones=useMemo(()=>milestones.filter(ms=>ms.type!=="SEPARATEUR"&&ms.type!=="INFO"&&ms.type!=="DOFUS_OBTAINED"),[milestones]);
+// Dernier bloc (milestone) de chaque chapitre — pour la célébration « Chapitre terminé ».
+const lastMsOfChapterIds = useMemo(() => {
+  const byChapter = new Map<number, Milestone[]>();
+  for (const ms of contentMilestones) {
+    if (!byChapter.has(ms.chapter)) byChapter.set(ms.chapter, []);
+    byChapter.get(ms.chapter)!.push(ms);
+  }
+  const out = new Set<string>();
+  for (const arr of byChapter.values()) {
+    if (!arr.length) continue;
+    const last = arr.reduce((a, b) => (b.order >= a.order ? b : a), arr[0]);
+    out.add(last.id);
+  }
+  return out;
+}, [contentMilestones]);
 const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.order);type TI={kind:"separator";ms:Milestone}|{kind:"info";ms:Milestone}|{kind:"chapter";chapterNum:number;label:string;showHeader:boolean;milestoneList:Milestone[]};const r:TI[]=[];let b:Milestone[]=[];let bc:number|null=null;let bl="";let bsh=true;let lch:number|null=null;const f=()=>{if(b.length){r.push({kind:"chapter",chapterNum:bc!,label:bl,showHeader:bsh,milestoneList:b});b=[];bc=null;bl="";bsh=true;}};for(const ms of s){if(ms.type==="SEPARATEUR"){f();r.push({kind:"separator",ms});continue;}if(ms.type==="INFO"||ms.type==="DOFUS_OBTAINED"){f();r.push({kind:"info",ms});continue;}if(dofusFilter&&ms.dofusId!==dofusFilter)continue;const nh=ms.chapter!==lch;if(bc===null||bc!==ms.chapter){f();bc=ms.chapter;bl=ms.chapterLabel;bsh=nh;if(nh)lch=ms.chapter;}b.push(ms);}f();return r;},[milestones,dofusFilter]);
   const guildProgressByMs=useMemo(()=>{const m=new Map<string,GuildMemberProgress[]>;guildProgress.forEach(p=>{if(!p.isCompleted){if(!m.has(p.milestoneId))m.set(p.milestoneId,[]);m.get(p.milestoneId)!.push(p);}});return m;},[guildProgress]);
   // ─── Guild progress by sequence (members with currentStep/bookmark on a specific seq) ──
@@ -1326,7 +1360,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
             router.refresh();
           }
         }
-        if(res.isCompleted&&!wasMilestoneCompleted){toast.success("✅ Bloc validé !",{duration:1500});setCelebrate({msId:ms.id,title:ms.title});}
+        if(res.isCompleted&&!wasMilestoneCompleted){const _ce=lastMsOfChapterIds.has(ms.id);toast.success("✅ Bloc validé !",{duration:1500});setCelebrate({msId:ms.id,title:_ce?`Chapitre ${ms.chapter} terminé ✓`:ms.title,tint:_ce?"#56d4ad":"#e6b96b"});}
         else{toast.success(was?"Décocher":"✅ Validée !",{duration:1500});}
       }else{
         setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});
@@ -1339,7 +1373,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       toast.error("Erreur réseau");
     }finally{setLoading(ms.id,false);}
   },[completedStepsByMs,completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,blockedSeqIds,allCompletedSeqIds,milestones]);
-  const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo);if(!(res as any).success){setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error("Erreur");}else{ if(!was){setCelebrate({msId:ms.id,title:ms.title}); if(bookmarksByMs.get(ms.id)){setBookmarksByMs(prev=>{const n=new Map(prev);n.delete(ms.id);return n;}); setRushBookmark(guildId,ms.id,null,effectiveAltPseudo).catch(()=>{});}} toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500}); }}catch{toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading]);
+  const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo);if(!(res as any).success){setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error("Erreur");}else{ if(!was){const isChapterEnd=lastMsOfChapterIds.has(ms.id);setCelebrate({msId:ms.id,title:isChapterEnd?`Chapitre ${ms.chapter} terminé ✓`:ms.title,tint:isChapterEnd?"#56d4ad":"#e6b96b"}); if(bookmarksByMs.get(ms.id)){setBookmarksByMs(prev=>{const n=new Map(prev);n.delete(ms.id);return n;}); setRushBookmark(guildId,ms.id,null,effectiveAltPseudo).catch(()=>{});}} toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500}); }}catch{toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading]);
   const handleReset=useCallback(async(ms:Milestone)=>{setCompletedIds(prev=>{const n=new Set(prev);n.delete(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,new Set);return n;});setLoading(ms.id,true);try{await resetMilestoneProgress(guildId,ms.id,effectiveAltPseudo);toast.success("Réinitialisée");}catch{setCompletedIds(prev=>new Set([...prev,ms.id]));toast.error("Erreur reset");}finally{setLoading(ms.id,false);}},[guildId,effectiveAltPseudo,setLoading]);
 
   // ─── Bookmark par séquence ─────────────────────────────────────────────
@@ -1950,7 +1984,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       </div>
     )}
     <AnimatePresence>
-      {celebrate && <MilestoneCelebrationBurst title={celebrate.title} tint="#e6b96b" />}
+      {celebrate && <MilestoneCelebrationBurst title={celebrate.title} tint={celebrate.tint ?? "#e6b96b"} />}
     </AnimatePresence>
     <GuildStatusPanel milestones={contentMilestones} guildProgress={guildProgress}/>
     {/* ── CSS grid responsive (timeline + sidebar) ── */}

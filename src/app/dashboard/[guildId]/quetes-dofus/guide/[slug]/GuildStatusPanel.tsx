@@ -1,7 +1,8 @@
 "use client";
-import { useMemo, memo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Users, X, ExternalLink, ChevronRight } from "lucide-react";
+import { useMemo, memo, useState, useEffect } from "react";
+import { Users } from "lucide-react";
+
+const MEMBERS_CUTOFF = 8;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -38,7 +39,7 @@ const DOFUS_DEFS: Record<string, { label: string; color: string; imageUrl: strin
   des_veilleurs:      { label: "Des Veilleurs",      color: "#38bdf8", imageUrl: "/module-dofus/Dofus_Veilleur.png" },
   domakuro:           { label: "Domakuro",           color: "#84cc16", imageUrl: "/module-dofus/Dofus_Domakuro.png" },
   dorigami:           { label: "Dorigami",           color: "#f472b6", imageUrl: "/module-dofus/Dofus_Dorigami.png" },
-  tachete:            { label: "Tacheté",            color: "#c084fc", imageUrl: "/module-dofus/Dofus_Tacheté.png" },
+  tachete:            { label: "Tacheté",            color: "#c084fc", imageUrl: "/module-dofus/Dofus_Tachete.png" },
   dom_de_pin:         { label: "Dom de Pin",         color: "#a3e635", imageUrl: "/module-dofus/Dom_De_Pin.png" },
 };
 
@@ -58,11 +59,17 @@ type DofusStat = {
 export const GuildStatusPanel = memo(function GuildStatusPanel({
   milestones,
   guildProgress,
+  activeFilter,
+  onFilterChange,
 }: {
   milestones: Milestone[];
   guildProgress: GuildMemberProgress[];
+  activeFilter: string | null;
+  onFilterChange: (id: string | null) => void;
 }) {
-  const [modalDofus, setModalDofus] = useState<string | null>(null);
+  const [showAllMembers, setShowAllMembers] = useState(false);
+  // Replier la liste à chaque changement de Dofus sélectionné
+  useEffect(() => { setShowAllMembers(false); }, [activeFilter]);
 
   const dofusStats = useMemo(() => {
     const map = new Map<string, DofusStat>();
@@ -96,7 +103,14 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
       if (completedBySome) stat.completedMilestones++;
     });
 
-    // Calculate per-member progress per Dofus
+    // % par Dofus (jalons complétés par au moins un membre / jalons liés)
+    map.forEach((stat) => {
+      stat.pct = stat.totalMilestones > 0
+        ? Math.round((stat.completedMilestones / stat.totalMilestones) * 100)
+        : 0;
+    });
+
+    // Avancement par membre et par Dofus (détail en ligne sous les cartes)
     const profileIds = [...new Set(guildProgress.map((p) => p.profileId))];
 
     map.forEach((stat, dofusId) => {
@@ -114,17 +128,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
           const completed = memberProgress.filter((p) => p.isCompleted).length;
           const total = dofusMilestoneIds.size;
           const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-          // Alignement du personnage actif (repère > étapes cochées > premier).
-          const activeRow = (memberProgress as any[]).reduce((best, p: any) => {
-            const score = (p.currentStep ? 2 : 0) + Math.min((p.completedSteps || []).length, 5);
-            return !best || score > best._score ? { ...p, _score: score } : best;
-          }, null as any);
-          return {
-            profileId, userName, userAvatar, completed, total, pct,
-            alignment: activeRow?.alignment ?? null,
-            alignmentOrder: activeRow?.alignmentOrder ?? null,
-            alignmentLevel: activeRow?.alignmentLevel ?? null,
-          };
+          return { profileId, userName, userAvatar, completed, total, pct };
         })
         .filter((m) => m.total > 0)
         .sort((a, b) => b.pct - a.pct);
@@ -140,11 +144,8 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
 
   if (dofusStats.length === 0) return null;
 
-  const selectedDofus = modalDofus ? dofusStats.find((d) => d.id === modalDofus) : null;
-
   return (
-    <>
-      <div className="p-4 rounded-2xl bg-[#12161b] border border-[#28303a] shadow-lg">
+    <div className="p-4 rounded-2xl bg-[#12161b] border border-[#28303a] shadow-lg">
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -162,17 +163,18 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent -mx-1 px-1">
           {dofusStats.map((d) => {
             const isAllDone = d.completedMilestones === d.totalMilestones && d.totalMilestones > 0;
+            const isActive = activeFilter === d.id;
 
             return (
               <button
                 key={d.id}
-                onClick={() => setModalDofus(d.id)}
+                onClick={() => onFilterChange(isActive ? null : d.id)}
                 className="relative flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all text-center group cursor-pointer hover:scale-[1.02] active:scale-[0.98] shrink-0 w-[78px] bg-[#181e25] border-[#28303a] hover:border-[#384352]"
                 style={{
-                  borderColor: isAllDone ? `${d.color}60` : undefined,
-                  background: isAllDone ? `${d.color}10` : undefined,
+                  borderColor: isActive ? "#4fd1a5" : isAllDone ? `${d.color}60` : undefined,
+                  background: isActive ? "#4fd1a514" : isAllDone ? `${d.color}10` : undefined,
                 }}
-                title={`${d.label} — ${d.pct}% (${d.completedMilestones}/${d.totalMilestones})`}
+                title={isActive ? `${d.label} — filtre actif, cliquer pour annuler` : `${d.label} — ${d.pct}% — cliquer pour filtrer`}
               >
                 {/* Dofus icon */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -206,133 +208,73 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
             );
           })}
         </div>
-      </div>
 
-      {/* ── Detail Modal ── */}
-      <AnimatePresence>
-        {modalDofus && selectedDofus && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-black/70 p-4"
-            onClick={() => setModalDofus(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              transition={{ type: "spring", duration: 0.4 }}
-              className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 max-w-lg w-full max-h-[85vh] overflow-y-auto shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header */}
-              <div className="flex items-start justify-between mb-5">
-                <div className="flex items-center gap-3">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={selectedDofus.imageUrl}
-                    alt={selectedDofus.label}
-                    className="w-12 h-12 object-contain"
-                  />
-                  <div>
-                    <h3 className="text-base font-black text-white">{selectedDofus.label}</h3>
-                    <p className="text-caption text-zinc-500 font-mono">
-                      {selectedDofus.completedMilestones}/{selectedDofus.totalMilestones} blocs — {selectedDofus.pct}%
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setModalDofus(null)}
-                  className="p-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 transition-colors"
-                >
-                  <X className="w-4 h-4 text-zinc-400" />
-                </button>
-              </div>
-
-              {/* Progress bar large */}
-              <div className="h-2 bg-zinc-800/60 rounded-full overflow-hidden mb-5">
-                <div
-                  className="h-full rounded-full transition-all duration-300"
-                  style={{
-                    width: `${selectedDofus.pct}%`,
-                    background: `linear-gradient(90deg, ${selectedDofus.color}, ${selectedDofus.color}99)`,
-                    boxShadow: `0 0 12px ${selectedDofus.color}50`,
-                  }}
-                />
-              </div>
-
-              {/* Members list */}
-              {selectedDofus.membersInProgress.length === 0 ? (
-                <p className="text-xs text-zinc-600 italic text-center py-8">
-                  Aucun membre n'a encore commencé ce Dofus.
-                </p>
-              ) : (
-                <div className="space-y-1.5">
-                  <p className="text-caption font-black uppercase tracking-widest text-zinc-500 mb-2">
-                    Membres ({selectedDofus.membersInProgress.length})
-                  </p>
-                  {selectedDofus.membersInProgress.map((m) => (
-                    <div
-                      key={m.profileId}
-                      className="flex items-center gap-3 p-2.5 rounded-xl bg-zinc-800/40 border border-zinc-800/50 hover:border-zinc-700/50 transition-colors"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-caption font-black text-zinc-300 overflow-hidden shrink-0">
-                        {m.userAvatar ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" />
-                        ) : (
-                          m.userName[0]?.toUpperCase()
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs font-bold text-white truncate">{m.userName}</p>
-                          <span className="text-caption font-mono font-black" style={{ color: selectedDofus.color }}>
-                            {m.pct}%
-                          </span>
-                        </div>
-                        <div className="h-1.5 bg-zinc-800/60 rounded-full overflow-hidden mt-1.5">
-                          <div
-                            className="h-full rounded-full transition-all duration-300"
-                            style={{
-                              width: `${m.pct}%`,
-                              background: selectedDofus.color,
-                            }}
-                          />
-                        </div>
-                        <p className="text-caption text-zinc-500 mt-0.5 font-mono">
-                          {m.completed}/{m.total} blocs
-                        </p>
-                        {(() => {
-                          const lvl = Number(m.alignmentLevel ?? 0);
-                          if (!m.alignment || m.alignment === "neutre" || lvl <= 0) return null;
-                          const label = m.alignment === "brakmarien" ? "Brakmarien" : m.alignment === "bontarien" ? "Bontarien" : m.alignment;
-                          return (
-                            <span className="inline-flex items-center gap-1 mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#2a2160]/80 border border-indigo-500/40 text-[#a5b4fc]" title={`Alignement : ${label} ${lvl}`}>
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={m.alignment === "brakmarien" ? "/ordres/brakmar.png" : "/ordres/bonta.png"} alt="" className="w-3 h-3 object-contain" />
-                              {label} {lvl}
-                            </span>
-                          );
-                        })()}
-                      </div>
+        {/* Détail en ligne du Dofus filtré : avancement des membres */}
+        {(() => {
+          const sel = activeFilter ? dofusStats.find((d) => d.id === activeFilter) : null;
+          if (!sel) return null;
+          if (sel.membersInProgress.length === 0) {
+            return (
+              <p className="text-xs text-zinc-600 italic text-center pt-3">
+                Aucun membre n'a encore commencé ce Dofus.
+              </p>
+            );
+          }
+          const visibleMembers = showAllMembers
+            ? sel.membersInProgress
+            : sel.membersInProgress.slice(0, MEMBERS_CUTOFF);
+          const hiddenCount = sel.membersInProgress.length - visibleMembers.length;
+          return (
+            <div className="space-y-1.5 pt-3 mt-1 border-t border-[#28303a]/60">
+              <p className="text-caption font-black uppercase tracking-widest text-zinc-500">
+                Membres — {sel.label} ({sel.membersInProgress.length})
+              </p>
+              <div className="max-h-[220px] overflow-y-auto custom-scrollbar space-y-1.5 pr-0.5">
+                {visibleMembers.map((m) => (
+                  <div
+                    key={m.profileId}
+                    className="flex items-center gap-3 p-2 rounded-xl bg-[#181e25] border border-[#28303a]/60"
+                  >
+                    <div className="w-7 h-7 rounded-full bg-[#242b35] border border-[#384352] flex items-center justify-center text-caption font-black text-zinc-300 overflow-hidden shrink-0">
+                      {m.userAvatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" />
+                      ) : (
+                        m.userName[0]?.toUpperCase()
+                      )}
                     </div>
-                  ))}
-                </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-bold text-white truncate">{m.userName}</p>
+                        <span className="text-caption font-mono font-black shrink-0" style={{ color: sel.color }}>
+                          {m.pct}%
+                        </span>
+                      </div>
+                      <div className="h-1 bg-[#242b35] rounded-full overflow-hidden mt-1">
+                        <div
+                          className="h-full rounded-full transition-all duration-300"
+                          style={{ width: `${m.pct}%`, background: sel.color }}
+                        />
+                      </div>
+                      <p className="text-caption text-zinc-500 mt-0.5 font-mono">
+                        {m.completed}/{m.total} blocs
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {(hiddenCount > 0 || showAllMembers) && sel.membersInProgress.length > MEMBERS_CUTOFF && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllMembers((v) => !v)}
+                  className="w-full py-1.5 rounded-lg text-caption font-bold text-[#9aa7b4] hover:text-[#eef2f6] hover:bg-white/[0.04] transition-colors"
+                >
+                  {showAllMembers ? "Réduire la liste" : `Afficher les ${hiddenCount} autres membres`}
+                </button>
               )}
-
-              {/* Footer close */}
-              <button
-                onClick={() => setModalDofus(null)}
-                className="w-full mt-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-caption font-black uppercase tracking-widest transition-colors"
-              >
-                Fermer
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+            </div>
+          );
+        })()}
+      </div>
   );
 });

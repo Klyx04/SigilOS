@@ -39,6 +39,20 @@ catch (e) {
 // Prisma 7.x avec driverAdapters requiert un adapter explicite (datasources et datasourceUrl sont bannis)
 const adapter = new PrismaPg({ connectionString: datasourceUrl });
 const db = new PrismaClient({ adapter });
+/**
+ * #223 — Nom de salon sûr pour les logs (obfuscation Gateway) :
+ * ne jamais afficher `___hidden___`. Un salon obfusqué = « Salon masqué ».
+ */
+function safeChannelLabel(name) {
+    return !name || name === "___hidden___" ? "Salon masqué" : name;
+}
+// #223 P2 — Intents privilégiés (doc stabilité long terme) :
+//  - GuildMembers : synchro des membres (GuildMemberAdd/Remove/Update) + roster.
+//  - MessageContent : suivi des messages (Ladder Discord) + contenu des embeds
+//    (blacklist #85). Activation : 2026 — réexamen / re-apply annuel requis
+//    au-delà de 10 000 utilisateurs (review Discord).
+//  - GuildMessageTyping : retiré (F-24, least privilege — pas besoin de lire
+//    les frappes clavier).
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -50,7 +64,9 @@ const client = new Client({
         // SECURITY FIX (F-24): GuildMessageTyping removed — least privilege.
         // The bot must not need the right to read every keystroke/typing event.
     ],
-    partials: [Partials.Message, Partials.Channel, Partials.Reaction],
+    // Partials.GuildMember : indispensable pour que GuildMemberRemove fire
+    // même pour les membres qui n'étaient pas dans le cache (bot redémarré).
+    partials: [Partials.Message, Partials.Channel, Partials.Reaction, Partials.GuildMember],
 });
 // ========================
 // Event: Bot Ready
@@ -81,6 +97,14 @@ client.once(Events.ClientReady, (readyClient) => {
     if (prePopulatedCount > 0) {
         console.log(`[Discord Bot] 🎙️ Pre-populated voice session for ${prePopulatedCount} members active in voice channels (${prePopulatedStreamCount} streaming)`);
     }
+    // #223 — Observabilité obfuscation des salons (toggle portail / 16/11/2026) :
+    // compte les salons masqués (name "___hidden___" ou flag CHANNEL_OBFUSCATED 1<<17) par guilde.
+    readyClient.guilds.cache.forEach(guild => {
+        const obfuscatedCount = guild.channels.cache.filter(ch => ch.name === "___hidden___" || ((ch.flags?.bitfield ?? 0) & (1 << 17)) !== 0).size;
+        if (obfuscatedCount > 0) {
+            console.log(`[Discord Bot] 🔒 ${obfuscatedCount} salon(s) obfusqué(s) masqué(s) sur ${guild.name} (${guild.id})`);
+        }
+    });
 });
 // ========================
 // Event: Guild Create (Bot Added)
@@ -187,7 +211,7 @@ client.on(Events.GuildCreate, async (guild) => {
                 const botMember = guild.members.me;
                 const canSend = targetChannel.isTextBased() && botMember?.permissionsIn(targetChannel.id).has([PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks]);
                 if (!canSend) {
-                    console.log(`[Discord Bot] Cannot send welcome embed to ${targetChannel.name} in ${guild.name} — missing permissions`);
+                    console.log(`[Discord Bot] Cannot send welcome embed to ${safeChannelLabel(targetChannel.name)} in ${guild.name} — missing permissions`);
                     return;
                 }
                 const welcomeEmbed = new EmbedBuilder()
@@ -215,7 +239,7 @@ client.on(Events.GuildCreate, async (guild) => {
                     .setURL('https://beta.sigilos.fr/dashboard')
                     .setStyle(ButtonStyle.Link));
                 await targetChannel.send({ embeds: [welcomeEmbed], components: [row] });
-                console.log(`[Discord Bot] ✉️ Welcome message sent to ${targetChannel.name} in ${guild.name}`);
+                console.log(`[Discord Bot] ✉️ Welcome message sent to ${safeChannelLabel(targetChannel.name)} in ${guild.name}`);
             }
         }
         catch (msgErr) {
@@ -286,7 +310,8 @@ client.on(Events.GuildDelete, async (guild) => {
 // Event: Member Add (Reactivation)
 // ========================
 client.on(Events.GuildMemberAdd, async (member) => {
-    console.log(`[Discord Bot] 👤 Member joined: ${member.user.tag} in ${member.guild.name}`);
+    const serverNickname = member.nickname || member.displayName || member.user.displayName || member.user.username;
+    console.log(`[Discord Bot] 👤 Member joined: ${serverNickname} (${member.user.tag}) in ${member.guild.name}`);
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: member.guild.id },
@@ -322,6 +347,7 @@ client.on(Events.GuildMemberAdd, async (member) => {
                     archivedAt: null,
                     archiveReason: null,
                     scheduledDeletion: null, // Cancel any pending hard delete
+                    discordNickname: member.nickname || member.user.username,
                 },
             });
             // Log audit
@@ -335,10 +361,16 @@ client.on(Events.GuildMemberAdd, async (member) => {
                     targetId: member.user.id,
                     oldValue: { status: 'ARCHIVED' },
                     newValue: { status: 'ACTIVE' },
-                    metadata: { discordUserId: member.user.id, username: member.user.tag, reason: 'Returned to guild' },
+                    metadata: {
+                        discordUserId: member.user.id,
+                        username: member.user.tag,
+                        serverNickname,
+                        changeDetail: 'Arrivée sur le serveur Discord',
+                        reason: 'Nouveau membre / Réintégration',
+                    },
                 },
             });
-            console.log(`[Discord Bot] ✅ Reactivated profile for ${member.user.tag}`);
+            console.log(`[Discord Bot] ✅ Reactivated profile for ${serverNickname} (${member.user.tag})`);
         }
     }
     catch (error) {
@@ -349,7 +381,8 @@ client.on(Events.GuildMemberAdd, async (member) => {
 // Event: Member Remove
 // ========================
 client.on(Events.GuildMemberRemove, async (member) => {
-    console.log(`[Discord Bot] 👤 Member left: ${member.user.tag} from ${member.guild.name}`);
+    const serverNickname = member.nickname || member.displayName || member.user.displayName || member.user.username;
+    console.log(`[Discord Bot] 👤 Member left: ${serverNickname} (${member.user.tag}) from ${member.guild.name}`);
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: member.guild.id },
@@ -367,7 +400,7 @@ client.on(Events.GuildMemberRemove, async (member) => {
         });
         if (!account)
             return;
-        // Archive profile
+        // Archive profile (30 days grace before hard delete)
         const result = await db.userProfile.updateMany({
             where: {
                 userId: account.userId,
@@ -378,6 +411,7 @@ client.on(Events.GuildMemberRemove, async (member) => {
                 status: 'ARCHIVED',
                 archivedAt: new Date(),
                 archiveReason: 'LEFT',
+                scheduledDeletion: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
             },
         });
         if (result.count > 0) {
@@ -392,10 +426,49 @@ client.on(Events.GuildMemberRemove, async (member) => {
                     targetId: member.user.id,
                     oldValue: { status: 'ACTIVE' },
                     newValue: { status: 'ARCHIVED', archiveReason: 'LEFT' },
-                    metadata: { discordUserId: member.user.id, username: member.user.tag },
+                    metadata: {
+                        discordUserId: member.user.id,
+                        username: member.user.tag,
+                        serverNickname,
+                        changeDetail: 'Départ du serveur Discord',
+                        reason: 'A quitté le serveur Discord',
+                    },
                 },
             });
-            console.log(`[Discord Bot] ✅ Archived profile for ${member.user.tag}`);
+            // 🔔 Lifecycle notification — embed dans le canal configuré par l'admin
+            try {
+                const guildFull = await db.guildConfig.findUnique({
+                    where: { id: guildConfig.id },
+                    select: { lifecycleNotifyChannelId: true, name: true }
+                });
+                if (guildFull?.lifecycleNotifyChannelId) {
+                    const channel = await client.channels.fetch(guildFull.lifecycleNotifyChannelId).catch(() => null);
+                    if (channel && channel.isTextBased() && 'send' in channel) {
+                        const displayName = serverNickname;
+                        await channel.send({
+                            embeds: [{
+                                    title: '📤 Membre Parti (Discord)',
+                                    description: `Le membre **${displayName}** a quitté le serveur Discord.`,
+                                    color: 0xf59e0b, // Amber
+                                    fields: [
+                                        { name: 'Nom Discord', value: `@${member.nickname || member.user.displayName || member.user.username}`, inline: true },
+                                        { name: 'Nouveau Statut', value: '**Archivé**', inline: true },
+                                        { name: 'Action effectuée par', value: '🤖 Bot Gateway (automatique)', inline: false },
+                                        { name: 'Rétention des données', value: 'Profil archivé 12 mois', inline: false },
+                                        { name: 'Guilde', value: guildFull.name || member.guild.name, inline: false },
+                                    ],
+                                    thumbnail: { url: member.user.displayAvatarURL({ size: 128 }) },
+                                    footer: { text: `SigilOS · Lifecycle · ${new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}` },
+                                    timestamp: new Date().toISOString(),
+                                }]
+                        });
+                    }
+                }
+            }
+            catch (notifErr) {
+                console.error('[Discord Bot] Failed to send lifecycle notification:', notifErr);
+            }
+            console.log(`[Discord Bot] ✅ Archived profile for ${serverNickname} (${member.user.tag})`);
         }
     }
     catch (error) {
@@ -403,12 +476,17 @@ client.on(Events.GuildMemberRemove, async (member) => {
     }
 });
 // ========================
-// Event: Member Update (Nicknames)
+// Event: Member Update (Nicknames & Roles)
 // ========================
 client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
-    if (oldMember.nickname === newMember.nickname)
+    const oldNick = oldMember.nickname || oldMember.displayName;
+    const newNick = newMember.nickname || newMember.displayName;
+    const nickChanged = oldMember.nickname !== newMember.nickname;
+    const addedRoles = newMember.roles.cache.filter(r => !oldMember.roles.cache.has(r.id) && r.id !== newMember.guild.id);
+    const removedRoles = oldMember.roles.cache.filter(r => !newMember.roles.cache.has(r.id) && r.id !== newMember.guild.id);
+    const rolesChanged = addedRoles.size > 0 || removedRoles.size > 0;
+    if (!nickChanged && !rolesChanged)
         return;
-    console.log(`[Discord Bot] ✏️ Nickname changed: ${newMember.user.tag} (${oldMember.nickname || 'None'} -> ${newMember.nickname || 'None'})`);
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: newMember.guild.id },
@@ -416,39 +494,78 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
         });
         if (!guildConfig)
             return;
-        // Update profile cache
-        await db.userProfile.updateMany({
-            where: {
-                user: {
-                    accounts: {
-                        some: {
-                            provider: 'discord',
-                            providerAccountId: newMember.user.id
+        // Si le surnom a changé, mettre à jour le cache UserProfile
+        if (nickChanged) {
+            console.log(`[Discord Bot] ✏️ Nickname changed: ${newMember.user.tag} (${oldNick} -> ${newNick})`);
+            await db.userProfile.updateMany({
+                where: {
+                    user: {
+                        accounts: {
+                            some: {
+                                provider: 'discord',
+                                providerAccountId: newMember.user.id
+                            }
                         }
-                    }
+                    },
+                    guildId: guildConfig.id
                 },
-                guildId: guildConfig.id
-            },
-            data: { discordNickname: newMember.nickname || newMember.user.username }
-        });
-        // Log audit
-        await db.auditLog.create({
-            data: {
-                guildId: guildConfig.id,
-                actorUserId: 'SYSTEM',
-                actorName: 'Discord Gateway Bot',
-                action: 'WEBHOOK_MEMBER_UPDATE',
-                targetType: 'PROFILE',
-                targetId: newMember.user.id,
-                oldValue: { nickname: oldMember.nickname },
-                newValue: { nickname: newMember.nickname },
-                metadata: {
-                    discordUserId: newMember.user.id,
-                    type: 'NICKNAME_CHANGE',
-                    username: newMember.user.tag
+                data: { discordNickname: newMember.nickname || newMember.user.username }
+            });
+            // Log audit
+            await db.auditLog.create({
+                data: {
+                    guildId: guildConfig.id,
+                    actorUserId: 'SYSTEM',
+                    actorName: 'Discord Gateway Bot',
+                    action: 'WEBHOOK_MEMBER_UPDATE',
+                    targetType: 'PROFILE',
+                    targetId: newMember.user.id,
+                    oldValue: { nickname: oldMember.nickname || null },
+                    newValue: { nickname: newMember.nickname || null },
+                    metadata: {
+                        discordUserId: newMember.user.id,
+                        type: 'NICKNAME_CHANGE',
+                        username: newMember.user.tag,
+                        serverNickname: newNick,
+                        oldServerNickname: oldNick,
+                        changeDetail: `Surnom serveur : "${oldNick}" ➔ "${newNick}"`,
+                        reason: 'Modification de surnom sur le serveur Discord',
+                    },
                 },
-            },
-        });
+            });
+        }
+        // Si les rôles ont changé, logguer la modification de rôles Discord
+        if (rolesChanged) {
+            const addedNames = addedRoles.map(r => r.name);
+            const removedNames = removedRoles.map(r => r.name);
+            const parts = [];
+            if (addedNames.length > 0)
+                parts.push(`+${addedNames.join(', +')}`);
+            if (removedNames.length > 0)
+                parts.push(`-${removedNames.join(', -')}`);
+            const changeDetail = `Rôles Discord : ${parts.join(' | ')}`;
+            console.log(`[Discord Bot] 🛡️ Roles changed for ${newNick} (${newMember.user.tag}): ${changeDetail}`);
+            await db.auditLog.create({
+                data: {
+                    guildId: guildConfig.id,
+                    actorUserId: 'SYSTEM',
+                    actorName: 'Discord Gateway Bot',
+                    action: 'WEBHOOK_MEMBER_UPDATE',
+                    targetType: 'PROFILE',
+                    targetId: newMember.user.id,
+                    oldValue: { roles: oldMember.roles.cache.filter(r => r.id !== newMember.guild.id).map(r => r.name) },
+                    newValue: { roles: newMember.roles.cache.filter(r => r.id !== newMember.guild.id).map(r => r.name) },
+                    metadata: {
+                        discordUserId: newMember.user.id,
+                        type: 'ROLES_CHANGE',
+                        username: newMember.user.tag,
+                        serverNickname: newNick,
+                        changeDetail,
+                        reason: 'Attribution ou retrait de rôles Discord',
+                    },
+                },
+            });
+        }
     }
     catch (error) {
         console.error(`[Discord Bot] Error handling GUILD_MEMBER_UPDATE:`, error);
@@ -517,6 +634,69 @@ client.on(Events.MessageCreate, async (message) => {
         lastDiscordMessageAt: new Date(),
         ...incrementData
     }, 'Message');
+    // 1bis. DÉTECTION D'ACTIVITÉ SUR LES POSTS DJ/QUÊTES & SONGES
+    // Si des membres discutent dans le salon ou thread lié à un post, on actualise
+    // updatedAt pour éviter les faux rappels d'inactivité (J+7) du CRON.
+    try {
+        const channelId = message.channelId;
+        const now = new Date();
+        // Si le salon est un thread, le channelId peut être le thread ou son parent
+        const isThread = message.channel.isThread?.() || false;
+        const parentId = isThread ? message.channel.parentId : null;
+        const candidateChannelIds = [channelId, parentId].filter(Boolean);
+        // A. Posts Donjon / Quête
+        const openDjPosts = await db.djSearchPost.findMany({
+            where: {
+                discordChannelId: { in: candidateChannelIds },
+                status: { in: ["OPEN", "FULL"] }
+            },
+            select: { id: true, dungeonsJson: true }
+        });
+        if (openDjPosts.length > 0) {
+            for (const p of openDjPosts) {
+                const currentJson = (p.dungeonsJson && typeof p.dungeonsJson === "object") ? p.dungeonsJson : {};
+                await db.djSearchPost.update({
+                    where: { id: p.id },
+                    data: {
+                        updatedAt: now,
+                        lastReminderAt: null,
+                        dungeonsJson: {
+                            ...(Array.isArray(p.dungeonsJson) ? { _items: p.dungeonsJson } : currentJson),
+                            _autoReminderCount: 0 // Réinitialise les rappels si les membres discutent
+                        }
+                    }
+                });
+            }
+            console.log(`[Discord Bot] 💬 Activité détectée sur ${openDjPosts.length} post(s) DJ/Quête (salon ${channelId}) — updatedAt actualisé.`);
+        }
+        // B. Runs Songes
+        const activeRuns = await db.dreamRun.findMany({
+            where: {
+                discordChannelId: { in: candidateChannelIds },
+                status: { in: ["RECRUITING", "IN_PROGRESS"] }
+            },
+            select: { id: true }
+        });
+        if (activeRuns.length > 0) {
+            for (const r of activeRuns) {
+                await db.dreamRun.update({
+                    where: { id: r.id },
+                    data: {
+                        updatedAt: now,
+                        lastReminderAt: null
+                    }
+                });
+                // Nettoyer les rappels passés car il y a eu de l'activité
+                await db.dreamRunReminder.deleteMany({
+                    where: { runId: r.id }
+                }).catch(() => { });
+            }
+            console.log(`[Discord Bot] 💬 Activité détectée sur ${activeRuns.length} run(s) Songes (salon ${channelId}) — updatedAt actualisé.`);
+        }
+    }
+    catch (actErr) {
+        console.error('[Discord Bot] Erreur détection activité salon post:', actErr);
+    }
 });
 // 2. TRACK VOICE SESSIONS
 client.on(Events.VoiceStateUpdate, async (oldState, newState) => {

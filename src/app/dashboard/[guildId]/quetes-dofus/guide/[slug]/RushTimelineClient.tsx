@@ -34,6 +34,7 @@ import { useGuidePresence } from "@/hooks/use-guide-presence";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { isDocumentPipSupported, openPipWindow, openFallbackPopup } from "@/hooks/use-guide-pip";
 import { useRushOverlayStore } from "@/store/rush-overlay-store";
+import GuideParticles from "@/components/dofus-quests/GuideParticles";
 import type { RushMilestone } from "@/types/rush-guide-types";
 import type { GuideProgressRow } from "@/lib/guide-progress-helpers";
 import "./guide-styles.css";
@@ -50,7 +51,6 @@ import {
   applyRushAlignmentFromSequence,
   resetRushAlignment,
 } from "@/server/actions/optimized-guide-actions";
-import { DofusProgressStrip } from "./DofusProgressStrip";
 import { GuildStatusPanel } from "./GuildStatusPanel";
 import { QuestGroupRenderer, useQuestGroups } from "./QuestGroup";
 import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
@@ -79,7 +79,7 @@ const DOFUS_DEFS = [
   { id:"dolmanax", label:"Dolmanax", color:"#ef4444", imageUrl:"/module-dofus/Dofus_Dolmanax.png" }, { id:"des_glaces", label:"Des Glaces", color:"#93c5fd", imageUrl:"/module-dofus/Dofus_Des_Glaces.png" },
   { id:"du_cauchemar", label:"Du Cauchemar", color:"#7c3aed", imageUrl:"/module-dofus/Dofus_Du_Cauchemar.png" }, { id:"des_veilleurs", label:"Des Veilleurs", color:"#38bdf8", imageUrl:"/module-dofus/Dofus_Veilleur.png" },
   { id:"domakuro", label:"Domakuro", color:"#84cc16", imageUrl:"/module-dofus/Dofus_Domakuro.png" }, { id:"dorigami", label:"Dorigami", color:"#f472b6", imageUrl:"/module-dofus/Dofus_Dorigami.png" },
-  { id:"tachete", label:"Tacheté", color:"#c084fc", imageUrl:"/module-dofus/Dofus_Tacheté.png" }, { id:"dom_de_pin", label:"Dom de Pin", color:"#a3e635", imageUrl:"/module-dofus/Dom_De_Pin.png" },
+  { id:"tachete", label:"Tacheté", color:"#c084fc", imageUrl:"/module-dofus/Dofus_Tachete.png" }, { id:"dom_de_pin", label:"Dom de Pin", color:"#a3e635", imageUrl:"/module-dofus/Dom_De_Pin.png" },
 ];
 function TougliCallout({text,colorStyle="emerald"}:{text:string;colorStyle?:string}){
   const isPurple = colorStyle === "purple", isAmber = colorStyle === "amber";
@@ -827,6 +827,12 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
       }`}>
         {/* Header row */}
         <div className="flex items-center gap-3 p-3.5 cursor-pointer select-none" onClick={()=>setExpanded((v:boolean)=>!v)}>
+          {/* Ancre visuelle Dofus (fil conducteur imagé, 40px) */}
+          {(()=>{if(!ms.dofusId)return null;const d=DOFUS_DEFS.find(x=>x.id===ms.dofusId);if(!d)return null;return(
+            <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border overflow-hidden" style={{borderColor:`${d.color}50`,background:`${d.color}14`}}>
+              <img src={d.imageUrl} alt={d.label} title={d.label} className="w-8 h-8 object-contain"/>
+            </div>
+          );})()}
           {/* Status indicator */}
           <div className="flex-shrink-0 relative">
             {isLoading ? <Loader2 className="w-5 h-5 animate-spin text-[#4fd1a5]"/> :
@@ -839,7 +845,6 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
             <div className="flex items-center gap-2">
               <span className={`text-sm font-bold leading-tight tracking-wide font-serif break-words min-w-0 ${all ? "text-zinc-500 line-through" : "text-[#eef2f6]"}`}>{ms.title}</span>
               {ms.isOptional&&<span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">Bonus</span>}
-              {(()=>{if(!ms.dofusId)return null;const d=ms.dofusId?DOFUS_DEFS.find(x=>x.id===ms.dofusId):null;if(!d)return null;return<img src={d.imageUrl} alt={d.label} title={d.label} className="w-5 h-5 object-contain flex-shrink-0"/>;})()}
             </div>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-xs font-mono font-medium text-[#9aa7b4]">{completedStepsSet.size>0?`${cs}/${totalQuests} terminées`:`${totalQuests} quête${totalQuests>1?"s":""}`}</span>
@@ -934,6 +939,12 @@ const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=tr
           >
             {all ? <Check className="w-4 h-4 text-[#4fd1a5] stroke-[3]" /> : chapterNum}
           </div>
+          {/* Vignette chapitre : œuf du premier jalon lié à un Dofus (fil conducteur imagé) */}
+          {(()=>{const linked=milestones.find((m:any)=>m.dofusId&&DOFUS_DEFS.some((x:any)=>x.id===m.dofusId));if(!linked)return null;const d=DOFUS_DEFS.find((x:any)=>x.id===(linked as any).dofusId)!;return(
+            <div className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center border overflow-hidden" style={{borderColor:`${d.color}45`,background:`${d.color}12`}}>
+              <img src={d.imageUrl} alt={d.label} title={`Dofus ${d.label}`} className="w-6 h-6 object-contain"/>
+            </div>
+          );})()}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="font-serif font-bold text-base tracking-wide text-[#eef2f6]">{label}</span>
@@ -1173,9 +1184,34 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   const [ocreModalOpen,setOcreModalOpen]=useState(false);
   const [rushLiveModalOpen,setRushLiveModalOpen]=useState(false);
   const [penseBeteOpen,setPenseBeteOpen]=useState(false);
+  // Particules d'ambiance teintées au Dofus actif — désactivable (Options, défaut activé).
+  const [rushParticlesEnabled,setRushParticlesEnabled]=useState<boolean>(() => {
+    try { return localStorage.getItem(`rush-particles-${guide.slug}`) !== "false"; } catch { return true; }
+  });
+  const toggleRushParticles = useCallback(() => {
+    setRushParticlesEnabled((prev) => {
+      const next = !prev;
+      try { localStorage.setItem(`rush-particles-${guide.slug}`, next ? "true" : "false"); } catch {}
+      return next;
+    });
+  }, [guide.slug]);
   // Chapitre actif partagé : sélectionnable depuis le feed (clic sur un header de
   // chapitre) ET depuis la sidebar « Chapitres ». `null` = auto (défaut sidebar).
   const [activeChapter,setActiveChapter]=useState<number|"ALL"|null>(null);
+  // Ambiance du hero : teinte du Dofus actif (filtre > chapitre courant > émeraude).
+  // 100 % CSS statique : un seul repaint au changement, aucun coût continu,
+  // `prefers-reduced-motion` respecté par construction (aucune animation).
+  const ambientDofusColor = useMemo(() => {
+    const fromFilter = dofusFilter ? DOFUS_DEFS.find((d) => d.id === dofusFilter)?.color : null;
+    if (fromFilter) return fromFilter;
+    const chMs = activeChapter != null && activeChapter !== "ALL"
+      ? milestones.filter((m) => m.chapter === activeChapter && m.dofusId)
+      : milestones.filter((m) => m.dofusId);
+    const first = chMs.find((m) => DOFUS_DEFS.some((d) => d.id === (m as any).dofusId));
+    return (first ? DOFUS_DEFS.find((d) => d.id === (first as any).dofusId)?.color : null) || "#4fd1a5";
+  }, [dofusFilter, activeChapter, milestones]);
+  // Palette des braises (mémoïsée : nouvelle identité = respawn du canvas).
+  const particlePalette = useMemo(() => [ambientDofusColor, "#f6e9cb"], [ambientDofusColor]);
   const [incognito,setIncognito]=useState(false);
   useEffect(()=>{if(typeof window==="undefined")return;const k=`guide-incognito-${guildId}`;const stored=localStorage.getItem(k);if(stored!==null)setIncognito(stored==="true");},[guildId]);
   const toggleIncognito=useCallback(()=>{setIncognito(prev=>{const next=!prev;localStorage.setItem(`guide-incognito-${guildId}`,next?"true":"false");return next;});},[guildId]);
@@ -1660,7 +1696,9 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
 
   return(<><GuildIdCtx.Provider value={guildId}><ContextualHelpCtx.Provider value={contextualHelpEnabled}><ActiveSeqIdCtx.Provider value={activeSeqId}><NextSeqIdCtx.Provider value={nextSeqId}><BookmarkedSeqCtx.Provider value={bookmarksByMs}><OnBookmarkSeqCtx.Provider value={handleBookmarkSequence}><GuildProgressBySeqCtx.Provider value={guildProgressBySeq}><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
   <div className="flex flex-col gap-5">
-    <div className="relative overflow-hidden rounded-3xl p-6 sm:p-7 border border-[#238368]/60 bg-[radial-gradient(ellipse_at_90%_15%,#28562344,transparent_40%),linear-gradient(110deg,#12342b77,#121821_55%)] shadow-2xl">
+    {/* Braises d'ambiance teintées au Dofus actif (désactivable via Options) */}
+    <GuideParticles active={rushParticlesEnabled} colors={particlePalette} haloColor={ambientDofusColor} />
+    <div className="relative overflow-hidden rounded-3xl p-6 sm:p-7 border border-[#238368]/60 shadow-2xl" style={{background:`radial-gradient(ellipse at 90% 15%, ${ambientDofusColor}2e, transparent 42%), linear-gradient(110deg, #12342b77, #121821 55%)`}}>
       <div className="relative flex flex-col gap-6">
         {/* Top Header Navigation & Meta Actions */}
         <div className="flex items-center justify-between gap-3 flex-wrap border-b border-white/10 pb-4">
@@ -1689,16 +1727,18 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
               targetSlug={guide.slug}
               context={actionableSeq ? `Chapitre ${actionableSeq.milestone.chapter} · ${actionableSeq.sequence.subGuideName || actionableSeq.sequence.subGuideRef || actionableSeq.milestone.title}` : undefined}
               compact
+              iconOnly
+              className="px-2.5 py-1.5 rounded-xl border border-[#2a323d] bg-[#161d27] hover:bg-[#1b2430] hover:border-[#4fd1a5]/40 text-[#9aa7b4] hover:text-white transition-all shadow-sm"
             />
 
             <button
               type="button"
               onClick={() => void handleOverlayClick()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#2a323d] bg-[#161d27] hover:bg-[#1b2430] hover:border-[#4fd1a5]/40 text-xs font-bold text-[#c9d1da] hover:text-white transition-all shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#4fd1a5] hover:bg-[#5fe3b6] text-[#06301f] text-xs font-black transition-all shadow-[0_0_18px_rgba(79,209,165,0.25)]"
               title="Ouvrir le guide en overlay — fenêtre épinglée au-dessus du jeu, sans rien installer"
               aria-label="Ouvrir Overlay"
             >
-              <Maximize2 className="w-3.5 h-3.5 text-[#e6b96b]" />
+              <Maximize2 className="w-3.5 h-3.5" />
               Ouvrir Overlay
             </button>
 
@@ -1709,7 +1749,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
               title="Pense-bête : choses à savoir / à préparer en amont pour ce rush"
               aria-label="Ouvrir le pense-bête"
             >
-              <ClipboardList className="w-3.5 h-3.5 text-[#e6b96b]" />
+              <ClipboardList className="w-3.5 h-3.5 text-[#9aa7b4]" />
               Pense-bête
             </button>
           </div>
@@ -1726,10 +1766,10 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
             {guide.description&&<p className="text-sm text-[#9aa7b4] mt-2 max-w-2xl leading-relaxed">{guide.description}</p>}
 
           </div>
-          <img src="/module-dofus/Dofus_Sylvestre.png" alt="" className="w-16 h-16 sm:w-24 sm:h-24 object-contain flex-shrink-0 drop-shadow-[0_0_16px_rgba(230,185,107,0.25)]"/>
+          <img src="/module-dofus/Dofus_Sylvestre.png" alt="" className="w-16 h-16 sm:w-24 sm:h-24 object-contain flex-shrink-0" style={{filter:`drop-shadow(0 0 18px ${ambientDofusColor}40)`}}/>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="flex items-center gap-3 p-3 bg-[#121821] border border-[#2a323d] rounded-xl shadow-sm">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-xl border border-[#2a323d]/70 bg-[#121821]/60 px-4 py-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-[#161d27] border border-[#2a323d] flex items-center justify-center overflow-hidden shrink-0">{(()=>{const d=localProfile?.dofusClass?getClass(localProfile.dofusClass):null;return d?<img src={d.icon} alt={d.name} className="w-full h-full object-contain p-0.5"/>:<span className="text-caption font-black text-zinc-400">?</span>;})()}</div>
             <div className="text-left min-w-0 flex-1">
               <div className="flex items-center justify-between gap-1">
@@ -1777,8 +1817,10 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
               </div>
             </div>
           </div>
-          <button type="button" onClick={() => router.push(`/dashboard/${guildId}/profile`)} title="Modifier l'alignement dans votre profil" className="flex items-center gap-3 p-3 bg-[#121821] border border-[#2a323d] rounded-xl shadow-sm text-left cursor-pointer hover:border-[#4fd1a5]/40 transition-colors">{(()=>{const{alignment,alignmentOrder,alignmentLevel}=resolvedCharacterInfo;if(!alignment||alignment==="neutre")return<><div className="w-10 h-10 rounded-xl bg-[#161d27] border border-[#2a323d] flex items-center justify-center shrink-0"><img src="/ordres/neutre.png" alt="" className="w-5 h-5 object-contain opacity-50"/></div><div className="text-left min-w-0 flex-1"><p className="text-[10px] font-black text-[#9aa7b4] uppercase tracking-wider font-serif">Alignement</p><p className="text-xs font-bold text-zinc-400 mt-0.5">{!alignment?"Non défini":"Neutre"}</p></div><Pencil className="w-3.5 h-3.5 text-zinc-500 shrink-0"/></>;const ad=getAlignment(alignment);const ords=(ORDERS as unknown as Record<string,any[]>)[alignment.toLowerCase()]||[];const od=alignmentOrder?ords.find((o:any)=>o.id===alignmentOrder):null;if(od){const ib=alignment==="bontarien";const trancheTitle=alignmentLevel>0?((od as any).levels?.[alignmentLevel]||""):"";return<><div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${ib?"bg-blue-500/10 border-blue-500/20":"bg-red-500/10 border-red-500/20"}`}><img src={od.icon} alt="" className="w-5 h-5 object-contain"/></div><div className="text-left min-w-0 flex-1"><p className="text-[10px] font-black text-[#9aa7b4] uppercase tracking-wider font-serif">Ordre</p><p className={`text-xs font-black mt-0.5 ${ib?"text-blue-300":"text-red-300"}`}>{od.name}</p><div className="flex flex-wrap items-center gap-1 mt-0.5">{alignmentLevel>0&&<span className="inline-flex items-center gap-0.5 text-caption font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full">Tranche {alignmentLevel}</span>}{trancheTitle&&<span className="text-caption font-bold text-zinc-400">{trancheTitle}</span>}</div></div><Pencil className="w-3.5 h-3.5 text-zinc-500 shrink-0"/></>;}return<><div className="w-10 h-10 rounded-xl bg-[#161d27] border border-[#2a323d] flex items-center justify-center shrink-0">{ad&&<img src={ad.icon} alt="" className="w-5 h-5 object-contain"/>}</div><div className="text-left min-w-0 flex-1"><p className="text-[10px] font-black text-[#9aa7b4] uppercase tracking-wider font-serif">Alignement</p><div className="flex items-center gap-1.5 mt-0.5"><span className="text-xs font-bold text-white">{ad?.name||alignment}</span>{alignmentLevel>0&&<span className="text-caption font-bold text-amber-400">lv.{alignmentLevel}</span>}</div></div><Pencil className="w-3.5 h-3.5 text-zinc-500 shrink-0"/></>;})()}</button>
-          <div className="flex items-center gap-3 p-3 bg-[#121821] border border-[#2a323d] rounded-xl shadow-sm">
+          <span aria-hidden="true" className="hidden md:block w-px self-stretch bg-white/10" />
+          <button type="button" onClick={openAlignEdit} title="Modifier l'alignement à la volée" className="flex items-center gap-2.5 min-w-0 text-left cursor-pointer group">{(()=>{const{alignment,alignmentOrder,alignmentLevel}=resolvedCharacterInfo;if(!alignment||alignment==="neutre")return<><div className="w-10 h-10 rounded-xl bg-[#161d27] border border-[#2a323d] flex items-center justify-center shrink-0"><img src="/ordres/neutre.png" alt="" className="w-5 h-5 object-contain opacity-50"/></div><div className="text-left min-w-0 flex-1"><p className="text-[10px] font-black text-[#9aa7b4] uppercase tracking-wider font-serif">Alignement</p><p className="text-xs font-bold text-zinc-400 mt-0.5">{!alignment?"Non défini":"Neutre"}</p></div><Pencil className="w-3.5 h-3.5 text-zinc-500 shrink-0"/></>;const ad=getAlignment(alignment);const ords=(ORDERS as unknown as Record<string,any[]>)[alignment.toLowerCase()]||[];const od=alignmentOrder?ords.find((o:any)=>o.id===alignmentOrder):null;if(od){const ib=alignment==="bontarien";const trancheTitle=alignmentLevel>0?((od as any).levels?.[alignmentLevel]||""):"";return<><div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${ib?"bg-blue-500/10 border-blue-500/20":"bg-red-500/10 border-red-500/20"}`}><img src={od.icon} alt="" className="w-5 h-5 object-contain"/></div><div className="text-left min-w-0 flex-1"><p className="text-[10px] font-black text-[#9aa7b4] uppercase tracking-wider font-serif">Ordre</p><p className={`text-xs font-black mt-0.5 ${ib?"text-blue-300":"text-red-300"}`}>{od.name}</p><div className="flex flex-wrap items-center gap-1 mt-0.5">{alignmentLevel>0&&<span className="inline-flex items-center gap-0.5 text-caption font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full">Tranche {alignmentLevel}</span>}{trancheTitle&&<span className="text-caption font-bold text-zinc-400">{trancheTitle}</span>}</div></div><Pencil className="w-3.5 h-3.5 text-zinc-500 shrink-0"/></>;}return<><div className="w-10 h-10 rounded-xl bg-[#161d27] border border-[#2a323d] flex items-center justify-center shrink-0">{ad&&<img src={ad.icon} alt="" className="w-5 h-5 object-contain"/>}</div><div className="text-left min-w-0 flex-1"><p className="text-[10px] font-black text-[#9aa7b4] uppercase tracking-wider font-serif">Alignement</p><div className="flex items-center gap-1.5 mt-0.5"><span className="text-xs font-bold text-white">{ad?.name||alignment}</span>{alignmentLevel>0&&<span className="text-caption font-bold text-amber-400">lv.{alignmentLevel}</span>}</div></div><Pencil className="w-3.5 h-3.5 text-zinc-500 shrink-0"/></>;})()}</button>
+          <span aria-hidden="true" className="hidden md:block w-px self-stretch bg-white/10" />
+          <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-[#e6b96b]/15 border border-[#e6b96b]/30 flex items-center justify-center shrink-0">
               <img src="/assets/icons/ocre.png" alt="Ocre" className="w-6 h-6 object-contain" />
             </div>
@@ -1801,7 +1843,8 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3 p-3 bg-[#121821] border border-[#2a323d] rounded-xl shadow-sm">
+          <span aria-hidden="true" className="hidden md:block w-px self-stretch bg-white/10" />
+          <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-[#4fd1a5]/15 border border-[#4fd1a5]/30 flex items-center justify-center shrink-0">
               <Users className="w-5 h-5 text-[#4fd1a5]" />
             </div>
@@ -1934,6 +1977,10 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
             <Ghost className={`w-4 h-4 ${incognito ? "text-purple-400" : "text-zinc-400"}`} />
             <span className="text-xs font-bold">{incognito ? "Mode discret : actif" : "Mode discret"}</span>
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={toggleRushParticles} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer">
+            <Sparkles className={`w-4 h-4 ${rushParticlesEnabled ? "text-emerald-400" : "text-zinc-400"}`} />
+            <span className="text-xs font-bold">{rushParticlesEnabled ? "Ambiance : active" : "Ambiance : coupée"}</span>
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => {
             toggleContextualHelp();
             if (contextualHelpEnabled) toast("Aide désactivée", { duration: 1500 });
@@ -1999,7 +2046,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     <AnimatePresence>
       {celebrate && <MilestoneCelebrationBurst title={celebrate.title} tint={celebrate.tint ?? "#e6b96b"} />}
     </AnimatePresence>
-    <GuildStatusPanel milestones={contentMilestones} guildProgress={guildProgress}/>
+    <GuildStatusPanel milestones={contentMilestones} guildProgress={guildProgress} activeFilter={dofusFilter} onFilterChange={setDofusFilter}/>
     {/* ── CSS grid responsive (timeline + sidebar) ── */}
     <style>{`
       .rush-content-grid {

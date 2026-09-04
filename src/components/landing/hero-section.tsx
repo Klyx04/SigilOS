@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { User } from "next-auth";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Sparkles } from "lucide-react";
 import { AccessRequestModal } from "./AccessRequestModal";
 import { loginWithDiscord } from "@/server/actions/auth-actions";
 
@@ -68,22 +68,35 @@ export function HeroSection({ user, userGuilds = [], heroImageUrl }: HeroSection
                             </div>
                         ) : (
                             <div className="flex flex-col items-start gap-4">
-                                <button
-                                    onClick={() => setShowAccessModal(true)}
-                                    className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-success hover:bg-success text-success-foreground font-bold text-sm transition-colors"
-                                >
-                                    Créer l&apos;espace de ma guilde
-                                    <ChevronRight className="w-4 h-4" />
-                                </button>
-                                <form action={loginWithDiscord}>
-                                    <button
-                                        type="submit"
-                                        className="inline-flex items-center gap-2 text-body-sm text-muted-foreground hover:text-success font-medium transition-colors"
+                                <div className="flex items-center gap-3 flex-wrap">
+                                    <form action={loginWithDiscord}>
+                                        <button
+                                            type="submit"
+                                            className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-sm transition-all shadow-md shadow-[#5865F2]/20 cursor-pointer"
+                                        >
+                                            <DiscordIcon className="w-4 h-4" />
+                                            Installer sur mon Discord
+                                        </button>
+                                    </form>
+                                    <Link
+                                        href="/guides/rush-sylvestre"
+                                        className="inline-flex items-center justify-center gap-2 h-12 px-5 rounded-xl bg-surface hover:bg-surface/80 text-foreground font-bold text-sm border border-border transition-colors shadow-sm"
                                     >
-                                        <DiscordIcon className="w-4 h-4" />
-                                        Déjà membre ? Se connecter avec Discord
+                                        <Sparkles className="w-4 h-4 text-emerald-400" />
+                                        Tester l&apos;Overlay sans compte
+                                    </Link>
+                                </div>
+                                <div className="flex items-center gap-2 text-caption text-muted-foreground">
+                                    <span>⚡ Déploiement en 30 secondes · 100% Gratuit</span>
+                                    <span>·</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAccessModal(true)}
+                                        className="hover:text-foreground underline transition-colors"
+                                    >
+                                        Besoin d&apos;aide ou alliance ?
                                     </button>
-                                </form>
+                                </div>
                             </div>
                         )}
                     </div>

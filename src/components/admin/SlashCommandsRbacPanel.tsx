@@ -8,7 +8,8 @@ import {
     X, 
     AlertCircle, 
     Save, 
-    Info 
+    Info,
+    Hash
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -24,18 +25,23 @@ interface CommandItem {
     };
     isEnabled: boolean;
     roleIds: string[];
+    channelIds?: string[];
 }
 
 export function SlashCommandsRbacPanel({
     guildId,
     initialMatrix,
-    discordRoles
+    discordRoles,
+    discordChannels = []
 }: {
     guildId: string;
     initialMatrix: CommandItem[];
     discordRoles: { id: string; name: string; color?: string }[];
+    discordChannels?: { id: string; name: string }[];
 }) {
-    const [matrix, setMatrix] = useState<CommandItem[]>(initialMatrix);
+    const [matrix, setMatrix] = useState<CommandItem[]>(
+        initialMatrix.map(m => ({ ...m, channelIds: m.channelIds || [] }))
+    );
     const [isSaving, setIsSaving] = useState<string | null>(null);
 
     const handleToggleEnabled = (commandName: string) => {
@@ -60,6 +66,28 @@ export function SlashCommandsRbacPanel({
         }));
     };
 
+    const handleToggleChannel = (commandName: string, channelId: string) => {
+        setMatrix(prev => prev.map(item => {
+            if (item.command.name === commandName) {
+                const current = item.channelIds || [];
+                const next = current.includes(channelId)
+                    ? current.filter(id => id !== channelId)
+                    : [...current, channelId];
+                return { ...item, channelIds: next };
+            }
+            return item;
+        }));
+    };
+
+    const handleResetChannels = (commandName: string) => {
+        setMatrix(prev => prev.map(item => {
+            if (item.command.name === commandName) {
+                return { ...item, channelIds: [] };
+            }
+            return item;
+        }));
+    };
+
     const handleSave = async (commandName: string) => {
         const item = matrix.find(m => m.command.name === commandName);
         if (!item) return;
@@ -70,11 +98,12 @@ export function SlashCommandsRbacPanel({
                 guildId,
                 commandName,
                 roleIds: item.roleIds,
+                channelIds: item.channelIds || [],
                 isEnabled: item.isEnabled
             });
 
             if (res.success) {
-                toast.success(`Permission pour /${commandName} mise à jour avec succès !`);
+                toast.success(`Permissions pour /${commandName} mises à jour avec succès !`);
             } else {
                 toast.error(res.error || "Échec de l'enregistrement");
             }
@@ -151,7 +180,7 @@ export function SlashCommandsRbacPanel({
                                     </span>
                                 </div>
 
-                                <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1">
+                                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
                                     {discordRoles.length === 0 ? (
                                         <p className="text-[11px] text-muted-foreground italic">Aucun rôle Discord synchronisé</p>
                                     ) : (
@@ -170,6 +199,60 @@ export function SlashCommandsRbacPanel({
                                                     )}
                                                 >
                                                     {role.name}
+                                                </button>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Channel selector */}
+                            <div className="space-y-2 pt-2 border-t border-border/60">
+                                <div className="flex items-center justify-between text-[11px]">
+                                    <span className="font-bold text-muted-foreground flex items-center gap-1">
+                                        <Hash className="w-3 h-3 text-muted-foreground" />
+                                        Salons Discord Autorisés :
+                                    </span>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[10px] font-mono font-bold text-muted-foreground">
+                                            {(item.channelIds?.length || 0) === 0 ? (
+                                                <span className="text-emerald-500">Tous les salons</span>
+                                            ) : (
+                                                <span className="text-accent">{item.channelIds?.length} salon(s)</span>
+                                            )}
+                                        </span>
+                                        {(item.channelIds?.length || 0) > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleResetChannels(item.command.name)}
+                                                className="text-[10px] text-muted-foreground hover:text-danger underline transition-colors"
+                                            >
+                                                Réinitialiser
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+                                    {discordChannels.length === 0 ? (
+                                        <p className="text-[11px] text-muted-foreground italic">Aucun salon textuel trouvé</p>
+                                    ) : (
+                                        discordChannels.map((channel) => {
+                                            const isSelected = item.channelIds?.includes(channel.id);
+                                            return (
+                                                <button
+                                                    key={channel.id}
+                                                    type="button"
+                                                    onClick={() => handleToggleChannel(item.command.name, channel.id)}
+                                                    className={cn(
+                                                        "px-2 py-0.5 rounded-lg text-[11px] font-medium border transition-all flex items-center gap-1",
+                                                        isSelected
+                                                            ? "bg-accent/15 text-accent border-accent font-bold"
+                                                            : "bg-surface text-muted-foreground border-border hover:text-foreground"
+                                                    )}
+                                                >
+                                                    <span className="opacity-60">#</span>
+                                                    <span>{channel.name}</span>
                                                 </button>
                                             );
                                         })

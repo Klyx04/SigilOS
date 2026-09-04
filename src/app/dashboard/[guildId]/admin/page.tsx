@@ -27,6 +27,7 @@ import {
     Ticket,
     Key,
     UserCheck,
+    Terminal,
 } from "lucide-react";
 import { AdminCard } from "@/components/admin/admin-card";
 import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
@@ -107,6 +108,15 @@ function buildSections(guildId: string): AdminSection[] {
                     accent: "amber",
                     permission: (u) => u.canManageTickets,
                     tourId: "admin-overview-card-tickets",
+                },
+                {
+                    href: `/dashboard/${guildId}/admin/commandes`,
+                    icon: Terminal,
+                    title: "Commandes Slash Discord",
+                    description: "Gestion des commandes bot : restrictions par salon Discord, rôles autorisés et activation.",
+                    accent: "emerald",
+                    permission: (u) => u.canManageRBAC || u.isAdmin,
+                    tourId: "admin-overview-card-slash-commands",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/presentation`,

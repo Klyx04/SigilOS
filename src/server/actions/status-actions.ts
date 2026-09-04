@@ -18,10 +18,10 @@ export async function sendGlobalStatusPing(
     isLite?: boolean,
     targetChannelId?: string
 ) {
-    if (isTestRequest) {
-        const isAdmin = await isSuperAdmin();
-        if (!isAdmin) throw new Error("Accès refusé : Super-admin requis");
-    }
+    // 🔒 Fail-closed : ping Discord = action privilégiée (spam + leak latences).
+    // Exigé dans TOUS les cas, pas seulement les tests (VULN-008).
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) throw new Error("Accès refusé : Super-admin requis");
 
     try {
         const config = await db.platformConfig.findUnique({ 

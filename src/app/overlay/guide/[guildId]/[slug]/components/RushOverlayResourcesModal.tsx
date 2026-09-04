@@ -41,15 +41,15 @@ export function RushOverlayResourcesModal({
     : list;
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center p-3">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3">
       {/* Backdrop */}
       <button
         type="button"
         aria-label="Fermer la liste des ressources"
         onClick={onClose}
         className={cn(
-          "absolute inset-0 bg-black/60 backdrop-blur-sm",
-          isLightMode && "bg-slate-900/40"
+          "fixed inset-0 bg-black/70 backdrop-blur-md",
+          isLightMode && "bg-slate-900/50"
         )}
       />
 

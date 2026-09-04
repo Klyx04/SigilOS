@@ -51,57 +51,43 @@ export function SuccesClient({
     );
 
     return (
-        <div className="space-y-6">
-            {/* Sélecteur de vue (4 vues majeures du module) */}
-            <div className="flex flex-wrap items-center justify-between gap-3" data-tour="succes-views">
-                <div className="flex flex-wrap items-center gap-3">
-                    {views.map((v) => {
-                        const Icon = v.icon;
-                        const active = view === v.id;
-                        return (
-                            <button
-                                key={v.id}
-                                type="button"
-                                onClick={() => !v.disabled && setView(v.id)}
-                                disabled={v.disabled}
-                                data-tour={
-                                    v.id === "guilde"
-                                        ? "succes-view-commun"
-                                        : v.id === "boss"
-                                        ? "succes-view-boss"
-                                        : v.id === "quetes"
-                                        ? "succes-view-quetes"
-                                        : v.id === "defi"
-                                        ? "succes-view-defi"
-                                        : undefined
-                                }
-                                title={v.disabled ? "Accès non autorisé par les permissions" : v.label}
-                                className={cn(
-                                    "flex items-center gap-3 px-4 py-2.5 min-h-11 rounded-2xl border transition-colors",
-                                    active
-                                        ? "bg-elevated/90 border-warning/50 text-foreground"
-                                        : "bg-surface/70 border-border text-muted-foreground hover:bg-elevated/70",
-                                    v.disabled && "opacity-50 cursor-not-allowed"
-                                )}
-                            >
-                                <div
-                                    className={cn(
-                                        "w-9 h-9 rounded-xl flex items-center justify-center border shrink-0",
-                                        active ? "bg-warning/15 border-warning/30 text-warning" : "bg-surface border-border text-muted-foreground"
-                                    )}
-                                >
-                                    <Icon className="w-5 h-5" />
-                                </div>
-                                <div className="text-left">
-                                    <p className={cn("text-xs font-bold uppercase tracking-widest", active && "text-foreground")}>
-                                        {v.label}
-                                    </p>
-                                    <p className="text-caption font-semibold mt-0.5 text-muted-foreground">{v.sub}</p>
-                                </div>
-                            </button>
-                        );
-                    })}
-                </div>
+        <div className="space-y-5">
+            {/* Sélecteur de vue (onglets épurés et professionnels) */}
+            <div className="flex items-center gap-1.5 p-1 bg-surface/80 rounded-2xl border border-border overflow-x-auto no-scrollbar" data-tour="succes-views">
+                {views.map((v) => {
+                    const Icon = v.icon;
+                    const active = view === v.id;
+                    return (
+                        <button
+                            key={v.id}
+                            type="button"
+                            onClick={() => !v.disabled && setView(v.id)}
+                            disabled={v.disabled}
+                            data-tour={
+                                v.id === "guilde"
+                                    ? "succes-view-commun"
+                                    : v.id === "boss"
+                                    ? "succes-view-boss"
+                                    : v.id === "quetes"
+                                    ? "succes-view-quetes"
+                                    : v.id === "defi"
+                                    ? "succes-view-defi"
+                                    : undefined
+                            }
+                            title={v.disabled ? "Accès non autorisé par les permissions" : `${v.label} — ${v.sub}`}
+                            className={cn(
+                                "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-150 shrink-0",
+                                active
+                                    ? "bg-warning/15 text-warning border border-warning/30 shadow-xs"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-elevated/70 border border-transparent",
+                                v.disabled && "opacity-40 cursor-not-allowed"
+                            )}
+                        >
+                            <Icon className={cn("w-4 h-4 shrink-0", active ? "text-warning" : "text-muted-foreground")} />
+                            <span>{v.label}</span>
+                        </button>
+                    );
+                })}
             </div>
 
             {view === "moi" ? (

@@ -16,6 +16,7 @@ export const PERMISSIONS = {
 
     // Modules & Information
     PRESENTATION_VIEW: "presentation:view",
+    COMMANDS_VIEW: "commands:view",
 
     // Community
     COMMUNITY_ACCESS: "community:access",
@@ -67,6 +68,12 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         description: "Consulter la page de présentation, de recrutement et lire les objectifs de la guilde en jeu.", 
         module: "info",
         modules: ["Présentation", "Objectifs"]
+    },
+    [PERMISSIONS.COMMANDS_VIEW]: { 
+        label: "Guide des Commandes Bot", 
+        description: "Consulter la page visuelle des commandes slash Discord de la guilde, leur syntaxe et les salons autorisés.", 
+        module: "community",
+        modules: ["Commandes Bot", "Discord"]
     },
 
     // Admin

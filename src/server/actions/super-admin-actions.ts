@@ -530,8 +530,18 @@ export async function toggleGuildActive(discordGuildId: string) {
         data: { isActive: !guild.isActive }
     });
 
-    // 🔄 Invalide le cache `guild_allowed:{id}` pour que le changement de statut soit immédiat.
+    // Synchroniser l'état dans GuildConfig si la guilde est déployée
+    await db.guildConfig.updateMany({
+        where: { discordGuildId },
+        data: { isActive: updated.isActive }
+    });
+
+    // 🔄 Invalide les caches pour que le changement de statut soit immédiat
     await invalidateAllowedGuildCache(discordGuildId);
+    try {
+        const { invalidateGuildCache } = await import("./user-actions");
+        await invalidateGuildCache(discordGuildId);
+    } catch { /* non bloquant */ }
 
     // 📝 LOG ACTION
     const session = await auth();

@@ -58,15 +58,15 @@ export function AdvancedTagFilter({
         <Popover>
             <PopoverTrigger asChild>
                 <button className={cn(
-                    "h-8 px-3 rounded-xl text-xs font-medium transition-colors flex items-center gap-1.5 shrink-0",
+                    "h-8 px-3 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 shadow-sm",
                     activeCount > 0
-                        ? "bg-elevated text-foreground border border-border-strong"
-                        : "bg-surface text-muted-foreground hover:text-foreground hover:bg-surface"
+                        ? "bg-warning/15 text-warning border border-warning/30 shadow-[0_0_12px_rgba(234,179,8,0.15)]"
+                        : "bg-surface/90 text-muted-foreground hover:text-foreground hover:bg-elevated border border-border/80"
                 )} aria-label={`Tags avancés${activeCount > 0 ? ` (${activeCount} actifs)` : ""}`}>
-                    <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", activeCount > 0 ? "bg-warning" : "bg-muted")} />
+                    <span className={cn("w-1.5 h-1.5 rounded-full shrink-0 transition-all", activeCount > 0 ? "bg-warning ring-2 ring-warning/30" : "bg-muted-foreground/40")} />
                     Tags Avancés
                     {activeCount > 0 && (
-                        <span className="min-w-[1.1rem] h-4 px-1 flex items-center justify-center rounded-full bg-warning text-warning-foreground text-caption font-bold tabular-nums">
+                        <span className="min-w-[1.1rem] h-4 px-1 flex items-center justify-center rounded-full bg-warning text-warning-foreground text-[10px] font-black tabular-nums shadow-sm">
                             {activeCount}
                         </span>
                     )}
@@ -136,39 +136,47 @@ export function ClassFilter({
         <Popover>
             <PopoverTrigger asChild>
                 <button className={cn(
-                    "h-8 px-3 rounded-xl text-xs font-medium transition-colors flex items-center gap-1.5 shrink-0 min-w-[6.5rem] justify-between",
-                    active ? "bg-surface text-foreground border border-border-strong" : "bg-surface text-muted-foreground hover:text-foreground hover:bg-surface"
+                    "h-8 px-3 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 shrink-0 min-w-[7rem] justify-between shadow-sm",
+                    active 
+                        ? "bg-success/15 text-foreground border border-success/30 shadow-[0_0_12px_rgba(16,185,129,0.15)]" 
+                        : "bg-surface/90 text-muted-foreground hover:text-foreground hover:bg-elevated border border-border/80"
                 )}>
                     {active ? (
-                        <>
-                            <NextImage src={active.icon} alt={active.name} width={14} height={14} className="object-contain" />
-                            {active.name}
-                            <Check className="w-3 h-3 shrink-0 text-success" />
-                        </>
-                    ) : label}
-                    <ChevronDown className="w-3 h-3 opacity-60" />
+                        <div className="flex items-center gap-1.5 min-w-0">
+                            <NextImage src={active.icon} alt={active.name} width={16} height={16} className="object-contain shrink-0 drop-shadow-sm" />
+                            <span className="truncate font-bold">{active.name}</span>
+                            <Check className="w-3 h-3 shrink-0 text-success ml-0.5" />
+                        </div>
+                    ) : (
+                        <span>{label}</span>
+                    )}
+                    <ChevronDown className="w-3 h-3 opacity-60 shrink-0" />
                 </button>
             </PopoverTrigger>
-            <PopoverContent className="w-[min(256px,calc(100vw-2rem))] bg-background border-border rounded-2xl p-2 shadow-lg" align="start" side="bottom">
-                <p className="text-caption font-black text-muted-foreground uppercase tracking-widest px-2 pt-1 pb-2">Filtrer par {label.toLowerCase()}</p>
-                <div className="grid grid-cols-3 gap-1">
+            <PopoverContent className="w-[min(280px,calc(100vw-2rem))] bg-background/95 backdrop-blur-2xl border-border rounded-2xl p-2.5 shadow-2xl" align="start" side="bottom">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider px-2 pt-1 pb-2 flex items-center justify-between">
+                    <span>Filtrer par {label.toLowerCase()}</span>
+                    {active && <span className="text-success text-[10px] lowercase font-semibold">1 active</span>}
+                </p>
+                <div className="grid grid-cols-3 gap-1.5">
                     {DOFUS_CLASSES.map(cls => {
                         const numId = getNumericClassId(cls);
                         if (numId === null) return null;
                         const idStr = String(numId);
+                        const isSelected = String(selectedClass) === idStr;
                         return (
                             <button
                                 key={cls.id}
-                                onClick={() => onSelectClass(String(selectedClass) === idStr ? null : idStr)}
+                                onClick={() => onSelectClass(isSelected ? null : idStr)}
                                 className={cn(
-                                    "flex flex-col items-center gap-1 p-2 rounded-xl text-caption font-semibold transition-all",
-                                    String(selectedClass) === idStr
-                                        ? "bg-surface text-foreground ring-1 ring-white/20"
-                                        : "text-muted-foreground hover:text-foreground hover:bg-surface"
+                                    "flex flex-col items-center gap-1.5 p-2 rounded-xl text-[11px] font-bold transition-all",
+                                    isSelected
+                                        ? "bg-success/15 text-foreground border border-success/40 shadow-sm ring-1 ring-success/30"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-surface/90 border border-transparent hover:border-border/60"
                                 )}
                             >
-                                <NextImage src={cls.icon} alt={cls.name} width={24} height={24} className="object-contain" />
-                                {cls.name}
+                                <NextImage src={cls.icon} alt={cls.name} width={26} height={26} className="object-contain drop-shadow-sm" />
+                                <span className="truncate max-w-full text-center">{cls.name}</span>
                             </button>
                         );
                     })}

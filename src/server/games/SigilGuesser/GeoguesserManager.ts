@@ -304,7 +304,7 @@ export class GeoguesserManager {
                             `▸ [Gérer les maps sur Dashboard](${appUrl}/god/mini-games?game=SigilGuesser)`,
                         ].join("\n"),
                         embedFooter: "SigilOS Administration · SigilGuesser",
-                        embedThumbnail: `${appUrl}/assets/ui/icons/geoguesser.png`
+                        embedThumbnail: `${appUrl}/assets/screenshots/map-monde.png`
                     });
                 }
             }

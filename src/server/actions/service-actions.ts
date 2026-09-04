@@ -418,8 +418,14 @@ export async function updateServiceListing(
             return { success: false, error: "Accès refusé" };
         }
 
-        const listing = await db.serviceListing.findUnique({
-            where: { id: listingId },
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const listing = await db.serviceListing.findFirst({
+            where: { id: listingId, guildId: guildConfig.id },
             select: { profileId: true, guildId: true },
         });
         if (!listing) return { success: false, error: "Annonce introuvable" };
@@ -461,8 +467,14 @@ export async function toggleServiceStatus(
             return { success: false, error: "Accès refusé" };
         }
 
-        const listing = await db.serviceListing.findUnique({
-            where: { id: listingId },
+        const statusGuild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!statusGuild) return { success: false, error: "Guilde introuvable" };
+
+        const listing = await db.serviceListing.findFirst({
+            where: { id: listingId, guildId: statusGuild.id },
             select: { profileId: true, status: true },
         });
         if (!listing) return { success: false, error: "Annonce introuvable" };
@@ -507,8 +519,14 @@ export async function deleteServiceListing(
             return { success: false, error: "Accès refusé" };
         }
 
-        const listing = await db.serviceListing.findUnique({
-            where: { id: listingId },
+        const deleteGuild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!deleteGuild) return { success: false, error: "Guilde introuvable" };
+
+        const listing = await db.serviceListing.findFirst({
+            where: { id: listingId, guildId: deleteGuild.id },
             select: { profileId: true, discordChannelId: true, discordMessageId: true },
         });
         if (!listing) return { success: false, error: "Annonce introuvable" };
@@ -664,6 +682,7 @@ export async function contactPasseurAction(
             where: { id: listingId },
             select: {
                 id: true,
+                guildId: true,
                 category: true,
                 title: true,
                 status: true,
@@ -690,6 +709,8 @@ export async function contactPasseurAction(
             where: { discordGuildId: guildId },
             select: { servicesNotifyChannelId: true, id: true },
         });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+        if (listing.guildId !== guildConfig.id) return { success: false, error: "Annonce introuvable" };
 
         if (!guildConfig?.servicesNotifyChannelId) {
             return {
@@ -793,6 +814,7 @@ export async function contactPasseurAction(
             type: 1, components: [
                 { type: 2, style: 1, label: "Répondre", emoji: { name: "💬" }, custom_id: `svc:reply:${user.id}:${listing.id}:${serviceRequest.id}` },
                 { type: 2, style: 3, label: "Clôturer", emoji: { name: "✅" }, custom_id: `svc:close:${serviceRequest.id}` },
+                { type: 2, style: 4, label: "Annuler", emoji: { name: "❌" }, custom_id: `svc:cancel:${serviceRequest.id}` },
                 { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/services` },
             ]
         }];
@@ -955,6 +977,84 @@ export async function closeServiceRequestAction(
     }
 }
 
+/**
+ * Annuler une demande de service (réservé au demandeur ou à un admin).
+ * Supprime le message Discord (embed) s'il existe et supprime l'enregistrement en base.
+ */
+export async function cancelServiceRequestAction(
+    guildId: string,
+    requestId: string,
+    actorDiscordUserId?: string
+): Promise<ActionResponse> {
+    try {
+        const guildConfig = await db.guildConfig.findFirst({
+            where: { OR: [{ id: guildId }, { discordGuildId: guildId }] },
+            select: { id: true, discordGuildId: true, servicesNotifyChannelId: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const request = await db.serviceRequest.findFirst({
+            where: { id: requestId, guildId: guildConfig.id },
+            select: {
+                id: true,
+                clientUserId: true,
+                clientProfileId: true,
+                discordMessageId: true,
+                status: true,
+            },
+        });
+        if (!request) return { success: false, error: "Demande introuvable" };
+
+        // Vérification des permissions :
+        // Soit via session web (userContext), soit via interaction Discord (actorDiscordUserId)
+        if (actorDiscordUserId) {
+            const account = await db.account.findFirst({
+                where: { provider: "discord", providerAccountId: actorDiscordUserId },
+                select: { userId: true },
+            });
+            const userCtx = account ? await getUserContext(guildConfig.discordGuildId) : null;
+            const isClient = account && account.userId === request.clientUserId;
+            const isAdmin = userCtx?.isAdmin ?? false;
+
+            if (!isClient && !isAdmin) {
+                return { success: false, error: "Seul le demandeur ou un administrateur peut annuler cette demande" };
+            }
+        } else {
+            const user = await getUserContext(guildConfig.discordGuildId);
+            if (!user.isAuthenticated || !user.isMember) return { success: false, error: "Accès refusé" };
+
+            const isClient = request.clientUserId === user.id || request.clientProfileId === user.profileId;
+            const isAdmin = user.isAdmin;
+
+            if (!isClient && !isAdmin) {
+                return { success: false, error: "Seul le demandeur ou un administrateur peut annuler cette demande" };
+            }
+        }
+
+        // 1. Supprimer le message Discord
+        if (request.discordMessageId && guildConfig.servicesNotifyChannelId) {
+            try {
+                await deleteChannelMessage(guildConfig.servicesNotifyChannelId, request.discordMessageId);
+            } catch (delErr) {
+                logger.warn("[cancelServiceRequestAction] Discord delete message error", { err: String(delErr) });
+            }
+        }
+
+        // 2. Supprimer la demande de la base de données
+        await db.serviceRequest.delete({
+            where: { id: requestId },
+        });
+
+        // 3. Revalider les chemins
+        revalidatePath(`/dashboard/${guildConfig.discordGuildId}/services`);
+
+        return { success: true };
+    } catch (error) {
+        logger.error("[cancelServiceRequestAction] failed", { err: error });
+        return { success: false, error: "Erreur interne lors de l'annulation" };
+    }
+}
+
 // ---------------------------------------------------------------------------
 // RÉCUPÉRER les demandes de service (pour le Dashboard)
 // ---------------------------------------------------------------------------
@@ -964,9 +1064,11 @@ export type ServiceRequestWithDetails = {
     guildId: string;
     listingId: string;
     clientProfileId: string;
+    clientUserId: string;
     clientName: string;
     clientAvatar: string | null;
     providerProfileId: string;
+    providerUserId: string;
     options: string[] | null;
     customMessage: string | null;
     status: ServiceRequestStatus;
@@ -987,21 +1089,20 @@ export async function getServiceRequests(
         const user = await getUserContext(guildId);
         if (!user.isAuthenticated || !user.isMember) return { success: false, error: "Accès refusé" };
 
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
+        const guildConfig = await db.guildConfig.findFirst({
+            where: { OR: [{ id: guildId }, { discordGuildId: guildId }] },
             select: { id: true },
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
-        // Construire le filtre selon le rôle/filtre demandé
+        // Scope strict par guilde
         const where: Record<string, unknown> = { guildId: guildConfig.id };
-        if (!user.isAdmin || filter !== "all") {
-            // Non-admin : voir seulement ses demandes (client ou passeur)
-            where.OR = [
-                { clientUserId: user.id },
-                { providerUserId: user.id },
-            ];
+        if (filter === "mine") {
+            where.clientUserId = user.id;
+        } else if (filter === "provider") {
+            where.providerUserId = user.id;
         }
+        // Par défaut ou filter==="all", tous les membres de la guilde voient l'activité de service de leur guilde
 
         const requests = await db.serviceRequest.findMany({
             where,
@@ -1022,9 +1123,11 @@ export async function getServiceRequests(
                 guildId: r.guildId,
                 listingId: r.listingId,
                 clientProfileId: r.clientProfileId,
+                clientUserId: r.clientUserId,
                 clientName: r.clientName,
                 clientAvatar: r.clientAvatar,
                 providerProfileId: r.providerProfileId,
+                providerUserId: r.providerUserId,
                 options: r.options as string[] | null,
                 customMessage: r.customMessage,
                 status: r.status,

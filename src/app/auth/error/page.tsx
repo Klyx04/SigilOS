@@ -27,10 +27,13 @@ function ErrorContent() {
         }
     } else if (error === "AccessDenied") {
         title = "Accès Refusé";
-        message = "Désolé, mais vous n'avez pas les accréditaitons pour entrer ici. Il faut montrer patte blanche !";
+        message = "Désolé, mais vous n'avez pas les accréditations pour entrer ici. Il faut montrer patte blanche !";
+    } else if (error === "Banned") {
+        title = "Accès Révoqué";
+        message = "Ce compte ou ce serveur a été suspendu de la plateforme SigilOS pour non-respect des règles d'utilisation ou de sécurité.";
     } else if (error === "NoManagedGuild") {
         title = "Accès Restreint";
-        message = "Votre compte Discord n'est associé à aucune guilde utilisant SigilOS. Pour accéder au QG, vous devez être membre d'une guilde partenaire.";
+        message = "Votre compte Discord n'est associé à aucune guilde utilisant SigilOS et vous n'êtes administrateur d'aucun serveur éligible. Pour installer SigilOS en autonomie, connectez-vous avec le compte disposant des droits Administrateur sur votre serveur Discord.";
     } else if (error === "Verification") {
         title = "Lien expiré";
         message = "Ce lien de vérification a déjà été utilisé ou est trop vieux.";

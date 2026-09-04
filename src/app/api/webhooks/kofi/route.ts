@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { notifyGod } from "@/server/actions/god-notif-actions";
+import { safeEqualStrings } from "@/lib/god-route";
+import { rateLimit } from "@/lib/ratelimit";
 
 /**
  * ☕ Webhook Réception des dons Ko-fi (#198.2 / Monétisation)
@@ -9,6 +11,11 @@ import { notifyGod } from "@/server/actions/god-notif-actions";
  */
 export async function POST(req: Request) {
     try {
+        // 🔒 Anti-abus : rate-limit IP fail-closed (dons = faible volume légitime).
+        const ip = req.headers.get("x-real-ip") || "unknown";
+        const rl = await rateLimit(`kofi:${ip}`, 20, 60_000);
+        if (!rl.success) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+
         const contentType = req.headers.get("content-type") || "";
         let dataJson: any;
 
@@ -40,9 +47,14 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Invalid payload format" }, { status: 400 });
         }
 
-        // 🔒 Sécurité : Vérification du Token Ko-fi
+        // 🔒 Sécurité : Vérification du Token Ko-fi — fail-closed si absent (OWASP 2026).
+        // Sans secret configuré, on refuse (503) plutôt que d'attribuer des badges à n'importe qui.
         const expectedToken = process.env.KOFI_VERIFICATION_TOKEN;
-        if (expectedToken && dataJson.verification_token !== expectedToken) {
+        if (!expectedToken) {
+            logger.error("[Ko-fi Webhook] KOFI_VERIFICATION_TOKEN non configuré — webhook bloqué (fail-closed)");
+            return NextResponse.json({ error: "Webhook non configuré" }, { status: 503 });
+        }
+        if (!safeEqualStrings(String(dataJson.verification_token ?? ""), expectedToken)) {
             logger.warn("[Ko-fi Webhook] Invalid verification_token received");
             return NextResponse.json({ error: "Unauthorized verification token" }, { status: 401 });
         }

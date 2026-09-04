@@ -127,13 +127,13 @@ const MISSION_CATEGORY_CONFIG: Record<string, { icon: any; color: string; fallba
     DONJON: {
         icon: Swords,
         color: "text-danger",
-        fallbackImage: "/assets/missions/donjon.png",
+        fallbackImage: "/banners/donjon.png",
         label: "Donjon"
     },
     REGULATION: {
         icon: Skull,
         color: "text-success",
-        fallbackImage: "/assets/missions/regulation.png",
+        fallbackImage: "/banners/regulation.png",
         label: "Régulation"
     },
     ANOMALIE: {
@@ -151,7 +151,7 @@ const MISSION_CATEGORY_CONFIG: Record<string, { icon: any; color: string; fallba
     EXPEDITION: {
         icon: Clock,
         color: "text-warning",
-        fallbackImage: "/assets/missions/expedition.png",
+        fallbackImage: "/banners/expedition.png",
         label: "Expédition"
     },
     EVENT: {

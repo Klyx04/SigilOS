@@ -321,42 +321,40 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
 
     return (
         <div className="space-y-5">
-            {/* Glance (progressive disclosure) : où j'en suis sans scroll */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <div className="col-span-2 lg:col-span-2 bg-surface border border-border rounded-2xl p-5">
-                    <div className="flex items-center justify-between gap-3 mb-3">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-warning/15 border border-warning/30 text-warning flex items-center justify-center shrink-0">
-                                <Trophy className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-bold text-foreground">Progression globale</p>
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                    {doneCount}/{totalCount} succès validés
-                                </p>
-                            </div>
+            {/* Glance compact & épuré : résumé de progression */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3.5 p-3.5 rounded-2xl bg-surface/80 border border-border">
+                <div className="flex items-center gap-3.5 flex-1 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-warning/10 border border-warning/20 flex items-center justify-center shrink-0">
+                        <Trophy className="w-5 h-5 text-warning" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                            <span className="text-xs font-bold text-foreground truncate">Progression globale des succès</span>
+                            <span className="text-xs font-black text-warning tabular-nums shrink-0">{progressPct}% ({doneCount}/{totalCount})</span>
                         </div>
-                        <span className="text-2xl font-black text-warning tabular-nums">{progressPct}%</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-background border border-border overflow-hidden">
-                        <div
-                            className="h-full bg-warning transition-all duration-300"
-                            style={{ width: `${progressPct}%` }}
-                        />
+                        <div className="h-2 rounded-full bg-background border border-border/80 overflow-hidden">
+                            <div
+                                className="h-full bg-gradient-to-r from-warning/80 to-warning transition-all duration-300"
+                                style={{ width: `${progressPct}%` }}
+                            />
+                        </div>
                     </div>
                 </div>
-                <div className="bg-surface border border-border rounded-2xl p-5 flex flex-col justify-center">
-                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Donjons</p>
-                    <p className="text-2xl font-black text-foreground tabular-nums mt-1">{dungeons.length}</p>
-                </div>
-                <div className="bg-surface border border-border rounded-2xl p-5 flex flex-col justify-center">
-                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Points</p>
-                    <p className="text-2xl font-black text-warning tabular-nums mt-1">{totalPoints}</p>
+
+                <div className="flex items-center gap-2 shrink-0 sm:border-l sm:border-border sm:pl-3.5">
+                    <div className="px-3 py-1.5 rounded-xl bg-background/60 border border-border text-center">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Donjons</p>
+                        <p className="text-sm font-black text-foreground tabular-nums">{dungeons.length}</p>
+                    </div>
+                    <div className="px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Points</p>
+                        <p className="text-sm font-black text-amber-300 tabular-nums">{totalPoints}</p>
+                    </div>
                 </div>
             </div>
 
-            {/* Filtres */}
-            <div className="flex flex-col md:flex-row md:items-center gap-3" data-tour="succes-filters">
+            {/* Filtres compacts */}
+            <div className="flex flex-col md:flex-row md:items-center gap-2.5" data-tour="succes-filters">
                 <div className="relative flex-1" data-tour="succes-search">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <input
@@ -366,7 +364,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                             updateParam("q", e.target.value || null);
                         }}
                         placeholder="Rechercher un donjon ou un boss…"
-                        className="w-full h-11 pl-9 pr-8 rounded-xl bg-surface border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-warning/40"
+                        className="w-full h-9 pl-9 pr-8 rounded-xl bg-surface/70 border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-warning/40"
                     />
                     {search && (
                         <button
@@ -377,11 +375,11 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                             className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                             aria-label="Effacer la recherche"
                         >
-                            <X className="w-4 h-4" />
+                            <X className="w-3.5 h-3.5" />
                         </button>
                     )}
                 </div>
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
                     {(["all", "todo", "done"] as StatusFilter[]).map((s) => (
                         <button
                             key={s}
@@ -390,28 +388,28 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                 updateParam("status", s === "all" ? null : s);
                             }}
                             className={cn(
-                                "px-4 py-2 min-h-11 rounded-xl border text-xs font-bold uppercase tracking-wider transition-colors shrink-0",
+                                "px-3 py-1.5 h-9 rounded-xl border text-xs font-bold transition-colors shrink-0",
                                 status === s
                                     ? "bg-warning/15 border-warning/40 text-warning"
-                                    : "bg-surface border-border text-muted-foreground hover:text-foreground"
+                                    : "bg-surface/70 border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
                             )}
                         >
                             {s === "all" ? "Tous" : s === "todo" ? "À faire" : "Finis"}
                         </button>
                     ))}
-                    <div className="w-px h-6 bg-border shrink-0" />
+                    <div className="w-px h-5 bg-border shrink-0" />
                     {LEVEL_PRESETS.map((p) => (
                         <button
                             key={p.label}
                             onClick={() => {
                                 setMinLevel(p.min);
-                                setMaxLevel(p.max);
+                                maxLevel !== p.max && setMaxLevel(p.max);
                             }}
                             className={cn(
-                                "px-3 py-2 min-h-11 rounded-xl border text-xs font-bold uppercase tracking-wider transition-colors shrink-0",
+                                "px-2.5 py-1.5 h-9 rounded-xl border text-xs font-bold transition-colors shrink-0",
                                 minLevel === p.min && maxLevel === p.max
                                     ? "bg-elevated border-border-strong text-foreground"
-                                    : "bg-surface border-border text-muted-foreground hover:text-foreground"
+                                    : "bg-surface/70 border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
                             )}
                         >
                             {p.label}
@@ -420,12 +418,12 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
 
                     {/* Validation globale de la tranche sélectionnée */}
                     {canEdit && (
-                        <div className="flex items-center gap-1.5 shrink-0 pl-1 border-l border-border">
+                        <div className="flex items-center gap-1 shrink-0 pl-1 border-l border-border">
                             <button
                                 type="button"
                                 disabled={bracketLoading}
                                 onClick={() => handleToggleLevelBracket("validate")}
-                                className="inline-flex items-center gap-1.5 px-3 py-2 min-h-11 rounded-xl bg-success/10 border border-success/30 hover:bg-success/20 text-success text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 h-9 rounded-xl bg-success/10 border border-success/30 hover:bg-success/20 text-success text-xs font-black transition-all disabled:opacity-50"
                                 title={`Valider tous les succès ${minLevel === 1 && maxLevel === 1000 ? "du jeu" : `Niv. ${minLevel}-${maxLevel === 1000 ? "200+" : maxLevel}`}`}
                             >
                                 {bracketLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCheck className="w-3.5 h-3.5" />}
@@ -435,7 +433,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                 type="button"
                                 disabled={bracketLoading}
                                 onClick={() => handleToggleLevelBracket("unvalidate")}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-2 min-h-11 rounded-xl bg-surface border border-border hover:border-danger/30 hover:text-danger text-muted-foreground text-xs font-bold transition-all disabled:opacity-50"
+                                className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-surface/70 border border-border hover:border-danger/30 hover:text-danger text-muted-foreground text-xs font-bold transition-all disabled:opacity-50"
                                 title={`Décocher tous les succès ${minLevel === 1 && maxLevel === 1000 ? "du jeu" : `Niv. ${minLevel}-${maxLevel === 1000 ? "200+" : maxLevel}`}`}
                             >
                                 <RotateCcw className="w-3.5 h-3.5" />
@@ -472,13 +470,20 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                     )}
                                 >
                                     <div className="relative shrink-0">
-                                        {d.imageUrl ? (
-                                            <img src={d.imageUrl} alt="" className="w-11 h-11 rounded-xl object-cover border border-border bg-background" loading="lazy" />
-                                        ) : (
-                                            <div className="w-11 h-11 rounded-xl bg-background border border-border flex items-center justify-center">
-                                                <Trophy className="w-5 h-5 text-muted-foreground/50" />
-                                            </div>
-                                        )}
+                                        <div className="w-11 h-11 rounded-xl bg-background border border-border flex items-center justify-center overflow-hidden">
+                                            {d.imageUrl ? (
+                                                <img
+                                                    src={d.imageUrl}
+                                                    alt=""
+                                                    className="w-full h-full object-cover"
+                                                    loading="lazy"
+                                                    onError={(e) => {
+                                                        e.currentTarget.style.display = "none";
+                                                    }}
+                                                />
+                                            ) : null}
+                                            <Trophy className="w-5 h-5 text-muted-foreground/30 absolute" />
+                                        </div>
                                         {d.isOcreQuest && (
                                             <img
                                                 src="/module-dofus/Dofus_Ocre.png"
@@ -524,13 +529,19 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                 </button>
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                                     <div className="relative shrink-0">
-                                        {selectedDungeon.imageUrl ? (
-                                            <img src={selectedDungeon.imageUrl} alt="" className="w-16 h-16 rounded-2xl object-cover border border-border" />
-                                        ) : (
-                                            <div className="w-16 h-16 rounded-2xl bg-background border border-border flex items-center justify-center">
-                                                <Trophy className="w-7 h-7 text-muted-foreground/50" />
-                                            </div>
-                                        )}
+                                        <div className="w-16 h-16 rounded-2xl bg-background border border-border flex items-center justify-center overflow-hidden">
+                                            {selectedDungeon.imageUrl ? (
+                                                <img
+                                                    src={selectedDungeon.imageUrl}
+                                                    alt={selectedDungeon.name}
+                                                    className="w-full h-full object-cover"
+                                                    onError={(e) => {
+                                                        e.currentTarget.style.display = "none";
+                                                    }}
+                                                />
+                                            ) : null}
+                                            <Trophy className="w-7 h-7 text-muted-foreground/30 absolute" />
+                                        </div>
                                         {selectedDungeon.isOcreQuest && (
                                             <img
                                                 src="/module-dofus/Dofus_Ocre.png"
@@ -634,34 +645,49 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                                 onClick={() => toggleOne(a.id)}
                                                 disabled={!canEdit}
                                                 className={cn(
-                                                    "flex items-center gap-3 p-3 rounded-xl border text-left transition-colors min-h-12",
+                                                    "flex items-center gap-3 p-3 rounded-xl border text-left transition-all min-h-12 group",
                                                     isDone
-                                                        ? "bg-success/5 border-success/25"
-                                                        : "bg-background/50 border-border hover:bg-elevated/70",
+                                                        ? "bg-success/10 border-success/30 shadow-2xs"
+                                                        : "bg-surface/60 border-border hover:bg-elevated hover:border-border-strong",
                                                     !canEdit && "cursor-default opacity-80"
                                                 )}
                                             >
                                                 <div
                                                     className={cn(
-                                                        "w-6 h-6 rounded-full flex items-center justify-center shrink-0 border transition-colors",
-                                                        isDone ? "bg-success border-success" : "bg-surface border-border"
+                                                        "w-5 h-5 rounded-md flex items-center justify-center shrink-0 border transition-all",
+                                                        isDone ? "bg-success border-success text-white shadow-2xs" : "bg-background border-border group-hover:border-warning/50"
                                                     )}
                                                 >
-                                                    {isDone && <CheckCircle2 className="w-4 h-4 text-foreground" />}
+                                                    {isDone && <CheckCircle2 className="w-3.5 h-3.5" />}
                                                 </div>
-                                                {a.challenge.iconUrl ? (
-                                                    <img src={a.challenge.iconUrl} alt="" className="w-8 h-8 rounded-lg bg-surface border border-border p-1 object-contain shrink-0" loading="lazy" />
-                                                ) : (
-                                                    <Trophy className="w-5 h-5 text-warning/50 shrink-0" />
-                                                )}
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-bold text-foreground truncate">
-                                                        {a.challenge.name}
-                                                    </p>
-                                                    {a.points > 0 && (
-                                                        <p className="text-xs text-warning font-semibold mt-0.5">+{a.points} pts</p>
+
+                                                <div className="w-8 h-8 rounded-lg bg-background border border-border/80 flex items-center justify-center p-1 shrink-0 overflow-hidden">
+                                                    {a.challenge.iconUrl ? (
+                                                        <img
+                                                            src={a.challenge.iconUrl}
+                                                            alt=""
+                                                            className="w-full h-full object-contain"
+                                                            loading="lazy"
+                                                            onError={(e) => {
+                                                                e.currentTarget.style.display = "none";
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <img src="/assets/dofus/icons/challenges.png" alt="" className="w-4 h-4 object-contain opacity-70" />
                                                     )}
                                                 </div>
+
+                                                <div className="flex-1 min-w-0">
+                                                    <p className={cn("text-xs font-bold truncate", isDone ? "text-success" : "text-foreground")}>
+                                                        {a.challenge.name}
+                                                    </p>
+                                                </div>
+
+                                                {a.points > 0 && (
+                                                    <span className="text-[11px] font-black text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md shrink-0 tabular-nums">
+                                                        +{a.points} pts
+                                                    </span>
+                                                )}
                                             </button>
                                         );
                                     })}

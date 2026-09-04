@@ -1,6 +1,9 @@
 "use client";
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { loginWithDiscord } from "@/server/actions/auth-actions";
+import { Sparkles, MessageSquare, Zap, ShieldCheck } from "lucide-react";
 
 const DiscordIcon = ({ className }: { className?: string }) => (
     <svg className={className} viewBox="0 0 127.14 96.36" fill="currentColor">
@@ -18,33 +21,76 @@ export function AccessRequestModal({ open, onClose }: AccessRequestModalProps) {
 
     return (
         <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
-            <DialogContent className="max-w-md bg-background border-border">
-                <DialogHeader className="text-left">
-                    <DialogTitle className="text-lg font-bold text-foreground">
-                        Demander l&apos;accès pour votre guilde
+            <DialogContent className="max-w-lg bg-zinc-950 border-white/10 text-white rounded-3xl p-6 md:p-8 backdrop-blur-2xl">
+                <DialogHeader className="text-left space-y-2">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-caption font-black uppercase tracking-wider text-emerald-400 w-fit">
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Créer l&apos;espace de votre guilde</span>
+                    </div>
+                    <DialogTitle className="text-xl md:text-2xl font-black text-white tracking-tight">
+                        Choisissez votre mode d&apos;onboarding
                     </DialogTitle>
-                    <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                        Un chef ou admin Discord ouvre un ticket sur le serveur SigilOS.
-                        Après validation, vous configurez vos modules puis invitez vos membres.
+                    <DialogDescription className="text-xs md:text-sm text-zinc-400 leading-relaxed">
+                        Installez SigilOS directement en autonomie si vous êtes administrateur de votre Discord, ou faites-vous accompagner par notre équipe.
                     </DialogDescription>
                 </DialogHeader>
 
-                <a
-                    href={discordInvite}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-3 w-full h-12 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-foreground font-semibold text-sm transition-colors"
-                >
-                    <DiscordIcon className="w-5 h-5" />
-                    Ouvrir un ticket sur Discord
-                </a>
+                <div className="space-y-4 my-2">
+                    {/* OPTION 1 : AUTONOME (RECOMMANDÉ) */}
+                    <div className="relative p-5 rounded-2xl bg-gradient-to-br from-emerald-950/40 via-zinc-900/60 to-zinc-900/80 border border-emerald-500/30 hover:border-emerald-500/50 transition-all space-y-3 group shadow-lg shadow-emerald-950/20">
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                                <Zap className="w-4 h-4 text-emerald-400" /> Option 1 — Autonome
+                            </span>
+                            <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                Immédiat &amp; Gratuit
+                            </span>
+                        </div>
+                        <p className="text-xs text-zinc-300 leading-relaxed font-medium">
+                            Vous êtes chef de guilde ou admin Discord ? Connectez-vous avec Discord et déployez votre guilde en autonomie en 30 secondes chrono.
+                        </p>
+                        <Button
+                            onClick={() => loginWithDiscord()}
+                            className="w-full h-11 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md shadow-emerald-900/30"
+                        >
+                            <DiscordIcon className="w-4 h-4 mr-2" />
+                            Déployer mon serveur en 1 clic
+                        </Button>
+                    </div>
 
-                <p className="text-label text-muted-foreground leading-relaxed">
-                    Réponse généralement sous 24-48h. Déjà membre ? Fermez cette fenêtre et{" "}
-                    <button onClick={onClose} className="text-success hover:text-success font-medium transition-colors">
-                        connectez-vous avec Discord
-                    </button>.
-                </p>
+                    {/* OPTION 2 : VIP / MANUEL AVEC TICKET */}
+                    <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 hover:border-white/10 transition-all space-y-2.5">
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-black uppercase tracking-wider text-violet-400 flex items-center gap-1.5">
+                                <MessageSquare className="w-4 h-4 text-violet-400" /> Option 2 — Accompagné
+                            </span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-white/5">
+                                Alliance &amp; Support VIP
+                            </span>
+                        </div>
+                        <p className="text-xs text-zinc-400 leading-relaxed">
+                            Besoin d&apos;aide personnalisée, configuration multi-guildes / alliance ou questions préalables ? Ouvrez un ticket d&apos;onboarding avec notre équipe.
+                        </p>
+                        <a
+                            href={discordInvite}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center gap-2 w-full h-10 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-white/10 text-white font-bold text-xs uppercase tracking-wider transition-colors"
+                        >
+                            <DiscordIcon className="w-4 h-4" />
+                            Ouvrir un ticket sur Discord
+                        </a>
+                    </div>
+                </div>
+
+                <div className="text-center pt-1 border-t border-white/5">
+                    <p className="text-caption text-zinc-500">
+                        Déjà membre d&apos;une guilde active ?{" "}
+                        <button onClick={onClose} className="text-emerald-400 hover:underline font-semibold">
+                            Fermez et connectez-vous
+                        </button>.
+                    </p>
+                </div>
             </DialogContent>
         </Dialog>
     );

@@ -299,8 +299,14 @@ export async function deleteVaultEntry(
             return { success: false, error: "Accès refusé" };
         }
 
-        const entryFull = await db.vaultEntry.findUnique({
-            where: { id: entryId },
+        const vaultGuild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!vaultGuild) return { success: false, error: "Guilde introuvable" };
+
+        const entryFull = await db.vaultEntry.findFirst({
+            where: { id: entryId, guildId: vaultGuild.id },
             select: { profileId: true, proofUrl: true, guildId: true, discordChannelId: true, discordMessageId: true },
         });
         if (!entryFull) return { success: false, error: "Entrée introuvable" };

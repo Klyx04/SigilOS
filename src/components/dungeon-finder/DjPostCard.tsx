@@ -147,7 +147,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 <ModIcon className={cn("w-6 h-6", isDonjon ? "text-info" : "text-info")} />
                             )}
                         </div>
-                        <div className="min-w-0 pr-16 flex-1">
+                        <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5">
                                 <h3 className={cn(
                                     "font-black text-foreground text-base truncate leading-tight tracking-tight",
@@ -168,12 +168,9 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 {subtitle}
                             </p>
                         </div>
-                    </div>
-
-                    {/* Status badge */}
-                    <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
+                        {/* Status badge (dans le flux : ne recouvre plus le titre) */}
                         <div className={cn(
-                            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-wider",
+                            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-wider shrink-0 self-start",
                             post.status === "OPEN"
                                 ? "text-success bg-success/10 border-success/30"
                                 : post.status === "FULL"
@@ -358,15 +355,15 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         {post.dungeon?.dofuspourlesnoobsUrl && (
                             <a href={post.dungeon.dofuspourlesnoobsUrl} target="_blank" rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-2 text-caption font-black uppercase tracking-widest text-warning hover:text-warning-foreground bg-warning/10 border border-warning/25 rounded-xl px-3 py-2 w-max transition-colors duration-200 shadow-md hover:bg-warning hover:border-warning shadow-amber-500/5 hover:shadow-amber-500/20">
+                                className="inline-flex items-center gap-2 text-caption font-bold text-muted-foreground hover:text-foreground bg-background border border-border hover:bg-elevated rounded-xl px-3 py-2 w-max transition-colors duration-200">
                                 <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" />
-                                Guide DPNL
+                                Guide DPLN
                             </a>
                         )}
                         {post.dungeon?.dofensiveUrl && (
                             <a href={post.dungeon.dofensiveUrl} target="_blank" rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-2 text-caption font-black uppercase tracking-widest text-success hover:text-success-foreground bg-success/10 border border-success/25 rounded-xl px-3 py-2 w-max transition-colors duration-200 shadow-md hover:bg-success hover:border-success shadow-emerald-500/5 hover:shadow-emerald-500/20">
+                                className="inline-flex items-center gap-2 text-caption font-bold text-muted-foreground hover:text-foreground bg-background border border-border hover:bg-elevated rounded-xl px-3 py-2 w-max transition-colors duration-200">
                                 <span className="text-xs">🛡️</span>
                                 Dofensive
                             </a>
@@ -376,19 +373,14 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 {post.questId && post.questId > 0 ? (
                                     <a href={`https://dofusdb.fr/fr/database/quest/${post.questId}`} target="_blank" rel="noopener noreferrer"
                                         onClick={(e) => e.stopPropagation()}
-                                        className={cn(
-                                            "inline-flex items-center gap-2 text-caption font-black uppercase tracking-widest rounded-xl px-3 py-2 w-max transition-colors duration-200 border shadow-md",
-                                            isDonjon
-                                                ? "text-info hover:text-info-foreground bg-info/10 border-info/25 hover:bg-info hover:border-info shadow-cyan-500/5 hover:shadow-cyan-500/20"
-                                                : "text-muted-foreground hover:text-foreground bg-background border-border hover:bg-elevated"
-                                        )}>
+                                        className="inline-flex items-center gap-2 text-caption font-bold text-muted-foreground hover:text-foreground bg-background border border-border hover:bg-elevated rounded-xl px-3 py-2 w-max transition-colors duration-200">
                                         <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="DofusDB" className="w-3.5 h-3.5 rounded-sm" />
                                         {isDonjon && post.questName ? post.questName : "Ouvrir DofusDB"}
                                     </a>
                                 ) : post.questUrl && !post.dungeon?.dofuspourlesnoobsUrl && (
                                     <a href={post.questUrl} target="_blank" rel="noopener noreferrer"
                                         onClick={(e) => e.stopPropagation()}
-                                        className="inline-flex items-center gap-2 text-caption font-black uppercase tracking-widest text-warning hover:text-warning-foreground bg-warning/10 border border-warning/25 rounded-xl px-3 py-2 w-max transition-colors duration-200 shadow-md hover:bg-warning hover:border-warning shadow-amber-500/5 hover:shadow-amber-500/20">
+                                        className="inline-flex items-center gap-2 text-caption font-bold text-muted-foreground hover:text-foreground bg-background border border-border hover:bg-elevated rounded-xl px-3 py-2 w-max transition-colors duration-200">
                                         <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" />
                                         DofusPourLesNoobs
                                     </a>

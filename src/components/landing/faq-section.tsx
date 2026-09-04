@@ -5,23 +5,23 @@ import { cn } from "@/lib/utils";
 const FAQ_ITEMS = [
     {
         q: "Comment se connecter à SigilOS ?",
-        a: "Uniquement via votre compte Discord (OAuth2). Il n'existe ni compte ni mot de passe SigilOS : vous vous connectez à Discord, puis vous accédez aux guildes où vous êtes membre.",
+        a: "Uniquement via votre compte Discord (OAuth2). Il n'existe ni compte ni mot de passe SigilOS : vous vous connectez à Discord, puis vous accédez aux guildes où vous êtes membre ou administrateur.",
     },
     {
         q: "Combien ça coûte ?",
-        a: "C'est gratuit et sans publicité pour les guildes qui en font la demande et obtiennent un accès.",
+        a: "C'est 100% gratuit et sans publicité pour toutes les guildes Dofus.",
     },
     {
-        q: "Comment créer l'espace de ma guilde ?",
-        a: "Le bouton « Créer l'espace de ma guilde » ouvre une demande d'accès. La création est réservée au meneur de guilde ou à un officier habilité.",
+        q: "Comment installer SigilOS pour ma guilde ?",
+        a: "Connectez-vous avec Discord. Si vous êtes administrateur de votre serveur Discord de guilde, l'installation se fait en autonomie en 1 clic. Un accompagnement VIP par ticket Discord reste disponible si vous préférez être guidé.",
     },
     {
         q: "Demandez-vous mon mot de passe Ankama ou mon e-mail ?",
-        a: "Non, jamais. Vous connectez uniquement Discord. SigilOS ne récupère pas de mot de passe et ne collecte aucune adresse e-mail.",
+        a: "Non, jamais. Vous connectez uniquement Discord. SigilOS ne demande aucun mot de passe de jeu et ne collecte aucune adresse e-mail.",
     },
     {
         q: "Comment intégrer les archimonstres (Ocre) ?",
-        a: "Ajoutez votre pseudo Dofus et votre clé API Metamob en lecture seule. SigilOS synchronise vos captures pour que la guilde s'entraide sur la quête de l'Ocre.",
+        a: "Ajoutez votre pseudo Dofus et votre clé API Metamob en lecture seule. SigilOS synchronise vos captures pour que toute la guilde s'entraide sur la quête du Dofus Ocre.",
     },
 ];
 

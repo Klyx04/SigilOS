@@ -91,6 +91,8 @@ import { headers } from "next/headers";
 import { GodBypassCookie } from "@/components/god-bypass-cookie";
 import { PwaRegistration, PwaInstallBanner } from "@/components/pwa/PwaRegistration";
 
+import { BossOverlayHost } from "@/components/boss-overlay/BossOverlayHost";
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -119,6 +121,7 @@ export default async function RootLayout({
               {donationsEnabled && <SupportOrb />}
               <PwaInstallBanner />
               <AppToaster />
+              <BossOverlayHost />
             </TooltipProvider>
           </AuthProvider>
         </ThemeProvider>

@@ -55,9 +55,7 @@ const DOFUS_ZAAPS = [
     { id: 37, name: "Laboratoires abandonnés", x: 27, y: -14, worldId: 1, subArea: "Laboratoires abandonnés" },
     { id: 38, name: "Île de Moon", x: 35, y: 12, worldId: 1, subArea: "Plage de Moon" },
     { id: 39, name: "Futaie enneigée", x: 39, y: -82, worldId: 1, subArea: "Futaie enneigée" },
-    { id: 40, name: "Village des Brigandins", x: -15, y: -23, worldId: 1, subArea: "Village des Brigandins" },
     { id: 41, name: "Village des Dopeuls", x: -26, y: -13, worldId: 1, subArea: "Village des Dopeuls" },
-    { id: 42, name: "Village des Bworks", x: -5, y: 10, worldId: 1, subArea: "Village des Bworks" },
     { id: 43, name: "Nimotopia", x: -64, y: 27, worldId: 1, subArea: "Nimotopia" },
     { id: 44, name: "Crokuzko", x: -83, y: -15, worldId: 1, subArea: "Archipel des Écailles" },
 

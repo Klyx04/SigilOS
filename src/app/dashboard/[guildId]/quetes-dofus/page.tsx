@@ -104,7 +104,7 @@ export default async function QuetesDofusPage({ params, searchParams }: Props) {
                     <UnifiedModuleHeader
                         title="Quêtes Dofus"
                         description="Suivez votre progression vers chaque Dofus et comparez-vous à votre guilde"
-                        icon={Gem}
+                        imageSrc="/assets/dofus/game-icons/dofus.png"
                         backHref={`/dashboard/${guildId}`}
                         actions={<ModuleTourReplayButton phase="quetesDofus" />}
                     />

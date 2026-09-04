@@ -5,7 +5,7 @@ import { getUserContext } from "./user-actions";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
-import { canonicalClassId } from "@/lib/dofusbook-utils";
+import { canonicalClassId, getClassName } from "@/lib/dofusbook-utils";
 import { logger } from "@/lib/logger";
 import { getGameDisplayName } from "@/lib/display-name";
 
@@ -142,6 +142,7 @@ export async function getStuffGalleryPage(
                     pseudoDofus: true,
                     discordNickname: true,
                     dofusBookLinks: true,
+                    classe: true,
                     user: { select: { name: true, image: true } }
                 },
             }),
@@ -188,12 +189,19 @@ export async function getStuffGalleryPage(
                     const numericId = numericMatch ? numericMatch[1] : parsedId;
                     const thumbnail = link.previewData?.thumbnail || (numericId ? `https://static.dofusbook.net/equipement/render/${numericId}.png` : null);
 
+                    const resolvedClassId = canonicalClassId(
+                        link.classId ??
+                        link.previewData?.classId ??
+                        link.class ??
+                        profile.classe
+                    ) || undefined;
+
                     allBuilds.push({
                         id: buildId,
                         name: link.name,
                         url: link.url,
                         tags: link.tags || [],
-                        classId: link.classId,
+                        classId: resolvedClassId ?? link.classId,
                         source: buildSource,
                         previewData: {
                             ...link.previewData,
@@ -600,25 +608,28 @@ export async function shareGalleryItemOnDiscord(
             // Find build globally in the guild if authorProfileId is known
             let build: any = null;
             let targetProfileId = authorProfileId;
+            let authorClasse: string | null = null;
 
             if (authorProfileId) {
                 const profile = await db.userProfile.findUnique({
                     where: { id: authorProfileId },
-                    select: { dofusBookLinks: true, pseudoDofus: true, discordNickname: true }
+                    select: { dofusBookLinks: true, pseudoDofus: true, discordNickname: true, classe: true }
                 });
                 build = (profile?.dofusBookLinks as any[])?.find(b => b.id === itemId);
                 authorName = profile?.pseudoDofus || profile?.discordNickname || authorName;
+                authorClasse = profile?.classe || null;
             } else {
                 // Fallback search in all guild profiles (Active)
                 const profiles = await db.userProfile.findMany({
                     where: { guildId: guildConfig?.id, status: 'ACTIVE' },
-                    select: { id: true, dofusBookLinks: true, pseudoDofus: true, discordNickname: true }
+                    select: { id: true, dofusBookLinks: true, pseudoDofus: true, discordNickname: true, classe: true }
                 });
                 for (const p of profiles) {
                     const b = (p.dofusBookLinks as any[])?.find(x => x.id === itemId);
                     if (b) {
                         build = b;
                         authorName = p.pseudoDofus || p.discordNickname || authorName;
+                        authorClasse = p.classe || null;
                         targetProfileId = p.id;
                         break;
                     }
@@ -656,12 +667,18 @@ export async function shareGalleryItemOnDiscord(
 
             itemName = build.name;
             const pd = build.previewData;
-            const className = pd?.className || (build.classId ? String(build.classId) : "");
+            const resolvedClassNum = canonicalClassId(
+                pd?.classId ??
+                build.classId ??
+                build.class ??
+                authorClasse
+            ) || undefined;
+            const className = pd?.className || (resolvedClassNum ? getClassName(resolvedClassNum) : "");
             const levelStr = pd?.level ? ` · Niv. ${pd.level}` : "";
             
             embedTitle = `🛡️ Build : ${build.name}${className ? ` (${className}${levelStr})` : ""}`;
             embedUrl = build.url;
-            const classNum = pd?.classId || build.classId;
+            const classNum = resolvedClassNum;
             embedThumbnail = classNum 
                 ? `${appUrl}/assets/dofus/classes/${classNum === 19 ? 20 : classNum}.png`
                 : `${appUrl}/assets/ui/logo-v2.png`;

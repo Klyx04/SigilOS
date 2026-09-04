@@ -6,6 +6,7 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { logger } from "@/lib/logger";
 import { getOptimizedGuideDetail, getGuildOptimizedGuideProgress, listSubGuides } from "@/server/actions/optimized-guide-actions";
 import { getMemberProfile } from "@/server/actions/profile-actions";
+import { resolveRushUIConfig } from "@/lib/rush-ui-config";
 import { CharacterQuestSelector } from "@/components/dofus-quests/CharacterQuestSelector";
 import OptimizedGuideClient from "./OptimizedGuideClient";
 import RushTimelineClient from "./RushTimelineClient";
@@ -80,6 +81,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
         altPseudos?: any[]; 
         dofusClass?: string | null;
         metamobPseudo?: string | null;
+        metiers?: any[];
         pseudoDofus?: string | null;
     } = {};
     try {
@@ -95,6 +97,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                 altPseudos: Array.isArray(p.altPseudos) ? p.altPseudos : [],
                 dofusClass: p.classe,
                 metamobPseudo: p.metamobPseudo,
+                metiers: p.metiers,
                 pseudoDofus: p.pseudoDofus,
             };
         }
@@ -163,6 +166,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                             guildId={guildId}
                             selectedCharacter={character}
                             mules={mules}
+                            rushUIConfig={resolveRushUIConfig((guide as any).rushUIConfig)}
                             currentUserProfile={{
                                 alignment: userProfile.alignment,
                                 alignmentOrder: userProfile.alignmentOrder,
@@ -170,6 +174,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                                 altPseudos: mules,
                                 dofusClass: userProfile.dofusClass,
                                 metamobPseudo: userProfile.metamobPseudo,
+                                metiers: userProfile.metiers,
                                 pseudoDofus: userProfile.pseudoDofus,
                             }}
                             ocreStats={ocreStats}

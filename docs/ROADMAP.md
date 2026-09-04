@@ -41,6 +41,16 @@
   - **Reste dashboard** (voir `activeContext.md` NEXT) : modale Ressources globale + bascule Restantes/Toutes · contexte d'étape dans « Signaler » · puce personnage Main/Mule · suppression `RushOverlayQuestPanel.tsx` orphelin · ressources `kind:"unresolved"` (données).
   - Vérifs : **tsc 0** · **eslint 0 erreur** (fichiers touchés).
 
+- ✅ **Session 04/09/2026 — Rush Sylvestre : Pense-bête + modale de lancement + config GOD** (branche `feat/chantier-2026-09-03-rush-ui-pense-bete` → **PR #588**) :
+  - **Retrait bouton + modale « Ressources » du dashboard** (conservés dans l'overlay).
+  - **Pense-bête** : bouton + modale **lecture seule** (préparatifs du rush, une seule croix de fermeture).
+  - **Modale de lancement (4 étapes)** : personnage → préparation (Metamob détecté + bouton « Lier », reset alignement optionnel, métiers requis déclarés ✓ / non déclarés → « Déclarer ») → membres → prêt. Reset (« Réinitialiser ce personnage ») ré-ouvre la modale + **reset d'un autre perso (main/mules)**.
+  - **Config UI/UX GOD** : `OptimizedGuide.rushUIConfig` (JsonB) + migration `20261013000000_add_rush_ui_config` + action `updateRushUIConfig` (audit `GOD_RUSH_UI_UPDATE`). Onglet GOD « **Lancement** » : aperçu + éditeur pense-bête (CRUD sections/items, métiers **alternative**, **réordonnancement ↑/↓**) + toggles modale. Fallback statique si vide.
+  - **UI polish** : badges activité « pack +N » (dashboard via `classifyTags`), **célébration changement de chapitre** (jade), **checkboxes 3 états** (à faire / en cours doré / terminée jade).
+  - **Bloc alignement** → lien vers `/dashboard/[guildId]/profile`. **Modale Ocre +/−** re-render + patch Metamob. **Fix** crash `AlignmentSection` (profil).
+  - **Prisma** : migrations locales bloquantes résolues (`20261009`-`20261013`) → `Database schema is up to date!`.
+  - Vérifs : **tsc 0** · **eslint 0 erreur** · **vitest 484/484** · **build OK**.
+
 
 - ✅ **Session 01/09/2026 — Recrutement & Cycle de Vie (#RH), Refonte Documentation & Unification Boutons d'Aide** :
   - **Module Recrutement & Cycle de Vie (`/admin/recruitment`)** : Gestion des périodes d'essai J-X, annuaire des mules et personnages secondaires, historique des départs & exclusions, relances et alertes Discord automatiques. Modèle `MemberLifecycle`, actions serveur sécurisées et interface pro `MemberLifecycleManager.tsx`.

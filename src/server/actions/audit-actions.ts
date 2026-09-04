@@ -60,6 +60,7 @@ export type AuditAction =
     | "GOD_MAINTENANCE_MODE"
     | "GOD_GUIDE_UPDATE"          // Écriture sur un guide optimisé (sous-god) — P2 traçage
     | "GOD_RUSH_UPDATE"           // Écriture sur le rush Sylvestre (sous-god) — P2 traçage
+    | "GOD_RUSH_UI_UPDATE"        // Écriture de la config UI/UX du rush (pense-bête + modale lancement)
     | "GOD_QUEST_DATA_UPDATE"     // Écriture sur les quêtes Dofus (sous-god) — P2 traçage
     | "GOD_GAME_DATA_UPDATE"      // Écriture sur les données de jeu (sous-god) — P2 traçage
     | "GOD_TICKET_ACTION"         // Action support ticket (sous-god) — P2 traçage

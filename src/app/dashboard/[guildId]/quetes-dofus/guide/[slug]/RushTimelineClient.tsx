@@ -330,7 +330,9 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               <span className={`flex items-center justify-center w-4 h-4 rounded-full border-2 transition-all ${
                 isSeqCompleted
                   ? "bg-[#4fd1a5] border-[#4fd1a5] text-black"
-                  : "border-[#455060] hover:border-zinc-300 bg-transparent"
+                  : isActive
+                    ? "border-[#e6b96b] bg-[#e6b96b]/15"
+                    : "border-[#455060] hover:border-zinc-300 bg-transparent"
               }`}>
                 {isSeqCompleted && <Check className="w-3 h-3 text-black stroke-[3]" />}
               </span>

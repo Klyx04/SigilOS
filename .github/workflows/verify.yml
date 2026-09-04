@@ -85,6 +85,9 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
+      - name: Update npm (bulk advisory endpoint)
+        run: npm install -g npm@11 --force
+
       - name: Next.js Cache
         uses: actions/cache@v6.1.0
         with:
@@ -120,7 +123,16 @@ jobs:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/unused"
 
       - name: 🛡️ Security Audit
-        run: npm audit --audit-level=high
+        run: |
+          # Endpoint bulk deprecated parfois en 503 transitoire → retry avec backoff.
+          # (Un vrai finding high/critical reste un échec, on n'ignore pas la sécurité.)
+          _attempt=0
+          until npm audit --audit-level=high; do
+            _attempt=$((_attempt+1))
+            echo "::warning::npm audit failed (attempt $_attempt/5) — retrying in 15s"
+            [ "$_attempt" -ge 5 ] && exit 1
+            sleep 15
+          done
 
       - name: 🔬 SAST Scan (Semgrep)
         uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1
@@ -192,6 +204,9 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
+      - name: Update npm (bulk advisory endpoint)
+        run: npm install -g npm@11 --force
+
       - name: Install Dependencies
         run: npm ci
 
@@ -209,7 +224,15 @@ jobs:
         run: bash scripts/check-ioc-shai-hulud.sh
 
       - name: 🛡️ Full Security Audit
-        run: npm audit --audit-level=high
+        run: |
+          # Endpoint bulk deprecated parfois en 503 transitoire → retry avec backoff.
+          _attempt=0
+          until npm audit --audit-level=high; do
+            _attempt=$((_attempt+1))
+            echo "::warning::npm audit failed (attempt $_attempt/5) — retrying in 15s"
+            [ "$_attempt" -ge 5 ] && exit 1
+            sleep 15
+          done
 
       - name: � Deep SAST Scan (Semgrep)
         uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1

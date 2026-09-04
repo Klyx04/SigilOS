@@ -945,7 +945,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canViewStats = permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal || noRolesConfigured;
     const canViewDocs = permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal;
     const canViewAdminDocs = permissionSet.has(PERMISSIONS.STAFF_CONTENT) || isAdminFinal;
-    const canViewCommands = permissionSet.has(PERMISSIONS.COMMANDS_VIEW) || permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal || noRolesConfigured;
+    const canViewCommands = permissionSet.has(PERMISSIONS.COMMANDS_VIEW) || isAdminFinal;
     const canViewRoster = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal;
     // Module Disponibilités : accès communauté OU permission dédiée `availability:view`.
     // Le module toggle (`mod.availability`) reste le verrou principal (applyModule).

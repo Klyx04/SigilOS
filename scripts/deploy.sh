@@ -100,7 +100,7 @@ run_conditional_seed() {
 
     # Documentation synchronization
     info "📚 Synchronisation de la documentation ${TARGET^^}..."
-    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" npm run seed:docs || warn "Seed docs ignoré ou non-critique"
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" npm run seed:docs:prod || warn "Seed docs ignoré ou non-critique"
     ok "Documentation à jour."
 }
 

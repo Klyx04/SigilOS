@@ -2,9 +2,12 @@
 
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Users, MapPin, Clock, ChevronRight, Swords, Infinity, Flame, Target, Star, Coffee, RefreshCw } from "lucide-react";
+import { 
+    Calendar, Users, MapPin, Clock, ChevronRight, Swords, 
+    Infinity as InfinityIcon, Flame, Target, Star, Coffee, RefreshCw, Plus 
+} from "lucide-react";
 import Link from "next/link";
-import { format, formatDistanceToNow, isToday, isTomorrow, isThisWeek, startOfWeek, addDays, eachDayOfInterval, isSameDay } from "date-fns";
+import { format, isToday, isTomorrow, isThisWeek, startOfWeek, addDays, eachDayOfInterval, isSameDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
@@ -20,26 +23,27 @@ interface UpcomingEvent {
 }
 
 const EVENT_CONFIG: Record<string, { label: string; icon: any; color: string; bg: string; border: string }> = {
-    RAID_OFFICIAL:    { label: "Raid Officiel",     icon: Swords,    color: "text-danger",     bg: "bg-danger/10",     border: "border-danger/20" },
-    EVENT_GUILD:      { label: "Événement",         icon: Star,      color: "text-warning",  bg: "bg-warning/10",  border: "border-warning/20" },
-    SESSION_MISSIONS: { label: "Missions",          icon: Target,    color: "text-info",    bg: "bg-info/10",    border: "border-info/20" },
-    SORTIE_FARM:      { label: "Sortie Farm",       icon: Flame,     color: "text-warning",  bg: "bg-warning/10",  border: "border-warning/20" },
-    SONGES_RUN:       { label: "Songes",            icon: Infinity,  color: "text-info",  bg: "bg-info/10",  border: "border-info/20" },
-    DUNGEON_FARM:     { label: "Donjons",           icon: Flame,     color: "text-warning",   bg: "bg-warning/10",   border: "border-warning/20" },
-    SOCIAL:           { label: "Social",            icon: Coffee,    color: "text-pink-400",    bg: "bg-pink-500/10",    border: "border-pink-500/20" },
-    GUILD_MISSION:    { label: "Mission Guilde",    icon: Target,    color: "text-teal-400",    bg: "bg-teal-500/10",    border: "border-teal-500/20" },
-    ALMANAX_BONUS:    { label: "Almanax",           icon: Star,      color: "text-success", bg: "bg-success/10", border: "border-success/20" },
-    OFFICIAL_RESET:   { label: "Reset Officiel",    icon: RefreshCw, color: "text-muted-foreground",    bg: "bg-elevated/50",    border: "border-border/30" },
-    OTHERS:           { label: "Autre",             icon: Calendar,  color: "text-muted-foreground",    bg: "bg-elevated/50",    border: "border-border/30" },
+    RAID_OFFICIAL:    { label: "Raid",          icon: Swords,       color: "text-rose-400",     bg: "bg-rose-500/10",     border: "border-rose-500/20" },
+    EVENT_GUILD:      { label: "Événement",     icon: Star,         color: "text-amber-400",    bg: "bg-amber-500/10",    border: "border-amber-500/20" },
+    SESSION_MISSIONS: { label: "Missions",      icon: Target,       color: "text-sky-400",      bg: "bg-sky-500/10",      border: "border-sky-500/20" },
+    SORTIE_FARM:      { label: "Farm",          icon: Flame,        color: "text-amber-400",    bg: "bg-amber-500/10",    border: "border-amber-500/20" },
+    SONGES_RUN:       { label: "Songes",        icon: InfinityIcon, color: "text-emerald-400",  bg: "bg-emerald-500/10",  border: "border-emerald-500/20" },
+    DUNGEON_FARM:     { label: "Donjon",        icon: Flame,        color: "text-amber-400",    bg: "bg-amber-500/10",    border: "border-amber-500/20" },
+    SOCIAL:           { label: "Social",        icon: Coffee,       color: "text-pink-400",     bg: "bg-pink-500/10",     border: "border-pink-500/20" },
+    GUILD_MISSION:    { label: "Mission Guilde",icon: Target,       color: "text-teal-400",     bg: "bg-teal-500/10",     border: "border-teal-500/20" },
+    ALMANAX_BONUS:    { label: "Almanax",       icon: Star,         color: "text-emerald-400",  bg: "bg-emerald-500/10",  border: "border-emerald-500/20" },
+    OFFICIAL_RESET:   { label: "Reset",         icon: RefreshCw,    color: "text-slate-400",    bg: "bg-slate-500/10",    border: "border-slate-500/20" },
+    OTHERS:           { label: "Autre",         icon: Calendar,     color: "text-slate-400",    bg: "bg-slate-500/10",    border: "border-slate-500/20" },
 };
 
-function getWhenLabel(date: Date): { label: string; urgent: boolean } {
+function formatEventDateBadge(date: Date): { text: string; isHot: boolean } {
     const d = new Date(date);
-    if (isToday(d))     return { label: "Aujourd'hui", urgent: true };
-    if (isTomorrow(d))  return { label: "Demain",      urgent: false };
-    if (isThisWeek(d, { locale: fr }))
-        return { label: format(d, "EEEE", { locale: fr }), urgent: false };
-    return { label: format(d, "dd MMM", { locale: fr }), urgent: false };
+    if (isToday(d)) return { text: "Aujourd'hui", isHot: true };
+    if (isTomorrow(d)) return { text: "Demain", isHot: false };
+    if (isThisWeek(d, { locale: fr })) {
+        return { text: format(d, "EEEE", { locale: fr }), isHot: false };
+    }
+    return { text: format(d, "d MMM", { locale: fr }), isHot: false };
 }
 
 export function UpcomingEventsWidget({
@@ -49,8 +53,13 @@ export function UpcomingEventsWidget({
     guildId: string;
     events: UpcomingEvent[];
 }) {
-    // #100 — Semaine en cours : les 7 jours (LUN→DIM) affichés en tête du widget,
-    // avec un point sur les jours où la guilde a des événements à venir.
+    const nowTs = Date.now();
+    const activeEvents = useMemo(() => {
+        return events
+            .filter((e) => new Date(e.endDate).getTime() >= nowTs)
+            .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+    }, [events, nowTs]);
+
     const weekDays = useMemo(() => {
         const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
         return eachDayOfInterval({ start: weekStart, end: addDays(weekStart, 6) });
@@ -67,200 +76,182 @@ export function UpcomingEventsWidget({
         return map;
     }, [events]);
 
-    // #bugfix — la LISTE affiche les événements EN COURS ou à venir (un événement
-    // déjà terminé dans la semaine ne doit pas occuper une place). Le bandeau de
-    // jours, lui, garde toutes les pastilles de la semaine (passées incluses).
-    const nowTs = Date.now();
-    const activeEvents = events.filter((e) => new Date(e.endDate).getTime() >= nowTs);
-
     return (
-        <Card className="glass-premium border-border flex flex-col h-full overflow-hidden">
-            <CardHeader className="pb-4 pt-6 px-6">
+        <Card className="border-border bg-card/60 backdrop-blur-md flex flex-col overflow-hidden shadow-sm">
+            {/* Header compact & professionnel */}
+            <CardHeader className="py-4 px-5 border-b border-border/40 bg-surface/30">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="text-caption font-black uppercase tracking-widest text-guild flex items-center gap-2">
-                        <Calendar className="w-3.5 h-3.5" />
-                        Agenda de Guilde
-                        {activeEvents.length > 0 && (
-                            <span className="ml-1 px-1.5 py-0.5 rounded-md bg-guild/10 border border-guild/20 text-guild text-caption font-black tabular-nums">
-                                {activeEvents.length}
-                            </span>
-                        )}
-                    </CardTitle>
-                    <div className="flex items-center gap-3">
-                        {/* #2 — Lien vers le planning perso du profil */}
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-guild/10 border border-guild/20 flex items-center justify-center text-guild shrink-0">
+                            <Calendar className="w-4 h-4" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
+                                Agenda de Guilde
+                                {activeEvents.length > 0 && (
+                                    <span className="px-1.5 py-0.2 rounded-full bg-guild/15 border border-guild/30 text-guild text-[11px] font-bold tabular-nums">
+                                        {activeEvents.length}
+                                    </span>
+                                )}
+                            </CardTitle>
+                            <p className="text-[11px] text-muted-foreground">
+                                Sorties, raids et événements programmés
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
                         <Link
                             href={`/dashboard/${guildId}/profile?tab=planning`}
-                            className="text-caption font-semibold text-muted-foreground hover:text-guild transition-colors"
-                            title="Mon planning perso"
+                            className="hidden sm:inline-flex text-xs font-medium text-muted-foreground hover:text-foreground px-2.5 py-1 rounded-md transition-colors"
                         >
                             Mon planning
                         </Link>
                         <Link
                             href={`/dashboard/${guildId}/calendar`}
-                            className="text-caption font-black text-muted-foreground hover:text-guild uppercase tracking-widest border border-border px-2 py-1 rounded-md transition-colors hover:border-guild/20"
+                            className="text-xs font-semibold text-foreground hover:text-guild bg-surface/80 hover:bg-surface border border-border px-3 py-1 rounded-lg transition-colors flex items-center gap-1.5"
                         >
-                            Calendrier →
+                            <span>Calendrier</span>
+                            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
                         </Link>
                     </div>
                 </div>
             </CardHeader>
 
-            <CardContent className="px-4 pb-4 flex-1 flex flex-col gap-2">
-                {/* #100 — Semaine en cours (bandeau LUN→DIM, jour du jour surligné) */}
-                <div className="grid grid-cols-7 gap-1.5">
-                    {weekDays.map((day) => {
-                        const isCurrentDay = isSameDay(day, new Date());
-                        const dayKey = format(day, "yyyy-MM-dd");
-                        const dayCount = eventsByDay.get(dayKey) || 0;
-                        return (
-                            <Link
-                                key={dayKey}
-                                href={`/dashboard/${guildId}/calendar`}
-                                title={dayCount > 0 ? `${dayCount} événement${dayCount > 1 ? "s" : ""} ce jour` : "Voir le calendrier"}
-                                className={cn(
-                                    "flex flex-col items-center gap-0.5 rounded-lg py-2 border transition-colors",
-                                    isCurrentDay
-                                        ? "bg-guild/15 border-guild/40 text-guild"
-                                        : "bg-background/40 border-border text-muted-foreground hover:bg-surface/60 hover:text-foreground hover:border-border"
-                                )}
-                            >
-                                <span className="text-label font-semibold uppercase">
-                                    {format(day, "EEE", { locale: fr }).slice(0, 3)}
-                                </span>
-                                <span className="text-sm font-bold tabular-nums leading-none">
-                                    {format(day, "d")}
-                                </span>
-                                <span className={cn("h-1 w-1 rounded-full", dayCount > 0 ? "bg-success" : "bg-transparent")} />
-                            </Link>
-                        );
-                    })}
+            <CardContent className="p-4 sm:p-5 flex flex-col gap-4">
+                {/* Sélecteur de semaine épuré (taille contenue, pas étalé sur 1600px) */}
+                <div className="flex items-center justify-between bg-surface/40 border border-border/40 rounded-xl p-1.5 max-w-2xl">
+                    <div className="grid grid-cols-7 gap-1 w-full">
+                        {weekDays.map((day) => {
+                            const isCurrentDay = isSameDay(day, new Date());
+                            const dayKey = format(day, "yyyy-MM-dd");
+                            const dayCount = eventsByDay.get(dayKey) || 0;
+                            return (
+                                <Link
+                                    key={dayKey}
+                                    href={`/dashboard/${guildId}/calendar`}
+                                    title={dayCount > 0 ? `${dayCount} sortie(s) ce jour` : format(day, "EEEE d MMMM", { locale: fr })}
+                                    className={cn(
+                                        "flex flex-col items-center py-1.5 px-1 rounded-lg transition-all text-center",
+                                        isCurrentDay
+                                            ? "bg-guild/15 text-guild font-bold border border-guild/30 shadow-xs"
+                                            : "text-muted-foreground hover:text-foreground hover:bg-surface/80 border border-transparent"
+                                    )}
+                                >
+                                    <span className="text-[10px] font-medium uppercase tracking-tight">
+                                        {format(day, "EEE", { locale: fr }).slice(0, 3)}
+                                    </span>
+                                    <span className="text-xs font-bold tabular-nums">
+                                        {format(day, "d")}
+                                    </span>
+                                    <span className={cn(
+                                        "h-1 w-1 rounded-full mt-0.5 transition-opacity",
+                                        dayCount > 0 ? "bg-emerald-400" : "opacity-0"
+                                    )} />
+                                </Link>
+                            );
+                        })}
+                    </div>
                 </div>
 
+                {/* Liste des événements ou état vide propre */}
                 {activeEvents.length > 0 ? (
-                    <>
-                        {activeEvents.map((event) => {
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {activeEvents.slice(0, 6).map((event) => {
                             const cfg = EVENT_CONFIG[event.type] ?? EVENT_CONFIG.OTHERS;
                             const Icon = cfg.icon;
                             const startTs = new Date(event.startDate).getTime();
                             const endTs = new Date(event.endDate).getTime();
                             const isOngoing = startTs <= nowTs && endTs >= nowTs;
-                            const isPast = endTs < nowTs;
-                            const when = getWhenLabel(new Date(event.startDate));
+                            const dateBadge = formatEventDateBadge(new Date(event.startDate));
                             const participants = event._count?.participants ?? 0;
                             const maxParts = event.maxParticipants;
-                            const fillPct = maxParts ? Math.min(100, (participants / maxParts) * 100) : null;
                             const isFull = maxParts ? participants >= maxParts : false;
 
                             return (
                                 <Link
                                     key={event.id}
                                     href={`/dashboard/${guildId}/calendar?event=${event.id}`}
-                                    className={cn(
-                                        "group flex items-start gap-3 p-3 rounded-2xl bg-background/40 border border-border transition-colors duration-200",
-                                        isPast
-                                            ? "opacity-55 hover:opacity-80"
-                                            : "hover:bg-surface/60 hover:border-success/20"
-                                    )}
+                                    className="group relative flex flex-col justify-between p-3.5 rounded-xl bg-surface/50 border border-border/60 hover:bg-surface hover:border-guild/30 transition-all duration-150 shadow-xs"
                                 >
-                                    {/* Type Icon */}
-                                    <div className={cn("shrink-0 h-10 w-10 rounded-xl flex items-center justify-center border", cfg.bg, cfg.border)}>
-                                        <Icon className={cn("w-4.5 h-4.5", cfg.color)} style={{ width: "1.125rem", height: "1.125rem" }} />
+                                    <div>
+                                        {/* Badges de statut */}
+                                        <div className="flex items-center justify-between gap-2 mb-2">
+                                            <span className={cn(
+                                                "text-[10px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1",
+                                                cfg.bg, cfg.border, cfg.color
+                                            )}>
+                                                <Icon className="w-3 h-3" />
+                                                <span>{cfg.label}</span>
+                                            </span>
+
+                                            <span className={cn(
+                                                "text-[10px] font-medium px-2 py-0.5 rounded-md",
+                                                isOngoing
+                                                    ? "bg-emerald-500/20 text-emerald-300 font-bold animate-pulse"
+                                                    : dateBadge.isHot
+                                                        ? "bg-amber-500/15 text-amber-300 font-semibold"
+                                                        : "bg-muted/60 text-muted-foreground"
+                                            )}>
+                                                {isOngoing ? "En direct" : dateBadge.text}
+                                            </span>
+                                        </div>
+
+                                        {/* Titre de l'événement */}
+                                        <h4 className="text-xs font-semibold text-foreground group-hover:text-guild transition-colors line-clamp-1 mb-2.5">
+                                            {event.title}
+                                        </h4>
                                     </div>
 
-                                    {/* Content */}
-                                    <div className="flex-1 min-w-0 space-y-1">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <span
-                                                suppressHydrationWarning
-                                                className={cn(
-                                                "text-caption font-black uppercase px-1.5 py-0.5 rounded shrink-0",
-                                                isPast
-                                                    ? "bg-elevated/60 text-muted-foreground"
-                                                    : when.urgent || isOngoing
-                                                        ? "bg-success text-success-foreground"
-                                                        : "bg-elevated text-muted-foreground"
-                                            )}>
-                                                {isPast ? "Terminé" : isOngoing ? "En cours" : when.label}
+                                    {/* Méta : Heure, Lieu, Inscrits */}
+                                    <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[11px] text-muted-foreground">
+                                        <div className="flex items-center gap-3">
+                                            <span className="flex items-center gap-1">
+                                                <Clock className="w-3 h-3 text-muted-foreground/70" />
+                                                <span className="font-medium">{format(new Date(event.startDate), "HH:mm")}</span>
                                             </span>
-                                            <span className={cn("text-caption font-black uppercase px-1.5 py-0.5 rounded border shrink-0", cfg.bg, cfg.border, cfg.color)}>
-                                                {cfg.label}
-                                            </span>
-                                            {isFull && (
-                                                <span className="text-caption font-black uppercase px-1.5 py-0.5 rounded bg-danger/40 border border-danger/20 text-danger shrink-0">
-                                                    Complet
+                                            {event.location && (
+                                                <span className="flex items-center gap-1 truncate max-w-[90px]" title={event.location}>
+                                                    <MapPin className="w-3 h-3 text-muted-foreground/70 shrink-0" />
+                                                    <span className="truncate">{event.location}</span>
                                                 </span>
                                             )}
                                         </div>
 
-                                        <p className="text-caption font-black text-foreground/90 group-hover:text-guild transition-colors uppercase italic truncate">
-                                            {event.title}
-                                        </p>
-
-                                        <div className="flex items-center gap-3 text-caption text-muted-foreground font-bold uppercase tracking-tighter">
-                                            <span className="flex items-center gap-1">
-                                                <Clock className="w-3 h-3" />
-                                                <span suppressHydrationWarning>{format(new Date(event.startDate), "HH:mm")}</span>
-                                            </span>
-                                            {event.location && (
-                                                <span className="flex items-center gap-1 truncate max-w-[100px]">
-                                                    <MapPin className="w-3 h-3 shrink-0" />
-                                                    {event.location}
-                                                </span>
-                                            )}
-                                            <span className="flex items-center gap-1">
-                                                <Users className="w-3 h-3" />
+                                        <div className="flex items-center gap-1 font-semibold">
+                                            <Users className="w-3 h-3 text-muted-foreground/70" />
+                                            <span className={isFull ? "text-rose-400" : "text-foreground"}>
                                                 {participants}{maxParts ? `/${maxParts}` : ""}
                                             </span>
                                         </div>
-
-                                        {/* Participation bar */}
-                                        {fillPct !== null && (
-                                            <div className="h-1 bg-surface rounded-full overflow-hidden w-full mt-1">
-                                                <div
-                                                    className={cn(
-                                                        "h-full rounded-full transition-all duration-300",
-                                                        fillPct >= 100
-                                                            ? "bg-danger"
-                                                            : fillPct >= 75
-                                                                ? "bg-warning"
-                                                                : "bg-success"
-                                                    )}
-                                                    style={{ width: `${fillPct}%` }}
-                                                />
-                                            </div>
-                                        )}
                                     </div>
-
-                                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-guild transition-colors shrink-0 mt-2" />
                                 </Link>
                             );
                         })}
+                    </div>
+                ) : (
+                    /* État vide sobre, feutré, sans bordures en pointillés criardes */
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-surface/30 border border-border/40 text-muted-foreground">
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-lg bg-surface flex items-center justify-center text-muted-foreground/60 shrink-0">
+                                <Calendar className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <p className="text-xs font-semibold text-foreground/80">
+                                    Aucune sortie programmée cette semaine
+                                </p>
+                                <p className="text-[11px] text-muted-foreground">
+                                    Planifiez un donjon, un raid ou une session d'XP avec votre guilde.
+                                </p>
+                            </div>
+                        </div>
 
                         <Link
                             href={`/dashboard/${guildId}/calendar`}
-                            className="flex items-center justify-center gap-2 text-caption font-black text-muted-foreground hover:text-guild uppercase tracking-widest pt-2 transition-colors border-t border-border mt-auto"
+                            className="text-xs font-medium text-guild hover:underline flex items-center gap-1 shrink-0 ml-4"
                         >
-                            Voir tout le calendrier
-                        </Link>
-                    </>
-                ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center py-10 text-center space-y-4 border border-dashed border-border rounded-2xl">
-                        <div className="w-12 h-12 rounded-full bg-surface flex items-center justify-center">
-                            <Calendar className="w-6 h-6 text-muted-foreground" />
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-caption text-muted-foreground font-black uppercase tracking-widest">
-                                Aucun événement à venir
-                            </p>
-                            <p className="text-caption text-muted-foreground font-medium">
-                                Planifiez le prochain raid ou événement de guilde
-                            </p>
-                        </div>
-                        <Link
-                            href={`/dashboard/${guildId}/calendar`}
-                            className="text-caption font-black text-guild/70 hover:text-guild uppercase tracking-widest transition-colors"
-                        >
-                            Ouvrir le calendrier →
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Proposer</span>
                         </Link>
                     </div>
                 )}
@@ -268,3 +259,4 @@ export function UpcomingEventsWidget({
         </Card>
     );
 }
+

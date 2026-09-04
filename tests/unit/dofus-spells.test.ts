@@ -171,6 +171,36 @@ describe("spellDamageFromEffect", () => {
         expect(dmg).toBeNull();
     });
 
+    it("ignore le soin (effectId 108 « soins ») — sinon le TOTAL est gonflé", () => {
+        // Vérifié sur l'API DofusDB : 108 = « #1 à #2 soins Feu », pas un dégât.
+        const dmg = spellDamageFromEffect({ effectId: 108, effectElement: 2, diceNum: 30, diceSide: 34 });
+        expect(dmg).toBeNull();
+    });
+
+    it("ignore le bonus de Portée (effectId 117 « +PO ») — sinon ligne Neutre fantôme", () => {
+        // Vérifié sur l'API DofusDB : 117 = « #1 à #2 Portée ». Avant fix, +2 PO
+        // devenait une fausse ligne « Neutre 2–2 » calculée avec les stats puis sommée au TOTAL.
+        const dmg = spellDamageFromEffect({ effectId: 117, effectElement: 0, diceNum: 2, diceSide: 0 });
+        expect(dmg).toBeNull();
+    });
+
+    it("garde le dommage neutre sans élément (effectId 112 « Dommage »)", () => {
+        const dmg = spellDamageFromEffect({ effectId: 112, effectElement: 0, diceNum: 5, diceSide: 8 });
+        expect(dmg).not.toBeNull();
+        expect(dmg?.min).toBe(5);
+        expect(dmg?.max).toBe(8);
+        expect(dmg?.element).toBe("neutre");
+    });
+
+    it("garde les vols (91-95) comme lignes de dégâts uniques", () => {
+        // Mot Vampirique (Eniripsa) : 91/elem 3 = Vol Eau 27–30 + 90 = soin (exclu).
+        const steal = spellDamageFromEffect({ effectId: 91, effectElement: 3, diceNum: 27, diceSide: 30 });
+        expect(steal?.min).toBe(27);
+        expect(steal?.max).toBe(30);
+        expect(steal?.element).toBe("eau");
+        expect(spellDamageFromEffect({ effectId: 90, effectElement: 5, diceNum: 12, diceSide: 0 })).toBeNull();
+    });
+
     it("tolère le format formatted « 10 à 18 »", () => {
         const dmg = spellDamageFromEffect({ effectId: 91, effectElement: 1, formatted: "Dommages Terre : 10 à 18" });
         expect(dmg?.min).toBe(10);

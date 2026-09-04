@@ -199,6 +199,11 @@ run_conditional_seed() {
     else
         dim "   Données de jeu inchangées — seed ignoré (gain de temps)."
     fi
+
+    # Synchronisation de la documentation officielle
+    info "   Synchronisation de la documentation ${TARGET^^}..."
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" npm run seed:docs:prod || warn "Seed docs ignoré ou non-critique"
+    ok "Documentation à jour."
 }
 
 # -----------------------------------------------------------------------------

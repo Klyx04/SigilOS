@@ -103,9 +103,65 @@ function buildDiscordCommandPayloads() {
             name: "stats",
             description: "📊 Récapitulatif des succès, présences et activité de la guilde",
             options: []
+        },
+        {
+            name: "artisan",
+            description: "🔨 Trouve les artisans et forgemages de la guilde pour un métier donné",
+            options: [
+                {
+                    name: "metier",
+                    description: "Nom du métier (ex: Tailleur, Bijoutier, Forgemage...)",
+                    type: 3, // STRING
+                    required: true,
+                    autocomplete: true
+                }
+            ]
+        },
+        {
+            name: "boss",
+            description: "👹 Fiche tactique et rapide d'un boss ou donjon Dofus",
+            options: [
+                {
+                    name: "nom",
+                    description: "Nom du boss ou du donjon (ex: Comte Harebourg, Kimbo...)",
+                    type: 3, // STRING
+                    required: true,
+                    autocomplete: true
+                }
+            ]
+        },
+        {
+            name: "ocre",
+            description: "🥚 Fiche quête Ocre – zone de pop et disponibilité des doublons en guilde",
+            options: [
+                {
+                    name: "archimonstre",
+                    description: "Nom de l'archimonstre ou monstre d'étape",
+                    type: 3, // STRING
+                    required: true,
+                    autocomplete: true
+                }
+            ]
+        },
+        {
+            name: "ladder",
+            description: "🏆 Classement et podium des meilleurs membres de la guilde",
+            options: [
+                {
+                    name: "categorie",
+                    description: "Catégorie du classement",
+                    type: 3, // STRING
+                    required: false,
+                    choices: [
+                        { name: "Points de contribution", value: "points" },
+                        { name: "Niveau Dofus", value: "niveau" }
+                    ]
+                }
+            ]
         }
     ];
 }
+
 
 /**
  * Enregistre (PUT = upsert bulk) toutes les commandes slash sur UN serveur Discord spécifique.

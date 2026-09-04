@@ -65,5 +65,27 @@ export const SLASH_COMMANDS_CATALOG: SlashCommandDefinition[] = [
         usage: "/stats",
         category: "COMMUNAUTE",
         defaultRoles: ["MEMBER", "OFFICER", "LEADER"]
+    },
+    {
+        name: "artisan",
+        description: "Trouve les artisans et forgemages disponibles dans la guilde selon le métier choisi",
+        usage: "/artisan <metier>",
+        category: "COMMUNAUTE",
+        defaultRoles: ["MEMBER", "OFFICER", "LEADER"]
+    },
+    {
+        name: "ocre",
+        description: "Assistant quête Ocre : zone d'apparition et statut des doublons/recherches en guilde",
+        usage: "/ocre <archimonstre>",
+        category: "DONJONS_QUETES",
+        defaultRoles: ["MEMBER", "OFFICER", "LEADER"]
+    },
+    {
+        name: "ladder",
+        description: "Classement et podium des meilleurs membres de la guilde",
+        usage: "/ladder [categorie]",
+        category: "COMMUNAUTE",
+        defaultRoles: ["MEMBER", "OFFICER", "LEADER"]
     }
 ];
+

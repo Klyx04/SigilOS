@@ -171,9 +171,9 @@ export function PassagesClient({
         setTab(t);
     };
 
-    // Global search (applies to current tab content)
+    // Recherche unique — s'applique à l'onglet courant (marketplace, demandes, livre d'or, prêts, coffre).
+    // Un seul état évite les doubles barres de recherche et les largeurs instables au switch d'onglet.
     const [globalSearch, setGlobalSearch] = useState("");
-    const [feedbackSearch, setFeedbackSearch] = useState("");
 
     // Service-specific filter
     const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
@@ -209,13 +209,17 @@ export function PassagesClient({
 
     const activeLoanCount = loans.filter(l => l.status === "ACTIVE" || l.status === "PARTIAL").length;
     const archivedLoanCount = loans.filter(l => l.status === "RETURNED" || l.status === "CANCELLED").length;
+    const pendingRequestCount = requests.filter(r => r.status === "PENDING").length;
+    const showMarketplaceCta = tab === "services" && canCreate && !isMarketplaceDisabled;
+    const showLoansCta = tab === "prets" && canCreate && !isLoansDisabled;
+    const showVaultCta = tab === "coffre" && canCreate && !isVaultDisabled;
 
     return (
         <div className="space-y-5">
-            {/* Navigation unifiée & Actions */}
+            {/* Navigation unifiée & Actions — barre à dimensions fixes (anti-CLS au switch d'onglet) */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-1">
                 {/* Tabs bar */}
-                <div ref={tabsRef} data-tour="services-tabs" className="flex items-center gap-1 p-1 bg-surface/80 rounded-xl border border-border overflow-x-auto no-scrollbar">
+                <div ref={tabsRef} data-tour="services-tabs" className="flex items-center gap-1 p-1 bg-surface/80 rounded-xl border border-border overflow-x-auto no-scrollbar min-h-[40px] sm:max-w-[60%]">
                     <button
                         onClick={() => handleTabChange("services")}
                         className={cn(
@@ -228,7 +232,7 @@ export function PassagesClient({
                         <Key className="w-3.5 h-3.5" />
                         Marketplace
                         <span className={cn(
-                            "text-[11px] px-1.5 py-0.2 rounded-full font-bold",
+                            "text-[11px] px-1.5 rounded-full font-bold min-w-[26px] h-4 inline-flex items-center justify-center tabular-nums",
                             tab === "services" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
                         )}>
                             {listings.length}
@@ -246,11 +250,17 @@ export function PassagesClient({
                     >
                         <Clock className="w-3.5 h-3.5" />
                         Demandes
-                        {requests.filter(r => r.status === "PENDING").length > 0 && (
-                            <span className="h-4 min-w-[16px] px-1 rounded-full bg-warning text-warning-foreground text-[10px] font-black flex items-center justify-center">
-                                {requests.filter(r => r.status === "PENDING").length}
-                            </span>
-                        )}
+                        <span
+                            aria-hidden={pendingRequestCount === 0}
+                            className={cn(
+                                "h-4 min-w-[20px] px-1 rounded-full text-[10px] font-black inline-flex items-center justify-center tabular-nums",
+                                pendingRequestCount > 0
+                                    ? "bg-warning text-warning-foreground"
+                                    : "invisible"
+                            )}
+                        >
+                            {pendingRequestCount}
+                        </span>
                     </button>
 
                     <button
@@ -264,14 +274,14 @@ export function PassagesClient({
                     >
                         <Star className="w-3.5 h-3.5" />
                         Livre d'or
-                        {feedbacks.length > 0 && (
-                            <span className={cn(
-                                "text-[11px] px-1.5 py-0.2 rounded-full font-bold",
-                                tab === "feedbacks" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
-                            )}>
-                                {feedbacks.length}
-                            </span>
-                        )}
+                        <span className={cn(
+                            "text-[11px] px-1.5 rounded-full font-bold min-w-[26px] h-4 inline-flex items-center justify-center tabular-nums",
+                            feedbacks.length > 0
+                                ? (tab === "feedbacks" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground")
+                                : "invisible"
+                        )}>
+                            {feedbacks.length}
+                        </span>
                     </button>
 
                     <button
@@ -285,11 +295,17 @@ export function PassagesClient({
                     >
                         <Handshake className="w-3.5 h-3.5" />
                         Prêts
-                        {activeLoanCount > 0 && (
-                            <span className="h-4 min-w-[16px] px-1 rounded-full bg-warning text-warning-foreground text-[10px] font-black flex items-center justify-center">
-                                {activeLoanCount}
-                            </span>
-                        )}
+                        <span
+                            aria-hidden={activeLoanCount === 0}
+                            className={cn(
+                                "h-4 min-w-[20px] px-1 rounded-full text-[10px] font-black inline-flex items-center justify-center tabular-nums",
+                                activeLoanCount > 0
+                                    ? "bg-warning text-warning-foreground"
+                                    : "invisible"
+                            )}
+                        >
+                            {activeLoanCount}
+                        </span>
                     </button>
 
                     <button
@@ -306,49 +322,57 @@ export function PassagesClient({
                     </button>
                 </div>
 
-                {/* Right controls: Search & Primary Action */}
-                <div className="flex items-center gap-2.5 shrink-0">
-                    <div className="relative flex-1 sm:w-60">
+                {/* Right controls: Search & Primary Action — largeurs fixes, hauteur stable */}
+                <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto min-h-[36px]">
+                    <div className="relative flex-1 sm:flex-none sm:w-60 shrink-0">
                         <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <Input
                             value={globalSearch}
                             onChange={(e) => setGlobalSearch(e.target.value)}
-                            placeholder="Rechercher..."
-                            className="pl-8.5 h-9 bg-surface/80 border-border text-xs rounded-xl focus:border-primary"
+                            placeholder={
+                                tab === "demandes" ? "Rechercher une demande..." :
+                                tab === "feedbacks" ? "Rechercher un avis..." :
+                                tab === "prets" ? "Rechercher un prêt..." :
+                                tab === "coffre" ? "Rechercher un item..." :
+                                "Rechercher..."
+                            }
+                            className="pl-9 h-9 w-full bg-surface/80 border-border text-xs rounded-xl focus:border-primary"
                         />
                     </div>
 
-                    {tab === "services" && canCreate && !isMarketplaceDisabled && (
-                        <Button
-                            data-tour="services-create"
-                            disabled={discordBlocked}
-                            onClick={() => setShowServiceForm(true)}
-                            size="sm"
-                            className="h-9 px-3.5 text-xs font-bold rounded-xl shadow-xs"
-                        >
-                            <Plus className="h-3.5 w-3.5 mr-1.5" /> Publier une offre
-                        </Button>
-                    )}
-                    {tab === "prets" && canCreate && !isLoansDisabled && (
-                        <Button
-                            disabled={discordBlocked}
-                            onClick={() => setShowLoanForm(true)}
-                            size="sm"
-                            className="h-9 px-3.5 text-xs font-bold rounded-xl shadow-xs"
-                        >
-                            <Plus className="h-3.5 w-3.5 mr-1.5" /> Nouveau prêt
-                        </Button>
-                    )}
-                    {tab === "coffre" && canCreate && !isVaultDisabled && (
-                        <Button
-                            disabled={discordBlocked}
-                            onClick={() => setShowVaultForm(true)}
-                            size="sm"
-                            className="h-9 px-3.5 text-xs font-bold rounded-xl shadow-xs"
-                        >
-                            <Plus className="h-3.5 w-3.5 mr-1.5" /> Enregistrer un item
-                        </Button>
-                    )}
+                    <div className="shrink-0 sm:min-w-[160px] flex items-center justify-end">
+                        {showMarketplaceCta ? (
+                            <Button
+                                data-tour="services-create"
+                                disabled={discordBlocked}
+                                onClick={() => setShowServiceForm(true)}
+                                size="sm"
+                                className="h-9 px-3.5 text-xs font-bold rounded-xl shadow-xs whitespace-nowrap"
+                            >
+                                <Plus className="h-3.5 w-3.5 mr-1.5" /> Publier une offre
+                            </Button>
+                        ) : showLoansCta ? (
+                            <Button
+                                disabled={discordBlocked}
+                                onClick={() => setShowLoanForm(true)}
+                                size="sm"
+                                className="h-9 px-3.5 text-xs font-bold rounded-xl shadow-xs whitespace-nowrap"
+                            >
+                                <Plus className="h-3.5 w-3.5 mr-1.5" /> Nouveau prêt
+                            </Button>
+                        ) : showVaultCta ? (
+                            <Button
+                                disabled={discordBlocked}
+                                onClick={() => setShowVaultForm(true)}
+                                size="sm"
+                                className="h-9 px-3.5 text-xs font-bold rounded-xl shadow-xs whitespace-nowrap"
+                            >
+                                <Plus className="h-3.5 w-3.5 mr-1.5" /> Enregistrer un item
+                            </Button>
+                        ) : (
+                            <div className="h-9 hidden sm:block sm:w-[160px]" aria-hidden="true" />
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -367,19 +391,19 @@ export function PassagesClient({
                 {isMarketplaceDisabled ? (
                     <MaintenanceView label="Services" message={maintenance?.serviceMarketplaceMessage} />
                 ) : (
-                    <div className="space-y-4 animate-in fade-in duration-200">
+                    <div className="space-y-4 min-h-[420px]">
                         {maintenance && !maintenance.serviceMarketplaceEnabled && isAdmin && (
                             <div className="flex items-center gap-2 p-2 rounded-lg bg-warning/10 border border-warning/20 text-warning text-xs font-bold mb-3">
                                 <AlertTriangle className="w-3.5 h-3.5" /> Mode maintenance actif (Visible uniquement par l'admin)
                             </div>
                         )}
 
-                        {/* Filtre de catégorie épuré */}
-                        <div className="flex items-center justify-between gap-3 pt-1">
+                        {/* Filtre de catégorie — hauteur fixe min-h-[36px], même gabarit que les autres onglets */}
+                        <div className="flex items-center justify-between gap-3 pt-1 min-h-[36px]">
                             <div className="flex items-center gap-2.5">
                                 <span className="text-xs font-bold text-muted-foreground">Catégorie :</span>
                                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                                    <SelectTrigger className="w-[190px] bg-surface/80 border-border h-8.5 text-xs rounded-xl">
+                                    <SelectTrigger className="w-[190px] bg-surface/80 border-border h-9 text-xs rounded-xl">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent className="bg-background border-border">
@@ -416,7 +440,7 @@ export function PassagesClient({
                                         servicesDiscordConfigured={servicesDiscordConfigured}
                                         onFeedbackClick={() => {
                                             const providerName = listing.profile.pseudoDofus || listing.profile.discordNickname || listing.profile.user?.name || listing.title;
-                                            setFeedbackSearch(providerName);
+                                            setGlobalSearch(providerName);
                                             setTab("feedbacks");
                                         }}
                                     />
@@ -428,13 +452,15 @@ export function PassagesClient({
             </div>
 
             {/* TAB: Demandes en cours */}
-            <div className={tab === "demandes" ? "block" : "hidden"}>
+            <div className={tab === "demandes" ? "block min-h-[420px]" : "hidden"}>
                 <ServiceRequestsView
                     guildId={guildId}
                     requests={requests}
                     currentUserId={userId}
                     currentProfileId={profileId}
                     isAdmin={isAdmin}
+                    searchQuery={globalSearch}
+                    onSearchQueryChange={setGlobalSearch}
                     onLeaveFeedback={(req) => setFeedbackTarget({
                         providerProfileId: req.providerProfileId,
                         providerName: req.providerProfile?.pseudoDofus || req.providerProfile?.discordNickname || "Prestataire",
@@ -447,14 +473,14 @@ export function PassagesClient({
             </div>
 
             {/* TAB: Livre d'or & Feedbacks */}
-            <div className={tab === "feedbacks" ? "block" : "hidden"}>
+            <div className={tab === "feedbacks" ? "block min-h-[420px]" : "hidden"}>
                 <FeedbacksView
                     guildId={guildId}
                     feedbacks={feedbacks}
                     rankings={rankings}
                     isAdmin={isAdmin}
-                    searchQuery={feedbackSearch}
-                    onSearchQueryChange={setFeedbackSearch}
+                    searchQuery={globalSearch}
+                    onSearchQueryChange={setGlobalSearch}
                 />
             </div>
 
@@ -463,15 +489,15 @@ export function PassagesClient({
                 {isLoansDisabled ? (
                     <MaintenanceView label="Prêts" message={maintenance?.serviceLoansMessage} />
                 ) : (
-                    <div className="space-y-4 animate-in fade-in duration-200">
+                    <div className="space-y-4 min-h-[420px]">
                         {maintenance && !maintenance.serviceLoansEnabled && isAdmin && (
                             <div className="flex items-center gap-2 p-2 rounded-lg bg-warning/10 border border-warning/20 text-warning text-xs font-bold mb-3">
                                 <AlertTriangle className="w-3.5 h-3.5" /> Mode maintenance actif (Visible uniquement par l'admin)
                             </div>
                         )}
 
-                        {/* Filtre de statut propre & stable */}
-                        <div className="flex items-center gap-2 flex-wrap pt-1">
+                        {/* Filtre de statut — hauteur fixe min-h-[36px], même gabarit que les autres onglets */}
+                        <div className="flex items-center gap-2 flex-wrap pt-1 min-h-[36px]">
                             <span className="text-xs font-bold text-muted-foreground mr-1">Statut :</span>
                             {([
                                 { key: "ACTIVE", label: "En cours", badge: activeLoanCount },
@@ -491,7 +517,7 @@ export function PassagesClient({
                                     {label}
                                     {badge !== null && badge > 0 && (
                                         <span className={cn(
-                                            "text-[10px] font-bold px-1.5 py-0.2 rounded-full",
+                                            "text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular-nums",
                                             loanFilter === key ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
                                         )}>
                                             {badge}
@@ -519,32 +545,24 @@ export function PassagesClient({
                 )}
             </div>
 
-            {/* TAB: Coffre */}
+            {/* TAB: Coffre — création via le CTA unique du header (pas de double bouton, anti-CLS) */}
             <div className={tab === "coffre" ? "block" : "hidden"}>
                 {isVaultDisabled ? (
                     <MaintenanceView label="Coffre" message={maintenance?.serviceVaultMessage} />
                 ) : (
-                    <div className="space-y-4 animate-in fade-in duration-200">
+                    <div className="space-y-4 min-h-[420px]">
                         {maintenance && !maintenance.serviceVaultEnabled && isAdmin && (
                             <div className="flex items-center gap-2 p-2 rounded-lg bg-warning/10 border border-warning/20 text-warning text-caption font-black uppercase tracking-widest mb-4">
                                 <AlertTriangle className="w-3 h-3" /> Sous maintenance (Visible uniquement par l'admin)
                             </div>
                         )}
-                        <div className="flex items-center justify-end gap-3">
-                            {canCreate ? (
-                                <Button
-                                    disabled={discordBlocked}
-                                    onClick={() => setShowVaultForm(true)}
-                                    className="bg-success hover:bg-success text-success-foreground font-bold h-9 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-success disabled:shadow-none"
-                                >
-                                    <Plus className="h-4 w-4 mr-1" /> Enregistrer
-                                </Button>
-                            ) : (
+                        {!canCreate && (
+                            <div className="flex items-center justify-end gap-3 min-h-[36px]">
                                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-surface border border-border rounded-lg px-3 h-9">
                                     <Lock className="h-3 w-3" /> Permission requise
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        )}
                         <VaultTable entries={filteredVault} summary={vaultSummary} guildId={guildId} currentProfileId={profileId} isAdmin={isAdmin} />
                     </div>
                 )}

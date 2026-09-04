@@ -292,6 +292,47 @@ const dofusPresence = createDofusPresence({
     isMemberOfGuild,
 });
 
+// === DASHBOARD PRESENCE (temps réel avec période de grâce anti-flapping) ===
+// Suivi multi-sockets par profil pour éviter les faux leave/join lors de la navigation
+const dashboardActiveSockets = new Map<string, Set<string>>();
+const dashboardPendingLeaves = new Map<string, NodeJS.Timeout>();
+const GRACE_PERIOD_LEAVE_MS = 15_000;
+
+function handleDashboardSocketLeave(targetSocket: Socket) {
+    const identity = targetSocket.data.dashboardIdentity as { profileId: string; userName?: string; userAvatar?: string } | undefined;
+    const guildId = targetSocket.data.dashboardGuildId as string | undefined;
+    if (!identity?.profileId || !guildId) return;
+
+    const userKey = `${guildId}:${identity.profileId}`;
+    const socketsSet = dashboardActiveSockets.get(userKey);
+
+    if (socketsSet) {
+        socketsSet.delete(targetSocket.id);
+        if (socketsSet.size === 0) {
+            dashboardActiveSockets.delete(userKey);
+
+            // Plus aucun socket actif pour ce profil : démarrer la période de grâce (15s)
+            if (!dashboardPendingLeaves.has(userKey)) {
+                const timer = setTimeout(() => {
+                    dashboardPendingLeaves.delete(userKey);
+                    logger.info(`[WS] 👋 Grace period expirée : ${identity.userName} a quitté le dashboard`);
+                    io.to(`guild:${guildId}`).emit("dashboard:presence:event", {
+                        type: "leave",
+                        profileId: identity.profileId,
+                        userName: identity.userName,
+                        userAvatar: identity.userAvatar,
+                    });
+                }, GRACE_PERIOD_LEAVE_MS);
+
+                dashboardPendingLeaves.set(userKey, timer);
+            }
+        }
+    }
+
+    targetSocket.data.dashboardIdentity = undefined;
+    targetSocket.data.dashboardGuildId = undefined;
+}
+
 // Gestionnaire global des connexions
 io.on("connection", (socket: Socket) => {
     let guildId = socket.handshake.query.guildId as string;
@@ -348,7 +389,6 @@ io.on("connection", (socket: Socket) => {
     // === RUSH SYLVESTRE PRESENCE ===
     socket.on("rush:join", async (data: { guildId: string }) => {
         if (!data.guildId) return;
-        // 🔐 (F-08) Only broadcast rush presence to guilds the user is a member of.
         if (WS_AUTH_ENABLED) {
             const userId = socket.data.userId as string | undefined;
             if (!userId) return;
@@ -414,7 +454,6 @@ io.on("connection", (socket: Socket) => {
     });
 
     // === PAGE PAR-DOFUS PRESENCE (chantier #37, suite) ===
-    // Room `guild:<guildId>:dofus:<slug>`, position courante = questId.
     socket.on("dofus:join", (data: { guildId?: string; dofusSlug?: string }) => {
         dofusPresence.handleJoin(socket, data).catch(() => {});
     });
@@ -427,9 +466,7 @@ io.on("connection", (socket: Socket) => {
         dofusPresence.handleHeartbeat(socket, data).catch(() => {});
     });
 
-    // === DASHBOARD PRESENCE (temps réel qui se connecte / quitte, chantier #39) ===
-    // Events : `dashboard:presence:event` = { type: "join"|"leave", profileId, userName, userAvatar }.
-    // Broadcast aux AUTRES sockets de la guilde (socket.broadcast → pas de notif "toi").
+    // === DASHBOARD PRESENCE (temps réel avec période de grâce anti-flapping) ===
     socket.on("dashboard:join", async (data: { guildId?: string }) => {
         if (!data.guildId) return;
         if (WS_AUTH_ENABLED) {
@@ -441,49 +478,50 @@ io.on("connection", (socket: Socket) => {
         socket.join(`guild:${data.guildId}`);
         const identity = await resolveDashboardIdentity(socket.data.userId as string | undefined, data.guildId);
         if (!identity) return;
+
         socket.data.dashboardIdentity = identity;
         socket.data.dashboardGuildId = data.guildId;
-        logger.info(`[WS] 👋 ${socket.id} joined dashboard (${identity.userName})`);
-        socket.broadcast.to(`guild:${data.guildId}`).emit("dashboard:presence:event", {
-            type: "join",
-            profileId: identity.profileId,
-            userName: identity.userName,
-            userAvatar: identity.userAvatar,
-        });
-    });
 
-    socket.on("dashboard:leave", async (data: { guildId?: string }) => {
-        if (!data.guildId) return;
-        socket.leave(`guild:${data.guildId}`);
-        const identity = socket.data.dashboardIdentity as { profileId: string; userName?: string; userAvatar?: string } | undefined;
-        if (identity?.profileId) {
+        const userKey = `${data.guildId}:${identity.profileId}`;
+
+        // Annuler tout départ différé en cours (l'utilisateur changeait simplement de page)
+        const pendingLeave = dashboardPendingLeaves.get(userKey);
+        if (pendingLeave) {
+            clearTimeout(pendingLeave);
+            dashboardPendingLeaves.delete(userKey);
+            logger.info(`[WS] ⏱️ Grace period annulée pour ${identity.userName} (reconnexion active)`);
+        }
+
+        let socketsSet = dashboardActiveSockets.get(userKey);
+        const wasAlreadyActive = (socketsSet && socketsSet.size > 0) || pendingLeave !== undefined;
+
+        if (!socketsSet) {
+            socketsSet = new Set<string>();
+            dashboardActiveSockets.set(userKey, socketsSet);
+        }
+        socketsSet.add(socket.id);
+
+        // Diffuser 'join' uniquement si c'est une VRAIE nouvelle arrivée sur la guilde
+        if (!wasAlreadyActive) {
+            logger.info(`[WS] 👋 ${socket.id} joined dashboard (${identity.userName})`);
             socket.broadcast.to(`guild:${data.guildId}`).emit("dashboard:presence:event", {
-                type: "leave",
+                type: "join",
                 profileId: identity.profileId,
                 userName: identity.userName,
                 userAvatar: identity.userAvatar,
             });
         }
-        socket.data.dashboardIdentity = undefined;
-        socket.data.dashboardGuildId = undefined;
+    });
+
+    socket.on("dashboard:leave", async (data: { guildId?: string }) => {
+        if (data?.guildId) socket.leave(`guild:${data.guildId}`);
+        handleDashboardSocketLeave(socket);
     });
 
     // Gestion de la déconnexion
     socket.on("disconnect", (reason) => {
         logger.info(`[WS] 🔴 Client déconnecté: ${socket.id} (Raison: ${reason})`);
-        // #73 : presence dashboard sans leave explicite (onglet ferme, coupure reseau,
-        // ou emit non flushe cote client) -> broadcast un leave aux autres membres.
-        // Idempotent : dashboard:leave a deja nettoye dashboardIdentity -> aucun doublon.
-        const dashIdentity = socket.data.dashboardIdentity as { profileId: string; userName?: string; userAvatar?: string } | undefined;
-        const dashGuildId = socket.data.dashboardGuildId as string | undefined;
-        if (dashIdentity?.profileId && dashGuildId) {
-            socket.broadcast.to(`guild:${dashGuildId}`).emit("dashboard:presence:event", {
-                type: "leave",
-                profileId: dashIdentity.profileId,
-                userName: dashIdentity.userName,
-                userAvatar: dashIdentity.userAvatar,
-            });
-        }
+        handleDashboardSocketLeave(socket);
         geoguesserManager.handleDisconnect(socket, reason);
         bombManager.handleDisconnect(socket);
     });

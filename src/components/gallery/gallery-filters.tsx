@@ -73,9 +73,9 @@ export function AdvancedTagFilter({
                     <ChevronDown className="w-3 h-3 opacity-60" />
                 </button>
             </PopoverTrigger>
-            <PopoverContent className="w-[min(340px,calc(100vw-2rem))] bg-background border-border rounded-2xl p-4 shadow-lg" align="start" side="bottom">
+            <PopoverContent className="w-[min(340px,calc(100vw-2rem))] max-h-[calc(100dvh-3rem)] overflow-hidden flex flex-col bg-background border-border rounded-2xl p-4 shadow-lg" align="start" side="bottom" sideOffset={8}>
                 {/* Recherche dans les tags */}
-                <div className="relative mb-3">
+                <div className="relative mb-3 shrink-0">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                     <Input
                         value={query}
@@ -85,7 +85,7 @@ export function AdvancedTagFilter({
                         className="pl-8 h-8 text-xs bg-surface border-border rounded-lg"
                     />
                 </div>
-                <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
+                <div className="space-y-4 flex-1 min-h-0 overflow-y-auto pr-1 custom-scrollbar">
                     {visibleCategories.length === 0 && (
                         <p className="text-xs text-muted-foreground text-center py-4">
                             Aucun tag ne correspond à « {query} »
@@ -107,7 +107,7 @@ export function AdvancedTagFilter({
                                             className={cn(
                                                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border",
                                                 isSelected
-                                                    ? `${tag.className} ring-1 ring-white/10`
+                                                    ? `${tag.className} ring-1 ring-border-strong`
                                                     : "text-muted-foreground bg-surface border-transparent hover:text-foreground hover:bg-surface hover:border-border"
                                             )}
                                         >
@@ -153,7 +153,7 @@ export function ClassFilter({
                     <ChevronDown className="w-3 h-3 opacity-60 shrink-0" />
                 </button>
             </PopoverTrigger>
-            <PopoverContent className="w-[min(280px,calc(100vw-2rem))] bg-background/95 backdrop-blur-2xl border-border rounded-2xl p-2.5 shadow-2xl" align="start" side="bottom">
+            <PopoverContent className="w-[min(280px,calc(100vw-2rem))] max-h-[calc(100dvh-3rem)] overflow-y-auto bg-background/95 backdrop-blur-2xl border-border rounded-2xl p-2.5 shadow-2xl" align="start" side="bottom" sideOffset={8}>
                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider px-2 pt-1 pb-2 flex items-center justify-between">
                     <span>Filtrer par {label.toLowerCase()}</span>
                     {active && <span className="text-success text-[10px] lowercase font-semibold">1 active</span>}
@@ -205,9 +205,9 @@ export function GenderFilter({
                 onClick={() => onSelectGender(selectedGender === "F" ? null : "F")}
                 className={cn(
                     "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
-                    selectedGender === "F" ? "bg-pink-500 text-foreground" : "text-muted-foreground hover:text-pink-400 hover:bg-surface"
+                    selectedGender === "F" ? "bg-danger text-danger-foreground" : "text-muted-foreground hover:text-danger hover:bg-surface"
                 )}
-                title="Sexe Féminin"
+                title="Sexe F�minin"
             >
                 <Venus className="w-4 h-4" />
             </button>

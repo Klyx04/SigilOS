@@ -85,6 +85,9 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
+      - name: Update npm (bulk advisory endpoint)
+        run: npm install -g npm@11 --force
+
       - name: Next.js Cache
         uses: actions/cache@v6.1.0
         with:
@@ -191,6 +194,9 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
+
+      - name: Update npm (bulk advisory endpoint)
+        run: npm install -g npm@11 --force
 
       - name: Install Dependencies
         run: npm ci

@@ -32,6 +32,7 @@ export function DocDrawer({ guildId }: DocDrawerProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [headings, setHeadings] = useState<{ id: string; text: string; level: number }[]>([]);
+    const [hasExtendedContent, setHasExtendedContent] = useState(false);
     const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -62,9 +63,14 @@ export function DocDrawer({ guildId }: DocDrawerProps) {
                     setDoc(null);
                 } else {
                     setDoc(data);
-                    // Extract Headings
+                    // Extract Headings from drawer-only content
+                    const EXTENDED_SEPARATOR = /<!--\s*(?:MORE|EXTENDED)\s*-->/i;
+                    const parts = data.content.split(EXTENDED_SEPARATOR);
+                    const drawerContent = parts[0];
+                    setHasExtendedContent(parts.length > 1);
+
                     const parser = new DOMParser();
-                    const docHtml = parser.parseFromString(data.content, "text/html");
+                    const docHtml = parser.parseFromString(drawerContent, "text/html");
                     const elements = Array.from(docHtml.querySelectorAll("h2, h3"));
                     const extracted = elements.map((el) => {
                         const text = el.textContent || "";
@@ -219,29 +225,55 @@ export function DocDrawer({ guildId }: DocDrawerProps) {
                                 </div>
                             )}
 
-                            {doc && !loading && !error && (
-                                <div className="space-y-6">
-                                    <DocContent
-                                        content={doc.content}
-                                        className="prose-headings:scroll-mt-6 prose-h2:text-xl prose-h2:font-black prose-h3:text-lg prose-h3:font-bold prose-p:text-sm prose-p:leading-relaxed"
-                                    />
+                            {doc && !loading && !error && (() => {
+                                const EXTENDED_SEPARATOR = /<!--\s*(?:MORE|EXTENDED)\s*-->/i;
+                                const drawerContent = doc.content.split(EXTENDED_SEPARATOR)[0];
 
-                                    {/* Footer Tip */}
-                                    <div className="mt-8 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-                                        <div className="flex items-center gap-2">
-                                            <Sparkles className="w-4 h-4 text-amber-400" />
-                                            <span>Guide officiel certifié SigilOS</span>
+                                return (
+                                    <div className="space-y-6">
+                                        <DocContent
+                                            content={drawerContent}
+                                            className="prose-headings:scroll-mt-6 prose-h2:text-xl prose-h2:font-black prose-h3:text-lg prose-h3:font-bold prose-p:text-sm prose-p:leading-relaxed"
+                                        />
+
+                                        {/* Footer Tip & Version Complète CTA */}
+                                        <div className="mt-8 pt-6 border-t border-border/70 flex flex-col gap-3">
+                                            {hasExtendedContent && (
+                                                <div className="p-3.5 rounded-xl bg-teal-500/10 border border-teal-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                                                    <div className="flex items-center gap-2.5">
+                                                        <Sparkles className="w-4 h-4 text-teal-400 shrink-0" />
+                                                        <div>
+                                                            <div className="font-bold text-foreground">Guide complet & Approfondissements</div>
+                                                            <div className="text-muted-foreground text-[11px]">FAQ, détails avancés, synergies et formules disponibles.</div>
+                                                        </div>
+                                                    </div>
+                                                    <Link
+                                                        href={`/docs/${doc.slug}`}
+                                                        className="font-bold text-xs text-teal-300 hover:text-white bg-teal-500/20 hover:bg-teal-500/30 border border-teal-500/40 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 shrink-0"
+                                                    >
+                                                        Consulter
+                                                        <ChevronRight className="w-3.5 h-3.5" />
+                                                    </Link>
+                                                </div>
+                                            )}
+
+                                            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground pt-1">
+                                                <div className="flex items-center gap-2">
+                                                    <BookOpen className="w-3.5 h-3.5 text-teal-400" />
+                                                    <span>Guide certifié SigilOS</span>
+                                                </div>
+                                                <Link
+                                                    href={`/docs/${doc.slug}`}
+                                                    className="font-bold text-teal-400 hover:text-teal-300 hover:underline flex items-center gap-1 text-xs"
+                                                >
+                                                    Ouvrir en plein écran
+                                                    <ExternalLink className="w-3.5 h-3.5 ml-0.5" />
+                                                </Link>
+                                            </div>
                                         </div>
-                                        <Link
-                                            href={`/docs/${doc.slug}`}
-                                            className="font-bold text-primary hover:underline flex items-center gap-1"
-                                        >
-                                            Consulter la version complète
-                                            <ChevronRight className="w-3.5 h-3.5" />
-                                        </Link>
                                     </div>
-                                </div>
-                            )}
+                                );
+                            })()}
                         </div>
                     </motion.aside>
                 </>

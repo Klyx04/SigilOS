@@ -747,8 +747,15 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
     const lastFittedKeyRef = useRef<string>("");
 
     useEffect(() => {
-        const t = setTimeout(() => map.invalidateSize(), 100);
-        return () => clearTimeout(t);
+        const handleResize = () => map.invalidateSize();
+        const t1 = setTimeout(handleResize, 100);
+        const t2 = setTimeout(handleResize, 450);
+        window.addEventListener('resize', handleResize);
+        return () => {
+            clearTimeout(t1);
+            clearTimeout(t2);
+            window.removeEventListener('resize', handleResize);
+        };
     }, [map]);
 
     // Recenter map automatically when the active world changes
@@ -1148,43 +1155,47 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 <div 
                     id="sigil-map-hover-hud"
                     style={{ display: 'none' }}
-                    className="absolute bottom-8 left-1/2 -translate-x-[50%] z-[1000] bg-[#2d3139] shadow-[0_8px_32px_rgba(0,0,0,0.6)] rounded-lg pointer-events-auto transition-all duration-200 flex items-center border border-border overflow-visible px-6 py-4 group"
+                    className="absolute bottom-6 left-6 z-[1000] bg-surface/90 backdrop-blur-xl border border-border/80 rounded-2xl p-2.5 px-4 shadow-2xl pointer-events-auto transition-all duration-200 flex items-center gap-3.5 group"
                 >
                     {/* Tooltip visible on group hover */}
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-[#1a1b1e] text-foreground text-caption font-bold px-4 py-2 rounded shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-border pointer-events-none">
+                    <div className="absolute bottom-full left-0 mb-2 bg-popover/95 text-foreground text-caption font-bold px-3 py-1.5 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-border pointer-events-none backdrop-blur-md">
                         Copier la commande d'auto-pilotage
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-[#1a1b1e]"></div>
+                        <div className="absolute top-full left-4 border-4 border-transparent border-t-popover"></div>
                     </div>
 
-                    <div className="flex flex-col justify-center min-w-[200px]">
-                        <span id="sigil-map-hover-zone" className="text-foreground font-black text-xl uppercase tracking-tight leading-none group-hover:text-emerald-400 transition-colors"></span>
-                        <div className="flex items-center gap-3 mt-2">
-                            <span id="sigil-map-hover-world" className="text-foreground/30 font-bold text-caption uppercase tracking-[0.2em]"></span>
-                            <span className="w-1 h-1 rounded-full bg-surface" />
-                            <div className="flex items-center gap-1 bg-black/20 px-2 py-0.5 rounded border border-border">
-                                <Rocket size={10} className="text-emerald-500" />
-                                <span id="sigil-map-hover-coords" className="text-emerald-400 font-black text-body-sm tracking-tight"></span>
+                    <div className="flex flex-col justify-center min-w-[140px] max-w-[240px]">
+                        <span id="sigil-map-hover-zone" className="text-foreground font-black text-sm uppercase tracking-tight leading-none group-hover:text-emerald-400 transition-colors truncate"></span>
+                        <div className="flex items-center gap-2 mt-1.5">
+                            <span id="sigil-map-hover-world" className="text-muted-foreground font-bold text-[10px] uppercase tracking-wider truncate max-w-[90px]"></span>
+                            <span className="w-1 h-1 rounded-full bg-border" />
+                            <div className="flex items-center gap-1 bg-black/30 px-1.5 py-0.5 rounded border border-border/60">
+                                <Rocket size={10} className="text-emerald-400 shrink-0" />
+                                <span id="sigil-map-hover-coords" className="text-emerald-400 font-mono font-bold text-xs tracking-tight"></span>
                             </div>
                         </div>
                     </div>
 
-                    {/* Rocket Copy Button */}
-                    <div className="ml-8 w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center shadow-[0_10px_20px_rgba(16,185,129,0.3)] hover:bg-emerald-400 hover:shadow-[0_15px_30px_rgba(16,185,129,0.4)] transition-all cursor-pointer group/btn active:scale-90" onClick={() => {
-                        const coords = document.getElementById('sigil-map-hover-coords')?.innerText;
-                        if (coords) {
-                            const match = coords.match(/\[(.*),(.*)\]/);
-                            if (match) {
-                                const cmd = `/travel ${match[1].trim()} ${match[2].trim()}`;
-                                navigator.clipboard.writeText(cmd);
-                                toast.success("Commande copiée !", {
-                                    description: cmd,
-                                    icon: <Rocket className="w-4 h-4 text-emerald-400" />
-                                });
+                    {/* Quick Copy Button */}
+                    <button 
+                        className="w-8 h-8 rounded-xl bg-emerald-500/15 hover:bg-emerald-500 text-emerald-400 hover:text-black border border-emerald-500/30 flex items-center justify-center transition-all cursor-pointer shrink-0 active:scale-90" 
+                        title="Copier /travel"
+                        onClick={() => {
+                            const coords = document.getElementById('sigil-map-hover-coords')?.innerText;
+                            if (coords) {
+                                const match = coords.match(/\[(.*),(.*)\]/);
+                                if (match) {
+                                    const cmd = `/travel ${match[1].trim()} ${match[2].trim()}`;
+                                    navigator.clipboard.writeText(cmd);
+                                    toast.success("Commande copiée !", {
+                                        description: cmd,
+                                        icon: <Rocket className="w-4 h-4 text-emerald-400" />
+                                    });
+                                }
                             }
-                        }
-                    }}>
-                        <Rocket size={22} className="text-emerald-950 group- transition-transform" />
-                    </div>
+                        }}
+                    >
+                        <Rocket size={14} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                    </button>
                 </div>
             )}
             <style>{`
@@ -1245,9 +1256,6 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     border: none !important;
                 }
                 
-                /* Animation zoom fluide */
-                .leaflet-zoom-animated {
-                    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
                 }
             `}</style>
 
@@ -1261,7 +1269,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 attributionControl={false}
                 minZoom={isMiniMap ? -6 : Math.max(selectedWorldId !== 1 ? -3 : -4, -(correctedActiveWorld.zoom?.length || 1) - 1)}
                 maxZoom={3}
-                maxBoundsViscosity={0.8}
+                maxBoundsViscosity={1.0}
                 zoomSnap={0.1}
                 zoomDelta={1}
                 preferCanvas={true}
@@ -1334,6 +1342,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                         activeCircuit={activeCircuit}
                         completedStepIndices={completedHarvestSteps}
                         onToggleStepCompleted={onToggleHarvestStep}
+                        mapsByCoords={mapsByCoords}
                     />
                 )}
 
@@ -1392,22 +1401,6 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 {/* 7. Contrôles de zoom premium */}
                 {interactive && !isMiniMap && <ZoomControls />}
             </MapContainer>
-
-            {/* Real-time Coordinate HUD */}
-            <AnimatePresence>
-                {hoveredCoords && (
-                    <motion.div 
-                        initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.9 }}
-                        className="absolute bottom-6 left-6 z-[1000] px-4 py-2 bg-surface/80 backdrop-blur-md border border-border rounded-xl shadow-2xl flex items-center gap-3 pointer-events-none"
-                    >
-                        <div className={`w-2 h-2 rounded-full ${hoveredCoords.found ? 'bg-emerald-500 ' : 'bg-surface'}`} />
-                        <span className="text-caption font-black text-foreground/40 uppercase tracking-widest italic">Position</span>
-                        <span className="text-foreground font-black text-sm italic tracking-tighter">[{hoveredCoords.x}, {hoveredCoords.y}]</span>
-                    </motion.div>
-                )}
-            </AnimatePresence>
         </div>
     );
 }

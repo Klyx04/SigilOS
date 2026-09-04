@@ -221,8 +221,18 @@ export function elementFromDofusdb(effectElement: number | null | undefined): Sp
     }
 }
 
-/** IDs DofusDB de dégâts directs (min-max par `diceNum`/`diceSide`). */
-const DIRECT_DAMAGE_IDS = new Set([91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 108, 112, 113, 117]);
+/**
+ * IDs DofusDB de dégâts directs (min-max par `diceNum`/`diceSide`).
+ * Sémantique vérifiée contre l'API live (`/spell-levels`, `/effects`, classes
+ * Huppermage + Eniripsa : steals, dégâts, soins, +PO) :
+ *   91-95 = Vols (Eau/Terre/Air/Feu/Neutre — 1 ligne de dégâts, comme Dofusbook),
+ *   96-100 = Dommages (Eau/Terre/Air/Feu/Neutre),
+ *   112 = Dommage sans élément (neutre).
+ * Exclus VOLONTAIREMENT (sinon TOTAL gonflé + lignes fantômes) :
+ *   90/108 = Soins (« Rend X PV », « soins Feu »),
+ *   117 = bonus de Portée (« +X PO » → devenait une fausse ligne « Neutre X–X »).
+ */
+const DIRECT_DAMAGE_IDS = new Set([91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 112]);
 
 /**
  * Tente de produire une `SpellBaseDamage` depuis un effect DofusDB brut.

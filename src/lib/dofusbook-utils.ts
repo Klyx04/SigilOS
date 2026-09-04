@@ -1,4 +1,4 @@
-export type DofusbookItem = {
+﻿export type DofusbookItem = {
     id: number;
     name: string;
     picture: number;
@@ -76,6 +76,38 @@ export function getClassName(id: number): string {
         16: "Éliotrope", 17: "Huppermage", 18: "Ouginak", 19: "Forgelance"
     };
     return classes[id] || "Inconnu";
+}
+
+/** Normalisation insensible aux accents/casse pour comparer des noms de classe. */
+function stripAccents(s: string): string {
+    return String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+/**
+ * Canonise un identifiant de classe vers la numérotation Dofusbook (1-19).
+ * Deux numérotations coexistent : Dofusbook (`character_class`, liens galerie,
+ * `getClassSpells`) compte Forgelance = 19, tandis que les icônes
+ * `/assets/dofus/classes/*.png` + DofusDB (`breedId`) comptent Forgelance = 20
+ * (d'où le filtre galerie qui envoyait "20" pour des builds stockés "19" → 0 résultat).
+ * Accepte aussi les slugs/noms legacy ("cra", "Forgelance"). Retourne 0 si inconnu.
+ */
+export function canonicalClassId(value: unknown): number {
+    if (typeof value === "number" && Number.isInteger(value)) {
+        if (value >= 1 && value <= 19) return value;
+        if (value === 20) return 19; // breed DofusDB → ordre Dofusbook
+        return 0;
+    }
+    if (typeof value === "string") {
+        const t = value.trim();
+        if (/^\d+$/.test(t)) return canonicalClassId(Number(t));
+        const norm = stripAccents(t).toLowerCase();
+        for (let id = 1; id <= 19; id++) {
+            const name = stripAccents(getClassName(id)).toLowerCase();
+            if (name === norm) return id;
+        }
+        return 0;
+    }
+    return 0;
 }
 
 export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewData {

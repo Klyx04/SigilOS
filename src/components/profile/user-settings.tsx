@@ -44,6 +44,7 @@ import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { DiscordOwnershipModal } from "./discord-ownership-modal";
 import { updateNotificationPrefs } from "@/server/actions/profile-actions";
+import { PwaSettingsRow } from "@/components/pwa/PwaRegistration";
 
 interface NotificationPrefs {
     missions: boolean;
@@ -218,6 +219,9 @@ export function UserSettings({
                                 onCheckedChange={togglePerformanceMode}
                             />
                         </div>
+
+                        {/* Installation PWA — réglage local au navigateur, comme le mode performance */}
+                        <PwaSettingsRow />
 
                         <div className="flex items-start gap-3 p-4 bg-info/5 rounded-2xl border border-info/10">
                             <Info className="w-5 h-5 text-info mt-0.5" />

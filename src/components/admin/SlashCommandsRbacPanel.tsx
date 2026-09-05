@@ -1,18 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { 
     Terminal, 
     ShieldCheck, 
-    Check, 
-    X, 
-    AlertCircle, 
     Save, 
-    Info,
     Hash
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { MultiSelect, type Option } from "@/components/ui/multi-select";
 import { toast } from "sonner";
 import { updateGuildSlashCommandPermissionAction } from "@/server/actions/slash-command-actions";
 
@@ -44,6 +41,22 @@ export function SlashCommandsRbacPanel({
     );
     const [isSaving, setIsSaving] = useState<string | null>(null);
 
+    // Options mémorisées pour les dropdowns fluides
+    const roleOptions: Option[] = useMemo(() => {
+        return discordRoles.map(r => ({
+            label: r.name,
+            value: r.id,
+            color: r.color ? parseInt(r.color.replace('#', ''), 16) : undefined
+        }));
+    }, [discordRoles]);
+
+    const channelOptions: Option[] = useMemo(() => {
+        return discordChannels.map(c => ({
+            label: `# ${c.name}`,
+            value: c.id
+        }));
+    }, [discordChannels]);
+
     const handleToggleEnabled = (commandName: string) => {
         setMatrix(prev => prev.map(item => {
             if (item.command.name === commandName) {
@@ -53,36 +66,19 @@ export function SlashCommandsRbacPanel({
         }));
     };
 
-    const handleToggleRole = (commandName: string, roleId: string) => {
+    const handleRolesChange = (commandName: string, roleIds: string[]) => {
         setMatrix(prev => prev.map(item => {
             if (item.command.name === commandName) {
-                const current = item.roleIds;
-                const next = current.includes(roleId) 
-                    ? current.filter(id => id !== roleId)
-                    : [...current, roleId];
-                return { ...item, roleIds: next };
+                return { ...item, roleIds };
             }
             return item;
         }));
     };
 
-    const handleToggleChannel = (commandName: string, channelId: string) => {
+    const handleChannelsChange = (commandName: string, channelIds: string[]) => {
         setMatrix(prev => prev.map(item => {
             if (item.command.name === commandName) {
-                const current = item.channelIds || [];
-                const next = current.includes(channelId)
-                    ? current.filter(id => id !== channelId)
-                    : [...current, channelId];
-                return { ...item, channelIds: next };
-            }
-            return item;
-        }));
-    };
-
-    const handleResetChannels = (commandName: string) => {
-        setMatrix(prev => prev.map(item => {
-            if (item.command.name === commandName) {
-                return { ...item, channelIds: [] };
+                return { ...item, channelIds };
             }
             return item;
         }));
@@ -124,7 +120,7 @@ export function SlashCommandsRbacPanel({
                     <div>
                         <h3 className="text-base font-bold text-foreground">Commandes Slash Discord</h3>
                         <p className="text-xs text-muted-foreground">
-                            Configurez la disponibilité et les rôles Discord autorisés à exécuter chaque commande du bot.
+                            Configurez la disponibilité, les rôles et les salons autorisés à exécuter chaque commande du bot via des sélecteurs déroulants fluides.
                         </p>
                     </div>
                 </div>
@@ -171,93 +167,52 @@ export function SlashCommandsRbacPanel({
                                 </button>
                             </div>
 
-                            {/* Role selector */}
-                            <div className="space-y-2 pt-2 border-t border-border/60">
+                            {/* Dropdown Rôles Discord */}
+                            <div className="space-y-1.5 pt-2 border-t border-border/60">
                                 <div className="flex items-center justify-between text-[11px]">
-                                    <span className="font-bold text-muted-foreground">Rôles Discord Autorisés :</span>
-                                    <span className="text-[10px] text-muted-foreground font-mono">
-                                        {item.roleIds.length === 0 ? "Tous les membres" : `${item.roleIds.length} rôle(s)`}
+                                    <label className="font-bold text-muted-foreground flex items-center gap-1.5">
+                                        <ShieldCheck className="w-3.5 h-3.5 text-accent" />
+                                        Rôles Discord Autorisés
+                                    </label>
+                                    <span className="text-[10px] font-mono">
+                                        {item.roleIds.length === 0 ? (
+                                            <span className="text-emerald-500 font-semibold">Tous les membres</span>
+                                        ) : (
+                                            <span className="text-accent font-semibold">{item.roleIds.length} rôle(s)</span>
+                                        )}
                                     </span>
                                 </div>
-
-                                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
-                                    {discordRoles.length === 0 ? (
-                                        <p className="text-[11px] text-muted-foreground italic">Aucun rôle Discord synchronisé</p>
-                                    ) : (
-                                        discordRoles.map((role) => {
-                                            const isSelected = item.roleIds.includes(role.id);
-                                            return (
-                                                <button
-                                                    key={role.id}
-                                                    type="button"
-                                                    onClick={() => handleToggleRole(item.command.name, role.id)}
-                                                    className={cn(
-                                                        "px-2 py-0.5 rounded-lg text-[11px] font-bold border transition-all",
-                                                        isSelected
-                                                            ? "bg-accent text-accent-foreground border-accent"
-                                                            : "bg-surface text-muted-foreground border-border hover:text-foreground"
-                                                    )}
-                                                >
-                                                    {role.name}
-                                                </button>
-                                            );
-                                        })
-                                    )}
-                                </div>
+                                <MultiSelect
+                                    options={roleOptions}
+                                    selected={item.roleIds}
+                                    onChange={(roles) => handleRolesChange(item.command.name, roles)}
+                                    placeholder="Tous les membres (aucun filtre de rôle)"
+                                    className="bg-muted/40 border-border hover:border-border-strong text-foreground text-xs min-h-[38px]"
+                                />
                             </div>
 
-                            {/* Channel selector */}
-                            <div className="space-y-2 pt-2 border-t border-border/60">
+                            {/* Dropdown Salons Discord */}
+                            <div className="space-y-1.5 pt-2 border-t border-border/60">
                                 <div className="flex items-center justify-between text-[11px]">
-                                    <span className="font-bold text-muted-foreground flex items-center gap-1">
-                                        <Hash className="w-3 h-3 text-muted-foreground" />
-                                        Salons Discord Autorisés :
-                                    </span>
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-[10px] font-mono font-bold text-muted-foreground">
-                                            {(item.channelIds?.length || 0) === 0 ? (
-                                                <span className="text-emerald-500">Tous les salons</span>
-                                            ) : (
-                                                <span className="text-accent">{item.channelIds?.length} salon(s)</span>
-                                            )}
-                                        </span>
-                                        {(item.channelIds?.length || 0) > 0 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => handleResetChannels(item.command.name)}
-                                                className="text-[10px] text-muted-foreground hover:text-danger underline transition-colors"
-                                            >
-                                                Réinitialiser
-                                            </button>
+                                    <label className="font-bold text-muted-foreground flex items-center gap-1.5">
+                                        <Hash className="w-3.5 h-3.5 text-accent" />
+                                        Salons Discord Autorisés
+                                    </label>
+                                    <span className="text-[10px] font-mono">
+                                        {(item.channelIds?.length || 0) === 0 ? (
+                                            <span className="text-emerald-500 font-semibold">Tous les salons</span>
+                                        ) : (
+                                            <span className="text-accent font-semibold">{item.channelIds?.length} salon(s)</span>
                                         )}
-                                    </div>
+                                    </span>
                                 </div>
-
-                                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
-                                    {discordChannels.length === 0 ? (
-                                        <p className="text-[11px] text-muted-foreground italic">Aucun salon textuel trouvé</p>
-                                    ) : (
-                                        discordChannels.map((channel) => {
-                                            const isSelected = item.channelIds?.includes(channel.id);
-                                            return (
-                                                <button
-                                                    key={channel.id}
-                                                    type="button"
-                                                    onClick={() => handleToggleChannel(item.command.name, channel.id)}
-                                                    className={cn(
-                                                        "px-2 py-0.5 rounded-lg text-[11px] font-medium border transition-all flex items-center gap-1",
-                                                        isSelected
-                                                            ? "bg-accent/15 text-accent border-accent font-bold"
-                                                            : "bg-surface text-muted-foreground border-border hover:text-foreground"
-                                                    )}
-                                                >
-                                                    <span className="opacity-60">#</span>
-                                                    <span>{channel.name}</span>
-                                                </button>
-                                            );
-                                        })
-                                    )}
-                                </div>
+                                <MultiSelect
+                                    options={channelOptions}
+                                    selected={item.channelIds || []}
+                                    onChange={(channels) => handleChannelsChange(item.command.name, channels)}
+                                    placeholder="Tous les salons (exécutable partout)"
+                                    className="bg-muted/40 border-border hover:border-border-strong text-foreground text-xs min-h-[38px]"
+                                />
                             </div>
                         </div>
 

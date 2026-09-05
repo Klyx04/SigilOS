@@ -40,11 +40,14 @@ export function GodSlashCommandsPanel() {
         try {
             const res = await syncSlashCommandsToDiscordAction();
 
+            if (res.results && res.results.length > 0) {
+                setSyncResults(res.results);
+                setLastSyncTime(new Date().toLocaleTimeString("fr-FR"));
+            }
+
             if (res.success) {
                 const okCount = res.results.filter(r => r.ok).length;
                 const failCount = res.results.filter(r => !r.ok).length;
-                setSyncResults(res.results);
-                setLastSyncTime(new Date().toLocaleTimeString("fr-FR"));
 
                 if (failCount === 0) {
                     toast.success(`✅ ${okCount} serveur(s) synchronisé(s) — Les commandes apparaissent instantanément dans l'autocomplete Discord !`);

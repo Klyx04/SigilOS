@@ -12,7 +12,18 @@ const DISCORD_API_BASE = "https://discord.com/api/v10";
  * On définit les options (autocomplétion) pour les commandes qui en ont besoin.
  */
 function buildDiscordCommandPayloads() {
-    return [
+    const rawCommands: Array<{
+        name: string;
+        description: string;
+        options?: Array<{
+            name: string;
+            description: string;
+            type: number;
+            required?: boolean;
+            autocomplete?: boolean;
+            choices?: Array<{ name: string; value: string }>;
+        }>;
+    }> = [
         {
             name: "almanax",
             description: "📅 Offrande & bonus Almanax du jour – prévisualise jusqu'à 7 jours",
@@ -70,8 +81,7 @@ function buildDiscordCommandPayloads() {
         },
         {
             name: "defi",
-            description: "⚔️ Défi double boss en cours – bonus de points et classement participants",
-            options: []
+            description: "⚔️ Défi double boss en cours – bonus de points et classement participants"
         },
         {
             name: "boss",
@@ -101,8 +111,7 @@ function buildDiscordCommandPayloads() {
         },
         {
             name: "stats",
-            description: "📊 Récapitulatif des succès, présences et activité de la guilde",
-            options: []
+            description: "📊 Récapitulatif des succès, présences et activité de la guilde"
         },
         {
             name: "artisan",
@@ -111,19 +120,6 @@ function buildDiscordCommandPayloads() {
                 {
                     name: "metier",
                     description: "Nom du métier (ex: Tailleur, Bijoutier, Forgemage...)",
-                    type: 3, // STRING
-                    required: true,
-                    autocomplete: true
-                }
-            ]
-        },
-        {
-            name: "boss",
-            description: "👹 Fiche tactique et rapide d'un boss ou donjon Dofus",
-            options: [
-                {
-                    name: "nom",
-                    description: "Nom du boss ou du donjon (ex: Comte Harebourg, Kimbo...)",
                     type: 3, // STRING
                     required: true,
                     autocomplete: true
@@ -160,6 +156,15 @@ function buildDiscordCommandPayloads() {
             ]
         }
     ];
+
+    // Discord API n'accepte pas `options: []` (tableau vide). On ne transmet options que s'il y en a.
+    return rawCommands.map(cmd => {
+        if (!cmd.options || cmd.options.length === 0) {
+            const { options: _, ...rest } = cmd;
+            return rest;
+        }
+        return cmd;
+    });
 }
 
 
@@ -173,11 +178,11 @@ async function registerCommandsForGuild(discordGuildId: string): Promise<{
     error?: string;
     count?: number;
 }> {
-    const appId = process.env.AUTH_DISCORD_ID || process.env.DISCORD_APPLICATION_ID;
+    const appId = process.env.AUTH_DISCORD_ID || process.env.DISCORD_APPLICATION_ID || process.env.DISCORD_CLIENT_ID;
     const botToken = process.env.DISCORD_BOT_TOKEN;
 
     if (!appId || !botToken) {
-        return { ok: false, guildId: discordGuildId, error: "Missing DISCORD_APPLICATION_ID or DISCORD_BOT_TOKEN" };
+        return { ok: false, guildId: discordGuildId, error: "Missing AUTH_DISCORD_ID / DISCORD_CLIENT_ID or DISCORD_BOT_TOKEN" };
     }
 
     const payloads = buildDiscordCommandPayloads();
@@ -259,9 +264,12 @@ export async function syncSlashCommandsToDiscordAction(targetGuildId?: string): 
         }
 
         const successCount = results.filter(r => r.ok).length;
+        const firstError = results.find(r => !r.ok)?.error;
+
         return {
             success: successCount > 0,
-            results
+            results,
+            error: successCount === 0 ? (firstError || "Aucun serveur n'a pu être synchronisé") : undefined
         };
     } catch (err) {
         logger.error("[syncSlashCommandsToDiscordAction] Error", { error: String(err) });

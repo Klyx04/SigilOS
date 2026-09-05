@@ -95,29 +95,21 @@ export function GuildSetupCard({ guild, clientId, autoDeploy }: { guild: GuildPr
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [autoDeploy, needsInvite, guild.id]);
 
-    // Auto-refresh when bot is authorized in the other tab.
-    // + reload au retour du focus (cas popup fermée à la main ou bascule
-    // même-onglet : sans cela la carte reste "Bot absent" jusqu'au F5 manuel).
+    // Auto-refresh quand le bot est autorisé dans l'autre onglet.
+    // PAS de reload au retour du focus : chaque alt-tab rechargeait la page
+    // et remplaçait le portail plein par un état vide au moindre 429
+    // (« la page apparaît puis disparaît »). L'utilisateur vérifie
+    // explicitement via le bouton ci-dessous.
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
             if (event.data === "sigilos-bot-invited" && event.origin === window.location.origin) {
                 window.location.reload();
             }
         };
-        // Reload au retour du focus UNIQUEMENT après un clic "Inviter"
-        // (cas popup fermée à la main : sans cela la carte reste
-        // "Bot absent" jusqu'au F5 manuel).
-        const handleFocus = () => {
-            if (inviteStarted) window.location.reload();
-        };
 
         window.addEventListener("message", handleMessage);
-        window.addEventListener("focus", handleFocus);
-        return () => {
-            window.removeEventListener("message", handleMessage);
-            window.removeEventListener("focus", handleFocus);
-        };
-    }, [inviteStarted]);
+        return () => window.removeEventListener("message", handleMessage);
+    }, []);
 
     return (
         <Card className="bg-black/20 border-border border-dashed hover:border-border-strong transition-all cursor-default">
@@ -141,19 +133,31 @@ export function GuildSetupCard({ guild, clientId, autoDeploy }: { guild: GuildPr
                     </div>
                 </div>
 
-                <Button
-                    size="sm"
-                    variant={needsInvite ? "secondary" : "outline"}
-                    className={needsInvite
-                        ? "bg-info/20 text-info hover:bg-info/40"
-                        : "border-primary/20 hover:bg-primary/10 hover:text-primary transition-colors"
-                    }
-                    onClick={handleSetup}
-                    disabled={loading}
-                >
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
-                    {loading ? "..." : (needsInvite ? "Inviter le Bot" : "Déployer")}
-                </Button>
+                <div className="flex flex-col gap-2 shrink-0">
+                    <Button
+                        size="sm"
+                        variant={needsInvite ? "secondary" : "outline"}
+                        className={needsInvite
+                            ? "bg-info/20 text-info hover:bg-info/40"
+                            : "border-primary/20 hover:bg-primary/10 hover:text-primary transition-colors"
+                        }
+                        onClick={handleSetup}
+                        disabled={loading}
+                    >
+                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+                        {loading ? "..." : (needsInvite ? "Inviter le Bot" : "Déployer")}
+                    </Button>
+                    {needsInvite && inviteStarted && !loading && (
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-xs text-muted-foreground hover:text-foreground"
+                            onClick={() => window.location.reload()}
+                        >
+                            J&apos;ai invité le bot, vérifier
+                        </Button>
+                    )}
+                </div>
             </CardContent>
         </Card>
     );

@@ -67,6 +67,7 @@ import { Separator } from "@/components/ui/separator";
 import { togglePinnedNavItem, toggleHiddenNavItem } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
 import { getUnreadNotifications } from "@/server/actions/notification-actions";
+import { isNavLockedDuringOnboarding } from "@/lib/onboarding-gating";
 
 interface AppSidebarProps {
     guildId: string;
@@ -291,6 +292,14 @@ export function AppSidebar({
     ];
 
     // --- NAVIGATION GROUPS ---
+
+    // Verrou onboarding : tant que la mise en route n'est pas terminée,
+    // l'admin ne voit QUE le Centre Admin (le reste — Dashboard, La guilde,
+    // Commandes… — fuyait à la 1re arrivée). God exempté (inspection).
+    const hideNonAdminNav = isNavLockedDuringOnboarding({
+        isOnboardingComplete: !!user.isOnboardingComplete,
+        isSuperAdmin: !!user.isSuperAdmin,
+    });
 
     // Permissions helpers — computed once
     const showProgressionGroup = Boolean(
@@ -521,8 +530,8 @@ export function AppSidebar({
                     <nav className="space-y-8 pb-10">
                         <AnimatePresence mode="popLayout" initial={false}>
 
-                        {/* SECTION: FAVORI / PINNED */}
-                        {pinnedItems.length > 0 && (
+                        {/* SECTION: FAVORI / PINNED (masquée pendant l'onboarding) */}
+                        {!hideNonAdminNav && pinnedItems.length > 0 && (
                                 <div key="section-favorites" className="space-y-1 relative group/section">
                                     <SectionTitle 
                                         label="Favoris" 
@@ -555,7 +564,8 @@ export function AppSidebar({
                                 </div>
                         )}
 
-                        {/* SECTION: GLOBAL (DASHBOARD CARD) */}
+                        {/* SECTION: GLOBAL (DASHBOARD CARD — masquée pendant l'onboarding) */}
+                        {!hideNonAdminNav && (
                         <div key="section-global" className="mb-10 px-1">
                             <div className="space-y-1">
                                 {NAV_GLOBAL.filter(i => i.visible !== false && !localPinnedHrefs.includes(i.href) && !localHiddenHrefs.includes(i.href)).map((item) => (
@@ -570,7 +580,9 @@ export function AppSidebar({
                             ))}
                             </div>
                         </div>
+                        )}
 
+                        {!hideNonAdminNav && (
                         <div key="section-informations" className="relative group/section" data-tour-section="informations">
                             <SectionTitle 
                                 label="Informations" 
@@ -681,9 +693,10 @@ export function AppSidebar({
                             )}
                             <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-150" />
                         </div>
+                        )}
 
-                        {/* SECTION: PROGRESSION */}
-                        {showProgressionGroup && (
+                        {/* SECTION: PROGRESSION (masquée pendant l'onboarding) */}
+                        {!hideNonAdminNav && showProgressionGroup && (
                             <div key="section-progression" className="relative group/section" data-tour-section="progression">
                                 <SectionTitle 
                                     label="Progression" 
@@ -716,6 +729,7 @@ export function AppSidebar({
                             </div>
                         )}
 
+                        {!hideNonAdminNav && (
                         <div key="section-tools" className="relative group/section">
                             <SectionTitle 
                                 label="Outils" 
@@ -746,7 +760,9 @@ export function AppSidebar({
                             )}
                             <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-300" />
                         </div>
+                        )}
 
+                        {!hideNonAdminNav && (
                         <div key="section-others" className="relative group/section">
                             <SectionTitle 
                                 label="Autres" 
@@ -777,8 +793,9 @@ export function AppSidebar({
                             )}
                             <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-300" />
                         </div>
+                        )}
 
-                        {/* SECTION: SUPERVISION (ADMIN) */}
+                        {/* SECTION: SUPERVISION (ADMIN) — seule visible pendant l'onboarding */}
                         {showAdminGroup && (
                             <div key="section-supervision" className="relative group/section">
                                 <SectionTitle 

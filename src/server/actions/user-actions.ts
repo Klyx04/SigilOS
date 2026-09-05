@@ -308,6 +308,58 @@ export const getUserContext = cache(async (targetGuildId?: string): Promise<User
     return _getUserContext(targetGuildId);
 });
 
+/**
+ * Contexte restreint « onboarding en attente » : la guilde est whitelistée
+ * (bot détecté) mais sans GuildConfig (jamais déployée). Si l'utilisateur est
+ * un admin Discord prouvé, on l'autorise JUSTE assez pour ouvrir la mise en
+ * route — qui créera la config. Tout le reste reste à false (la sidebar et le
+ * layout verrouillent le reste tant que l'onboarding n'est pas complet).
+ * Retourne null si les conditions ne sont pas réunies (→ Bêta Fermée).
+ */
+async function getPendingOnboardingContext(
+    discordGuildId: string,
+    sessionUserId: string,
+    baseContext: any,
+    authPartial: any,
+): Promise<any | null> {
+    try {
+        const { isGuildAllowed } = await import("./super-admin-actions");
+        if (!(await isGuildAllowed(discordGuildId))) return null;
+
+        const { requireGuildAdmin } = await import("./guards");
+        const guard = await requireGuildAdmin(discordGuildId, "Onboarding en attente", { allowOnboarding: true });
+        if (!guard.isAuthorized) return null;
+
+        const { db: prismaDb } = await import("@/lib/prisma");
+        const allowedEntry = await prismaDb.allowedGuild.findUnique({
+            where: { discordGuildId },
+            select: { name: true },
+        }).catch(() => null);
+
+        return {
+            ...baseContext,
+            ...authPartial,
+            isMember: true,
+            isAdmin: true,
+            isDiscordAdmin: true,
+            isSuperAdmin: false,
+            isOnboardingComplete: false,
+            canViewDashboard: true,
+            // Juste de quoi faire les 2 étapes obligatoires (serveur + rôles).
+            canManageRBAC: true,
+            canViewSettings: true,
+            guildId: discordGuildId,
+            guildName: allowedEntry?.name || "Nouvelle guilde",
+            roles: [],
+            roleNames: [],
+            pinnedNavItems: [],
+            hiddenNavItems: [],
+        };
+    } catch {
+        return null;
+    }
+}
+
 async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const session = await auth();
     if (!session?.user?.id) return { isAuthenticated: false } as any;
@@ -426,6 +478,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 rolesMapping: true,
                 usersMapping: true,
                 name: true,
+                isActive: true,
+                deletedAt: true,
                 dofusServerId: true,
                 welcomeEnabled: true,
                 welcomeDashboardEnabled: true,
@@ -470,6 +524,17 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     }
 
     if (!guildConfig) {
+        // Pas de config MAIS whitelist active (bot détecté via Gateway, jamais
+        // déployé) : au lieu du cul-de-sac « Bêta Fermée », on rend un contexte
+        // restreint à l'admin Discord prouvé — juste de quoi ouvrir la
+        // mise en route qui créera la config (fini le « pas encore autorisé »).
+        const pendingCtx = await getPendingOnboardingContext(
+            effectiveGuildId,
+            session.user.id,
+            baseContext,
+            authPartial,
+        );
+        if (pendingCtx) return pendingCtx;
         logger.warn(`[UserContext] GuildConfig not found in database for guild ${effectiveGuildId}`);
         return { ...baseContext, isAuthenticated: false };
     }
@@ -483,6 +548,24 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     if (!allowed && !isGod) {
         logger.warn(`[Security] Blocked access to unauthorized guild: ${actualDiscordGuildId}`);
         return { ...baseContext, isAuthenticated: false };
+    }
+
+    // ── GUILDE SUPPRIMÉE/DÉSACTIVÉE (God) : écran « Serveur Supprimé »
+    // immédiat, AVANT les branches archivé/banni (un membre d'une guilde
+    // supprimée voit l'état de la guilde, pas celui de son profil).
+    // Combiné à purgeGuildCaches() côté God, fini l'accès fantôme + le crash
+    // de la boundary « Section Indisponible ».
+    if (((guildConfig as any)?.deletedAt || (guildConfig as any)?.isActive === false) && !isGod) {
+        return {
+            ...baseContext,
+            isAuthenticated: true,
+            id: session.user.id,
+            name: session.user.name || "Voyageur",
+            image: session.user.image || undefined,
+            isMember: false,
+            isServerDeleted: true,
+            guildName: guildConfig?.name || "Serveur Inconnu",
+        } as any;
     }
 
     // 2. Get Discord ID — already stored in JWT token by auth.ts jwt() callback
@@ -1115,6 +1198,11 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     };
 
     if (!isOnboardingComplete && !isGod) {
+        // Verrou onboarding : l'admin ne garde que le Centre Admin (+ les
+        // pages /admin/* atteignables). En particulier, ni « La guilde » ni
+        // « Commandes Bot Discord » ne fuient dans la navbar à la 1re arrivée.
+        finalContext.canViewWelcome = false;
+        finalContext.canViewCommands = false;
         finalContext.canViewPresentation = false;
         finalContext.canViewStats = false;
         finalContext.canViewDocs = false;

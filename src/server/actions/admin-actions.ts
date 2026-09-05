@@ -19,11 +19,17 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    // Rate limit anti-abus : max 3 créations de guilde par tranche de 10 minutes par compte
-    const rateLimitResult = await rateLimit(`onboard:${session.user.id}`, 3, 600000);
-    if (!rateLimitResult.success) {
-        return { success: false, error: "Trop de requêtes de déploiement. Veuillez patienter 10 minutes." };
-    }
+    // Rate limit anti-abus : max 3 CRÉATIONS de guilde par tranche de 10 minutes.
+    // Il tourne APRÈS le test d'idempotence ci-dessous : re-cliquer (ou
+    // l'auto-déploiement à chaque vue du portail) sur une guilde déjà active
+    // ne doit jamais consommer le budget — sinon popup « 10 minutes » abusive.
+    const checkRateLimit = async (): Promise<ActionResponse | null> => {
+        const rateLimitResult = await rateLimit(`onboard:${session.user!.id}`, 3, 600000);
+        if (!rateLimitResult.success) {
+            return { success: false, error: "Trop de déploiements rapprochés — reviens dans 10 minutes, ta guilde est conservée." };
+        }
+        return null;
+    };
 
     try {
         // 0. Vérification PlatformBan (fail-closed)
@@ -75,6 +81,10 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
             }
             return { success: true };
         }
+
+        // Budget consommé uniquement pour une VRAIE création (voir ci-dessus).
+        const limited = await checkRateLimit();
+        if (limited) return limited;
 
         // 2. SECURITY CHECK: Verify User is Admin of this Guild (allowing initial onboarding)
         const { requireGuildAdmin } = await import("./guards");

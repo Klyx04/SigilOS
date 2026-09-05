@@ -25,7 +25,19 @@ export default async function GettingStartedPage({
         redirect(`/dashboard/${guildId}`);
     }
 
-    const progress = await getGettingStartedProgress(guildId);
+    // Cas « onboarding en attente » (lien direct avant tout déploiement) :
+    // la page crée la config elle-même au lieu de lever « Guild not found ».
+    let progress;
+    try {
+        progress = await getGettingStartedProgress(guildId);
+    } catch {
+        const { onboardGuild } = await import("@/server/actions/admin-actions");
+        const ensured = await onboardGuild(guildId);
+        if (!ensured.success) {
+            redirect("/dashboard");
+        }
+        progress = await getGettingStartedProgress(guildId);
+    }
     // % honnête : tant que les obligatoires ne sont pas complètes, on progresse
     // sur les obligatoires seules (la 1re étape validée affiche 50%, pas 20%).
     const { getGettingStartedPercent } = await import("@/lib/onboarding-gating");

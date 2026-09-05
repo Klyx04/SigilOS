@@ -211,11 +211,13 @@ export function DofusQuestHub({
                                 {/* CARD 1 : Rush Sylvestre — toujours visible, hard-codé */}
                                 <Link
                                     href={`/dashboard/${guildId}/quetes-dofus/guide/rush-sylvestre`}
-                                    className="group relative flex flex-col justify-between p-6 min-h-[320px] rounded-2xl border border-border bg-surface hover:bg-surface hover:border-success/40 transition-colors duration-200 no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success/50"
+                                    className="group relative flex flex-col justify-between p-6 min-h-[320px] rounded-2xl border border-border bg-surface hover:bg-elevated hover:border-success/40 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/30 transition-all duration-200 no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success/50"
                                     style={{ textDecoration: 'none' }}
                                 >
+                                    {/* Accent haut */}
+                                    <div className="absolute top-0 left-8 right-8 h-[2px] rounded-full bg-gradient-to-r from-transparent via-success/60 to-transparent pointer-events-none" />
                                     {/* Dofus Sylvestre watermark */}
-                                    <div className="absolute bottom-0 right-0 w-32 h-32 pointer-events-none opacity-[0.06] group-hover:opacity-[0.1] transition-opacity">
+                                    <div className="absolute bottom-0 right-0 w-32 h-32 pointer-events-none opacity-10 group-hover:opacity-[0.16] transition-opacity">
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img src="/module-dofus/Dofus_Sylvestre.png" alt="" className="w-full h-full object-contain" />
                                     </div>
@@ -225,9 +227,9 @@ export function DofusQuestHub({
                                         </div>
                                     )}
                                     <div className="space-y-4">
-                                        <div className="p-2 rounded-xl bg-success/10 border border-success/25 w-fit">
+                                        <div className="p-2.5 rounded-xl bg-success/10 border border-success/25 w-fit">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src="/module-dofus/Dofus_Sylvestre.png" alt="Dofus Sylvestre" className="w-10 h-10 object-contain" />
+                                            <img src="/module-dofus/Dofus_Sylvestre.png" alt="Dofus Sylvestre" className="w-12 h-12 object-contain" />
                                         </div>
                                         <div>
                                             <div className="flex items-center gap-2 mb-1">
@@ -246,7 +248,7 @@ export function DofusQuestHub({
                                             <span className="text-muted-foreground">Mode :</span>
                                             <span className="text-success font-semibold">Collaboratif</span>
                                         </div>
-                                        <div className="flex items-center gap-1 text-caption font-semibold text-success pt-2">
+                                        <div className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-success/30 bg-success/10 text-caption font-bold text-success group-hover:bg-success/20 transition-colors">
                                             Démarrer le Rush <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                                         </div>
                                     </div>

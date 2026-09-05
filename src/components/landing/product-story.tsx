@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, Pause, Play, ZoomIn } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isPublicLandingLabel } from "@/lib/landing-utils";
 import type { PublicLandingScreen } from "@/server/actions/landing-screen-actions";
 
 interface ProductStoryProps {
@@ -23,9 +24,10 @@ interface ProductTab {
  * 🖼️ #140 — Groupe les screens par libellé : un libellé partagé par plusieurs screens
  * devient UN onglet avec plusieurs images (galerie cliquable + zoom plein écran).
  */
-function groupIntoTabs(screens: PublicLandingScreen[]): ProductTab[] {
+export function groupIntoTabs(screens: PublicLandingScreen[]): ProductTab[] {
     const map = new Map<string, ProductTab>();
-    for (const s of screens) {
+    // Les libellés de test God ("test1"…) ne sortent jamais sur la landing.
+    for (const s of screens.filter((entry) => isPublicLandingLabel(entry.label))) {
         const key = (s.label || "").toLowerCase().trim() || s.id;
         const existing = map.get(key);
         if (existing) {
@@ -129,11 +131,11 @@ export function ProductStory({ screens = [] }: ProductStoryProps) {
         <section id="produit" className="w-full border-t border-border py-20">
             <div className="mx-auto max-w-[1100px] px-4 sm:px-6 lg:px-8">
                 <div className="max-w-2xl mb-10">
-                    <p className="text-caption font-semibold uppercase tracking-[0.14em] text-success mb-4">
-                        Produit
+                    <p className="text-sm font-semibold text-success mb-4">
+                        Aperçu
                     </p>
                     <h2 className="text-2xl md:text-4xl font-bold tracking-tight text-foreground">
-                        Conçu pour que la guilde joue ensemble.
+                        Le QG en action.
                     </h2>
                 </div>
 

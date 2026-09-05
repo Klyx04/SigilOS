@@ -31,11 +31,11 @@ export function FaqSection() {
             <div className="mx-auto max-w-[1100px] px-4 sm:px-6 lg:px-8">
                 <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-10">
                     <div className="max-w-md">
-                        <p className="text-caption font-semibold uppercase tracking-[0.14em] text-success mb-4">
-                            FAQ
+                        <p className="text-sm font-semibold text-success mb-4">
+                            Questions fréquentes
                         </p>
                         <h2 className="text-2xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
-                            Vous vous demandez peut-être…
+                            Avant de te lancer.
                         </h2>
                         <p className="text-muted-foreground text-[15px] leading-relaxed mb-6">
                             Les réponses aux questions les plus courantes avant de vous lancer.

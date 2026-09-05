@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
@@ -28,73 +28,26 @@ const FREE_TOOLS = [
 
 export function DofusHeroSection({ user, userGuilds = [] }: DofusHeroSectionProps) {
   const [showAccessModal, setShowAccessModal] = useState(false);
-  const [scrollY, setScrollY] = useState(0);
-
-  useEffect(() => {
-    const onScroll = () => setScrollY(window.scrollY);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   return (
     <section
       className="relative w-full overflow-hidden bg-[#08090d] text-white select-none dark"
       style={{ minHeight: "100svh" }}
     >
-      {/* ── VISTA DOFUS : décor authentique de l'écran-titre, en 3 plans ── */}
+      {/* ── HALL DE GUILDE : décor authentique du jeu (temple de guilde) ── */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
         <Image
-          src="/assets/dofus/vista/title-sky.png"
+          src="/assets/dofus/vista/hall-guild.webp"
           alt=""
           fill
           priority
           sizes="100vw"
-          className="object-cover"
-        />
-      </div>
-      <div
-        className="absolute inset-x-0 bottom-0 top-[30%] pointer-events-none"
-        aria-hidden="true"
-        style={{ transform: `translateY(${scrollY * 0.08}px)` }}
-      >
-        <Image
-          src="/assets/dofus/vista/title-mountains.png"
-          alt=""
-          fill
-          sizes="100vw"
-          className="object-cover object-bottom"
-        />
-      </div>
-      <div className="absolute inset-x-0 bottom-0 h-28 pointer-events-none" aria-hidden="true">
-        <Image
-          src="/assets/dofus/vista/title-ground.png"
-          alt=""
-          fill
-          sizes="100vw"
-          className="object-cover object-bottom"
-        />
-      </div>
-      <div className="absolute bottom-0 left-0 w-40 md:w-64 pointer-events-none hidden sm:block" aria-hidden="true">
-        <Image
-          src="/assets/dofus/vista/title-front-left.png"
-          alt=""
-          width={467}
-          height={159}
-          className="w-full h-auto"
-        />
-      </div>
-      <div className="absolute bottom-0 right-0 w-24 md:w-36 pointer-events-none hidden sm:block" aria-hidden="true">
-        <Image
-          src="/assets/dofus/vista/title-front-right.png"
-          alt=""
-          width={186}
-          height={1024}
-          className="w-full h-auto max-h-[60vh] object-cover object-top"
+          className="object-cover object-center"
         />
       </div>
 
       {/* Voile de lisibilité : assombrit le décor derrière le texte + fondu bas */}
-      <div className="absolute inset-0 pointer-events-none bg-black/55" aria-hidden="true" />
+      <div className="absolute inset-0 pointer-events-none bg-black/60" aria-hidden="true" />
       <div
         className="absolute inset-x-0 bottom-0 h-48 pointer-events-none"
         aria-hidden="true"
@@ -173,7 +126,7 @@ export function DofusHeroSection({ user, userGuilds = [] }: DofusHeroSectionProp
             onClick={() => setShowAccessModal(true)}
             className="underline underline-offset-2 hover:text-white cursor-pointer"
           >
-            Besoin d&apos;aide ou alliance ?
+            Préfère être accompagné ?
           </button>
         </div>
 
@@ -186,7 +139,7 @@ export function DofusHeroSection({ user, userGuilds = [] }: DofusHeroSectionProp
               href={tool.href}
               className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-black/40 hover:bg-black/60 border border-white/15 text-zinc-100 transition-colors"
             >
-              <Image src={tool.icon} alt="" width={16} height={16} className="w-4 h-4 object-contain" />
+              <Image src={tool.icon} alt="" width={20} height={20} className="w-5 h-5 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]" />
               <span>{tool.label}</span>
             </Link>
           ))}

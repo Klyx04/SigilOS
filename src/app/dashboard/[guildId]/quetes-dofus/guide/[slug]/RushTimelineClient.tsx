@@ -310,7 +310,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             : isThisBookmarked
               ? "bg-[#e6b96b]/[0.05] border-[#e6b96b]/30 border-l-2 border-l-[#e6b96b]"
               : isNext
-                ? "bg-[#10221f]/70 border-[#1c5347]/80"
+                ? "bg-info/[0.06] border-info/25"
                 : "bg-[#13171e] hover:bg-[#181e26] border-[#222935] hover:border-[#323c4d]"}
           ${focusedSeqId === seq.id ? "ring-1 ring-[#4fd1a5]/60" : ""}
         `}
@@ -362,6 +362,9 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               );
               return <span className={cls}>{questName}</span>;
             })()}
+            {isNext && !isSeqCompleted && (
+              <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-info/15 text-info border border-info/25 shrink-0">À faire</span>
+            )}
             {/* Position GPS — chip mono bleu */}
             {(() => {
               const posTag = Array.isArray(seq.activityTags) ? (seq.activityTags as any[]).find((t: any) => t.type === "pos_tags") : null;
@@ -379,7 +382,6 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 <span
                   className="inline-flex items-center px-1.5 py-0.5 rounded bg-[#1c273e] border border-[#89adff]/30 text-[10px] font-mono text-[#b3ccff] hover:text-white hover:bg-[#253556] cursor-pointer transition-colors shrink-0"
                   onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(travelCommand).then(() => toast.success(`📍 ${travelCommand} copié !`, { duration: 1200 })).catch(() => {}); }}
-                  title={`Copier ${travelCommand}`}
                 >
                   [{x}, {y}]
                 </span>

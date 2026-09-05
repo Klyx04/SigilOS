@@ -1619,48 +1619,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ type: 4, data: { content: "Modal inconnu", flags: 64 } });
         }
 
-        // 4. Handle Slash Command (/status)
-        if (payload.type === 2) {
-            const { name } = payload.data;
 
-            if (name === "status") {
-                try {
-                    const baseUrl = getAppBaseUrl();
-                    const healthRes = await fetch(`${baseUrl}/api/health`);
-                    const health = await healthRes.json();
-
-                    const statusEmoji = health.status === "healthy" ? "🟢" : health.status === "degraded" ? "🟡" : "🔴";
-                    const dbStatus = health.services.database.status === "up" ? "🟢 Opérationnel" : "🔴 Hors ligne";
-                    const redisStatus = health.services.redis.status === "up" ? "🟢 Opérationnel" :
-                        health.services.redis.status === "not_configured" ? "⚪ Non configuré" : "🔴 Hors ligne";
-
-                    return NextResponse.json({
-                        type: 4,
-                        data: {
-                            embeds: [{
-                                title: "🏰 SigilOS Status",
-                                color: health.status === "healthy" ? 0x10b981 : health.status === "degraded" ? 0xf59e0b : 0xef4444,
-                                fields: [
-                                    { name: "État Global", value: `${statusEmoji} ${health.status === "healthy" ? "Opérationnel" : health.status === "degraded" ? "Dégradé" : "Critique"}`, inline: false },
-                                    { name: "Base de données", value: `${dbStatus}${health.services.database.latency ? ` (${health.services.database.latency}ms)` : ""}`, inline: true },
-                                    { name: "Cache Redis", value: `${redisStatus}${health.services.redis.latency ? ` (${health.services.redis.latency}ms)` : ""}`, inline: true },
-                                ],
-                                footer: { text: `Version: ${health.version || "unknown"}` },
-                                timestamp: new Date().toISOString()
-                            }]
-                        }
-                    });
-                } catch (error) {
-                    console.error("[Discord Status Command] Error:", error);
-                    return NextResponse.json({
-                        type: 4,
-                        data: { content: "❌ Impossible de récupérer le statut.", flags: 64 }
-                    });
-                }
-            }
-
-            return NextResponse.json({ type: 4, data: { content: "Commande inconnue", flags: 64 } });
-        }
 
         // ================================================================
         // TYPE 4 — AUTOCOMPLETE (triggered when user types in a /command option)
@@ -1869,6 +1828,43 @@ export async function POST(request: NextRequest) {
                             });
                         }
                     }
+                }
+            }
+
+            // ── /status ───────────────────────────────────────────────
+            if (commandName === "status") {
+                try {
+                    const baseUrl = getAppBaseUrl();
+                    const healthRes = await fetch(`${baseUrl}/api/health`);
+                    const health = await healthRes.json();
+
+                    const statusEmoji = health.status === "healthy" ? "🟢" : health.status === "degraded" ? "🟡" : "🔴";
+                    const dbStatus = health.services.database.status === "up" ? "🟢 Opérationnel" : "🔴 Hors ligne";
+                    const redisStatus = health.services.redis.status === "up" ? "🟢 Opérationnel" :
+                        health.services.redis.status === "not_configured" ? "⚪ Non configuré" : "🔴 Hors ligne";
+
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            embeds: [{
+                                title: "🏰 SigilOS Status",
+                                color: health.status === "healthy" ? 0x10b981 : health.status === "degraded" ? 0xf59e0b : 0xef4444,
+                                fields: [
+                                    { name: "État Global", value: `${statusEmoji} ${health.status === "healthy" ? "Opérationnel" : health.status === "degraded" ? "Dégradé" : "Critique"}`, inline: false },
+                                    { name: "Base de données", value: `${dbStatus}${health.services.database.latency ? ` (${health.services.database.latency}ms)` : ""}`, inline: true },
+                                    { name: "Cache Redis", value: `${redisStatus}${health.services.redis.latency ? ` (${health.services.redis.latency}ms)` : ""}`, inline: true },
+                                ],
+                                footer: { text: `Version: ${health.version || "unknown"}` },
+                                timestamp: new Date().toISOString()
+                            }]
+                        }
+                    });
+                } catch (error) {
+                    console.error("[Discord Status Command] Error:", error);
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "❌ Impossible de récupérer le statut.", flags: 64 }
+                    });
                 }
             }
 

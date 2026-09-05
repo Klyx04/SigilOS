@@ -1,7 +1,7 @@
 const STEPS = [
     {
         title: "Connecter ton Discord",
-        description: "En 1 clic si tu es admin, ou accompagné par ticket via notre Discord.",
+        description: "En 1 clic si tu es admin, ou accompagné par ticket sur Discord.",
     },
     {
         title: "Configurer",

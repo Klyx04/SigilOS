@@ -94,7 +94,7 @@ export function HeroSection({ user, userGuilds = [], heroImageUrl }: HeroSection
                                         onClick={() => setShowAccessModal(true)}
                                         className="hover:text-foreground underline transition-colors"
                                     >
-                                        Besoin d&apos;aide ou alliance ?
+                                        Préfère être accompagné ?
                                     </button>
                                 </div>
                             </div>

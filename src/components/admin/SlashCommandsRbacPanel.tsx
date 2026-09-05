@@ -41,12 +41,23 @@ export function SlashCommandsRbacPanel({
     );
     const [isSaving, setIsSaving] = useState<string | null>(null);
 
+    // Helper sécurisé pour parser la couleur Discord (nombre entier ou hex string)
+    const parseRoleColor = (rawColor: unknown): number | undefined => {
+        if (typeof rawColor === "number") return rawColor > 0 ? rawColor : undefined;
+        if (typeof rawColor === "string") {
+            const cleaned = rawColor.replace(/^#/, "").trim();
+            const parsed = parseInt(cleaned, 16);
+            return !isNaN(parsed) && parsed > 0 ? parsed : undefined;
+        }
+        return undefined;
+    };
+
     // Options mémorisées pour les dropdowns fluides
     const roleOptions: Option[] = useMemo(() => {
         return discordRoles.map(r => ({
             label: r.name,
             value: r.id,
-            color: r.color ? parseInt(r.color.replace('#', ''), 16) : undefined
+            color: parseRoleColor(r.color)
         }));
     }, [discordRoles]);
 

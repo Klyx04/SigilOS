@@ -39,7 +39,7 @@ export function PreFooterCta() {
                             className="inline-flex items-center justify-center gap-2.5 h-12 px-7 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-sm transition-all shadow-lg shadow-[#5865F2]/25 cursor-pointer active:scale-95"
                         >
                             <DiscordIcon className="w-4 h-4" />
-                            Installer sur mon Discord
+                            Déployer ma guilde en 1 clic
                         </button>
 
                         <Link

@@ -156,7 +156,7 @@ export function ToolsBentoShowcase() {
               className="inline-flex items-center gap-2.5 px-5 py-3 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-xs uppercase tracking-wider transition-all shadow-lg shadow-[#5865F2]/25 shrink-0 cursor-pointer"
             >
               <DiscordIcon className="w-4 h-4" />
-              <span>Installer sur Discord</span>
+              <span>Déployer ma guilde en 1 clic</span>
             </button>
           </div>
         </div>

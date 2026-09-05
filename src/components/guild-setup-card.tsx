@@ -20,6 +20,7 @@ type GuildProps = {
 
 export function GuildSetupCard({ guild, clientId }: { guild: GuildProps, clientId?: string }) {
     const [loading, setLoading] = useState(false);
+    const [inviteStarted, setInviteStarted] = useState(false);
 
     // If bot is missing, we need to invite it first
     const needsInvite = guild.isBotPresent === false;
@@ -35,14 +36,21 @@ export function GuildSetupCard({ guild, clientId }: { guild: GuildProps, clientI
             // Using window.location.origin ensures we redirect back to the correct environment (localhost/beta/prod)
             // #223 P2 — bitmask minimal (plus de permissions=8 Administrateur).
             const inviteUrl = buildDiscordBotInviteUrl(clientId, {
+                guildId: guild.id,
                 redirectUri: `${window.location.origin}/onboarding/success`,
                 scope: "bot",
             });
 
             if (!inviteUrl) return; // fail-closed (clientId déjà vérifié, garde TS)
 
-            // Open in a new tab to keep the context, but we list for completion
-            window.open(inviteUrl, "_blank");
+            // Open in a new tab to keep the context, but we list for completion.
+            // Si le bloqueur de popup refuse l'onglet, on bascule dans l'onglet
+            // courant (même URL de retour /onboarding/success → /dashboard).
+            setInviteStarted(true);
+            const popup = window.open(inviteUrl, "_blank");
+            if (!popup || popup.closed || typeof popup.closed === "undefined") {
+                window.location.href = inviteUrl;
+            }
             return;
         }
 
@@ -64,17 +72,29 @@ export function GuildSetupCard({ guild, clientId }: { guild: GuildProps, clientI
         }
     };
 
-    // Auto-refresh when bot is authorized in the other tab
+    // Auto-refresh when bot is authorized in the other tab.
+    // + reload au retour du focus (cas popup fermée à la main ou bascule
+    // même-onglet : sans cela la carte reste "Bot absent" jusqu'au F5 manuel).
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
             if (event.data === "sigilos-bot-invited" && event.origin === window.location.origin) {
                 window.location.reload();
             }
         };
+        // Reload au retour du focus UNIQUEMENT après un clic "Inviter"
+        // (cas popup fermée à la main : sans cela la carte reste
+        // "Bot absent" jusqu'au F5 manuel).
+        const handleFocus = () => {
+            if (inviteStarted) window.location.reload();
+        };
 
         window.addEventListener("message", handleMessage);
-        return () => window.removeEventListener("message", handleMessage);
-    }, []);
+        window.addEventListener("focus", handleFocus);
+        return () => {
+            window.removeEventListener("message", handleMessage);
+            window.removeEventListener("focus", handleFocus);
+        };
+    }, [inviteStarted]);
 
     return (
         <Card className="bg-black/20 border-border border-dashed hover:border-border-strong transition-all cursor-default">

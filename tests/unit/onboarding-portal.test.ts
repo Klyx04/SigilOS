@@ -3,6 +3,8 @@ import {
     classifyGuildsFetchError,
     shouldAutoReloadPortal,
     MAX_PORTAL_AUTO_RELOAD,
+    isNavLockedDuringOnboarding,
+    isOnboardingAllowedPath,
 } from "@/lib/onboarding-gating";
 
 /**
@@ -70,5 +72,35 @@ describe("onboarding-portal — plafond de re-vérification auto", () => {
         expect(
             shouldAutoReloadPortal({ rateLimited: false, needsReconnect: false, attempts: 0 }),
         ).toBe(false);
+    });
+});
+
+describe("onboarding-portal — verrou navigation + parcours sans échappatoire", () => {
+    it("verrouille la nav pour un admin en onboarding incomplet", () => {
+        expect(
+            isNavLockedDuringOnboarding({ isOnboardingComplete: false, isSuperAdmin: false }),
+        ).toBe(true);
+    });
+
+    it("déverrouille quand l'onboarding est complet", () => {
+        expect(
+            isNavLockedDuringOnboarding({ isOnboardingComplete: true, isSuperAdmin: false }),
+        ).toBe(false);
+    });
+
+    it("God exempté du verrou (inspection)", () => {
+        expect(
+            isNavLockedDuringOnboarding({ isOnboardingComplete: false, isSuperAdmin: true }),
+        ).toBe(false);
+    });
+
+    it("parcours : seules les pages /admin/* sont autorisées", () => {
+        const gid = "123";
+        expect(isOnboardingAllowedPath(`/dashboard/${gid}/admin/getting-started`, gid)).toBe(true);
+        expect(isOnboardingAllowedPath(`/dashboard/${gid}/admin/settings`, gid)).toBe(true);
+        expect(isOnboardingAllowedPath(`/dashboard/${gid}/admin/permissions`, gid)).toBe(true);
+        expect(isOnboardingAllowedPath(`/dashboard/${gid}`, gid)).toBe(false);
+        expect(isOnboardingAllowedPath(`/dashboard/${gid}/members`, gid)).toBe(false);
+        expect(isOnboardingAllowedPath(`/dashboard/999/admin`, gid)).toBe(false);
     });
 });

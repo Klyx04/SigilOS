@@ -169,6 +169,17 @@ export default async function DashboardLayout({
         );
     }
 
+    // ── ONBOARDING ADMIN : parcours sans échappatoire. Tant que la mise en
+    // route n'est pas terminée, l'admin ne navigue que dans /admin/* (les 2
+    // étapes obligatoires + modules) — fini la fuite vers le dashboard
+    // membre. God exempté (inspection).
+    if (!user.isOnboardingComplete && user.isAdmin && !(user as any).isSuperAdmin) {
+        const { isOnboardingAllowedPath } = await import("@/lib/onboarding-gating");
+        if (!isOnboardingAllowedPath(pathname, guildId)) {
+            redirect(`/dashboard/${guildId}/admin/getting-started`);
+        }
+    }
+
     // ── NO DASHBOARD ACCESS (role-based) ──
     if (!user.canViewDashboard) {
         return (

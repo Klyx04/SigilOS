@@ -28,6 +28,40 @@ import { getDisplayName } from "@/lib/display-name";
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 
+/**
+ * Purge tous les caches d'une guilde (contexte membres Redis, config mémoire,
+ * whitelist 60 s). Best-effort : un échec de purge ne fait jamais échouer
+ * l'opération God appelante.
+ */
+export async function purgeGuildCaches(discordGuildId: string): Promise<void> {
+    try {
+        const { invalidateGuildCache, flushGuildUserContextCache } = await import("./user-actions");
+        await invalidateGuildCache(discordGuildId);
+        await flushGuildUserContextCache(discordGuildId);
+    } catch (e) {
+        logger.warn("[GOD] purgeGuildCaches (user-actions) échouée:", e as any);
+    }
+    try {
+        const { invalidateAllowedGuildCache } = await import("./super-admin-actions");
+        await invalidateAllowedGuildCache(discordGuildId);
+    } catch (e) {
+        logger.warn("[GOD] purgeGuildCaches (allowed) échouée:", e as any);
+    }
+}
+
+/** Variante par ID interne GuildConfig (soft/reactivate ne connaissent que lui). */
+async function purgeGuildCachesByInternalId(guildConfigId: string): Promise<void> {
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { id: guildConfigId },
+            select: { discordGuildId: true },
+        });
+        if (config?.discordGuildId) await purgeGuildCaches(config.discordGuildId);
+    } catch (e) {
+        logger.warn("[GOD] purgeGuildCachesByInternalId échouée:", e as any);
+    }
+}
+
 export async function softDeleteGuild(
     guildId: string,
     reason: string,
@@ -65,6 +99,11 @@ export async function softDeleteGuild(
                 scheduledDeletion
             }
         });
+
+        // Éviction immédiate : sans cela les membres gardent leur contexte
+        // (Redis `user:ctx:*` + cache mémoire `config:` + whitelist 60 s) et
+        // continuent de naviguer sur une guilde supprimée jusqu'à expiration.
+        await purgeGuildCachesByInternalId(guildId);
 
         // NOTIFY GOD (Platform Alert)
         const { notifyGod } = await import('./god-notif-actions');
@@ -126,6 +165,9 @@ export async function reactivateGuild(guildId: string) {
             }
         });
 
+        // Les contextes « guilde supprimée » mis en cache doivent mourir aussi.
+        await purgeGuildCachesByInternalId(guildId);
+
         // 🔔 NOTIFY GOD
         const guildName = guild?.name || guildId;
         const { notifyGod } = await import('./god-notif-actions');
@@ -173,6 +215,9 @@ export async function hardDeleteGuild(guildId: string) {
             await db.allowedGuild.deleteMany({
                 where: { discordGuildId: guildConfig.discordGuildId }
             });
+            // Éviction immédiate (cf. softDeleteGuild) : sinon les membres
+            // restent dans le dashboard jusqu'à expiration des caches.
+            await purgeGuildCaches(guildConfig.discordGuildId);
         }
 
         // 🔔 NOTIFY GOD

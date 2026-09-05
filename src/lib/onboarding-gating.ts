@@ -75,6 +75,26 @@ export function shouldAutoReloadPortal(args: {
     return args.attempts < MAX_PORTAL_AUTO_RELOAD;
 }
 
+/**
+ * Verrou navigation pendant la mise en route : l'admin ne voit que le
+ * Centre Admin (ni Dashboard, ni La guilde, ni Commandes…). God exempté.
+ */
+export function isNavLockedDuringOnboarding(args: {
+    isOnboardingComplete: boolean;
+    isSuperAdmin: boolean;
+}): boolean {
+    return !args.isOnboardingComplete && !args.isSuperAdmin;
+}
+
+/**
+ * Parcours sans échappatoire : un admin en onboarding incomplet ne navigue
+ * que dans `/dashboard/[guildId]/admin/*` (étapes obligatoires + modules).
+ * Toute autre page du dashboard le renvoie vers la mise en route.
+ */
+export function isOnboardingAllowedPath(pathname: string, guildId: string): boolean {
+    return pathname.startsWith(`/dashboard/${guildId}/admin`);
+}
+
 /** Icône Discord d'une guilde candidate du portail (format léger borné). */
 export function buildPendingGuildIconUrl(guildId: string, iconHash: string | null): string | null {
     if (!guildId || !iconHash) return null;

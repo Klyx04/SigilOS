@@ -26,7 +26,10 @@ export default async function GettingStartedPage({
     }
 
     const progress = await getGettingStartedProgress(guildId);
-    const percent = Math.round((progress.totalPoints / progress.maxPoints) * 100);
+    // % honnête : tant que les obligatoires ne sont pas complètes, on progresse
+    // sur les obligatoires seules (la 1re étape validée affiche 50%, pas 20%).
+    const { getGettingStartedPercent } = await import("@/lib/onboarding-gating");
+    const { percent } = getGettingStartedPercent(progress.steps);
 
     const iconMap: Record<string, any> = {
         dofus: Rocket,

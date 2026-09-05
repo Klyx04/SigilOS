@@ -691,8 +691,8 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
                                     🚀 Autonome
                                 </span>
                             ) : guild.isWhitelistOnly ? (
-                                <span className="text-[10px] px-2 py-0.5 rounded font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                                    🤖 Bot Seul
+                                <span className="text-[10px] px-2 py-0.5 rounded font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20" title="Bot installé mais guilde jamais déployée — en attente que l'admin clique Déployer sur le portail">
+                                    🤖 Bot Seul — en attente de déploiement
                                 </span>
                             ) : (
                                 <span className="text-[10px] px-2 py-0.5 rounded font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/20">
@@ -701,8 +701,8 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
                             )}
                             {/* Risk score badge */}
                             {isFrozen ? (
-                                <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-red-500/10 text-red-400 border border-red-500/20" title="Serveur désactivé ou supprimé">
-                                    🔴 Gelé
+                                <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-red-500/10 text-red-400 border border-red-500/20" title="Guilde désactivée ou supprimée — activation requise (bouton Activer). Normal juste après une invitation, avant le Déployer du portail.">
+                                    🔴 Gelé — activation requise
                                 </span>
                             ) : isWatch ? (
                                 <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20" title="Faible activité (< 4 membres)">

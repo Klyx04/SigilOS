@@ -730,9 +730,11 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         ? ((guildConfig?.usersMapping as Record<string, PermissionId[]>) || {})
         : {};
 
-    const isRbacConfigured = Object.values(rolesMapping).some(perms =>
-        Array.isArray(perms) && perms.includes(PERMISSIONS.DASHBOARD_LOGIN)
-    );
+    // Fail-closed : `dashboard:login` accordé au rôle @everyone (id = id Discord
+    // de la guilde) ne configure PAS le RBAC — sinon tout le serveur entrerait
+    // sans contrôle. Seul un rôle explicite compte (cohérent onboarding-actions).
+    const { isRbacConfigured: isRbacExcludingEveryone } = await import("@/lib/onboarding-gating");
+    const isRbacConfigured = isRbacExcludingEveryone(rolesMapping, effectiveGuildId);
     // Onboarding complet = serveur de jeu configuré (dofusServerId) ET rôles & permissions (RBAC).
     // Cohérent avec onboarding-actions.ts (2 étapes obligatoires).
     const isOnboardingComplete = isRbacConfigured && !!guildConfig?.dofusServerId;
@@ -936,20 +938,22 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         if (LEGACY_MAPPING[p]) permissionSet.add(LEGACY_MAPPING[p]);
     });
 
-    const noRolesConfigured = Object.keys(rolesMapping).length === 0;
-
-    const canViewWelcome = permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal || noRolesConfigured;
-    const canViewPresentation = permissionSet.has(PERMISSIONS.PRESENTATION_VIEW) || isAdminFinal || noRolesConfigured;
+    // noRolesConfigured (guilde fraîche sans mapping) : avant, le fallback ouvrait
+    // La guilde / dispos à TOUS les membres avant même la config RBAC (fuite
+    // everyone). Désormais seuls les ADMINS gardent l'accès (via isAdminFinal) —
+    // les membres attendent le mapping explicite (fail-closed).
+    const canViewWelcome = permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal;
+    const canViewPresentation = permissionSet.has(PERMISSIONS.PRESENTATION_VIEW) || isAdminFinal;
     const canEditPresentation = permissionSet.has(PERMISSIONS.STAFF_CONTENT) || isAdminFinal;
     // Stats Guilde = même RBAC que la page guilde (DASHBOARD_LOGIN), pas lié aux Audit Logs
-    const canViewStats = permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal || noRolesConfigured;
+    const canViewStats = permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal;
     const canViewDocs = permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal;
     const canViewAdminDocs = permissionSet.has(PERMISSIONS.STAFF_CONTENT) || isAdminFinal;
     const canViewCommands = permissionSet.has(PERMISSIONS.COMMANDS_VIEW) || isAdminFinal;
     const canViewRoster = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal;
     // Module Disponibilités : accès communauté OU permission dédiée `availability:view`.
     // Le module toggle (`mod.availability`) reste le verrou principal (applyModule).
-    const canViewAvailability = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || permissionSet.has(PERMISSIONS.AVAILABILITY_VIEW) || isAdminFinal || noRolesConfigured;
+    const canViewAvailability = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || permissionSet.has(PERMISSIONS.AVAILABILITY_VIEW) || isAdminFinal;
     const canManageMembers = permissionSet.has(PERMISSIONS.STAFF_MEMBER_MGMT) || isAdminFinal;
     // #127 — délégation God → officiers : gestion des liens/catégories/créateurs Ressources.
     const canManageResources = permissionSet.has(PERMISSIONS.RESOURCES_MANAGE) || isAdminFinal;
@@ -1036,7 +1040,9 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewDocs: !!applyModule(!!mod?.docs, !!canViewDocs),
         canViewAdminDocs: !!canViewAdminDocs,
         canViewCommands: !!canViewCommands,
-        canViewResources: !!applyModule(!!mod?.resources, true),
+        // Ressources : avant, perm `true` en dur → visible par TOUS dès le module
+        // actif (fuite everyone). Désormais permission COMMUNITY_ACCESS requise.
+        canViewResources: !!applyModule(!!mod?.resources, permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal),
         canManageResources: !!canManageResources,
         canViewProfile: !!applyModule(!!mod?.profile, true),
         canManageMembers: !!canManageMembers,
@@ -1329,10 +1335,13 @@ export async function getGuildsSeparated(): Promise<{
         const perms = BigInt(guild.permissions);
         const isAdmin = (perms & 0x8n) === 0x8n;
         if ((isAdmin || guild.owner) && isAllowedForDeployment(guild.id)) {
+            const { buildPendingGuildIconUrl } = await import("@/lib/onboarding-gating");
             pendingCandidates.push({
                 id: guild.id,
                 name: guild.name,
-                icon: guild.icon ? `https://discord.com/api/v10/icons/${guild.id}/${guild.icon}.png` : null
+                // cdn.discordapp.com + ?size=128 : l'ancien host api/v10/icons sans
+                // size renvoyait des 404 (icônes animées) sur le portail.
+                icon: buildPendingGuildIconUrl(guild.id, guild.icon ?? null)
             });
         }
     }

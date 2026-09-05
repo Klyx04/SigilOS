@@ -14,12 +14,13 @@ export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
     const [showModal, setShowModal] = useState(false);
 
     // Auto-reload when rate limited (paused while the request modal is open)
-    // so the user never stays blocked on a stale state.
+    // so the user never stays blocked on a stale state. Discord répond avec
+    // un léger délai après une invitation : on re-vérifie seul toutes les 10 s.
     useEffect(() => {
         if (rateLimited && !showModal) {
             const interval = setInterval(() => {
                 window.location.reload();
-            }, 15000);
+            }, 10000);
             return () => clearInterval(interval);
         }
     }, [rateLimited, showModal]);
@@ -61,13 +62,13 @@ export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
                                 <RefreshCw className="h-4 w-4 text-warning shrink-0 mt-0.5" />
                                 <div className="flex-1 min-w-0">
                                     <p className="text-caption text-warning/90 font-semibold leading-relaxed">
-                                        Vérification des accès en cours — l&apos;API Discord répond avec un léger délai.
+                                        Vérification des accès en cours — Discord met 5 à 10 secondes à confirmer vos droits admin. Pas besoin de cliquer : la page re-vérifie automatiquement.
                                     </p>
                                     <button
                                         onClick={() => window.location.reload()}
                                         className="text-caption font-bold text-warning underline underline-offset-2 hover:text-foreground transition-colors mt-1"
                                     >
-                                        Relancer la vérification
+                                        Relancer la vérification maintenant
                                     </button>
                                 </div>
                             </div>

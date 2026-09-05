@@ -215,7 +215,7 @@ export function AppSidebar({
 
     // 5. AUTRES
     const NAV_OTHERS = [
-        { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Gamepad2, imgSrc: "/assets/nav/dice.png", color: "cyan", tourKey: "minigames", visible: user.canViewMiniGames },
+        { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Gamepad2, imgSrc: "/assets/nav/dice.png", color: "cyan", tourKey: "minigames", visible: user.canViewMiniGames && modules.minigames },
         { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Gavel, imgSrc: "/assets/nav/chat.png", color: "cyan", tourKey: "polls", visible: user.canViewPolls && modules.polls },
         { name: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, imgSrc: "/assets/nav/world.png", color: "cyan", visible: user.canViewWorldmap && modules.worldmap },
         { name: "Roadmap", href: "/roadmap", icon: Rocket, color: "amber", visible: roadmapEnabled },
@@ -253,8 +253,8 @@ export function AppSidebar({
         ...NAV_TOOLS,
         ...NAV_OTHERS,
         NAV_ADMIN_TOP,
-        { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, imgSrc: "/assets/nav/genealogy.png", color: "emerald", visible: user.canViewRoster },
-        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, imgSrc: "/assets/nav/calendar.png", color: "emerald", visible: user.canViewCalendar },
+        { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, imgSrc: "/assets/nav/genealogy.png", color: "emerald", visible: user.canViewRoster && modules.roster },
+        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, imgSrc: "/assets/nav/calendar.png", color: "emerald", visible: user.canViewCalendar && modules.calendar },
         { name: "Ressources Dofus", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, imgSrc: "/assets/nav/resources.png", color: "emerald", visible: user.canViewResources && modules.resources },
         { name: "Commandes Bot Discord", href: `/dashboard/${guildId}/commandes`, icon: Terminal, imgSrc: "/assets/nav/cog.png", color: "emerald", visible: user.canViewCommands },
         { 
@@ -618,9 +618,9 @@ export function AppSidebar({
                                             />
                                     )}
 
-                                    {/* Annuaire - Direct Link */}
-                                    {user.canViewRoster && 
-                                    !localPinnedHrefs.includes(`/dashboard/${guildId}/members`) && 
+                                    {/* Annuaire - Direct Link (verrou module : invisible tant que l'admin n'active pas le module) */}
+                                    {user.canViewRoster && modules.roster &&
+                                    !localPinnedHrefs.includes(`/dashboard/${guildId}/members`) &&
                                     !localHiddenHrefs.includes(`/dashboard/${guildId}/members`) && (
                                         <NavItem 
                                             key={`nav-roster`}
@@ -633,9 +633,9 @@ export function AppSidebar({
                                         />
                                     )}
                                     
-                                    {/* Calendrier - Direct Link */}
-                                    {user.canViewCalendar && 
-                                    !localPinnedHrefs.includes(`/dashboard/${guildId}/calendar`) && 
+                                    {/* Calendrier - Direct Link (verrou module : invisible tant que l'admin n'active pas le module) */}
+                                    {user.canViewCalendar && modules.calendar &&
+                                    !localPinnedHrefs.includes(`/dashboard/${guildId}/calendar`) &&
                                     !localHiddenHrefs.includes(`/dashboard/${guildId}/calendar`) && (
                                         <NavItem 
                                             key={`nav-calendar`}

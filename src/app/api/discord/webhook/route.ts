@@ -44,6 +44,10 @@ function respondNoContent(): NextResponse {
 }
 
 async function handleApplicationAuthorized(payload: DiscordWebhookPayload): Promise<void> {
+    // NOTE onboarding : cet event est au niveau USER (pas de guild_id dans le
+    // payload) — on ne peut pas auto-onboard ici. L'activation de la guilde se
+    // fait côté portail (`onboardGuild`, idempotent) + re-vérification auto
+    // (polling 10 s + reload au focus après "Inviter le Bot").
     logger.info("[Discord Webhook] APPLICATION_AUTHORIZED", {
         applicationId: payload.application_id ?? null,
     });

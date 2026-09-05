@@ -51,9 +51,11 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
     }
 
     const rolesMapping = (guild.rolesMapping as Record<string, string[]>) || {};
-    const isRbacConfigured = Object.values(rolesMapping).some(perms => 
-        Array.isArray(perms) && perms.includes("dashboard:login")
-    );
+    // Fail-closed : `dashboard:login` sur @everyone (id = id Discord de la guilde)
+    // ne valide PAS l'étape RBAC — sinon l'admin croit la guilde sécurisée alors
+    // que tout le serveur entre (cohérent avec getUserContext).
+    const { isRbacConfigured: isRbacExcludingEveryone } = await import("@/lib/onboarding-gating");
+    const isRbacConfigured = isRbacExcludingEveryone(rolesMapping, guild.discordGuildId);
 
     const steps: OnboardingProgress["steps"] = [
         {

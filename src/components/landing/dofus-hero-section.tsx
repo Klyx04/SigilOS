@@ -34,30 +34,10 @@ export function DofusHeroSection({ user, userGuilds = [] }: DofusHeroSectionProp
       className="relative w-full overflow-hidden bg-[#08090d] text-white select-none dark"
       style={{ minHeight: "100svh" }}
     >
-      {/* ── HALL DE GUILDE : décor authentique du jeu (temple de guilde) ── */}
-      <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-        <Image
-          src="/assets/dofus/vista/hall-guild.webp"
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover object-center"
-        />
-      </div>
-
-      {/* Voile de lisibilité : assombrit le décor derrière le texte + fondu bas */}
-      <div className="absolute inset-0 pointer-events-none bg-black/50" aria-hidden="true" />
-      <div
-        className="absolute inset-x-0 bottom-0 h-48 pointer-events-none"
-        aria-hidden="true"
-        style={{ background: "linear-gradient(to bottom, transparent 0%, #09090b 100%)" }}
-      />
-
       {/* ── CONTENU ── */}
       <div
         className="relative z-20 flex flex-col items-center justify-center text-center max-w-5xl mx-auto"
-        style={{ minHeight: "100svh", padding: "120px 20px 90px" }}
+        style={{ padding: "120px 20px 40px" }}
       >
         <p className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-medium text-zinc-200 mb-8 border border-white/15 bg-black/40">
           <span className="w-2 h-2 rounded-full bg-emerald-400" aria-hidden="true" />
@@ -69,7 +49,6 @@ export function DofusHeroSection({ user, userGuilds = [] }: DofusHeroSectionProp
           style={{
             fontSize: "clamp(2.4rem, 5.5vw, 4.8rem)",
             color: "#ffffff",
-            textShadow: "0 2px 18px rgba(0,0,0,0.9)",
           }}
         >
           Ta guilde Dofus, <span style={{ color: "#f0c040" }}>réunie</span> au même endroit.
@@ -79,7 +58,6 @@ export function DofusHeroSection({ user, userGuilds = [] }: DofusHeroSectionProp
           className="mb-10 max-w-2xl leading-relaxed text-zinc-200 font-normal"
           style={{
             fontSize: "clamp(1rem, 1.6vw, 1.15rem)",
-            textShadow: "0 2px 10px rgba(0,0,0,0.9)",
           }}
         >
           Sorties donjons, quêtes, archimonstres Metamob et fiches de boss,
@@ -131,20 +109,40 @@ export function DofusHeroSection({ user, userGuilds = [] }: DofusHeroSectionProp
         </div>
 
         {/* Outils en libre accès : icônes du jeu, pas d'emojis */}
-        <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+        <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2 mb-12">
           <span className="text-xs text-zinc-300 mr-1">Outils en libre accès :</span>
           {FREE_TOOLS.map((tool) => (
             <Link
               key={tool.href}
               href={tool.href}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-black/40 hover:bg-black/60 border border-white/15 text-zinc-100 transition-colors"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-zinc-100 transition-colors"
             >
               <Image src={tool.icon} alt="" width={20} height={20} className="w-5 h-5 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]" />
               <span>{tool.label}</span>
             </Link>
           ))}
         </div>
+
+        {/* Fenêtre sur le hall de guilde : affiché à taille native, donc net */}
+        <div className="w-full max-w-5xl rounded-2xl overflow-hidden border border-white/10">
+          <Image
+            src="/assets/dofus/vista/hall-guild.webp"
+            alt="Hall de guilde Dofus : le lieu de ralliement de ta guilde"
+            width={1920}
+            height={982}
+            priority
+            sizes="(max-width: 1024px) 100vw, 1024px"
+            className="w-full h-auto block"
+          />
+        </div>
       </div>
+
+      {/* Fondu de sortie vers la suite */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none"
+        aria-hidden="true"
+        style={{ background: "linear-gradient(to bottom, transparent 0%, #09090b 100%)" }}
+      />
 
       {/* Modale d'accès */}
       <AccessRequestModal

@@ -1214,16 +1214,23 @@ export async function getUserGuilds() {
     }
 }
 
-import { unstable_cache } from "next/cache";
-
-const getCachedDiscordGuilds = async (accessToken: string) => {
+/**
+ * Liste des serveurs Discord du membre — SANS cache partagé.
+ * L'ancien `next: { revalidate: 30 }` partageait la réponse entre
+ * utilisateurs (la clé de cache Next est l'URL seule, pas le header
+ * Authorization) : un membre pouvait recevoir la liste d'un autre
+ * (fuite + portail vide fantôme). Le portail se visite rarement :
+ * appel direct à chaque chargement (`no-store`).
+ */
+const fetchDiscordUserGuilds = async (accessToken: string) => {
     try {
         const res = await fetch("https://discord.com/api/v10/users/@me/guilds", {
             headers: { Authorization: `Bearer ${accessToken}` },
-            next: { revalidate: 30 }
+            cache: "no-store",
         });
         if (!res.ok) return { error: true, status: res.status, data: [] };
         const data = await res.json();
+        if (!Array.isArray(data)) return { error: true, status: 502, data: [] };
         return { error: false, status: 200, data };
     } catch (e) {
         return { error: true, status: 500, data: [] };
@@ -1249,9 +1256,16 @@ export async function getGuildsSeparated(): Promise<{
     active: GuildPortalItem[];
     pending: Array<{ id: string; name: string; icon: string | null }>;
     rateLimited: boolean;
+    /**
+     * true quand Discord refuse le token (401/403) : le scope `guilds` manque
+     * (autorisation ancienne sans ce scope, Discord ne redemande jamais tout
+     * seul). Ni F5 ni déco/reco simple ne réparent : il faut un re-consentement
+     * explicite (bouton « Reconnecter avec l'accès serveurs »).
+     */
+    needsReconnect: boolean;
 }> {
     const session = await auth();
-    if (!session?.user?.id) return { active: [], pending: [], rateLimited: false };
+    if (!session?.user?.id) return { active: [], pending: [], rateLimited: false, needsReconnect: false };
 
     const userId = session.user.id;
 
@@ -1305,9 +1319,9 @@ export async function getGuildsSeparated(): Promise<{
         select: { access_token: true }
     });
 
-    if (!account?.access_token) return { active: [], pending: [], rateLimited: false };
+    if (!account?.access_token) return { active: [], pending: [], rateLimited: false, needsReconnect: false };
 
-    const { error, status, data: userGuildsData } = await getCachedDiscordGuilds(account.access_token);
+    const { error, status, data: userGuildsData } = await fetchDiscordUserGuilds(account.access_token);
 
     if (error) {
         const dbProfiles = await db.userProfile.findMany({
@@ -1324,16 +1338,32 @@ export async function getGuildsSeparated(): Promise<{
                 hasAccess: true,
                 accessLabel: "Membre Actif",
             }));
-        return { active: activeFromDb, pending: [], rateLimited: status === 429 };
+        const { classifyGuildsFetchError } = await import("@/lib/onboarding-gating");
+        const errorKind = classifyGuildsFetchError(status);
+        return {
+            active: activeFromDb,
+            pending: [],
+            rateLimited: errorKind === "RATE_LIMIT",
+            needsReconnect: errorKind === "SCOPE",
+        };
     }
 
     const pendingCandidates: any[] = [];
     const userGuilds = userGuildsData as any[];
 
     for (const guild of userGuilds) {
+        if (!guild || typeof guild.id !== "string") continue;
         if (activeIds.has(guild.id)) continue;
-        const perms = BigInt(guild.permissions);
-        const isAdmin = (perms & 0x8n) === 0x8n;
+        // Permissions illisibles (champ absent / non numérique) : on ne peut
+        // pas prouver le rôle admin → candidat ignoré (fail-closed), sans
+        // faire planter tout le portail (BigInt throw sinon).
+        let isAdmin = false;
+        try {
+            if (guild.permissions == null) continue;
+            isAdmin = (BigInt(guild.permissions) & 0x8n) === 0x8n;
+        } catch {
+            continue;
+        }
         if ((isAdmin || guild.owner) && isAllowedForDeployment(guild.id)) {
             const { buildPendingGuildIconUrl } = await import("@/lib/onboarding-gating");
             pendingCandidates.push({
@@ -1368,7 +1398,12 @@ export async function getGuildsSeparated(): Promise<{
         })
         .map(g => {
             const userGuild = userGuilds.find(ug => ug.id === g.discordGuildId);
-            const perms = userGuild ? BigInt(userGuild.permissions) : 0n;
+            let perms = 0n;
+            try {
+                perms = userGuild?.permissions != null ? BigInt(userGuild.permissions) : 0n;
+            } catch {
+                perms = 0n;
+            }
             const isAdmin = userGuild?.owner || (perms & 0x8n) === 0x8n;
             const status = statusMap.get(g.discordGuildId);
             // Libellé HONNÊTE : un profil n'existe QUE si le membre a déjà franchi le
@@ -1389,7 +1424,7 @@ export async function getGuildsSeparated(): Promise<{
             };
         });
 
-    return { active, pending, rateLimited: false };
+    return { active, pending, rateLimited: false, needsReconnect: false };
 }
 
 export async function searchGuildMembers(

@@ -5,11 +5,11 @@ const STEPS = [
     },
     {
         title: "Configurer",
-        description: "Choisissez vos modules et reliez votre serveur Discord.",
+        description: "Choisis tes modules et relie ton serveur Discord.",
     },
     {
         title: "Inviter la guilde",
-        description: "Vos membres se connectent avec Discord et commencent à jouer ensemble.",
+        description: "Tes membres se connectent avec Discord et jouent ensemble.",
     },
 ];
 

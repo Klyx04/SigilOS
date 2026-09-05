@@ -1,0 +1,910 @@
+export interface OfficialDoc {
+    slug: string;
+    title: string;
+    category: string;
+    accessLevel: 'PUBLIC' | 'MEMBER' | 'ADMIN';
+    content: string;
+}
+
+export const OFFICIAL_DOCS: OfficialDoc[] = [
+// =========================================================================
+    // 🌟 PROGRESSION & OBJECTIFS
+    // =========================================================================
+    {
+        slug: 'quetes-dofus',
+        title: 'Les Quêtes Dofus & Guides Étape par Étape',
+        category: 'Progression & Objectifs',
+        accessLevel: 'MEMBER' as any,
+        content: `
+<h2>Le Tracker de Quêtes des Dofus de SigilOS</h2>
+<p>L'obtention des Dofus est le cœur de la progression sur Dofus. Le module <strong>Les Quêtes Dofus</strong> permet à chaque membre de suivre sa progression quête par quête, étape par étape, tout en partageant son avancée avec l'ensemble de la guilde pour débloquer les combats de groupe et l'entraide mutuelle.</p>
+
+<figure class="my-6">
+    <img src="/assets/screenshots/screenshot7.png" alt="Suivi des quêtes Dofus sur SigilOS" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Interface interactive : suivi chronologique, prérequis et étapes des Dofus primaires et secondaires.</figcaption>
+</figure>
+
+<h2>1. Liste des Dofus Disponibles dans le Tracker</h2>
+<p>SigilOS intègre les parcours complets des Dofus majeurs du jeu :</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Dofus</th>
+            <th>Niveau Requis</th>
+            <th>Type</th>
+            <th>Difficulté & Points Clés</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Dofus Argenté / Étincelant</strong></td>
+            <td>Niv. 20 - 50</td>
+            <td>Secondaire</td>
+            <td>Quêtes d'Astrub. Idéal pour les débutants et rerolls.</td>
+        </tr>
+        <tr>
+            <td><strong>Dofus Cawotte</strong></td>
+            <td>Niv. 60</td>
+            <td>Secondaire</td>
+            <td>Île des Wabbits. Nécessite la panoplie du Wa Wabbit et le chemin des terriers.</td>
+        </tr>
+        <tr>
+            <td><strong>Dokoko</strong></td>
+            <td>Niv. 80</td>
+            <td>Secondaire</td>
+            <td>Île de Moon. Combats tactiques avec Kannibouls et quêtes de récolte.</td>
+        </tr>
+        <tr>
+            <td><strong>Dofus Émeraude</strong></td>
+            <td>Niv. 100</td>
+            <td>Primaire</td>
+            <td>Cania, bandits de Cania (Namekop, Edasse, Eratz) et combat contre le Dark Vlad.</td>
+        </tr>
+        <tr>
+            <td><strong>Dofus Pourpre</strong></td>
+            <td>Niv. 110</td>
+            <td>Primaire</td>
+            <td>Chasse au trésor, labyrinthe du Minotoror et combat tactique contre le Mominotor.</td>
+        </tr>
+        <tr>
+            <td><strong>Dofus Turquoise</strong></td>
+            <td>Niv. 160</td>
+            <td>Primaire</td>
+            <td>Donjons avec idoles/succès spécifiques (Mansot, Sapik, Sphincter Cell, Chêne Mou, Dragon Cochon, etc.).</td>
+        </tr>
+        <tr>
+            <td><strong>Dofus des Veilleurs</strong></td>
+            <td>Niv. 120</td>
+            <td>Dimensions</td>
+            <td>Exploration des dimensions divines (Enutrosor, Srambad, Xélorium).</td>
+        </tr>
+        <tr>
+            <td><strong>Dofus Abyssal</strong></td>
+            <td>Niv. 200</td>
+            <td>Endgame</td>
+            <td>Sous-marins de Sufokia, donjons Koutoulou, Dantinéa et Meno.</td>
+        </tr>
+        <tr>
+            <td><strong>Dofus Ivoire</strong></td>
+            <td>Niv. 180 - 200</td>
+            <td>Primaire</td>
+            <td>Alignement 1 à 100, donjons d'Ilyzaelle et combat contre Dathura.</td>
+        </tr>
+        <tr>
+            <td><strong>Dofus Ébène</strong></td>
+            <td>Niv. 200</td>
+            <td>Primaire</td>
+            <td>Voyage dans la zone des Songes, combats de boss corrompus et quêtes d'alignement.</td>
+        </tr>
+        <tr>
+            <td><strong>Dofus Vulbis</strong></td>
+            <td>Niv. 200</td>
+            <td>Primaire</td>
+            <td>Donjons THL, Songes Infinis et combat contre Crocoburio.</td>
+        </tr>
+        <tr>
+            <td><strong>Dofus Sylvestre</strong></td>
+            <td>Niv. 200</td>
+            <td>Événement / Spécial</td>
+            <td>Archipel des Vents et quêtes d'exploration végétale.</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>2. Fonctionnement de la Synchronisation & Entraide</h2>
+<p>Chaque fois que vous cochez une étape sur votre fiche :</p>
+<ul>
+    <li><strong>Visibilité Immédiate :</strong> Vos compagnons de guilde voient exactement à quelle étape vous vous situez.</li>
+    <li><strong>Matching des Combats Bloquants :</strong> Si un combat tactique à 4 ou un donjon difficile est requis (ex : combat contre le Dark Vlad ou les Bandits de Cania), le système indique quels autres membres sont sur la même étape pour créer un groupe immédiatement.</li>
+    <li><strong>Liaison Directe DofusDB :</strong> Cliquez sur n'importe quel PNJ, objet ou position pour ouvrir sa fiche détaillée sur DofusDB.</li>
+</ul>
+
+<div class="callout callout-tip">
+<strong>💡 Astuce pour les Sorties de Groupe</strong>
+Utilisez le module <em>Donjons & Quêtes</em> en parallèle pour créer un appel à l'aide en 1 clic lorsque vous arrivez sur une étape de donjon obligatoire.
+</div>
+        `
+    },
+    {
+        slug: 'missions',
+        title: 'Missions & Défis Hebdomadaires',
+        category: 'Progression & Objectifs',
+        accessLevel: 'MEMBER' as any,
+        content: `
+<h2>Le Moteur de Quêtes Hebdomadaires</h2>
+<p>Chaque semaine, le staff sélectionne une série d'objectifs stimulants et rémunérateurs pour dynamiser la guilde : boss de donjons spécifiques, récoltes de métiers, combats de quête ou accomplissement de succès.</p>
+
+<figure class="my-6">
+    <img src="/assets/landing/mission-preview.png" alt="Module Missions SigilOS" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Aperçu du module Missions : objectifs en cours, réservation de places et dépôt de captures.</figcaption>
+</figure>
+
+<h2>1. Comment Participer à une Mission ?</h2>
+<ol>
+    <li><strong>Consulter les Missions Actives :</strong> Rendez-vous sur l'onglet <em>Missions</em> pour voir la liste des défis proposés pour la semaine courante.</li>
+    <li><strong>Réserver sa Place :</strong> Cliquez sur le bouton <em>"Je participe"</em> pour indiquer votre intention de faire la mission et être comptabilisé dans le groupe.</li>
+    <li><strong>Réaliser le Défi en Jeu :</strong> Formez un groupe avec vos compagnons de guilde et réalisez le combat ou l'objectif Dofus.</li>
+</ol>
+
+<h2>2. Soumission de la Capture d'Écran (OCR Intelligent)</h2>
+<p>Dès le combat terminé, prenez une capture d'écran de la fenêtre de fin de combat.</p>
+
+<div class="callout callout-info">
+<strong>🧠 Reconnaissance Automatique par IA (OCR)</strong>
+Le moteur de SigilOS analyse l'image déposée pour extraire le nom du monstre vaincu, les pseudos de tous les joueurs présents et l'horodatage. Si tout correspond, votre participation est pré-remplie automatiquement !
+</div>
+
+<h3>Checklist de Conformité d'une Capture :</h3>
+<ul>
+    <li>✅ <strong>Fenêtre de fin de combat ouverte :</strong> Le tableau récapitulatif des gains et des participants doit être net.</li>
+    <li>✅ <strong>Pseudos lisibles :</strong> Les noms de vos personnages doivent être visibles sans superposition d'interface.</li>
+    <li>✅ <strong>Nom du Boss identifiable :</strong> L'en-tête du combat doit afficher clairement le boss ciblé.</li>
+    <li>❌ <strong>Pas de screen tronqué ou rogné :</strong> Une capture partielle sera automatiquement mise en attente de vérification manuelle par le staff.</li>
+</ul>
+
+<h2>3. Attribution des Points & Clôture Hebdomadaire</h2>
+<p>Chaque mission rapporte des <strong>Points de Contribution</strong> et de l'expérience de guilde :</p>
+<ul>
+    <li><strong>Validation Directe :</strong> Dès validation par l'OCR ou confirmation par un officier, vos points sont crédités sur votre profil.</li>
+    <li><strong>Reset le Dimanche Soir :</strong> À minuit chaque dimanche, les missions de la semaine sont clôturées, les classements sont figés et les nouveaux objectifs sont publiés sur Discord.</li>
+</ul>
+        `
+    },
+    {
+        slug: 'quete-ocre',
+        title: 'Gestion de la Quête Ocre & Matching Metamob',
+        category: 'Progression & Objectifs',
+        accessLevel: 'MEMBER' as any,
+        content: `
+<h2>La Quête de l'Éternelle Moisson (Dofus Ocre)</h2>
+<p>La quête de l'Éternelle Moisson nécessite la capture de <strong>286 âmes de monstres</strong>, dont des dizaines de boss de donjons et les redoutables <strong>Archimonstres</strong>. SigilOS intègre une passerelle bidirectionnelle avec <strong>Metamob</strong> pour transformer ce calvaire individuel en une réussite collective de guilde.</p>
+
+<figure class="my-6">
+    <img src="/assets/screenshots/screenshot8.png" alt="Matching Metamob et Quête Ocre" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Tableau de matching : détection automatique des échanges optimaux entre membres.</figcaption>
+</figure>
+
+<h2>1. Liaison de votre Compte Metamob</h2>
+<ol>
+    <li>Créez ou connectez votre compte sur le site officiel <a href="https://metamob.fr" target="_blank" rel="noopener noreferrer">Metamob.fr</a>.</li>
+    <li>Rendez-vous dans vos paramètres de profil Metamob pour récupérer votre <strong>Clé API</strong> et votre pseudo.</li>
+    <li>Sur SigilOS, ouvrez votre <strong>Profil</strong> et collez votre clé dans la section <em>Quête Ocre & Metamob</em>.</li>
+</ol>
+
+<h2>2. Les 3 Algorithmes de Matching Inter-Membres</h2>
+<p>Une fois votre compte lié, SigilOS croise en continu les listes d'âmes de tous les membres de la guilde :</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Vue</th>
+            <th>Utilité</th>
+            <th>Action Recommandée</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Mes Manquants Disponibles</strong></td>
+            <td>Affiche les archimonstres qu'il vous manque et qu'un guildmate possède en double.</td>
+            <td>Contactez le membre via Discord pour effectuer l'échange en jeu.</td>
+        </tr>
+        <tr>
+            <td><strong>Mes Doubles Utiles</strong></td>
+            <td>Liste vos archimonstres en surplus qui manquent à un ou plusieurs compagnons.</td>
+            <td>Donnez ou échangez vos doubles en priorité aux membres proches de terminer leur Ocre.</td>
+        </tr>
+        <tr>
+            <td><strong>Inventaire Global de Guilde</strong></td>
+            <td>Vision macro de toutes les âmes détenues au sein de la communauté.</td>
+            <td>Permet aux officiers d'organiser des sessions d'échanges massives en canal vocal.</td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="callout callout-important">
+<strong>Règle d'Entraide de Guilde</strong>
+La revente d'archimonstres capturés en guilde à l'hôtel des ventes est vivement déconseillée tant qu'un compagnon en a besoin pour sa propre quête.
+</div>
+        `
+    },
+    {
+        slug: 'ladder',
+        title: 'Ladders & Classements de Guilde',
+        category: 'Progression & Objectifs',
+        accessLevel: 'MEMBER' as any,
+        content: `
+<h2>Le Tableau d'Honneur de la Guilde</h2>
+<p>Le module <strong>Ladder</strong> centralise les performances individuelles et collectives de vos membres, synchronisées régulièrement avec les serveurs officiels d'Ankama.</p>
+
+<h2>1. Les 4 Classements Principaux</h2>
+<ul>
+    <li><strong>🏆 Points de Succès :</strong> Classement des joueurs selon le total de points de succès débloqués en jeu (quêtes, donjons, monstres, exploration).</li>
+    <li><strong>⚡ Niveau & Expérience :</strong> Suivi de la montée en niveau des membres et des personnages secondaires (mules).</li>
+    <li><strong>💎 Points de Contribution SigilOS :</strong> Classement basé sur l'investissement communautaire (aide aux donjons, validation de missions, participation aux events).</li>
+    <li><strong>⚔️ Ladder par Classe :</strong> Découvrez qui est le meilleur Iop, Eniripsa, Elio ou Crâ de la guilde.</li>
+</ul>
+
+<h2>2. Synchronisation avec Ankama</h2>
+<p>Le robot SigilOS interroge le Ladder officiel pour actualiser automatiquement :</p>
+<ul>
+    <li>Le niveau réel de vos personnages</li>
+    <li>Votre classe actuelle (y compris après un reroll)</li>
+    <li>Votre illustration de personnage officielle</li>
+</ul>
+        `
+    },
+    {
+        slug: 'succes',
+        title: 'Succès Donjons & Recherche de Groupes',
+        category: 'Progression & Objectifs',
+        accessLevel: 'MEMBER' as any,
+        content: `
+<h2>Chasse aux Succès & Formation d'Équipes</h2>
+<p>Réaliser tous les succès de donjons (Zombie, Blitzkrieg, Statue, Collant, Premier, Dernier, Duo) est indispensable pour débloquer les Dofus et les ornements prestigieux. Ce module élimine les heures passées en canal recrutement à chercher des partenaires.</p>
+
+<h2>1. Checklist Personnelle des Succès</h2>
+<p>Chaque membre dispose d'une matrice complète des donjons Dofus classés par tranche de niveau :</p>
+<ul>
+    <li>Niveau 1 à 50 (Incarnam, Pandawa, Craqueleur...)</li>
+    <li>Niveau 51 à 100 (Wabbit, Dragon Cochon, Rat Blanc...)</li>
+    <li>Niveau 101 à 150 (Chêne Mou, Mansot Royal, Fraktale...)</li>
+    <li>Niveau 151 à 190 (Nileza, Klime, Sylargh, Missiz Frizz...)</li>
+    <li>Niveau 190 à 200 THL (Comte Harebourg, Reine des Voleurs, Tal Kasha, Guerre, Servitude...)</li>
+</ul>
+
+<h2>2. L'Outil "WhoHasWhat" (Qui a besoin de quoi)</h2>
+<p>Cliquez sur un succès spécifique (ex : <em>Servitude - Spécial</em>) :</p>
+<ol>
+    <li>SigilOS liste instantanément tous les membres de la guilde qui recherchent ce succès précis.</li>
+    <li>Vous visualisez les classes disponibles pour composer un groupe équilibré (Passeur, Placeur, Soin, Érosion).</li>
+    <li>Un bouton vous permet d'ouvrir une discussion privée Discord pour fixer l'heure du combat.</li>
+</ol>
+        `
+    },
+    {
+        slug: 'songes',
+        title: 'Songes Infinis & Partage de Runs',
+        category: 'Progression & Objectifs',
+        accessLevel: 'MEMBER' as any,
+        content: `
+<h2>L'Exploration des Songes Infinis</h2>
+<p>Les Songes Infinis représentent l'un des contenus endgame les plus exigeants de Dofus. SigilOS propose un tableau de bord dédié pour piloter les runs de guilde, suivre la montée des étages (200 à 400+) et partager les gains.</p>
+
+<figure class="my-6">
+    <img src="/assets/landing/songes-preview.png" alt="Module Songes Infinis" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Vue détaillée d'une expédition de Songes : composition d'équipe, modificateurs et palier.</figcaption>
+</figure>
+
+<h2>1. Déclarer une Expédition</h2>
+<ul>
+    <li><strong>Étage Actuel :</strong> Renseignez le niveau de profondeur atteint (ex : Étage 285).</li>
+    <li><strong>Composition du Groupe :</strong> Associez les 4 membres participant au run.</li>
+    <li><strong>Rêves & Cauchemars :</strong> Notez les modificateurs de combat actifs et les boss de salle.</li>
+</ul>
+
+<h2>2. Partage des Gains & Reflets Oniriques</h2>
+<p>Le module permet d'enregistrer les coffres obtenus à la fin des paliers pour garantir une répartition équitable des reflets oniriques, légendes et runes astrales entre tous les participants.</p>
+        `
+    },
+
+    // =========================================================================
+    // 🛠️ OUTILS & SERVICES
+    // =========================================================================
+    {
+        slug: 'donjons-et-quetes',
+        title: 'Donjons & Quêtes (Entraide LFG)',
+        category: 'Outils & Services',
+        accessLevel: 'MEMBER' as any,
+        content: `
+<h2>Le Système d'Entraide Communautaire (LFG)</h2>
+<p>Besoin de bras pour passer un donjon difficile, débloquer un combat de quête complexe ou valider une quête d'alignement ? Le module <strong>Donjons & Quêtes</strong> remplace les pings anarchiques sur Discord par un babillard d'annonces propre et interactif.</p>
+
+<figure class="my-6">
+    <img src="/assets/screenshots/recherche-donjons.png" alt="Recherche de donjons et entraide" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Module LFG : publication d'annonces d'aide, choix du donjon et inscription en 1 clic.</figcaption>
+</figure>
+
+<h2>1. Créer une Demande d'Entraide</h2>
+<ol>
+    <li><strong>Choisir l'Activité :</strong> Sélectionnez le boss de donjon, le combat de quête ou l'activité visée.</li>
+    <li><strong>Définir les Horaires :</strong> Précisez si vous cherchez du monde pour <em>"Maintenant"</em>, <em>"Ce soir à 21h"</em> ou <em>"Ce weekend"</em>.</li>
+    <li><strong>Nombre de Places :</strong> Indiquez le nombre de compagnons recherchés (de 1 à 7 joueurs).</li>
+</ol>
+
+<h2>2. Rejoindre un Groupe</h2>
+<p>Les autres membres voient l'annonce sur leur Dashboard. Un simple clic sur <em>"Je viens aider"</em> réserve le slot et avertit le créateur du post.</p>
+
+<h2>3. Récompense en Points de Contribution</h2>
+<p>Lorsque le combat est terminé, le créateur clôture le post en cliquant sur <em>"Objectif Réussi"</em> :</p>
+<ul>
+    <li>Chaque membre ayant apporté son aide reçoit automatiquement des <strong>Points de Contribution</strong> sur son profil de guilde.</li>
+    <li>Les points peuvent ensuite être dépensés dans la <strong>Boutique de Guilde</strong>.</li>
+</ul>
+        `
+    },
+    {
+        slug: 'galerie-stuff',
+        title: 'Galerie d\'Équipements & Fiches Stuff',
+        category: 'Outils & Services',
+        accessLevel: 'MEMBER' as any,
+        content: `
+<h2>La Bibliothèque de Builds de Guilde</h2>
+<p>Partagez vos meilleures panoplies, vos optimisations exotiques et vos équipements spécialisés pour guider les recrues et échanger sur les théories d'optimisation Dofus.</p>
+
+<figure class="my-6">
+    <img src="/assets/screenshots/galerie.png" alt="Galerie d'équipements de guilde" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Fiches de builds : prévisualisation automatique des caractéristiques et orientation de jeu.</figcaption>
+</figure>
+
+<h2>1. Publier un Équipement</h2>
+<p>Collez simplement le lien de votre équipement depuis <strong>DofusBook</strong> ou <strong>DofusDB</strong> :</p>
+<ul>
+    <li>Le nom du build, l'icône de classe et le niveau sont extraits automatiquement.</li>
+    <li>Choisissez l'orientation : <em>PvM</em>, <em>PvP / Kolizéum</em>, <em>Songes Infinis</em> ou <em>Farming</em>.</li>
+    <li>Précisez les éléments dominants (Terre, Feu, Eau, Air, Multi-Éléments, Do Pou, Retrait PM...).</li>
+</ul>
+
+<h2>2. Votes & Recommandations</h2>
+<p>Les membres de la guilde peuvent voter pour les équipements les plus performants afin de constituer la liste des builds de référence recommandés aux nouveaux arrivants.</p>
+        `
+    },
+    {
+        slug: 'services',
+        title: 'Services de Guilde & Artisans 200',
+        category: 'Outils & Services',
+        accessLevel: 'MEMBER' as any,
+        content: `
+<h2>L'Annuaire des Métiers & de Forgemagie</h2>
+<p>Trouvez instantanément quel compagnon de guilde possède le métier de craft ou de forgemagie nécessaire pour fabriquer vos panoplies sans payer de frais exorbitants aux ateliers publics.</p>
+
+<h2>1. Métiers Référencés</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Catégorie</th>
+            <th>Métiers Disponibles</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Artisanat d'Équipement</strong></td>
+            <td>Tailleur, Cordonnier, Bijoutier, Forgeron, Sculpteur, Façonneur.</td>
+        </tr>
+        <tr>
+            <td><strong>Forgemagie Spécialisée</strong></td>
+            <td>Costumage, Cordomage, Joaillomage, Forgemage, Sculptemage, Façomage.</td>
+        </tr>
+        <tr>
+            <td><strong>Consommables & Récolte</strong></td>
+            <td>Alchimiste, Bricoleur, Chasseur, Paysan, Mineur, Bûcheron, Pêcheur.</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>2. Déclarer ses Métiers Niveau 200</h2>
+<p>Sur votre fiche de profil, cochez vos métiers niveau 200 pour apparaître dans l'annuaire des artisans de guilde. Vous pouvez également préciser vos spécialités (ex : <em>"Exo PA / PM garanti avec runes fournies"</em>).</p>
+        `
+    },
+    {
+        slug: 'planning',
+        title: 'Planning & Gestion des Disponibilités',
+        category: 'Outils & Services',
+        accessLevel: 'MEMBER' as any,
+        content: `
+<h2>Organiser les Soirées de Jeu Sans Prise de Tête</h2>
+<p>Le module <strong>Planning & Disponibilités</strong> permet à chaque membre de renseigner ses habitudes de connexion pour que les meneurs et organisateurs sachent quand planifier les sorties de guilde.</p>
+
+<h2>1. Définir ses Créneaux Habituels</h2>
+<ul>
+    <li><strong>Après-midi (14h - 18h) :</strong> Idéal pour les quêtes solo et le farm de ressources.</li>
+    <li><strong>Soirée Prime (20h30 - 23h30) :</strong> Créneau privilégié pour les donjons THL, Raids et Songes.</li>
+    <li><strong>Nocturne (23h30+) :</strong> Pour les couche-tard et sessions farm intensives.</li>
+    <li><strong>Weekend :</strong> Disponibilités prolongées du samedi et dimanche.</li>
+</ul>
+
+<h2>2. Signalement des Vacances & Absences</h2>
+<p>Vous partez en vacances ou avez des examens ? Renseignez votre date de départ et de retour sur le planning. Cela empêche le système de relance automatique de vous signaler comme inactif pendant votre absence !</p>
+        `
+    },
+    {
+        slug: 'worldmap',
+        title: 'Carte Interactive Dofus HD',
+        category: 'Outils & Services',
+        accessLevel: 'MEMBER' as any,
+        content: `
+<h2>L'Atlas Interactif du Monde des Douze</h2>
+<p>Une carte vectorielle fluide en haute définition couvrant l'intégralité des territoires d'Amakna, Frigost, Pandala, Otomaï, Saharach et des Dimensions Divines.</p>
+
+<figure class="my-6">
+    <img src="/assets/screenshots/map-monde.png" alt="Carte interactive du monde Dofus" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Navigation cartographique : repères de zaaps, bateaux, entrées de donjons et zaapis.</figcaption>
+</figure>
+
+<h2>Fonctionnalités Intégrées :</h2>
+<ul>
+    <li><strong>Localisation des Zaaps :</strong> Trouvez en un clin d'œil le Zaap le plus proche des coordonnées de votre quête.</li>
+    <li><strong>Entrées de Donjons :</strong> Visualisez l'emplacement exact des donjons avec leur niveau recommandé.</li>
+    <li><strong>Transporteurs & Bateaux :</strong> Repérez les routes maritimes et foreuses pour accéder aux zones isolées.</li>
+</ul>
+        `
+    },
+    {
+        slug: 'mini-jeux',
+        title: 'Mini-Jeux & Blindtest Dofus',
+        category: 'Outils & Services',
+        accessLevel: 'MEMBER' as any,
+        content: `
+<h2>L'Espace Détente & Animation de Guilde</h2>
+<p>SigilOS propose une série de mini-jeux multijoueurs intégrés pour animer vos soirées vocales et tester votre culture du Monde des Douze.</p>
+
+<h3>Jeux Disponibles :</h3>
+<ul>
+    <li><strong>🎵 Blindtest Musical :</strong> Écoutez un extrait audio officiel de Dofus et devinez la zone, le donjon ou la musique de boss associée.</li>
+    <li><strong>📜 Quizz Lore & Histoire :</strong> Questions variées sur l'univers d'Ankama, les dieux, les héros et les anecdotes du jeu.</li>
+    <li><strong>🧩 Devinettes d'Objets :</strong> Retrouvez le nom d'un équipement ou d'une ressource à partir de sa description mystérieuse.</li>
+</ul>
+        `
+    },
+    {
+        slug: 'ressources',
+        title: 'Ressources Dofus & Liens Essentiels',
+        category: 'Outils & Services',
+        accessLevel: 'MEMBER' as any,
+        content: `
+<h2>Le Répertoire des Outils Communautaires Certifiés</h2>
+<p>Accédez en un clic aux meilleurs outils créés par la communauté Dofus pour optimiser votre temps de jeu.</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Outil</th>
+            <th>Type</th>
+            <th>Description & Utilité</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>DofusDB</strong></td>
+            <td>Encyclopédie</td>
+            <td>Base de données ultra-complète sur tous les monstres, items, quêtes, recettes et succès.</td>
+        </tr>
+        <tr>
+            <td><strong>Dofensive</strong></td>
+            <td>Stratégie IA</td>
+            <td>Simulateur d'IA des monstres, portées de sorts, lignes de vue et patterns d'attaque.</td>
+        </tr>
+        <tr>
+            <td><strong>Metamob</strong></td>
+            <td>Quête Ocre</td>
+            <td>Plateforme d'échange d'archimonstres synchronisée avec SigilOS.</td>
+        </tr>
+        <tr>
+            <td><strong>DofusBook</strong></td>
+            <td>Builder de Stuff</td>
+            <td>Création et calcul avancé de panoplies et dégâts théoriques.</td>
+        </tr>
+        <tr>
+            <td><strong>Almanax Officiel</strong></td>
+            <td>Quotidien</td>
+            <td>Offrande du jour, bonus de zone et économies d'ingrédients.</td>
+        </tr>
+    </tbody>
+</table>
+        `
+    },
+
+    // =========================================================================
+    // 👥 COMMUNAUTÉ & GUILDE
+    // =========================================================================
+    {
+        slug: 'introduction',
+        title: 'Bienvenue sur SigilOS',
+        category: 'Communauté & Guilde',
+        accessLevel: 'PUBLIC' as any,
+        content: `
+<h2>Premier Pas sur SigilOS</h2>
+<p>SigilOS est le système d'exploitation conçu pour décharger le staff des tâches répétitives et offrir aux membres une interface moderne, vivante et interactive pour piloter leur aventure Dofus.</p>
+
+<figure class="my-6">
+    <img src="/assets/screenshots/guide-complet.png" alt="Aperçu du Cockpit SigilOS" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Le Cockpit SigilOS : tableau de bord centralisé pour votre guilde Dofus.</figcaption>
+</figure>
+
+<h2>1. Connexion & Rapprochement Automatique</h2>
+<p>L'authentification s'effectue directement avec votre compte <strong>Discord</strong> :</p>
+<ul>
+    <li>Aucun mot de passe supplémentaire à retenir.</li>
+    <li>Vos rôles Discord (Meneur, Bras Droit, Officier, Membre, Recrue) sont analysés pour vous octroyer immédiatement les bons accès.</li>
+</ul>
+
+<h2>2. Les 3 Actions Indispensables à l'Arrivée</h2>
+<ol>
+    <li><strong>Renseigner son Personnage Principal :</strong> Synchronise votre classe et votre niveau avec le Ladder officiel.</li>
+    <li><strong>Déclarer ses Mules :</strong> Permet à vos compagnons de savoir qui joue quel personnage secondaire.</li>
+    <li><strong>Lier sa Clé Metamob :</strong> Si la guilde chasse le Dofus Ocre, activez le partage d'archimonstres pour compléter votre quête 5x plus vite.</li>
+</ol>
+        `
+    },
+
+    // =========================================================================
+    // 👑 PANNEAU D'ADMINISTRATION (14 GUIDES STAFF & LEADERS)
+    // =========================================================================
+    {
+        slug: 'admin-getting-started',
+        title: 'Guide de Démarrage & Onboarding Guilde',
+        category: 'Administration & Staff',
+        accessLevel: 'ADMIN' as any,
+        content: `
+<h2>Initialisation & Déploiement d'une Nouvelle Guilde</h2>
+<p>Ce guide vous accompagne pas à pas pour déployer SigilOS sur votre serveur Discord communautaire en moins de 10 minutes.</p>
+
+<figure class="my-6">
+    <img src="/assets/screenshots/screenshot1.png" alt="Configuration initiale de guilde" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Centre d'administration : configuration globale des modules et liaisons Discord.</figcaption>
+</figure>
+
+<h2>Les 5 Étapes de Mise en Service :</h2>
+<ol>
+    <li><strong>Inviter le Bot Discord :</strong> Assurez-vous que le bot SigilOS possède les permissions de gestion des rôles et des salons sur votre serveur Discord.</li>
+    <li><strong>Lier les Salons Système :</strong> Dans <em>Paramètres Généraux</em>, sélectionnez votre salon d'annonces hebdomadaires et votre salon privé réservé au staff.</li>
+    <li><strong>Configurer la Matrice RBAC :</strong> Dans <em>Rôles & Permissions</em>, associez vos rôles Discord aux permissions SigilOS.</li>
+    <li><strong>Activer vos Modules :</strong> Dans <em>Gestion des Modules</em>, cochez uniquement les outils que votre guilde souhaite utiliser.</li>
+    <li><strong>Lancer l'Audit Initial :</strong> Dans <em>Audit & Gestion des Membres</em>, cliquez sur <em>"Synchroniser"</em> pour importer automatiquement votre roster Discord.</li>
+</ol>
+        `
+    },
+    {
+        slug: 'admin-settings',
+        title: 'Paramètres Généraux de Guilde',
+        category: 'Administration & Staff',
+        accessLevel: 'ADMIN' as any,
+        content: `
+<h2>Le Centre de Contrôle Technique</h2>
+<p>Ce panneau régit toutes les intégrations tierces, les canaux de communication et les paramètres de sécurité de votre guilde.</p>
+
+<figure class="my-6">
+    <img src="/assets/screenshots/screenshot2.png" alt="Paramètres généraux de guilde" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Paramètres généraux : salons Discord, webhooks et liaisons Metamob.</figcaption>
+</figure>
+
+<h2>1. Salons Discord de Notification</h2>
+<ul>
+    <li><strong>Salon d'Annonces :</strong> Reçoit les embeds de publication des missions hebdomadaires, les annonces d'événements et les clôtures de semaine.</li>
+    <li><strong>Salon d'Alertes Staff (Privé) :</strong> Notifie immédiatement les officiers lors des fins de période d'essai (J-3, J-0) ou des signalements.</li>
+    <li><strong>Salon des Validations :</strong> Canal où transitent les logs d'approbation et de refus des captures d'écran de missions.</li>
+</ul>
+
+<h2>2. Intégration Metamob & Serveur Dofus</h2>
+<ul>
+    <li><strong>Clé API Metamob de Guilde :</strong> Permet d'alimenter le matching global des archimonstres.</li>
+    <li><strong>Serveur Officiel :</strong> Sélectionnez votre serveur de jeu (Imagiro, Orukam, Tal Kasha, Draconiros, etc.) pour calibrer les requêtes Ladder.</li>
+</ul>
+        `
+    },
+    {
+        slug: 'admin-permissions',
+        title: 'Rôles, Permissions & Matrice RBAC',
+        category: 'Administration & Staff',
+        accessLevel: 'ADMIN' as any,
+        content: `
+<h2>Contrôle d'Accès Basé sur les Rôles (RBAC)</h2>
+<p>SigilOS utilise une matrice granulaire de <strong>20 permissions réelles</strong> réparties sur 6 domaines indépendants pour s'adapter à n'importe quelle hiérarchie de guilde.</p>
+
+<figure class="my-6">
+    <img src="/assets/screenshots/screenshot3.png" alt="Matrice des permissions RBAC" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Matrice RBAC : attribution des droits par rôle Discord et par membre individuel.</figcaption>
+</figure>
+
+<h2>Matrice Complète des Permissions</h2>
+<table>
+    <thead><tr><th>Domaine</th><th>Permission</th><th>Description & Périmètre</th></tr></thead>
+    <tbody>
+        <tr><td><strong>Accès</strong></td><td><code>dashboard:login</code></td><td>Socle obligatoire pour accéder au Dashboard.</td></tr>
+        <tr><td><strong>Staff</strong></td><td><code>staff:member_mgmt</code></td><td>Gestion du Roster, périodes d'essai J-X, mules et départs.</td></tr>
+        <tr><td><strong>Staff</strong></td><td><code>staff:content</code></td><td>Édition de la page de présentation publique et wiki officier.</td></tr>
+        <tr><td><strong>Staff</strong></td><td><code>staff:audit</code></td><td>Accès au journal des logs d'audit et historique des actions.</td></tr>
+        <tr><td><strong>Staff</strong></td><td><code>staff:reaction_roles</code></td><td>Création et déploiement des panneaux de reaction roles.</td></tr>
+        <tr><td><strong>Staff</strong></td><td><code>staff:tickets</code></td><td>Prise en charge et modération des tickets d'assistance.</td></tr>
+        <tr><td><strong>Admin</strong></td><td><code>system:config</code></td><td>Modification des paramètres généraux, webhooks et salons.</td></tr>
+        <tr><td><strong>Admin</strong></td><td><code>system:rbac</code> ★</td><td>Gestion de la matrice des permissions (anti-escalade).</td></tr>
+        <tr><td><strong>Admin</strong></td><td><code>system:god</code> ★</td><td>Bypass absolu de sécurité (propriétaire de guilde).</td></tr>
+        <tr><td><strong>Missions</strong></td><td><code>missions:play</code></td><td>Inscription et participation aux missions de guilde.</td></tr>
+        <tr><td><strong>Missions</strong></td><td><code>missions:officer</code></td><td>Création, planification et validation des captures OCR.</td></tr>
+        <tr><td><strong>Jeu</strong></td><td><code>game:view</code></td><td>Accès à l'Ocre, Ladder, Quêtes, Worldmap et Mini-jeux.</td></tr>
+        <tr><td><strong>Jeu</strong></td><td><code>game:operations</code></td><td>Organisation des Songes Infinis et services VIP.</td></tr>
+        <tr><td><strong>Jeu</strong></td><td><code>points:manage</code></td><td>Gestion des points de contribution et boutique interne.</td></tr>
+        <tr><td><strong>Communauté</strong></td><td><code>community:access</code></td><td>Consultation de l'Annuaire, Calendrier et Sondages.</td></tr>
+        <tr><td><strong>Communauté</strong></td><td><code>community:mod</code></td><td>Création et modération des événements du calendrier.</td></tr>
+    </tbody>
+</table>
+
+<div class="callout callout-important">
+<strong>Protection Anti-Escalade</strong>
+Les permissions marquées ★ ne peuvent être attribuées que par un réel Administrateur Discord. Un officier délégué ne peut pas s'auto-attribuer des privilèges supérieurs à son rang.
+</div>
+        `
+    },
+    {
+        slug: 'admin-modules',
+        title: 'Gestion & Activation des Modules',
+        category: 'Administration & Staff',
+        accessLevel: 'ADMIN' as any,
+        content: `
+<h2>Activation Modulaire à la Carte</h2>
+<p>Chaque guilde possède son propre ADN : axée PvM THL, élevage, entraide de quêtes ou Songes. Vous pouvez activer ou désactiver chaque brique fonctionnelle d'un simple interrupteur.</p>
+
+<figure class="my-6">
+    <img src="/assets/screenshots/screenshot4.png" alt="Activation modulaire des fonctionnalités" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Panneau d'activation : masquez les modules superflus pour garder une interface épurée.</figcaption>
+</figure>
+
+<h2>Modules Configurables :</h2>
+<ul>
+    <li><strong>Missions Hebdomadaires :</strong> Défis et validation OCR.</li>
+    <li><strong>Quête Ocre & Metamob :</strong> Matching inter-membres des archimonstres.</li>
+    <li><strong>Songes Infinis :</strong> Suivi des étages et compositions de runs.</li>
+    <li><strong>Donjons & Quêtes (LFG) :</strong> Système d'appel à l'aide interne.</li>
+    <li><strong>Galerie de Stuff :</strong> Bibliothèque de panoplies DofusBook / DofusDB.</li>
+    <li><strong>Services & Artisans :</strong> Annuaire des forgerons et mages 200.</li>
+    <li><strong>Calendrier & Événements :</strong> Sorties planifiées et rappels Discord.</li>
+    <li><strong>Bot Tickets :</strong> Support privé et candidatures.</li>
+    <li><strong>Rôles par Réaction :</strong> Attribution automatique de rôles Discord.</li>
+</ul>
+        `
+    },
+    {
+        slug: 'admin-members',
+        title: 'Audit Technique & Gestion des Membres',
+        category: 'Administration & Staff',
+        accessLevel: 'ADMIN' as any,
+        content: `
+<h2>Audit Roster Discord vs Dashboard</h2>
+<p>Ce module technique réconcilie en direct les utilisateurs présents sur votre serveur Discord avec les profils inscrits sur votre instance SigilOS pour éliminer les comptes fantômes.</p>
+
+<figure class="my-6">
+    <img src="/assets/screenshots/screenshot5.png" alt="Audit technique des membres" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Vue d'audit Roster : couverture d'inscription, relances groupées et synchronisation.</figcaption>
+</figure>
+
+<h2>1. Indicateurs Clés de Couverture</h2>
+<ul>
+    <li><strong>Membres Discord Détectés :</strong> Nombre total d'utilisateurs possédant le rôle de guilde sur votre serveur Discord.</li>
+    <li><strong>Profils Inscrits sur SigilOS :</strong> Nombre de membres ayant lié leur profil et accédant au Dashboard.</li>
+    <li><strong>Comptes Manquants :</strong> Utilisateurs Discord autorisés mais n'ayant pas encore finalisé leur première connexion.</li>
+</ul>
+
+<h2>2. Actions Disponibles :</h2>
+<ul>
+    <li><strong>Synchronisation Globale :</strong> Rapproche les comptes et archive automatiquement les fiches des membres ayant quitté le serveur Discord.</li>
+    <li><strong>Relances Groupées Discord :</strong> Envoie une mention ciblée dans le salon d'accueil pour inviter les retardataires à rejoindre le Dashboard.</li>
+    <li><strong>Blacklist de Guilde :</strong> Conserve les identifiants Discord des personnes exclues pour alerter le staff en cas de tentative de réinscription.</li>
+</ul>
+        `
+    },
+    {
+        slug: 'module-recrutement-cycle-de-vie',
+        title: 'Recrutement & Cycle de Vie des Membres',
+        category: 'Administration & Staff',
+        accessLevel: 'ADMIN' as any,
+        content: `
+<h2>Remplacement Intégral des Tableurs Excel</h2>
+<p>Ce module centralise la gestion humaine de votre guilde en remplaçant définitivement les Google Sheets manuels par un flux temps réel connecté au Ladder Ankama et à Discord.</p>
+
+<figure class="my-6">
+    <img src="/assets/screenshots/screenshot6.png" alt="Gestion du cycle de vie des membres" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Cycle de vie des membres : compte à rebours d'essai J-X, jauge de mules et leaderboard des recruteurs.</figcaption>
+</figure>
+
+<h2>Les 5 Onglets Opérationnels :</h2>
+<ol>
+    <li><strong>Annuaire Actif :</strong> Visualisation des membres, statut de confirmation, tag Ankama éditable et personnages secondaires déclarés.</li>
+    <li><strong>Période d'Essai (J-X) :</strong> Compte à rebours dynamique coloré (vert si &gt; 3j, orange si &le; 3j, rouge si expiré) avec validation en 1 clic et Leaderboard des recruteurs.</li>
+    <li><strong>Mules & Alts :</strong> Jauge de saturation en direct par rapport au quota maximal défini par votre guilde (ou mode illimité).</li>
+    <li><strong>Historique des Départs :</strong> Traçabilité des motifs (Volontaire, Inactivité, Comportement, Exclusion) avec réintégration possible en 1 clic.</li>
+    <li><strong>Paramètres de Guilde :</strong> Réglage de la durée d'essai par défaut, des quotas et du message de bienvenue personnalisé.</li>
+</ol>
+        `
+    },
+    {
+        slug: 'admin-missions',
+        title: 'Gestion des Missions & Objectifs',
+        category: 'Administration & Staff',
+        accessLevel: 'ADMIN' as any,
+        content: `
+<h2>Piloter la Semaine d'Objectifs</h2>
+<p>Le panneau de gestion des missions permet d'orchestrer la dynamique hebdomadaire de la guilde en fixant les défis de donjon, d'artisanat et d'exploration.</p>
+
+<h2>1. Créer une Nouvelle Mission</h2>
+<ul>
+    <li><strong>Type d'Objectif :</strong> Donjon Boss (ex : Servitude, Tal Kasha, Guerre), Récolte de métier ou Succès spécifique.</li>
+    <li><strong>Récompense :</strong> Nombre de Points de Contribution et d'XP de guilde attribués aux participants.</li>
+    <li><strong>Nombre de Places :</strong> Limite de participants autorisés (ex : 4 joueurs pour un donjon classique, 8 pour un Kralamoure).</li>
+</ul>
+
+<h2>2. Publication & Reset</h2>
+<ul>
+    <li><strong>Publication Discord :</strong> D'un clic, le bot poste un bel embed récapitulatif dans votre salon d'annonces.</li>
+    <li><strong>Reset Hebdomadaire :</strong> Clôturez la semaine pour figer les scores et renouveler les défis pour la semaine suivante.</li>
+</ul>
+        `
+    },
+    {
+        slug: 'admin-validation',
+        title: 'Validation des Preuves & File de Tri OCR',
+        category: 'Administration & Staff',
+        accessLevel: 'ADMIN' as any,
+        content: `
+<h2>Centre de Contrôle des Captures d'Écran</h2>
+<p>Lorsqu'un membre réalise une mission, il soumet sa capture d'écran de fin de combat. Le moteur d'analyse extrait les informations pour assister le staff dans sa validation.</p>
+
+<figure class="my-6">
+    <img src="/assets/screenshots/screenshot9.png" alt="File de validation OCR des captures" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Centre de tri : vérification des données extraites par l'OCR et validation en 1 clic.</figcaption>
+</figure>
+
+<h2>1. Processus de Vérification :</h2>
+<ol>
+    <li><strong>Réception :</strong> La capture apparaît dans la file de validation avec son statut <em>"En attente"</em>.</li>
+    <li><strong>Lecture OCR :</strong> Détection automatique du boss vaincu, des participants et de la date.</li>
+    <li><strong>Vérification Manuelle :</strong> Comparez les données extraites avec les critères de la mission (bon boss ? bons participants ? bonne semaine ?).</li>
+    <li><strong>Décision :</strong> Approuvez pour créditer les points, ou refusez avec un motif explicite.</li>
+</ol>
+
+<h2>2. Critères de Conformité :</h2>
+<table>
+    <thead><tr><th>Critère</th><th>✅ Valide</th><th>❌ Invalide</th></tr></thead>
+    <tbody>
+        <tr><td>Lisibilité</td><td>Image nette, non compressée</td><td>Floue, trop petite ou rognée</td></tr>
+        <tr><td>Nom du boss</td><td>Clairement visible dans l'en-tête</td><td>Absent ou coupé</td></tr>
+        <tr><td>Participants</td><td>Pseudos complets de tous les membres du groupe</td><td>Liste masquée ou incomplète</td></tr>
+        <tr><td>Date</td><td>Horodatage de la semaine en cours</td><td>Semaine précédente ou illisible</td></tr>
+    </tbody>
+</table>
+        `
+    },
+    {
+        slug: 'admin-points',
+        title: 'Points de Contribution & Économie de Guilde',
+        category: 'Administration & Staff',
+        accessLevel: 'ADMIN' as any,
+        content: `
+<h2>Système de Récompenses Communautaires</h2>
+<p>Valorisez l'entraide, le temps passé à aider les nouveaux arrivants et la participation aux événements grâce aux <strong>Points de Contribution</strong>.</p>
+
+<h2>1. Barèmes d'Attribution</h2>
+<ul>
+    <li><strong>Missions Hebdomadaires :</strong> Points indexés sur la difficulté du donjon (ex : 50 pts pour un donjon 150, 150 pts pour un boss THL).</li>
+    <li><strong>Entraide LFG Donjons :</strong> Points crédités automatiquement lors de la clôture d'un appel à l'aide réussi.</li>
+    <li><strong>Runs Songes Infinis :</strong> Bonus de points pour les organisateurs de paliers partagés.</li>
+</ul>
+
+<h2>2. Boutique de Guilde</h2>
+<p>Configurez les récompenses échangeables contre des points : cosmétiques, rôles Discord honorifiques ou avantages en jeu.</p>
+        `
+    },
+    {
+        slug: 'admin-reaction-roles',
+        title: 'Rôles par Réaction (Reaction Roles)',
+        category: 'Administration & Staff',
+        accessLevel: 'ADMIN' as any,
+        content: `
+<h2>Panneaux Interactifs Discord</h2>
+<p>Permettez à vos membres de s'auto-attribuer les rôles de votre serveur Discord (notifications de sorties, disponibilités, classe jouée, métiers) via des boutons ou des menus déroulants modernes.</p>
+
+<figure class="my-6">
+    <img src="/assets/screenshots/screenshot10.png" alt="Panneaux de rôles par réaction" class="rounded-2xl border border-white/10 shadow-2xl w-full" />
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Déploiement de panneaux interactifs : sélecteurs de classes, métiers et notifications de sorties.</figcaption>
+</figure>
+
+<h2>1. Types de Panneaux Disponibles :</h2>
+<ul>
+    <li><strong>Boutons Interactifs :</strong> Idéal pour les rôles de notification (ex : <code>🔔 Notif Donjons</code>, <code>💎 Notif Songes</code>).</li>
+    <li><strong>Menu Déroulant (Select Menu) :</strong> Recommandé pour les sélections denses comme les 19 classes Dofus ou les métiers de forgemagie.</li>
+    <li><strong>Choix Unique vs Multiple :</strong> Empêche les membres de sélectionner des rôles mutuellement exclusifs si souhaité.</li>
+</ul>
+
+<div class="callout callout-important">
+<strong>Hiérarchie des Rôles Discord</strong>
+Pour que le bot puisse attribuer un rôle, le rôle du Bot SigilOS dans les paramètres de votre serveur Discord <strong>DOIT être positionné plus haut</strong> que les rôles qu'il est chargé de distribuer.
+</div>
+        `
+    },
+    {
+        slug: 'admin-tickets',
+        title: 'Bot Tickets & Support Discord',
+        category: 'Administration & Staff',
+        accessLevel: 'ADMIN' as any,
+        content: `
+<h2>Gestion du Support & des Candidatures</h2>
+<p>Le module Tickets permet de remplacer les bots externes par une solution intégrée avec formulaires d'intake personnalisés et transcripts archivés sur le Dashboard.</p>
+
+<h2>1. Fonctionnalités Clés :</h2>
+<ul>
+    <li><strong>Catégories Personnalisées :</strong> Définissez vos propres motifs d'ouverture (Recrutement, Demande d'aide, Litige, Suggestion).</li>
+    <li><strong>Formulaires Préalables (Intake) :</strong> Posez des questions obligatoires avant l'ouverture du salon (pseudo Dofus, niveau, motivations).</li>
+    <li><strong>Notes Internes Staff :</strong> Les officiers peuvent consigner des mémos privés visibles uniquement sur le dashboard.</li>
+    <li><strong>Transcripts Archivés :</strong> À la clôture, l'intégralité de la conversation est sauvegardée et consultable sur le site avec les images et pièces jointes.</li>
+</ul>
+        `
+    },
+    {
+        slug: 'admin-presentation',
+        title: 'Identité & Page Publique de Guilde',
+        category: 'Administration & Staff',
+        accessLevel: 'ADMIN' as any,
+        content: `
+<h2>Votre Vitrine Publique SigilOS</h2>
+<p>La page publique de guilde permet aux joueurs extérieurs de découvrir vos valeurs, vos accomplissements et les modalités de recrutement de votre communauté.</p>
+
+<h2>Éléments Personnalisables :</h2>
+<ul>
+    <li><strong>Blason & Bannière :</strong> Intégrez votre logo de guilde et une illustration en haute définition.</li>
+    <li><strong>Présentation & Ambitions :</strong> Décrivez l'histoire de votre guilde, vos activités principales (PvM THL, Songes, Élevage).</li>
+    <li><strong>Critères de Recrutement :</strong> Affichez clairement le niveau requis, les exigences vocales et les créneaux d'activité.</li>
+    <li><strong>Bouton Postuler :</strong> Redirige automatiquement le candidat vers l'ouverture d'un ticket sur votre Discord.</li>
+</ul>
+        `
+    },
+    {
+        slug: 'admin-logs',
+        title: 'Logs d\'Audit & Traçabilité Staff',
+        category: 'Administration & Staff',
+        accessLevel: 'ADMIN' as any,
+        content: `
+<h2>Sécurité & Traçabilité des Actions Staff</h2>
+<p>Chaque modification opérée sur le Dashboard ou le bot Discord est consignée dans un journal d'audit immuable avec horodatage précis pour garantir une transparence totale.</p>
+
+<h2>Événements Tracés :</h2>
+<ul>
+    <li><strong>Modifications RBAC :</strong> Ajout ou retrait d'une permission à un rôle Discord.</li>
+    <li><strong>Gestion des Membres :</strong> Validation d'essai, exclusion, archivage ou modification de recruteur.</li>
+    <li><strong>Validation de Missions :</strong> Approbation ou refus d'une capture d'écran avec identité de l'officier modérateur.</li>
+    <li><strong>Changement de Configuration :</strong> Modification d'un webhook, d'une durée d'essai ou d'un salon système.</li>
+</ul>
+        `
+    },
+    {
+        slug: 'admin-api-keys',
+        title: 'Clés d\'API & Intégrations Développeur',
+        category: 'Administration & Staff',
+        accessLevel: 'ADMIN' as any,
+        content: `
+<h2>Accès Programmatique Sécurisé (API REST)</h2>
+<p>Pour les guildes disposant de développeurs ou de bots personnalisés, SigilOS permet de générer des jetons d'accès (Bearer Token) sécurisés avec des scopes restreints.</p>
+
+<h2>Fonctionnalités :</h2>
+<ul>
+    <li><strong>Génération de Clé :</strong> Création de jeton avec libellé descriptif et date d'expiration optionnelle.</li>
+    <li><strong>Révocation Instantanée :</strong> Désactivation immédiate d'un jeton compromis sans impact sur le reste de la guilde.</li>
+    <li><strong>Journal des Requêtes :</strong> Suivi du volume d'appels et des adresses IP clientes.</li>
+</ul>
+
+<div class="callout callout-important">
+<strong>Bonnes Pratiques de Sécurité</strong>
+Ne communiquez jamais vos clés secrètes sur des canaux publics. En cas de doute sur la fuite d'un jeton, révoquez-le immédiatement.
+</div>
+        `
+    }
+
+];

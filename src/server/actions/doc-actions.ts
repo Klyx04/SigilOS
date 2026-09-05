@@ -312,3 +312,79 @@ export async function getAdminDocs(): Promise<DocPageData[]> {
 
     return docs as DocPageData[];
 }
+
+/**
+ * 🔄 Synchronisation 1-clic du catalogue documentaire officiel SigilOS.
+ * Réservé exclusivement au Super Admin / rôle staff ayant accès à la brique "docs".
+ */
+export async function syncOfficialDocsAction(): Promise<ActionResponse<{ createdCount: number; updatedCount: number; total: number }>> {
+    try {
+        const { isSuperAdmin, canAccessBrick } = await import("@/server/actions/super-admin-actions");
+        const isAdmin = await isSuperAdmin();
+        const isBrick = await canAccessBrick("docs");
+        if (!isAdmin && !isBrick) return { success: false, error: "Non autorisé" };
+
+        const { OFFICIAL_DOCS } = await import("@/lib/docs-catalog");
+        const validSlugs = OFFICIAL_DOCS.map(d => d.slug);
+
+        // Nettoyage des anciennes documentations obsolètes
+        await (db.docPage as any).deleteMany({
+            where: {
+                slug: { notIn: validSlugs }
+            }
+        });
+
+        let createdCount = 0;
+        let updatedCount = 0;
+
+        for (const doc of OFFICIAL_DOCS) {
+            const existing = await (db.docPage as any).findUnique({ where: { slug: doc.slug } });
+            if (existing) {
+                await (db.docPage as any).update({
+                    where: { slug: doc.slug },
+                    data: {
+                        title: doc.title,
+                        category: doc.category,
+                        content: doc.content.trim(),
+                        accessLevel: doc.accessLevel,
+                        isPublished: true,
+                    }
+                });
+                updatedCount++;
+            } else {
+                await (db.docPage as any).create({
+                    data: {
+                        slug: doc.slug,
+                        title: doc.title,
+                        category: doc.category,
+                        content: doc.content.trim(),
+                        accessLevel: doc.accessLevel,
+                        isPublished: true,
+                    }
+                });
+                createdCount++;
+            }
+        }
+
+        revalidatePath("/docs");
+        revalidatePath("/god/docs");
+
+        const { createGodAuditLog } = await import("@/server/actions/audit-actions");
+        await createGodAuditLog({
+            action: "GOD_DOC_UPDATE",
+            targetType: "DATA_SYNC",
+            targetId: "official-docs-seed",
+            metadata: { createdCount, updatedCount, total: OFFICIAL_DOCS.length },
+        });
+
+        logger.info(`[DOCS_SYNC] Synced official docs: ${createdCount} created, ${updatedCount} updated`);
+
+        return {
+            success: true,
+            data: { createdCount, updatedCount, total: OFFICIAL_DOCS.length }
+        };
+    } catch (error) {
+        logger.error("Error syncing official docs:", error);
+        return { success: false, error: "Erreur lors de la synchronisation de la documentation" };
+    }
+}

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Edit, Trash, FileText, ExternalLink, Database } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DeleteDocButton } from "./_components/delete-button";
+import { SyncOfficialDocsButton } from "./_components/sync-docs-button";
 
 export default async function AdminDocsPage() {
     const session = await auth();
@@ -34,12 +35,15 @@ export default async function AdminDocsPage() {
                             Structurez la connaissance technique et guidez les utilisateurs vers la maîtrise absolue de SigilOS.
                         </p>
                     </div>
-                    <Button asChild className="px-8 py-6 rounded-2xl bg-teal-600 hover:bg-teal-500 text-white font-black uppercase tracking-widest transition-all  shadow-xl shadow-teal-500/20 group">
-                        <Link href="/god/docs/new">
-                            <Plus className="w-6 h-6 mr-3 group-hover:rotate-90 transition-transform" />
-                            Nouvelle Page
-                        </Link>
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <SyncOfficialDocsButton />
+                        <Button asChild className="px-8 py-6 rounded-2xl bg-teal-600 hover:bg-teal-500 text-white font-black uppercase tracking-widest transition-all shadow-xl shadow-teal-500/20 group">
+                            <Link href="/god/docs/new">
+                                <Plus className="w-6 h-6 mr-3 group-hover:rotate-90 transition-transform" />
+                                Nouvelle Page
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
 
 

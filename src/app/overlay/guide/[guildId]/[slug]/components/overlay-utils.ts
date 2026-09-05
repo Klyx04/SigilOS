@@ -290,3 +290,25 @@ export function getFooterNextAction(
   // Guide terminé — on reste
   return { type: "next_milestone" };
 }
+
+/**
+ * Icône d'un badge d'activité (lignes + modale détail).
+ * Résolution par type puis par libellé (ex. alignement « Bonta » → blason).
+ * Retourne null quand aucun asset ne correspond (badge texte seul).
+ * Pur et client-safe.
+ */
+export function getTagBadgeIcon(tag: { type: string; name?: string | null }): string | null {
+  const label = `${tag.type || ""} ${(tag.name || "").toLowerCase()}`;
+  if (label.includes("brakmar")) return "/ordres/brakmar.png";
+  if (label.includes("bonta")) return "/ordres/bonta.png";
+  if (tag.type === "metier") return getMetierIconPath(tag.name || "");
+  if (tag.type === "sort") return "/assets/rush-sylvestre/sort.png";
+  if (tag.type === "donjon" || tag.type === "ocre_dungeon") return "/assets/nav/boss.png";
+  if (tag.type === "contrainte_horaire") return "/assets/dofus/game-icons/pin-clock.png";
+  if (tag.type === "solver") return "/assets/icons/dofusdb.png";
+  if (tag.type === "songes") return "/assets/nav/infinite.png";
+  if (tag.type === "combat_plusieurs" || tag.type === "plusieurs_personnes")
+    return "/assets/rush-sylvestre/plusieurs-personnes.png";
+  if (tag.type.startsWith("combat_")) return "/assets/dofus/game-icons/crossed-swords.png";
+  return null;
+}

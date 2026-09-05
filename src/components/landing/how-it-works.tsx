@@ -1,15 +1,15 @@
 const STEPS = [
     {
         title: "Connecter ton Discord",
-        description: "En 1 clic si tu es admin, ou accompagné par ticket via notre Discord.",
+        description: "En 1 clic si tu es admin, ou accompagné par ticket sur Discord.",
     },
     {
         title: "Configurer",
-        description: "Choisissez vos modules et reliez votre serveur Discord.",
+        description: "Choisis tes modules et relie ton serveur Discord.",
     },
     {
         title: "Inviter la guilde",
-        description: "Vos membres se connectent avec Discord et commencent à jouer ensemble.",
+        description: "Tes membres se connectent avec Discord et jouent ensemble.",
     },
 ];
 

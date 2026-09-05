@@ -170,7 +170,7 @@ export function DofusHeroSection({ user, userGuilds = [] }: DofusHeroSectionProp
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl font-bold text-sm bg-[#5865F2] hover:bg-[#4752c4] text-white transition-all shadow-lg shadow-[#5865F2]/25 cursor-pointer active:scale-95"
               >
                 <DiscordIcon className="w-4 h-4" />
-                <span>Installer sur mon Discord</span>
+                <span>Déployer ma guilde en 1 clic</span>
               </button>
 
               <Link

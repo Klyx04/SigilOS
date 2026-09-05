@@ -75,7 +75,7 @@ export function HeroSection({ user, userGuilds = [], heroImageUrl }: HeroSection
                                             className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-sm transition-all shadow-md shadow-[#5865F2]/20 cursor-pointer"
                                         >
                                             <DiscordIcon className="w-4 h-4" />
-                                            Installer sur mon Discord
+                                            Déployer ma guilde en 1 clic
                                         </button>
                                     </form>
                                     <Link

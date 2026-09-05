@@ -36,11 +36,11 @@ export function GuildShowcaseSection({ guilds }: { guilds: ShowcaseGuild[] }) {
         <section className="py-20 relative w-full border-t border-border">
             <div className="container mx-auto px-6 relative z-10">
                 <div className="max-w-4xl mx-auto text-center mb-14">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-success/10 border border-success/20 mb-5 font-medium text-caption text-success uppercase tracking-wider">
-                        Communauté
-                    </div>
+                    <p className="text-sm font-semibold text-success mb-5">
+                        Guildes à bord
+                    </p>
                     <h2 className="text-3xl md:text-5xl font-heading text-foreground mb-4">
-                        Des guildes qui <span className="text-success font-bold">avancent ensemble.</span>
+                        Elles avancent ensemble.
                     </h2>
                     <p className="text-muted-foreground font-medium text-base max-w-lg mx-auto">
                         Un aperçu des statistiques réelles des guildes qui utilisent SigilOS.

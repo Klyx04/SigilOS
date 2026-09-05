@@ -1,7 +1,7 @@
 const STEPS = [
     {
-        title: "Connecter votre Discord",
-        description: "Installez SigilOS en autonomie en 1 clic si vous êtes administrateur, ou demandez un accompagnement VIP par ticket.",
+        title: "Connecter ton Discord",
+        description: "En 1 clic si tu es admin, ou accompagné par ticket via notre Discord.",
     },
     {
         title: "Configurer",
@@ -18,11 +18,11 @@ export function HowItWorks() {
         <section className="w-full border-t border-border py-20">
             <div className="mx-auto max-w-[1100px] px-4 sm:px-6 lg:px-8">
                 <div className="max-w-2xl mb-10">
-                    <p className="text-caption font-semibold uppercase tracking-[0.14em] text-success mb-4">
+                    <p className="text-sm font-semibold text-success mb-4">
                         Mise en route
                     </p>
                     <h2 className="text-2xl md:text-4xl font-bold tracking-tight text-foreground">
-                        Trois étapes pour démarrer.
+                        Trois étapes, et on joue.
                     </h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">

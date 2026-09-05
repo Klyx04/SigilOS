@@ -26,10 +26,10 @@ export function AccessRequestModal({ open, onClose }: AccessRequestModalProps) {
                         Créer l&apos;espace de ta guilde
                     </p>
                     <DialogTitle className="text-xl md:text-2xl font-bold tracking-tight">
-                        Deux façons de nous rejoindre
+                        Deux façons de commencer
                     </DialogTitle>
                     <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                        En autonomie si tu administres ton Discord, ou accompagné par notre équipe.
+                        En autonomie si tu administres ton Discord, ou accompagné pas à pas.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -55,11 +55,11 @@ export function AccessRequestModal({ open, onClose }: AccessRequestModalProps) {
                     {/* Option 2 : accompagné */}
                     <div className="p-5 rounded-2xl bg-background border border-border space-y-3">
                         <p className="text-sm font-bold text-foreground">
-                            Accompagné <span className="font-medium text-muted-foreground">· alliance et support</span>
+                            Accompagné <span className="font-medium text-muted-foreground">· aide perso</span>
                         </p>
                         <p className="text-sm text-muted-foreground leading-relaxed">
-                            Configuration multi-guildes, alliance ou questions avant
-                            de te lancer ? Ouvre un ticket, on s&apos;en occupe.
+                            Une question avant de te lancer, ou besoin d&apos;aide
+                            pour installer ? Ouvre un ticket, je t&apos;accompagne.
                         </p>
                         <a
                             href={discordInvite}

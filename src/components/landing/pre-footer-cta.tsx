@@ -32,7 +32,7 @@ export function PreFooterCta() {
                                 archimonstres se synchronisent tout seuls.
                             </p>
                             <p className="text-xs text-muted-foreground">
-                                Alliance ou plusieurs guildes ?{" "}
+                                Besoin d&apos;un coup de main ?{" "}
                                 <button
                                     type="button"
                                     onClick={() => setShowAccessModal(true)}

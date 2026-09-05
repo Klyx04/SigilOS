@@ -118,7 +118,7 @@ export function RushHelperBadge({
     return (
       <span
         className={cn(
-          "inline-flex items-center gap-1 h-[18px] px-1.5 rounded border border-[#d5a94e]/30 bg-[#1a1a0e]/80 text-[10px] font-bold text-[#d5a94e] shrink-0",
+          "inline-flex items-center gap-1 h-[18px] px-1.5 rounded border border-warning/30 bg-warning/10 text-[10px] font-bold text-warning shrink-0",
           className
         )}
         title={tooltip}
@@ -138,7 +138,7 @@ export function RushHelperBadge({
             type="button"
             className={cn(
               "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border shrink-0 transition-colors",
-              "border-[#d5a94e]/30 bg-[#1a1a0e]/80 text-[#d5a94e] hover:bg-[#3a2a0e]/80 text-[10px] font-bold",
+              "border-warning/30 bg-warning/10 text-warning hover:bg-warning/15 text-[10px] font-bold",
               className
             )}
             title="Qui peut aider sur cette quête ?"
@@ -147,38 +147,38 @@ export function RushHelperBadge({
             {loading ? "…" : `${helpers.length} peut aider`}
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-72 max-h-80 overflow-y-auto bg-zinc-950 border border-white/10 text-zinc-200">
+        <DropdownMenuContent align="start" className="w-72 max-h-80 overflow-y-auto bg-background border border-border text-foreground">
           {helpers.length === 0 ? (
-            <div className="px-3 py-2 text-xs text-zinc-500">
+            <div className="px-3 py-2 text-xs text-muted-foreground">
               {loading ? "Recherche…" : "Aucun membre ne correspond pour l'instant."}
             </div>
           ) : (
             helpers.map((h) => (
-              <div key={h.profile.profileId} className="flex items-start gap-2 px-3 py-2 hover:bg-white/5">
+              <div key={h.profile.profileId} className="flex items-start gap-2 px-3 py-2 hover:bg-elevated">
                 {h.profile.avatar ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={h.profile.avatar} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
                 ) : (
-                  <span className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-300 shrink-0">
+                  <span className="w-6 h-6 rounded-full bg-elevated flex items-center justify-center text-[10px] font-bold text-muted-foreground shrink-0">
                     {(h.profile.name || "?").charAt(0).toUpperCase()}
                   </span>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-zinc-100 truncate">
+                  <p className="text-xs font-bold text-foreground truncate">
                     {h.profile.name || "Membre"}
                     {h.uncertain && (
-                      <span className="ml-1.5 text-[9px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-1 py-0.5 rounded align-middle">
+                      <span className="ml-1.5 text-[9px] font-bold text-warning bg-warning/10 border border-warning/30 px-1 py-0.5 rounded align-middle">
                         à confirmer
                       </span>
                     )}
                   </p>
-                  <p className="text-[10px] text-zinc-400 leading-snug">{h.reasons.join(" · ")}</p>
+                  <p className="text-[10px] text-muted-foreground leading-snug">{h.reasons.join(" · ")}</p>
                 </div>
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="h-6 px-2 text-[10px] font-bold shrink-0 border-[#d5a94e]/40 text-[#d5a94e] hover:bg-[#3a2a0e]"
+                  className="h-6 px-2 text-[10px] font-bold shrink-0 border-warning/40 text-warning hover:bg-warning/10"
                   onClick={() => openInvite(h)}
                 >
                   Inviter
@@ -190,21 +190,21 @@ export function RushHelperBadge({
       </DropdownMenu>
 
       <Dialog open={!!inviteTarget} onOpenChange={(o) => !o && setInviteTarget(null)}>
-        <DialogContent className="sm:max-w-md bg-zinc-950 border border-white/10 text-zinc-100">
+        <DialogContent className="sm:max-w-md bg-background border border-border text-foreground">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-black">
-              <Send className="w-4 h-4 text-[#d5a94e]" /> Inviter {inviteTarget?.profile.name || "ce membre"}
+              <Send className="w-4 h-4 text-warning" /> Inviter {inviteTarget?.profile.name || "ce membre"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <p className="text-caption text-zinc-400">
-              Choisis un salon pour ping <b className="text-zinc-200">{inviteTarget?.profile.name}</b> et demander
+            <p className="text-caption text-muted-foreground">
+              Choisis un salon pour ping <b className="text-foreground">{inviteTarget?.profile.name}</b> et demander
               son aide sur cette quête.
             </p>
             <select
               value={channelId}
               onChange={(e) => setChannelId(e.target.value)}
-              className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none"
+              className="w-full bg-elevated border border-border rounded-lg px-2.5 py-2 text-xs text-foreground focus:outline-none"
             >
               <option value="">— Choisir un salon —</option>
               {channels.map((c) => (
@@ -215,13 +215,13 @@ export function RushHelperBadge({
             </select>
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="ghost" size="sm" className="text-zinc-400" onClick={() => setInviteTarget(null)}>
+            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setInviteTarget(null)}>
               Annuler
             </Button>
             <Button
               size="sm"
               disabled={!channelId || sending}
-              className="bg-[#d5a94e] hover:bg-[#d5a94e]/90 text-black"
+              className="bg-warning hover:bg-warning/90 text-warning-foreground"
               onClick={() => sendInvite(inviteTarget!)}
             >
               {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} Envoyer

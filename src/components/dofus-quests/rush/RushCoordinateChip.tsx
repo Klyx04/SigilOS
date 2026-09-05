@@ -55,17 +55,17 @@ export function RushCoordinateChip({
       aria-label={`Copier la commande ${parsed.travelCommand}`}
       className={cn(
         "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-mono text-[11px] font-bold transition-all duration-150 cursor-pointer select-none",
-        "bg-[#26355a]/70 hover:bg-[#34487a] text-[#bcd0ff] border border-[#89adff]/30 hover:border-[#89adff]/60 shadow-sm",
-        "focus-visible:outline-2 focus-visible:outline-[#89adff] focus-visible:outline-offset-1",
+        "bg-info/10 hover:bg-info/20 text-info border border-info/25 hover:border-info/50 shadow-sm",
+        "focus-visible:outline-2 focus-visible:outline-info focus-visible:outline-offset-1",
         className
       )}
     >
-      {showIcon && <MapPin className="w-3 h-3 text-[#89adff] shrink-0" />}
+      {showIcon && <MapPin className="w-3 h-3 text-info shrink-0" />}
       <span>{parsed.raw}</span>
       {copied ? (
-        <Check className="w-3 h-3 text-emerald-400 shrink-0 animate-in zoom-in-50 duration-150" />
+        <Check className="w-3 h-3 text-success shrink-0 animate-in zoom-in-50 duration-150" />
       ) : (
-        <Copy className="w-3 h-3 text-[#89adff]/70 shrink-0 hover:text-[#89adff]" />
+        <Copy className="w-3 h-3 text-info/70 shrink-0" />
       )}
     </button>
   );

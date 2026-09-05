@@ -1,10 +1,8 @@
 "use client";
 
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
 import {
-  ExternalLink,
   Package,
   ChevronDown,
   ChevronUp,
@@ -18,7 +16,7 @@ import {
   X,
   Target,
   Sword,
-  Scroll,
+  MapPin,
   CheckCircle2,
   BookmarkCheck,
   Flag,
@@ -32,7 +30,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { RushMilestone, RushSequence, RushDungeonRef, RushActivityTag } from "@/types/rush-guide-types";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
-import { RushTagBadge } from "@/components/dofus-quests/rush/RushTagBadge";
+import { QuestItemResourceGrid } from "@/components/dofus-quests/rush/QuestItemResourceGrid";
 import { ResourceImage } from "@/components/dofus-quests/ResourceImage";
 import { copyToClipboard } from "@/lib/clipboard";
 import {
@@ -47,6 +45,7 @@ import {
   aggregateRushResources,
   getSequenceCoord,
 } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
+import { getAlignmentSet } from "@/lib/rush-helpers";
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
 import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal";
 import { resolveDofusLocalImage } from "@/lib/dofus-image-url";
@@ -73,6 +72,9 @@ function groupSequencesIntoQuests(
   let currentBlock: QuestBlock | null = null;
 
   for (const seq of sequences) {
+    // Séquences info (bandeaux méta) : hors blocs de quêtes — jamais cochables,
+    // sinon aucun bloc ne pourrait être marqué terminé (filtre "Faites masquées").
+    if (Array.isArray((seq as any).activityTags) && (seq as any).activityTags.some((t: any) => t.type === "info_sequence")) continue;
     const qName = seq.subGuideName || seq.subGuideRef || "Étape";
     const qRef = seq.subGuideRef || qName;
 
@@ -113,164 +115,6 @@ function groupSequencesIntoQuests(
 
   return blocks;
 }
-
-// ─── Composant Dédié : Grille de Ressources Élégante (Style Guide Interne) ──
-
-function QuestItemResourceGrid({
-  items,
-  completedIds,
-  onToggleItem,
-}: {
-  items: RushActivityTag[];
-  completedIds: Set<string>;
-  onToggleItem?: (id: string) => void;
-}) {
-  const [filterMode, setFilterMode] = useState<"remaining" | "all">("remaining");
-  const [copiedName, setCopiedName] = useState<string | null>(null);
-
-  const parsedItems = useMemo(() => {
-    return items.map((it, idx) => ({
-      key: it.id || `${it.name}-${idx}`,
-      id: it.id,
-      name: it.name || "Ressource",
-      count: it.count || it.quantity || 1,
-      level: it.level,
-      imageUrl: it.imageUrl,
-      isDone: it.id ? completedIds.has(it.id) : false,
-    }));
-  }, [items, completedIds]);
-
-  const visibleItems = useMemo(() => {
-    if (filterMode === "remaining") {
-      return parsedItems.filter((it) => !it.isDone);
-    }
-    return parsedItems;
-  }, [parsedItems, filterMode]);
-
-  const remainingCount = parsedItems.filter((it) => !it.isDone).length;
-
-  const handleCopy = (name: string) => {
-    copyToClipboard(name).then((ok) => {
-      if (ok) {
-        setCopiedName(name);
-        toast.success(`Copié : ${name}`, { duration: 1500 });
-        setTimeout(() => setCopiedName(null), 1800);
-      }
-    });
-  };
-
-  return (
-    <div className="rounded-2xl border border-white/10 bg-[#0d1219]/90 p-3.5 space-y-3 shadow-inner">
-      {/* En-tête avec filtres Restantes / Toutes */}
-      <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] pb-2.5">
-        <div className="flex items-center gap-2">
-          <Package className="w-4 h-4 text-amber-400" />
-          <span className="text-xs font-black uppercase tracking-wider text-zinc-200">
-            Ressources requises
-          </span>
-          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30">
-            {remainingCount} restante{remainingCount > 1 ? "s" : ""}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-1 bg-black/40 p-0.5 rounded-lg border border-white/5">
-          <button
-            type="button"
-            onClick={() => setFilterMode("remaining")}
-            className={cn(
-              "px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-colors",
-              filterMode === "remaining"
-                ? "bg-emerald-500 text-zinc-950 shadow-sm"
-                : "text-zinc-400 hover:text-white"
-            )}
-          >
-            Restantes
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilterMode("all")}
-            className={cn(
-              "px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-colors",
-              filterMode === "all"
-                ? "bg-emerald-500 text-zinc-950 shadow-sm"
-                : "text-zinc-400 hover:text-white"
-            )}
-          >
-            Toutes ({parsedItems.length})
-          </button>
-        </div>
-      </div>
-
-      {/* Grille compacte des items avec icône Dofus officielle */}
-      {visibleItems.length === 0 ? (
-        <p className="text-xs text-zinc-500 py-3 text-center italic">
-          Toutes les ressources de cette étape sont réunies !
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-[360px] overflow-y-auto pr-1 custom-scrollbar">
-          {visibleItems.map((item) => (
-            <div
-              key={item.key}
-              onClick={() => handleCopy(item.name)}
-              className={cn(
-                "group flex items-center justify-between gap-2.5 p-2 rounded-xl border transition-all cursor-pointer select-none",
-                item.isDone
-                  ? "bg-zinc-950/40 border-white/[0.04] opacity-50"
-                  : "bg-[#131922] hover:bg-[#192230] border-white/[0.08] hover:border-amber-500/40 shadow-sm"
-              )}
-              title="Cliquer pour copier le nom"
-            >
-              <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                <div className="w-8 h-8 rounded-lg bg-black/60 border border-white/10 flex items-center justify-center shrink-0 p-0.5 overflow-hidden shadow-inner">
-                  <ResourceImage
-                    id={item.id}
-                    imageUrl={item.imageUrl}
-                    alt={item.name}
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <span
-                    className={cn(
-                      "text-xs font-semibold block truncate group-hover:text-amber-300 transition-colors",
-                      item.isDone ? "line-through text-zinc-500" : "text-zinc-100"
-                    )}
-                  >
-                    {item.name}
-                  </span>
-                  {item.level && (
-                    <span className="text-[10px] text-zinc-500 font-mono">Niv. {item.level}</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span
-                  className={cn(
-                    "font-mono font-bold text-xs px-2 py-0.5 rounded-lg border",
-                    item.isDone
-                      ? "bg-zinc-900 border-zinc-800 text-zinc-600"
-                      : "bg-amber-500/15 border-amber-500/30 text-amber-300"
-                  )}
-                >
-                  ×{item.count}
-                </span>
-
-                {copiedName === item.name ? (
-                  <CheckCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                ) : (
-                  <Copy className="w-3 h-3 text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── Composant Principal ──────────────────────────────────────────────────────
 
 interface PublicRushGuideClientProps {
@@ -298,6 +142,50 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
 
   // État des accordéons de ressources par étape
   const [expandedResourceSteps, setExpandedResourceSteps] = useState<Set<string>>(new Set());
+  // État des accordéons conseils & notes par étape (comme le guide interne)
+  const [expandedHintsSteps, setExpandedHintsSteps] = useState<Set<string>>(new Set());
+
+  // Navigation flottante haut / position / bas (comme le guide interne)
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+  useEffect(() => {
+    const handleScroll = () => {
+      const y = window.scrollY;
+      const maxY = document.documentElement.scrollHeight - window.innerHeight;
+      setShowScrollTop(y > 300);
+      setShowScrollBottom(y < maxY - 300);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    window.scrollTo({ top: document.documentElement.scrollHeight, left: 0, behavior: "smooth" });
+  }, []);
+
+  const scrollToStep = useCallback((seqId: string) => {
+    let attempts = 0;
+    const maxAttempts = 10;
+    const tryScroll = () => {
+      const el = document.querySelector(`[data-seq-id="${seqId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("ring-2", "ring-success", "ring-offset-2", "ring-offset-background");
+        setTimeout(() => {
+          el.classList.remove("ring-2", "ring-success", "ring-offset-2", "ring-offset-background");
+        }, 3500);
+      } else if (attempts < maxAttempts) {
+        attempts++;
+        setTimeout(tryScroll, 200 + attempts * 100);
+      }
+    };
+    setTimeout(tryScroll, 100);
+  }, []);
 
   // Completed steps & milestones (Local-First localStorage)
   const [completedIds, setCompletedIds] = useState<Set<string>>(() => {
@@ -340,6 +228,24 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
     return new Map<string, string>();
   });
 
+  // Popup « Reprendre ? » : uniquement au retour sur le guide avec un repère
+  // local pré-existant — jamais juste après avoir posé le repère soi-même.
+  const [continueModalOpen, setContinueModalOpen] = useState(false);
+  const resumeShownThisSession = useRef(false);
+  const hadBookmarkAtMount = useRef<boolean | null>(null);
+  const bookmarkTouchedThisSession = useRef(false);
+  useEffect(() => {
+    if (hadBookmarkAtMount.current === null) {
+      hadBookmarkAtMount.current = bookmarksByMs.size > 0;
+    }
+    if (!hadBookmarkAtMount.current || resumeShownThisSession.current || bookmarkTouchedThisSession.current) return;
+    const hasAny = Array.from(bookmarksByMs.keys()).length > 0;
+    if (!hasAny) return;
+    resumeShownThisSession.current = true;
+    const t = setTimeout(() => setContinueModalOpen(true), 1200);
+    return () => clearTimeout(t);
+  }, [bookmarksByMs]);
+
   // Cross-window sync (broadcast channel between page and floating overlay)
   useGuideProgressSync(
     `guest:${guide.slug}`,
@@ -373,6 +279,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
   // Bookmark / Repère personnel ("Je suis ici")
   const handleToggleBookmark = useCallback(
     (msId: string, seqId: string) => {
+      bookmarkTouchedThisSession.current = true;
       setBookmarksByMs((prev) => {
         const next = new Map(prev);
         if (next.get(msId) === seqId) {
@@ -499,6 +406,53 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
     [completedStepsByMs, milestones, storagePrefix]
   );
 
+  // Toggle all steps of one quest block (comme le guide interne)
+  const handleToggleBlockSteps = useCallback(
+    (msId: string, seqIds: string[], completeAll: boolean) => {
+      setCompletedStepsByMs((prev) => {
+        const next = new Map(prev);
+        const current = new Set(next.get(msId) || []);
+        seqIds.forEach((id) => {
+          if (completeAll) current.add(id);
+          else current.delete(id);
+        });
+        next.set(msId, current);
+        if (typeof window !== "undefined") {
+          try {
+            const stepsObj: Record<string, string[]> = {};
+            next.forEach((set, k) => {
+              stepsObj[k] = Array.from(set);
+            });
+            localStorage.setItem(`${storagePrefix}steps`, JSON.stringify(stepsObj));
+          } catch {}
+        }
+        return next;
+      });
+
+      const ms = milestones.find((m) => m.id === msId);
+      if (ms && ms.sequences) {
+        const doneSet = new Set(completedStepsByMs.get(msId) || []);
+        seqIds.forEach((id) => {
+          if (completeAll) doneSet.add(id);
+          else doneSet.delete(id);
+        });
+        const relevant = ms.sequences.map((s) => s.id);
+        const allDone = relevant.length > 0 && relevant.every((id) => doneSet.has(id));
+        setCompletedIds((prev) => {
+          const next = new Set(prev);
+          allDone ? next.add(msId) : next.delete(msId);
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.setItem(`${storagePrefix}completed_ms`, JSON.stringify(Array.from(next)));
+            } catch {}
+          }
+          return next;
+        });
+      }
+    },
+    [completedStepsByMs, milestones, storagePrefix]
+  );
+
   // Toggle chapter expansion
   const toggleChapter = (msId: string) => {
     setExpandedMs((prev) => {
@@ -548,23 +502,23 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
     <>
       {/* ── OBJECTIF EN COURS (Hero Banner interactif) ── */}
       {activeObjective && (
-        <div className="mb-8 rounded-3xl border border-emerald-500/40 bg-gradient-to-r from-emerald-950/60 via-[#0d1418] to-zinc-950 p-5 sm:p-6 shadow-2xl relative overflow-hidden backdrop-blur-xl">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="mb-8 rounded-3xl border border-success/40 bg-gradient-to-r from-success/20 via-elevated to-background p-5 sm:p-6 shadow-2xl relative overflow-hidden backdrop-blur-xl">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-success/10 rounded-full blur-3xl pointer-events-none" />
 
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
             <div className="space-y-2 flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[11px] font-black uppercase tracking-wider">
-                  <Target className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-success/20 border border-success/40 text-success text-[11px] font-black uppercase tracking-wider">
+                  <Target className="w-3.5 h-3.5 text-success animate-pulse" />
                   {activeObjective.isBookmarked ? "Repère Actif (Je suis ici)" : "Prochain Objectif"}
                 </span>
-                <span className="text-xs text-zinc-400 font-medium">
+                <span className="text-xs text-muted-foreground font-medium">
                   {activeObjective.milestone.title}
                 </span>
               </div>
 
               <div className="flex items-center gap-3 flex-wrap">
-                <h3 className="text-lg sm:text-xl font-black text-white truncate font-heading">
+                <h3 className="text-lg sm:text-xl font-black text-foreground truncate font-heading">
                   {activeObjective.sequence.subGuideName || activeObjective.sequence.subGuideRef}
                 </h3>
 
@@ -585,7 +539,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                   if (djs.length === 0) return null;
                   const dj = djs[0];
                   return (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-warning/15 border border-warning/30 text-warning text-xs font-bold">
                       {dj.imageUrl ? (
                         <img src={dj.imageUrl} alt="" className="w-4 h-4 rounded object-cover" />
                       ) : (
@@ -598,8 +552,8 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
               </div>
 
               {activeObjective.sequence.tips && (
-                <p className="text-xs sm:text-sm text-zinc-300 line-clamp-2 bg-black/30 p-2.5 rounded-xl border border-white/5">
-                  💡 <span className="font-semibold text-zinc-200">Conseil :</span> {activeObjective.sequence.tips}
+                <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 bg-black/30 p-2.5 rounded-xl border border-border">
+                  💡 <span className="font-semibold text-foreground">Conseil :</span> {activeObjective.sequence.tips}
                 </p>
               )}
             </div>
@@ -611,7 +565,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                 onClick={() =>
                   handleToggleStep(activeObjective.milestone.id, activeObjective.sequence.id)
                 }
-                className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20"
+                className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-success hover:bg-success text-success-foreground font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-success/20"
               >
                 <Check className="w-4 h-4 stroke-[3]" />
                 <span>Valider cette étape</span>
@@ -620,10 +574,10 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
               <button
                 type="button"
                 onClick={handleLaunchOverlay}
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] text-zinc-100 font-bold text-xs border border-white/10 transition-colors"
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-elevated hover:bg-elevated text-foreground font-bold text-xs border border-border transition-colors"
                 title="Détacher la mini-fenêtre par-dessus le jeu Dofus"
               >
-                <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                <Sparkles className="w-3.5 h-3.5 text-success" />
                 <span className="hidden sm:inline">Overlay en jeu</span>
               </button>
             </div>
@@ -632,11 +586,11 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
       )}
 
       {/* ── STICKY CONTROL BAR & SEARCH ── */}
-      <div className="sticky top-16 z-30 mb-8 rounded-3xl border border-white/10 bg-[#0d1117]/95 p-4 sm:p-5 shadow-2xl backdrop-blur-xl space-y-4">
+      <div className="sticky top-16 z-30 mb-8 rounded-3xl border border-border bg-background/95 p-4 sm:p-5 shadow-2xl backdrop-blur-xl space-y-4">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           {/* Progress summary */}
           <div className="flex items-center gap-3.5">
-            <div className="relative w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+            <div className="relative w-12 h-12 rounded-2xl bg-success/10 border border-success/20 flex items-center justify-center shrink-0">
               <img
                 src={guide.imageUrl || "/module-dofus/Dofus_Sylvestre.png"}
                 alt="Dofus Sylvestre"
@@ -645,12 +599,12 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-black uppercase tracking-wider text-emerald-400">Progression Locale</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-mono font-bold">
+                <span className="text-xs font-black uppercase tracking-wider text-success">Progression Locale</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-success/10 border border-success/20 text-success font-mono font-bold">
                   100% Gratuit
                 </span>
               </div>
-              <p className="text-sm font-bold text-zinc-100 tabular-nums">
+              <p className="text-sm font-bold text-foreground tabular-nums">
                 {completedCount} / {totalSequences} étapes validées ({progressPercent}%)
               </p>
             </div>
@@ -664,8 +618,8 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
               className={cn(
                 "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-colors",
                 hideDone
-                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                  : "bg-white/[0.04] text-zinc-300 border-white/10 hover:bg-white/[0.08]"
+                  ? "bg-success/20 text-success border-success/30"
+                  : "bg-elevated text-muted-foreground border-border hover:bg-elevated"
               )}
             >
               {hideDone ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -675,9 +629,9 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
             <button
               type="button"
               onClick={() => setShowResources(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white/[0.04] hover:bg-white/[0.08] text-zinc-200 border border-white/10 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-elevated hover:bg-elevated text-foreground border border-border transition-colors"
             >
-              <Package className="w-3.5 h-3.5 text-amber-400" />
+              <Package className="w-3.5 h-3.5 text-warning" />
               <span>Ressources</span>
             </button>
 
@@ -685,7 +639,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
             <button
               type="button"
               onClick={handleLaunchOverlay}
-              className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-zinc-950 font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20"
+              className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-success to-success/20 hover:from-success hover:to-success text-success-foreground font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-success/20"
               title="Affiche une mini-fenêtre flottante toujours au premier plan par-dessus Dofus"
             >
               <Sparkles className="w-4 h-4" />
@@ -696,18 +650,18 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
 
         {/* Search bar & Live Filter */}
         <div className="relative">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Rechercher une quête, un donjon, un PNJ, des coordonnées [X, Y]…"
-            className="w-full h-10 pl-10 pr-10 rounded-2xl bg-white/[0.04] border border-white/10 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-emerald-500/50 focus:bg-white/[0.06] transition-colors"
+            className="w-full h-10 pl-10 pr-10 rounded-2xl bg-elevated border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-success/50 focus:bg-elevated transition-colors"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
               <X className="w-4 h-4" />
             </button>
@@ -715,9 +669,9 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
         </div>
 
         {/* Global Progress bar */}
-        <div className="w-full h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+        <div className="w-full h-1.5 rounded-full bg-elevated overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-300 transition-all duration-300"
+            className="h-full bg-gradient-to-r from-success via-success to-success transition-all duration-300"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -754,7 +708,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
             questBlocks = questBlocks.filter((b) => !b.isDone);
           }
 
-          if (questBlocks.length === 0 && searchQuery.trim().length > 0) {
+          if (questBlocks.length === 0 && (searchQuery.trim().length > 0 || hideDone)) {
             return null;
           }
 
@@ -767,13 +721,13 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
             return (
               <div
                 key={ms.id}
-                className="py-6 my-4 border-y border-emerald-500/20 bg-gradient-to-r from-emerald-950/20 via-surface/40 to-emerald-950/20 rounded-2xl text-center px-4"
+                className="py-6 my-4 border-y border-success/20 bg-gradient-to-r from-success/20 via-surface/40 to-success/20 rounded-2xl text-center px-4"
               >
-                <span className="text-[11px] font-black uppercase tracking-widest text-emerald-400 block mb-1">
+                <span className="text-[11px] font-black uppercase tracking-widest text-success block mb-1">
                   Étape Charnière
                 </span>
-                <h3 className="text-lg font-black text-white font-heading">{ms.title}</h3>
-                {ms.description && <p className="text-xs text-zinc-400 mt-1">{ms.description}</p>}
+                <h3 className="text-lg font-black text-foreground font-heading">{ms.title}</h3>
+                {ms.description && <p className="text-xs text-muted-foreground mt-1">{ms.description}</p>}
               </div>
             );
           }
@@ -784,12 +738,12 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
               className={cn(
                 "rounded-3xl border transition-all overflow-hidden shadow-xl",
                 isDone
-                  ? "bg-zinc-950/40 border-emerald-500/20 opacity-85"
-                  : "bg-surface/60 border-white/[0.08] hover:border-white/[0.14]"
+                  ? "bg-surface/40 border-success/20 opacity-85"
+                  : "bg-surface/60 border-border hover:border-border"
               )}
             >
               {/* Chapter Header */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-4 sm:p-6 border-b border-white/[0.06] gap-4 bg-white/[0.01]">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-4 sm:p-6 border-b border-border gap-4 bg-elevated">
                 <button
                   type="button"
                   onClick={() => toggleChapter(ms.id)}
@@ -799,10 +753,10 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                     className={cn(
                       "w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-sm shrink-0 border transition-all p-1",
                       isDone
-                        ? "bg-emerald-500 text-zinc-950 border-emerald-400 shadow-lg shadow-emerald-500/20"
+                        ? "bg-success text-success-foreground border-success shadow-lg shadow-success/20"
                         : chapterDofusImg
-                        ? "bg-amber-500/10 border-amber-500/30 text-amber-300 shadow-md shadow-amber-500/10"
-                        : "bg-white/[0.06] text-zinc-300 border-white/10"
+                        ? "bg-warning/10 border-warning/30 text-warning shadow-md shadow-warning/10"
+                        : "bg-elevated text-muted-foreground border-border"
                     )}
                   >
                     {isDone ? (
@@ -820,27 +774,27 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-success">
                         {ms.chapterLabel || `Chapitre ${ms.chapter}`}
                       </span>
                       {chapterDofusImg && (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 shadow-sm">
+                        <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-warning/15 border border-warning/30 text-warning shadow-sm">
                           <img src={chapterDofusImg} alt="" className="w-3 h-3 object-contain" />
                           Dofus en jeu
                         </span>
                       )}
-                      <span className="text-xs text-zinc-400 tabular-nums">
+                      <span className="text-xs text-muted-foreground tabular-nums">
                         {msDoneCount} / {sequences.length} étapes ({msPercent}%)
                       </span>
                     </div>
-                    <h2 className="text-base sm:text-lg font-black text-zinc-100 truncate font-heading mt-0.5">
+                    <h2 className="text-base sm:text-lg font-black text-foreground truncate font-heading mt-0.5">
                       {ms.title}
                     </h2>
                   </div>
 
                   <ChevronDown
                     className={cn(
-                      "w-5 h-5 text-zinc-400 transition-transform duration-200 shrink-0",
+                      "w-5 h-5 text-muted-foreground transition-transform duration-200 shrink-0",
                       isExpanded && "rotate-180"
                     )}
                   />
@@ -851,7 +805,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                   <button
                     type="button"
                     onClick={() => handleToggleChapterAll(ms.id, !isDone)}
-                    className="text-[11px] font-bold px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white border border-white/10 transition-colors"
+                    className="text-[11px] font-bold px-3 py-1.5 rounded-xl bg-elevated hover:bg-elevated text-muted-foreground hover:text-foreground border border-border transition-colors"
                   >
                     {isDone ? "Tout décocher" : "Tout valider ✓"}
                   </button>
@@ -859,9 +813,9 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
               </div>
 
               {/* Progress bar du chapitre */}
-              <div className="w-full h-1 bg-white/[0.04]">
+              <div className="w-full h-1 bg-elevated">
                 <div
-                  className="h-full bg-emerald-500 transition-all duration-300"
+                  className="h-full bg-success transition-all duration-300"
                   style={{ width: `${msPercent}%` }}
                 />
               </div>
@@ -870,24 +824,27 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
               {isExpanded && (
                 <div className="p-4 sm:p-6 space-y-5">
                   {questBlocks.length === 0 ? (
-                    <p className="text-xs text-zinc-500 py-4 text-center italic">
+                    <p className="text-xs text-muted-foreground py-4 text-center italic">
                       Aucune étape correspondante.
                     </p>
                   ) : (
                     questBlocks.map((block, blockIdx) => {
                       const questDofusImg = resolveDofusLocalImage(block.questName) || resolveDofusLocalImage(ms.title);
+                      // Bloc mono-étape : pas d'en-tête redondant, la ligne-carte porte le nom (comme le guide interne)
+                      const isSingleStep = block.sequences.length === 1;
                       return (
                       <div
                         key={`${block.questRef}-${blockIdx}`}
                         className={cn(
                           "rounded-2xl border transition-all overflow-hidden",
                           block.isDone
-                            ? "bg-zinc-950/40 border-zinc-800/60 opacity-65"
-                            : "bg-[#0f141c]/80 border-white/[0.08] shadow-md"
+                            ? "bg-surface/40 border-border/60 opacity-65"
+                            : "bg-surface/80 border-border shadow-md"
                         )}
                       >
-                        {/* ── EN-TÊTE DU BLOC DE QUÊTE (Séparateur visuel propre) ── */}
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 sm:px-4 bg-white/[0.02] border-b border-white/[0.06]">
+                        {/* ── EN-TÊTE DU BLOC DE QUÊTE (multi-étapes uniquement) ── */}
+                        {!isSingleStep && (
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 sm:px-4 bg-elevated border-b border-border">
                           <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             {questDofusImg ? (
                               <img
@@ -896,61 +853,76 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                 className="w-5 h-5 object-contain drop-shadow-[0_0_8px_rgba(230,185,107,0.4)] shrink-0"
                               />
                             ) : (
-                              <Scroll className="w-4 h-4 text-emerald-400 shrink-0" />
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img src="/assets/icons/icone-quete.png" alt="" className="w-5 h-5 object-contain opacity-90 shrink-0" loading="lazy" />
                             )}
-                            <h4 className="text-xs sm:text-sm font-bold text-zinc-100 truncate">
-                              {block.questName}
-                            </h4>
+                            {(() => {
+                              const primaryUrl = block.dofuspourlesnoobsUrl || block.dofusdbUrl || null;
+                              const cls = "text-xs sm:text-sm font-bold truncate font-[family-name:var(--font-cinzel)] tracking-wide";
+                              if (primaryUrl) {
+                                return (
+                                  <h4 className={cls}>
+                                    <a
+                                      href={primaryUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="hover:text-warning transition-colors"
+                                      title={`Ouvrir sur ${block.dofuspourlesnoobsUrl ? "DofusPourLesNoobs" : "DofusDB"}`}
+                                    >
+                                      {block.questName}
+                                    </a>
+                                  </h4>
+                                );
+                              }
+                              return <h4 className={`${cls} text-foreground`}>{block.questName}</h4>;
+                            })()}
 
-                            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-white/[0.06] text-zinc-400 shrink-0">
+                            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-elevated text-muted-foreground shrink-0">
                               {block.doneCount} / {block.totalCount}
                             </span>
                           </div>
-
-                          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center flex-wrap">
-                            {/* Boss / Donjons requis avec lien vers la fiche boss */}
-                            {block.dungeons.map((dj) => {
-                              const bossDisplayName = dj.bossName || dj.name.replace(/^Donjon (du |de la |de l'|de |des )/i, "");
-                              return (
-                                <Link
-                                  key={dj.id}
-                                  href={`/boss/${encodeURIComponent(dj.id)}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-[11px] font-bold transition-all group/boss shadow-sm cursor-pointer"
-                                  title={`Voir la fiche boss de ${bossDisplayName}`}
-                                >
-                                  {dj.imageUrl ? (
-                                    <img src={dj.imageUrl} alt={bossDisplayName} className="w-4 h-4 rounded object-cover" />
-                                  ) : (
-                                    <Sword className="w-3.5 h-3.5 text-amber-400" />
-                                  )}
-                                  <span className="truncate max-w-[150px] group-hover/boss:text-amber-200 group-hover/boss:underline">
-                                    {bossDisplayName}
-                                  </span>
-                                  <ExternalLink className="w-3 h-3 text-amber-400/70 shrink-0" />
-                                </Link>
-                              );
-                            })}
-                          </div>
+                          {(() => {
+                            const bmSeqId = bookmarksByMs.get(ms.id) || null;
+                            const bmInBlock = bmSeqId && block.sequences.some((s) => s.id === bmSeqId);
+                            const firstUndone = block.sequences.find((s) => !doneSteps.has(s.id));
+                            return (
+                              <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                                {!block.isDone && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleBlockSteps(ms.id, block.sequences.map((s) => s.id), true)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-success/40 bg-success/15 hover:bg-success/25 text-success transition-all text-xs font-bold"
+                                    title="Valider toutes les étapes du bloc"
+                                  >
+                                    <Check className="w-3.5 h-3.5" />Valider
+                                  </button>
+                                )}
+                                {(bmInBlock || firstUndone) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleBookmark(ms.id, bmInBlock ? (bmSeqId as string) : (firstUndone as RushSequence).id)}
+                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-all text-xs font-semibold ${bmInBlock ? "bg-warning/15 border-warning/40 text-warning" : "bg-surface border-border text-muted-foreground hover:text-warning hover:border-warning/40"}`}
+                                    title={bmInBlock ? "Retirer le repère « Je suis ici »" : "Poser « Je suis ici » sur la prochaine étape du bloc"}
+                                  >
+                                    {bmInBlock ? <BookmarkCheck className="w-3.5 h-3.5 text-warning" /> : <Flag className="w-3.5 h-3.5 text-warning" />}<span>{bmInBlock ? "Repère" : "Je suis ici"}</span>
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
+                        )}
 
                         {/* ── ÉTAPES DE LA QUÊTE ── */}
-                        <div className="p-2 sm:p-3 space-y-2.5">
-                          {block.sequences.map((seq, seqIdx) => {
+                        <div className={isSingleStep ? "p-2 sm:p-3" : "p-2 sm:p-3 space-y-2.5"}>
+                          {block.sequences.filter((s) => !hideDone || !doneSteps.has(s.id)).map((seq) => {
                             const stepDone = doneSteps.has(seq.id);
                             const parsedCoord = getSequenceCoord(seq);
-                            const djs =
-                              seq.dungeons && seq.dungeons.length > 0
-                                ? seq.dungeons
-                                : seq.dungeon
-                                ? [seq.dungeon]
-                                : [];
 
                             // Extraction et séparation des tags d'items pour ne PAS polluer la ligne
                             const allTags = seq.activityTags || [];
                             const itemTags = allTags.filter((t) => t.type === "item");
-                            const nonItemTags = allTags.filter((t) => t.type !== "item");
 
                             const hasManyItems = itemTags.length > 0;
                             const isResourceExpanded = expandedResourceSteps.has(seq.id);
@@ -959,27 +931,27 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
 
                             if (isPrepResources) {
                               return (
-                                <div key={seq.id} className="p-4 rounded-2xl bg-black/30 border border-white/[0.08] space-y-3">
-                                  <div className="flex items-center justify-between gap-3 pb-2 border-b border-white/[0.06]">
+                                <div key={seq.id} className="p-4 rounded-2xl bg-black/30 border border-border space-y-3">
+                                  <div className="flex items-center justify-between gap-3 pb-2 border-b border-border">
                                     <div className="flex items-center gap-3">
                                       <button
                                         type="button"
                                         onClick={() => handleToggleStep(ms.id, seq.id)}
                                         aria-label={stepDone ? "Décocher" : "Valider cette préparation"}
                                         className={cn(
-                                          "w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 transition-colors cursor-pointer",
+                                          "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors cursor-pointer",
                                           stepDone
-                                            ? "bg-emerald-500 border-emerald-400 text-zinc-950"
-                                            : "border-zinc-700 bg-zinc-900/60 hover:border-emerald-500/50"
+                                            ? "bg-success border-success text-success-foreground"
+                                            : "border-border bg-surface/60 hover:border-success"
                                         )}
                                       >
                                         {stepDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                                       </button>
                                       <div>
-                                        <h5 className="text-xs font-bold text-zinc-100">
+                                        <h5 className="text-xs font-bold text-foreground">
                                           Ressources requises pour l'ensemble du parcours
                                         </h5>
-                                        <p className="text-[11px] text-zinc-400">
+                                        <p className="text-[11px] text-muted-foreground">
                                           Préparez ces ressources à l'avance pour enchaîner les étapes sans faire d'allers-retours en HDV.
                                         </p>
                                       </div>
@@ -996,13 +968,14 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                             return (
                               <div
                                 key={seq.id}
+                                data-seq-id={seq.id}
                                 className={cn(
                                   "group flex flex-col gap-2 p-3 rounded-xl border transition-all",
                                   stepDone
-                                    ? "bg-zinc-950/40 border-zinc-800/60 opacity-60"
+                                    ? "bg-surface/40 border-border/60 opacity-60"
                                     : isBookmarked
-                                    ? "bg-amber-950/20 border-amber-500/40 shadow-sm"
-                                    : "bg-white/[0.02] hover:bg-white/[0.05] border-white/[0.06]"
+                                    ? "bg-warning/10 border-warning/40 shadow-sm"
+                                    : "bg-elevated hover:bg-elevated border-border"
                                 )}
                               >
                                 {/* Ligne principale de l'étape */}
@@ -1014,10 +987,10 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                       onClick={() => handleToggleStep(ms.id, seq.id)}
                                       aria-label={stepDone ? "Décocher" : "Valider cette étape"}
                                       className={cn(
-                                        "w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 transition-colors cursor-pointer",
+                                        "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 transition-all cursor-pointer",
                                         stepDone
-                                          ? "bg-emerald-500 border-emerald-400 text-zinc-950"
-                                          : "border-zinc-700 bg-zinc-900/60 hover:border-emerald-500/50"
+                                          ? "bg-success border-success text-success-foreground"
+                                          : "border-border bg-surface/60 hover:border-success"
                                       )}
                                     >
                                       {stepDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
@@ -1025,26 +998,66 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
 
                                     <div className="min-w-0 flex-1">
                                       <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-[10px] font-mono text-zinc-500 font-bold">
-                                          Étape {seqIdx + 1}
-                                        </span>
+                                        {activeObjective?.sequence.id === seq.id && activeObjective?.milestone.id === ms.id && !stepDone && (
+                                          <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-info/15 text-info border border-info/25 shrink-0">À faire</span>
+                                        )}
+                                        {/* Nom de quête (blocs mono-étape : pas d'en-tête, la ligne porte le nom) */}
+                                        {isSingleStep && (
+                                          <>
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src="/assets/icons/icone-quete.png" alt="" className="w-4 h-4 object-contain opacity-90 shrink-0 self-center" loading="lazy" />
+                                            {(() => {
+                                              const primaryUrl = (seq as any).dofuspourlesnoobsUrl || (seq as any).dofusdbUrl || block.dofuspourlesnoobsUrl || block.dofusdbUrl || null;
+                                              const cls = "text-[13px] font-semibold leading-snug tracking-wide font-[family-name:var(--font-cinzel)] break-words min-w-0";
+                                              if (primaryUrl) {
+                                                return (
+                                                  <a
+                                                    href={primaryUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className={`${cls} text-foreground hover:text-warning transition-colors`}
+                                                    title={`Ouvrir sur ${(seq as any).dofuspourlesnoobsUrl || block.dofuspourlesnoobsUrl ? "DofusPourLesNoobs" : "DofusDB"}`}
+                                                  >
+                                                    {block.questName}
+                                                  </a>
+                                                );
+                                              }
+                                              return <span className={`${cls} text-foreground`}>{block.questName}</span>;
+                                            })()}
+                                          </>
+                                        )}
+                                        {parsedCoord && (
+                                          <RushCoordinateChip coordText={parsedCoord.raw} />
+                                        )}
+                                        {/* Quête d'alignement (détail complet en modale) */}
+                                        {(() => {
+                                          const align = getAlignmentSet(seq as any);
+                                          if (!align) return null;
+                                          const label = align.camp === "brakmarien" ? "Brakmarien" : align.camp === "bontarien" ? "Bontarien" : align.camp;
+                                          return (
+                                            <span
+                                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-info/10 border border-info/40 text-info text-[9px] font-black uppercase tracking-wider shrink-0"
+                                              title={`Quête d'alignement → ${label} ${align.level}`}
+                                            >
+                                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                                              <img src={align.camp === "brakmarien" ? "/ordres/brakmar.png" : "/ordres/bonta.png"} alt="" className="w-3 h-3 object-contain" />
+                                              ↦ {label} {align.level}
+                                            </span>
+                                          );
+                                        })()}
 
                                         {seq.isSuccess && (
-                                          <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                                          <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-warning/15 text-warning border border-warning/30">
                                             Succès
                                           </span>
                                         )}
 
                                         {seq.isOptional && (
-                                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">
+                                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-elevated text-muted-foreground">
                                             Bonus
                                           </span>
                                         )}
-
-                                        {/* Tags d'activité filtrés (pas 100 items !) */}
-                                        {nonItemTags.slice(0, 4).map((tag, tagIdx) => (
-                                          <RushTagBadge key={tagIdx} tag={tag} size="sm" />
-                                        ))}
 
                                         {/* Bouton condensé si des ressources sont requises */}
                                         {hasManyItems && (
@@ -1060,11 +1073,11 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                             className={cn(
                                               "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer",
                                               isResourceExpanded
-                                                ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
-                                                : "bg-white/[0.04] text-zinc-300 border-white/10 hover:bg-white/[0.08]"
+                                                ? "bg-warning/20 text-warning border-warning/40"
+                                                : "bg-elevated text-muted-foreground border-border hover:bg-elevated"
                                             )}
                                           >
-                                            <Package className="w-3 h-3 text-amber-400" />
+                                            <Package className="w-3 h-3 text-warning" />
                                             <span>{itemTags.length} ressource{itemTags.length > 1 ? "s" : ""}</span>
                                             {isResourceExpanded ? (
                                               <ChevronUp className="w-3 h-3" />
@@ -1074,76 +1087,20 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                           </button>
                                         )}
                                       </div>
-
-                                      {/* Consigne / Astuce (aérée, pas de saut au survol souris) */}
-                                      {seq.tips && (() => {
-                                        const parts = seq.tips.split(/·?\s*Succès\s*:\s*/i);
-                                        const mainTip = parts[0]?.trim();
-                                        const succesPart = parts[1]?.trim();
-                                        return (
-                                          <div className="mt-1 space-y-1">
-                                            {mainTip && (
-                                              <p
-                                                className={cn(
-                                                  "text-xs leading-relaxed",
-                                                  stepDone ? "text-zinc-500 line-through" : "text-zinc-300"
-                                                )}
-                                              >
-                                                {mainTip}
-                                              </p>
-                                            )}
-                                            {succesPart && (
-                                              <div className="flex items-center gap-1.5 pt-0.5">
-                                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-300 bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-md">
-                                                  🏆 Succès : {succesPart}
-                                                </span>
-                                              </div>
-                                            )}
-                                          </div>
-                                        );
-                                      })()}
-
-                                      {seq.note && (
-                                        <p className="text-[11px] text-amber-300/80 italic mt-0.5">
-                                          Note : {seq.note}
-                                        </p>
-                                      )}
                                     </div>
                                   </div>
 
                                   {/* Barre d'Actions d'Étape (Capture 4 : Coordonnées, Boss cliquable, Favicons DofusDB/DPNL, Bookmark, Détails) */}
                                   <div className="flex items-center gap-2 shrink-0 self-end sm:self-center flex-wrap">
-                                    {parsedCoord && (
-                                      <RushCoordinateChip coordText={parsedCoord.raw} />
-                                    )}
-
-                                    {/* Boss spécifique à l'étape s'il n'est pas déjà dans l'en-tête du bloc */}
-                                    {djs.filter((dj) => !block.dungeons.some((bd) => bd.id === dj.id)).map((dj) => {
-                                      const bossDisplayName = dj.bossName || dj.name.replace(/^Donjon (du |de la |de l'|de |des )/i, "");
-                                      return (
-                                        <Link
-                                          key={dj.id}
-                                          href={`/boss/${encodeURIComponent(dj.id)}`}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-[10px] font-bold transition-colors cursor-pointer"
-                                          title={`Fiche boss : ${bossDisplayName}`}
-                                        >
-                                          <Sword className="w-3 h-3 text-amber-400" />
-                                          <span>{bossDisplayName}</span>
-                                        </Link>
-                                      );
-                                    })}
-
                                     {/* Groupe d'actions 4 boutons (comme le guide interne) */}
-                                    <div className="flex items-center gap-0.5 rounded-lg border border-white/[0.08] bg-white/[0.03] p-0.5">
+                                    <div className="flex items-center gap-0.5 rounded-lg border border-border bg-elevated/50 p-0.5">
                                       {/* Favicon DPNL */}
                                       {seq.dofuspourlesnoobsUrl && (
                                         <a
                                           href={seq.dofuspourlesnoobsUrl}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="p-1.5 rounded-md hover:bg-white/[0.08] transition-colors"
+                                          className="p-1.5 rounded-md hover:bg-elevated transition-colors"
                                           title="Soluce DofusPourLesNoobs"
                                         >
                                           <img
@@ -1160,7 +1117,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                           href={seq.dofusdbUrl}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="p-1.5 rounded-md hover:bg-white/[0.08] transition-colors"
+                                          className="p-1.5 rounded-md hover:bg-elevated transition-colors"
                                           title="Fiche DofusDB"
                                         >
                                           <img
@@ -1178,8 +1135,8 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                         className={cn(
                                           "p-1.5 rounded-md transition-colors cursor-pointer",
                                           isBookmarked
-                                            ? "text-[#e6b96b] bg-[#e6b96b]/15"
-                                            : "text-zinc-400 hover:text-[#e6b96b] hover:bg-white/[0.08]"
+                                            ? "text-warning bg-warning/15"
+                                            : "text-muted-foreground hover:text-warning hover:bg-elevated"
                                         )}
                                         title={isBookmarked ? "Retirer le repère" : "Je suis ici (Repère)"}
                                       >
@@ -1194,7 +1151,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                       <button
                                         type="button"
                                         onClick={() => setDetailModalSeq({ milestone: ms, sequence: seq })}
-                                        className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                                        className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors cursor-pointer"
                                         title="Voir les détails complets de l'étape"
                                       >
                                         <Info className="w-3.5 h-3.5" />
@@ -1203,9 +1160,61 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                   </div>
                                 </div>
 
+                                {/* Conseils & notes dépliables (comme le guide interne) */}
+                                {(seq.tips || seq.note) && (() => {
+                                  const isHintsOpen = expandedHintsSteps.has(seq.id);
+                                  const toggleHints = () => {
+                                    setExpandedHintsSteps((prev) => {
+                                      const next = new Set(prev);
+                                      if (next.has(seq.id)) next.delete(seq.id);
+                                      else next.add(seq.id);
+                                      return next;
+                                    });
+                                  };
+                                  const parts = (seq.tips || "").split(/·?\s*Succès\s*:\s*/i);
+                                  const mainTip = parts[0]?.trim();
+                                  const succesPart = parts[1]?.trim();
+                                  return (
+                                    <div className="border-t border-border">
+                                      <button
+                                        type="button"
+                                        onClick={toggleHints}
+                                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+                                      >
+                                        <Sparkles className="w-2.5 h-2.5 shrink-0" />
+                                        {isHintsOpen ? "Masquer" : "Conseils & notes"}
+                                        <ChevronDown className={`w-3 h-3 ml-auto transition-transform duration-150 ${isHintsOpen ? "rotate-180" : ""}`} />
+                                      </button>
+                                      {isHintsOpen && (
+                                        <div className="px-2.5 pb-2.5 space-y-1.5">
+                                          {mainTip && (
+                                            <p className={cn("text-xs leading-relaxed", stepDone ? "text-muted-foreground line-through" : "text-muted-foreground")}>
+                                              {mainTip}
+                                            </p>
+                                          )}
+                                          {succesPart && (
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-warning bg-warning/10 border border-warning/25 px-2 py-0.5 rounded-md">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src="/assets/dofus/game-icons/trophy-1.png" alt="" className="w-3 h-3 object-contain" />
+                                                Succès : {succesPart}
+                                              </span>
+                                            </div>
+                                          )}
+                                          {seq.note && (
+                                            <p className="text-[11px] text-warning/80 italic">
+                                              Note : {seq.note}
+                                            </p>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
+
                                 {/* Panneau déroulant des ressources de l'étape (si déplié) */}
                                 {hasManyItems && isResourceExpanded && (
-                                  <div className="pt-2 border-t border-white/[0.06] animate-in fade-in duration-200">
+                                  <div className="pt-2 border-t border-border animate-in fade-in duration-200">
                                     <QuestItemResourceGrid
                                       items={itemTags}
                                       completedIds={completedIds}
@@ -1251,6 +1260,85 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
           onClose={() => setShowResources(false)}
         />
       )}
+
+      {/* ── POPUP « REPRENDRE ? » (retour avec repère local) ── */}
+      {continueModalOpen &&
+        (() => {
+          const bmEntry = Array.from(bookmarksByMs.entries())[0];
+          if (!bmEntry) return null;
+          const ms = milestones.find((m) => m.id === bmEntry[0]);
+          if (!ms) return null;
+          return (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60" onClick={() => setContinueModalOpen(false)}>
+              <div className="bg-surface border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-3 mb-3">
+                  <Flag className="w-5 h-5 text-success" />
+                  <h3 className="text-sm font-black text-foreground" style={{ fontFamily: "var(--font-cinzel)" }}>Reprendre ?</h3>
+                </div>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Tu étais à <strong className="text-foreground">{ms.title}</strong>.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      scrollToStep(bmEntry[1]);
+                      setContinueModalOpen(false);
+                    }}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-success hover:bg-success text-success-foreground text-caption font-black uppercase tracking-widest"
+                  >
+                    Reprendre
+                  </button>
+                  <button
+                    onClick={() => setContinueModalOpen(false)}
+                    className="px-4 py-2.5 rounded-xl bg-elevated hover:bg-muted text-muted-foreground text-caption font-black uppercase tracking-widest"
+                  >
+                    Plus tard
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+      {/* ── Navigation flottante haut / position / bas (comme le guide interne) ── */}
+      {typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed right-4 z-[100] flex flex-col items-center gap-1 bg-background/90 border border-success/20 rounded-2xl py-2 px-1.5 shadow-2xl"
+            style={{ top: "50%", transform: "translateY(-50%)" }}
+          >
+            <button
+              onClick={scrollToTop}
+              disabled={!showScrollTop}
+              className={`p-2 rounded-xl transition-all ${showScrollTop ? "text-muted-foreground hover:text-foreground hover:bg-elevated cursor-pointer" : "text-muted-foreground cursor-not-allowed"}`}
+              title="Remonter en haut"
+              aria-label="Remonter en haut"
+            >
+              <ChevronUp className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => {
+                if (activeObjective) scrollToStep(activeObjective.sequence.id);
+              }}
+              disabled={!activeObjective}
+              className={`p-2 rounded-xl transition-all ${activeObjective ? "text-success hover:bg-success/10 cursor-pointer" : "text-muted-foreground cursor-not-allowed"}`}
+              title="Revenir à la position actuelle"
+              aria-label="Revenir à la position actuelle"
+            >
+              <MapPin className="w-4 h-4" />
+            </button>
+            <button
+              onClick={scrollToBottom}
+              disabled={!showScrollBottom}
+              className={`p-2 rounded-xl transition-all ${showScrollBottom ? "text-muted-foreground hover:text-foreground hover:bg-elevated cursor-pointer" : "text-muted-foreground cursor-not-allowed"}`}
+              title="Aller en bas"
+              aria-label="Aller en bas"
+            >
+              <ChevronDown className="w-4 h-4" />
+            </button>
+          </div>,
+          document.body
+        )}
 
       {/* ── FLOATING OVERLAY PORTAL (fenêtre détachée active) ── */}
       {pipWin &&

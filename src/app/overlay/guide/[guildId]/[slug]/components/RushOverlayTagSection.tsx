@@ -46,7 +46,7 @@ export function RushOverlayTagSection({
                 "inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold border",
                 isLightMode
                   ? "bg-slate-100 border-slate-200 text-slate-500"
-                  : "bg-[#1c2129] border-[#2c3646] text-[#6e7784]"
+                  : "bg-muted border-border text-muted-foreground"
               )}
             >
               +{tags.nature.length - 4}
@@ -65,7 +65,7 @@ export function RushOverlayTagSection({
               "flex items-center gap-1 text-[10px] font-semibold transition-colors",
               isLightMode
                 ? "text-slate-500 hover:text-slate-700"
-                : "text-[#6e7784] hover:text-[#969daa]"
+                : "text-muted-foreground hover:text-foreground"
             )}
             aria-expanded={showConditions}
           >
@@ -97,7 +97,7 @@ export function RushOverlayTagSection({
               "flex items-center gap-1 text-[10px] font-semibold transition-colors",
               isLightMode
                 ? "text-slate-400 hover:text-slate-600"
-                : "text-[#50606e] hover:text-[#6e7784]"
+                : "text-muted-foreground/70 hover:text-muted-foreground"
             )}
             aria-expanded={showTools}
           >

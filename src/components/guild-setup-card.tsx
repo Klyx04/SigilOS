@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -18,9 +18,10 @@ type GuildProps = {
     clientId?: string;
 };
 
-export function GuildSetupCard({ guild, clientId }: { guild: GuildProps, clientId?: string }) {
+export function GuildSetupCard({ guild, clientId, autoDeploy }: { guild: GuildProps, clientId?: string, autoDeploy?: boolean }) {
     const [loading, setLoading] = useState(false);
     const [inviteStarted, setInviteStarted] = useState(false);
+    const autoDeployTried = useRef(false);
 
     // If bot is missing, we need to invite it first
     const needsInvite = guild.isBotPresent === false;
@@ -72,6 +73,28 @@ export function GuildSetupCard({ guild, clientId }: { guild: GuildProps, clientI
         }
     };
 
+    // Activation automatique : bot déjà présent + un seul serveur éligible =
+    // on déploie sans exiger le clic (comme les autres bots : invité =
+    // fonctionnel). `onboardGuild` est idempotente + rate-limitée côté serveur,
+    // donc un double déclenchement (StrictMode) est sans effet de bord.
+    useEffect(() => {
+        if (!autoDeploy || needsInvite || autoDeployTried.current) return;
+        autoDeployTried.current = true;
+        setLoading(true);
+        onboardGuild(guild.id).then((result) => {
+            if (result.success) {
+                window.location.reload();
+            } else {
+                toast.error("Erreur lors de l'activation : " + result.error);
+                setLoading(false);
+            }
+        }).catch(() => {
+            toast.error("Erreur inattendue");
+            setLoading(false);
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [autoDeploy, needsInvite, guild.id]);
+
     // Auto-refresh when bot is authorized in the other tab.
     // + reload au retour du focus (cas popup fermée à la main ou bascule
     // même-onglet : sans cela la carte reste "Bot absent" jusqu'au F5 manuel).
@@ -111,7 +134,9 @@ export function GuildSetupCard({ guild, clientId }: { guild: GuildProps, clientI
                             {guild.name}
                         </h3>
                         <p className="text-xs text-muted-foreground">
-                            {needsInvite ? "Bot absent - Invitation requise" : "Prêt pour déploiement"}
+                            {needsInvite
+                                ? "Bot absent - Invitation requise"
+                                : loading ? "Activation en cours…" : "Prêt pour déploiement"}
                         </p>
                     </div>
                 </div>

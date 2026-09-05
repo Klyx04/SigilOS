@@ -27,7 +27,7 @@ export default async function GuildSelectorPage() {
     const session = await auth();
     if (!session?.user?.id) redirect("/");
 
-    const { active, pending, rateLimited } = await getGuildsSeparated();
+    const { active, pending, rateLimited, needsReconnect } = await getGuildsSeparated();
     const clientId = process.env.DISCORD_CLIENT_ID || process.env.AUTH_DISCORD_ID || "";
 
     // Smart Redirect: if only one guild, go directly without showing the portal
@@ -50,7 +50,7 @@ export default async function GuildSelectorPage() {
             <main className="flex-1 flex flex-col items-center justify-center p-4 relative z-10 pt-24 pb-24">
 
                 {isEmpty ? (
-                    <NoGuildMessage rateLimited={rateLimited} />
+                    <NoGuildMessage rateLimited={rateLimited} needsReconnect={needsReconnect} />
                 ) : (
                     <div className="relative z-10 max-w-5xl w-full space-y-12 animate-in fade-in slide-in-from-bottom-5 duration-300">
 
@@ -161,7 +161,15 @@ export default async function GuildSelectorPage() {
                                         <div className="p-2 space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar">
                                             {pending.length > 0 ? (
                                                 pending.map((guild) => (
-                                                    <GuildSetupCard key={guild.id} guild={guild} clientId={clientId} />
+                                                    <GuildSetupCard
+                                                        key={guild.id}
+                                                        guild={guild}
+                                                        clientId={clientId}
+                                                        // Un seul serveur éligible + bot déjà présent :
+                                                        // on l'active sans exiger un clic « Déployer »
+                                                        // (comme les autres bots : invité = fonctionnel).
+                                                        autoDeploy={pending.length === 1}
+                                                    />
                                                 ))
                                             ) : (
                                                 <div className="py-12 px-6 text-center">

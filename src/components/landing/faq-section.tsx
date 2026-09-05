@@ -38,7 +38,7 @@ export function FaqSection() {
                             Avant de te lancer.
                         </h2>
                         <p className="text-muted-foreground text-[15px] leading-relaxed mb-6">
-                            Les réponses aux questions les plus courantes avant de vous lancer.
+                            Les réponses aux questions les plus courantes avant de te lancer.
                         </p>
                         <Link
                             href="/legal/faq"

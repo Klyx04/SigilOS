@@ -9,8 +9,8 @@ import { DiscordIcon } from "@/components/shared/icons";
 
 function CardLabel({ icon, children }: { icon: string; children: React.ReactNode }) {
   return (
-    <p className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-      <Image src={icon} alt="" width={18} height={18} className="w-[18px] h-[18px] object-contain" />
+    <p className="flex items-center gap-2.5 text-sm font-semibold text-muted-foreground">
+      <Image src={icon} alt="" width={22} height={22} className="w-[22px] h-[22px] object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]" />
       <span>{children}</span>
     </p>
   );
@@ -131,7 +131,7 @@ export function ToolsBentoShowcase() {
           <div className="md:col-span-2 rounded-2xl border border-border bg-surface p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
             <div className="space-y-2 max-w-md">
               <p className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                <Image src="/assets/dofus/icons/guild.png" alt="" width={18} height={18} className="w-[18px] h-[18px] object-contain" />
+                <Image src="/assets/dofus/icons/guild.png" alt="" width={22} height={22} className="w-[22px] h-[22px] object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]" />
                 <span>Pour ta guilde</span>
               </p>
               <h3 className="text-xl font-bold text-foreground tracking-tight">

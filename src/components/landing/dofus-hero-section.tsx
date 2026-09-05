@@ -47,7 +47,7 @@ export function DofusHeroSection({ user, userGuilds = [] }: DofusHeroSectionProp
       </div>
 
       {/* Voile de lisibilité : assombrit le décor derrière le texte + fondu bas */}
-      <div className="absolute inset-0 pointer-events-none bg-black/60" aria-hidden="true" />
+      <div className="absolute inset-0 pointer-events-none bg-black/50" aria-hidden="true" />
       <div
         className="absolute inset-x-0 bottom-0 h-48 pointer-events-none"
         aria-hidden="true"

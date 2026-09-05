@@ -65,10 +65,12 @@ export default function MapPositionPopover({
 
   const handleMouseEnter = useCallback(() => {
     if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+    // Délai long : la mini-carte ne s'ouvre que sur survol intentionnel,
+    // jamais au simple passage de souris.
     enterTimerRef.current = setTimeout(() => {
       setIsOpen(true);
       requestAnimationFrame(() => requestAnimationFrame(updatePosition));
-    }, 200);
+    }, 700);
   }, [updatePosition]);
 
   const handleMouseLeave = useCallback(() => {

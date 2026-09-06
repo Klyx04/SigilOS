@@ -41,13 +41,22 @@ export function useBossOverlay(guildId: string) {
       }
 
       let newWin: Window | null = null;
+      let pinned = false;
 
+      // Document PiP si supporté (Chrome/Edge/Brave/Firefox 151+), sinon popup
+      // vierge (ex. Opera GX, qui n'expose pas l'API malgré son Chromium récent).
       if (isDocumentPipSupported()) {
-        newWin = await openPipWindow({
-          width: OVERLAY_WIDTH,
-          height: OVERLAY_HEIGHT,
-        });
-      } else {
+        try {
+          newWin = await openPipWindow({
+            width: OVERLAY_WIDTH,
+            height: OVERLAY_HEIGHT,
+          });
+          pinned = newWin !== null;
+        } catch {
+          newWin = null;
+        }
+      }
+      if (!newWin) {
         newWin = openFallbackPopup({
           width: OVERLAY_WIDTH,
           height: OVERLAY_HEIGHT,
@@ -69,6 +78,7 @@ export function useBossOverlay(guildId: string) {
         guildId,
         monsterName: opts?.monsterName,
         dungeonName: opts?.dungeonName,
+        pinned,
       });
     },
     [win, open, setMonster, onWindowGone, guildId]

@@ -102,7 +102,12 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
     const [roomCount, setRoomCount] = useState(0);
 
     return (
-        <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border h-14 px-4 lg:px-6 flex items-center justify-between gap-4 transition-colors duration-150">
+        // Fond OPAQUE volontaire (pas de backdrop-blur) : le header contient des
+        // animations infinies (animate-ping des pastilles live/événements) et surplombe
+        // des surfaces GPU lourdes (worldmap Leaflet). Chaque frame du ping forcerait
+        // sinon un recalcul du flou → clignotement du header sur Chromium/Opera GX
+        // (aggravé par le limiteur RAM/VRAM de GX). bg-background uni = coût nul.
+        <header className="sticky top-0 z-40 bg-background border-b border-border h-14 px-4 lg:px-6 flex items-center justify-between gap-4 transition-colors duration-150">
 
             {/* LEFT: Mobile Trigger & Clear Readable Breadcrumbs */}
             <div className="flex items-center gap-4 shrink-0">

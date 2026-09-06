@@ -1358,6 +1358,21 @@ export default function InteractiveMapV2({
                                             <span className="hidden xl:inline">Zones</span>
                                         </button>
 
+                                        {/* Zaaps Toggle */}
+                                        <button
+                                            onClick={() => setShowZaaps(!showZaaps)}
+                                            className={cn(
+                                                "px-2.5 py-1.5 rounded-lg text-caption font-bold uppercase transition-all flex items-center gap-1.5",
+                                                showZaaps
+                                                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                                    : "text-muted-foreground hover:text-foreground hover:bg-elevated border border-transparent"
+                                            )}
+                                            title={showZaaps ? "Masquer les zaaps" : "Afficher les zaaps"}
+                                        >
+                                            <img src="/assets/dofus/zaap.png" alt="" className="w-3 h-3 object-contain" />
+                                            <span className="hidden xl:inline">Zaaps</span>
+                                        </button>
+
                                         {/* Fullscreen Toggle */}
                                         <button
                                             onClick={() => applyFullscreen(!isFullscreen)}

@@ -7,7 +7,7 @@ import type { RushMilestone, RushSequence, RushActivityTag } from "@/types/rush-
 import { parseCoordinates, getSequenceCoord, RUSH_ACTIVITY_TAG_CONFIG, getMetierIconPath, isSequenceBlockedByPrereqs, resolveItemImage } from "@/lib/rush-guide-utils";
 // Re-export du helper central pour compatibilité des consumers overlay.
 export { getSequenceCoord };
-// Re-export pour compatibilité des imports overlay (RushOverlayResourceList, …)
+// Re-export pour compatibilité des imports overlay.
 export { resolveItemImage };
 
 // ─── Types locaux ─────────────────────────────────────────────────────────────

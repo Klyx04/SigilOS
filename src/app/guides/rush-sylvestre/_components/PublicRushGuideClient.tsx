@@ -279,6 +279,24 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
 
   const progressPercent = totalSequences > 0 ? Math.round((completedCount / totalSequences) * 100) : 0;
 
+  // Clés d'items consommés par les étapes validées (id sinon nom) : le bloc
+  // « Ressources requises » décrémente à mesure des validations.
+  const completedItemKeys = useMemo(() => {
+    const set = new Set<string>();
+    for (const ms of milestones) {
+      const done = completedStepsByMs.get(ms.id);
+      if (!done) continue;
+      for (const s of ms.sequences || []) {
+        if (!done.has(s.id)) continue;
+        for (const t of (s.activityTags || []) as any[]) {
+          if (t?.type !== "item" || !t?.name) continue;
+          set.add(t.id || t.name);
+        }
+      }
+    }
+    return set;
+  }, [milestones, completedStepsByMs]);
+
   // Bookmark / Repère personnel ("Je suis ici")
   const handleToggleBookmark = useCallback(
     (msId: string, seqId: string) => {
@@ -979,7 +997,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                   </div>
                                   <QuestItemResourceGrid
                                     items={itemTags}
-                                    completedIds={completedIds}
+                                    completedIds={completedItemKeys}
                                   />
                                 </div>
                               );
@@ -1237,7 +1255,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                                   <div className="pt-2 border-t border-border animate-in fade-in duration-200">
                                     <QuestItemResourceGrid
                                       items={itemTags}
-                                      completedIds={completedIds}
+                                      showHeaderMeta={false}
                                     />
                                   </div>
                                 )}

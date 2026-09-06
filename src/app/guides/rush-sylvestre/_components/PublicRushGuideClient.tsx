@@ -133,6 +133,9 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
 
   // Overlay Floating Window state
   const [pipWin, setPipWin] = useState<Window | null>(null);
+  // Faux si la fenêtre est la popup de secours (navigateur sans Document PiP,
+  // ex. Opera GX) → bandeau "fenêtre non épinglée" dans l'overlay.
+  const [pipPinned, setPipPinned] = useState(true);
 
   // Modale de détail d'étape (comme le bouton (i) du guide interne)
   const [detailModalSeq, setDetailModalSeq] = useState<{
@@ -471,9 +474,17 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
 
     try {
       let win: Window | null = null;
+      let pinned = true;
       if (isDocumentPipSupported()) {
-        win = await openPipWindow({ width: 420, height: 720 });
+        try {
+          win = await openPipWindow({ width: 420, height: 720 });
+          pinned = win !== null;
+        } catch {
+          win = null;
+          pinned = false;
+        }
       } else {
+        pinned = false;
         win = openFallbackPopup({ width: 420, height: 720 });
         if (win) preparePipDocument(win);
       }
@@ -487,11 +498,20 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
         setPipWin(null);
       });
 
+      setPipPinned(pinned);
       setPipWin(win);
-      toast.success("🪟 Mini-fenêtre Overlay ouverte par-dessus votre jeu !", {
-        description: "Gardez-la au-dessus de votre client Dofus pour suivre chaque étape.",
-        duration: 4000,
-      });
+      if (pinned) {
+        toast.success("🪟 Mini-fenêtre Overlay ouverte par-dessus votre jeu !", {
+          description: "Gardez-la au-dessus de votre client Dofus pour suivre chaque étape.",
+          duration: 4000,
+        });
+      } else {
+        toast.warning("🪟 Mini-fenêtre ouverte (non épinglée).", {
+          description:
+            "Votre navigateur ne supporte pas l'overlay toujours-au-dessus : gardez la fenêtre visible à côté du jeu.",
+          duration: 5000,
+        });
+      }
     } catch (e) {
       console.error("[Overlay Launch Error]:", e);
       toast.error("Erreur lors de l'ouverture de l'overlay.");
@@ -1353,6 +1373,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
             }}
             milestones={milestones}
             isGuest={true}
+            pinned={pipPinned}
             onClose={() => pipWin?.close?.()}
           />,
           pipWin.document.body

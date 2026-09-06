@@ -32,7 +32,12 @@ export default async function WorldMapPage({ params, searchParams }: Props) {
     const worldIdNum = world ? parseInt(world) : undefined;
 
     return (
-        <div id="worldmap-page" className="fixed top-[64px] md:top-[88px] bottom-[76px] left-0 md:left-[280px] right-0 z-[40] bg-[#0a0d14] flex flex-col shadow-2xl overflow-hidden animate-in fade-in duration-300 rounded-b-3xl border-b border-border mx-2">
+        // isolate + contain : la carte Leaflet est une énorme surface GPU qui se
+        // repeint en continu (tuiles + canvas). Sans isolation, le compositeur
+        // Chromium/Opera GX re-peint aussi la navbar voisine → clignotements.
+        // Pas d'animate-in ici : animer l'entrée d'une telle surface force un
+        // repaint plein écran à chaque frame de l'animation.
+        <div id="worldmap-page" className="fixed top-[64px] md:top-[88px] bottom-[76px] left-0 md:left-[280px] right-0 z-[40] bg-[#0a0d14] flex flex-col shadow-2xl overflow-hidden rounded-b-3xl border-b border-border mx-2 isolate" style={{ contain: 'layout paint' }}>
             <div className="worldmap-header flex-shrink-0 px-3 md:px-5 py-2 border-b border-border bg-black/20 backdrop-blur-md">
                 <UnifiedModuleHeader
                     title="Carte du Monde"

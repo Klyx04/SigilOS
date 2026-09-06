@@ -14,6 +14,8 @@ interface QuestItemResourceGridProps {
   items: RushActivityTag[];
   completedIds?: Set<string>;
   onToggleItem?: (id: string) => void;
+  /** Variante sobre pour les grilles par quête : titre seul, sans compteur ni filtre */
+  showHeaderMeta?: boolean;
 }
 
 /**
@@ -25,28 +27,33 @@ export function QuestItemResourceGrid({
   items,
   completedIds = EMPTY_SET,
   onToggleItem,
+  showHeaderMeta = true,
 }: QuestItemResourceGridProps) {
   const [filterMode, setFilterMode] = useState<"remaining" | "all">("remaining");
   const [copiedName, setCopiedName] = useState<string | null>(null);
 
   const parsedItems = useMemo(() => {
-    return items.map((it, idx) => ({
-      key: (it as any).id || `${it.name}-${idx}`,
-      id: (it as any).id,
-      name: it.name || "Ressource",
-      count: (it as any).count || (it as any).quantity || 1,
-      level: it.level,
-      imageUrl: (it as any).imageUrl,
-      isDone: (it as any).id ? completedIds.has((it as any).id) : false,
-    }));
+    return items.map((it, idx) => {
+      const key = (it as any).id || it.name || `item-${idx}`;
+      return {
+        key: (it as any).id || `${it.name}-${idx}`,
+        id: (it as any).id,
+        name: it.name || "Ressource",
+        count: (it as any).count || (it as any).quantity || 1,
+        level: it.level,
+        imageUrl: (it as any).imageUrl,
+        isDone: key ? completedIds.has(key) : false,
+      };
+    });
   }, [items, completedIds]);
 
   const visibleItems = useMemo(() => {
+    if (!showHeaderMeta) return parsedItems;
     if (filterMode === "remaining") {
       return parsedItems.filter((it) => !it.isDone);
     }
     return parsedItems;
-  }, [parsedItems, filterMode]);
+  }, [parsedItems, filterMode, showHeaderMeta]);
 
   const remainingCount = parsedItems.filter((it) => !it.isDone).length;
 
@@ -71,12 +78,15 @@ export function QuestItemResourceGrid({
           <span className="text-xs font-black uppercase tracking-wider text-foreground">
             Ressources requises
           </span>
-          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-warning/15 text-warning border border-warning/30">
-            {remainingCount} restante{remainingCount > 1 ? "s" : ""}
-          </span>
+          {showHeaderMeta && (
+            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-warning/15 text-warning border border-warning/30">
+              {remainingCount} restante{remainingCount > 1 ? "s" : ""}
+            </span>
+          )}
         </div>
 
-        <div className="flex items-center gap-1 bg-elevated p-0.5 rounded-lg border border-border">
+        {showHeaderMeta && (
+          <div className="flex items-center gap-1 bg-elevated p-0.5 rounded-lg border border-border">
           <button
             type="button"
             onClick={() => setFilterMode("remaining")}
@@ -101,7 +111,8 @@ export function QuestItemResourceGrid({
           >
             Toutes ({parsedItems.length})
           </button>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Grille compacte des items avec icône Dofus officielle */}

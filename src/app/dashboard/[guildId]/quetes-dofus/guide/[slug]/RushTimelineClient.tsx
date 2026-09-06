@@ -1064,11 +1064,14 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
       closeOverlay();
       return;
     }
-    // Document Picture-in-Picture (Chrome/Edge), sinon popup vierge (Firefox/Safari).
+    // Document Picture-in-Picture (Chrome/Edge/Brave/Firefox 151+), sinon popup
+    // vierge (ex. Opera GX, qui n'expose pas l'API malgré son Chromium récent).
     let win: Window | null = null;
+    let pinned = false;
     if (isDocumentPipSupported()) {
       try {
         win = await openPipWindow({ width: 470, height: 640 });
+        pinned = win !== null;
       } catch {
         win = null;
       }
@@ -1079,6 +1082,7 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
     win.addEventListener("pagehide", () => useRushOverlayStore.getState().onWindowGone());
     openOverlay(win, {
       guildId,
+      pinned,
       guide: {
         id: guide.id,
         name: guide.name,

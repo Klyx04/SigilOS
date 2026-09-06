@@ -26,6 +26,7 @@ export function BossOverlayHost() {
       guildId={payload.guildId}
       initialMonsterName={payload.monsterName}
       initialDungeonName={payload.dungeonName}
+      pinned={payload.pinned}
       onClose={close}
     />,
     win.document.body

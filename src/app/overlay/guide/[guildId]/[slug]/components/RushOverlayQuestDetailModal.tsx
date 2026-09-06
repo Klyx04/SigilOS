@@ -125,7 +125,7 @@ export function RushOverlayQuestDetailModal({
 
           {resources.length > 0 && (
             <section className={cn("border-t pt-3 mb-4", isLightMode ? "border-slate-200" : "border-border")}>
-              <QuestItemResourceGrid items={resources} />
+              <QuestItemResourceGrid items={resources} showHeaderMeta={false} />
             </section>
           )}
 

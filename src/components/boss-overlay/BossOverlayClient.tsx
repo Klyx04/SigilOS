@@ -31,6 +31,7 @@ import {
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { cn } from "@/lib/utils";
 import { SpellData, SpellRangeGrid } from "@/components/succes/SpellRangeGrid";
+import { OverlayPinNotice } from "@/components/overlay-pin-notice";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -335,6 +336,11 @@ export interface BossOverlayClientProps {
   initialMonsterName?: string;
   initialDungeonName?: string;
   onClose: () => void;
+  /**
+   * Faux quand la fenêtre est la popup `about:blank` de secours (navigateur sans
+   * Document PiP, ex. Opera GX) → bandeau "fenêtre non épinglée". Vrai par défaut.
+   */
+  pinned?: boolean;
 }
 
 export function BossOverlayClient({
@@ -342,6 +348,7 @@ export function BossOverlayClient({
   initialMonsterName,
   initialDungeonName,
   onClose,
+  pinned = true,
 }: BossOverlayClientProps) {
   const [catalog, setCatalog] = useState<BestiaireEntry[]>([]);
   const [catalogFilter, setCatalogFilter] = useState<CatalogFilter>("boss");
@@ -513,6 +520,9 @@ export function BossOverlayClient({
         </div>
 
       </div>
+
+      {/* Navigateur sans Document PiP (ex. Opera GX) : la fenêtre n'est pas épinglée */}
+      {!pinned && <OverlayPinNotice />}
 
       {/* ── Recherche + Filtres fonctionnels (1ère page) ── */}
       {!selected && (

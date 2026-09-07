@@ -132,7 +132,8 @@ client.once(Events.ClientReady, (readyClient) => {
 
 // ========================
 // Event: Guild Create (Bot Added)
-// ========================client.on(Events.GuildCreate, async (guild) => {
+// ========================
+client.on(Events.GuildCreate, async (guild) => {
     console.log(`[Discord Bot] ➕ Guild added: ${guild.name} (${guild.id})`);
 
     try {

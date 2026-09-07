@@ -25,6 +25,11 @@ import {
     getQuestMatches,
     getKralamoureEvents,
     getZones,
+    getMetamobMe,
+    getOwnQuests,
+    getConversations,
+    getConversationDetails,
+    getMonster,
     verifyMetamobUser,
     normalizeQuestMonster,
     clearCache,
@@ -126,10 +131,13 @@ export interface ExchangePartner {
 
 const LinkAccountSchema = z.object({
     guildId: z.string().min(1),
+    // Pseudo optionnel : si absent, résolu via GET /v1/me depuis la clé (zéro erreur de casse).
     pseudo: z.string()
         .min(2, "Le pseudo doit contenir au moins 2 caractères")
         .max(30, "Le pseudo ne peut pas dépasser 30 caractères")
-        .regex(/^[a-zA-Z0-9_-]+$/, "Le pseudo ne peut contenir que des lettres, chiffres, tirets et underscores"),
+        .regex(/^[a-zA-Z0-9_-]+$/, "Le pseudo ne peut contenir que des lettres, chiffres, tirets et underscores")
+        .optional()
+        .or(z.literal("")),
     apiKey: z.string()
         .length(64, "La clé API V2 doit contenir exactement 64 caractères")
         .regex(/^[a-f0-9]+$/, "La clé API doit être une chaîne hexadécimale (chiffres et lettres de a à f)")
@@ -219,8 +227,22 @@ export async function linkOcreAccount(
             return { success: false, error: parsed.error.errors[0]?.message || "Données invalides" };
         }
         const { guildId } = parsed.data;
-        const pseudo = parsed.data.pseudo.trim();
         const apiKey = parsed.data.apiKey?.trim();
+        let pseudo = parsed.data.pseudo?.trim();
+
+        // Lot A — liaison clé-seule : pseudo résolu via GET /v1/me (casse canonique,
+        // zéro erreur de frappe). Fail-closed : /me en échec = clé invalide.
+        if (!pseudo) {
+            if (!apiKey) {
+                return { success: false, error: "Indiquez votre pseudo Metamob ou votre clé API." };
+            }
+            try {
+                const me = await getMetamobMe(apiKey);
+                pseudo = me.username;
+            } catch {
+                return { success: false, error: "Clé API invalide. Vérifiez votre clé sur Metamob.fr." };
+            }
+        }
         const force = parsed.data.force;
         const targetUserId = parsed.data.targetUserId;
 
@@ -550,7 +572,7 @@ export async function getMyOcreProgress(
                     const quests = await getUserQuests(profile.metamobPseudo!, { guildApiKey: effectiveApiKey });
                     // Use slug for discovery since name is not in UserQuestSchema
                     const ocreQuest = quests.find(q => q.slug.includes("ocre") || q.slug.includes("eternelle-moisson"));
-                    if (!ocreQuest) return { success: false, error: "NO_QUEST" };
+                    if (!ocreQuest) return { success: false, error: "NO_VISIBLE_QUEST" };
                     questSlug = ocreQuest.slug;
                     await db.userProfile.update({ where: { id: profile.id }, data: { metamobQuestSlug: questSlug } });
                 }
@@ -564,7 +586,7 @@ export async function getMyOcreProgress(
                         logger.warn(`[getMyOcreProgress] Quest slug ${questSlug} not found. Re-fetching quest list...`);
                         const quests = await getUserQuests(profile.metamobPseudo!, { guildApiKey: effectiveApiKey });
                         const ocreQuest = quests.find(q => q.slug.includes("ocre") || q.slug.includes("eternelle-moisson"));
-                        if (!ocreQuest) return { success: false, error: "NO_QUEST" };
+                        if (!ocreQuest) return { success: false, error: "NO_VISIBLE_QUEST" };
                         
                         questSlug = ocreQuest.slug;
                         await db.userProfile.update({ where: { id: profile.id }, data: { metamobQuestSlug: questSlug } });
@@ -2693,5 +2715,358 @@ export async function getGuildMetamobDirectory(
     } catch (error: any) {
         logger.error("[getGuildMetamobDirectory] Error:", error);
         return { success: false, error: error.message || "Erreur lors de la récupération de l'annuaire Metamob" };
+    }
+}
+
+// -----------------------------------------------------------------------------
+// TRADE CENTER (T1) — threads unifiés : requêtes internes + conversations
+// Metamob (proposals, lecture seule) + partenaires suggérés.
+// Règles : même quest_type + même serveur uniquement (échanges inter-types
+// impossibles côté Metamob) ; écriture = clé PERSO, jamais la clé guilde.
+// -----------------------------------------------------------------------------
+
+export interface TradeThreadMonster {
+    monsterId: number;
+    name: string;
+    imageUrl: string;
+    step?: number | null;
+    levelMin?: number | null;
+    levelMax?: number | null;
+    owned?: number | null;
+    needed?: number | null;
+    quantity: number;
+    coversNeed: boolean;
+}
+
+export interface TradeThread {
+    id: string; // "int:<requestId>" | "mm:<username>" | "sg:<username>:<slug>"
+    source: "internal" | "metamob" | "suggested";
+    direction: "incoming" | "outgoing" | "unknown";
+    partnerPseudo: string | null;
+    partnerAvatarUrl: string | null;
+    serverId: number | null;
+    questType: string | null; // "ocre" | "dokille" | null
+    status: string; // interne: PENDING | metamob: pending|half_applied|completed|cancelled|active | suggéré: suggested
+    message?: string | null;
+    messageCount?: number | null;
+    given: TradeThreadMonster[];
+    received: TradeThreadMonster[];
+    createdAt: string;
+    deepLink?: string | null;
+}
+
+const GetTradeThreadsSchema = z.object({
+    guildId: z.string().min(1),
+    filter: z.enum(["all", "incoming", "outgoing", "suggested"]).optional(),
+    limit: z.number().int().min(1).max(20).optional(),
+});
+
+const metamobMonsterImage = (image?: string | null): string =>
+    image ? (image.startsWith("http") ? image : `https://www.metamob.fr/img/monsters/${image}`) : "";
+
+async function enrichProposalMonsters(
+    items: { monster_id: number; quantity: number }[],
+    covers: Map<number, { needed: number; coversNeed: boolean }>
+): Promise<TradeThreadMonster[]> {
+    return Promise.all(items.map(async (it) => {
+        const c = covers.get(it.monster_id);
+        try {
+            const m = await getMonster(it.monster_id);
+            return {
+                monsterId: it.monster_id,
+                name: m?.name?.fr || m?.name?.en || `Monstre #${it.monster_id}`,
+                imageUrl: metamobMonsterImage(m?.image),
+                levelMin: m?.level_min ?? null,
+                levelMax: m?.level_max ?? null,
+                needed: c?.needed ?? null,
+                quantity: it.quantity,
+                coversNeed: c?.coversNeed ?? false,
+            };
+        } catch {
+            return {
+                monsterId: it.monster_id,
+                name: `Monstre #${it.monster_id}`,
+                imageUrl: "",
+                needed: c?.needed ?? null,
+                quantity: it.quantity,
+                coversNeed: c?.coversNeed ?? false,
+            };
+        }
+    }));
+}
+
+export async function getTradeThreads(rawData: z.infer<typeof GetTradeThreadsSchema>): Promise<ActionResponse<{ threads: TradeThread[]; hasMetamob: boolean }>> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+        const rateCheck = await rateLimit(`ocre:threads:${session.user.id}`, 20, 60);
+        if (!rateCheck.success) return { success: false, error: "Trop de requêtes. Réessayez dans quelques secondes." };
+
+        const parsed = GetTradeThreadsSchema.safeParse(rawData);
+        if (!parsed.success) return { success: false, error: "Données invalides" };
+        const { guildId, filter = "all", limit = 20 } = parsed.data;
+
+        const ctx = await getUserContext(guildId);
+        if (!ctx.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+        const profile = await db.userProfile.findFirst({
+            where: { userId: session.user.id, guild: { discordGuildId: guildId }, status: "ACTIVE" },
+            select: { id: true, metamobPseudo: true, metamobApiKey: true, metamobQuestSlug: true, metamobServerId: true },
+        });
+        if (!profile) return { success: false, error: "Profil introuvable" };
+
+        const threads: TradeThread[] = [];
+        const myPseudo = profile.metamobPseudo?.toLowerCase() ?? null;
+        const hasKey = !!profile.metamobApiKey;
+        const apiKey = hasKey ? (decrypt(profile.metamobApiKey as string) || "") : "";
+
+        // ── 1. Requêtes internes (temps réel via socket existant) ──
+        try {
+            const pending = await getPendingTradeRequests(guildId);
+            const incoming = (pending.success && pending.data?.incoming) || [];
+            const outgoing = (pending.success && pending.data?.outgoing) || [];
+            const toThread = (req: any, direction: "incoming" | "outgoing"): TradeThread => {
+                const partner = direction === "incoming" ? req.requester : req.target;
+                // Vue cible (reçue) : je DONNE le monstre recherché, je REÇOIS la contrepartie.
+                // Vue demandeur (envoyée) : inverse.
+                const wanted = { monsterId: req.monsterId, name: req.monsterName || `Monstre #${req.monsterId}`, imageUrl: req.monsterImageUrl || "", step: req.monsterStep ?? null, quantity: 1, coversNeed: false };
+                const offered = req.offeredMonsterId
+                    ? { monsterId: req.offeredMonsterId, name: req.offeredMonsterName || `Monstre #${req.offeredMonsterId}`, imageUrl: req.offeredMonsterImageUrl || "", step: req.offeredMonsterStep ?? null, quantity: 1, coversNeed: false }
+                    : null;
+                return {
+                    id: `int:${req.id}`,
+                    source: "internal",
+                    direction,
+                    partnerPseudo: partner?.metamobPseudo || partner?.discordNickname || partner?.user?.name || null,
+                    partnerAvatarUrl: partner?.user?.image || null,
+                    serverId: profile.metamobServerId ?? null,
+                    questType: "ocre",
+                    status: req.status || "PENDING",
+                    message: req.message || null,
+                    given: direction === "incoming" ? [wanted] : (offered ? [offered] : []),
+                    received: direction === "incoming" ? (offered ? [offered] : []) : [wanted],
+                    createdAt: req.createdAt instanceof Date ? req.createdAt.toISOString() : String(req.createdAt),
+                    deepLink: null,
+                };
+            };
+            incoming.forEach((r: any) => threads.push(toThread(r, "incoming")));
+            outgoing.forEach((r: any) => threads.push(toThread(r, "outgoing")));
+        } catch (e) {
+            logger.warn("[getTradeThreads] Requêtes internes indisponibles:", e);
+        }
+
+        // ── 2. Conversations Metamob (résumés ; détail chargé à l'ouverture) ──
+        if (apiKey) {
+            try {
+                const { redis } = await import("@/lib/redis");
+                let ignored: string[] = [];
+                try {
+                    ignored = await redis.smembers(`ocre:ignored-mm:${session.user.id}`);
+                } catch { /* Redis down → on n'ignore rien (fail-open local bénin) */ }
+                const convs = await getConversations(apiKey, { status: "active", limit: 20 });
+                for (const c of convs.conversations) {
+                    if (!c.username || ignored.includes(c.username.toLowerCase())) continue;
+                    threads.push({
+                        id: `mm:${c.username}`,
+                        source: "metamob",
+                        direction: "unknown",
+                        partnerPseudo: c.username,
+                        partnerAvatarUrl: null,
+                        serverId: null,
+                        questType: null,
+                        status: "active",
+                        messageCount: c.message_count,
+                        given: [],
+                        received: [],
+                        createdAt: c.last_message_at,
+                        deepLink: `https://www.metamob.fr/profile/${encodeURIComponent(c.username)}`,
+                    });
+                }
+            } catch (e) {
+                // Clé invalide / 429 / down → on sert au moins l'interne (fail-closed partiel).
+                logger.warn("[getTradeThreads] Conversations Metamob indisponibles:", e);
+            }
+
+            // ── 3. Partenaires suggérés (matches natifs, échange bilatéral) ──
+            // Clé PERSO obligatoire : les matches ne fonctionnent que sur ses propres quêtes.
+            if (profile.metamobQuestSlug) {
+                try {
+                    const { matches } = await getQuestMatches(profile.metamobQuestSlug, { guildApiKey: apiKey, limit: 8 });
+                    for (const m of matches.slice(0, 8)) {
+                        const given = (m.matches.you_have_they_want || []).slice(0, 3).map((x) => ({
+                            monsterId: x.id,
+                            name: x.name?.fr || `Monstre #${x.id}`,
+                            imageUrl: "",
+                            quantity: x.available,
+                            needed: x.needed,
+                            coversNeed: x.covers_need,
+                        }));
+                        const received = (m.matches.they_have_you_want || []).slice(0, 3).map((x) => ({
+                            monsterId: x.id,
+                            name: x.name?.fr || `Monstre #${x.id}`,
+                            imageUrl: "",
+                            quantity: x.available,
+                            needed: x.needed,
+                            coversNeed: x.covers_need,
+                        }));
+                        threads.push({
+                            id: `sg:${m.user.username}:${m.quest.slug}`,
+                            source: "suggested",
+                            direction: "unknown",
+                            partnerPseudo: m.user.username,
+                            partnerAvatarUrl: null,
+                            serverId: null,
+                            questType: null,
+                            status: "suggested",
+                            given,
+                            received,
+                            createdAt: m.user.last_active || new Date(0).toISOString(),
+                            deepLink: `https://www.metamob.fr/profile/${encodeURIComponent(m.user.username)}`,
+                        });
+                    }
+                } catch (e) {
+                    logger.warn("[getTradeThreads] Suggestions indisponibles:", e);
+                }
+            }
+        }
+
+        // Tri : action requise (entrants internes) → récence. Puis filtre + borne.
+        const rank = (t: TradeThread) => (t.source === "internal" && t.direction === "incoming" ? 0 : t.source === "metamob" ? 1 : t.source === "internal" ? 2 : 3);
+        threads.sort((a, b) => rank(a) - rank(b) || +new Date(b.createdAt) - +new Date(a.createdAt));
+        const filtered = threads.filter((t) => {
+            if (filter === "all") return true;
+            if (filter === "suggested") return t.source === "suggested";
+            return t.direction === filter;
+        });
+
+        return { success: true, data: { threads: filtered.slice(0, limit), hasMetamob: hasKey } };
+    } catch (error) {
+        logger.error("[getTradeThreads] Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+const GetThreadDetailsSchema = z.object({
+    guildId: z.string().min(1),
+    threadId: z.string().min(1).max(120),
+});
+
+/** Détail d'un thread : interne (BDD) ou conversation Metamob (curseur, page 1). */
+export async function getTradeThreadDetails(rawData: z.infer<typeof GetThreadDetailsSchema>): Promise<ActionResponse<TradeThread>> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+        const parsed = GetThreadDetailsSchema.safeParse(rawData);
+        if (!parsed.success) return { success: false, error: "Données invalides" };
+        const { guildId, threadId } = parsed.data;
+
+        const ctx = await getUserContext(guildId);
+        if (!ctx.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+        // ── Thread interne : resolu via la liste (même mapping, fail-closed) ──
+        if (threadId.startsWith("int:")) {
+            const all = await getTradeThreads({ guildId, filter: "all", limit: 20 });
+            const found = all.success ? all.data?.threads.find((t) => t.id === threadId) : undefined;
+            if (!found) return { success: false, error: "Demande introuvable" };
+            return { success: true, data: found };
+        }
+
+        // ── Conversation Metamob ──
+        if (!threadId.startsWith("mm:")) return { success: false, error: "Thread inconnu" };
+        const username = threadId.slice(3);
+        if (!username) return { success: false, error: "Thread inconnu" };
+
+        const profile = await db.userProfile.findFirst({
+            where: { userId: session.user.id, guild: { discordGuildId: guildId }, status: "ACTIVE" },
+            select: { metamobPseudo: true, metamobApiKey: true },
+        });
+        const apiKey = profile?.metamobApiKey ? (decrypt(profile.metamobApiKey as string) || "") : "";
+        if (!apiKey) return { success: false, error: "Compte Metamob non lié" };
+        const myPseudo = (profile?.metamobPseudo || "").toLowerCase();
+
+        const details = await getConversationDetails(apiKey, username, { limit: 30 });
+        const proposals = details.items.filter((i) => i.kind === "proposal");
+        const latest = proposals[0];
+
+        // Items fusionnés : dernière proposal (donnent/reçoivent de MON point de vue).
+        let given: TradeThreadMonster[] = [];
+        let received: TradeThreadMonster[] = [];
+        let status = "active";
+        let questType: string | null = null;
+        let serverId: number | null = null;
+        if (latest && latest.kind === "proposal") {
+            status = latest.status;
+            questType = latest.quest_type?.slug || null;
+            serverId = latest.server_id ?? null;
+            const mine = (latest.sender || "").toLowerCase() === myPseudo;
+            // Les proposals n'exposent pas le besoin croisé (pas de covers_need) :
+            // on affiche quantités + statuts, le badge « couvre le besoin » reste
+            // réservé aux suggestions issues des matches.
+            const emptyCovers = new Map<number, { needed: number; coversNeed: boolean }>();
+            const [g, r] = await Promise.all([
+                enrichProposalMonsters(mine ? latest.monsters_given : latest.monsters_received, emptyCovers),
+                enrichProposalMonsters(mine ? latest.monsters_received : latest.monsters_given, emptyCovers),
+            ]);
+            given = g;
+            received = r;
+        }
+
+        return {
+            success: true,
+            data: {
+                id: threadId,
+                source: "metamob",
+                direction: latest ? ((latest.sender || "").toLowerCase() === myPseudo ? "outgoing" : "incoming") : "unknown",
+                partnerPseudo: username,
+                partnerAvatarUrl: null,
+                serverId,
+                questType,
+                status,
+                given,
+                received,
+                createdAt: latest?.created_at || new Date().toISOString(),
+                deepLink: `https://www.metamob.fr/profile/${encodeURIComponent(username)}`,
+            },
+        };
+    } catch (error) {
+        if (error instanceof MetamobApiError) {
+            if (error.code === "NOT_FOUND") return { success: false, error: "Conversation introuvable" };
+            if (error.code === "UNAUTHORIZED") return { success: false, error: "Clé API invalide" };
+            return { success: false, error: "Metamob.fr est temporairement indisponible." };
+        }
+        logger.error("[getTradeThreadDetails] Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+const IgnoreThreadSchema = z.object({
+    guildId: z.string().min(1),
+    threadId: z.string().min(1).max(120),
+});
+
+/** Masque localement une conversation Metamob (ne touche PAS à Metamob, lecture seule). */
+export async function ignoreMetamobThread(rawData: z.infer<typeof IgnoreThreadSchema>): Promise<ActionResponse> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+        const parsed = IgnoreThreadSchema.safeParse(rawData);
+        if (!parsed.success) return { success: false, error: "Données invalides" };
+        const { guildId, threadId } = parsed.data;
+        if (!threadId.startsWith("mm:")) return { success: false, error: "Thread inconnu" };
+        const ctx = await getUserContext(guildId);
+        if (!ctx.isAuthenticated) return { success: false, error: "Unauthorized" };
+        try {
+            const { redis } = await import("@/lib/redis");
+            await redis.sadd(`ocre:ignored-mm:${session.user.id}`, threadId.slice(3).toLowerCase());
+            await redis.expire(`ocre:ignored-mm:${session.user.id}`, 30 * 86400);
+        } catch {
+            return { success: false, error: "Masquage indisponible pour le moment" };
+        }
+        return { success: true };
+    } catch (error) {
+        logger.error("[ignoreMetamobThread] Error:", error);
+        return { success: false, error: "Erreur serveur" };
     }
 }

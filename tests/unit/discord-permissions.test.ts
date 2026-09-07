@@ -25,18 +25,24 @@ describe("discord-permissions — invite du bot sans permissions=8 (chantier #22
         expect(perms & BigInt(DISCORD_PERMISSION.MANAGE_ROLES)).toBe(BigInt(DISCORD_PERMISSION.MANAGE_ROLES));
         expect(perms & BigInt(DISCORD_PERMISSION.MANAGE_THREADS)).toBe(BigInt(DISCORD_PERMISSION.MANAGE_THREADS));
         expect(perms & BigInt(DISCORD_PERMISSION.CREATE_PUBLIC_THREADS)).toBe(BigInt(DISCORD_PERMISSION.CREATE_PUBLIC_THREADS));
-        expect(perms & BigInt(DISCORD_PERMISSION.SEND_VOICE_MESSAGES)).toBe(BigInt(DISCORD_PERMISSION.SEND_VOICE_MESSAGES));
+        expect(perms & BigInt(DISCORD_PERMISSION.SEND_MESSAGES_IN_THREADS)).toBe(BigInt(DISCORD_PERMISSION.SEND_MESSAGES_IN_THREADS));
+    });
+
+    it("n'inclut PAS les droits non utilisés (Activités, Modération/timeout, Soundboard, Move)", () => {
+        for (const bit of [2n ** 39n, 2n ** 40n, 2n ** 42n, 2n ** 24n]) {
+            expect(perms & bit).toBe(0n);
+        }
     });
 
     it("valeur stable (somme des bits documentés)", () => {
-        // MANAGE_THREADS = 2 ** 42 = 4398046511104 (bits Discord officiels).
-        expect(DISCORD_BOT_INVITE_PERMISSIONS).toBe(6356836904068);
+        // 11 droits : base messagerie + threads (vrais bits 34/35/38) + rôles + audit + bans.
+        expect(DISCORD_BOT_INVITE_PERMISSIONS).toBe(326686043268);
     });
 
     it("buildDiscordBotInviteUrl : URL avec bitmask minimal + scope par défaut", () => {
         const url = buildDiscordBotInviteUrl("123456789012345678");
         expect(url).toBe(
-            "https://discord.com/oauth2/authorize?client_id=123456789012345678&permissions=6356836904068&scope=bot+applications.commands"
+            "https://discord.com/oauth2/authorize?client_id=123456789012345678&permissions=326686043268&scope=bot+applications.commands"
         );
     });
 

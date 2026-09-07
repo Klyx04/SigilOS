@@ -34,7 +34,7 @@ import ReactMarkdown from "react-markdown";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { RoleSelector } from "@/components/admin/role-selector";
-import { ChannelPreview } from "@/components/shared/ChannelPreview";
+import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
 import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 import {
     Tooltip,
@@ -427,7 +427,7 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
 
                                  <div className="space-y-3 max-w-xl">
                                     <label className="text-caption font-bold uppercase tracking-[0.2em] text-info flex items-center gap-2 ml-2">
-                                         ID SALON DISCORD
+                                         Salon Discord
                                         <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <HelpCircle className="w-3 h-3 text-muted-foreground hover:text-foreground cursor-help" />
@@ -437,20 +437,16 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                                     <Info className="w-3 h-3 text-info" /> Tuto Rapide
                                                 </p>
                                                 <ol className="text-caption text-muted-foreground space-y-1 list-decimal ml-4">
-                                                    <li>Active le <strong>Mode Développeur</strong> dans Discord.</li>
-                                                    <li>Fais un <strong>clic droit</strong> sur le salon.</li>
-                                                    <li>Clique sur <strong>Copier l&apos;identifiant</strong> et colle le ici.</li>
+                                                    <li>Choisissez le salon dans la liste déroulante.</li>
                                                 </ol>
                                             </TooltipContent>
                                         </Tooltip>
                                     </label>
-                                    <Input
+                                    <DiscordChannelPicker
+                                        guildId={guildId}
                                         value={welcomeChannelId}
-                                        onChange={(e) => setWelcomeChannelId(e.target.value)}
-                                        placeholder="Ex: 1234..."
-                                        className="bg-black/40 border-border h-12 font-mono text-md rounded-xl focus:ring-ring/20 px-6"
+                                        onChange={setWelcomeChannelId}
                                     />
-                                    <ChannelPreview guildId={guildId} channelId={welcomeChannelId} color="indigo" />
                                 </div>
 
                                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 pt-4">

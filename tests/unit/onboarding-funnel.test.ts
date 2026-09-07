@@ -62,7 +62,7 @@ describe("onboarding-funnel A-Z", () => {
         });
         expect(url).toContain(`guild_id=${EVERYONE}`);
         expect(url).toContain("redirect_uri=");
-        expect(url).toContain("permissions=6356836904068");
+        expect(url).toContain("permissions=326686043268");
         expect(url).not.toContain("permissions=8&");
     });
 

@@ -13,6 +13,12 @@ vi.mock("@/lib/prisma", () => ({
         account: {
             findFirst: vi.fn(),
         },
+        guildRecoveryClaim: {
+            updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+            findFirst: vi.fn().mockResolvedValue(null),
+            findMany: vi.fn().mockResolvedValue([]),
+            create: vi.fn(),
+        },
     },
 }));
 

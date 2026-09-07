@@ -115,16 +115,16 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
     },
     [PERMISSIONS.SYSTEM_RBAC]: { 
         label: "Gestion des Accès", 
-        description: "Gérer le mapping des permissions pour les utilisateurs et attribuer des droits RBAC.",
+        description: "Gérer le mapping des permissions et attribuer des droits RBAC — hors permissions sensibles (Administrateur Suprême, Gestion des Accès), réservées aux admins Discord natifs, sans appel.",
         module: "admin",
         modules: ["Matrice RBAC", "Permissions Individuelles"],
         sensitive: true,
     },
     [PERMISSIONS.SYSTEM_GOD]: { 
         label: "Administrateur Suprême", 
-        description: "Bypass absolu de sécurité. Autorisation inconditionnelle et totale sur toutes les fonctionnalités.", 
+        description: "Toutes les permissions du dashboard de la guilde (lecture + gestion). Exclus : interrupteurs des modules et transfert de propriété (natifs Discord), panel God (staff plateforme).",
         module: "admin",
-        modules: ["TOUS LES MODULES (Full Access)"],
+        modules: ["Toutes permissions (hors toggles modules)"],
         sensitive: true,
     },
 
@@ -219,3 +219,87 @@ export function getPermissionsByModule(module: PermissionModule): PermissionId[]
         .filter(([, details]) => details.module === module)
         .map(([permId]) => permId);
 }
+
+/**
+ * Refonte onboarding §9 — permissions masquées quand leurs modules de guilde
+ * sont désactivés (toggle guilde OFF ou verrou God). Clé = PermissionId,
+ * valeur = ModuleKeys (toggles `GuildModulesState`) dont AU MOINS un doit être
+ * actif pour afficher la permission. Absent de la map = toujours affichée
+ * (dashboard:login, system:*, commandes bot, réglages…).
+ * Les mappings BDD sont CONSERVÉS (affichage seul) → réactivation sans perte.
+ */
+export const PERMISSION_GUILD_MODULES: Record<string, string[]> = {
+    [PERMISSIONS.MISSIONS_PLAY]: ["missions"],
+    [PERMISSIONS.MISSIONS_OFFICER]: ["missions"],
+    [PERMISSIONS.GAME_VIEW]: ["songes", "donjons", "quests", "ocre", "minigames", "worldmap", "ladder", "services"],
+    [PERMISSIONS.GAME_OPERATIONS]: ["songes", "donjons", "quests", "services"],
+    [PERMISSIONS.SUCCESS_VIEW]: ["succes"],
+    [PERMISSIONS.RAID_OFFICER]: ["missions", "donjons", "calendar"],
+    [PERMISSIONS.RAID_MEMBER]: ["missions", "donjons", "calendar"],
+    [PERMISSIONS.POINTS_MANAGE]: ["missions", "donjons"],
+    [PERMISSIONS.COMMUNITY_ACCESS]: ["roster", "profile", "calendar"],
+    [PERMISSIONS.COMMUNITY_MOD]: ["calendar"],
+    [PERMISSIONS.AVAILABILITY_VIEW]: ["availability", "calendar"],
+    [PERMISSIONS.RESOURCES_MANAGE]: ["resources"],
+    [PERMISSIONS.PRESENTATION_VIEW]: ["presentation"],
+    [PERMISSIONS.STAFF_MEMBER_MGMT]: ["roster", "profile"],
+    [PERMISSIONS.STAFF_CONTENT]: ["presentation", "docs"],
+    [PERMISSIONS.STAFF_AUDIT]: ["logs"],
+    [PERMISSIONS.STAFF_REACTION_ROLES]: ["reactionRoles"],
+    [PERMISSIONS.STAFF_TICKETS]: ["tickets"],
+    [PERMISSIONS.COMMANDS_VIEW]: ["commandes"],
+};
+/**
+ * Retourne les PermissionIds à masquer de la matrice étant donné l'état
+ * effectif des modules (déjà résolu avec le verrou God).
+ */
+export function getPermissionsHiddenByModules(
+    modules: Record<string, boolean | undefined>
+): PermissionId[] {
+    return (Object.keys(PERMISSION_GUILD_MODULES) as PermissionId[]).filter((perm) => {
+        const keys = PERMISSION_GUILD_MODULES[perm] || [];
+        return keys.length > 0 && !keys.some((k) => modules[k]);
+    });
+}
+
+/**
+ * Liens croisés cartes Modules ↔ cartes RBAC (§9) : pour un ModuleKey de
+ * guilde, les permissions qui le gouvernent (sens inverse de la map
+ * ci-dessus). Vide = aucune RBAC dédiée (structurel).
+ */
+export function getPermissionsForGuildModule(moduleKey: string): PermissionId[] {
+    return (Object.keys(PERMISSION_GUILD_MODULES) as PermissionId[]).filter((perm) =>
+        (PERMISSION_GUILD_MODULES[perm] || []).includes(moduleKey)
+    );
+}
+
+/** Libellés FR courts des toggles de guilde (cartes RBAC : état du module). */
+export const GUILD_MODULE_LABELS: Record<string, string> = {
+    presentation: "Présentation",
+    roster: "Annuaire",
+    stats: "Stats",
+    calendar: "Calendrier",
+    missions: "Missions",
+    songes: "Songes",
+    ocre: "Quête Ocre",
+    ladder: "Classement",
+    services: "Services",
+    donjons: "Donjons & Quêtes",
+    profile: "Profil",
+    docs: "Documentation",
+    gallery: "Galerie",
+    availability: "Disponibilités",
+    logs: "Audit Logs",
+    polls: "Sondages",
+    reactionRoles: "Reaction Roles",
+    tickets: "Tickets",
+    quests: "Quêtes Dofus",
+    worldmap: "Carte du Monde",
+    resources: "Ressources",
+    commandes: "Commandes Bot",
+    ladderSync: "Ladder Ankama",
+    manualLadderSync: "Ladder OC",
+    minigames: "Mini-Jeux",
+    succes: "Succès",
+    admin: "Admin",
+};

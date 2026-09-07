@@ -48,6 +48,12 @@ type SettingsSection = {
     icon: React.ElementType;
     description: string;
     accent: string;
+    /**
+     * Refonte settings — module de guilde requis pour afficher la section.
+     * Absent = structurel (toujours affiché). État effectif = toggle guilde +
+     * verrou God (getGuildModules).
+     */
+    module?: string | null;
 };
 
 type SettingsGroup = {
@@ -58,38 +64,33 @@ type SettingsGroup = {
 function buildNavGroups(): SettingsGroup[] {
     return [
         {
-            title: "Système & Canaux",
+            title: "Guilde",
             items: [
-                { id: "annonces", label: "Annonces Plateforme", icon: Megaphone, description: "Infos & Maintenances", accent: "emerald" },
-                { id: "absences", label: "Absences", icon: Bell, description: "Salon de notifications", accent: "emerald" },
-                { id: "sondages", label: "Sondages", icon: BarChart3, description: "Sondages Discord", accent: "emerald" },
+                { id: "dofus", label: "Serveur Dofus", icon: Sword, description: "Configuration du serveur", accent: "emerald", module: null },
+                { id: "apparence", label: "Apparence", icon: Palette, description: "Mode sombre & couleur de guilde", accent: "emerald", module: null },
+                { id: "annuaire", label: "Annuaire", icon: UserCheck, description: "Sollicitations de membres", accent: "emerald", module: "roster" },
             ]
         },
         {
-            title: "Gestion de Guilde",
+            title: "Notifications & Canaux",
             items: [
-                { id: "dofus", label: "Serveur Dofus", icon: Sword, description: "Configuration du serveur", accent: "emerald" },
-                { id: "annuaire", label: "Annuaire", icon: UserCheck, description: "Sollicitations de membres", accent: "emerald" },
-                { id: "blacklist", label: "Blacklist Sync", icon: ShieldAlert, description: "Synchro Discord Blacklist", accent: "emerald" },
-                { id: "relance", label: "Relances", icon: Bell, description: "Canal de diffusion des relances", accent: "emerald" },
+                { id: "annonces", label: "Annonces Plateforme", icon: Megaphone, description: "Infos & Maintenances", accent: "emerald", module: null },
+                { id: "absences", label: "Absences", icon: Bell, description: "Salon de notifications", accent: "emerald", module: null },
+                { id: "relance", label: "Relances", icon: Bell, description: "Canal de diffusion des relances", accent: "emerald", module: null },
+                { id: "sondages", label: "Sondages", icon: BarChart3, description: "Sondages Discord", accent: "emerald", module: "polls" },
+                { id: "blacklist", label: "Blacklist Sync", icon: ShieldAlert, description: "Synchro Discord Blacklist", accent: "emerald", module: null },
             ]
         },
         {
-            title: "Personnalisation",
+            title: "Par Module",
             items: [
-                { id: "apparence", label: "Apparence", icon: Palette, description: "Mode sombre & couleur de guilde", accent: "emerald" },
-            ]
-        },
-        {
-            title: "Modules de Jeu",
-            items: [
-                { id: "calendrier", label: "Calendrier", icon: Calendar, description: "Événements guilde", accent: "emerald" },
-                { id: "donjons", label: "Donjons & Songes", icon: Sword, description: "DJ Finder & Songes Infinis", accent: "emerald" },
-                { id: "missions", label: "Missions & Bonus", icon: Target, description: "Notifications, uploads & oracles", accent: "emerald" },
-                { id: "prets", label: "Prêts & Coffre", icon: HandCoins, description: "Notifications internes", accent: "emerald" },
-                { id: "metamob", label: "Quête Ocre", icon: Key, description: "Suivi & Échanges d'Archis", accent: "emerald" },
-                { id: "gallery", label: "Galerie", icon: Layout, description: "Salons Stuffs & Skins", accent: "emerald" },
-                { id: "services", label: "Services Guilde", icon: Trophy, description: "Salon de mention des passeurs", accent: "emerald" },
+                { id: "calendrier", label: "Calendrier", icon: Calendar, description: "Événements guilde", accent: "emerald", module: "calendar" },
+                { id: "donjons", label: "Donjons & Songes", icon: Sword, description: "DJ Finder & Songes Infinis", accent: "emerald", module: "donjons" },
+                { id: "missions", label: "Missions & Bonus", icon: Target, description: "Notifications, uploads & oracles", accent: "emerald", module: "missions" },
+                { id: "prets", label: "Prêts & Coffre", icon: HandCoins, description: "Notifications internes", accent: "emerald", module: null },
+                { id: "metamob", label: "Quête Ocre", icon: Key, description: "Suivi & Échanges d'Archis", accent: "emerald", module: "ocre" },
+                { id: "gallery", label: "Galerie", icon: Layout, description: "Salons Stuffs & Skins", accent: "emerald", module: "gallery" },
+                { id: "services", label: "Services Guilde", icon: Trophy, description: "Salon de mention des passeurs", accent: "emerald", module: "services" },
             ]
         }
     ];
@@ -137,9 +138,17 @@ export default async function FeatureSettingsPage({
     });
     const isDofusConfigured = !!guild?.dofusServerId;
 
-    const navGroups = buildNavGroups();
+    // Refonte settings — la nav suit les modules effectifs (toggle + verrou God).
+    const { getGuildModules } = await import("@/server/actions/module-actions");
+    const { getVisibleSettingsNav, SETTINGS_TAB_MODULES } = await import("@/lib/settings-nav");
+    const effectiveModules = await getGuildModules(guildId).catch(() => null) as unknown as Record<string, boolean> | null;
+    const navGroups = getVisibleSettingsNav(buildNavGroups(), effectiveModules);
     const navItems = navGroups.flatMap(g => g.items);
-    const activeItem = navItems.find(n => n.id === activeTab) ?? navItems[0];
+    // Onglet demandé mais module coupé (lien direct/bookmark) : repli premier visible.
+    const requestedModule = SETTINGS_TAB_MODULES[activeTab];
+    const requestedOff = requestedModule && effectiveModules && !effectiveModules[requestedModule];
+    const activeItem = (!requestedOff ? navItems.find(n => n.id === activeTab) : undefined) ?? navItems[0];
+    const resolvedTab = activeItem.id;
     const a = ACCENT[activeItem.accent] ?? ACCENT.slate;
 
     return (
@@ -170,7 +179,7 @@ export default async function FeatureSettingsPage({
                         <div key={idx} className="flex flex-row lg:flex-col items-center lg:items-stretch mb-0 lg:mb-4 lg:last:mb-0 shrink-0">
                             <h3 className="hidden lg:block text-caption font-black uppercase tracking-widest text-muted-foreground px-4 mb-2 mt-1">{group.title}</h3>
                             {group.items.map((item) => {
-                                const isActive = item.id === activeTab;
+                                const isActive = item.id === resolvedTab;
                                 const ac = ACCENT[item.accent] ?? ACCENT.slate;
                                 const Icon = item.icon;
                                 return (
@@ -237,7 +246,20 @@ export default async function FeatureSettingsPage({
                     </div>
 
                     {/* Content pane */}
-                    {!isDofusConfigured && activeTab !== "dofus" ? (
+                    {requestedOff && (
+                        <div className="mb-6 p-4 rounded-2xl border border-info/30 bg-info/10 flex items-center justify-between gap-4 flex-wrap">
+                            <p className="text-xs text-info font-medium">
+                                Cette section est masquée car son module est désactivé.
+                            </p>
+                            <Link
+                                href={`/dashboard/${guildId}/admin/modules`}
+                                className="text-xs font-black uppercase tracking-wider text-info hover:underline"
+                            >
+                                Gérer les modules →
+                            </Link>
+                        </div>
+                    )}
+                    {!isDofusConfigured && resolvedTab !== "dofus" ? (
                         <div className="p-6 rounded-2xl border border-warning/20 bg-warning/10 flex flex-col items-center justify-center text-center gap-4 animate-in fade-in slide-in-from-bottom-4 min-h-[300px]">
                             <div className="p-4 rounded-full bg-warning/20 mb-2">
                                 <Sword className="w-8 h-8 text-warning" />
@@ -255,10 +277,10 @@ export default async function FeatureSettingsPage({
                         </div>
                     ) : (
                         <>
-                            {activeTab === "annonces" && <SystemSettingsClient guildId={guildId} />}
-                            {activeTab === "absences" && <AbsenceSettingsClient guildId={guildId} />}
-                            {activeTab === "calendrier" && <CalendarSettingsClient guildId={guildId} />}
-                            {activeTab === "donjons" && (
+                            {resolvedTab === "annonces" && <SystemSettingsClient guildId={guildId} />}
+                            {resolvedTab === "absences" && <AbsenceSettingsClient guildId={guildId} />}
+                            {resolvedTab === "calendrier" && <CalendarSettingsClient guildId={guildId} />}
+                            {resolvedTab === "donjons" && (
                                 <div className="space-y-8">
                                     <DjSettingsClient guildId={guildId} />
                                     <div className="pt-8 border-t border-border">
@@ -266,7 +288,7 @@ export default async function FeatureSettingsPage({
                                     </div>
                                 </div>
                             )}
-                            {activeTab === "missions" && (
+                            {resolvedTab === "missions" && (
                                 <div className="space-y-8">
                                     <MissionSettingsClient guildId={guildId} />
                                     <div className="pt-8 border-t border-border">
@@ -274,8 +296,8 @@ export default async function FeatureSettingsPage({
                                     </div>
                                 </div>
                             )}
-                            {activeTab === "prets" && <LoansSettingsClient guildId={guildId} />}
-                            {activeTab === "metamob" && (
+                            {resolvedTab === "prets" && <LoansSettingsClient guildId={guildId} />}
+                            {resolvedTab === "metamob" && (
                                 <div className="space-y-8">
                                     <OcreSettingsClient guildId={guildId} />
                                     <div className="pt-6 border-t border-border max-w-4xl">
@@ -288,14 +310,14 @@ export default async function FeatureSettingsPage({
                                     </div>
                                 </div>
                             )}
-                            {activeTab === "dofus" && <DofusSettingsClient guildId={guildId} />}
-                            {activeTab === "sondages" && <PollSettingsClient guildId={guildId} />}
-                            { activeTab === "blacklist" && <BlacklistSettingsClient guildId={guildId} /> }
-                            { activeTab === "relance" && <RelanceSettingsClient guildId={guildId} /> }
-                            { activeTab === "gallery" && <GallerySettingsClient guildId={guildId} /> }
-                            { activeTab === "annuaire" && <DirectorySettingsClient guildId={guildId} /> }
-                            { activeTab === "services" && <ServicesSettingsClient guildId={guildId} /> }
-                            { activeTab === "apparence" && <GuildAppearanceSettingsClient guildId={guildId} initialHue={guild?.accentHue ?? null} /> }
+                            {resolvedTab === "dofus" && <DofusSettingsClient guildId={guildId} />}
+                            {resolvedTab === "sondages" && <PollSettingsClient guildId={guildId} />}
+                            { resolvedTab === "blacklist" && <BlacklistSettingsClient guildId={guildId} /> }
+                            { resolvedTab === "relance" && <RelanceSettingsClient guildId={guildId} /> }
+                            { resolvedTab === "gallery" && <GallerySettingsClient guildId={guildId} /> }
+                            { resolvedTab === "annuaire" && <DirectorySettingsClient guildId={guildId} /> }
+                            { resolvedTab === "services" && <ServicesSettingsClient guildId={guildId} /> }
+                            { resolvedTab === "apparence" && <GuildAppearanceSettingsClient guildId={guildId} initialHue={guild?.accentHue ?? null} /> }
                         </>
                     )}
 

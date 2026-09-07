@@ -3,12 +3,12 @@
 import { useState, useEffect, useTransition } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, Hash, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 import { getServiceSettings, updateServiceSettings } from "@/server/actions/service-actions";
-import { ChannelPreview } from "@/components/shared/ChannelPreview";
+import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
 
 interface ServicesSettingsClientProps {
     guildId: string;
@@ -20,12 +20,17 @@ export function ServicesSettingsClient({ guildId }: ServicesSettingsClientProps)
     const [isPending, startTransition] = useTransition();
     const [isConfigured, setIsConfigured] = useState(false);
 
+    // — Détection « modifications non sauvegardées » (snapshot chargé vs état courant)
+    const [initialConfig, setInitialConfig] = useState<{ channelId: string } | null>(null);
+    const hasUnsavedChanges = isDirty({ channelId }, initialConfig);
+
     useEffect(() => {
         async function loadConfig() {
             const res = await getServiceSettings(guildId);
             if (res.success && res.data) {
                 setChannelId(res.data.servicesNotifyChannelId || "");
                 setIsConfigured(!!res.data.servicesNotifyChannelId);
+                setInitialConfig({ channelId: res.data.servicesNotifyChannelId || "" });
             }
             setIsLoading(false);
         }
@@ -38,6 +43,7 @@ export function ServicesSettingsClient({ guildId }: ServicesSettingsClientProps)
             if (result.success) {
                 toast.success("Salon de mention configuré !");
                 setIsConfigured(!!channelId.trim());
+                setInitialConfig({ channelId: channelId.trim() });
             } else {
                 toast.error(result.error || "Erreur lors de la sauvegarde");
             }
@@ -54,6 +60,7 @@ export function ServicesSettingsClient({ guildId }: ServicesSettingsClientProps)
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <UnsavedChangesGuard hasUnsavedChanges={hasUnsavedChanges} />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <Card className="lg:col-span-2 bg-surface/60 border-border shadow-xl rounded-2xl overflow-hidden backdrop-blur-xl">
                     <CardHeader className="border-b border-border bg-surface/30 p-6">
@@ -76,27 +83,39 @@ export function ServicesSettingsClient({ guildId }: ServicesSettingsClientProps)
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
                         <div className="space-y-2">
-                            <p className="text-xs text-muted-foreground">
-                                Mode développeur Discord → Clic droit sur le salon → <span className="text-foreground font-semibold">Copier l'identifiant</span>
-                            </p>
                             <div className="flex gap-2">
-                                <Input
-                                    value={channelId}
-                                    onChange={(e) => setChannelId(e.target.value)}
-                                    placeholder="Ex: 123456789012345678"
-                                    className="font-mono bg-muted/40 border-border text-foreground rounded-xl focus:border-info/50"
-                                />
+                                <div className="flex-1 min-w-0">
+                                    <DiscordChannelPicker
+                                        guildId={guildId}
+                                        value={channelId}
+                                        onChange={setChannelId}
+                                    />
+                                </div>
                                 <Button onClick={handleSaveChannel} disabled={isPending} className="min-w-[120px] bg-info hover:bg-info text-info-foreground font-black uppercase tracking-wider text-xs rounded-xl shadow-lg shadow-cyan-900/20">
                                     {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                                     Sauvegarder
+                                    {hasUnsavedChanges && !isPending && <span className="ml-2 w-2 h-2 rounded-full bg-white animate-pulse" title="Modifications non sauvegardées" />}
                                 </Button>
                             </div>
-                            <ChannelPreview guildId={guildId} channelId={channelId} color="cyan" />
                             {isConfigured && (
                                 <div className="flex justify-end">
                                     <Button
                                         variant="ghost" size="sm"
-                                        onClick={() => { setChannelId(""); handleSaveChannel(); }}
+                                        // Bypass direct (pas handleSaveChannel) : celui-ci lirait
+                                        // le state pas encore à jour (closure périmée).
+                                        onClick={() => {
+                                            setChannelId("");
+                                            startTransition(async () => {
+                                                const result = await updateServiceSettings(guildId, null);
+                                                if (result.success) {
+                                                    setIsConfigured(false);
+                                                    setInitialConfig({ channelId: "" });
+                                                    toast.success("Notifications services désactivées");
+                                                } else {
+                                                    toast.error(result.error || "Erreur lors de la désactivation");
+                                                }
+                                            });
+                                        }}
                                         disabled={isPending}
                                         className="text-danger hover:text-danger hover:bg-danger/20 text-xs font-bold rounded-lg"
                                     >

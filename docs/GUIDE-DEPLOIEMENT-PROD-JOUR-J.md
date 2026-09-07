@@ -60,7 +60,7 @@
   - Récupérer `APPLICATION ID` (`DISCORD_CLIENT_ID`) et `PUBLIC KEY` (`DISCORD_PUBLIC_KEY`).
   - Interactions Endpoint URL : `https://sigilos.fr/api/discord/interactions`
 - **Installation / Permissions :**
-  - Lien d'invitation avec les permissions requises (`bitmask 6356836904068`) pour inviter le bot sur le serveur Discord de la guilde.
+  - Lien d'invitation avec les permissions requises (`bitmask 326686043268`, 11 droits — voir `src/lib/discord-permissions.ts`) pour inviter le bot sur le serveur Discord de la guilde.
 
 ### C. Fichier `.env.prod` sur le VPS
 ```ini

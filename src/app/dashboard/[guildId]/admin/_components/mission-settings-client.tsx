@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition, useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
 import { Switch } from "@/components/ui/switch";
 import { Loader2, Save, Hash, Target, Users, Bell, Search, ShieldCheck, Coins, Trophy, Clock, Eye } from "lucide-react";
 import { toast } from "sonner";
@@ -11,7 +11,6 @@ import { getMissionConfig, updateMissionNotifySettings } from "@/server/actions/
 import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/actions/user-actions";
 import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
 import { RoleSelector } from "@/components/admin/role-selector";
-import { ChannelPreview } from "@/components/shared/ChannelPreview";
 import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 
 interface MissionSettingsClientProps {
@@ -179,13 +178,11 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                                     <label className="text-caption font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                                         <Hash className="w-3 h-3" /> Salon de Publication
                                     </label>
-                                    <Input
+                                    <DiscordChannelPicker
+                                        guildId={guildId}
                                         value={channelId}
-                                        onChange={(e) => setChannelId(e.target.value)}
-                                        placeholder="ID du salon..."
-                                        className="font-mono bg-black/20 border-border h-10"
+                                        onChange={setChannelId}
                                     />
-                                    <ChannelPreview guildId={guildId} channelId={channelId} color="amber" />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-caption font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
@@ -219,8 +216,11 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
                                     <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Salon ID</label>
-                                    <Input value={validationChannelId} onChange={(e) => setValidationChannelId(e.target.value)} className="font-mono bg-black/20 border-border h-9" />
-                                    <ChannelPreview guildId={guildId} channelId={validationChannelId} color="amber" />
+                                    <DiscordChannelPicker
+                                        guildId={guildId}
+                                        value={validationChannelId}
+                                        onChange={setValidationChannelId}
+                                    />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Staff à alerter</label>
@@ -238,8 +238,11 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
                                     <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Salon ID</label>
-                                    <Input value={kamaChannelId} onChange={(e) => setKamaChannelId(e.target.value)} className="font-mono bg-black/20 border-border h-9" />
-                                    <ChannelPreview guildId={guildId} channelId={kamaChannelId} color="amber" />
+                                    <DiscordChannelPicker
+                                        guildId={guildId}
+                                        value={kamaChannelId}
+                                        onChange={setKamaChannelId}
+                                    />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Staff à alerter</label>
@@ -260,8 +263,11 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Salon de Rappel</label>
-                                <Input value={managementChannelId} onChange={(e) => setManagementChannelId(e.target.value)} className="font-mono bg-black/20 border-border h-10" />
-                                <ChannelPreview guildId={guildId} channelId={managementChannelId} color="indigo" />
+                                <DiscordChannelPicker
+                                    guildId={guildId}
+                                    value={managementChannelId}
+                                    onChange={setManagementChannelId}
+                                />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Rôle Staff</label>
@@ -288,7 +294,7 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                     <div className="flex justify-end pt-4">
                         <Button onClick={handleSave} disabled={isPending} className="bg-warning hover:bg-warning text-warning-foreground min-w-[200px] font-bold h-12 shadow-xl shadow-amber-600/20">
                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                            SAUVEGARDER TOUT
+                            Enregistrer
                         </Button>
                     </div>
                 </div>

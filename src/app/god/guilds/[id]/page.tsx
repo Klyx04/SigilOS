@@ -114,6 +114,27 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
                         : "Vous consultez ce roster en lecture seule (accès sous-god). Toute action destructrice est masquée."}
                 </p>
             </div>
+
+            {/* Super-gestion des modules (§9) — God uniquement */}
+            {isAdmin && (
+                <GodGuildModulesSection discordGuildId={guild.discordGuildId} />
+            )}
         </div>
+    );
+}
+
+async function GodGuildModulesSection({ discordGuildId }: { discordGuildId: string }) {
+    const { getGuildModules, getModuleGodLocks } = await import("@/server/actions/module-actions");
+    const { GodGuildModulesClient } = await import("./god-guild-modules-client");
+    const [modules, locks] = await Promise.all([
+        getGuildModules(discordGuildId),
+        getModuleGodLocks(discordGuildId),
+    ]);
+    return (
+        <GodGuildModulesClient
+            discordGuildId={discordGuildId}
+            initialModules={modules}
+            initialLocks={locks}
+        />
     );
 }

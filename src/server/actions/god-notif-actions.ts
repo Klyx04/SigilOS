@@ -34,7 +34,12 @@ export async function notifyGod(params: {
                     metadata: metadata ? JSON.parse(JSON.stringify(metadata)) : null,
                 }
             });
-            revalidatePath("/god"); // Refresh the god dashboard if open
+            try {
+                revalidatePath("/god"); // Refresh the god dashboard if open
+            } catch {
+                // Best-effort : hors requête (worker/cron) il n'y a pas de
+                // static generation store — la notif reste créée en BDD.
+            }
         }
 
         // 2. DISCORD NOTIFICATION

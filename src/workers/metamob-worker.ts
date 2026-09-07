@@ -5,7 +5,7 @@ import { db } from "../lib/prisma";
 import { getQuestDetails, normalizeQuestMonster, MetamobApiError, type QuestMonster } from "../lib/metamob-client";
 import { decrypt } from "../lib/encryption";
 import { logger } from "../lib/logger";
-import { sendGlobalStatusPing } from "../server/actions/status-actions";
+import { sendGlobalStatusPingCore } from "../server/status-ping-core";
 import { sendDailySummaryReport } from "../server/actions/daily-report-actions";
 // ── Ladder Sync ──────────────────────────────────────────────────────────────
 import { ladderSyncWorker, ladderQueue } from "./ladder-sync-worker";
@@ -418,7 +418,7 @@ const cronWorker = new Worker(
     async (job) => {
         if (job.name === "status-ping") {
             logger.info("[Cron] Execution du Status Ping GLOBAL...");
-            const res = await sendGlobalStatusPing(false);
+            const res = await sendGlobalStatusPingCore();
             if (!res.success) logger.error(`[Cron] Status Ping échoué: ${res.error}`);
         }
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { sendGlobalStatusPing } from '@/server/actions/status-actions';
+import { sendGlobalStatusPingCore } from '@/server/status-ping-core';
 import { verifyCronSecret } from "@/lib/cron-auth";
 
 export async function GET(req: Request) {
@@ -12,7 +12,7 @@ export async function GET(req: Request) {
     }
 
     try {
-        const result = await sendGlobalStatusPing(false);
+        const result = await sendGlobalStatusPingCore();
         
         if (!result.success) {
             return NextResponse.json({ error: result.error }, { status: 500 });

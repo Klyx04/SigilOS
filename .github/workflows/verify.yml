@@ -157,6 +157,18 @@ jobs:
       - name: 🧪 TypeScript Check
         run: npx tsc --noEmit
 
+      - name: 🤖 Discord Bot TypeScript Check
+        # Le bot a son propre tsconfig + node_modules (non couvert par le tsc
+        # racine) : sans ce contrôle, une erreur de syntaxe passe la CI verte
+        # puis casse le build Docker (vécu : handler GuildCreate fusionné avec
+        # un commentaire → image bot KO, 3 retries inutiles).
+        # Miroir du Dockerfile (generate avec URL factice, pas de connexion).
+        run: |
+          cd services/discord-bot
+          npm ci
+          POSTGRES_USER=build POSTGRES_PASSWORD=build POSTGRES_DB=build npx prisma@7.9.1 generate --schema ../../prisma/schema.prisma
+          npx tsc --noEmit
+
       - name: 🚀 Run Tests
         run: npm run test:run
 

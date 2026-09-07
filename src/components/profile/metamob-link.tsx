@@ -75,8 +75,9 @@ export function MetamobLink({
     useEffect(() => setMounted(true), []);
 
     const handleLink = async (force: boolean = false) => {
-        if (!inputPseudo.trim()) {
-            setLinkError("Veuillez entrer un pseudo");
+        // Lot A — liaison clé-seule : le pseudo est optionnel (résolu via /v1/me).
+        if (!inputPseudo.trim() && !inputApiKey.trim()) {
+            setLinkError("Indiquez votre pseudo Metamob ou votre clé API");
             return;
         }
 
@@ -86,7 +87,7 @@ export function MetamobLink({
 
         const result = await linkOcreAccount({
             guildId,
-            pseudo: inputPseudo.trim(),
+            pseudo: inputPseudo.trim() || undefined,
             apiKey: inputApiKey.trim() || undefined,
             force,
             targetUserId,
@@ -325,8 +326,8 @@ export function MetamobLink({
                         </div>
                         {linkStep === 1 ? (
                             <div className="space-y-4">
-                                <label className="text-sm font-bold text-foreground">Pseudo Metamob</label>
-                                <Input placeholder="Ex: MonPseudo" value={inputPseudo} onChange={(e) => setInputPseudo(e.target.value)} className="h-12 bg-surface/50 border-border" />
+                                <label className="text-sm font-bold text-foreground">Pseudo Metamob <span className="text-muted-foreground font-normal">(optionnel si vous avez votre clé API)</span></label>
+                                <Input placeholder="Ex: MonPseudo — ou passez directement à la clé API" value={inputPseudo} onChange={(e) => setInputPseudo(e.target.value)} className="h-12 bg-surface/50 border-border" />
                             </div>
                         ) : (
                             <div className="space-y-4">
@@ -351,7 +352,7 @@ export function MetamobLink({
                     </div>
                     <DialogFooter className="p-8 border-t border-border flex gap-3">
                         {linkStep === 1 ? (
-                            <Button onClick={() => setLinkStep(2)} disabled={!inputPseudo.trim()} className="w-full bg-warning text-warning-foreground font-bold">Suivant</Button>
+                            <Button onClick={() => setLinkStep(2)} className="w-full bg-warning text-warning-foreground font-bold">{inputPseudo.trim() ? "Suivant" : "J'ai seulement ma clé API →"}</Button>
                         ) : (
                             <>
                                 <Button variant="ghost" onClick={() => setLinkStep(1)}>Retour</Button>

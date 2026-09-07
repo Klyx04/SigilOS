@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@/auth";
-import { fetchGuildRoles, fetchGuild, fetchGuildMember, invalidateDiscordCache } from "@/server/discord";
+import { fetchGuildRoles, fetchGuild, fetchGuildMember, fetchGuildExists, invalidateDiscordCache } from "@/server/discord";
 import { db } from "@/lib/prisma";
 import { PERMISSIONS, type PermissionId } from "@/lib/permissions";
 import { DEFAULT_MODULES } from "@/lib/module-types";
@@ -731,8 +731,22 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     // → the user personally left/was kicked from the server (but server exists)
     // IMPORTANT: If memberFetchFailed (Discord API error, rate-limit, etc.) we skip this block
     // entirely to avoid false positives that would block legitimate admins/members.
+    // ANTI-FANTÔME : quand guildInfo est null (cache 120s ou 404 frais), on revérifie
+    // l'existence de la guilde HORS CACHE. Sans ça, le cache guilde maintenait
+    // l'accès (ou un mauvais statut) jusqu'à 2 min après suppression du serveur
+    // Discord. Ce chemin ne s'exécute que quand le membre est introuvable → coût
+    // nul en trafic normal. Si Discord est injoignable, on ne conclut PAS à une
+    // suppression (fail-safe) et on retombe sur le statut archivé — bloquant aussi.
     if (!memberFetchFailed && guildConfig && !member && profile && profile.status === "ACTIVE") {
-        const isServerDeleted = !guildInfo;
+        let serverDeleted = !guildInfo;
+        if (serverDeleted) {
+            try {
+                serverDeleted = !(await fetchGuildExists(actualDiscordGuildId));
+            } catch {
+                serverDeleted = false;
+            }
+        }
+        const isServerDeleted = serverDeleted;
         if (!isGod) {
             if (isServerDeleted) {
                 // Server was deleted — force sign-out by returning isServerDeleted: true
@@ -1080,7 +1094,11 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     // BUGFIX: Fall back to DEFAULT_MODULES when no GuildModules record exists in DB.
     // Without this, mod = null → !!mod?.X = false → applyModule(false, perm) = false for ALL non-admins.
     const mod = (guildConfig as any)?.modules ?? DEFAULT_MODULES;
-    const bypassModules = isGod || isAdminFinal;
+    // Refonte onboarding §9 — seul le God plateforme contourne les modules
+    // désactivés. Ni les natifs Discord ni les dieux délégués : « désactivé =
+    // invisible », y compris pour l'admin (le verrou God et les toggles
+    // s'appliquent à tout le monde sauf staff plateforme).
+    const bypassModules = isGod;
 
     const applyModule = (moduleEnabled: any, perm: boolean): boolean =>
         !!(bypassModules ? perm : (moduleEnabled !== false) && perm);
@@ -1122,7 +1140,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewStats: !!applyModule(!!mod?.stats, !!canViewStats),
         canViewDocs: !!applyModule(!!mod?.docs, !!canViewDocs),
         canViewAdminDocs: !!canViewAdminDocs,
-        canViewCommands: !!canViewCommands,
+        canViewCommands: !!applyModule(!!mod?.commandes, !!canViewCommands),
         // Ressources : avant, perm `true` en dur → visible par TOUS dès le module
         // actif (fuite everyone). Désormais permission COMMUNITY_ACCESS requise.
         canViewResources: !!applyModule(!!mod?.resources, permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal),
@@ -1343,6 +1361,13 @@ export type GuildPortalItem = {
 export async function getGuildsSeparated(): Promise<{
     active: GuildPortalItem[];
     pending: Array<{ id: string; name: string; icon: string | null }>;
+    /**
+     * Serveurs où l'utilisateur est admin/owner mais EXCLUS du déploiement par
+     * un gel explicite (whitelist désactivée) ou le kill-switch auto-onboarding.
+     * Affichés « En attente de validation » au lieu de disparaître (piège §9 doc).
+     * Guildes bannies : exclues silencieusement (fail-closed côté info).
+     */
+    awaiting: Array<{ id: string; name: string; icon: string | null }>;
     rateLimited: boolean;
     /**
      * true quand Discord refuse le token (401/403) : le scope `guilds` manque
@@ -1353,7 +1378,7 @@ export async function getGuildsSeparated(): Promise<{
     needsReconnect: boolean;
 }> {
     const session = await auth();
-    if (!session?.user?.id) return { active: [], pending: [], rateLimited: false, needsReconnect: false };
+    if (!session?.user?.id) return { active: [], pending: [], awaiting: [], rateLimited: false, needsReconnect: false };
 
     const userId = session.user.id;
 
@@ -1385,11 +1410,20 @@ export async function getGuildsSeparated(): Promise<{
 
     // Autonomous & Pre-whitelisted eligibility:
     // A guild is allowed for deployment if NOT banned in PlatformBan
-    // AND NOT explicitly deactivated (isActive === false) in AllowedGuild by God.
+    // AND NOT explicitly deactivated (isActive === false) in AllowedGuild by God
+    // AND (already whitelisted OR auto-onboarding kill-switch ON).
+    // Kill-switch OFF (God) = brand-new guilds go to the God queue, NOT to the
+    // user portal. Existing active guilds are unaffected.
+    const platformCfg = await db.platformConfig.findUnique({
+        where: { id: "singleton" },
+        select: { autoOnboardingEnabled: true },
+    }).catch(() => null);
+    const autoOnboardingOn = platformCfg?.autoOnboardingEnabled !== false;
     const isAllowedForDeployment = (guildId: string) => {
         if (bannedGuildIdSet.has(guildId)) return false;
         const status = allowedGuildStatusMap.get(guildId);
         if (status && status.isActive === false) return false;
+        if (!status && !autoOnboardingOn) return false;
         return true;
     };
 
@@ -1407,7 +1441,7 @@ export async function getGuildsSeparated(): Promise<{
         select: { access_token: true }
     });
 
-    if (!account?.access_token) return { active: [], pending: [], rateLimited: false, needsReconnect: false };
+    if (!account?.access_token) return { active: [], pending: [], awaiting: [], rateLimited: false, needsReconnect: false };
 
     const { error, status, data: userGuildsData } = await fetchDiscordUserGuilds(account.access_token);
 
@@ -1431,12 +1465,14 @@ export async function getGuildsSeparated(): Promise<{
         return {
             active: activeFromDb,
             pending: [],
+            awaiting: [],
             rateLimited: errorKind === "RATE_LIMIT",
             needsReconnect: errorKind === "SCOPE",
         };
     }
 
     const pendingCandidates: any[] = [];
+    const awaitingCandidates: any[] = [];
     const userGuilds = userGuildsData as any[];
 
     for (const guild of userGuilds) {
@@ -1452,15 +1488,20 @@ export async function getGuildsSeparated(): Promise<{
         } catch {
             continue;
         }
-        if ((isAdmin || guild.owner) && isAllowedForDeployment(guild.id)) {
-            const { buildPendingGuildIconUrl } = await import("@/lib/onboarding-gating");
-            pendingCandidates.push({
-                id: guild.id,
-                name: guild.name,
-                // cdn.discordapp.com + ?size=128 : l'ancien host api/v10/icons sans
-                // size renvoyait des 404 (icônes animées) sur le portail.
-                icon: buildPendingGuildIconUrl(guild.id, guild.icon ?? null)
-            });
+        if (!(isAdmin || guild.owner)) continue;
+        const { buildPendingGuildIconUrl } = await import("@/lib/onboarding-gating");
+        const entry = {
+            id: guild.id,
+            name: guild.name,
+            // cdn.discordapp.com + ?size=128 : l'ancien host api/v10/icons sans
+            // size renvoyait des 404 (icônes animées) sur le portail.
+            icon: buildPendingGuildIconUrl(guild.id, guild.icon ?? null)
+        };
+        if (isAllowedForDeployment(guild.id)) {
+            pendingCandidates.push(entry);
+        } else if (!bannedGuildIdSet.has(guild.id)) {
+            // Gel explicite OU kill-switch : visible « en attente », jamais fantôme.
+            awaitingCandidates.push(entry);
         }
     }
 
@@ -1512,7 +1553,7 @@ export async function getGuildsSeparated(): Promise<{
             };
         });
 
-    return { active, pending, rateLimited: false, needsReconnect: false };
+    return { active, pending, awaiting: awaitingCandidates, rateLimited: false, needsReconnect: false };
 }
 
 export async function searchGuildMembers(

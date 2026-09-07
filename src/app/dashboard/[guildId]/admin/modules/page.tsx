@@ -10,6 +10,7 @@ import { Puzzle, ShieldAlert } from "lucide-react";
 import { db } from "@/lib/prisma";
 import Link from "next/link";
 import { ModulesClient } from "./_components/modules-client";
+import { AdminConsoleNav } from "@/components/admin/admin-console-nav";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -28,6 +29,8 @@ export default async function AdminModulesPage({ params }: Props) {
     }
 
     const modules = await getGuildModules(guildId);
+    const { getModuleGodLocks } = await import("@/server/actions/module-actions");
+    const lockedModules = await getModuleGodLocks(guildId);
     const guild = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
         select: { rolesMapping: true }
@@ -46,6 +49,14 @@ export default async function AdminModulesPage({ params }: Props) {
                     actions={<ModuleHelpActions docSlug="admin-modules" docTitle="Gestion des Modules" tourPhase="adminModulesMgmt" />}
                 />
             </div>
+
+            <AdminConsoleNav
+                guildId={guildId}
+                showModules={true}
+                showAccess={user.canManageRBAC || user.isAdmin}
+                showOnboarding={user.isAdmin}
+                showPilotage={true}
+            />
 
             {!isRbacConfigured && (
                 <div className="p-4 rounded-xl border border-warning/20 bg-warning/10 flex items-start gap-4 animate-in fade-in slide-in-from-top-4">
@@ -66,7 +77,7 @@ export default async function AdminModulesPage({ params }: Props) {
             )}
 
             <div data-tour="admin-modules-list">
-                <ModulesClient guildId={guildId} initialModules={modules} />
+                <ModulesClient guildId={guildId} initialModules={modules} lockedModules={lockedModules} />
             </div>
         </div>
     );

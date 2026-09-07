@@ -44,6 +44,12 @@ type AdminCard = {
     description: string;
     accent: string; // Tailwind color token (e.g. "violet")
     permission?: keyof typeof PERMISSIONS | ((user: any) => boolean);
+    /**
+     * Refonte onboarding §9 — module(s) de guilde requis pour afficher la carte.
+     * Absent = carte structurelle (toujours affichée si la permission passe).
+     * Au moins un des modules doit être effectif (toggle guilde + verrou God).
+     */
+    modules?: string | string[];
     /** Identifiant stable pour le tour admin (data-tour). */
     tourId?: string;
 };
@@ -97,6 +103,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Rôles par Réaction (Reaction Roles)",
                     description: "Panneaux de sélection de rôles interactifs avec boutons, menus déroulants et icônes pour Discord.",
                     accent: "violet",
+                    modules: "reactionRoles",
                     permission: (u) => u.canManageReactionRoles,
                     tourId: "admin-overview-card-reaction-roles",
                 },
@@ -106,6 +113,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Bot Tickets & Support Discord",
                     description: "Gestion des formulaires d'intake, réclamations staff, notes internes et transcripts.",
                     accent: "amber",
+                    modules: "tickets",
                     permission: (u) => u.canManageTickets,
                     tourId: "admin-overview-card-tickets",
                 },
@@ -124,6 +132,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Identité de Guilde",
                     description: "Édition de la page publique, recrutement et présentation des objectifs.",
                     accent: "indigo",
+                    modules: "presentation",
                     permission: (u) => u.canEditPresentation,
                     tourId: "admin-overview-card-presentation",
                 },
@@ -139,6 +148,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Gestion des Missions",
                     description: "Préparation du reset hebdomadaire, création des missions et bonus de guilde.",
                     accent: "emerald",
+                    modules: "missions",
                     permission: (u) => u.canManageMissions,
                     tourId: "admin-overview-card-missions",
                 },
@@ -148,6 +158,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Validation",
                     description: "Centre de tri des screens. Récompensez les efforts de vos membres.",
                     accent: "green",
+                    modules: "missions",
                     permission: (u) => u.canValidateMissions,
                     tourId: "admin-overview-card-validation",
                 },
@@ -157,6 +168,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Audit & Gestion des Membres",
                     description: "Audit Discord vs Dashboard, synchronisation des pseudos, archivage et relances Discord.",
                     accent: "cyan",
+                    modules: "roster",
                     permission: (u) => u.canManageMembers || u.canManageRelance,
                     tourId: "admin-overview-card-members",
                 },
@@ -166,6 +178,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Recrutement & Cycle de Vie",
                     description: "Périodes d'essai J-X, annuaire guilde, gestion des mules et historique des départs.",
                     accent: "emerald",
+                    modules: "roster",
                     permission: (u) => u.canManageMembers,
                     tourId: "admin-overview-card-recruitment",
                 },
@@ -175,6 +188,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Points de Contribution",
                     description: "Personnalisez les points de la clôture des posts DJ / quêtes et des runs Songes.",
                     accent: "amber",
+                    modules: ["missions", "donjons"],
                     permission: (u) => u.canManagePoints,
                     tourId: "admin-overview-card-points",
                 },
@@ -258,14 +272,28 @@ export default async function AdminPage({
     );
 
     const sections = buildSections(guildId);
-    
+
+    // Refonte onboarding §9 — filtre modules : une carte liée à des modules tous
+    // désactivés (toggle guilde OFF ou verrou God) disparaît du panel.
+    const { getGuildModules } = await import("@/server/actions/module-actions");
+    const effectiveModules = await getGuildModules(guildId).catch(() => null) as unknown as Record<string, boolean> | null;
+    const cardVisibleFor = (card: AdminCard): boolean => {
+        if (!user.isSuperAdmin) {
+            if (typeof card.permission === 'function') {
+                if (!card.permission(user)) return false;
+            } else if (!user.isAdmin) {
+                return false;
+            }
+        }
+        if (!card.modules) return true;
+        if (!effectiveModules) return true;
+        const keys = Array.isArray(card.modules) ? card.modules : [card.modules];
+        return keys.some((k) => !!effectiveModules[k]);
+    };
+
     // Check if any management card is visible for this user
-    const hasVisibleCards = sections.some(section => 
-        section.cards.some(card => {
-            if (user.isSuperAdmin) return true;
-            if (typeof card.permission === 'function') return card.permission(user);
-            return user.isAdmin;
-        })
+    const hasVisibleCards = sections.some(section =>
+        section.cards.some(card => cardVisibleFor(card))
     );
 
     // Allow access if user is admin OR has at least one visible management tool.
@@ -284,8 +312,8 @@ export default async function AdminPage({
         <div className="space-y-16 pb-32 max-w-[1600px] mx-auto pt-10 px-6">
             <div data-tour="admin-overview-header">
                 <UnifiedModuleHeader
-                    title="Supervision"
-                    description="Administration centrale de la guilde • Contrôle des systèmes et monitoring des opérations."
+                    title="Staff"
+                    description="Vos modules et outils de modération — filtrés par vos droits et les modules activés."
                     icon={Shield}
                     iconColor="#f43f5e"
                     backHref={`/dashboard/${guildId}`}
@@ -295,11 +323,7 @@ export default async function AdminPage({
 
             <div className="space-y-24">
                 {sections.map((section) => {
-                    const visibleCards = section.cards.filter(card => {
-                        if (user.isSuperAdmin) return true;
-                        if (typeof card.permission === 'function') return card.permission(user);
-                        return user.isAdmin;
-                    });
+                    const visibleCards = section.cards.filter(card => cardVisibleFor(card));
 
                     if (visibleCards.length === 0) return null;
 

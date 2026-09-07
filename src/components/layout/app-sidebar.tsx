@@ -222,8 +222,8 @@ export function AppSidebar({
         { name: "Roadmap", href: "/roadmap", icon: Rocket, color: "amber", visible: roadmapEnabled },
     ];
 
-    const NAV_ADMIN_TOP = { 
-        name: "Centre Admin", 
+    const NAV_ADMIN_TOP = {
+        name: "Staff",
         href: `/dashboard/${guildId}/admin`, 
         icon: Shield, 
         exact: true, 
@@ -257,7 +257,7 @@ export function AppSidebar({
         { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, imgSrc: "/assets/nav/genealogy.png", color: "emerald", visible: user.canViewRoster && modules.roster },
         { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, imgSrc: "/assets/nav/calendar.png", color: "emerald", visible: user.canViewCalendar && modules.calendar },
         { name: "Ressources Dofus", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, imgSrc: "/assets/nav/resources.png", color: "emerald", visible: user.canViewResources && modules.resources },
-        { name: "Commandes Bot Discord", href: `/dashboard/${guildId}/commandes`, icon: Terminal, imgSrc: "/assets/nav/cog.png", color: "emerald", visible: user.canViewCommands },
+        { name: "Commandes Bot Discord", href: `/dashboard/${guildId}/commandes`, icon: Terminal, imgSrc: "/assets/nav/cog.png", color: "emerald", visible: user.canViewCommands && modules.commandes },
         { 
             name: "La guilde", 
             href: `/dashboard/${guildId}/guild-hub`, 
@@ -275,11 +275,11 @@ export function AppSidebar({
         // ADMIN SUB-ROUTES (Searchable & Pinnable)
         { name: "Paramètres Généraux", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, color: "amber", visible: user.canViewSettings },
         { name: "Rôles & Permissions", href: `/dashboard/${guildId}/admin/permissions`, icon: Shield, color: "zinc", visible: user.canManageRBAC },
-        { name: "Commandes Slash Discord", href: `/dashboard/${guildId}/admin/commandes`, icon: Terminal, color: "emerald", visible: user.canManageRBAC || user.isAdmin },
+        { name: "Commandes Slash Discord", href: `/dashboard/${guildId}/admin/commandes`, icon: Terminal, color: "emerald", visible: user.isDiscordAdmin },
         { name: "Gestion des Modules", href: `/dashboard/${guildId}/admin/modules`, icon: Hammer, color: "indigo", visible: user.isDiscordAdmin },
-        { name: "Identité de Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, color: "emerald", visible: user.canEditPresentation },
-        { name: "Gestion des Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, color: "emerald", visible: user.canManageMissions },
-        { name: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: CheckCircle, color: "emerald", visible: user.canValidateMissions },
+        { name: "Identité de Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, color: "emerald", visible: user.canEditPresentation && modules.presentation },
+        { name: "Gestion des Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, color: "emerald", visible: user.canManageMissions && modules.missions },
+        { name: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: CheckCircle, color: "emerald", visible: user.canValidateMissions && modules.missions },
         { name: "Audit & Membres", href: `/dashboard/${guildId}/admin/members`, icon: Users, color: "cyan", visible: user.canManageMembers || user.canManageRelance },
         { name: "Recrutement & Cycle de Vie", href: `/dashboard/${guildId}/admin/recruitment`, icon: UserCheck, color: "emerald", visible: user.canManageMembers },
         { name: "Points de Contribution", href: `/dashboard/${guildId}/admin/points`, icon: Coins, color: "amber", visible: user.canManagePoints },
@@ -311,6 +311,18 @@ export function AppSidebar({
     );
 
     const showAdminGroup = hasAnyAdminPermission && !localPinnedHrefs.includes(NAV_ADMIN_TOP.href) && !localHiddenHrefs.includes(NAV_ADMIN_TOP.href);
+
+    // Console Pilotage — page dédiée natifs Discord (owner/0x8). Les délégués
+    // gardent /admin + /admin/permissions, jamais le pilotage.
+    const NAV_PILOTAGE = {
+        name: "Pilotage",
+        href: `/dashboard/${guildId}/admin/pilotage`,
+        icon: Crown,
+        exact: true,
+        color: "amber",
+        visible: user.isDiscordAdmin,
+        prefetch: false,
+    };
 
     const pinnedItems = localPinnedHrefs
         .filter(href => !localHiddenHrefs.includes(href))
@@ -812,14 +824,24 @@ export function AppSidebar({
                                         transition={{ duration: 0.2, ease: "easeInOut" }}
                                         className="space-y-1 px-1 overflow-hidden"
                                     >
-                                        <NavItem 
-                                            item={NAV_ADMIN_TOP} 
-                                            isActive={checkIsActive(NAV_ADMIN_TOP.href, NAV_ADMIN_TOP.exact, NAV_ADMIN_TOP.aliases)} 
+                                        <NavItem
+                                            item={NAV_ADMIN_TOP}
+                                            isActive={checkIsActive(NAV_ADMIN_TOP.href, NAV_ADMIN_TOP.exact, NAV_ADMIN_TOP.aliases)}
                                             isPinned={false}
                                             onPin={handleTogglePin}
                                             onHide={handleToggleHide}
                                             unreadCount={getUnreadCount(NAV_ADMIN_TOP.href)}
                                         />
+                                        {NAV_PILOTAGE.visible && !localPinnedHrefs.includes(NAV_PILOTAGE.href) && !localHiddenHrefs.includes(NAV_PILOTAGE.href) && (
+                                            <NavItem
+                                                item={NAV_PILOTAGE}
+                                                isActive={checkIsActive(NAV_PILOTAGE.href, NAV_PILOTAGE.exact, undefined)}
+                                                isPinned={false}
+                                                onPin={handleTogglePin}
+                                                onHide={handleToggleHide}
+                                                unreadCount={getUnreadCount(NAV_PILOTAGE.href)}
+                                            />
+                                        )}
                                     </motion.div>
                                 )}
                                 <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-300" />

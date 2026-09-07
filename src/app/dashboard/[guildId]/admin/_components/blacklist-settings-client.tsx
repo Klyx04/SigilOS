@@ -3,13 +3,13 @@
 import { useState, useEffect, useTransition } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, AlertTriangle, Hash, ShieldAlert, Sparkles, MessageSquare, ArrowRightLeft } from "lucide-react";
 import { toast } from "sonner";
+import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 import { getBlacklistConfig, updateBlacklistSettings } from "@/server/actions/blacklist-actions";
 import { cn } from "@/lib/utils";
-import { ChannelPreview } from "@/components/shared/ChannelPreview";
+import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
 
 interface BlacklistSettingsClientProps {
     guildId: string;
@@ -21,12 +21,17 @@ export function BlacklistSettingsClient({ guildId }: BlacklistSettingsClientProp
     const [isPending, startTransition] = useTransition();
     const [isConfigured, setIsConfigured] = useState(false);
 
+    // — Détection « modifications non sauvegardées » (snapshot chargé vs état courant)
+    const [initialConfig, setInitialConfig] = useState<{ channelId: string } | null>(null);
+    const hasUnsavedChanges = isDirty({ channelId }, initialConfig);
+
     useEffect(() => {
         async function loadConfig() {
             const result = await getBlacklistConfig(guildId);
             if (result.success && result.data) {
                 setChannelId(result.data.blacklistChannelId || "");
                 setIsConfigured(!!result.data.blacklistChannelId);
+                setInitialConfig({ channelId: result.data.blacklistChannelId || "" });
             }
             setIsLoading(false);
         }
@@ -45,6 +50,7 @@ export function BlacklistSettingsClient({ guildId }: BlacklistSettingsClientProp
             if (result.success) {
                 toast.success("Synchronisation Blacklist mise à jour !");
                 setIsConfigured(!!trimmed);
+                setInitialConfig({ channelId: trimmed });
             } else {
                 toast.error(result.error || "Erreur lors de la sauvegarde");
             }
@@ -61,6 +67,7 @@ export function BlacklistSettingsClient({ guildId }: BlacklistSettingsClientProp
 
     return (
         <div className="space-y-8 animate-in fade-in duration-300 pb-10">
+            <UnsavedChangesGuard hasUnsavedChanges={hasUnsavedChanges} />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* ── MAIN CONFIG ── */}
                 <Card className="lg:col-span-2 bg-surface/40 border-border backdrop-blur-xl shrink-0 overflow-hidden relative group">
@@ -102,21 +109,22 @@ export function BlacklistSettingsClient({ guildId }: BlacklistSettingsClientProp
                             </div>
                             
                             <div className="flex gap-2">
-                                <Input 
-                                    value={channelId}
-                                    onChange={(e) => setChannelId(e.target.value)}
-                                    placeholder="Ex: 1290442961380835451"
-                                    className="bg-black/40 border-border font-mono text-danger h-12 rounded-xl focus:ring-danger/50"
-                                />
+                                <div className="flex-1 min-w-0">
+                                    <DiscordChannelPicker
+                                        guildId={guildId}
+                                        value={channelId}
+                                        onChange={setChannelId}
+                                    />
+                                </div>
                                 <Button 
                                     onClick={handleSave} 
                                     disabled={isPending}
                                     className="bg-danger hover:bg-danger text-danger-foreground font-black px-6 h-12 rounded-xl"
                                 >
                                     {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                    {hasUnsavedChanges && !isPending && <span className="ml-2 w-2 h-2 rounded-full bg-white animate-pulse" title="Modifications non sauvegardées" />}
                                 </Button>
                             </div>
-                            <ChannelPreview guildId={guildId} channelId={channelId} color="rose" />
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -162,7 +170,7 @@ export function BlacklistSettingsClient({ guildId }: BlacklistSettingsClientProp
                                 <div className="flex gap-3">
                                     <div className="w-5 h-5 rounded-full bg-danger/20 text-danger flex items-center justify-center text-caption font-black shrink-0 mt-0.5">2</div>
                                     <p className="text-xs text-muted-foreground leading-relaxed font-medium">
-                                        Saisissez son ID ici. Le Bot SigilOS doit avoir accès en <span className="text-foreground">lecture/écriture</span>.
+                                        Sélectionnez-le dans la liste. Le Bot SigilOS doit avoir accès en <span className="text-foreground">lecture/écriture</span>.
                                     </p>
                                 </div>
                                 <div className="flex gap-3">

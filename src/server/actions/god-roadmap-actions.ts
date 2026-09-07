@@ -118,3 +118,41 @@ export async function getPlatformConfig() {
         return { success: false, error: e.message };
     }
 }
+
+/**
+ * Kill-switch God de l'auto-onboarding.
+ * OFF = les NOUVELLES guildes ne sont plus déployables en autonomie (file God,
+ * modale/landing sans bloc "autonomie") ; les guildes existantes et actives
+ * sont intouchées. Audit God via AuditLog.
+ */
+export async function toggleAutoOnboarding(enabled: boolean) {
+    const adminId = await isGod();
+    if (!adminId) return { success: false, error: "Non autorisé" };
+
+    try {
+        await db.platformConfig.upsert({
+            where: { id: "singleton" },
+            update: { autoOnboardingEnabled: enabled },
+            create: { id: "singleton", autoOnboardingEnabled: enabled }
+        });
+        try {
+            const { createAuditLog } = await import("./audit-actions");
+            await createAuditLog({
+                guildId: "platform",
+                actorUserId: String(adminId),
+                actorName: "God",
+                action: "PLATFORM_CONFIG_UPDATED" as any,
+                targetType: "PLATFORM" as any,
+                targetId: "autoOnboardingEnabled",
+                metadata: { enabled },
+            });
+        } catch { /* audit non bloquant */ }
+        revalidatePath("/god");
+        revalidatePath("/");
+        revalidatePath("/dashboard");
+        return { success: true };
+    } catch (e: any) {
+        logger.error("[Platform] Toggle AutoOnboarding Error:", e);
+        return { success: false, error: "KO Prisma" };
+    }
+}

@@ -97,8 +97,11 @@ export async function updateGuildSlashCommandPermissionAction(input: z.infer<typ
         const actualGuildId = config.discordGuildId || (typeof guildId === "string" && /^\d+$/.test(guildId) ? guildId : undefined);
         const user = await getUserContext(actualGuildId);
 
-        if (!user.isAuthenticated || (!user.isAdmin && !user.canManageRBAC)) {
-            return { success: false, error: "Forbidden: Admin or RBAC permission required" };
+        // Pilotage natif uniquement : ni les dieux délégués ni les gestionnaires
+        // RBAC ne touchent aux commandes slash (décision produit — les commandes
+        // engagent le bot sur Discord).
+        if (!user.isAuthenticated || !user.isDiscordAdmin) {
+            return { success: false, error: "Forbidden: Discord admin required" };
         }
 
         const updated = await db.guildSlashCommandPermission.upsert({

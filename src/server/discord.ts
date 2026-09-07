@@ -231,6 +231,29 @@ export async function fetchGuild(guildId: string) {
     return data;
 }
 
+/**
+ * Vérifie FRAÎCHEMENT (hors cache) que le bot voit encore la guilde.
+ * Retourne false UNIQUEMENT sur 404 Discord (serveur supprimé ou bot expulsé).
+ * Throw sur toute autre erreur (rate-limit, 5xx, réseau, token manquant) :
+ * l'appelant ne doit JAMAIS conclure à une suppression sur une erreur
+ * technique (fail-safe — voir getUserContext, détection serveur supprimé).
+ * Volontairement SANS cache : n'est appelée que sur le chemin rare
+ * « membre introuvable », coût nul en trafic normal.
+ */
+export async function fetchGuildExists(guildId: string): Promise<boolean> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
+
+    const res = await fetchWithRetry(`/api/v10/guilds/${guildId}`, {
+        headers: { Authorization: `Bot ${token}` },
+        cache: "no-store"
+    });
+
+    if (res.status === 404) return false;
+    if (!res.ok) throw new Error(`Guild existence check failed: ${res.status}`);
+    return true;
+}
+
 export async function fetchBotGuilds() {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");

@@ -7,11 +7,18 @@
  *
  *   - Envoyer des messages / embeds / threads (posts DJ, missions, notifications) ;
  *   - Lire l'historique + supprimer des messages (nettoyage des posts) ;
- *   - Gérer les threads (posts DJ/quêtes) ;
+ *   - Créer des threads publics + poster dedans (posts DJ/quêtes) ;
  *   - Gérer les rôles (gate règlement / accès membres) ;
- *   - Voir le journal d'audit + les bans (sync membres / audit) ;
- *   - Déplacer en vocal + messages vocaux (stats vocales / streams).
+ *   - Voir le journal d'audit + les bans (sync membres / audit).
  *
+ * ⚠️ Positions EXACTES (source : discord-api-types, PermissionFlagsBits) :
+ * ManageThreads=2**34, CreatePublicThreads=2**35, CreatePrivateThreads=2**36,
+ * SendMessagesInThreads=2**38, UseEmbeddedActivities=2**39,
+ * ModerateMembers=2**40, UseSoundboard=2**42, SendVoiceMessages=2**46.
+ * Une version antérieure étiquetait 39/40/42 comme des droits threads/voix :
+ * le bot demandait donc Activités + Modération (timeout !) + Soundboard SANS
+ * les utiliser, et MANQUAIT les vrais bits threads. Ne JAMAIS renommer sans
+ * vérifier contre discord-api-types.
  * ⚠️ Changer le lien ne touche PAS les guildes déjà onboardées (elles
  * conservent leurs permissions jusqu'à une ré-invitation volontaire).
  * ⚠️ Ne PAS utiliser d'opérateurs bit à bit JS (`<<`, `|`, `&`) sur ces
@@ -20,7 +27,7 @@
  */
 
 export const DISCORD_PERMISSION = {
-    /** BAN_MEMBERS — GET /guilds/{id}/bans (sync membres) */
+    /** BAN_MEMBERS — GET /guilds/{id}/bans (sync membres / tombstones) */
     BAN_MEMBERS: 2 ** 2,
     /** VIEW_AUDIT_LOG — journal d'audit */
     VIEW_AUDIT_LOG: 2 ** 7,
@@ -34,20 +41,14 @@ export const DISCORD_PERMISSION = {
     EMBED_LINKS: 2 ** 14,
     /** READ_MESSAGE_HISTORY — lire l'historique */
     READ_MESSAGE_HISTORY: 2 ** 16,
-    /** MOVE_MEMBERS — déplacer en vocal (stats) */
-    MOVE_MEMBERS: 2 ** 24,
     /** MANAGE_ROLES — gérer les rôles (gate règlement) */
     MANAGE_ROLES: 2 ** 28,
-    /** SEND_VOICE_MESSAGES — messages vocaux */
-    SEND_VOICE_MESSAGES: 2 ** 35,
+    /** MANAGE_THREADS — archiver/supprimer des threads, voir les privés */
+    MANAGE_THREADS: 2 ** 34,
+    /** CREATE_PUBLIC_THREADS — créer des threads publics (posts DJ/quêtes) */
+    CREATE_PUBLIC_THREADS: 2 ** 35,
     /** SEND_MESSAGES_IN_THREADS — poster dans les threads */
     SEND_MESSAGES_IN_THREADS: 2 ** 38,
-    /** CREATE_PUBLIC_THREADS — créer des threads publics */
-    CREATE_PUBLIC_THREADS: 2 ** 39,
-    /** CREATE_PRIVATE_THREADS — créer des threads privés */
-    CREATE_PRIVATE_THREADS: 2 ** 40,
-    /** MANAGE_THREADS — gérer les threads */
-    MANAGE_THREADS: 2 ** 42,
 } as const;
 
 /**
@@ -61,15 +62,12 @@ export const DISCORD_BOT_INVITE_PERMISSIONS =
     DISCORD_PERMISSION.EMBED_LINKS +
     DISCORD_PERMISSION.MANAGE_MESSAGES +
     DISCORD_PERMISSION.READ_MESSAGE_HISTORY +
-    DISCORD_PERMISSION.CREATE_PUBLIC_THREADS +
-    DISCORD_PERMISSION.CREATE_PRIVATE_THREADS +
-    DISCORD_PERMISSION.SEND_MESSAGES_IN_THREADS +
     DISCORD_PERMISSION.MANAGE_THREADS +
+    DISCORD_PERMISSION.CREATE_PUBLIC_THREADS +
+    DISCORD_PERMISSION.SEND_MESSAGES_IN_THREADS +
     DISCORD_PERMISSION.MANAGE_ROLES +
     DISCORD_PERMISSION.VIEW_AUDIT_LOG +
-    DISCORD_PERMISSION.BAN_MEMBERS +
-    DISCORD_PERMISSION.MOVE_MEMBERS +
-    DISCORD_PERMISSION.SEND_VOICE_MESSAGES;
+    DISCORD_PERMISSION.BAN_MEMBERS;
 
 /**
  * Construit l'URL OAuth2 d'invitation du bot avec le bitmask minimal.

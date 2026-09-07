@@ -42,16 +42,35 @@ async function processExchangeJob(job: Job<ExchangeJobData>) {
         return;
     }
 
-    const effectiveApiKey = currentUserProfile.metamobApiKey || undefined;
+    // La clé est stockée chiffrée : la déchiffrer (comme pour les autres
+    // membres plus bas). Indéchiffrable (clé d'un autre env) → undefined
+    // (anonyme) plutôt que d'envoyer du ciphertext à Metamob.
+    let effectiveApiKey: string | undefined;
+    try {
+        effectiveApiKey = currentUserProfile.metamobApiKey ? (decrypt(currentUserProfile.metamobApiKey) || undefined) : undefined;
+    } catch {
+        logger.warn(`[Worker] Clé Metamob indéchiffrable pour l'utilisateur ${userId} — appel anonyme.`);
+        effectiveApiKey = undefined;
+    }
 
     await job.updateProgress(20);
 
     // 2. Fetch current user's quest to know their precise needs
-    const currentUserQuest = await getQuestDetails(
-        currentUserProfile.metamobPseudo!,
-        currentUserProfile.metamobQuestSlug,
-        { guildApiKey: effectiveApiKey, status: "all", limit: 200 }
-    );
+    let currentUserQuest;
+    try {
+        currentUserQuest = await getQuestDetails(
+            currentUserProfile.metamobPseudo!,
+            currentUserProfile.metamobQuestSlug,
+            { guildApiKey: effectiveApiKey, status: "all", limit: 200 }
+        );
+    } catch (err) {
+        // Quête privée/invisible sans clé valide, ou slug périmé : message
+        // actionnable (remonte tel quel dans le toast via job.failedReason).
+        if (err instanceof MetamobApiError && err.code === "NOT_FOUND") {
+            throw new Error("Votre quête Metamob est introuvable (privée, renommée ou lien périmé) — re-liez votre compte dans le profil.");
+        }
+        throw err;
+    }
 
     const currentUserPQ = currentUserQuest.parallel_quests || 1;
     const neededMonsterIds = new Set<number>();

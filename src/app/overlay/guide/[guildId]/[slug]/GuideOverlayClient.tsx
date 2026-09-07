@@ -28,6 +28,7 @@ import { getNextObjective, aggregateRushResources } from "./components/overlay-u
 import { RushOverlayResourcesModal } from "./components/RushOverlayResourcesModal";
 import { RushOverlayMembersModal, type OverlayMember } from "./components/RushOverlayMembersModal";
 import { RushOverlayTutorialModal } from "./components/RushOverlayTutorialModal";
+import { OverlayPinNotice } from "@/components/overlay-pin-notice";
 
 // Dofus defs pour récupération des visuels d'œufs
 const DOFUS_DEFS: Record<string, { label: string; imageUrl: string; color: string }> = {
@@ -66,6 +67,12 @@ type Props = {
   onClose?: () => void;
   /** Mode invité / démo sans compte ni guilde */
   isGuest?: boolean;
+  /**
+   * Faux quand la fenêtre est la popup `about:blank` de secours (navigateur sans
+   * Document PiP, ex. Opera GX) → bandeau "fenêtre non épinglée". Vrai par défaut
+   * (vraie PiP toujours-au-dessus, ou page overlay directe).
+   */
+  pinned?: boolean;
 };
 
 export default function GuideOverlayClient({
@@ -77,6 +84,7 @@ export default function GuideOverlayClient({
   character,
   onClose,
   isGuest = false,
+  pinned = true,
 }: Props) {
   const effectiveAltPseudo = altPseudo ?? undefined;
   // Repli si le personnage n'est pas fourni (accès direct à la page overlay).
@@ -834,6 +842,9 @@ export default function GuideOverlayClient({
       style={{ fontFamily: "Inter, system-ui, sans-serif" }}
     >
       <style>{`@media (prefers-reduced-motion: reduce){ *{transition:none!important; animation:none!important; } }`}</style>
+
+      {/* Navigateur sans Document PiP (ex. Opera GX) : la fenêtre n'est pas épinglée */}
+      {!pinned && <OverlayPinNotice />}
 
       {!isCompactMode ? (
         <>

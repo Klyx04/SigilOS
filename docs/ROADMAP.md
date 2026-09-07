@@ -201,6 +201,7 @@
 ## 🟢 Long terme / à planifier
 
 #38 WebP items/ressources (God game-data) · #190 Worldmap (routes farm, zaaps, mines, traversées de mer)
+  · **06/09/2026 — fix worldmap dézoom (EN COURS, `feat/refonte-onboarding`, non commité)** : tuiles/bandes noires + freeze dashboard (banque tuiles bornée, `keepBuffer 6→2`, fond océan, redraw unique rAF, highlight 4 Hz, icônes donjons mémorisées + nouvel asset `dungeon-boss.png`). Reste : validation runtime + PR → dev.
 · #175 écart Ganymède→Sylvestre · #172 musiques de fond + réglages son + interface God sons
 · #205 Guesser (dictionnaires API, modale fin d'épreuve responsive) · #234 audit scalabilité worldmap/guesser
 · #40 benchmark galerie stuff · #1610 sécurité/infra (à cadrer en réunion) · #186b SEO long terme

@@ -8,7 +8,7 @@ import 'leaflet/dist/leaflet.css';
 import { Plus, Minus, Copy, Flag, CornerUpRight, Rocket, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { mergeCellEdges } from '@/lib/map-utils';
-import { MAP_OCEAN_TONE, resolveTileBank, findNearestMap } from '@/lib/worldmap-tiles';
+import { resolveTileBank, findNearestMap, MAP_OCEAN_TONE } from '@/lib/worldmap-tiles';
 import { HarvestRouteOverlay } from './harvest-route-overlay';
 
 // -------------------------------------------------------------------------------------
@@ -72,17 +72,23 @@ function SigilTilesLayer({ activeWorld, selectedWorldId }: any) {
 
         const customTileLayer = L.TileLayer.extend({
             getTileUrl: function (coords: any) {
-                // Arrondi + garde : le zoomSnap fractionnaire (0.1) produisait des
-                // index non-entiers → banque undefined → tuiles en erreur = carrés noirs.
+                // Lib testée (worldmap-tiles.ts) : arrondit le zoom et borne sur
+                // une échelle connue — jamais de banque undefined = jamais de
+                // tuiles transparentes (carrés noirs). Le snap décimal de la
+                // grille est appliqué plus bas (gridScale).
                 const { scale, bank } = resolveTileBank(activeWorld.zoom || [1], coords.z);
 
                 const tileSize = selectedWorldId === 1 ? 256 : 250;
-                const apiCols = selectedWorldId === 1 
-                    ? Math.round((activeWorld.totalWidth * scale) / tileSize)
-                    : Math.ceil((activeWorld.totalWidth * scale) / tileSize);
-                const apiRows = selectedWorldId === 1 
-                    ? Math.round((activeWorld.totalHeight * scale) / tileSize)
-                    : Math.ceil((activeWorld.totalHeight * scale) / tileSize);
+                // Grille TOUJOURS au ceil, sur échelle SNAPPÉE (4 décimales) : le
+                // générateur de tuiles émet la rangée/colonne partielle (ex: w1/0.2 =
+                // 8×7=56 tuiles, pas 8×6 — avec Math.round la dernière rangée était
+                // déclarée hors-limites → trou noir permanent au dézoom). Le snap est
+                // obligatoire car worlds.json stocke des floats bruités (0.8000000119…) :
+                // sans lui, 10240*0.8000000119/256 = 32.0000004… et ceil ajoute une
+                // colonne fantôme (404 → trou noir au bord droit).
+                const gridScale = parseFloat(scale.toFixed(4));
+                const apiCols = Math.ceil((activeWorld.totalWidth * gridScale) / tileSize);
+                const apiRows = Math.ceil((activeWorld.totalHeight * gridScale) / tileSize);
                 
                 if (coords.x < 0 || coords.x >= apiCols || coords.y < 0 || coords.y >= apiRows) {
                     return 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
@@ -108,12 +114,14 @@ function SigilTilesLayer({ activeWorld, selectedWorldId }: any) {
             noWrap: true,
             bounds: bounds,
             errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=',
-            // ──── PERF ────
-            // keepBuffer 2 (défaut Leaflet) : 6 préchargeait ~300 tuiles au zoom 0
-            // → file d'attente réseau saturée = bandes noires persistantes au pan.
-            updateWhenIdle: false,
-            updateWhenZooming: false,
-            updateInterval: 150,
+            // ──── PERF / ANTI-FLICKER (Chromium, Opera GX) ────
+            // updateWhenZooming:true → les tuiles suivent le zoom au lieu de laisser
+            // le fond noir pendant l'animation. keepBuffer:2 (défaut) au lieu de 6 :
+            // 6 anneaux = centaines d'images/GPU textures → le compositeur (surtout
+            // avec le limiteur RAM/VRAM d'Opera GX) droppe des textures = tuiles noires.
+            updateWhenIdle: true,
+            updateWhenZooming: true,
+            updateInterval: 200,
             keepBuffer: 2
         });
 
@@ -181,17 +189,19 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
         const forceCellFallback = world?.id === 38;
 
         const size = map.getSize();
-        const dpr = window.devicePixelRatio || 1;
-        // Ne réalloue le backing store que si la taille a changé (avant : à chaque
-        // frame de zoom/pan → jank + famine du compositor = navbar qui clignote).
-        const targetW = Math.round(size.x * dpr);
-        const targetH = Math.round(size.y * dpr);
+        // DPR plafonné à 2 : en 4K (dpr 2-3) le canvas plein écran réalloué à chaque
+        // frame sature l'upload GPU → saccades + clignotement global (navbar incluse
+        // sur Opera GX). On ne réalloue QUE si la taille a réellement changé :
+        // assigner canvas.width/height vide le canvas et recrée la texture GPU.
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const targetW = Math.max(1, Math.round(size.x * dpr));
+        const targetH = Math.max(1, Math.round(size.y * dpr));
         if (canvas.width !== targetW || canvas.height !== targetH) {
             canvas.width = targetW;
             canvas.height = targetH;
-            canvas.style.width = size.x + 'px';
-            canvas.style.height = size.y + 'px';
         }
+        canvas.style.width = size.x + 'px';
+        canvas.style.height = size.y + 'px';
 
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
@@ -585,18 +595,33 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
 
 
 
-    // Redraw unique rAF-throttlé (un seul listener : avant, deux useMapEvents
-    // redessinaient le canvas 2× par event move/zoom).
+    // Redessine sur les mouvements de carte — UN SEUL handler rAF-throttled.
+    // (Avant : deux useMapEvents move/zoom en parallèle, dont un synchrone →
+    // 2-3 drawGrid par frame pendant pan/zoom + réallocation canvas à chaque fois,
+    // ce qui affamait le compositeur et faisait clignoter toute la page sur Opera GX.)
+    const scheduleDraw = useCallback(() => {
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        rafRef.current = requestAnimationFrame(() => {
+            rafRef.current = 0;
+            drawGrid();
+        });
+    }, [drawGrid]);
+
+    // Annule le rAF pendant à la sortie (anti-fuite + anti-dessin sur canvas détaché)
+    useEffect(() => {
+        return () => {
+            if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        };
+    }, []);
+
+    useEffect(() => {
+        drawGrid();
+    }, [showDebugGrid, drawGrid, selectedPosition, guessResult, participants, currentUserId]);
+
     useMapEvents({
-        move: () => {
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
-            rafRef.current = requestAnimationFrame(drawGrid);
-        },
-        zoom: () => {
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
-            rafRef.current = requestAnimationFrame(drawGrid);
-        },
-        resize: () => drawGrid(),
+        move: scheduleDraw,
+        zoom: scheduleDraw,
+        resize: scheduleDraw,
         moveend: () => drawGrid(),
         zoomend: () => drawGrid(),
     });
@@ -1159,15 +1184,19 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 </div>
             )}
             <style>{`
-                /* ── Fond d'attente teinte océan (plus de bandes noires) ──
-                   Les tuiles en cours de chargement/erreur héritent de cette
-                   teinte au lieu du noir (#080b12). */
+                /* ── Tuiles : taille exacte du monde, sans surcouche GPU ──
+                   Pas de will-change / backface-visibility ici : sur Chromium
+                   (et Opera GX en particulier) ces propriétés forcent chaque tuile et
+                   tout le conteneur sur des layers GPU dédiés. La carte complète
+                   (~10k x 8k px) dépasse les budgets textures → tuiles qui disparaissent
+                   (flash noir) et navbar qui clignote pendant le compositing.
+                   Fond uni teinte océan (merge dézoom + Opera GX) : simple
+                   background-color, zéro coût GPU, les tuiles en chargement/erreur
+                   héritent de la teinte au lieu du noir. */
                 .leaflet-tile {
                     width: ${tileSize}px !important;
                     height: ${tileSize}px !important;
                     background: ${MAP_OCEAN_TONE};
-                    -webkit-backface-visibility: hidden;
-                    backface-visibility: hidden;
                     image-rendering: auto;
                     /* Supprime les bordures noires/vides entre les images */
                     outline: none !important;
@@ -1227,8 +1256,14 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 minZoom={isMiniMap ? -6 : Math.max(selectedWorldId !== 1 ? -3 : -4, -(correctedActiveWorld.zoom?.length || 1) - 1)}
                 maxZoom={3}
                 maxBoundsViscosity={1.0}
-                zoomSnap={0.1}
+                // Zoom discret (1) : les tuiles n'existent qu'aux échelles natives
+                // (1, 0.8, 0.6…). Un zoomSnap fractionnaire (0.1) force un scaling CSS
+                // continu des tuiles via le GPU → flou + clignotement sur Chromium/Opera GX.
+                zoomSnap={1}
                 zoomDelta={1}
+                zoomAnimation={true}
+                fadeAnimation={true}
+                markerZoomAnimation={true}
                 preferCanvas={true}
                 dragging={interactive}
                 touchZoom={interactive}

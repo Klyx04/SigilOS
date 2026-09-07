@@ -899,6 +899,116 @@ export async function getOwnQuests(apiKey: string): Promise<UserQuest[]> {
     return result;
 }
 
+const OwnQuestMonstersSchema = z.object({
+    slug: z.string(),
+    monsters: z.array(QuestMonsterSchema),
+    pagination: PaginationSchema,
+});
+export type OwnQuestMonsters = z.infer<typeof OwnQuestMonstersSchema>;
+
+/**
+ * GET /v1/quests/{slug}/monsters — monstres de SA quête (privée incluse).
+ * NOTE : on ne transmet ni `status` ni filtres métier — seuls limit/offset
+ * sont prouvés sur cet endpoint (sondés le 07/09/2026).
+ */
+export async function getOwnQuestMonsters(
+    apiKey: string,
+    slug: string,
+    options?: { limit?: number; offset?: number } & FetchOptions
+): Promise<OwnQuestMonsters> {
+    const params = new URLSearchParams();
+    if (options?.limit) params.set("limit", options.limit.toString());
+    if (options?.offset) params.set("offset", options.offset.toString());
+    const qs = params.toString() ? `?${params}` : "";
+    return fetchApi(`/v1/quests/${encodeURIComponent(slug)}/monsters${qs}`, OwnQuestMonstersSchema, {
+        guildApiKey: apiKey,
+        revalidate: 0,
+        tags: [`metamob-own-monsters-${slug}`],
+    });
+}
+
+/**
+ * Détecte une quête Ocre parmi une liste (slug OU modèle).
+ * Le slug seul ne suffit pas : Metamob slugifie le NOM PERSONNALISÉ
+ * (ex. « Draconiros ») — d'où le repli sur le template (ids 1/2 ou >200 monstres,
+ * même règle que verifyMetamobUser). Pur → testé unitairement.
+ */
+export function matchesOcreQuest(q: {
+    slug?: string | null;
+    quest_template?: { id?: number; monster_count?: number } | null;
+}): boolean {
+    const slug = (q.slug || "").toLowerCase();
+    if (slug.includes("ocre") || slug.includes("eternelle-moisson")) return true;
+    if (q.quest_template?.id === 1 || q.quest_template?.id === 2) return true;
+    if ((q.quest_template?.monster_count ?? 0) > 200) return true;
+    return false;
+}
+
+/**
+ * Liste SES quêtes (privées incluses) via la clé du propriétaire,
+ * repli public si la route privée échoue. Même contrat que getUserQuests.
+ */
+export async function listSelfQuests(
+    pseudo: string,
+    apiKey?: string | null,
+    options?: FetchOptions
+): Promise<UserQuest[]> {
+    if (apiKey) {
+        try {
+            return await getOwnQuests(apiKey);
+        } catch {
+            // Repli : liste publique (quête publique ou API partiellement joignable).
+        }
+    }
+    return getUserQuests(pseudo, { ...options, guildApiKey: apiKey ?? undefined });
+}
+
+/**
+ * Détails de SA quête : chemin historique (public) d'abord — rapide, éprouvé —
+ * puis repli privé (liste own + monstres own) si 404.
+ * Reconstruit un QuestDetails standard (mêmes consommateurs en aval).
+ */
+export async function getSelfQuestDetails(
+    pseudo: string,
+    slug: string,
+    apiKey?: string | null,
+    options?: { limit?: number } & FetchOptions
+): Promise<QuestDetails> {
+    try {
+        return await getQuestDetails(pseudo, slug, { ...options, guildApiKey: apiKey ?? undefined });
+    } catch (e) {
+        if (!(e instanceof MetamobApiError) || e.code !== "NOT_FOUND") throw e;
+    }
+
+    // Repli privé : retrouver la quête (slug exact, sinon heuristique Ocre),
+    // puis paginer ses monstres via la route privée.
+    if (!apiKey) throw new MetamobApiError("NOT_FOUND", "Ressource introuvable");
+    const own = await getOwnQuests(apiKey);
+    const quest = own.find((q) => q.slug === slug) ?? own.find(matchesOcreQuest) ?? own[0];
+    if (!quest) throw new MetamobApiError("NOT_FOUND", "Ressource introuvable");
+
+    const limit = options?.limit ?? 200;
+    const first = await getOwnQuestMonsters(apiKey, quest.slug, { limit });
+    let monsters = [...first.monsters];
+    const total = first.pagination.total;
+    while (monsters.length < total) {
+        const page = await getOwnQuestMonsters(apiKey, quest.slug, { limit, offset: monsters.length });
+        if (page.monsters.length === 0) break;
+        monsters = [...monsters, ...page.monsters];
+    }
+
+    return {
+        slug: quest.slug,
+        character_name: quest.character_name,
+        current_step: quest.current_step,
+        parallel_quests: quest.parallel_quests,
+        server: quest.server,
+        quest_template: quest.quest_template,
+        monsters,
+        pagination: { total, limit, offset: 0 },
+    };
+}
+
 /** GET /v1/quest-types — Ocre / Dokille… (sélecteurs, garde anti-mix). */
 export async function getQuestTypes(options?: FetchOptions): Promise<{ id: number; slug: string; name: LocalizedName; image?: string }[]> {
     const QuestTypeSchema = z.object({

@@ -17,7 +17,6 @@ import { withCache, invalidateCache } from "@/lib/cache";
 import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
 import {
     getUserProfile,
-    getUserQuests,
     getQuestDetails,
     getQuestTemplates,
     getQuestTemplateMonsters,
@@ -27,6 +26,9 @@ import {
     getZones,
     getMetamobMe,
     getOwnQuests,
+    listSelfQuests,
+    getSelfQuestDetails,
+    matchesOcreQuest,
     getConversations,
     getConversationDetails,
     getMonster,
@@ -569,41 +571,21 @@ export async function getMyOcreProgress(
                 let questSlug = profile.metamobQuestSlug;
 
                 if (!questSlug) {
-                    const quests = await getUserQuests(profile.metamobPseudo!, { guildApiKey: effectiveApiKey });
-                    // Use slug for discovery since name is not in UserQuestSchema
-                    const ocreQuest = quests.find(q => q.slug.includes("ocre") || q.slug.includes("eternelle-moisson"));
+                    const quests = await listSelfQuests(profile.metamobPseudo!, effectiveApiKey);
+                    // Slug d'abord, sinon modèle (le slug = nom personnalisé, ex. « Draconiros »).
+                    const ocreQuest = quests.find(matchesOcreQuest);
                     if (!ocreQuest) return { success: false, error: "NO_VISIBLE_QUEST" };
                     questSlug = ocreQuest.slug;
                     await db.userProfile.update({ where: { id: profile.id }, data: { metamobQuestSlug: questSlug } });
                 }
 
-                // API calls
-                let firstPage;
-                try {
-                    firstPage = await getQuestDetails(profile.metamobPseudo!, questSlug, { guildApiKey: effectiveApiKey });
-                } catch (e: any) {
-                    if (e instanceof MetamobApiError && e.code === "NOT_FOUND") {
-                        logger.warn(`[getMyOcreProgress] Quest slug ${questSlug} not found. Re-fetching quest list...`);
-                        const quests = await getUserQuests(profile.metamobPseudo!, { guildApiKey: effectiveApiKey });
-                        const ocreQuest = quests.find(q => q.slug.includes("ocre") || q.slug.includes("eternelle-moisson"));
-                        if (!ocreQuest) return { success: false, error: "NO_VISIBLE_QUEST" };
-                        
-                        questSlug = ocreQuest.slug;
-                        await db.userProfile.update({ where: { id: profile.id }, data: { metamobQuestSlug: questSlug } });
-                        // Retry with new slug
-                        firstPage = await getQuestDetails(profile.metamobPseudo!, questSlug, { guildApiKey: effectiveApiKey });
-                    } else {
-                        throw e;
-                    }
+                // API calls — résolveur self : public d'abord, repli privé (paginé) si 404.
+                const firstPage = await getSelfQuestDetails(profile.metamobPseudo!, questSlug, effectiveApiKey);
+                if (firstPage.slug !== questSlug) {
+                    questSlug = firstPage.slug;
+                    await db.userProfile.update({ where: { id: profile.id }, data: { metamobQuestSlug: questSlug } });
                 }
-
                 const userQuestData = [...firstPage.monsters];
-                let uOffset = userQuestData.length;
-                while (uOffset < (firstPage.pagination?.total || 0)) {
-                    const more = await getQuestDetails(profile.metamobPseudo!, questSlug, { guildApiKey: effectiveApiKey, offset: uOffset });
-                    userQuestData.push(...more.monsters);
-                    uOffset += more.monsters.length;
-                }
 
                 const templateId = firstPage.quest_template.id;
                 let skeletonMonsters: QuestMonster[] = [];
@@ -1418,12 +1400,13 @@ export async function refreshOcreCache(
 
         // Auto-detect if quest has changed on Metamob
         try {
-            // Fetch user's current quests from Metamob
-            const userQuests = await getUserQuests(profile.metamobPseudo, { guildApiKey });
+            // Fetch user's current quests from Metamob (privées incluses via sa clé)
+            const userQuests = await listSelfQuests(profile.metamobPseudo, guildApiKey);
 
             if (userQuests.length > 0) {
                 // Get the most recent active quest (first one with most progress)
-                const activeQuest = userQuests[0];
+                // Préfère une vraie quête Ocre, sinon garde l'ancienne logique ([0]).
+                const activeQuest = userQuests.find(matchesOcreQuest) ?? userQuests[0];
 
                 // Check if it's different from what we have stored
                 if (activeQuest.slug !== profile.metamobQuestSlug) {
@@ -1549,12 +1532,13 @@ export async function forceRefreshOcre(
                 });
             } catch (e) {
                 // console.warn("[forceRefreshOcre] Current quest failed, attempting rediscovery...");
-                const quests = await getUserQuests(profile.metamobPseudo, { guildApiKey: effectiveKey, skipCache: true });
-                if (quests.length > 0 && quests[0].slug !== profile.metamobQuestSlug) {
+                const quests = await listSelfQuests(profile.metamobPseudo, effectiveKey, { skipCache: true });
+                const best = quests.find(matchesOcreQuest) ?? quests[0];
+                if (best && best.slug !== profile.metamobQuestSlug) {
                     await db.userProfile.update({
                         where: { id: profile.id },
                         data: {
-                            metamobQuestSlug: quests[0].slug,
+                            metamobQuestSlug: best.slug,
                             metamobLastSync: new Date()
                         }
                     });
@@ -1607,11 +1591,8 @@ export async function getAvailableOcreQuests(guildId: string, targetUserId?: str
 
         const effectiveKey = profile.metamobApiKey || undefined;
 
-        // Always skip cache to get latest list
-        const quests = await getUserQuests(profile.metamobPseudo, {
-            guildApiKey: effectiveKey,
-            skipCache: true
-        });
+        // Always skip cache to get latest list (privées incluses via sa clé)
+        const quests = await listSelfQuests(profile.metamobPseudo, effectiveKey, { skipCache: true });
 
         return { success: true, data: quests };
     } catch (error) {
@@ -1645,11 +1626,8 @@ export async function switchOcreQuest(guildId: string, questSlug: string, target
 
         const effectiveKey = member.metamobApiKey || undefined;
 
-        // Verify the quest exists and belongs to user
-        const quests = await getUserQuests(member.metamobPseudo, {
-            guildApiKey: effectiveKey,
-            skipCache: true
-        });
+        // Verify the quest exists and belongs to user (privées incluses via sa clé)
+        const quests = await listSelfQuests(member.metamobPseudo, effectiveKey, { skipCache: true });
 
         const targetQuest = quests.find(q => q.slug === questSlug);
         if (!targetQuest) return { success: false, error: "Quête introuvable ou vous n'y avez pas accès" };

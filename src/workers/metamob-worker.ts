@@ -2,7 +2,7 @@ import "dotenv/config";
 import { Worker, Job } from "bullmq";
 import { METAMOB_QUEUE_NAME, defaultQueueOptions } from "../lib/queue/metamob-queue";
 import { db } from "../lib/prisma";
-import { getQuestDetails, normalizeQuestMonster, MetamobApiError, type QuestMonster } from "../lib/metamob-client";
+import { getQuestDetails, normalizeQuestMonster, MetamobApiError, getSelfQuestDetails, type QuestMonster } from "../lib/metamob-client";
 import { decrypt } from "../lib/encryption";
 import { logger } from "../lib/logger";
 import { sendGlobalStatusPingCore } from "../server/status-ping-core";
@@ -55,13 +55,15 @@ async function processExchangeJob(job: Job<ExchangeJobData>) {
 
     await job.updateProgress(20);
 
-    // 2. Fetch current user's quest to know their precise needs
+    // 2. Fetch current user's quest to know their precise needs.
+    // Résolveur partagé : public d'abord, repli privé (paginé en interne) si 404.
     let currentUserQuest;
     try {
-        currentUserQuest = await getQuestDetails(
+        currentUserQuest = await getSelfQuestDetails(
             currentUserProfile.metamobPseudo!,
             currentUserProfile.metamobQuestSlug,
-            { guildApiKey: effectiveApiKey, status: "all", limit: 200 }
+            effectiveApiKey,
+            { limit: 200 }
         );
     } catch (err) {
         // Quête privée/invisible sans clé valide, ou slug périmé : message
@@ -83,19 +85,6 @@ async function processExchangeJob(job: Job<ExchangeJobData>) {
     };
 
     processUserMonsters(currentUserQuest.monsters);
-
-    if (currentUserQuest.pagination.total > 200) {
-        let offset = 200;
-        while (offset < currentUserQuest.pagination.total) {
-            const page = await getQuestDetails(
-                currentUserProfile.metamobPseudo!,
-                currentUserProfile.metamobQuestSlug,
-                { guildApiKey: effectiveApiKey, status: "all", limit: 200, offset }
-            );
-            processUserMonsters(page.monsters);
-            offset += 200;
-        }
-    }
 
     await job.updateProgress(40);
 

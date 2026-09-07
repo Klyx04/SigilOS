@@ -303,7 +303,9 @@ export async function updatePlatformConfig(data: {
     // Chantier #72 — toggle God « Membres Spécifiques » (permissions RBAC individuelles)
     rbacUsersMappingEnabled?: boolean,
     // Chantier #16 — toggle God « Forcer le mode sombre » (kill-switch fail-closed)
-    forceDarkMode?: boolean
+    forceDarkMode?: boolean,
+    // Refonte onboarding — kill-switch God « Auto-onboarding » (nouvelles guildes)
+    autoOnboardingEnabled?: boolean
 }) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: 'Unauthorized' };
@@ -328,6 +330,11 @@ export async function updatePlatformConfig(data: {
     // Chantier #16 — le kill-switch « Forcer le mode sombre » est un booléen strict (fail-closed).
     if (data.forceDarkMode !== undefined && typeof data.forceDarkMode !== "boolean") {
         return { success: false, error: "Valeur invalide pour forceDarkMode (booléen requis)" };
+    }
+
+    // Refonte onboarding — le kill-switch « Auto-onboarding » est un booléen strict (fail-closed).
+    if (data.autoOnboardingEnabled !== undefined && typeof data.autoOnboardingEnabled !== "boolean") {
+        return { success: false, error: "Valeur invalide pour autoOnboardingEnabled (booléen requis)" };
     }
 
     try {
@@ -371,6 +378,10 @@ export async function updatePlatformConfig(data: {
                     forceDarkMode: data.forceDarkMode,
                     forceDarkModeUpdatedAt: new Date(),
                     forceDarkModeUpdatedBy: actorId,
+                }),
+                // Refonte onboarding — kill-switch « Auto-onboarding » (nouvelles guildes)
+                ...(data.autoOnboardingEnabled !== undefined && {
+                    autoOnboardingEnabled: data.autoOnboardingEnabled,
                 })
             },
             create: { 
@@ -392,7 +403,8 @@ export async function updatePlatformConfig(data: {
                 ladderManualFallback: data.ladderManualFallback ?? false,
                 dofusQuestHeaderIcon: data.dofusQuestHeaderIcon ?? "serie-de-quete",
                 rbacUsersMappingEnabled: data.rbacUsersMappingEnabled ?? true,
-                forceDarkMode: data.forceDarkMode ?? false
+                forceDarkMode: data.forceDarkMode ?? false,
+                autoOnboardingEnabled: data.autoOnboardingEnabled ?? true
             }
         });
 

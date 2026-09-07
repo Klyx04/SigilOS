@@ -54,6 +54,7 @@ vi.mock("@/server/discord", () => ({
     fetchGuildRoles: vi.fn().mockResolvedValue([]),
     fetchGuild: vi.fn().mockResolvedValue(null),
     fetchGuildMember: vi.fn().mockResolvedValue(null),
+    fetchGuildExists: vi.fn().mockResolvedValue(true),
     invalidateDiscordCache: vi.fn(),
 }));
 vi.mock("@/server/actions/super-admin-actions", () => ({
@@ -86,6 +87,7 @@ import {
     fetchGuildMember,
     fetchGuild,
     fetchGuildRoles,
+    fetchGuildExists,
     invalidateDiscordCache,
 } from "@/server/discord";
 import { redis } from "@/lib/redis";
@@ -101,6 +103,7 @@ const mockDb = db as any;
 const mockFetchMember = fetchGuildMember as ReturnType<typeof vi.fn>;
 const mockFetchGuild = fetchGuild as ReturnType<typeof vi.fn>;
 const mockFetchRoles = fetchGuildRoles as ReturnType<typeof vi.fn>;
+const mockFetchGuildExists = fetchGuildExists as ReturnType<typeof vi.fn>;
 const mockIsSuperAdmin = isSuperAdmin as ReturnType<typeof vi.fn>;
 const mockIsGuildAllowed = isGuildAllowed as ReturnType<typeof vi.fn>;
 
@@ -346,8 +349,7 @@ describe("getUserContext — user absent de la guilde Discord", () => {
         expect(ctx.isAuthenticated).toBe(true);
     });
 
-    it("retourne canViewDashboard: false si l'user n'a pas le rôle DASHBOARD_LOGIN", async () => {
-        // Membre Discord avec un rôle qui n'a PAS DASHBOARD_LOGIN
+    it("retourne canViewDashboard: false si l'user n'a pas le rôle DASHBOARD_LOGIN", async () => {        // Membre Discord avec un rôle qui n'a PAS DASHBOARD_LOGIN
         mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-sans-perms"] }));
         mockFetchRoles.mockResolvedValue([
             { id: "role-sans-perms", permissions: "0", name: "Visiteur" },
@@ -364,6 +366,61 @@ describe("getUserContext — user absent de la guilde Discord", () => {
         const ctx = await getUserContext("111111111111111111");
 
         expect(ctx.canViewDashboard).toBe(false);
+    });
+});
+
+// ─────────────────────────────────────────────────────────────
+// BLOC 4bis — getUserContext : serveur Discord supprimé (vérification fraîche)
+// ─────────────────────────────────────────────────────────────
+
+describe("getUserContext — serveur Discord supprimé", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.advanceTimersByTime(120_000);
+        mockIsGuildAllowed.mockResolvedValue(true);
+        mockIsSuperAdmin.mockResolvedValue(false);
+        mockDb.guildConfig.findFirst.mockResolvedValue(makeGuildConfig());
+        mockDb.platformBan.findUnique.mockResolvedValue(null);
+        mockDb.userProfile.findUnique.mockResolvedValue(makeProfile());
+        mockFetchRoles.mockResolvedValue([]);
+        mockAuth.mockResolvedValue({
+            user: { id: "user-1", discordId: "discord-user-1", name: "Test" },
+        });
+    });
+
+    it("retourne isServerDeleted quand membre et guilde sont introuvables (404 frais)", async () => {
+        mockFetchMember.mockResolvedValue(null);
+        mockFetchGuild.mockResolvedValue(null);
+        mockFetchGuildExists.mockResolvedValue(false);
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect((ctx as any).isServerDeleted).toBe(true);
+        expect(ctx.isMember).toBe(false);
+        expect(mockFetchGuildExists).toHaveBeenCalledWith("111111111111111111");
+    });
+
+    it("retombe sur archivé (bloquant aussi) si Discord est injoignable — jamais de faux 'supprimé'", async () => {
+        mockFetchMember.mockResolvedValue(null);
+        mockFetchGuild.mockResolvedValue(null);
+        mockFetchGuildExists.mockRejectedValue(new Error("Discord 500"));
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect((ctx as any).isServerDeleted).toBeFalsy();
+        expect((ctx as any).isArchived).toBe(true);
+        expect(ctx.isMember).toBe(false);
+    });
+
+    it("ne conclut pas 'supprimé' quand la guilde existe encore (membre kické)", async () => {
+        mockFetchMember.mockResolvedValue(null);
+        mockFetchGuild.mockResolvedValue({ id: "111111111111111111", owner_id: "other-owner", roles: [] });
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect((ctx as any).isServerDeleted).toBeFalsy();
+        expect((ctx as any).isArchived).toBe(true);
+        expect(mockFetchGuildExists).not.toHaveBeenCalled();
     });
 });
 
@@ -659,7 +716,7 @@ describe("getUserContext — module Succès (#138)", () => {
         expect(ctx.canViewGuildSucces).toBe(false);
     });
 
-    it("laisse les succès à un admin même module OFF (bypass admin)", async () => {
+    it("verrouille les succès à un admin si module OFF (désactivé = invisible, God seul contourne)", async () => {
         mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-admin"] }));
         mockFetchRoles.mockResolvedValue([{ id: "role-admin", permissions: "8", name: "Discord Admin" }]);
         mockDb.guildConfig.findFirst.mockResolvedValue(
@@ -673,9 +730,25 @@ describe("getUserContext — module Succès (#138)", () => {
         const ctx = await getUserContext("111111111111111111");
 
         expect(ctx.isOnboardingComplete).toBe(true);
+        expect(ctx.canViewSucces).toBe(false);
+        expect(ctx.canEditOwnSucces).toBe(false);
+        expect(ctx.canViewGuildSucces).toBe(false);
+    });
+
+    it("God plateforme contourne les modules OFF (seule exception)", async () => {
+        mockIsSuperAdmin.mockResolvedValue(true);
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-admin"] }));
+        mockFetchRoles.mockResolvedValue([{ id: "role-admin", permissions: "8", name: "Discord Admin" }]);
+        mockDb.guildConfig.findFirst.mockResolvedValue(
+            makeGuildConfig({
+                rolesMapping: { "role-admin": [PERMISSIONS.DASHBOARD_LOGIN] },
+                modules: { ...makeGuildConfig().modules, succes: false },
+            })
+        );
+
+        const ctx = await getUserContext("111111111111111111");
+
         expect(ctx.canViewSucces).toBe(true);
-        expect(ctx.canEditOwnSucces).toBe(true);
-        expect(ctx.canViewGuildSucces).toBe(true);
     });
 });
 

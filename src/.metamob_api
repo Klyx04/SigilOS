@@ -1,3 +1,39 @@
+04/09/2026 - Changelog
+ 04/09 09:25 |  Garfunk
+Salut,
+
+grosse mise à jour de l'API. J'ai ajouté plusieurs endpoints qui m'avaient été réclamés, et modifiés d'autres. Il y aura sans doute quelques breaking changes à venir, mais je vous préviendrai et ferai en sorte de ne pas casser l'existant :)
+
+Endpoints ajoutés (4)
+GET /v1/me
+
+Cet endpoint permet de récupérer les informations de l'utilisateur auquel appartient la clé utilisée: pseudo, bio, avatar, date de dernière connexion. Ca vous évitera de devoir demander le pseudo de l'utilisateur en plus de sa clé !
+
+GET /v1/quests
+
+Cet endpoint permet de lister ses propres quêtes, publiques ou privées. Il expose le slug, la visibilité, le serveur, le type de quête, etc...
+
+GET /v1/quests/{slug}/monsters
+
+Pour récupérer la liste des monstres de ses propres quêtes... j'avais totalement zappé de l'exposer, et il fallait obligatoirement passer par /v1/users/{slug}/quests/{slug}/monsters (et donc avoir la quête publique) pour récupérer la liste, ou passer par /v1/quests/{slug}/zones ce qui n'avait aucun sens. C'est réparé, et cet endpoint utilise les paramètres habituels (nom, étape, statut, quantité, etc...).
+
+GET /v1/quest-types et /v1/quest-types/{id}
+
+Ces deux endpoints exposent les informations de base sur le nouveau paramètre quest_type. Il sert à indiquer quel est le type de quête: pour l'instant, soit Ocre soit Dokille.
+
+Endpoints modifiés (6)
+Ajout du bloc relatif à quest_type partout où on parle de quest_template (l'info est directement liée):
+
+GET /v1/users/{username}
+GET /v1/users/{username}/quests
+GET /v1/users/{username}/quests/{slug}
+GET /v1/quests/{slug}
+GET /v1/quest-templates et /v1/quest-templates/{id} => ces endpoints affichent le bloc quest_type
+Enfin, j'ai amélioré quelques endpoints pour les optimiser (par exemple GET /v1/quests/{slug}/zones sera plus efficient, ce qui est nécessaire vu qu'il n'est pas paginé).
+
+Comme toujours, l'aide est à jour. Merci !
+
+
 API Metamob
 L'API Metamob vous permet d'accéder à vos données de manière programmatique. Vous pouvez l'utiliser pour créer des outils personnalisés, des bots Discord, ou intégrer Metamob à d'autres applications.
 
@@ -7,6 +43,8 @@ Table des matières
 Créer une clé API
 Authentification
 Endpoints disponibles
+Mon compte
+GET /v1/me - Compte associé à la clé API
 Versions du jeu
 GET /v1/game-versions - Liste des versions
 GET /v1/game-versions/{id} - Détail d'une version
@@ -25,11 +63,13 @@ Messages
 GET /v1/conversations - Liste des conversations
 GET /v1/conversations/{username} - Messages d'une conversation
 Gestion des quêtes
+GET /v1/quests - Liste de ses propres quêtes
 GET /v1/quests/{slug} - Lire les réglages de sa propre quête
 PATCH /v1/quests/{slug} - Modifier les paramètres d'une quête
 PATCH /v1/quests/{slug}/monsters/{monsterId} - Modifier un monstre
 PATCH /v1/quests/{slug}/monsters - Modifier plusieurs monstres
 PATCH /v1/quests/{slug}/monsters/{monsterId}/trade - Paramètres de trade manuels
+GET /v1/quests/{slug}/monsters - Liste des monstres de sa propre quête
 GET /v1/quests/{slug}/matches - Partenaires d'échange potentiels
 GET /v1/quests/{slug}/zones - Progression par zones
 Monstres
@@ -38,6 +78,9 @@ GET /v1/monsters/{id} - Détail d'un monstre
 Types de monstres
 GET /v1/monster-types - Liste des types
 GET /v1/monster-types/{id} - Détail d'un type
+Types de quête
+GET /v1/quest-types - Liste des types
+GET /v1/quest-types/{id} - Détail d'un type
 Modèles de quête
 GET /v1/quest-templates - Liste des modèles
 GET /v1/quest-templates/{id} - Détail avec monstres
@@ -67,6 +110,32 @@ Format des dates
 Toutes les dates renvoyées par l'API sont au format ISO 8601 / RFC 3339 en UTC, avec le suffixe Z (ex. "2026-01-27T20:00:00Z"). Ce format est directement compris par la plupart des langages (new Date() en JavaScript, datetime.fromisoformat() en Python, etc.) et lève toute ambiguïté de fuseau horaire.
 
 Endpoints disponibles
+Mon compte
+Méthode	Endpoint	Description
+GET	/v1/me	Compte auquel appartient la clé API
+Une clé API est opaque : rien d'autre dans l'API n'indique à quel compte elle appartient. Cet endpoint répond à cette question, ce qui évite de demander son pseudonyme à l'utilisateur en plus de sa clé.
+
+Appelez-le au moment où l'utilisateur saisit sa clé, puis réutilisez le username renvoyé tel quel (la casse compte, il entre dans des URL) pour les endpoints /v1/users/{username}/..., notamment /v1/users/{username}/quests qui liste ses quêtes et leurs slugs.
+
+Exemple :
+
+GET /v1/me
+Réponse :
+
+{
+  "data": {
+    "username": "player1",
+    "bio": "Ma bio",
+    "avatar": {
+      "id": 123,
+      "name": { "fr": "Tofu", "en": "Tofu", "es": "Tofu" },
+      "image": "tofu.png"
+    },
+    "last_active": "2026-01-27T14:22:00Z"
+  }
+}
+Note : Contrairement à /v1/users/{username}, cet endpoint ne renvoie pas un profil public : il porte toujours sur le compte de la clé utilisée. Il ne renvoie que des informations de profil — ni adresse e-mail, ni réglages de compte.
+
 Versions du jeu
 Méthode	Endpoint	Description
 GET	/v1/game-versions	Liste toutes les versions du jeu
@@ -167,6 +236,8 @@ Réponse (détail) :
 Pseudonymes à null : les champs creator et username (participants, messages) peuvent valoir null. Deux causes possibles, indistinguables : un blocage mutuel avec le compte concerné, ou un compte supprimé définitivement. L'évènement reste visible dans les deux cas — c'est une ressource collective. Prévoyez donc un null partout où vous attendez un pseudonyme.
 
 Utilisateurs
+Type de quête. Partout où une quête est exposée, l'objet quest_template porte un sous-objet quest_type (id, slug, libellé traduit). Chaque type a sa propre liste d'archimonstres, sans recoupement avec les autres : un échange n'est possible qu'entre deux quêtes du même type, sur le même serveur. N'appariez donc jamais deux quêtes sur le seul critère du serveur. La liste des types existants est donnée par /v1/quest-types.
+
 Méthode	Endpoint	Description
 GET	/v1/users/search	Rechercher des utilisateurs
 GET	/v1/users/{username}	Profil public d'un utilisateur
@@ -234,6 +305,11 @@ Réponse :
         },
         "quest_template": {
           "id": 1,
+          "quest_type": {
+            "id": 1,
+            "slug": "ocre",
+            "name": { "fr": "Ocre", "en": "Ochre", "es": "Ocre" }
+          },
           "monster_count": 337,
           "step_count": 18
         }
@@ -263,6 +339,11 @@ Réponse :
       },
       "quest_template": {
         "id": 1,
+        "quest_type": {
+          "id": 1,
+          "slug": "ocre",
+          "name": { "fr": "Ocre", "en": "Ochre", "es": "Ocre" }
+        },
         "monster_count": 337,
         "step_count": 18
       }
@@ -298,6 +379,11 @@ Réponse :
     },
     "quest_template": {
       "id": 1,
+      "quest_type": {
+        "id": 1,
+        "slug": "ocre",
+        "name": { "fr": "Ocre", "en": "Ochre", "es": "Ocre" }
+      },
       "monster_count": 337,
       "step_count": 18
     },
@@ -325,9 +411,7 @@ Réponse :
     }
   }
 }
-Note : quantity indique la quantité possédée par l'utilisateur pour ce monstre. want et offer reflètent ce que la quête recherche et propose réellement à l'échange — ils tiennent compte du mode SMART, des seuils, des surcharges manuelles et des filtres par type de monstre (ils peuvent donc être à 0 même si quantity est élevé). Il n'existe pas de champ owned/status calculé sur cet endpoint.
-
-Attention — nommage variable de la « quantité possédée » selon l'endpoint. Le même concept ne porte pas toujours le même nom : quantity ici, mais owned dans les réponses de PATCH /v1/quests/{slug}/monsters/{id} et dans GET /v1/quests/{slug}/zones. De même, status est une chaîne enum (validated / completed / incomplete) dans GET /v1/quests/{slug}/zones, alors que c'est un entier (owned − parallel_quests) dans les réponses de modification de monstre. Fiez-vous au nom de champ documenté pour chaque endpoint.
+Note : want et offer indiquent ce que la quête recherche et propose réellement à l'échange. Ils tiennent compte des réglages d'échange du joueur, et peuvent donc valoir 0 même s'il possède le monstre en plusieurs exemplaires.
 
 Messages
 Liste des conversations
@@ -376,7 +460,7 @@ before_id (optionnel) : curseur = id du plus ancien item déjà récupéré (val
 Types d'items :
 
 kind: "message" — un message texte. sender est le pseudo de l'expéditeur.
-kind: "proposal" — une proposition de trade. sender et recipient sont des pseudos. status vaut pending, half_applied, completed ou cancelled (dérivé de l'état courant). server_id et quest_type (objet {id, slug} du type de quête, ex. ocre, dokille ; null si la quête concernée a été supprimée) identifient le contexte de l'échange. applications liste qui a validé son côté (chaque entrée porte le username). Les monstres (monsters_given / monsters_received) sont volontairement légers (monster_id + quantity) : les détails d'un monstre s'obtiennent via GET /v1/monsters/{id}.
+kind: "proposal" — une proposition de trade. sender et recipient sont des pseudos. status vaut pending, half_applied, completed ou cancelled (dérivé de l'état courant). server_id et quest_type (objet {id, slug} du type de quête ; null si la quête concernée a été supprimée) identifient le contexte de l'échange. applications liste qui a validé son côté (chaque entrée porte le username). Les monstres (monsters_given / monsters_received) sont volontairement légers (monster_id + quantity) : les détails d'un monstre s'obtiennent via GET /v1/monsters/{id}.
 Réponse :
 
 {
@@ -421,19 +505,63 @@ Gestion des quêtes
 Ces endpoints permettent de lire et de modifier vos propres quêtes.
 
 Méthode	Endpoint	Description
+GET	/v1/quests	Lister ses propres quêtes
 GET	/v1/quests/{slug}	Lire les réglages de sa propre quête
 PATCH	v1/quests/{slug}	Modifier les paramètres d'une quête
 PATCH	v1/quests/{slug}/monsters/{monsterId}	Modifier la quantité d'un monstre
 PATCH	v1/quests/{slug}/monsters	Modifier plusieurs monstres en une requête
 PATCH	v1/quests/{slug}/monsters/{monsterId}/trade	Paramètres de trade manuels
+GET	/v1/quests/{slug}/monsters	Lister les monstres de sa propre quête
 GET	/v1/quests/{slug}/matches	Trouver des partenaires d'échange
 GET	/v1/quests/{slug}/zones	Progression par zones
-Note : Ces endpoints ne fonctionnent que pour vos propres quêtes. Le slug de la quête est visible dans l'URL de votre page de quête ou via l'endpoint /v1/users/{username}/quests.
+Note : Ces endpoints ne fonctionnent que pour vos propres quêtes. Pour obtenir les slugs, appelez /v1/quests : c'est le seul endpoint qui liste toutes vos quêtes, y compris celles que vous avez masquées. (Le slug est aussi visible dans l'URL de votre page de quête ; l'endpoint public /v1/users/{username}/quests n'expose, lui, que les quêtes visibles.)
+
+Liste de ses quêtes
+Retourne toutes vos quêtes — c'est le point d'entrée d'une application tierce : tous les autres endpoints de cette section réclament un slug, et c'est ici qu'on les obtient.
+
+Contrairement à l'endpoint public /v1/users/{username}/quests, la liste n'est pas filtrée sur la visibilité : vos quêtes masquées y figurent aussi. Sans cela, le slug d'une quête masquée n'existerait nulle part ailleurs que dans l'URL de votre page de quête.
+
+Volontairement concise : ni monstres, ni réglages d'échange (trade_mode, seuils, type_filters) — c'est une liste dans laquelle choisir un slug, le détail est servi par /v1/quests/{slug}. Le nombre de quêtes par compte étant plafonné, il n'y a pas de pagination.
+
+Exemple :
+
+GET /v1/quests
+Réponse :
+
+{
+  "data": [
+    {
+      "slug": "a1b2c3d4",
+      "character_name": "Mon perso",
+      "current_step": 15,
+      "parallel_quests": 3,
+      "show_trades": true,
+      "is_favorite": true,
+      "server": {
+        "id": 1,
+        "name": "Draconiros",
+        "community": "France",
+        "game_version": { "id": 1, "name": "Dofus (Unity)" }
+      },
+      "quest_template": {
+        "id": 1,
+        "quest_type": {
+          "id": 1,
+          "slug": "ocre",
+          "name": { "fr": "Ocre", "en": "Ochre", "es": "Ocre" }
+        },
+        "monster_count": 337,
+        "step_count": 18
+      }
+    }
+  ]
+}
+Note : Les quêtes favorites sont renvoyées en premier, puis les autres par ordre de création. Le champ show_trades correspond au réglage « Afficher sur mon profil public » : à false, la quête reste accessible via vos endpoints privés, mais les autres joueurs ne la voient pas.
 
 Lire les réglages d'une quête
 Retourne les réglages complets de l'une de vos quêtes, y compris les champs de configuration de trade que les endpoints publics (/v1/users/{username}/quests et .../quests/{slug}) n'exposent pas — trade_mode, seuils, type_filters, show_trades, is_favorite. C'est le pendant en lecture du PATCH sur la même URL.
 
-Note : Réservé à vos propres quêtes. Le slug d'un autre utilisateur renvoie 404 (les réglages de trade ne sont jamais exposés pour la quête d'autrui). La liste des monstres n'est pas incluse : récupérez-la via le détail de quête public ou /v1/quests/{slug}/zones.
+Note : Réservé à vos propres quêtes. Le slug d'un autre utilisateur renvoie 404 (les réglages de trade ne sont jamais exposés pour la quête d'autrui). La liste des monstres n'est pas incluse : récupérez-la via /v1/quests/{slug}/monsters.
 
 Exemple :
 
@@ -464,6 +592,11 @@ Réponse :
     },
     "quest_template": {
       "id": 1,
+      "quest_type": {
+        "id": 1,
+        "slug": "ocre",
+        "name": { "fr": "Ocre", "en": "Ochre", "es": "Ocre" }
+      },
       "monster_count": 337,
       "step_count": 18
     }
@@ -479,7 +612,7 @@ Champs modifiables :
 character_name (string) : Nom du personnage (max 200 caractères)
 parallel_quests (int) : Nombre de quêtes en parallèle (à partir de 1 ; le maximum est défini par la configuration du site)
 current_step (int) : Étape courante (1-34)
-show_trades (bool) : Visibilité de la quête dans la communauté
+show_trades (bool) : Réglage « Afficher sur mon profil public » — les autres joueurs voient la quête sur votre profil et peuvent vous proposer des échanges dessus
 trade_mode (int) : Mode de trading (0 = Automatique, 1 = Mode expert)
 trade_offer_threshold (int|null) : Seuil minimal pour proposer en mode expert (0-30)
 trade_want_threshold (int|null) : Seuil maximal pour rechercher en mode expert (0-30)
@@ -556,7 +689,7 @@ Réponse :
     "effective_want": 0
   }
 }
-Note : effective_offer et effective_want sont les quantités réellement proposées / recherchées à l'échange après application du mode de trading, des seuils et des surcharges manuelles. Elles peuvent différer de status (qui n'est que owned − parallel_quests).
+Note : effective_offer et effective_want sont les quantités réellement proposées / recherchées à l'échange après application du mode de trading, des seuils et des surcharges manuelles. Elles peuvent différer de status, qui ne mesure que votre progression personnelle (l'écart entre la quantité possédée et le nombre de quêtes menées en parallèle).
 
 Modifier plusieurs monstres
 Requête :
@@ -613,6 +746,74 @@ Réponse :
 Note : effective_offer et effective_want reflètent les quantités réellement proposées / recherchées après recalcul (elles tiennent compte de la surcharge que vous venez de poser, des seuils et des filtres par type).
 
 Cas d'usage : Vous possédez 5 exemplaires et faites 2 quêtes parallèles. Par défaut, 3 sont marqués proposés (status = 5 - 2 = 3). En définissant trade_offer: 1, seul 1 exemplaire sera visible sur votre profil et disponible aux échanges.
+
+Liste des monstres d'une quête
+Retourne les monstres de votre propre quête, sous forme de liste à plat, avec filtres et pagination.
+
+C'est le pendant privé de GET /v1/users/{username}/quests/{slug} : même format de monstre et mêmes filtres, mais l'accès repose sur votre clé API et non sur la visibilité de la quête. Il fonctionne donc aussi lorsque la quête est masquée (show_trades à false), cas où l'endpoint public renvoie 404.
+
+Note : Réservé à vos propres quêtes — le slug d'un autre utilisateur renvoie 404.
+
+Paramètres de requête :
+
+monster_type (optionnel) : Filtrer par ID de type de monstre
+status (optionnel) : Voir les deux groupes ci-dessous
+trade (optionnel) : manual (surcharge d'échange posée) ou auto (valeurs calculées)
+step (optionnel) : Filtrer par numéro d'étape
+limit (optionnel) : Nombre de résultats (défaut : 50, max : 200)
+offset (optionnel) : Décalage pour la pagination (défaut : 0)
+Le paramètre status couvre deux axes distincts — ce sont bien deux questions différentes, ne les confondez pas :
+
+Progression — compare la quantité que vous possédez au nombre de quêtes menées en parallèle. C'est le filtre « Statut » de votre page de quête, avec les mêmes libellés :
+
+Valeur	Signification
+needed	Quantité insuffisante (« Recherché »)
+ok	Quantité exactement atteinte (« Quantité OK »)
+excess	Quantité en surplus (« En excès »)
+Échange — ce que la quête recherche et propose réellement aux autres joueurs, après application du mode de trading, des seuils, des surcharges manuelles et des filtres par type de monstre :
+
+Valeur	Signification
+wanted	Recherché à l'échange (champ want supérieur à 0)
+offered	Proposé à l'échange (champ offer supérieur à 0)
+Les deux axes ne se recouvrent pas. Un monstre excess n'est pas forcément offered : vous pouvez avoir décidé de ne pas proposer ce type de monstre, ou le mode de trading Expert peut le retenir. Inversement, les endpoints publics (le profil d'un autre joueur) n'exposent que l'axe échange — la progression d'autrui ne les regarde pas.
+
+Exemple :
+
+GET /v1/quests/a1b2c3d4/monsters?status=needed&limit=50
+Réponse :
+
+{
+  "data": {
+    "slug": "a1b2c3d4",
+    "monsters": [
+      {
+        "id": 123,
+        "name": { "fr": "Tofu", "en": "Tofu", "es": "Tofu" },
+        "image": "tofu.png",
+        "level_min": 1,
+        "level_max": 10,
+        "type": {
+          "id": 1,
+          "name": { "fr": "monstre", "en": "monster", "es": "monstruo" }
+        },
+        "step": 1,
+        "quantity": 3,
+        "want": 2,
+        "offer": 0,
+        "trade_offer": null,
+        "trade_want": null
+      }
+    ],
+    "pagination": {
+      "total": 337,
+      "limit": 50,
+      "offset": 0
+    }
+  }
+}
+Champs trade_offer et trade_want : ce sont les surcharges manuelles d'échange, absentes des endpoints publics. La valeur null signifie qu'aucune surcharge n'est définie et que la valeur est calculée automatiquement — elle est donc différente de 0, qui force explicitement « ne rien proposer / ne rien rechercher ». Si vous relisez puis réécrivez ces champs, conservez null tel quel : le renvoyer en 0 figerait le monstre en surcharge manuelle. Modifiables via PATCH /v1/quests/{slug}/monsters/{monsterId}/trade.
+
+Pour une vue organisée par zones et sous-zones plutôt qu'à plat, voir GET /v1/quests/{slug}/zones (attention : un monstre y apparaît dans chacune de ses sous-zones, et cet endpoint n'est pas paginé).
 
 Partenaires d'échange
 Retourne les meilleurs partenaires d'échange potentiels pour votre quête, classés exactement comme l'option « Meilleur matching » de la page Communauté du site.
@@ -741,7 +942,7 @@ Réponse :
 }
 Note : Le champ status peut prendre trois valeurs : validated (étape précédente, auto-validé), completed (étape courante ou future, quantité suffisante) ou incomplete (étape courante ou future, quantité insuffisante). Les sous-zones sont triées par progression (les moins avancées en premier, les complètes en dernier).
 
-Les champs offer et want reflètent ce que la quête propose et recherche réellement à l'échange — ils tiennent compte du mode SMART, des seuils, des surcharges manuelles et des filtres par type de monstre. Ils peuvent être à 0 même si owned > required, par exemple si le joueur a explicitement décidé de ne pas proposer ce type de monstre.
+Les champs offer et want reflètent ce que la quête propose et recherche réellement à l'échange — ils tiennent compte du mode de trading Expert, des seuils, des surcharges manuelles et des filtres par type de monstre. Ils peuvent être à 0 même si owned > required, par exemple si le joueur a explicitement décidé de ne pas proposer ce type de monstre.
 
 Monstres
 Méthode	Endpoint	Description
@@ -839,6 +1040,31 @@ Réponse (liste) :
     }
   ]
 }
+Types de quête
+Méthode	Endpoint	Description
+GET	/v1/quest-types	Liste des types de quête
+GET	/v1/quest-types/{id}	Détail d'un type
+Un type de quête regroupe une liste d'archimonstres. Chaque type a la sienne, sans recoupement avec les autres : c'est ce qui détermine avec qui vous pouvez échanger.
+
+Le type est déjà présent dans quest_template partout où une quête est renvoyée ; ces endpoints servent aux applications qui ont besoin de la liste en amont (un filtre, un sélecteur).
+
+Exemple :
+
+GET /v1/quest-types
+Réponse :
+
+{
+  "data": [
+    {
+      "id": 1,
+      "slug": "ocre",
+      "name": { "fr": "Ocre", "en": "Ochre", "es": "Ocre" },
+      "image": "ocre.png"
+    }
+  ]
+}
+Note : image est un nom de fichier, servi depuis /img/quest-types/. Seuls les types disponibles sont listés ; un identifiant inconnu ou indisponible renvoie 404.
+
 Modèles de quête
 Les modèles de quête décrivent la liste des monstres à capturer pour un couple (type de quête, version du jeu). Chaque id de modèle identifie ce couple.
 

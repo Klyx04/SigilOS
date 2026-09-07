@@ -74,7 +74,10 @@ interface GuildTableProps {
 }
 
 type FilterStatus = 'all' | 'active' | 'autonomous' | 'vip' | 'watch' | 'frozen' | 'deleted';
-type SortBy = 'name' | 'members' | 'createdAt';
+type SortBy = 'name' | 'members' | 'createdAt' | 'queue';
+
+/** SLA God — une guilde gelée/en attente depuis plus de 24 h est en retard. */
+const SLA_FROZEN_MS = 24 * 3600 * 1000;
 
 export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
     const [search, setSearch] = useState('');
@@ -137,7 +140,14 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
         result.sort((a, b) => {
             let comparison = 0;
 
-            if (sortBy === 'name') {
+            if (sortBy === 'queue') {
+                // File d'attente SLA : gelées/en attente d'abord, plus anciennes d'abord.
+                // Ordre fixe (ignore asc/desc) : l'urgence ne se trie pas à l'envers.
+                const frozenA = (!a.isActive || !!a.deletedAt) ? 0 : 1;
+                const frozenB = (!b.isActive || !!b.deletedAt) ? 0 : 1;
+                if (frozenA !== frozenB) return frozenA - frozenB;
+                return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+            } else if (sortBy === 'name') {
                 comparison = a.name.localeCompare(b.name);
             } else if (sortBy === 'members') {
                 comparison = a._count.profiles - b._count.profiles;
@@ -433,6 +443,7 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
                         <option value="members-asc">Moins de membres</option>
                         <option value="createdAt-desc">Plus récentes</option>
                         <option value="createdAt-asc">Plus anciennes</option>
+                        <option value="queue-asc">File d&apos;attente (urgents d&apos;abord)</option>
                     </select>
                 </div>
             </div>
@@ -798,20 +809,16 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
 
             <td className="p-4 text-caption text-zinc-400 hidden lg:table-cell">
                 {formatDistanceToNow(new Date(guild.createdAt), { addSuffix: true, locale: fr })}
+                {(!guild.isActive || !!guild.deletedAt) && (Date.now() - new Date(guild.createdAt).getTime() > SLA_FROZEN_MS) && (
+                    <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded bg-red-500/15 border border-red-500/30 text-red-400 font-black uppercase" title="SLA God 24 h dépassée">
+                        ⏳ SLA
+                    </span>
+                )}
             </td>
 
             <td className="p-4">
-                <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {/* 1-Click Freeze/Unfreeze Toggle Button */}
-                    {!isReadOnly && (
-                        <button
-                            onClick={handleToggleFreeze}
-                            className={`p-2 rounded-lg transition-colors ${guild.isActive ? 'text-zinc-400 hover:text-red-400 hover:bg-red-500/10' : 'text-emerald-400 hover:bg-emerald-500/10'}`}
-                            title={guild.isActive ? "Geler la guilde (couper l'accès en 1 clic)" : "Dégeler la guilde (rétablir l'accès)"}
-                        >
-                            {guild.isActive ? <Snowflake className="w-4 h-4" /> : <RotateCcw className="w-4 h-4" />}
-                        </button>
-                    )}
+                <div className="flex items-center justify-end gap-1">
+                    {/* Gel/Dégel UNIQUEMENT via le menu (1 seul point d'entrée — pas de doublon) */}
 
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -850,12 +857,17 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
                                         Expulser le Bot Discord
                                     </DropdownMenuItem>
 
+                                    <DropdownMenuSeparator className="bg-red-500/20" />
+                                    <DropdownMenuLabel className="text-xs text-red-500/80 uppercase tracking-widest p-3">
+                                        Zone danger — données affectées entre parenthèses
+                                    </DropdownMenuLabel>
+
                                     <DropdownMenuItem
                                         onClick={handleBanEntity}
                                         className="gap-3 p-3 cursor-pointer focus:bg-red-500/10 focus:text-red-400 font-bold"
                                     >
                                         <Ban className="w-4 h-4" />
-                                        Bannir Définitivement (Ban)
+                                        Bannir Définitivement (bloque, garde les données)
                                     </DropdownMenuItem>
                                 </>
                             )}
@@ -909,7 +921,7 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
                                                 className="gap-3 p-3 cursor-pointer focus:bg-red-500/10 focus:text-red-400"
                                             >
                                                 <Trash2 className="w-4 h-4" />
-                                                Hard Delete
+                                                Hard Delete (supprime TOUT de la BDD)
                                             </DropdownMenuItem>
                                         </>
                                     )}

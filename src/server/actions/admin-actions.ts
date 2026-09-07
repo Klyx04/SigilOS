@@ -103,6 +103,19 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
         });
         const isAutonomous = !existingAllowed;
 
+        // Kill-switch God : les déploiements autonomes sont suspendus → seules
+        // les guildes pré-approuvées (ligne active) ou le ticket God passent.
+        // (Le portail masque déjà ces guildes ; ceci verrouille l'appel direct.)
+        if (isAutonomous) {
+            const platformCfg = await db.platformConfig.findUnique({
+                where: { id: "singleton" },
+                select: { autoOnboardingEnabled: true },
+            }).catch(() => null);
+            if (platformCfg?.autoOnboardingEnabled === false) {
+                return { success: false, error: "Les déploiements autonomes sont temporairement suspendus. Ouvrez un ticket pour être accompagné." };
+            }
+        }
+
         if (!existingAllowed) {
             await db.allowedGuild.create({
                 data: {
@@ -175,6 +188,104 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
         logger.error("Failed to onboard guild:", error);
         return { success: false, error: error instanceof Error ? error.message : "Database error" };
     }
+}
+
+/**
+ * État de déploiement d'une guilde pour la page /onboarding/success (polling).
+ * Anti-énumération : seuls les admins Discord de la guilde obtiennent l'état
+ * réel (requireGuildAdmin live) ; les autres reçoivent tout-faux (fail-closed).
+ */export async function getGuildDeployState(
+    discordGuildId: string
+): Promise<{ botPresent: boolean; hasConfig: boolean; configActive: boolean }> {
+    const none = { botPresent: false, hasConfig: false, configActive: false };
+    if (!discordGuildId || typeof discordGuildId !== "string") return none;
+    const session = await auth();
+    if (!session?.user?.id) return none;
+    try {
+        const { requireGuildAdmin } = await import("./guards");
+        const guard = await requireGuildAdmin(discordGuildId, "État du déploiement");
+        if (!guard.isAuthorized) return none;
+        const { verifyGuildAccessibility } = await import("@/server/discord");
+        const [botPresent, cfg] = await Promise.all([
+            verifyGuildAccessibility(discordGuildId).catch(() => false),
+            db.guildConfig.findUnique({
+                where: { discordGuildId },
+                select: { isActive: true },
+            }).catch(() => null),
+        ]);
+        return { botPresent, hasConfig: !!cfg, configActive: !!cfg?.isActive };
+    } catch {
+        return none;
+    }
+}
+
+/**
+ * Valide les 2 étapes OBLIGATOIRES d'onboarding en UN appel atomique :
+ * 1. serveur de jeu Dofus, 2. au moins un rôle Discord (jamais @everyone)
+ * autorisé à se logger (`dashboard:login`).
+ * - Natif Discord admin uniquement (modale bloquante) ; God passe partout.
+ * - Réutilise `updateDofusServer` + `updateRBACMapping` (pas de 2e chemin
+ *   d'écriture) : audit, rate-limit et garde-fous existants s'appliquent.
+ * - Le mapping existant est FUSIONNÉ (jamais écrasé).
+ */
+export async function completeMandatoryOnboarding(
+    guildId: string,
+    dofusServerId: string,
+    roleId: string
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié." };
+
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId, "Onboarding obligatoire", { allowOnboarding: true });
+    if (!guard.isAuthorized || !guard.discordUserId) {
+        return { success: false, error: "Réservé aux administrateurs Discord du serveur." };
+    }
+
+    // 1. Serveur Dofus : whitelist stricte (liste officielle).
+    const { DOFUS_UNITY_SERVERS } = await import("@/lib/presentation-constants");
+    const knownIds = new Set<string>();
+    for (const group of Object.values(DOFUS_UNITY_SERVERS)) {
+        for (const s of group as ReadonlyArray<{ name: string; id: number }>) {
+            knownIds.add(String(s.id));
+        }
+    }
+    if (!dofusServerId || !knownIds.has(String(dofusServerId))) {
+        return { success: false, error: "Serveur Dofus invalide." };
+    }
+
+    // 2. Rôle : doit exister, ne pas être managé (rôles bot) ni @everyone (= guildId).
+    const { fetchGuildRoles } = await import("@/server/discord");
+    let roles: Array<{ id: string; name: string; managed: boolean }>;
+    try {
+        roles = await fetchGuildRoles(guildId, { excludeManaged: false });
+    } catch {
+        return { success: false, error: "Rôles Discord injoignables, réessayez." };
+    }
+    const role = roles.find((r) => r.id === roleId);
+    if (!role || role.managed || role.id === guildId) {
+        return { success: false, error: "Rôle Discord invalide (ni @everyone, ni rôle de bot)." };
+    }
+
+    // 3. Écritures via les actions existantes (audit + rate-limit + invalidations).
+    const serverRes = await updateDofusServer(guildId, String(dofusServerId));
+    if (!serverRes.success) return serverRes;
+
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { rolesMapping: true, usersMapping: true },
+    });
+    if (!guildConfig) return { success: false, error: "Guilde introuvable. Déployez-la d'abord depuis le portail." };
+    const rolesMapping = { ...((guildConfig.rolesMapping as Record<string, string[]>) || {}) };
+    const current = new Set(rolesMapping[roleId] || []);
+    current.add(PERMISSIONS.DASHBOARD_LOGIN);
+    rolesMapping[roleId] = Array.from(current);
+
+    return updateRBACMapping(
+        guildId,
+        rolesMapping as Record<string, PermissionId[]>,
+        (guildConfig.usersMapping as Record<string, PermissionId[]>) || {}
+    );
 }
 
 export async function updateRBACMapping(

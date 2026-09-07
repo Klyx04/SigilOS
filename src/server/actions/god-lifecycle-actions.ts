@@ -695,6 +695,15 @@ export async function transferGuildOwnership(guildId: string, newOwnerUserId: st
             data: { ownerId: newOwnerUserId }
         });
 
+        // P2 — un transfert God réussi solde les éventuels claims de récupération ouverts.
+        // Best-effort isolé : ne doit jamais faire échouer le transfert.
+        try {
+            await db.guildRecoveryClaim.updateMany({
+                where: { guildId: guild.id, status: { in: ["PENDING", "ORPHAN_DETECTED"] } },
+                data: { status: "APPROVED", decidedAt: new Date(), decidedBy: adminName },
+            });
+        } catch { /* suivi non bloquant */ }
+
         // 🔔 NOTIFY GOD
         const { notifyGod } = await import('./god-notif-actions');
         await notifyGod({

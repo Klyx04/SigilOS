@@ -36,10 +36,12 @@ export function GuildSetupCard({ guild, clientId, autoDeploy }: { guild: GuildPr
 
             // Using window.location.origin ensures we redirect back to the correct environment (localhost/beta/prod)
             // #223 P2 — bitmask minimal (plus de permissions=8 Administrateur).
+            // Scope "bot applications.commands" (défaut) : "bot" seul priverait
+            // les nouvelles installations des commandes slash.
             const inviteUrl = buildDiscordBotInviteUrl(clientId, {
                 guildId: guild.id,
                 redirectUri: `${window.location.origin}/onboarding/success`,
-                scope: "bot",
+                scope: "bot applications.commands",
             });
 
             if (!inviteUrl) return; // fail-closed (clientId déjà vérifié, garde TS)

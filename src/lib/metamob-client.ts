@@ -207,6 +207,57 @@ const ZoneSchema = z.object({
     })).optional(),
 });
 
+// GET /v1/me — compte propriétaire de la clé (privé, jamais de cache partagé)
+const MeSchema = z.object({
+    username: z.string(),
+    bio: z.string().nullable().optional(),
+    avatar: AvatarSchema.nullable().optional(),
+    last_active: z.string().optional(),
+});
+
+// GET /v1/conversations — un fil par interlocuteur (pseudo nullable : compte supprimé)
+const ConversationSchema = z.object({
+    username: z.string().nullable(),
+    message_count: z.number(),
+    last_message_at: z.string(),
+});
+
+// Items de GET /v1/conversations/{username} : messages + proposals fusionnés.
+// Pagination par curseur (before_id / next_before_id), PAS limit/offset.
+const ConversationMessageSchema = z.object({
+    kind: z.literal("message"),
+    id: z.number(),
+    content: z.string(),
+    sender: z.string().nullable(),
+    created_at: z.string(),
+    read_at: z.string().nullable().optional(),
+});
+
+const TradeProposalSchema = z.object({
+    kind: z.literal("proposal"),
+    id: z.number(),
+    sender: z.string().nullable(),
+    recipient: z.string().nullable(),
+    status: z.enum(["pending", "half_applied", "completed", "cancelled"]),
+    server_id: z.number().nullable().optional(),
+    quest_type: z.object({ id: z.number(), slug: z.string() }).nullable().optional(),
+    monsters_given: z.array(z.object({ monster_id: z.number(), quantity: z.number() })),
+    monsters_received: z.array(z.object({ monster_id: z.number(), quantity: z.number() })),
+    applications: z.array(z.object({ username: z.string(), created_at: z.string() })).optional(),
+    cancelled_at: z.string().nullable().optional(),
+    created_at: z.string(),
+});
+
+const ConversationItemSchema = z.discriminatedUnion("kind", [
+    ConversationMessageSchema,
+    TradeProposalSchema,
+]);
+
+const ConversationCursorSchema = z.object({
+    has_more: z.boolean(),
+    next_before_id: z.number().nullable().optional(),
+});
+
 const KralamoureEventSchema = z.object({
     id: z.number(),
     event_datetime: z.string(),
@@ -265,6 +316,10 @@ export type QuestMonster = z.infer<typeof QuestMonsterSchema>;
 export type MatchPartner = z.infer<typeof MatchPartnerSchema>;
 export type MatchMonster = z.infer<typeof MatchMonsterSchema>;
 export type Zone = z.infer<typeof ZoneSchema>;
+export type MetamobMe = z.infer<typeof MeSchema>;
+export type Conversation = z.infer<typeof ConversationSchema>;
+export type ConversationItem = z.infer<typeof ConversationItemSchema>;
+export type TradeProposal = z.infer<typeof TradeProposalSchema>;
 export type KralamoureEvent = z.infer<typeof KralamoureEventSchema>;
 export type KralamoureEventDetails = z.infer<typeof KralamoureEventDetailsSchema>;
 export type QuestSettings = z.infer<typeof QuestSettingsSchema>;
@@ -365,9 +420,11 @@ async function fetchWithRetry(url: string, init: RequestInit): Promise<Response>
     }
 }
 
-/** I-15 : détecte une ressource utilisateur (privée) depuis l'URL complète. */
+/** I-15 : détecte une ressource utilisateur (privée) depuis l'URL complète.
+ *  Outre /quests/ et /users/, couvre les endpoints privés sans ces segments :
+ *  /v1/me et /v1/conversations (sinon cache Redis PARTAGÉ entre clés = fuite). */
 function isUserResourceFromUrl(url: string): boolean {
-    return url.includes("/quests/") || url.includes("/users/");
+    return url.includes("/quests/") || url.includes("/users/") || url.includes("/v1/me") || url.includes("/conversations");
 }
 
 /**
@@ -424,7 +481,7 @@ async function circuitOpenFallback<T>(
 async function fetchApi<T>(
     endpoint: string,
     schema: z.ZodSchema<T>,
-    options: FetchOptions = {}
+    options: FetchOptions & { withPagination?: boolean } = {}
 ): Promise<T> {
     // STRATEGY: No dynamic fallback to process.env.METAMOB_API_KEY for user-specific calls.
     // This fixed the persistent 401 errors when the global key was invalid.
@@ -435,7 +492,7 @@ async function fetchApi<T>(
         headers["Authorization"] = `Bearer ${apiKey}`;
     }
 
-    const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
+    const isUserResource = isUserResourceFromUrl(endpoint);
     const cacheKey = `metamob:cache:${endpoint}`;
 
     // 1. [PERF] Cache-First Strategy
@@ -469,7 +526,7 @@ async function fetchApi<T>(
         // [Robustness] Handle 401/403 gracefully
         if (response.status === 401 || response.status === 403) {
             // ... (keep logic same)
-            const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
+            const isUserResource = isUserResourceFromUrl(endpoint);
 
             if (apiKey) {
                 if (isUserResource) {
@@ -510,8 +567,14 @@ async function fetchApi<T>(
         const data = json.data !== undefined ? json.data : json;
         const result = schema.parse(data);
 
+        // Endpoints à curseur (ex: conversations) : remonte aussi la pagination
+        // brute (les ressources privées ne passent jamais par le cache partagé).
+        if (options.withPagination) {
+            return { data: result, pagination: json.pagination ?? null } as T;
+        }
+
         // Cache successful public result
-        const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
+        const isUserResource = isUserResourceFromUrl(endpoint);
         if (!isUserResource) {
             await redis.set(`metamob:cache:${endpoint}`, JSON.stringify(result), "EX", CACHE_TTL).catch(() => {});
         }
@@ -521,7 +584,7 @@ async function fetchApi<T>(
         if (error instanceof MetamobApiError) throw error;
         
         // --- FALLBACK CACHE LOGIC ---
-        const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
+        const isUserResource = isUserResourceFromUrl(endpoint);
         if (!isUserResource && options.revalidate !== 0) {
             try {
                 const cached = await redis.get(`metamob:cache:${endpoint}`);
@@ -570,7 +633,7 @@ async function fetchPaginatedApi<T>(
         headers["Authorization"] = `Bearer ${apiKey}`;
     }
 
-    const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
+    const isUserResource = isUserResourceFromUrl(endpoint);
     const cacheKey = `metamob:cache:${fullEndpoint}`;
 
     // 1. [PERF] Cache-First Strategy
@@ -604,7 +667,7 @@ async function fetchPaginatedApi<T>(
 
         // [Robustness] 401/403 handling for paginated
         if ((response.status === 401 || response.status === 403) && apiKey) {
-            const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
+            const isUserResource = isUserResourceFromUrl(endpoint);
 
             // If it's a user resource, DO NOT fallback to anonymous.
             if (!isUserResource) {
@@ -647,7 +710,7 @@ async function fetchPaginatedApi<T>(
         const result = { data: items, pagination };
 
         // Cache successful public result
-        const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
+        const isUserResource = isUserResourceFromUrl(endpoint);
         if (!isUserResource) {
             await redis.set(`metamob:cache:${fullEndpoint}`, JSON.stringify(result), "EX", CACHE_TTL).catch(() => {});
         }
@@ -657,7 +720,7 @@ async function fetchPaginatedApi<T>(
         if (error instanceof MetamobApiError) throw error;
 
         // --- FALLBACK CACHE LOGIC ---
-        const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
+        const isUserResource = isUserResourceFromUrl(endpoint);
         if (!isUserResource && options.revalidate !== 0) {
             try {
                 const cached = await redis.get(`metamob:cache:${fullEndpoint}`);
@@ -815,6 +878,192 @@ export async function getZones(options?: FetchOptions & { q?: string }): Promise
 
 export async function getZone(zoneId: number, options?: FetchOptions): Promise<Zone> {
     return fetchApi(`/v1/zones/${zoneId}`, ZoneSchema, options);
+}
+
+/** GET /v1/me — résout le username canonique depuis la clé seule (liaison sans pseudo). */
+export async function getMetamobMe(apiKey: string): Promise<MetamobMe> {
+    return fetchApi(`/v1/me`, MeSchema, {
+        guildApiKey: apiKey,
+        revalidate: 0,
+        tags: [`metamob-me`],
+    });
+}
+
+/** GET /v1/quests — TOUTES ses quêtes, y compris masquées (point d'entrée privé). */
+export async function getOwnQuests(apiKey: string): Promise<UserQuest[]> {
+    const result = await fetchApi(`/v1/quests`, z.array(UserQuestSchema), {
+        guildApiKey: apiKey,
+        revalidate: 0,
+        tags: [`metamob-own-quests`],
+    });
+    return result;
+}
+
+const OwnQuestMonstersSchema = z.object({
+    slug: z.string(),
+    monsters: z.array(QuestMonsterSchema),
+    pagination: PaginationSchema,
+});
+export type OwnQuestMonsters = z.infer<typeof OwnQuestMonstersSchema>;
+
+/**
+ * GET /v1/quests/{slug}/monsters — monstres de SA quête (privée incluse).
+ * NOTE : on ne transmet ni `status` ni filtres métier — seuls limit/offset
+ * sont prouvés sur cet endpoint (sondés le 07/09/2026).
+ */
+export async function getOwnQuestMonsters(
+    apiKey: string,
+    slug: string,
+    options?: { limit?: number; offset?: number } & FetchOptions
+): Promise<OwnQuestMonsters> {
+    const params = new URLSearchParams();
+    if (options?.limit) params.set("limit", options.limit.toString());
+    if (options?.offset) params.set("offset", options.offset.toString());
+    const qs = params.toString() ? `?${params}` : "";
+    return fetchApi(`/v1/quests/${encodeURIComponent(slug)}/monsters${qs}`, OwnQuestMonstersSchema, {
+        guildApiKey: apiKey,
+        revalidate: 0,
+        tags: [`metamob-own-monsters-${slug}`],
+    });
+}
+
+/**
+ * Détecte une quête Ocre parmi une liste (slug OU modèle).
+ * Le slug seul ne suffit pas : Metamob slugifie le NOM PERSONNALISÉ
+ * (ex. « Draconiros ») — d'où le repli sur le template (ids 1/2 ou >200 monstres,
+ * même règle que verifyMetamobUser). Pur → testé unitairement.
+ */
+export function matchesOcreQuest(q: {
+    slug?: string | null;
+    quest_template?: { id?: number; monster_count?: number } | null;
+}): boolean {
+    const slug = (q.slug || "").toLowerCase();
+    if (slug.includes("ocre") || slug.includes("eternelle-moisson")) return true;
+    if (q.quest_template?.id === 1 || q.quest_template?.id === 2) return true;
+    if ((q.quest_template?.monster_count ?? 0) > 200) return true;
+    return false;
+}
+
+/**
+ * Liste SES quêtes (privées incluses) via la clé du propriétaire,
+ * repli public si la route privée échoue. Même contrat que getUserQuests.
+ */
+export async function listSelfQuests(
+    pseudo: string,
+    apiKey?: string | null,
+    options?: FetchOptions
+): Promise<UserQuest[]> {
+    if (apiKey) {
+        try {
+            return await getOwnQuests(apiKey);
+        } catch {
+            // Repli : liste publique (quête publique ou API partiellement joignable).
+        }
+    }
+    return getUserQuests(pseudo, { ...options, guildApiKey: apiKey ?? undefined });
+}
+
+/**
+ * Détails de SA quête : chemin historique (public) d'abord — rapide, éprouvé —
+ * puis repli privé (liste own + monstres own) si 404.
+ * Reconstruit un QuestDetails standard (mêmes consommateurs en aval).
+ */
+export async function getSelfQuestDetails(
+    pseudo: string,
+    slug: string,
+    apiKey?: string | null,
+    options?: { limit?: number } & FetchOptions
+): Promise<QuestDetails> {
+    try {
+        return await getQuestDetails(pseudo, slug, { ...options, guildApiKey: apiKey ?? undefined });
+    } catch (e) {
+        if (!(e instanceof MetamobApiError) || e.code !== "NOT_FOUND") throw e;
+    }
+
+    // Repli privé : retrouver la quête (slug exact, sinon heuristique Ocre),
+    // puis paginer ses monstres via la route privée.
+    if (!apiKey) throw new MetamobApiError("NOT_FOUND", "Ressource introuvable");
+    const own = await getOwnQuests(apiKey);
+    const quest = own.find((q) => q.slug === slug) ?? own.find(matchesOcreQuest) ?? own[0];
+    if (!quest) throw new MetamobApiError("NOT_FOUND", "Ressource introuvable");
+
+    const limit = options?.limit ?? 200;
+    const first = await getOwnQuestMonsters(apiKey, quest.slug, { limit });
+    let monsters = [...first.monsters];
+    const total = first.pagination.total;
+    while (monsters.length < total) {
+        const page = await getOwnQuestMonsters(apiKey, quest.slug, { limit, offset: monsters.length });
+        if (page.monsters.length === 0) break;
+        monsters = [...monsters, ...page.monsters];
+    }
+
+    return {
+        slug: quest.slug,
+        character_name: quest.character_name,
+        current_step: quest.current_step,
+        parallel_quests: quest.parallel_quests,
+        server: quest.server,
+        quest_template: quest.quest_template,
+        monsters,
+        pagination: { total, limit, offset: 0 },
+    };
+}
+
+/** GET /v1/quest-types — Ocre / Dokille… (sélecteurs, garde anti-mix). */
+export async function getQuestTypes(options?: FetchOptions): Promise<{ id: number; slug: string; name: LocalizedName; image?: string }[]> {
+    const QuestTypeSchema = z.object({
+        id: z.number(),
+        slug: z.string(),
+        name: LocalizedNameSchema,
+        image: z.string().optional(),
+    });
+    return fetchApi(`/v1/quest-types`, z.array(QuestTypeSchema), {
+        ...options,
+        tags: [`metamob-quest-types`],
+    });
+}
+
+/** GET /v1/conversations — fils par interlocuteur (limit max 50). */
+export async function getConversations(
+    apiKey: string,
+    options?: { status?: "active" | "archived"; limit?: number; offset?: number }
+): Promise<{ conversations: Conversation[]; pagination: z.infer<typeof PaginationSchema> }> {
+    const params = new URLSearchParams();
+    if (options?.status) params.set("status", options.status);
+    if (options?.limit) params.set("limit", Math.min(options.limit, 50).toString());
+    if (options?.offset) params.set("offset", options.offset.toString());
+    const qs = params.toString() ? `?${params}` : "";
+    const result = await fetchPaginatedApi(`/v1/conversations${qs}`, ConversationSchema, {
+        guildApiKey: apiKey,
+        revalidate: 0,
+        tags: [`metamob-conversations`],
+    });
+    return { conversations: result.data, pagination: result.pagination };
+}
+
+/**
+ * GET /v1/conversations/{username} — messages + proposals fusionnés.
+ * Pagination par CURSEUR (before_id ← next_before_id), pas limit/offset.
+ */
+export async function getConversationDetails(
+    apiKey: string,
+    username: string,
+    options?: { limit?: number; beforeId?: number }
+): Promise<{ items: ConversationItem[]; hasMore: boolean; nextBeforeId: number | null }> {
+    const params = new URLSearchParams();
+    if (options?.limit) params.set("limit", Math.min(options.limit, 50).toString());
+    if (options?.beforeId !== undefined) params.set("before_id", options.beforeId.toString());
+    const qs = params.toString() ? `?${params}` : "";
+    const res = await fetchApi(
+        `/v1/conversations/${encodeURIComponent(username)}${qs}`,
+        z.array(ConversationItemSchema),
+        { guildApiKey: apiKey, revalidate: 0, tags: [`metamob-conversation`], withPagination: true }
+    ) as unknown as { data: ConversationItem[]; pagination: z.infer<typeof ConversationCursorSchema> | null };
+    return {
+        items: res.data,
+        hasMore: res.pagination?.has_more ?? false,
+        nextBeforeId: res.pagination?.next_before_id ?? null,
+    };
 }
 
 export async function getSubzoneMonsters(zoneId: number, subzoneId: number, options?: FetchOptions): Promise<Monster[]> {

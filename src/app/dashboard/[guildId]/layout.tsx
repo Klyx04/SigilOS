@@ -34,6 +34,8 @@ import { TourOverlay } from "@/components/tour/tour-overlay";
 import { TourCompletion } from "@/components/tour/tour-completion";
 import { DocDrawerProvider } from "@/components/doc/doc-drawer-context";
 import { DocDrawer } from "@/components/doc/doc-drawer";
+import { OnboardingBlockerModal } from "@/components/admin/onboarding-blocker-modal";
+import { OnboardingNextStepsModal } from "@/components/admin/onboarding-next-steps-modal";
 import { RushOverlayHost } from "./_components/rush-overlay-host";
 
 export default async function DashboardLayout({
@@ -203,6 +205,53 @@ export default async function DashboardLayout({
         );
     }
 
+    // 2e modale (optionnel) : onboarding complet mais modules non configurés.
+    // Requête légère (1 ligne) uniquement pour les admins concernés.
+    let showOptionalPrompt = false;
+    if (user.isOnboardingComplete && user.isAdmin && !user.isSuperAdmin) {
+        try {
+            const modulesRow = await db.guildConfig.findUnique({
+                where: { discordGuildId: guildId },
+                select: { modules: true },
+            });
+            const mods = (modulesRow as any)?.modules as Record<string, unknown> | null;
+            const COUNTED_KEYS = [
+                "presentation", "roster", "stats", "calendar", "missions", "songes",
+                "ocre", "ladder", "services", "donjons", "profile", "docs", "polls",
+                "admin",
+            ];
+            showOptionalPrompt = !!mods && !COUNTED_KEYS.some((k) => (mods as any)[k] === true);
+        } catch { /* pas de prompt en cas de doute */ }
+    }
+    const needMandatoryOnboarding = !user.isOnboardingComplete && user.isDiscordAdmin && !user.isSuperAdmin;
+    let blockerServers: Array<{ id: string; name: string; group: string }> = [];
+    let blockerRoles: Array<{ id: string; name: string }> = [];
+    // Modale bloquante des 2 étapes obligatoires (serveur + rôle dashboard:login).
+    // Rendue par le layout = couvre TOUTES les pages du dashboard (console,
+    // trackers, docs internes) : impossible de la contourner en naviguant.
+    // Natifs Discord uniquement (l'action serveur l'exige) ; God exempté.
+    if (needMandatoryOnboarding) {
+        try {
+            const { DOFUS_UNITY_SERVERS } = await import("@/lib/presentation-constants");
+            const groupLabels: Record<string, string> = {
+                epique: "Épique", monocompte: "Monocompte", classique: "Classique",
+                pionnierMono: "Pionnier solo", pionnier: "Pionnier",
+            };
+            for (const [groupKey, list] of Object.entries(DOFUS_UNITY_SERVERS)) {
+                for (const s of list as ReadonlyArray<{ name: string; id: number }>) {
+                    blockerServers.push({ id: String(s.id), name: s.name, group: groupLabels[groupKey] || groupKey });
+                }
+            }
+        } catch { /* liste vide = étape 1 avec message */ }
+        try {
+            const { fetchGuildRoles } = await import("@/server/discord");
+            const allRoles = await fetchGuildRoles(guildId, { excludeManaged: false });
+            blockerRoles = allRoles
+                .filter((r: any) => r && r.id !== guildId && !r.managed && r.name)
+                .map((r: any) => ({ id: r.id, name: r.name }));
+        } catch { /* liste vide = consigne de créer un rôle */ }
+    }
+
     return (
         <NebulaClientWrapper>
             <GameProvider>
@@ -262,8 +311,10 @@ export default async function DashboardLayout({
                             </Suspense>
 
                             <div className="container max-w-[1536px] mx-auto p-4 sm:p-6 lg:p-8 pb-28 min-h-full flex flex-col">
-                                {/* Pseudo issues (sync) banner */}
-                                {user.hasPseudoIssue && (
+                                {/* Pseudo issues (sync) banner — seulement si la page
+                                    profil est réellement accessible (module actif),
+                                    sinon le CTA mène à un mur Accès Restreint */}
+                                {user.hasPseudoIssue && user.canViewProfile && (
                                     <PseudoWarningBanner guildId={guildId} pseudoDofus={user.pseudoDofus} />
                                 )}
 
@@ -299,6 +350,16 @@ export default async function DashboardLayout({
 
                 {/* Command Palette (Cmd+K) */}
                 <CommandMenu guildId={guildId} user={user} />
+
+                {/* Modale bloquante d'onboarding (2 étapes obligatoires) */}
+                {needMandatoryOnboarding && (
+                    <OnboardingBlockerModal guildId={guildId} servers={blockerServers} roles={blockerRoles} />
+                )}
+
+                {/* 2e modale (optionnel) : proposée une fois par navigateur */}
+                {showOptionalPrompt && !needMandatoryOnboarding && (
+                    <OnboardingNextStepsModal guildId={guildId} />
+                )}
 
                 {/* 4. FLOATING FOOTER (Compact version) - hidden in game view */}
                 <div className="dashboard-footer">

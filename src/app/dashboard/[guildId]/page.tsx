@@ -26,6 +26,7 @@ import { RaidHeroBanner } from "./_components/raid-hero-banner";
 
 import { AccessDenied } from "@/components/layout/access-denied";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { RecoveryBannerSpot } from "@/components/recovery-banner";
 import { WelcomeModal } from "@/components/dashboard/welcome-modal";
 import { MemberWelcomeModal } from "@/components/dashboard/member-welcome-modal";
 import { DashboardAdminTourButton } from "@/components/tour/dashboard-admin-tour-button";
@@ -178,6 +179,9 @@ export default async function DashboardPage({
             )}
 
             <div className="relative z-10 p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto">
+
+                {/* P2 — Guilde orpheline : bannière de récupération */}
+                <RecoveryBannerSpot guildId={guildId} />
 
                 <header className="flex items-end justify-between gap-6">
                     <div>

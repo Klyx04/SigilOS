@@ -1,7 +1,7 @@
 "use client";
 
 import { MultiSelect, type Option } from "@/components/ui/multi-select";
-import { type PermissionId, PERMISSION_DETAILS, PERMISSIONS } from "@/lib/permissions";
+import { type PermissionId, PERMISSION_DETAILS, PERMISSIONS, GUILD_MODULE_LABELS } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { Lock } from "lucide-react";
 
@@ -17,6 +17,11 @@ type Props = {
     moduleColor?: string;
     locked?: boolean;    // grise la carte tant que DASHBOARD_ACCESS n'est pas configuré
     hideUsers?: boolean; // cache la section "Membres Spécifiques"
+    /**
+     * Liens croisés §9 : toggles de guilde gouvernant cette permission
+     * ({ key: ModuleKey, enabled }). Absent = aucun lien (toujours affichée).
+     */
+    guildModules?: Array<{ key: string; enabled: boolean }>;
 };
 
 export function PermissionCard({
@@ -30,6 +35,7 @@ export function PermissionCard({
     moduleColor,
     locked = false,
     hideUsers = false,
+    guildModules = [],
 }: Props) {
     const details = PERMISSION_DETAILS[permissionId];
     const isConfigured = selectedRoleIds.length > 0 || selectedUserIds.length > 0;
@@ -100,6 +106,29 @@ export function PermissionCard({
                             </span>
                         ))}
                     </div>
+                    {guildModules.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-xs font-medium text-muted-foreground">Module :</span>
+                            {guildModules.map((m) => (
+                                <span
+                                    key={m.key}
+                                    title={m.enabled ? "Module activé" : "Module désactivé — permission inopérante"}
+                                    className={cn(
+                                        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-xs font-bold",
+                                        m.enabled
+                                            ? "bg-success/10 border-success/30 text-success"
+                                            : "bg-muted/20 border-border text-muted-foreground"
+                                    )}
+                                >
+                                    <span className={cn(
+                                        "w-1.5 h-1.5 rounded-full",
+                                        m.enabled ? "bg-success" : "bg-muted-foreground"
+                                    )} />
+                                    {GUILD_MODULE_LABELS[m.key] || m.key}
+                                </span>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {isConfigured && !locked && (

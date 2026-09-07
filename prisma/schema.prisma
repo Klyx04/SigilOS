@@ -156,6 +156,9 @@ model PlatformConfig {
   donationsEnabled       Boolean  @default(true)
   maintenanceMode        Boolean  @default(false)
   maintenanceMessage     String?
+  // Kill-switch God de l'auto-onboarding : OFF = les NOUVELLES guildes ne sont
+  // plus déployables en autonomie (file God) ; guildes existantes intouchées.
+  autoOnboardingEnabled  Boolean  @default(true)
   questFeedbackChannelId String?  // Canal Discord dédié aux feedbacks Dofus
   // Toggle God : si le ladder Ankama est indisponible, on autorise la saisie
   // manuelle du pseudo Dofus à la place de la vérification Ankama.
@@ -533,7 +536,32 @@ model GuildModules {
   succes           Boolean     @default(false)
   reactionRoles    Boolean     @default(true)
   tickets          Boolean     @default(false)
+  commandes       Boolean     @default(true)
   guild            GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  /**
+   * Modules verrouillés par le staff (noms de ModuleKey). Un module verrouillé
+   * est effectif OFF quelle que soit la bascule guilde (qui est conservée) ;
+   * sa RBAC associée est masquée de la matrice (mappings conservés).
+   */
+  disabledByGod    String[]    @default([])
+}
+
+/**
+ * Demande de récupération d'une guilde orpheline (zéro admin natif + zéro
+ * délégué). Créée par le membre actif le plus ancien, approuvée par un God
+ * via le transfert de propriété existant. Jamais d'auto-élévation.
+ */
+model GuildRecoveryClaim {
+  id              String    @id @default(cuid())
+  guildId         String
+  claimantUserId  String
+  status          String    @default("PENDING")
+  createdAt       DateTime  @default(now())
+  decidedAt       DateTime?
+  decidedBy       String?
+
+  @@index([guildId])
+  @@index([status])
 }
 
 model AuditLog {

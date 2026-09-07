@@ -131,6 +131,12 @@ export default async function Home({
     }
   }
 
+  const clientId = process.env.DISCORD_CLIENT_ID || process.env.AUTH_DISCORD_ID || "";
+  const { getPlatformConfig } = await import("@/server/actions/god-roadmap-actions");
+  const platformRes = await getPlatformConfig().catch(() => null);
+  const autoOnboardingOn =
+    (platformRes?.success ? (platformRes.data as any)?.autoOnboardingEnabled : undefined) !== false;
+
   // [AUDIT 2026] Retrieve nonce for inline scripts
   const headersList = await headers();
   const nonce = headersList.get('x-nonce') ?? '';
@@ -150,7 +156,7 @@ export default async function Home({
         <main className="flex-1 w-full relative z-10 flex flex-col">
 
           {/* Hero — Dofus Unity Immersive */}
-          <DofusHeroSection user={session?.user} userGuilds={userGuilds} />
+          <DofusHeroSection user={session?.user} userGuilds={userGuilds} clientId={clientId} autoOnboardingOn={autoOnboardingOn} />
 
           {/* Outils & Overlay Compagnon Bento Showcase (Gratuit / Sans Inscription) */}
           <ToolsBentoShowcase />

@@ -6,6 +6,7 @@ import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 import { AccessRequestModal } from "./AccessRequestModal";
 import { loginWithDiscord } from "@/server/actions/auth-actions";
+import { buildDiscordBotInviteUrl } from "@/lib/discord-permissions";
 import type { User } from "next-auth";
 
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -17,6 +18,10 @@ const DiscordIcon = ({ className }: { className?: string }) => (
 interface DofusHeroSectionProps {
   user?: User;
   userGuilds?: { id: string; name: string; iconUrl: string | null }[];
+  /** Client ID Discord (serveur) pour construire l'URL d'installation du bot. */
+  clientId?: string;
+  /** Kill-switch God : OFF = pas de promesse d'autonomie. */
+  autoOnboardingOn?: boolean;
 }
 
 /** Accès direct aux outils gratuits, avec les icônes officielles du jeu. */
@@ -26,8 +31,23 @@ const FREE_TOOLS = [
   { href: "/almanax", icon: "/assets/dofus/icons/almanax.png", label: "Almanax du jour" },
 ];
 
-export function DofusHeroSection({ user, userGuilds = [] }: DofusHeroSectionProps) {
+export function DofusHeroSection({ user, userGuilds = [], clientId = "", autoOnboardingOn = true }: DofusHeroSectionProps) {
   const [showAccessModal, setShowAccessModal] = useState(false);
+
+  // Modèle A (bot-first, comme les concurrents) : le CTA primaire installe le
+  // bot (popup, repli même onglet si bloqueur), le login n'est que secondaire.
+  const openBotInstall = () => {
+    if (!clientId) return;
+    const inviteUrl = buildDiscordBotInviteUrl(clientId, {
+      redirectUri: `${window.location.origin}/onboarding/success`,
+      scope: "bot applications.commands",
+    });
+    if (!inviteUrl) return;
+    const popup = window.open(inviteUrl, "_blank");
+    if (!popup || popup.closed || typeof popup.closed === "undefined") {
+      window.location.href = inviteUrl;
+    }
+  };
 
   return (
     <section
@@ -76,13 +96,24 @@ export function DofusHeroSection({ user, userGuilds = [] }: DofusHeroSectionProp
             </Link>
           ) : (
             <>
+              {autoOnboardingOn && clientId ? (
+                <button
+                  type="button"
+                  onClick={openBotInstall}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl font-bold text-sm bg-[#5865F2] hover:brightness-110 text-white cursor-pointer"
+                >
+                  <DiscordIcon className="w-4 h-4" />
+                  <span>Ajouter à Discord</span>
+                </button>
+              ) : null}
+
               <button
                 type="button"
                 onClick={() => loginWithDiscord()}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl font-bold text-sm bg-[#5865F2] hover:brightness-110 text-white cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer"
               >
                 <DiscordIcon className="w-4 h-4" />
-                <span>Connecter mon Discord</span>
+                <span>{autoOnboardingOn ? "J'ai déjà le bot · Connexion" : "Connecter mon Discord"}</span>
               </button>
 
               <Link
@@ -123,13 +154,13 @@ export function DofusHeroSection({ user, userGuilds = [] }: DofusHeroSectionProp
           ))}
         </div>
 
-        {/* Fenêtre sur le hall de guilde : affiché à taille native, donc net */}
+        {/* Fenêtre sur le temple de guilde : affiché à taille native, donc net */}
         <div className="w-full max-w-5xl rounded-2xl overflow-hidden border border-white/10">
           <Image
-            src="/assets/dofus/vista/hall-guild.webp"
-            alt="Hall de guilde Dofus : le lieu de ralliement de ta guilde"
-            width={1920}
-            height={982}
+            src="/assets/dofus/vista/hall-creation.webp"
+            alt="Temple de guilde Dofus : création de la guilde, le lieu de ralliement"
+            width={2048}
+            height={1046}
             priority
             sizes="(max-width: 1024px) 100vw, 1024px"
             className="w-full h-auto block"
@@ -148,6 +179,7 @@ export function DofusHeroSection({ user, userGuilds = [] }: DofusHeroSectionProp
       <AccessRequestModal
         open={showAccessModal}
         onClose={() => setShowAccessModal(false)}
+        autoOnboardingOn={autoOnboardingOn}
       />
     </section>
   );

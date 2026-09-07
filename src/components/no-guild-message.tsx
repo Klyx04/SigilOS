@@ -14,6 +14,8 @@ interface NoGuildMessageProps {
      * ne sert à rien, il faut un re-consentement explicite.
      */
     needsReconnect?: boolean;
+    /** Kill-switch God : OFF = pas de promesse d'autonomie. Défaut true. */
+    autoOnboardingOn?: boolean;
 }
 
 const RELOAD_KEY = "sigilos-portal-reloads";
@@ -31,7 +33,7 @@ function readReloadAttempts(): number {
     }
 }
 
-export function NoGuildMessage({ rateLimited, needsReconnect }: NoGuildMessageProps) {
+export function NoGuildMessage({ rateLimited, needsReconnect, autoOnboardingOn = true }: NoGuildMessageProps) {
     const [showModal, setShowModal] = useState(false);
     const [attempts, setAttempts] = useState(0);
 
@@ -167,7 +169,7 @@ export function NoGuildMessage({ rateLimited, needsReconnect }: NoGuildMessagePr
                 </p>
             </div>
 
-            <AccessRequestModal open={showModal} onClose={() => setShowModal(false)} />
+            <AccessRequestModal open={showModal} onClose={() => setShowModal(false)} autoOnboardingOn={autoOnboardingOn} />
         </div>
     );
 }

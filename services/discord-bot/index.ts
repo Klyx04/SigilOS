@@ -132,8 +132,7 @@ client.once(Events.ClientReady, (readyClient) => {
 
 // ========================
 // Event: Guild Create (Bot Added)
-// ========================
-client.on(Events.GuildCreate, async (guild) => {
+// ========================client.on(Events.GuildCreate, async (guild) => {
     console.log(`[Discord Bot] ➕ Guild added: ${guild.name} (${guild.id})`);
 
     try {
@@ -143,30 +142,43 @@ client.on(Events.GuildCreate, async (guild) => {
         });
 
         if (!existing) {
-            // Auto-add to whitelist but ACTIVE = FALSE by default
-            // This requires manual approval by a super-admin in the GOD Dashboard
+            // Modèle A (acquisition ouverte) : le bot rejoint = guilde déployable
+            // immédiatement, sans validation humaine. Le kill-switch God
+            // (PlatformConfig.autoOnboardingEnabled=false) repose sur le portail
+            // (la guilde n'apparaît pas en pending) — ce handler reste permissif
+            // par construction, la gate étant côté portail + onboardGuild.
+            // Le staff garde ban / gel / expulsion a posteriori (+ notif ci-dessous).
+            const platformCfg = await (db as any).platformConfig.findUnique({
+                where: { id: "singleton" },
+                select: { autoOnboardingEnabled: true },
+            }).catch(() => null);
+            const autoOnboardingOn = platformCfg?.autoOnboardingEnabled !== false;
             await db.allowedGuild.create({
                 data: {
                     discordGuildId: guild.id,
                     name: guild.name,
                     tier: 'BETA',
-                    isActive: false, // 🔒 Security: Manual activation required
+                    isActive: autoOnboardingOn,
                     addedBy: 'SYSTEM_GATEWAY',
-                    notes: `Auto-detected via Gateway bot on ${new Date().toISOString()}. Activation required.`,
+                    notes: autoOnboardingOn
+                        ? `Auto-déployable via Gateway bot on ${new Date().toISOString()}.`
+                        : `Auto-detected via Gateway bot on ${new Date().toISOString()} (auto-onboarding OFF — activation God requise).`,
                 },
             });
 
-            console.log(`[Discord Bot] ✅ Auto-whitelisted: ${guild.name}`);
+            console.log(`[Discord Bot] ✅ Auto-whitelisted: ${guild.name} (active=${autoOnboardingOn})`);
 
-            // 🔔 NOTIFY GOD — New guild detected, needs manual whitelist approval
+            // 🔔 NOTIFY GOD — Nouveau serveur détecté (info ; action seulement si abus)
             try {
                 // 1. Create DB notification
                 await (db as any).godNotification.create({
                     data: {
-                        title: "🚨 Nouveau serveur non-whitelisté",
-                        message: `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`) qui n'est pas dans la whitelist.\nAction requise : approuver ou rejeter depuis le GOD Dashboard.`,
+                        title: autoOnboardingOn ? "🟢 Nouveau serveur (auto-actif)" : "🚨 Nouveau serveur non-whitelisté",
+                        message: autoOnboardingOn
+                            ? `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`) — actif immédiatement (modèle ouvert). Ban/gel possibles depuis le GOD Dashboard en cas d'abus.`
+                            : `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`) qui n'est pas dans la whitelist.\nAction requise : approuver ou rejeter depuis le GOD Dashboard.`,
                         type: "SYSTEM",
-                        success: false,
+                        success: autoOnboardingOn,
                         metadata: {
                             discordGuildId: guild.id,
                             guildName: guild.name,
@@ -250,35 +262,36 @@ client.on(Events.GuildCreate, async (guild) => {
                     console.log(`[Discord Bot] Cannot send welcome embed to ${safeChannelLabel(targetChannel.name)} in ${guild.name} — missing permissions`);
                     return;
                 }
+                const baseUrl = (process.env.SIGILOS_BASE_URL || "https://beta.sigilos.fr").replace(/\/$/, "");
                 const welcomeEmbed = new EmbedBuilder()
                     .setTitle('🏰 SigilOS est arrivé sur votre serveur')
-                    .setDescription('Le bot est installé. Suivez ces étapes pour activer votre guilde.')
+                    .setDescription("Le bot est installé. L'admin du serveur peut activer la guilde en 1 minute.")
                     .setColor(0x10b981)
                     .addFields(
                         {
                             name: 'Étape 1 — Se connecter',
-                            value: 'Rendez-vous sur **[beta.sigilos.fr](https://beta.sigilos.fr)** et connectez-vous avec votre compte Discord (le compte administrateur du serveur).',
+                            value: `Rendez-vous sur **[le dashboard](${baseUrl}/dashboard)** et connectez-vous avec votre compte Discord (le compte administrateur du serveur).`,
                             inline: false,
                         },
                         {
                             name: 'Étape 2 — Déployer',
-                            value: 'Sur le Dashboard, trouvez la carte de votre serveur et cliquez sur **"Déployer"**.\nCela enregistre votre guilde dans SigilOS et déverrouille toutes les fonctionnalités.',
+                            value: 'Sur le portail, votre serveur apparaît dans **« Déploiement »** : cliquez sur **"Déployer"** (ou laissez l\'activation automatique faire son office).\nCela crée votre guilde dans SigilOS et déverrouille le panneau d\'administration.',
                             inline: false,
                         },
                         {
-                            name: 'Étape 3 — Configurer les permissions',
-                            value: 'Depuis les **Paramètres** de votre guilde sur le Dashboard, associez vos rôles Discord aux permissions SigilOS (qui peut valider des missions, accéder au ladder, etc.).',
+                            name: 'Étape 3 — Configurer les accès',
+                            value: 'Depuis le panneau **Supervision** de votre guilde, associez vos rôles Discord aux permissions SigilOS (qui peut valider des missions, accéder au ladder, etc.).',
                             inline: false,
                         }
                     )
-                    .setFooter({ text: 'SigilOS · Beta — Si problème, contactez le développeur.' })
+                    .setFooter({ text: 'SigilOS · Beta — Si problème, contactez le staff via le dashboard.' })
                     .setTimestamp();
 
                 const row = new ActionRowBuilder<ButtonBuilder>()
                     .addComponents(
                         new ButtonBuilder()
                             .setLabel('Ouvrir le Dashboard')
-                            .setURL('https://beta.sigilos.fr/dashboard')
+                            .setURL(`${baseUrl}/dashboard`)
                             .setStyle(ButtonStyle.Link)
                     );
 
@@ -292,6 +305,147 @@ client.on(Events.GuildCreate, async (guild) => {
         console.error(`[Discord Bot] Error handling GUILD_CREATE:`, error);
     }
 });
+
+/**
+ * Succession du propriétaire SigilOS au départ Discord (leave/kick, pas seulement
+ * purge/archive/ban — voir handleGuildOwnerSuccession côté web).
+ * Priorité 1 : owner Discord live avec profil ACTIF. Priorité 2 : membre ACTIF
+ * le plus ancien (hors partant). Écrit TOUJOURS un UUID interne (normalise les
+ * ownerId snowflakes hérités de l'onboarding). Échec silencieux (log) : le filet
+ * P2 (cron orphelin) + le God prennent le relais. Jamais d'auto-élévation
+ * hors de ces deux règles.
+ */
+async function maybeSuccessionOnLeave(
+    guildInternalId: string,
+    guildName: string,
+    discordGuildId: string,
+    leaverDiscordId: string,
+    leaverUserId: string | null,
+    liveDiscordOwnerId: string | null,
+): Promise<void> {
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { id: guildInternalId },
+            select: { id: true, ownerId: true, lifecycleNotifyChannelId: true, systemNotifyChannelId: true },
+        });
+        if (!guildConfig?.ownerId) return;
+        const storedOwner = guildConfig.ownerId as string;
+        const leaverIsOwner =
+            storedOwner === leaverUserId || (leaverDiscordId && storedOwner === leaverDiscordId);
+        if (!leaverIsOwner) {
+            // Normalisation paresseuse : snowflake résolvable → UUID interne.
+            if (/^\d{17,20}$/.test(storedOwner)) {
+                const ownerAccount = await db.account.findFirst({
+                    where: { provider: 'discord', providerAccountId: storedOwner },
+                    select: { userId: true },
+                });
+                if (ownerAccount?.userId) {
+                    const ownerProfile = await db.userProfile.findFirst({
+                        where: { userId: ownerAccount.userId, guildId: guildInternalId, status: 'ACTIVE' },
+                        select: { id: true },
+                    });
+                    if (ownerProfile) {
+                        await db.guildConfig.update({
+                            where: { id: guildInternalId },
+                            data: { ownerId: ownerAccount.userId },
+                        });
+                    }
+                }
+            }
+            return;
+        }
+
+        let newOwnerUserId: string | null = null;
+        let newOwnerName = 'Membre';
+        let successionReason = 'AUTOMATIC_SUCCESSION';
+
+        // Priorité 1 : owner Discord live avec profil ACTIF
+        if (liveDiscordOwnerId && liveDiscordOwnerId !== leaverDiscordId) {
+            const discordOwnerAccount = await db.account.findFirst({
+                where: { provider: 'discord', providerAccountId: liveDiscordOwnerId },
+                select: { userId: true },
+            });
+            if (discordOwnerAccount?.userId) {
+                const discordOwnerProfile = await db.userProfile.findFirst({
+                    where: { userId: discordOwnerAccount.userId, guildId: guildInternalId, status: 'ACTIVE' },
+                    select: { userId: true, pseudoDofus: true, discordNickname: true },
+                });
+                if (discordOwnerProfile) {
+                    newOwnerUserId = discordOwnerProfile.userId;
+                    newOwnerName = discordOwnerProfile.pseudoDofus || discordOwnerProfile.discordNickname || 'Discord Owner';
+                    successionReason = 'DISCORD_SERVER_OWNER_INHERITANCE';
+                }
+            }
+        }
+
+        // Priorité 2 : membre ACTIF le plus ancien (hors partant)
+        if (!newOwnerUserId) {
+            const senior = await db.userProfile.findFirst({
+                where: {
+                    guildId: guildInternalId,
+                    status: 'ACTIVE',
+                    userId: { not: leaverUserId || undefined },
+                },
+                orderBy: { createdAt: 'asc' },
+                select: { userId: true, pseudoDofus: true, discordNickname: true },
+            });
+            if (senior) {
+                newOwnerUserId = senior.userId;
+                newOwnerName = senior.pseudoDofus || senior.discordNickname || 'Senior Member';
+                successionReason = 'SENIOR_MEMBER_SUCCESSION';
+            }
+        }
+
+        if (!newOwnerUserId) {
+            console.log(`[GuildSuccession] ⚠️ Aucun successeur pour ${guildName} — filet orphelin (cron/P2).`);
+            return;
+        }
+
+        await db.guildConfig.update({
+            where: { id: guildInternalId },
+            data: { ownerId: newOwnerUserId },
+        });
+        await (db as any).auditLog.create({
+            data: {
+                guildId: guildInternalId,
+                actorUserId: 'SYSTEM',
+                actorName: 'Succession Automatique (départ Discord)',
+                action: 'GUILD_CONFIG_UPDATED',
+                targetType: 'GUILD',
+                targetId: guildInternalId,
+                metadata: { actionDetail: 'AUTOMATIC_OWNERSHIP_SUCCESSION', reason: successionReason, previousOwnerId: storedOwner, newOwnerId: newOwnerUserId, newOwnerName },
+            },
+        }).catch((e: unknown) => console.error('[GuildSuccession] audit failed:', e));
+        await (db as any).godNotification.create({
+            data: {
+                title: '🛡️ Succession Automatique Effectuée',
+                message: `Guilde: **${guildName}**\nNouveau propriétaire: **${newOwnerName}**\nMotif: **${successionReason}** (départ Discord de l'ancien owner)`,
+                type: 'SYSTEM',
+                success: true,
+                metadata: { guildId: guildInternalId, newOwnerUserId, successionReason },
+            },
+        }).catch((e: unknown) => console.error('[GuildSuccession] god notif failed:', e));
+
+        const staffChannelId = guildConfig.lifecycleNotifyChannelId || guildConfig.systemNotifyChannelId;
+        if (staffChannelId) {
+            const channel = await client.channels.fetch(staffChannelId).catch(() => null);
+            if (channel && channel.isTextBased() && 'send' in channel) {
+                await channel.send({
+                    embeds: [{
+                        title: '🛡️ Succession Automatique de Propriété',
+                        description: `L'ancien propriétaire a quitté Discord : la propriété de **${guildName}** a été transmise à **${newOwnerName}**.\n\n📋 Motif : ${successionReason === 'DISCORD_SERVER_OWNER_INHERITANCE' ? "Propriétaire légitime du serveur Discord" : "Membre actif le plus ancien"}`,
+                        color: 0x3b82f6,
+                        timestamp: new Date().toISOString(),
+                        footer: { text: 'SigilOS • Fail-Safe Protection' },
+                    }],
+                }).catch((e: unknown) => console.error('[GuildSuccession] staff alert failed:', e));
+            }
+        }
+        console.log(`[GuildSuccession] ✅ ${guildName} → ${newOwnerName} (${successionReason})`);
+    } catch (e) {
+        console.error('[GuildSuccession] succession on leave failed:', e);
+    }
+}
 
 // ========================
 // Event: Guild Delete (Bot Removed)
@@ -448,7 +602,7 @@ client.on(Events.GuildMemberRemove, async (member) => {
 
         if (!guildConfig) return;
 
-        // Find user account
+        // Find user account (peut être absent : owner snowflake sans profil SigilOS)
         const account = await db.account.findFirst({
             where: {
                 provider: 'discord',
@@ -456,6 +610,24 @@ client.on(Events.GuildMemberRemove, async (member) => {
             },
             select: { userId: true },
         });
+
+        // P0 — succession AVANT tout return : même sans profil, le partant peut
+        // être l'owner stocké (snowflake d'onboarding). Vérification cheap.
+        const liveOwner = await member.guild.fetchOwner().then(o => o.id).catch(() => member.guild.ownerId ?? null);
+        const ownerCheck = await db.guildConfig.findUnique({
+            where: { id: guildConfig.id },
+            select: { ownerId: true },
+        });
+        if (ownerCheck?.ownerId && (ownerCheck.ownerId === member.user.id || (account && ownerCheck.ownerId === account.userId))) {
+            await maybeSuccessionOnLeave(
+                guildConfig.id,
+                member.guild.name,
+                member.guild.id,
+                member.user.id,
+                account?.userId ?? null,
+                liveOwner,
+            );
+        }
 
         if (!account) return;
 

@@ -34,7 +34,8 @@ export type ModuleKey =
     | "minigames"
     | "succes"
     | "reactionRoles"
-    | "tickets";
+    | "tickets"
+    | "commandes";
 
 export type GuildModulesState = {
     // Général
@@ -70,6 +71,7 @@ export type GuildModulesState = {
     manualLadderSync: boolean;
     minigames: boolean;
     succes: boolean;
+    commandes: boolean;
 };
 
 /**
@@ -111,5 +113,9 @@ export const DEFAULT_MODULES: GuildModulesState = {
     manualLadderSync: false,
     minigames: false,
     succes: false,
+    // Catalogue des commandes slash : piloté par toggle (cohérence
+    // "désactivé = invisible"). Inactif par défaut pour les nouvelles guildes
+    // (ligne absente) ; les guildes existantes gardent true via la migration.
+    commandes: false,
 };
 

@@ -114,7 +114,7 @@ export function TourCompletion({ guildId }: { guildId: string }) {
                                     className="w-full h-12 bg-primary hover:bg-primary/90 font-black uppercase tracking-widest text-xs rounded-xl transition-colors active:scale-95 text-primary-foreground gap-2"
                                 >
                                     <ShieldCheck className="w-4 h-4" />
-                                    Ouvrir le Centre Admin
+                                    Ouvrir la Console
                                     <ArrowRight className="w-4 h-4 ml-auto" />
                                 </Button>
                                 <Button

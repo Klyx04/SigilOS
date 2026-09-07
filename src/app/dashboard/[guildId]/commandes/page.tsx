@@ -35,6 +35,11 @@ export default async function CommandesBotPage({ params }: Props) {
         return <AccessDenied />;
     }
 
+    const { isModuleEnabled } = await import("@/server/actions/module-actions");
+    if (!(await isModuleEnabled(guildId, "commandes"))) {
+        return <AccessDenied />;
+    }
+
     const config = await db.guildConfig.findFirst({
         where: {
             OR: [

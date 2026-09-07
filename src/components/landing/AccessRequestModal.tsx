@@ -13,9 +13,14 @@ const DiscordIcon = ({ className }: { className?: string }) => (
 interface AccessRequestModalProps {
     open: boolean;
     onClose: () => void;
+    /**
+     * Kill-switch God (PlatformConfig.autoOnboardingEnabled) : OFF = on masque
+     * le bloc "En autonomie" (file God uniquement). Défaut true.
+     */
+    autoOnboardingOn?: boolean;
 }
 
-export function AccessRequestModal({ open, onClose }: AccessRequestModalProps) {
+export function AccessRequestModal({ open, onClose, autoOnboardingOn = true }: AccessRequestModalProps) {
     const discordInvite = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || "https://discord.gg/uX7G6SUDgN";
 
     return (
@@ -34,7 +39,8 @@ export function AccessRequestModal({ open, onClose }: AccessRequestModalProps) {
                 </DialogHeader>
 
                 <div className="space-y-4 my-2">
-                    {/* Option 1 : autonome */}
+                    {/* Option 1 : autonome (masquée si kill-switch God OFF) */}
+                    {autoOnboardingOn && (
                     <div className="p-5 rounded-2xl bg-background border border-border space-y-3">
                         <p className="text-sm font-bold text-foreground">
                             En autonomie <span className="font-medium text-muted-foreground">· immédiat et gratuit</span>
@@ -48,9 +54,10 @@ export function AccessRequestModal({ open, onClose }: AccessRequestModalProps) {
                             className="w-full h-11 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm rounded-xl"
                         >
                             <DiscordIcon className="w-4 h-4 mr-2" />
-                            Déployer mon serveur en 1 clic
+                            Continuer avec Discord
                         </Button>
                     </div>
+                    )}
 
                     {/* Option 2 : accompagné */}
                     <div className="p-5 rounded-2xl bg-background border border-border space-y-3">

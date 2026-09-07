@@ -29,7 +29,8 @@ export default async function AdminCommandesPage({ params }: Props) {
     }
 
     const user = await getUserContext(guildId);
-    if (!user.isAuthenticated || (!user.isAdmin && !user.canManageRBAC)) {
+    // Pilotage natif uniquement (owner/0x8) — voir page Pilotage, onglet Commandes.
+    if (!user.isAuthenticated || !user.isDiscordAdmin) {
         return <AccessDenied />;
     }
 

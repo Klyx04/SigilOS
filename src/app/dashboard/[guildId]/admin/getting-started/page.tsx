@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
+import { AdminConsoleNav } from "@/components/admin/admin-console-nav";
 
 export default async function GettingStartedPage({
     params,
@@ -65,6 +66,14 @@ export default async function GettingStartedPage({
                     icon={Rocket}
                     backHref={`/dashboard/${guildId}/admin`}
                     actions={<AdminTourReplay phase="admin" />}
+                />
+
+                <AdminConsoleNav
+                    guildId={guildId}
+                    showModules={user.isDiscordAdmin}
+                    showAccess={user.canManageRBAC || user.isAdmin}
+                    showOnboarding={true}
+                    showPilotage={user.isDiscordAdmin}
                 />
 
                 {/* Alerte critique si étapes obligatoires non complètes */}

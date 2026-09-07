@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { updateGuildModules } from "@/server/actions/module-actions";
 import { type GuildModulesState, type ModuleKey } from "@/lib/module-types";
+import { getPermissionsForGuildModule, PERMISSION_LABELS } from "@/lib/permissions";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -31,6 +32,7 @@ import {
     CalendarClock,
     Sparkles,
     Ticket,
+    Terminal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -89,6 +91,7 @@ const MODULE_ROUTES: Partial<Record<ModuleKey, { label: string; href: string }[]
     ],
     logs: [{ label: "Audit Logs", href: "/dashboard/{guildId}/admin/logs" }],
     reactionRoles: [{ label: "Rôles par Réaction", href: "/dashboard/{guildId}/reaction-roles" }],
+    commandes: [{ label: "Commandes Bot Discord", href: "/dashboard/{guildId}/commandes" }],
 };
 
 type ModuleGroup = {
@@ -141,6 +144,15 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 label: "Disponibilités",
                 description: "Planning hebdomadaire des membres (onglet Disponibilités de l'annuaire + onglet Planning du profil). Rappel doux une fois par semaine si non rempli.",
                 icon: CalendarClock,
+                color: "text-info",
+                bgColor: "bg-info/10",
+                borderColor: "border-info/30",
+            },
+            {
+                key: "commandes",
+                label: "Commandes Bot Discord",
+                description: "Catalogue des commandes slash : syntaxe, salons et rôles autorisés.",
+                icon: Terminal,
                 color: "text-info",
                 bgColor: "bg-info/10",
                 borderColor: "border-info/30",
@@ -352,9 +364,12 @@ const MODULE_GROUPS: ModuleGroup[] = [
 type Props = {
     guildId: string;
     initialModules: GuildModulesState;
+    /** Modules verrouillés par le staff : toggle désactivé + badge ( §9 ). */
+    lockedModules?: string[];
 };
 
-export function ModulesClient({ guildId, initialModules }: Props) {
+export function ModulesClient({ guildId, initialModules, lockedModules = [] }: Props) {
+    const locked = useMemo(() => new Set(lockedModules), [lockedModules]);
     const [modules, setModules] = useState<GuildModulesState>(initialModules);
     const [pending, setPending] = useState<ModuleKey | null>(null);
     const [isPending, startTransition] = useTransition();
@@ -365,6 +380,10 @@ export function ModulesClient({ guildId, initialModules }: Props) {
     const totalCount = allModules.length;
 
     async function handleToggle(key: ModuleKey, value: boolean) {
+        if (locked.has(key)) {
+            toast.error("Module verrouillé par le staff — contactez le support");
+            return;
+        }
         const previous = modules[key];
         setModules((prev) => ({ ...prev, [key]: value }));
         setPending(key);
@@ -442,6 +461,7 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
                             {filteredModules.map((mod) => {
                                 const isEnabled = modules[mod.key];
+                                const isLocked = locked.has(mod.key);
                                 const isLoading = pending === mod.key && isPending;
                                 const Icon = mod.icon;
                                 const routes = MODULE_ROUTES[mod.key];
@@ -485,6 +505,11 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                                                                     WIP
                                                                 </Badge>
                                                             )}
+                                                            {isLocked && (
+                                                                <Badge variant="outline" className="text-xs px-2 py-0.5 h-5 bg-info/10 border-info/30 text-info font-medium" title="Verrouillé par le staff : l'activation est gérée côté plateforme">
+                                                                    Verrouillé par le staff
+                                                                </Badge>
+                                                            )}
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             {isEnabled ? (
@@ -506,7 +531,7 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                                                         <Switch
                                                             checked={isEnabled}
                                                             onCheckedChange={(val) => handleToggle(mod.key, val)}
-                                                            disabled={isPending}
+                                                            disabled={isPending || isLocked}
                                                             className="data-[state=checked]:bg-success scale-125"
                                                             aria-label={`Toggle module ${mod.label}`}
                                                         />
@@ -525,7 +550,7 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                                             </div>
 
                                             {/* Pages concernées (#66) */}
-                                            <div className="mt-6 pt-5 border-t border-border">
+                                            <div className="mt-6 pt-5 border-t border-border space-y-3">
                                                 {routes && routes.length > 0 ? (
                                                     <div className="flex flex-wrap items-center gap-1.5">
                                                         <span className="text-xs font-medium text-muted-foreground">Pages :</span>
@@ -542,6 +567,25 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                                                 ) : (
                                                     <span className="text-xs text-muted-foreground">Page dédiée à venir</span>
                                                 )}
+                                                {(() => {
+                                                    const linked = getPermissionsForGuildModule(mod.key);
+                                                    if (linked.length === 0) return null;
+                                                    return (
+                                                        <div className="flex flex-wrap items-center gap-1.5">
+                                                            <span className="text-xs font-medium text-muted-foreground">RBAC :</span>
+                                                            {linked.map((permId) => (
+                                                                <Link
+                                                                    key={permId}
+                                                                    href={`/dashboard/${guildId}/admin/permissions`}
+                                                                    title="Voir dans la matrice RBAC"
+                                                                    className="px-2.5 py-1 rounded-lg bg-warning/10 border border-warning/25 text-xs font-bold text-warning hover:bg-warning/20 transition-colors"
+                                                                >
+                                                                    {PERMISSION_LABELS[permId] || permId}
+                                                                </Link>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                     </div>

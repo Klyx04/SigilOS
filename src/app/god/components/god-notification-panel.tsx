@@ -24,6 +24,7 @@ import {
     ListFilter
 } from "lucide-react";
 import { markGodNotificationRead, markAllGodNotificationsRead } from "@/server/actions/god-notif-actions";
+import { resolveRecoveryClaim } from "@/server/actions/guild-owner-actions";
 import { toast } from "sonner";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -139,9 +140,35 @@ export function GodNotificationPanel({ notifications: initialNotifications }: Go
                 return "/god/mini-games";
             case "GUILD_UPDATE":
                 return notif.metadata?.guildId ? `/god/guilds/${notif.metadata.guildId}` : "/god/guilds";
+            case "SYSTEM":
+                // Claims/succession/orphelins portent guildId interne → détail guilde.
+                return notif.metadata?.guildId ? `/god/guilds/${notif.metadata.guildId}` : null;
             default:
                 return null;
         }
+    };
+
+    // P2 — notifs de récupération : opération portée par metadata.operation.
+    const isRecoveryNotif = (notif: GodNotification) =>
+        notif.metadata?.operation === "RECOVERY_CLAIM" || notif.metadata?.operation === "ORPHAN_DETECTED";
+
+    const handleRejectClaim = (notif: GodNotification, e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const discordGuildId = notif.metadata?.discordGuildId;
+        if (!discordGuildId) {
+            toast.error("ID Discord manquant dans la notification");
+            return;
+        }
+        startTransition(async () => {
+            const res = await resolveRecoveryClaim(discordGuildId, "REJECTED");
+            if (res.success) {
+                setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, isRead: true } : n));
+                toast.success("Demande rejetée.");
+            } else {
+                toast.error(res.error || "Échec du rejet");
+            }
+        });
     };
 
     return (
@@ -297,6 +324,27 @@ export function GodNotificationPanel({ notifications: initialNotifications }: Go
                                     <p className="text-muted-foreground text-xs leading-relaxed max-w-4xl">
                                         {notif.message}
                                     </p>
+
+                                    {/* P2 — statuer un claim : transfert via le détail guilde, rejet ici */}
+                                    {isRecoveryNotif(notif) && (
+                                        <div className="flex items-center gap-2 pt-1">
+                                            {notif.metadata?.guildId && (
+                                                <Link
+                                                    href={`/god/guilds/${notif.metadata.guildId}`}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-success/15 border border-success/30 text-success text-xs font-black uppercase tracking-wider hover:bg-success/25 transition-colors"
+                                                >
+                                                    Transférer (détail guilde)
+                                                </Link>
+                                            )}
+                                            <button
+                                                onClick={(e) => handleRejectClaim(notif, e)}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-danger/10 border border-danger/30 text-danger text-xs font-black uppercase tracking-wider hover:bg-danger/20 transition-colors"
+                                            >
+                                                Rejeter
+                                            </button>
+                                        </div>
+                                    )}
 
                                     {notif.metadata && Object.keys(notif.metadata).length > 0 && (
                                         <div className="mt-3 pt-3 border-t border-border grid grid-cols-2 md:grid-cols-4 gap-3">

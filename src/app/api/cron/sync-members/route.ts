@@ -54,11 +54,15 @@ export async function GET(req: NextRequest) {
             .map(([gid, r]) => `${gid}: ${r.errors[0] || "?"}`)
             .join(" | ");
         if (failDetail) logger.error(`[SyncMembersCron] Échecs par guilde: ${failDetail}`);
+        // Guildes ignorées en fail-soft (bot kické / intent coupé) : warning, pas échec.
+        const warnedGuilds = Object.entries(results).flatMap(([, r]) => r.warnings ?? []);
+        if (warnedGuilds.length > 0) logger.warn(`[SyncMembersCron] Guildes ignorées: ${warnedGuilds.join(" | ")}`);
+        const warnDetail = warnedGuilds.join(" | ");
         await recordCronExecution("sync_members", {
             success: summary.failedGuilds.length === 0,
             durationMs,
-            summary: `Sync membres : ${summary.totalArchived} archivé(s), ${summary.totalReactivated} réactivé(s), ${summary.totalErrors} erreur(s)${failDetail ? ` — ${failDetail}` : ""}`,
-            details: { ...summary, failedGuilds: failedGuilds.map(([gid]) => gid), failDetail },
+            summary: `Sync membres : ${summary.totalArchived} archivé(s), ${summary.totalReactivated} réactivé(s), ${summary.totalErrors} erreur(s)${failDetail ? ` — ${failDetail}` : ""}${warnDetail ? ` — ignorée(s): ${warnDetail}` : ""}`,
+            details: { ...summary, failedGuilds: failedGuilds.map(([gid]) => gid), failDetail, warnedGuilds },
         });
 
         return NextResponse.json({

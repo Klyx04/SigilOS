@@ -5,7 +5,7 @@ import { db } from "../lib/prisma";
 import { getQuestDetails, normalizeQuestMonster, MetamobApiError, type QuestMonster } from "../lib/metamob-client";
 import { decrypt } from "../lib/encryption";
 import { logger } from "../lib/logger";
-import { sendGlobalStatusPing } from "../server/actions/status-actions";
+import { sendGlobalStatusPingCore } from "../server/status-ping-core";
 import { sendDailySummaryReport } from "../server/actions/daily-report-actions";
 // ── Ladder Sync ──────────────────────────────────────────────────────────────
 import { ladderSyncWorker, ladderQueue } from "./ladder-sync-worker";
@@ -42,16 +42,35 @@ async function processExchangeJob(job: Job<ExchangeJobData>) {
         return;
     }
 
-    const effectiveApiKey = currentUserProfile.metamobApiKey || undefined;
+    // La clé est stockée chiffrée : la déchiffrer (comme pour les autres
+    // membres plus bas). Indéchiffrable (clé d'un autre env) → undefined
+    // (anonyme) plutôt que d'envoyer du ciphertext à Metamob.
+    let effectiveApiKey: string | undefined;
+    try {
+        effectiveApiKey = currentUserProfile.metamobApiKey ? (decrypt(currentUserProfile.metamobApiKey) || undefined) : undefined;
+    } catch {
+        logger.warn(`[Worker] Clé Metamob indéchiffrable pour l'utilisateur ${userId} — appel anonyme.`);
+        effectiveApiKey = undefined;
+    }
 
     await job.updateProgress(20);
 
     // 2. Fetch current user's quest to know their precise needs
-    const currentUserQuest = await getQuestDetails(
-        currentUserProfile.metamobPseudo!,
-        currentUserProfile.metamobQuestSlug,
-        { guildApiKey: effectiveApiKey, status: "all", limit: 200 }
-    );
+    let currentUserQuest;
+    try {
+        currentUserQuest = await getQuestDetails(
+            currentUserProfile.metamobPseudo!,
+            currentUserProfile.metamobQuestSlug,
+            { guildApiKey: effectiveApiKey, status: "all", limit: 200 }
+        );
+    } catch (err) {
+        // Quête privée/invisible sans clé valide, ou slug périmé : message
+        // actionnable (remonte tel quel dans le toast via job.failedReason).
+        if (err instanceof MetamobApiError && err.code === "NOT_FOUND") {
+            throw new Error("Votre quête Metamob est introuvable (privée, renommée ou lien périmé) — re-liez votre compte dans le profil.");
+        }
+        throw err;
+    }
 
     const currentUserPQ = currentUserQuest.parallel_quests || 1;
     const neededMonsterIds = new Set<number>();
@@ -418,7 +437,7 @@ const cronWorker = new Worker(
     async (job) => {
         if (job.name === "status-ping") {
             logger.info("[Cron] Execution du Status Ping GLOBAL...");
-            const res = await sendGlobalStatusPing(false);
+            const res = await sendGlobalStatusPingCore();
             if (!res.success) logger.error(`[Cron] Status Ping échoué: ${res.error}`);
         }
 

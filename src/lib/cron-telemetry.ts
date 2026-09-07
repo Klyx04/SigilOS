@@ -66,23 +66,28 @@ export const KNOWN_CRON_TASKS: Record<string, { name: string; schedule: string; 
     },
     cleanup_proofs: {
         name: "Purge Preuves Obsolètes",
-        schedule: "Dans maintenance 04h00",
+        schedule: "Quotidien 04h10",
+        logFile: "cleanup-proofs.log",
     },
     close_old_polls: {
         name: "Auto-clôture Sondages",
-        schedule: "Dans maintenance 04h00",
+        schedule: "Quotidien 04h20",
+        logFile: "close-old-polls.log",
     },
     sync_dofensive_maps: {
         name: "Sync Maps Dofensive",
-        schedule: "Hebdomadaire (Dimanche)",
+        schedule: "Quotidien 03h30",
+        logFile: "sync-dofensive-maps.log",
     },
     sync_monster_stats: {
         name: "Sync Stats Monstres",
-        schedule: "Hebdomadaire (Dimanche)",
+        schedule: "Quotidien 03h45",
+        logFile: "sync-monster-stats.log",
     },
     loan_reminders: {
         name: "Rappels Prêts Coffre",
         schedule: "Quotidien 12h00",
+        logFile: "loan-reminders.log",
     },
 };
 

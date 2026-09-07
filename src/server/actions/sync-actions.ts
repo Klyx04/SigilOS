@@ -18,12 +18,15 @@ import { logger } from "@/lib/logger";
 import { createAuditLog } from "./audit-actions";
 import { fetchGuildBans, fetchAllGuildMembers } from "@/server/discord";
 import { sendLifecycleNotification } from "./lifecycle-actions";
+import { isGuildUnavailableError } from "@/lib/discord-guild-errors";
 
 interface SyncResult {
     success: boolean;
     archived: number;
     reactivated: number;
     errors: string[];
+    /** Guildes ignorées sans échec (bot kické / intent coupé) — remonte en warning God. */
+    warnings?: string[];
     details?: {
         totalDiscordMembers: number;
         totalActiveProfiles: number;
@@ -264,10 +267,22 @@ async function syncMembershipStatusInternal(discordGuildId: string): Promise<Syn
         }
 
         // 2. Fetch all Discord members and bans
-        const [discordMemberIds, discordBans] = await Promise.all([
-            fetchAllGuildMembers(discordGuildId),
-            fetchGuildBans(discordGuildId).catch(() => [])
-        ]);
+        // Fail-soft : 404 (bot kické / guilde supprimée) ou 403 (intent coupé)
+        // = état de config permanent → on ignore LA guilde en warning SANS
+        // faire échouer tout le cron. Toute autre erreur reste un échec
+        // (fail-closed : état inconnu → on n'archive personne en silence).
+        let discordMemberIds: Set<string>;
+        try {
+            discordMemberIds = await fetchAllGuildMembers(discordGuildId);
+        } catch (err) {
+            if (isGuildUnavailableError(err)) {
+                const reason = err instanceof Error ? err.message : "Discord indisponible";
+                logger.warn(`[Sync] Guilde ${discordGuildId} ignorée: ${reason}`);
+                return { success: true, archived: 0, reactivated: 0, errors: [], warnings: [`${discordGuildId}: ${reason}`] };
+            }
+            throw err;
+        }
+        const discordBans = await fetchGuildBans(discordGuildId).catch(() => []);
 
         const bannedUserIds = new Set(discordBans.map(b => b.user.id));
 

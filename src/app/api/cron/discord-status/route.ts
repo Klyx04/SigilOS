@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
-import { sendGlobalStatusPing } from "@/server/actions/status-actions";
+import { sendGlobalStatusPingCore } from "@/server/status-ping-core";
 import { verifyCronSecret } from "@/lib/cron-auth";
+
+// ---------------------------------------------------------------------------
+// DISC-2 — Discord Status Channel (Consolidated)
+// Triggers the living status update in the configured Discord channel.
+// ✅ Protégé par x-cron-secret (fail-closed si secret absent)
+// NOTE : appelle le core SANS gate session — la route est déjà authentifiée
+// via verifyCronSecret (le gate isSuperAdmin de l'action serveur exigerait
+// une session Auth.js inexistante en contexte cron).
 
 // ---------------------------------------------------------------------------
 // DISC-2 — Discord Status Channel (Consolidated)
@@ -17,7 +25,7 @@ export async function GET(req: Request) {
     const startedAt = Date.now();
 
     try {
-        const result = await sendGlobalStatusPing(false);
+        const result = await sendGlobalStatusPingCore();
         const durationMs = Date.now() - startedAt;
 
         if (!result.success) {

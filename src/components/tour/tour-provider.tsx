@@ -21,6 +21,7 @@ export type TourPhase =
     | "adminPoints"
     | "adminApiKeys"
     | "adminRecruitment"
+    | "adminPilotage"
     | "reactionRoles"
     | "tickets"
     // Phases des tours MODULES (rejouables, filtrées par module actif + RBAC)
@@ -465,7 +466,7 @@ const ADMIN_LOGS_STEPS: TourStep[] = [
 const ADMIN_OVERVIEW_STEPS: TourStep[] = [
     {
         target: '[data-tour="admin-overview-header"]',
-        title: "Centre Admin — Supervision",
+            title: "Console — Supervision",
         description: "Centralise toute l'administration de ta guilde : structure, opérations, sécurité. Chaque carte ouvre un module dédié. Les cartes auxquelles tu n'as pas accès sont masquées automatiquement.",
         placement: "bottom",
         requiresPerm: "isAdmin"

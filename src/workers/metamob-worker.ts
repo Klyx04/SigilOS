@@ -67,7 +67,7 @@ async function processExchangeJob(job: Job<ExchangeJobData>) {
         // Quête privée/invisible sans clé valide, ou slug périmé : message
         // actionnable (remonte tel quel dans le toast via job.failedReason).
         if (err instanceof MetamobApiError && err.code === "NOT_FOUND") {
-            throw new Error("Votre quête Metamob est introuvable (privée, renommée ou lien périmé) — re-liez votre compte dans le profil.");
+            throw new Error("Votre quête Metamob est introuvable — si elle est en privé sur Metamob, passez-la en publique, sinon re-liez votre compte dans le profil.");
         }
         throw err;
     }

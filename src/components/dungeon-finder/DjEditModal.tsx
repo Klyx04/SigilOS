@@ -104,7 +104,7 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
     const isMulti = (post.dungeonsJson?.length ?? 0) > 0;
     const title = isMulti
         ? `Multi-donjons — ${post.dungeonsJson?.length}`
-        : (post.mode === "DONJON" ? post.dungeon?.name : post.questName);
+        : (post.mode === "DONJON" ? post.dungeon?.name : post.mode === "DEFI" ? (post.defiName || "Défi") : post.mode === "TITAN" ? (post.titanName || "Titan") : post.questName);
     const achievements = post.dungeon?.achievements ?? [];
 
     return (

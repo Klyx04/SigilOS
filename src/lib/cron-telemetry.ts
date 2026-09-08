@@ -89,6 +89,36 @@ export const KNOWN_CRON_TASKS: Record<string, { name: string; schedule: string; 
         schedule: "Quotidien 12h00",
         logFile: "loan-reminders.log",
     },
+    cleanup_inactive_service_requests: {
+        name: "Purge Demandes de Service Inactives",
+        schedule: "Quotidien 04h40",
+        logFile: "cleanup-inactive-service-requests.log",
+    },
+    check_links: {
+        name: "Vérificateur de liens DofusDB/Dofensive",
+        schedule: "Quotidien",
+        logFile: "check-links.log",
+    },
+    cleanup_inactive_posts: {
+        name: "Relance & Clôture Posts Inactifs (DJ/Quêtes/Songes)",
+        schedule: "Quotidien",
+        logFile: "cleanup-inactive-posts.log",
+    },
+    guild_orphan_watch: {
+        name: "Détection Guildes Orphelines",
+        schedule: "Quotidien",
+        logFile: "guild-orphan-watch.log",
+    },
+    ladder_sync: {
+        name: "Sync Ladder Général/Succès",
+        schedule: "Toutes les 12h",
+        logFile: "ladder-sync.log",
+    },
+    status_ping: {
+        name: "Ping Statut Global",
+        schedule: "Quotidien",
+        logFile: "status-ping.log",
+    },
 };
 
 const REDIS_PREFIX = "cron:telemetry:";
@@ -189,5 +219,27 @@ export async function getAllCronStatuses(): Promise<CronExecutionRecord[]> {
             summary: "Erreur de lecture Redis",
             lines: [],
         }));
+    }
+}
+
+/**
+ * Récupère l'historique des exécutions (10 dernières) d'un cron depuis Redis.
+ */
+export async function getCronHistory(cronId: string): Promise<CronExecutionRecord[]> {
+    try {
+        const historyKey = `${REDIS_PREFIX}history:${cronId}`;
+        const rows = await redis.lrange(historyKey, 0, 9);
+        return rows
+            .map((raw) => {
+                try {
+                    return JSON.parse(raw) as CronExecutionRecord;
+                } catch {
+                    return null;
+                }
+            })
+            .filter((r): r is CronExecutionRecord => r !== null);
+    } catch (err) {
+        logger.error("[CronTelemetry] Failed to get cron history:", { cronId, error: err });
+        return [];
     }
 }

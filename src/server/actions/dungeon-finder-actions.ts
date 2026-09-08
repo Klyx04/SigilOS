@@ -80,6 +80,17 @@ export type DjPostWithDetails = {
         imageUrl: string | null;
         zone: string | null;
     } | null;
+    /* Mode Titan */
+    titanId?: string | null;
+    titanName?: string | null;
+    titan?: {
+        id: string;
+        name: string;
+        imageUrl: string | null;
+        zone: string | null;
+        level: number | null;
+        maxMembers: number;
+    } | null;
     wantedAchievementIds: string[];
     maxMembers: number;
     message: string | null;
@@ -175,7 +186,7 @@ export async function getDungeonFinderConfig(guildId: string): Promise<ActionRes
 // ---------------------------------------------------------------------------
 
 const createPostSchema = z.object({
-    mode: z.enum(["DONJON", "QUETE", "DEFI"]),
+    mode: z.enum(["DONJON", "QUETE", "DEFI", "TITAN"]),
     dungeonId: z.string().nullable(),
     questId: z.number().nullable(),
     questName: z.string().nullable(),
@@ -183,6 +194,9 @@ const createPostSchema = z.object({
     // Mode Défi : défi ciblé (if défini, stocké pour l'embed / la liste).
     defiId: z.string().nullable().optional(),
     defiName: z.string().nullable().optional(),
+    // Mode Titan : titan ciblé (Événement Krosmique).
+    titanId: z.string().nullable().optional(),
+    titanName: z.string().nullable().optional(),
     wantedAchievementIds: z.array(z.string()).default([]),
     maxMembers: z.number().min(2).max(8).default(4),
     message: z.string().max(500).nullable(),
@@ -812,6 +826,8 @@ async function buildPostEmbed(post: any, authorName: string, guildId: string, ac
         ? `⚔️ RECHERCHE DONJON`
         : post.mode === "DEFI"
         ? `⚡ RECHERCHE DÉFI`
+        : post.mode === "TITAN"
+        ? `👑 RECHERCHE TITAN`
         : `📜 RECHERCHE QUÊTE`;
 
     const fields: any[] = [];
@@ -827,6 +843,12 @@ async function buildPostEmbed(post: any, authorName: string, guildId: string, ac
         fields.push({ 
             name: "⚡ Défi", 
             value: `**${post.defiName || "Inconnu"}**`,
+            inline: true 
+        });
+    } else if (post.mode === "TITAN") {
+        fields.push({ 
+            name: "👑 Titan", 
+            value: `**${post.titanName || "Inconnu"}**`,
             inline: true 
         });
     } else if (!isDungeon) {
@@ -892,9 +914,10 @@ async function buildPostEmbed(post: any, authorName: string, guildId: string, ac
             `👤 **${creatorDiscordId ? `<@${creatorDiscordId}>` : authorName}** cherche des compagnons !`,
             post.message ? `\n> ${post.message}` : "",
         ].filter(Boolean).join("\n"),
-        color: post.mode === "DONJON" ? 0x818cf8 : post.mode === "DEFI" ? 0xf59e0b : 0x34d399,
+        color: post.mode === "DONJON" ? 0x818cf8 : post.mode === "DEFI" ? 0xf59e0b : post.mode === "TITAN" ? 0xf59e0b : 0x34d399,
         fields,
         thumbnail: (() => {
+            if (post.mode === "TITAN" && post.titan?.imageUrl) return post.titan.imageUrl.startsWith("https://") ? { url: post.titan.imageUrl } : undefined;
             if (!isDungeon || !post.dungeon?.imageUrl) return undefined;
             const rawUrl = post.dungeon.imageUrl.startsWith("http")
                 ? post.dungeon.imageUrl
@@ -964,6 +987,19 @@ export async function createDjPost(
             finalQuestUrl = await getVerifiedDPLNUrl(rest.questName);
         }
 
+        // Mode Titan : fail-closed sur l'existence du titan + snapshot canonique du nom.
+        if (rest.mode === "TITAN") {
+            if (!rest.titanId) return { success: false, error: "Titan requis" };
+            const titan = await (db as any).titan.findUnique({
+                where: { id: rest.titanId },
+                select: { id: true, name: true, maxMembers: true },
+            });
+            if (!titan) return { success: false, error: "Titan introuvable" };
+            rest.titanName = titan.name;
+            // #Titan — la taille du groupe est FIXE = maxMembers du titan (pas plus, pas moins).
+            rest.maxMembers = titan.maxMembers ?? rest.maxMembers;
+        }
+
         const post = await (db as any).djSearchPost.create({
             data: {
                 ...rest,
@@ -985,6 +1021,7 @@ export async function createDjPost(
                     },
                 },
                 defi: { select: { id: true, name: true, imageUrl: true, zone: true } },
+                titan: { select: { id: true, name: true, imageUrl: true, zone: true, level: true, maxMembers: true } },
             },
         });
 
@@ -1316,6 +1353,25 @@ async function applyDefiValidation(profileIds: string[], defiId: string): Promis
 }
 
 /**
+ * Mode Titan — clôture : valide le titan « je l'ai vaincu » pour les profils présents.
+ * Idempotent (skipDuplicates) et fail-closed : ne crée rien si le titan n'existe pas.
+ */
+async function applyTitanValidation(profileIds: string[], titanId: string): Promise<{ created: number }> {
+    const uniqueProfiles = Array.from(new Set(profileIds));
+    if (uniqueProfiles.length === 0) return { created: 0 };
+    try {
+        const titan = await (db as any).titan.findUnique({ where: { id: titanId }, select: { id: true } });
+        if (!titan) return { created: 0 };
+        const data = uniqueProfiles.map((profileId) => ({ profileId, titanId, source: "GROUP" }));
+        const res = await (db as any).userTitanProgress.createMany({ data, skipDuplicates: true });
+        return { created: res.count ?? data.length };
+    } catch (error) {
+        logger.error("[applyTitanValidation]", error);
+        return { created: 0 };
+    }
+}
+
+/**
  * Close a DJ search post (creator only) and award contribution points to validated participants.
  * The creator themselves gets 0 points.
  * @param validatedProfileIds - profileIds of participants who participated and should get points
@@ -1340,6 +1396,8 @@ export async function closeDjPostWithContributions(
                 discordMessageId: true,
                 dungeonId: true,
                 dungeonsJson: true,
+                mode: true,
+                titanId: true,
                 dungeon: { select: { level: true } },
             },
         });
@@ -1386,6 +1444,11 @@ export async function closeDjPostWithContributions(
         const successProfiles = Array.from(new Set([...validatedProfileIds, post.profileId]));
         if (successValidations && successValidations.length > 0 && successProfiles.length > 0) {
             await applySuccessValidations({ guildId, post, successValidations, profileIds: successProfiles });
+        }
+
+        // Mode Titan : valide le titan « je l'ai vaincu » pour tous les présents.
+        if (post.mode === "TITAN" && post.titanId) {
+            await applyTitanValidation(successProfiles, post.titanId);
         }
 
         // Désactiver l'embed Discord (fire-and-forget)

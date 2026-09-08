@@ -7,12 +7,24 @@ import {
   HelpCircle,
   RefreshCw,
   Clock,
-  ChevronDown,
   ChevronRight,
   HardDrive,
   Terminal,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+
+interface HistoryEntry {
+  id: string;
+  name: string;
+  lastRun: string | null;
+  durationMs: number | null;
+  status: "success" | "error" | "unknown";
+  summary: string | null;
+  details?: Record<string, any> | null;
+  lines?: string[];
+}
 
 interface CronTask {
   id: string;
@@ -23,8 +35,10 @@ interface CronTask {
   durationMs?: number | null;
   sizeBytes: number;
   status: "success" | "error" | "unknown";
+  details?: Record<string, any> | null;
   summary?: string | null;
   lastLines: string[];
+  history?: HistoryEntry[];
 }
 
 interface CronStatusData {
@@ -59,7 +73,7 @@ function formatRelativeTime(iso: string | null): string {
   return "à l'instant";
 }
 
-function StatusBadge({ status }: { status: CronTask["status"] }) {
+function StatusBadge({ status }: { status: CronTask["status"] | HistoryEntry["status"] }) {
   if (status === "success") return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
       <CheckCircle2 className="w-3 h-3" /> OK
@@ -77,9 +91,16 @@ function StatusBadge({ status }: { status: CronTask["status"] }) {
   );
 }
 
-function TaskRow({ task }: { task: CronTask }) {
-  const [expanded, setExpanded] = useState(false);
+function MetaCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-surface border border-border px-2.5 py-2">
+      <p className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="text-sm font-bold text-foreground tabular-nums truncate">{value}</p>
+    </div>
+  );
+}
 
+function TaskRow({ task, onOpen }: { task: CronTask; onOpen: (task: CronTask) => void }) {
   return (
     <div className={cn(
       "rounded-xl border transition-all duration-200",
@@ -90,12 +111,12 @@ function TaskRow({ task }: { task: CronTask }) {
         : "border-border bg-surface opacity-70"
     )}>
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => onOpen(task)}
         className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors rounded-xl"
-        aria-expanded={expanded}
+        aria-haspopup="dialog"
       >
-        <span className="shrink-0">
-          {expanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+        <span className="shrink-0 text-muted-foreground">
+          <ChevronRight className="w-4 h-4" />
         </span>
 
         <StatusBadge status={task.status} />
@@ -129,34 +150,92 @@ function TaskRow({ task }: { task: CronTask }) {
           </span>
         )}
       </button>
-
-      {expanded && (
-        <div className="px-4 pb-4 space-y-2">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground border-t border-border pt-3">
-            <Terminal className="w-3 h-3" />
-            <code className="font-mono">{task.logFile}</code>
-            {task.durationMs && (
-              <span className="font-mono opacity-80">({formatDuration(task.durationMs)})</span>
-            )}
-            {task.lastRun && (
-              <span className="ml-auto opacity-60">{new Date(task.lastRun).toLocaleString("fr-FR")}</span>
-            )}
-          </div>
-          {task.summary && (
-            <div className="p-2.5 rounded-lg bg-surface border border-border text-xs text-foreground font-medium">
-              💡 <strong>Détail :</strong> {task.summary}
-            </div>
-          )}
-          {task.lastLines.length > 0 ? (
-            <pre className="text-xs font-mono bg-background border border-border rounded-lg p-3 overflow-x-auto max-h-48 overflow-y-auto text-muted-foreground leading-relaxed">
-              {task.lastLines.join("\n")}
-            </pre>
-          ) : (
-            <p className="text-xs text-muted-foreground italic px-1">Aucun log trouvé pour ce fichier.</p>
-          )}
-        </div>
-      )}
     </div>
+  );
+}
+
+function CronDetailModal({ task, onClose }: { task: CronTask | null; onClose: () => void }) {
+  return (
+    <Dialog open={!!task} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+        {task && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 pr-8">
+                <StatusBadge status={task.status} />
+                <span className="truncate">{task.name}</span>
+              </DialogTitle>
+              <DialogDescription className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                <span className="inline-flex items-center gap-1"><Terminal className="w-3 h-3" /> <code className="font-mono">{task.logFile}</code></span>
+                <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" /> {task.schedule}</span>
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <MetaCell label="Dernière exécution" value={formatRelativeTime(task.lastRun)} />
+              <MetaCell label="Durée" value={task.durationMs ? formatDuration(task.durationMs) : "—"} />
+              <MetaCell label="Taille log" value={task.sizeBytes > 0 ? formatBytes(task.sizeBytes) : "—"} />
+              <MetaCell label="Dernier run (précis)" value={task.lastRun ? new Date(task.lastRun).toLocaleString("fr-FR") : "—"} />
+            </div>
+
+            {task.summary && (
+              <div className="p-2.5 rounded-lg bg-surface border border-border text-xs text-foreground font-medium">
+                💡 <strong>Détail :</strong> {task.summary}
+              </div>
+            )}
+
+            {task.details && Object.keys(task.details).length > 0 && (
+              <div className="rounded-lg bg-surface border border-border p-2.5 space-y-1">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Résumé de la dernière exécution</p>
+                <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {Object.entries(task.details).map(([k, v]) => (
+                    <div key={k} className="rounded-md bg-elevated/60 border border-border px-2 py-1.5">
+                      <dt className="text-[9px] uppercase tracking-wider text-muted-foreground">{k}</dt>
+                      <dd className="text-sm font-bold text-foreground tabular-nums">{String(v ?? "—")}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
+
+            {task.history && task.history.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                  <History className="w-3 h-3" /> Historique des exécutions ({task.history.length})
+                </p>
+                <div className="space-y-1 max-h-52 overflow-y-auto pr-1">
+                  {task.history.map((h, i) => (
+                    <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-surface/60 border border-border text-xs">
+                      <StatusBadge status={h.status} />
+                      <span className="flex-1 truncate text-muted-foreground">{h.summary || h.name}</span>
+                      <span className="text-muted-foreground whitespace-nowrap">{formatRelativeTime(h.lastRun)}</span>
+                      {h.durationMs ? <span className="text-muted-foreground font-mono w-14 text-right">{formatDuration(h.durationMs)}</span> : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {task.lastLines.length > 0 ? (
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                  <Terminal className="w-3 h-3" /> Dernières lignes du log
+                </p>
+                <pre className="text-xs font-mono bg-background border border-border rounded-lg p-3 overflow-x-auto max-h-48 overflow-y-auto text-muted-foreground leading-relaxed">
+                  {task.lastLines.join("\n")}
+                </pre>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground italic px-1">Aucun log trouvé pour ce fichier.</p>
+            )}
+
+            <DialogFooter>
+              <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium bg-surface border border-border text-muted-foreground hover:text-foreground transition-colors">Fermer</button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -165,6 +244,7 @@ export function CronStatusPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [selected, setSelected] = useState<CronTask | null>(null);
 
   const fetchData = async () => {
     try {
@@ -257,7 +337,7 @@ export function CronStatusPanel() {
           ...data.tasks.filter(t => t.status === "error"),
           ...data.tasks.filter(t => t.status === "unknown"),
           ...data.tasks.filter(t => t.status === "success"),
-        ].map(task => <TaskRow key={task.id} task={task} />)}
+        ].map(task => <TaskRow key={task.id} task={task} onOpen={setSelected} />)}
       </div>
 
       {/* Footer — chemin des logs */}
@@ -265,6 +345,8 @@ export function CronStatusPanel() {
         <HardDrive className="w-3.5 h-3.5" />
         <code className="font-mono">{data.logDir}</code>
       </div>
+
+      <CronDetailModal task={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }

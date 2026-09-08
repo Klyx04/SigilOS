@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
-import { getAllCronStatuses, KNOWN_CRON_TASKS } from "@/lib/cron-telemetry";
+import { getAllCronStatuses, getCronHistory, KNOWN_CRON_TASKS } from "@/lib/cron-telemetry";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -46,8 +46,11 @@ export async function GET() {
   // 1. Récupérer les statuts temps réel depuis Redis
   const telemetryStatuses = await getAllCronStatuses();
 
+  // 1bis. Récupérer l'historique (10 dernières exécutions) de chaque tâche
+  const histories = await Promise.all(telemetryStatuses.map((t) => getCronHistory(t.id)));
+
   // 2. Fusionner avec les fichiers logs disque si existants
-  const results = telemetryStatuses.map((task) => {
+  const results = telemetryStatuses.map((task, idx) => {
     const meta = KNOWN_CRON_TASKS[task.id];
     const logFile = meta?.logFile;
     let sizeBytes = 0;
@@ -78,7 +81,9 @@ export async function GET() {
       sizeBytes,
       status: task.status,
       summary: task.summary,
+      details: task.details ?? null,
       lastLines: finalLines,
+      history: histories[idx] ?? [],
     };
   });
 

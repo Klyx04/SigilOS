@@ -79,6 +79,12 @@ interface SpellRangeGridProps {
     monsters?: { id: number; name: string; isBoss?: boolean; imageUrl?: string | null }[];
     /** Mode compact optimisé pour l'overlay PiP (largeur réduite, zoom libre, marges réduites). */
     compact?: boolean;
+    /** Échelle du sprite du boss (les titans occupent plusieurs cases en vrai combat). */
+    entityScale?: number;
+    /** Bypass public : autorise le déplacement libre du boss sur n'importe quelle
+     *  case marchable (ignore les placements de départ) pour jouer avec la préview
+     *  des sorts. Opt-in explicite (landing publique) — le dashboard reste épinglé. */
+    allowFreeCasterMove?: boolean;
 }
 
 // Ligne de Bresenham entre deux cellules (grille orthogonale) — pour la ligne de vue.
@@ -120,6 +126,8 @@ export function SpellRangeGrid({
     onGradeChange,
     monsters,
     compact = false,
+    entityScale = 1,
+    allowFreeCasterMove = false,
 }: SpellRangeGridProps) {
     // Sort actif — le parent peut contrôler la sélection (activeSpellId/onSelectSpell) ;
     // sinon l'état interne prend le relais (cas de la démo /demo/boss-sim).
@@ -160,6 +168,11 @@ export function SpellRangeGrid({
     // Cases de départ réelles (map Dofensive).
     const [showStartCells, setShowStartCells] = useState<boolean>(false);
 
+    // Bypass « boss libre » (opt-in landing publique) : actif par défaut quand la
+    // prop est présente, désactivable via le toggle de la toolbar. Le dashboard
+    // interne garde le comportement historique (boss épinglé sur son placement).
+    const [freeCasterMove, setFreeCasterMove] = useState<boolean>(allowFreeCasterMove);
+
     // Survol souris
     const [hoveredCell, setHoveredCell] = useState<DofusPos | null>(null);
 
@@ -197,6 +210,62 @@ export function SpellRangeGrid({
     const [lootCount, setLootCount] = useState<number>(4);
     const [showRulesModal, setShowRulesModal] = useState<boolean>(false);
     const [showCompactLegend, setShowCompactLegend] = useState<boolean>(false);
+
+    // Illustration titan (galerie God : /game-data/titans/<slug>.webp).
+    // Convention + onError : aucune base ni session requise (marche partout,
+    // y compris landing publique). Essayée seulement en contexte titan.
+    const slugifyTitan = (name: string): string =>
+        name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    const bossScale = Math.min(5, Math.max(1, entityScale));
+    const titanCandidate = bossScale > 1 && bossName ? `/game-data/titans/${slugifyTitan(bossName)}.webp` : null;
+    const [artSrc, setArtSrc] = useState<string | null>(null);
+    useEffect(() => {
+        setArtSrc(titanCandidate ?? bossImageUrl ?? null);
+    }, [titanCandidate, bossImageUrl, bossName]);
+
+    // Bas d'encre réel du sprite (les fichiers ont des marges transparentes
+    // variables — sans mesure, les pieds flottent au-dessus de la case).
+    // Mesuré une fois par image via canvas (même origine OK, distant = repli).
+    const [inkFile, setInkFile] = useState<{ f: number; w: number; h: number } | null>(null);
+    useEffect(() => {
+        setInkFile(null);
+        if (!artSrc || typeof window === "undefined") return;
+        const img = new window.Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+            try {
+                const w = img.naturalWidth;
+                const h = img.naturalHeight;
+                if (!w || !h) return;
+                const cv = document.createElement("canvas");
+                cv.width = w;
+                cv.height = h;
+                const ctx = cv.getContext("2d", { willReadFrequently: true });
+                if (!ctx) return;
+                ctx.drawImage(img, 0, 0);
+                const data = ctx.getImageData(0, 0, w, h).data;
+                for (let y = h - 1; y >= 0; y--) {
+                    for (let x = 0; x < w; x += 2) {
+                        if (data[(y * w + x) * 4 + 3] > 16) {
+                            setInkFile({ f: y + 1, w, h });
+                            return;
+                        }
+                    }
+                }
+            } catch {
+                // Canvas contaminé (CORS distant) → on garde l'ancrage historique.
+            }
+        };
+        img.onerror = () => {};
+        img.src = artSrc;
+    }, [artSrc]);
+    // Bas d'encre converti dans une boîte donnée (meet) + replis historiques.
+    const boxInkBottom = (boxW: number, boxH: number, fallback: number): number => {
+        if (!inkFile) return fallback;
+        return inkFile.f * Math.min(boxW / inkFile.w, boxH / inkFile.h);
+    };
+    const feetY = boxInkBottom(92, 88, 56);
+    const feetYFree = boxInkBottom(68, 64, 44);
 
     const gridRows = mapData ? mapData.cells.length : GRID_SIZE;
     const gridCols = mapData && mapData.cells[0] ? mapData.cells[0].length : GRID_SIZE;
@@ -354,6 +423,8 @@ export function SpellRangeGrid({
     // Chargement de la map sélectionnée : grille + placements de départ réels.
     useEffect(() => {
         setPan({ x: 0, y: 0 });
+        // Recadrage auto à l'ouverture (comme le bouton Fit) : fini l'arrivée sur du vide.
+        setZoom(compact ? 0.6 : 1);
         if (selectedMapId === "empty") {
             setMapData(null);
             setMapError(null);
@@ -487,11 +558,18 @@ export function SpellRangeGrid({
             return;
         }
 
-        // Aucun Féca sélectionné : on sélectionne un Féca ou on déplace le boss.
+        // Aucun Féca sélectionné : on sélectionne un Féca.
+        // Par défaut le Boss est ÉPINGLÉ sur sa case de placement (non déplaçable).
+        // Bypass public (`allowFreeCasterMove` + toggle actif) : un clic sur une case
+        // marchable déplace le boss librement pour jouer avec la préview des sorts.
         const allyIdx = allies.findIndex((a) => a.x === x && a.y === y);
         if (allyIdx >= 0) {
             setSelectedAlly(allyIdx);
-        } else {
+            return;
+        }
+        if (freeCasterMove) {
+            const st = cellState(x, y);
+            if (st !== CellState.GROUND) return;
             setCasterPos({ x, y });
         }
     };
@@ -507,8 +585,11 @@ export function SpellRangeGrid({
         const el = zoomRef.current;
         if (!el) return;
         const onWheel = (e: WheelEvent) => {
+            // La map est une surface interactive : la molette ne doit JAMAIS faire défiler
+            // l'overlay parent (sinon la toolbar/tabs "sortent" de l'overlay). On bloque
+            // le scroll par défaut et on ne zoome que si l'utilisateur tient Ctrl/Cmd.
+            e.preventDefault();
             if (compact || e.ctrlKey || e.metaKey) {
-                e.preventDefault();
                 setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Number((z - e.deltaY * 0.0015).toFixed(2)))));
             }
         };
@@ -715,19 +796,27 @@ export function SpellRangeGrid({
     const tileHalfW = tileW / 2;
     const tileHalfH = tileH / 2;
     const DEPTH = mapData ? 0 : 6; // extrusion 3D réservée à la grille libre
+    // (bossScale calculé plus haut, avec l'échelle titan explicite.)
+    // Descente des pieds sur la ligne du losange repère (le sprite s'ancre
+    // par défaut au centre de la case, trop haut visuellement).
+    const BOSS_NUDGE = 12;
+    const bossPadX = Math.ceil(46 * (bossScale - 1));
+    // Ancré pieds au centre de la case : le corps s'élève au-dessus (88·s vers le haut).
+    const bossPadUp = Math.ceil(88 * (bossScale - 1));
 
     let viewX = 0;
     let viewY = 0;
     let viewW = 1;
     let viewH = 1;
     if (mapData) {
-        const pad = 36; // marge (inclut la hauteur des obstacles remontés de 24 px)
+        const pad = 36 + Math.max(bossPadX, bossPadUp); // marge (inclut la hauteur des obstacles remontés de 24 px)
         const xMax = gridCols * tileW + tileHalfW;
         const yMax = (gridRows - 1) * tileHalfH + tileH;
         viewX = -pad;
-        viewY = -pad;
+        // Le sprite monte au-dessus de sa case : étendre le haut du viewBox (pas le bas).
+        viewY = -pad - bossPadUp;
         viewW = xMax + pad;
-        viewH = yMax + pad;
+        viewH = yMax + pad + bossPadUp;
     } else {
         const originX = ((gridCols + gridRows) / 2) * tileHalfW;
         const originY = 20;
@@ -735,12 +824,12 @@ export function SpellRangeGrid({
         const xMax = originX + gridCols * tileHalfW;
         const yMin = originY;
         const yMax = originY + (gridRows + gridCols) * tileHalfH + DEPTH;
-        const padX = tileHalfW;
+        const padX = tileHalfW + bossPadX;
         const padY = tileHalfH;
         viewX = Math.floor(xMin - padX);
-        viewY = Math.floor(yMin - padY);
+        viewY = Math.floor(yMin - padY - bossPadUp);
         viewW = Math.ceil(xMax - xMin + 2 * padX);
-        viewH = Math.ceil(yMax - yMin + 2 * padY);
+        viewH = Math.ceil(yMax - yMin + 2 * padY + bossPadUp);
     }
 
     const freeOriginX = ((gridCols + gridRows) / 2) * tileHalfW;
@@ -804,24 +893,20 @@ export function SpellRangeGrid({
                 </div>
             )}
 
-            {/* SIMULATION TACTIQUE */}
+            {/* SIMULATION TACTIQUE — le chrome (toolbar, bandeau, légende) est fixe ;
+                seule la zone viewport ci-dessous reçoit le pan/zoom. */}
             <div
                 className={cn(
                     "relative rounded-xl bg-[#161614] border border-white/10 flex flex-col items-center select-none shadow-inner",
                     compact
-                        ? "p-1.5 flex-1 min-h-0 justify-start overflow-y-auto overflow-x-hidden [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.15)_transparent]"
+                        ? "p-1.5 flex-1 min-h-0 justify-start overflow-hidden [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.15)_transparent]"
                         : "p-2 sm:p-4 justify-center overflow-x-auto",
                     isDragging ? "cursor-grabbing" : "cursor-grab"
                 )}
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
-                onPointerCancel={handlePointerUp}
-                style={{ touchAction: "none" }}
             >
                 {/* Mode compact : barre d'outils épurée en 2 lignes (sticky en haut) */}
                 {compact ? (
-                    <div className="w-full space-y-1.5 mb-1.5 px-1 relative z-20 shrink-0 sticky top-0 bg-[#161614]/95 backdrop-blur-md pb-1.5 border-b border-white/5" data-no-drag>
+                    <div className="w-full space-y-1.5 mb-1.5 px-1 relative z-30 shrink-0 bg-[#161614] pb-1.5 border-b border-white/5" data-no-drag>
                         {/* Ligne 1 : Choix du Sort + Choix de la Salle */}
                         <div className="flex items-center gap-1.5 w-full">
                             {/* Sélecteur de sort stylé */}
@@ -1090,6 +1175,20 @@ export function SpellRangeGrid({
                                     </button>
                                 )}
 
+                                {allowFreeCasterMove && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setFreeCasterMove((v) => !v)}
+                                        className={cn(
+                                            "px-1.5 py-0.5 rounded-md border text-[10px] font-semibold transition-colors",
+                                            freeCasterMove ? "bg-amber-500/20 border-amber-400 text-amber-300" : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-white"
+                                        )}
+                                        title={freeCasterMove ? "Boss libre : cliquez une case pour le déplacer (actif)" : "Boss libre : cliquez une case pour le déplacer"}
+                                    >
+                                        <Move className="w-3 h-3" />
+                                    </button>
+                                )}
+
                                 <button
                                     type="button"
                                     onClick={recenter}
@@ -1233,6 +1332,21 @@ export function SpellRangeGrid({
                                     <MapIcon className="w-3.5 h-3.5" /> Placements de départ
                                 </button>
                             )}
+                            {allowFreeCasterMove && (
+                                <button
+                                    type="button"
+                                    onClick={() => setFreeCasterMove((v) => !v)}
+                                    className={cn(
+                                        "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all",
+                                        freeCasterMove
+                                            ? "bg-amber-500/20 border-amber-400 text-amber-500 dark:text-amber-300"
+                                            : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
+                                    )}
+                                    title="Bypass : déplacez le boss sur n'importe quelle case marchable pour tester les portées"
+                                >
+                                    <Move className="w-3.5 h-3.5" /> {freeCasterMove ? "Boss libre : ON" : "Boss libre"}
+                                </button>
+                            )}
                             {mapData && totalPlacements > 1 && (
                                 <div className="inline-flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
                                     <span className="text-[11px] font-bold text-zinc-400 pl-2">Placement :</span>
@@ -1302,7 +1416,7 @@ export function SpellRangeGrid({
 
                 {/* Bandeau Composition de la salle */}
                 {mapData && showStartCells && monsterPlacements.length > 0 && (
-                    <div className="w-full flex flex-wrap items-center gap-1.5 mb-2 px-2 py-1.5 bg-zinc-900/90 border border-white/10 rounded-xl text-[11px] relative z-10">
+                    <div className="w-full flex flex-wrap items-center gap-1.5 mb-2 px-2 py-1.5 bg-zinc-900/90 border border-white/10 rounded-xl text-[11px] relative z-10 shrink-0">
                         <span className="font-bold text-amber-400 flex items-center gap-1 shrink-0">
                             <Users className="w-3.5 h-3.5" /> Ordre d'apparition (Butin {lootCount}) :
                         </span>
@@ -1330,6 +1444,15 @@ export function SpellRangeGrid({
                     </div>
                 )}
 
+                {/* Viewport pan/zoom isolé : lui seul bouge, le chrome reste fixe. */}
+                <div
+                    className={cn("relative w-full min-h-0", compact ? "flex-1 overflow-hidden" : "overflow-x-auto")}
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerCancel={handlePointerUp}
+                    style={{ touchAction: "none" }}
+                >
                 <div
                     ref={zoomRef}
                     className={cn("flex justify-center relative z-0 w-full shrink-0 select-none", compact ? "my-auto py-1" : "")}
@@ -1494,15 +1617,29 @@ export function SpellRangeGrid({
                                 if (cellState(c, r) === CellState.OBSTACLE) return null;
                                 const { sx, sy } = cellToScreen(c, r, tileW, tileH);
                                 if (c === casterPos.x && r === casterPos.y) {
+                                    // Boss mis à l'échelle (titan ≈ 2) : les pieds restent plantés
+                                    // sur la case, le sprite déborde comme en vrai combat.
                                     return (
-                                        <g key="boss" ref={casterMarkerRef} transform={`translate(${sx - 28}, ${sy - 44})`} pointerEvents="none">
-                                            {bossImageUrl ? (
-                                                <image href={bossImageUrl} x="0" y="0" width="56" height="56" className="drop-shadow-2xl" />
+                                        <g key="boss" ref={casterMarkerRef} transform={`translate(${sx}, ${sy + BOSS_NUDGE}) scale(${bossScale}) translate(-46, ${-feetY})`} pointerEvents="none">
+                                            {artSrc ? (
+                                                <image
+                                                    href={artSrc}
+                                                    x="0"
+                                                    y="0"
+                                                    width="92"
+                                                    height="88"
+                                                    className="drop-shadow-2xl"
+                                                    preserveAspectRatio="xMidYMax meet"
+                                                    onError={() => {
+                                                        // Art titan HS → repli icône, puis 👑.
+                                                        setArtSrc((prev) => (titanCandidate && prev === titanCandidate && bossImageUrl ? bossImageUrl : null));
+                                                    }}
+                                                />
                                             ) : (
-                                                <text x="28" y="36" textAnchor="middle" fontSize="30" className="select-none">👑</text>
+                                                <text x="46" y="-40" textAnchor="middle" fontSize="44" className="select-none">👑</text>
                                             )}
                                             {showStartCells && (
-                                                <g transform="translate(6, 6)">
+                                                <g transform={`translate(38, ${feetY - 30})`}>
                                                     <circle cx="6" cy="6" r="8" fill="#d97706" stroke="#ffffff" strokeWidth="1.2" />
                                                     <text x="6" y="9" textAnchor="middle" fill="#ffffff" fontSize="8" fontWeight="900" className="select-none">1</text>
                                                 </g>
@@ -1636,11 +1773,22 @@ export function SpellRangeGrid({
                                             className="transition-colors duration-150"
                                         />
                                         {isCaster && (
-                                            <g ref={casterMarkerRef} transform={`translate(${sx - 26}, ${sy - 36})`} pointerEvents="none">
-                                                {bossImageUrl ? (
-                                                    <image href={bossImageUrl} x="0" y="0" width="52" height="52" className="drop-shadow-2xl" />
+                                            <g ref={casterMarkerRef} transform={`translate(${sx}, ${sy + BOSS_NUDGE}) scale(${bossScale}) translate(-34, ${-feetYFree})`} pointerEvents="none">
+                                                {artSrc ? (
+                                                    <image
+                                                        href={artSrc}
+                                                        x="0"
+                                                        y="0"
+                                                        width="68"
+                                                        height="64"
+                                                        className="drop-shadow-2xl"
+                                                        preserveAspectRatio="xMidYMax meet"
+                                                        onError={() => {
+                                                            setArtSrc((prev) => (titanCandidate && prev === titanCandidate && bossImageUrl ? bossImageUrl : null));
+                                                        }}
+                                                    />
                                                 ) : (
-                                                    <text x="26" y="34" textAnchor="middle" fontSize="28" className="select-none">👑</text>
+                                                    <text x="34" y="-28" textAnchor="middle" fontSize="36" className="select-none">👑</text>
                                                 )}
                                             </g>
                                         )}
@@ -1663,10 +1811,11 @@ export function SpellRangeGrid({
                     )}
                 </svg>
                 </div>
+                </div>
 
                 {/* Légende & Astuces */}
                 {compact ? (
-                    <div className="w-full mt-2 pt-1.5 border-t border-white/5 shrink-0">
+                    <div className="w-full mt-2 pt-1.5 border-t border-white/5 shrink-0 relative z-30 bg-[#161614]">
                         <button
                             type="button"
                             onClick={() => setShowCompactLegend((v) => !v)}
@@ -1698,7 +1847,7 @@ export function SpellRangeGrid({
                                     )}
                                 </div>
                                 <p className="text-[10px] text-zinc-500 leading-tight">
-                                    💡 Cliquez sur un losange pour déplacer le Boss (re-cliquez pour pivoter). Cliquez un Féca pour le sélectionner, une case pour le déplacer. « Placements de départ » pose boss + monstres sur leurs cases réelles.
+                                    💡 {allowFreeCasterMove ? "Boss libre : cliquez n'importe quelle case marchable pour déplacer le boss et tester les portées. " : "Le Boss est épinglé sur sa case de placement (non déplaçable). "}Cliquez un Féca pour le sélectionner, une case pour le déplacer. « Placements de départ » pose boss + monstres sur leurs cases réelles.
                                 </p>
                             </div>
                         )}
@@ -1726,7 +1875,7 @@ export function SpellRangeGrid({
                         </div>
 
                         <p className="text-[11px] text-zinc-400 mt-2 text-center">
-                            💡 Cliquez sur un losange pour déplacer le Boss (re-cliquez sur lui pour le faire pivoter). Cliquez un Féca pour le sélectionner, une case pour le déplacer, re-cliquez pour l'orienter. « Placements de départ » pose boss + alliés sur leurs cases réelles.
+                            💡 {allowFreeCasterMove ? "Boss libre : cliquez n'importe quelle case marchable pour déplacer le boss et tester les portées. " : "Le Boss est épinglé sur sa case de placement (non déplaçable). "}Cliquez un Féca pour le sélectionner, une case pour le déplacer, re-cliquez pour l'orienter. « Placements de départ » pose boss + alliés sur leurs cases réelles.
                         </p>
                     </>
                 )}

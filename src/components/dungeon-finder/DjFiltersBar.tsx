@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Search, X, Swords, Map, Zap, Users, Star } from "lucide-react";
+import { Search, X, Swords, Map, Zap, Crown, Users, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface DjFiltersState {
@@ -87,13 +87,14 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                    {/* Mode Selector — 4 segments à largeur fixe (aucun décalage au toggle) */}
-                    <div className="grid grid-cols-4 bg-surface/80 border border-border rounded-xl p-1 h-11 items-stretch w-[336px] shrink-0" role="group" aria-label="Type de post">
+                    {/* Mode Selector — pills segmentées (labels lisibles, wrap sur mobile) */}
+                    <div className="flex flex-wrap gap-1 bg-surface/80 border border-border rounded-xl p-1 h-11 items-center shrink-0" role="group" aria-label="Type de post">
                         {[
-                            { value: "", label: "Tous", icon: null },
-                            { value: "DONJON", label: "DJ", icon: Swords },
-                            { value: "QUETE", label: "Quête", icon: Map },
+                            { value: "", label: "Tout", icon: null },
+                            { value: "DONJON", label: "Donjons", icon: Swords },
+                            { value: "QUETE", label: "Quêtes", icon: Map },
                             { value: "DEFI", label: "Défi", icon: Zap },
+                            { value: "TITAN", label: "Titans", icon: Crown },
                         ].map(({ value, label, icon: Icon }) => {
                             const isActive = filters.mode === value;
                             return (
@@ -102,12 +103,12 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                                     onClick={() => onChange({ ...filters, mode: value })}
                                     aria-pressed={isActive}
                                     className={cn(
-                                        "flex items-center justify-center gap-1 px-1 rounded-lg text-caption font-black transition-colors min-w-0",
-                                        isActive ? "bg-info text-info-foreground" : "text-muted-foreground hover:text-foreground"
+                                        "flex items-center gap-1.5 px-3 rounded-lg text-caption font-bold whitespace-nowrap transition-all h-9",
+                                        isActive ? "bg-info text-info-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-elevated/60"
                                     )}
                                 >
                                     {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
-                                    <span className="uppercase tracking-wider truncate">{label}</span>
+                                    <span>{label}</span>
                                 </button>
                             );
                         })}
@@ -150,7 +151,7 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                 )}
             >
                 <div className="overflow-hidden">
-                        <div className="flex flex-wrap items-center gap-2 p-3 bg-surface/50 border border-border rounded-2xl shadow-inner mb-2">
+                        <div className="flex flex-wrap items-center gap-2 p-3 bg-surface/40 border border-border rounded-2xl mb-2">
                             {/* Level presets */}
                             <span className="text-caption font-black text-muted-foreground uppercase tracking-widest mr-2">Niveau</span>
                             {LEVEL_PRESETS.map((preset) => {

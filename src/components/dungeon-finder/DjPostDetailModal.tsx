@@ -183,7 +183,7 @@ export function DjPostDetailModal({
                                 <p className="text-sm font-medium text-muted-foreground">
                                     {(post.dungeonsJson as any[])?.length > 0
                                         ? "Session de guilde multi-donjons"
-                                        : (post.mode === "DONJON" ? `Niv. ${post.dungeon?.level} — ${post.dungeon?.bossName}` : "Mode Quête")}
+                                        : (post.mode === "DONJON" ? `Niv. ${post.dungeon?.level} — ${post.dungeon?.bossName}` : post.mode === "DEFI" ? (post.defiName || "Mode Défi") : post.mode === "TITAN" ? (post.titanName || "Mode Titan") : "Mode Quête")}
                                 </p>
                             </div>
                             <Badge className={`text-caption font-black uppercase tracking-wider px-2.5 py-1 backdrop-blur-md ${post.status === "OPEN" ? "bg-success/10 text-success border-success/20 " : "bg-surface text-muted-foreground border-border"}`}>

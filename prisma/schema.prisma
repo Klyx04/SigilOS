@@ -731,6 +731,7 @@ model UserProfile {
   userDungeonAchievements    UserDungeonAchievement[]
   dungeonProgress            UserDungeonProgress[]
   defiProgress               UserDefiProgress[]
+  titanProgress              UserTitanProgress[]
   badges                     UserBadge[]
   legendaryCrafts            LegendaryItem[]            @relation("LegendaryCrafters")
   hasLegendaryPrerequisites  Boolean                    @default(false)
@@ -1576,6 +1577,10 @@ model DjSearchPost {
   defiId               String?
   defiName             String?
   defi                 Defi?                 @relation(fields: [defiId], references: [id], onDelete: Cascade)
+  /* Mode Titan (# — Événement Krosmique) : post rattaché à un titan (ex. Gargandyas). */
+  titanId              String?
+  titanName            String?
+  titan                Titan?                @relation(fields: [titanId], references: [id], onDelete: Cascade)
   guild                GuildConfig           @relation(fields: [guildId], references: [id], onDelete: Cascade)
   profile              UserProfile           @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
@@ -1676,6 +1681,59 @@ model UserDefiProgress {
   @@unique([profileId, defiId])
   @@index([profileId])
   @@index([defiId])
+}
+
+/// Titan (Événement Krosmique, ex. Gargandyas) — boss de week-end, contenu ÉVOLUTIF.
+/// Chaque Titan porte SA PROPRE config de disponibilité (jours/créneaux/maxVictoires), ce qui
+/// permet d'ajouter de futurs Titans avec des contraintes différentes sans figer le modèle.
+model Titan {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  level         Int      @default(200)
+  description   String?
+  zone          String?                    // Dimension / zone (ex. Osavora) — libellé libre
+  imageUrl      String?
+  dpnlUrl       String?
+  dofensiveUrl  String?
+  dofuspourlesnoobsUrl String?
+  mapName       String?                    // Nom de la map isométrique à télécharger (ex. « Temple de Gargandyas — Salle du Graogarm »)
+  dofusdbId     Int?                       // ID DofusDB du monstre/boss titan (ex. 8062 pour Gargandyas)
+  questName     String?                    // Quête associée au titan (ex. « Destructeur de mondes »)
+  questUrl      String?                    // Lien vers la quête (DofusDB / DofusPourLesNoobs)
+  /// Config de disponibilité FLEXIBLE (ne PAS figer les contraintes horaires/jours) :
+  ///  { daysOfWeek?: number[], startTime?: "19:00", endTime?: "08:00", maxWinsPerWeekend?: 5, onlyWeekend?: true }
+  scheduleConfig Json?  @default("{}")
+  /// Mapping du boss de phase 4 par saison : [{ season, bossName, imageUrl? }]
+  seasonBosses  Json?    @default("[]")
+  seasons       String[] @default([])       // Libellés des saisons connues (ex. "Naissances", "Chasse", "Repos")
+  currentSeason String?                     // Saison en cours (affichage « saison en cours »)
+  maxMembers    Int      @default(4)        // 4 personnes maximum (limitation)
+  isPermanent   Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  userProgress  UserTitanProgress[]
+  djPosts       DjSearchPost[]
+
+  @@index([name])
+  @@index([zone])
+  @@index([level])
+}
+
+/// Progression « je l'ai vaincu » sur un titan (par membre).
+model UserTitanProgress {
+  id          String   @id @default(cuid())
+  profileId   String
+  titanId     String
+  source      String   @default("MANUAL") // MANUAL | GROUP
+  completedAt DateTime @default(now())
+  titan       Titan    @relation(fields: [titanId], references: [id], onDelete: Cascade)
+  profile     UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, titanId])
+  @@index([profileId])
+  @@index([titanId])
 }
 
 /// 🏅 #198.2 — Système de Badges & Succès Plateforme SigilOS
@@ -1869,6 +1927,8 @@ model ServiceRequest {
   discordMessageId   String?               // id du message embed Discord envoyé
   closedAt           DateTime?
   feedbackToken      String?               @unique // token one-time pour le feedback
+  lastReminderAt     DateTime?                       // dernier rappel de nettoyage envoyé au demandeur
+  reminderCount      Int                    @default(0) // nombre de rappels de nettoyage envoyés
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
 
@@ -2844,6 +2904,7 @@ enum DjSearchMode {
   DONJON
   QUETE
   DEFI
+  TITAN
 }
 
 enum DjSearchStatus {

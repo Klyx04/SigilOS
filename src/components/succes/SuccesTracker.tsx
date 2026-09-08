@@ -281,16 +281,6 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
         [dungeons, completedIds]
     );
     const totalCount = useMemo(() => dungeons.reduce((acc, d) => acc + d.achievements.length, 0), [dungeons]);
-    const totalPoints = useMemo(
-        () =>
-            dungeons.reduce(
-                (acc, d) =>
-                    acc +
-                    d.achievements.filter((a) => completedIds.has(a.id)).reduce((p, a) => p + (a.points || 0), 0),
-                0
-            ),
-        [dungeons, completedIds]
-    );
     const progressPct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
 
     const filteredDungeons = useMemo(() => {
@@ -345,10 +335,6 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                     <div className="px-3 py-1.5 rounded-xl bg-background/60 border border-border text-center">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Donjons</p>
                         <p className="text-sm font-black text-foreground tabular-nums">{dungeons.length}</p>
-                    </div>
-                    <div className="px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Points</p>
-                        <p className="text-sm font-black text-amber-300 tabular-nums">{totalPoints}</p>
                     </div>
                 </div>
             </div>
@@ -682,12 +668,6 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                                         {a.challenge.name}
                                                     </p>
                                                 </div>
-
-                                                {a.points > 0 && (
-                                                    <span className="text-[11px] font-black text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md shrink-0 tabular-nums">
-                                                        +{a.points} pts
-                                                    </span>
-                                                )}
                                             </button>
                                         );
                                     })}

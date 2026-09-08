@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyDiscordSignature } from "@/server/discord";
 import { db } from "@/lib/prisma";
 import { getAppBaseUrl } from "@/lib/utils";
+import { DOFUS_JOBS } from "@/lib/dofus-assets";
+import { normSearch, parseAlmanaxDateInput, frenchLongDate } from "@/lib/slash-command-helpers";
 
 // ============================================
 // DOFUS CLASSES for Modal validation
@@ -1629,28 +1631,6 @@ export async function POST(request: NextRequest) {
             const commandName = payload.data?.name;
             const focusedOption = payload.data?.options?.find((o: any) => o.focused);
 
-            if (commandName === "dofus" && focusedOption?.name === "nom") {
-                const query = (focusedOption.value || "").toLowerCase();
-                const items = await db.dofusItem.findMany({
-                    select: { name: true, slug: true },
-                    orderBy: { displayOrder: "asc" },
-                    take: 25
-                });
-                const filtered = items
-                    .filter((i) => i.name.toLowerCase().includes(query))
-                    .slice(0, 25);
-
-                return NextResponse.json({
-                    type: 8, // APPLICATION_COMMAND_AUTOCOMPLETE_RESULT
-                    data: {
-                        choices: filtered.map((i) => ({
-                            name: i.name,
-                            value: i.slug
-                        }))
-                    }
-                });
-            }
-
             if (commandName === "boss" && focusedOption?.name === "nom") {
                 const query = (focusedOption.value || "").trim().toLowerCase();
                 const dungeons = await db.dungeon.findMany({
@@ -1768,6 +1748,40 @@ export async function POST(request: NextRequest) {
                 });
             }
 
+            if (commandName === "metiers" && focusedOption?.name === "metier") {
+                const query = normSearch(focusedOption.value || "");
+                const allJobs = (Object.values(DOFUS_JOBS) as unknown as Array<Array<{ id: string; name: string }>>).flat();
+                const choices = allJobs
+                    .filter((j) => !query || normSearch(j.name).includes(query) || normSearch(j.id).includes(query))
+                    .slice(0, 25)
+                    .map((j) => ({ name: j.name.slice(0, 100), value: j.id.slice(0, 100) }));
+
+                return NextResponse.json({ type: 8, data: { choices } });
+            }
+
+            if (commandName === "ocre" && focusedOption?.name === "archimonstre") {
+                const query = (focusedOption.value || "").trim();
+                const archis = await db.archimonstre.findMany({
+                    where: query ? { name: { contains: query, mode: "insensitive" } } : undefined,
+                    select: { name: true, level: true, zone: true },
+                    orderBy: { name: "asc" },
+                    take: 25
+                });
+
+                return NextResponse.json({
+                    type: 8,
+                    data: {
+                        choices: archis.map((a) => {
+                            const meta = [a.level ? `Niv. ${a.level}` : null, a.zone].filter(Boolean).join(" • ");
+                            return {
+                                name: (meta ? `${a.name} (${meta})` : a.name).slice(0, 100),
+                                value: a.name.slice(0, 100)
+                            };
+                        })
+                    }
+                });
+            }
+
             // Default empty autocomplete for unhandled options
             return NextResponse.json({ type: 8, data: { choices: [] } });
         }
@@ -1871,13 +1885,53 @@ export async function POST(request: NextRequest) {
             // ── /almanax ──────────────────────────────────────────────
             if (commandName === "almanax") {
                 const appBaseUrl = getAppBaseUrl();
+                const dateInput = payload.data?.options?.find((o: any) => o.name === "date")?.value;
+                const isoDate = parseAlmanaxDateInput(dateInput);
+
+                if (!isoDate) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            content: "❌ Date invalide. Utilise le format `JJ/MM/AAAA` (ex: `/almanax date:09/09/2026`) ou omet la date pour aujourd'hui.",
+                            flags: 64
+                        }
+                    });
+                }
+
+                const { getUpcomingAlmanax } = await import("@/server/actions/resources-actions");
+                const list = await getUpcomingAlmanax();
+                const item = list.find((a) => a.date.slice(0, 10) === isoDate);
+
+                if (!item) {
+                    const hasAny = list.length > 0;
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            content: hasAny
+                                ? `❌ Pas d'Almanax pour le ${frenchLongDate(isoDate)} (données ~30 jours autour d'aujourd'hui).`
+                                : "❌ Almanax temporairement indisponible. Réessaie dans quelques minutes.",
+                            flags: 64
+                        }
+                    });
+                }
+
+                const fields: { name: string; value: string; inline?: boolean }[] = [
+                    { name: "🎁 Offrande", value: `×${item.tribute.quantity} ${item.tribute.item.name}`, inline: true },
+                    { name: "✨ Bonus", value: item.bonus.description || item.bonus.type.name, inline: false },
+                ];
+                if (item.reward_kamas && item.reward_kamas > 0) {
+                    fields.push({ name: "💰 Kamas", value: Number(item.reward_kamas).toLocaleString("fr-FR"), inline: true });
+                }
+
                 return NextResponse.json({
                     type: 4,
                     data: {
                         embeds: [{
-                            title: "📅 Almanax du Jour",
-                            description: `Consulte les offrandes et bonus Almanax directement sur SigilOS.\n\n👉 [Ouvrir l'Almanax SigilOS](${appBaseUrl}/almanax)`,
+                            title: `📅 Almanax — ${frenchLongDate(isoDate)}`,
                             color: 0xF4A261,
+                            thumbnail: item.tribute.item.image_urls?.icon ? { url: item.tribute.item.image_urls.icon } : undefined,
+                            fields,
+                            url: `${appBaseUrl}/almanax`,
                             footer: { text: "SigilOS • Almanax" },
                             timestamp: new Date().toISOString()
                         }],
@@ -1886,58 +1940,20 @@ export async function POST(request: NextRequest) {
                 });
             }
 
-            // ── /dofus ────────────────────────────────────────────────
-            if (commandName === "dofus") {
-                const slug = payload.data?.options?.find((o: any) => o.name === "nom")?.value;
-                const appBaseUrl = getAppBaseUrl();
-
-                if (!slug) {
-                    return NextResponse.json({
-                        type: 4,
-                        data: {
-                            content: "🥚 Utilise `/dofus nom:Ocre` pour consulter un Dofus spécifique !",
-                            flags: 64
-                        }
-                    });
-                }
-
-                const dofusItem = await db.dofusItem.findUnique({
-                    where: { slug },
-                    select: { name: true, description: true, imageUrl: true, rarity: true }
-                });
-
-                if (!dofusItem) {
-                    return NextResponse.json({
-                        type: 4,
-                        data: { content: `❌ Dofus \`${slug}\` introuvable dans la base SigilOS.`, flags: 64 }
-                    });
-                }
-
-                return NextResponse.json({
-                    type: 4,
-                    data: {
-                        embeds: [{
-                            title: `🥚 ${dofusItem.name}`,
-                            description: dofusItem.description || "Guide disponible sur SigilOS.",
-                            color: 0x7B5EA7,
-                            thumbnail: dofusItem.imageUrl ? { url: dofusItem.imageUrl } : undefined,
-                            fields: [
-                                { name: "Rareté", value: dofusItem.rarity, inline: true }
-                            ],
-                            url: `${appBaseUrl}/quetes?dofus=${slug}`,
-                            footer: { text: "SigilOS • Quêtes & Succès" }
-                        }],
-                        flags: 0
-                    }
-                });
-            }
-
             // ── /profil ───────────────────────────────────────────────
             if (commandName === "profil") {
-                const targetUser = payload.data?.resolved?.users;
                 const targetMember = payload.data?.options?.find((o: any) => o.name === "membre");
                 const lookupId = targetMember?.value || discordUserId;
                 const appBaseUrl = getAppBaseUrl();
+
+                const resolvedUser = payload.data?.resolved?.users?.[lookupId];
+                const resolvedMember = payload.data?.resolved?.members?.[lookupId];
+                const avatarHash: string | undefined = resolvedUser?.avatar;
+                const avatarUrl = avatarHash
+                    ? `https://cdn.discordapp.com/avatars/${lookupId}/${avatarHash}.png?size=256`
+                    : undefined;
+                const discordDisplayName: string | undefined =
+                    resolvedMember?.nick || resolvedUser?.global_name || resolvedUser?.username;
 
                 const account = await db.account.findFirst({
                     where: { provider: "discord", providerAccountId: lookupId },
@@ -1948,11 +1964,12 @@ export async function POST(request: NextRequest) {
                                     where: guild_id ? { guild: { discordGuildId: guild_id } } : undefined,
                                     take: 1,
                                     select: {
+                                        id: true,
                                         pseudoDofus: true,
-                                        discordRoleName: true,
-                                        contributionPoints: true,
+                                        discordNickname: true,
                                         classe: true,
-                                        dofusLevel: true
+                                        dofusLevel: true,
+                                        createdAt: true,
                                     }
                                 }
                             }
@@ -1971,95 +1988,28 @@ export async function POST(request: NextRequest) {
                     });
                 }
 
+                const displayName = profile.pseudoDofus || profile.discordNickname || discordDisplayName || "Membre SigilOS";
+                const memberSince = profile.createdAt
+                    ? new Date(profile.createdAt).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })
+                    : null;
+                const profileUrl = guild_id
+                    ? `${appBaseUrl}/dashboard/${guild_id}/members/${profile.id}`
+                    : undefined;
+
                 return NextResponse.json({
                     type: 4,
                     data: {
                         embeds: [{
-                            title: `🎖️ ${profile.pseudoDofus || "Membre SigilOS"}`,
+                            title: `🎖️ ${displayName}`,
                             color: 0x5865F2,
+                            thumbnail: avatarUrl ? { url: avatarUrl } : undefined,
                             fields: [
-                                { name: "Rôle", value: profile.discordRoleName || "Membre", inline: true },
                                 { name: "Classe", value: profile.classe || "Non définie", inline: true },
-                                { name: "Points", value: `${profile.contributionPoints}`, inline: true }
+                                { name: "Niveau", value: profile.dofusLevel ? `${profile.dofusLevel}` : "—", inline: true },
+                                ...(memberSince ? [{ name: "Membre depuis", value: memberSince, inline: true }] : []),
                             ],
-                            url: `${appBaseUrl}/profil`,
-                            footer: { text: "SigilOS • Profil" }
-                        }],
-                        flags: 0
-                    }
-                });
-            }
-
-            // ── /sorties ──────────────────────────────────────────────
-            if (commandName === "sorties") {
-                const appBaseUrl = getAppBaseUrl();
-                return NextResponse.json({
-                    type: 4,
-                    data: {
-                        embeds: [{
-                            title: "🚪 Sorties Ouvertes",
-                            description: `Consulte toutes les sorties donjons, quêtes et songes en cours dans ta guilde sur SigilOS.\n\n👉 [Voir les sorties](${appBaseUrl}/donjons)`,
-                            color: 0x57F287,
-                            footer: { text: "SigilOS • Sorties & Donjons" }
-                        }],
-                        flags: 0
-                    }
-                });
-            }
-
-            // ── /defi ─────────────────────────────────────────────────
-            if (commandName === "defi") {
-                const appBaseUrl = getAppBaseUrl();
-                return NextResponse.json({
-                    type: 4,
-                    data: {
-                        embeds: [{
-                            title: "⚔️ Défi Double Boss",
-                            description: `Consulte le défi double boss en cours, les bonus de points et le classement des participants.\n\n👉 [Voir le Défi](${appBaseUrl}/succes?tab=defi)`,
-                            color: 0xED4245,
-                            footer: { text: "SigilOS • Défi Boss" }
-                        }],
-                        flags: 0
-                    }
-                });
-            }
-
-            // ── /stats ────────────────────────────────────────────────
-            if (commandName === "stats") {
-                if (!guild_id) {
-                    return NextResponse.json({
-                        type: 4,
-                        data: { content: "❌ Cette commande doit être utilisée dans un serveur Discord.", flags: 64 }
-                    });
-                }
-
-                const guildConfig = await db.guildConfig.findUnique({
-                    where: { discordGuildId: guild_id },
-                    select: { name: true, id: true }
-                });
-
-                if (!guildConfig) {
-                    return NextResponse.json({
-                        type: 4,
-                        data: { content: "❌ Cette guilde n'est pas enregistrée sur SigilOS.", flags: 64 }
-                    });
-                }
-
-                const [memberCount] = await Promise.all([
-                    db.userProfile.count({ where: { guildId: guildConfig.id, status: "ACTIVE" } })
-                ]);
-
-                return NextResponse.json({
-                    type: 4,
-                    data: {
-                        embeds: [{
-                            title: `📊 Statistiques — ${guildConfig.name}`,
-                            color: 0xFEE75C,
-                            fields: [
-                                { name: "Membres Actifs", value: `${memberCount}`, inline: true }
-                            ],
-                            footer: { text: "SigilOS • Statistiques Guilde" },
-                            timestamp: new Date().toISOString()
+                            url: profileUrl,
+                            footer: { text: "SigilOS • Fiche membre" }
                         }],
                         flags: 0
                     }
@@ -2097,11 +2047,15 @@ export async function POST(request: NextRequest) {
                 const mob = res.data;
                 const g = mob.grades?.[mob.grades.length - 1] || mob.grades?.[0];
                 const resists = g?.resists || {};
+                const succesUrl = guild_id
+                    ? `${appBaseUrl}/dashboard/${guild_id}/succes`
+                    : `${appBaseUrl}`;
 
                 const fields: { name: string; value: string; inline?: boolean }[] = [
                     { name: "❤️ PV", value: g?.lifePoints ? Number(g.lifePoints).toLocaleString("fr-FR") : "—", inline: true },
                     { name: "⚡ PA / PM", value: `${g?.actionPoints ?? "—"} / ${g?.movementPoints ?? "—"}`, inline: true },
                     { name: "📍 Coordonnées", value: mob.coordinates ? `[${mob.coordinates.x}, ${mob.coordinates.y}]` : "Donjon", inline: true },
+                    ...(mob.dungeonName ? [{ name: "🏰 Donjon", value: `${mob.dungeonName}`, inline: false }] : []),
                     {
                         name: "🛡️ Résistances",
                         value: `⚪ ${resists.neutral ?? 0}%  •  🟤 ${resists.earth ?? 0}%  •  🔴 ${resists.fire ?? 0}%\n🔵 ${resists.water ?? 0}%  •  🟢 ${resists.air ?? 0}%`,
@@ -2131,7 +2085,7 @@ export async function POST(request: NextRequest) {
                             color: 0xED4245,
                             thumbnail: mob.imageUrl ? { url: mob.imageUrl } : undefined,
                             fields,
-                            url: `${appBaseUrl}/donjons?boss=${encodeURIComponent(mob.name)}`,
+                            url: succesUrl,
                             footer: { text: "SigilOS • Bestiaire & Boss" },
                             timestamp: new Date().toISOString()
                         }],
@@ -2171,11 +2125,15 @@ export async function POST(request: NextRequest) {
                 const mob = res.data;
                 const g = mob.grades?.[mob.grades.length - 1] || mob.grades?.[0];
                 const resists = g?.resists || {};
+                const succesUrl = guild_id
+                    ? `${appBaseUrl}/dashboard/${guild_id}/succes`
+                    : `${appBaseUrl}`;
 
                 const fields: { name: string; value: string; inline?: boolean }[] = [
                     { name: "❤️ PV", value: g?.lifePoints ? Number(g.lifePoints).toLocaleString("fr-FR") : "—", inline: true },
                     { name: "⚡ PA / PM", value: `${g?.actionPoints ?? "—"} / ${g?.movementPoints ?? "—"}`, inline: true },
                     { name: "📍 Coordonnées", value: mob.coordinates ? `[${mob.coordinates.x}, ${mob.coordinates.y}]` : "Monde", inline: true },
+                    ...(mob.dungeonName ? [{ name: "🏰 Donjon", value: `${mob.dungeonName}`, inline: false }] : []),
                     {
                         name: "🛡️ Résistances",
                         value: `⚪ ${resists.neutral ?? 0}%  •  🟤 ${resists.earth ?? 0}%  •  🔴 ${resists.fire ?? 0}%\n🔵 ${resists.water ?? 0}%  •  🟢 ${resists.air ?? 0}%`,
@@ -2205,8 +2163,156 @@ export async function POST(request: NextRequest) {
                             color: 0x3498DB,
                             thumbnail: mob.imageUrl ? { url: mob.imageUrl } : undefined,
                             fields,
-                            url: `${appBaseUrl}/monde?search=${encodeURIComponent(mob.name)}`,
+                            url: succesUrl,
                             footer: { text: "SigilOS • Bestiaire & Monstres" },
+                            timestamp: new Date().toISOString()
+                        }],
+                        flags: 0
+                    }
+                });
+            }
+
+            // ── /metiers ──────────────────────────────────────────────
+            if (commandName === "metiers") {
+                const rawJob = payload.data?.options?.find((o: any) => o.name === "metier")?.value?.trim();
+                const appBaseUrl = getAppBaseUrl();
+
+                if (!rawJob) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "🔨 Utilise `/metiers metier:Tailleur` pour trouver qui a ce métier dans ta guilde !", flags: 64 }
+                    });
+                }
+
+                const allJobs = (Object.values(DOFUS_JOBS) as unknown as Array<Array<{ id: string; name: string }>>).flat();
+                const q = normSearch(rawJob);
+                const job = allJobs.find((j) => normSearch(j.id) === q)
+                    ?? allJobs.find((j) => normSearch(j.name) === q)
+                    ?? allJobs.find((j) => normSearch(j.name).includes(q) && q.length > 0);
+
+                if (!job) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: `❌ Métier « ${rawJob} » inconnu. Exemples : Tailleur, Mineur, Forgemage…`, flags: 64 }
+                    });
+                }
+
+                if (!guild_id) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "❌ Cette commande doit être utilisée dans un serveur Discord.", flags: 64 }
+                    });
+                }
+
+                const guildConfig = await db.guildConfig.findUnique({
+                    where: { discordGuildId: guild_id },
+                    select: { id: true }
+                });
+                if (!guildConfig) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "❌ Cette guilde n'est pas enregistrée sur SigilOS.", flags: 64 }
+                    });
+                }
+
+                const profiles = await db.userProfile.findMany({
+                    where: { guildId: guildConfig.id, status: "ACTIVE" },
+                    select: { pseudoDofus: true, discordNickname: true, metiers: true }
+                });
+
+                const holders: Array<{ name: string; level: number | null }> = [];
+                for (const p of profiles) {
+                    const list = Array.isArray(p.metiers) ? (p.metiers as any[]) : [];
+                    for (const m of list) {
+                        const mid = typeof m === "string" ? null : (m?.id ?? null);
+                        const mname = typeof m === "string" ? m : (m?.name ?? "");
+                        const lvl = typeof m === "string" ? null : (typeof m?.level === "number" ? m.level : null);
+                        if ((mid && normSearch(mid) === normSearch(job.id)) || normSearch(mname) === normSearch(job.name)) {
+                            holders.push({ name: p.pseudoDofus || p.discordNickname || "Membre", level: lvl });
+                            break;
+                        }
+                    }
+                }
+                holders.sort((a, b) => (b.level ?? -1) - (a.level ?? -1));
+                const top = holders.slice(0, 10);
+
+                if (top.length === 0) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            embeds: [{
+                                title: `🔨 ${job.name} — personne trouvée`,
+                                description: `Aucun membre n'a renseigné ce métier.\n👉 Chacun peut ajouter ses métiers dans son profil SigilOS.`,
+                                color: 0xFEE75C,
+                                footer: { text: "SigilOS • Métiers de guilde" }
+                            }],
+                            flags: 0
+                        }
+                    });
+                }
+
+                return NextResponse.json({
+                    type: 4,
+                    data: {
+                        embeds: [{
+                            title: `🔨 ${job.name} (${holders.length})`,
+                            description: top.map((h) => `• **${h.name}** — Niv. ${h.level ?? "?"}`).join("\n"),
+                            color: 0x57F287,
+                            url: `${appBaseUrl}/dashboard/${guild_id}/annuaire-hub`,
+                            footer: { text: "SigilOS • Métiers de guilde" },
+                            timestamp: new Date().toISOString()
+                        }],
+                        flags: 0
+                    }
+                });
+            }
+
+            // ── /ocre ─────────────────────────────────────────────────
+            if (commandName === "ocre") {
+                const rawName = payload.data?.options?.find((o: any) => o.name === "archimonstre")?.value?.trim();
+                const appBaseUrl = getAppBaseUrl();
+
+                if (!rawName) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "🥚 Utilise `/ocre archimonstre:Aboubra` pour voir où apparaît un archimonstre !", flags: 64 }
+                    });
+                }
+
+                const archi = await db.archimonstre.findFirst({
+                    where: { name: { equals: rawName, mode: "insensitive" } },
+                    select: { name: true, level: true, zone: true, subzone: true, imageUrl: true, type: true }
+                }) ?? await db.archimonstre.findFirst({
+                    where: { name: { contains: rawName, mode: "insensitive" } },
+                    select: { name: true, level: true, zone: true, subzone: true, imageUrl: true, type: true }
+                });
+
+                if (!archi) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: {
+                            content: `❌ Archimonstre « ${rawName} » introuvable.\n💡 Tape les premières lettres et choisis dans la liste déroulante d'autocomplétion !`,
+                            flags: 64
+                        }
+                    });
+                }
+
+                const zone = [archi.zone, archi.subzone].filter(Boolean).join(" — ") || "Zone inconnue";
+                const fields: { name: string; value: string; inline?: boolean }[] = [
+                    { name: "📍 Zone", value: zone, inline: false },
+                    { name: "⭐ Niveau", value: archi.level ? `${archi.level}` : "—", inline: true },
+                ];
+
+                return NextResponse.json({
+                    type: 4,
+                    data: {
+                        embeds: [{
+                            title: `🥚 ${archi.name}`,
+                            color: 0x9B59B6,
+                            thumbnail: archi.imageUrl ? { url: archi.imageUrl } : undefined,
+                            fields,
+                            url: guild_id ? `${appBaseUrl}/dashboard/${guild_id}/quete-ocre` : `${appBaseUrl}`,
+                            footer: { text: "SigilOS • Quête Ocre" },
                             timestamp: new Date().toISOString()
                         }],
                         flags: 0

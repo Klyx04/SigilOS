@@ -78,7 +78,7 @@ interface DungeonFamily {
   monsters: FamilyMember[];
 }
 
-type CatalogFilter = "boss" | "monstre" | "ocre";
+type CatalogFilter = "boss" | "monstre" | "titan";
 type OverlayTab = "info" | "sorts" | "sim";
 
 // ─── MonsterImage ─────────────────────────────────────────────────────────────
@@ -366,6 +366,8 @@ export function BossOverlayClient({
   const [activeGradeIndex, setActiveGradeIndex] = useState<number>(0);
   const [isHeroCollapsed, setIsHeroCollapsed] = useState<boolean>(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  // Empêche le deep-link initial de re-sélectionner le boss après un retour manuel.
+  const deepLinkedRef = useRef(false);
 
   // 1. Charger le catalogue unifié
   useEffect(() => {
@@ -378,9 +380,10 @@ export function BossOverlayClient({
       .finally(() => setLoadingList(false));
   }, []);
 
-  // 2. Deep-link initial par nom de monstre/donjon
+  // 2. Deep-link initial par nom de monstre/donjon (auto-sélectionne UNE SEULE FOIS).
   useEffect(() => {
-    if (!catalog.length || selected) return;
+    if (!catalog.length || deepLinkedRef.current) return;
+    deepLinkedRef.current = true;
     if (!initialMonsterName && !initialDungeonName) return;
     const match = catalog.find(
       (d) =>
@@ -394,7 +397,7 @@ export function BossOverlayClient({
       setSelected(match);
       setSearch(match.bossName);
     }
-  }, [catalog, initialMonsterName, initialDungeonName, selected]);
+  }, [catalog, initialMonsterName, initialDungeonName]);
 
   // 3. Charger les stats de l'entité sélectionnée
   useEffect(() => {
@@ -441,8 +444,8 @@ export function BossOverlayClient({
       pool = pool.filter((e) => e.type === "boss");
     } else if (catalogFilter === "monstre") {
       pool = pool.filter((e) => e.type === "monstre");
-    } else if (catalogFilter === "ocre") {
-      pool = pool.filter((e) => e.isOcreQuest);
+    } else if (catalogFilter === "titan") {
+      pool = pool.filter((e) => e.type === "titan");
     }
 
     const q = search.trim().toLowerCase();
@@ -474,6 +477,7 @@ export function BossOverlayClient({
     setShowFamilyModal(false);
     setTab("info");
     setActiveSpellId(undefined);
+    setSearch(""); // revient au filtre complet (sans recherche résiduelle du boss)
     setTimeout(() => searchInputRef.current?.focus(), 100);
   }, []);
 
@@ -573,15 +577,15 @@ export function BossOverlayClient({
               👹 Monstres
             </button>
             <button
-              onClick={() => setCatalogFilter("ocre")}
+              onClick={() => setCatalogFilter("titan")}
               className={cn(
                 "py-1 text-[10px] font-bold rounded-md transition-all text-center truncate",
-                catalogFilter === "ocre"
+                catalogFilter === "titan"
                   ? "bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-xs"
                   : "text-white/40 hover:text-white/80"
               )}
             >
-              🥚 Boss Ocre
+              👑 Titans
             </button>
           </div>
         </div>
@@ -757,7 +761,10 @@ export function BossOverlayClient({
                     className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] hover:border-amber-500/30 transition-all text-center group relative"
                   >
                     {d.isOcreQuest && (
-                      <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-400 shadow-xs shadow-amber-400/50" title="Quête Ocre" />
+                      <span className="absolute top-1.5 right-1.5 flex items-center gap-1 px-1.5 h-4 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[8px] font-bold" title="Boss de la Quête Ocre">
+                        <img src="/module-dofus/Dofus_Ocre.png" alt="Ocre" className="w-3 h-3 object-contain" />
+                        Ocre
+                      </span>
                     )}
                     <div className="w-14 h-14 rounded-lg bg-black/40 flex items-center justify-center overflow-hidden">
                       <MonsterImage
@@ -1017,6 +1024,7 @@ export function BossOverlayClient({
                   isBoss: m.isBoss,
                   imageUrl: m.imageUrl,
                 }))}
+                entityScale={selected.type === "titan" ? 4 : 1}
                 compact={true}
               />
             ) : (

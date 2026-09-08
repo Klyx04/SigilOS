@@ -8,6 +8,7 @@ import { getBossDofensiveSpells } from "@/server/actions/dofensive-actions";
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { persistMonsterStat } from "@/lib/dofensive-sync";
 import { siphonAndCompressImage } from "@/lib/dofus-asset-siphon";
+import { db } from "@/lib/prisma";
 
 /**
  * 🐉 CRON quotidien : synchronisation locale des fiches et statistiques de monstres (DofusDB + Dofensive).
@@ -71,7 +72,42 @@ export async function GET(req: Request) {
             }
         }
 
-        logger.info(`[Cron:SyncMonsterStats] Terminé: ${synced} monstres synchronisés, ${errors} erreurs`);
+        // 2. Titans (Événements Krosmiques) — même synchro DofusDB/Dofensive (sorts, stats, image).
+        // Local-first : monsterStat est keyé par monsterId (Ankama), ex. 8062 pour Gargandyas.
+        try {
+            const titans = await db.titan.findMany({
+                select: { id: true, name: true, dofusdbId: true, mapName: true },
+            });
+            for (const t of titans) {
+                try {
+                    if (t.dofusdbId) {
+                        // Pre-fetch simple par nom pour résoudre l'ID Ankama (8062) puis la fiche.
+                        const statsRes = await getMonsterStats(t.name, t.mapName || undefined, true);
+                        if (statsRes.success && statsRes.data) {
+                            let data = statsRes.data;
+                            const dRes = await getBossDofensiveSpells(t.name, undefined, undefined, true);
+                            if (dRes.success && dRes.data) {
+                                data = { ...data, spells: mergeDofensiveSpells(data.spells ?? [], dRes.data) };
+                            }
+                            await persistMonsterStat({ ...data, dungeonName: t.mapName || undefined });
+                            if (data.id) {
+                                const remoteImg = data.img || `https://api.dofusdb.fr/img/monsters/${data.id}.png`;
+                                const imgRes = await siphonAndCompressImage(remoteImg, "monsters", data.id);
+                                if (imgRes.success) imagesSiphoned++;
+                            }
+                            synced++;
+                        }
+                    }
+                } catch (err) {
+                    errors++;
+                    logger.warn(`[Cron:SyncMonsterStats] Erreur titan ${t.name}:`, { error: String(err) });
+                }
+            }
+        } catch (err) {
+            logger.warn("[Cron:SyncMonsterStats] Erreur chargement des titans:", { error: String(err) });
+        }
+
+        logger.info(`[Cron:SyncMonsterStats] Terminé: ${synced} monstres synchronisés, ${imagesSiphoned} images siphonnées, ${errors} erreurs`);
 
         // Visibilité dans le Dashboard GOD (Audit Logs & Alertes) — sans session utilisateur.
         await createSystemAuditLog({
@@ -79,6 +115,7 @@ export async function GET(req: Request) {
             targetId: "sync-monster-stats",
             synced,
             errors,
+            images: imagesSiphoned,
             totalBosses: bosses.length,
         });
 
@@ -102,7 +139,7 @@ export async function GET(req: Request) {
             success: errors === 0,
             durationMs: Date.now() - startedAt,
             summary: `${synced} monstres synchronisés, ${errors} erreur(s) sur ${bosses.length}`,
-            details: { synced, errors, totalBosses: bosses.length },
+            details: { synced, errors, images: imagesSiphoned, totalBosses: bosses.length },
         });
 
         return NextResponse.json({ success: true, synced, errors });

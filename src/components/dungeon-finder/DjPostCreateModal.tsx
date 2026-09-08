@@ -9,13 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-    Plus, Search, Swords, Map, Zap,
+    Plus, Search, Swords, Map, Zap, Crown,
     Users, CheckCircle2, X, Trophy, ChevronsUpDown, Check, ChevronRight, ScrollText, Hash, AlertTriangle, Layers
 } from "lucide-react";
 import { createDjPost, createDjPosts } from "@/server/actions/dungeon-finder-actions";
 import { DjMultiDungeonModal, type MultiDungeonSelection } from "./DjMultiDungeonModal";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
 import { getDefis } from "@/server/actions/defi-admin-actions";
+import { getTitans } from "@/server/actions/titan-admin-actions";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
 import { PingEstimate } from "@/components/shared/ping-estimate";
 import { Switch } from "@/components/ui/switch";
@@ -66,6 +67,17 @@ interface Defi {
     bossNames?: { name: string }[] | null;
 }
 
+interface Titan {
+    id: string;
+    name: string;
+    slug: string;
+    zone?: string | null;
+    level?: number | null;
+    imageUrl?: string | null;
+    maxMembers?: number;
+    scheduleConfig?: any;
+}
+
 interface DjPostCreateModalProps {
     guildId: string;
     isOpen: boolean;
@@ -79,13 +91,19 @@ interface DjPostCreateModalProps {
 export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQuestName, isDiscordConfigured, onClose, onCreated }: DjPostCreateModalProps) {
     // Top-Level Mode
     const [step, setStep] = useState(1);
-    const [mode, setMode] = useState<"DONJON" | "QUETE" | "DEFI">("DONJON");
+    const [mode, setMode] = useState<"DONJON" | "QUETE" | "DEFI" | "TITAN">("DONJON");
 
     // Défis
     const [defis, setDefis] = useState<Defi[]>([]);
     const [loadingDefis, setLoadingDefis] = useState(false);
     const [defiSearch, setDefiSearch] = useState("");
     const [selectedDefi, setSelectedDefi] = useState<Defi | null>(null);
+
+    // Titans
+    const [titans, setTitans] = useState<Titan[]>([]);
+    const [loadingTitans, setLoadingTitans] = useState(false);
+    const [titanSearch, setTitanSearch] = useState("");
+    const [selectedTitan, setSelectedTitan] = useState<Titan | null>(null);
 
     // Donjons
     const [dungeons, setDungeons] = useState<Dungeon[]>([]);
@@ -114,6 +132,13 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
 
     // Shared Config
     const [maxMembers, setMaxMembers] = useState(4);
+
+    // Mode Titan : la taille du groupe est FIXE = maxMembers du titan (pas plus, pas moins).
+    useEffect(() => {
+        if (mode === "TITAN" && selectedTitan?.maxMembers) {
+            setMaxMembers(selectedTitan.maxMembers);
+        }
+    }, [mode, selectedTitan]);
     const [message, setMessage] = useState("");
     const [targetDate, setTargetDate] = useState("");
     const [requiredClasses, setRequiredClasses] = useState<string[]>([]);
@@ -125,6 +150,20 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
     const [targetChannelName, setTargetChannelName] = useState<string>("annonces");
 
     const [isPending, startTransition] = useTransition();
+
+    // Mode Titan — contraintes de disponibilité (jours/heures) calquées sur le scheduleConfig du titan.
+    const titanSchedule = useMemo(() => {
+        if (mode !== "TITAN") return null;
+        const s = ((selectedTitan as any)?.scheduleConfig ?? {}) as { onlyWeekend?: boolean; daysOfWeek?: number[]; startTime?: string; endTime?: string };
+        const days = s.daysOfWeek?.length ? s.daysOfWeek : (s.onlyWeekend ? [5, 6, 0] : undefined);
+        let hourRange: [number, number] | undefined;
+        if (s.startTime && s.endTime) {
+            const st = parseInt(String(s.startTime).split(":")[0], 10);
+            const en = parseInt(String(s.endTime).split(":")[0], 10);
+            if (!Number.isNaN(st) && !Number.isNaN(en) && st >= 0 && en <= 23) hourRange = [st, en];
+        }
+        return { days, hourRange };
+    }, [mode, selectedTitan]);
 
     // Reset all state on open, and re-check isDiscordConfigured when it changes
     useEffect(() => {
@@ -222,11 +261,28 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
         }
     }, [isOpen, defis.length]);
 
+    // Fetch Titans on open (mode Titan)
+    useEffect(() => {
+        if (isOpen && titans.length === 0) {
+            setLoadingTitans(true);
+            getTitans()
+                .then(res => { if (res.success && res.data) setTitans(res.data as Titan[]); })
+                .catch(console.error)
+                .finally(() => setLoadingTitans(false));
+        }
+    }, [isOpen, titans.length]);
+
     const filteredDefis = useMemo(() => {
         if (!defiSearch.trim()) return defis;
         const q = defiSearch.toLowerCase();
         return defis.filter(d => d.name.toLowerCase().includes(q) || (d.zone || "").toLowerCase().includes(q));
     }, [defis, defiSearch]);
+
+    const filteredTitans = useMemo(() => {
+        if (!titanSearch.trim()) return titans;
+        const q = titanSearch.toLowerCase();
+        return titans.filter(d => d.name.toLowerCase().includes(q) || (d.zone || "").toLowerCase().includes(q));
+    }, [titans, titanSearch]);
 
     // DofusDB Quest search debounce
     useEffect(() => {
@@ -321,6 +377,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
         if (!multiActive && mode === "DONJON" && !selectedDungeon) return "Sélectionne un donjon dans la liste ci-dessus.";
         if (!multiActive && mode === "QUETE" && !selectedQuest) return "Choisis une quête dans la recherche ci-dessus.";
         if (!multiActive && mode === "DEFI" && !selectedDefi) return "Choisis un défi dans la liste ci-dessus.";
+        if (!multiActive && mode === "TITAN" && !selectedTitan) return "Choisis un titan dans la liste ci-dessus.";
         if (!multiActive && !targetDate) return "Renseigne le champ « Date & Heure prévue » ci-dessus.";
         return null;
     })();
@@ -376,6 +433,10 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
             toast.error("Veuillez choisir un défi.");
             return;
         }
+        if (mode === "TITAN" && !selectedTitan) {
+            toast.error("Veuillez choisir un titan.");
+            return;
+        }
         if (!targetDate) {
             toast.error("Veuillez définir une date et une heure prévues.");
             return;
@@ -394,6 +455,8 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
             questUrl: mode === "QUETE" && questUrl ? questUrl : null,
             defiId: mode === "DEFI" ? selectedDefi!.id : null,
             defiName: mode === "DEFI" ? selectedDefi!.name : null,
+            titanId: mode === "TITAN" ? selectedTitan!.id : null,
+            titanName: mode === "TITAN" ? selectedTitan!.name : null,
             wantedAchievementIds: mode === "DONJON" ? selectedAchievements : [],
             maxMembers,
             message: message ? message : null,
@@ -427,7 +490,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                         </div>
                         <div className="flex flex-col">
                             <span className="text-xl tracking-tight text-foreground leading-none">
-                                {mode === "DONJON" ? "Nouveau Groupe Donjon" : mode === "DEFI" ? "Nouveau Groupe Défi" : "Nouveau Groupe Quête"}
+                                {mode === "DONJON" ? "Nouveau Groupe Donjon" : mode === "DEFI" ? "Nouveau Groupe Défi" : mode === "TITAN" ? "Nouveau Groupe Titan" : "Nouveau Groupe Quête"}
                             </span>
                             <span className="text-caption text-muted-foreground font-bold uppercase tracking-widest mt-1">
                                 Planifier une session de guilde
@@ -440,8 +503,8 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                 <div className="p-6 flex-1 overflow-y-auto premium-scrollbar min-h-0">
                         {step === 1 && (
                             <div className="space-y-6">
-                                {/* Mode Selector - Refined (3 modes : Donjon / Quête / Défi) */}
-                                <div className="grid grid-cols-3 relative bg-surface/80 border border-border p-1 rounded-xl w-full">
+                                {/* Mode Selector - Refined (4 modes : Donjon / Quête / Défi / Titan) */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 relative bg-surface/80 border border-border p-1 rounded-xl w-full">
                                     <button
                                         onClick={() => setMode("DONJON")}
                                         className={`relative z-10 flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-xl transition-all ${mode === "DONJON" ? "bg-elevated border border-border text-foreground" : "text-muted-foreground hover:text-foreground"}`}
@@ -462,6 +525,13 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                     >
                                         <Zap className={`w-4 h-4 transition-colors ${mode === "DEFI" ? "text-amber-500" : ""}`} />
                                         Mode Défi
+                                    </button>
+                                    <button
+                                        onClick={() => setMode("TITAN")}
+                                        className={`relative z-10 flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-xl transition-all ${mode === "TITAN" ? "bg-elevated border border-border text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                                    >
+                                        <Crown className={`w-4 h-4 transition-colors ${mode === "TITAN" ? "text-amber-500" : ""}`} />
+                                        Mode Titan
                                     </button>
                                 </div>
 
@@ -614,6 +684,56 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                     </div>
                                 )}
 
+                                {/* Mode Titan — choisir un titan (Événement Krosmique) */}
+                                {mode === "TITAN" && (
+                                    <div className="space-y-4">
+                                        <div className="space-y-4 p-4 bg-surface rounded-xl border border-border">
+                                            <p className="text-sm font-bold text-foreground">Choisir un titan</p>
+                                            {selectedTitan ? (
+                                                <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        {selectedTitan.imageUrl ? <img src={selectedTitan.imageUrl} alt={selectedTitan.name} className="w-9 h-9 object-contain rounded-lg bg-background border border-border shrink-0" /> : <Crown className="w-6 h-6 text-amber-500 shrink-0" />}
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-bold text-foreground truncate">{selectedTitan.name}</p>
+                                                            <p className="text-caption text-muted-foreground">Niveau {selectedTitan.level ?? "—"} · {selectedTitan.zone || "—"}</p>
+                                                        </div>
+                                                    </div>
+                                                    <Button variant="ghost" size="sm" onClick={() => setSelectedTitan(null)} className="text-muted-foreground hover:text-foreground shrink-0 ml-2">Modifier</Button>
+                                                </div>
+                                            ) : (
+                                                <div className="relative">
+                                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                                    <input autoFocus type="text" value={titanSearch} onChange={(e) => setTitanSearch(e.target.value)} placeholder="Rechercher un titan... (ex. Gargandyas)" className="w-full bg-surface/60 border border-border focus:border-amber-500/50 rounded-xl pl-11 pr-4 py-3.5 text-sm text-foreground focus:outline-none placeholder:text-muted-foreground" />
+                                                </div>
+                                            )}
+
+                                            {!selectedTitan && (
+                                                <div className="h-60 overflow-y-auto space-y-2 pr-2 premium-scrollbar">
+                                                    {loadingTitans ? (
+                                                        <div className="py-16 text-center text-muted-foreground bg-surface/30 rounded-3xl border border-border">Consultation du temple...</div>
+                                                    ) : filteredTitans.length === 0 ? (
+                                                        <div className="text-center py-16 bg-surface/30 rounded-3xl border border-border border-dashed">
+                                                            <Crown className="w-8 h-8 mx-auto mb-3 text-muted-foreground opacity-50" />
+                                                            <p className="text-muted-foreground text-sm">Aucun titan trouvé.</p>
+                                                        </div>
+                                                    ) : filteredTitans.map((t) => (
+                                                        <button key={t.id} onClick={() => setSelectedTitan(t)} className="w-full flex items-center gap-4 p-3 rounded-2xl bg-surface/40 border border-border hover:border-amber-500/30 hover:bg-elevated transition-all group text-left">
+                                                            <div className="w-12 h-12 rounded-xl overflow-hidden bg-background border border-border shrink-0 flex items-center justify-center">{t.imageUrl ? <img src={t.imageUrl} alt={t.name} className="w-full h-full object-contain p-1" /> : <Crown className="w-6 h-6 text-amber-500" />}</div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm font-black text-foreground truncate">{t.name}</p>
+                                                                <p className="text-xs text-muted-foreground mt-0.5 truncate">Niveau {t.level ?? "—"} · {t.zone || "Dimension inconnue"} · {t.maxMembers ?? 4} joueurs max</p>
+                                                            </div>
+                                                            <Plus className="w-4 h-4 text-muted-foreground group-hover:text-foreground shrink-0" />
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <Button className="w-full h-12 text-sm bg-amber-600 hover:bg-amber-600 text-white font-bold disabled:opacity-50" disabled={!selectedTitan} onClick={() => setStep(2)}>Suivant</Button>
+                                    </div>
+                                )}
+
                                 {/* Quête Search */}
                                 {mode === "QUETE" && (
                                     <div className="space-y-4">
@@ -727,13 +847,17 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                 ) : (
                                     <div className="flex items-center gap-4 bg-surface/60 rounded-3xl p-5 border border-border shadow-xl relative overflow-hidden group">
                                         <div className="absolute inset-0 bg-gradient-to-r from-warning/5 to-transparent opacity-50" />
-                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border relative z-10 ${mode === "DONJON" ? "bg-background border-border" : mode === "DEFI" ? "bg-amber-500/20 border-amber-500/30" : "bg-success/30 border-success/20"}`}>
+                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border relative z-10 ${mode === "DONJON" ? "bg-background border-border" : mode === "DEFI" ? "bg-amber-500/20 border-amber-500/30" : mode === "TITAN" ? "bg-amber-500/20 border-amber-500/30" : "bg-success/30 border-success/20"}`}>
                                             {mode === "DONJON" && selectedDungeon?.imageUrl ? (
                                                 <img src={selectedDungeon.imageUrl} alt="" className="w-10 h-10 object-contain group- transition-transform duration-300" />
                                             ) : mode === "DEFI" && selectedDefi?.imageUrl ? (
                                                 <img src={selectedDefi.imageUrl} alt="" className="w-10 h-10 object-contain group- transition-transform duration-300" />
                                             ) : mode === "DEFI" ? (
                                                 <Zap className="w-6 h-6 text-amber-500" />
+                                            ) : mode === "TITAN" && selectedTitan?.imageUrl ? (
+                                                <img src={selectedTitan.imageUrl} alt="" className="w-10 h-10 object-contain group- transition-transform duration-300" />
+                                            ) : mode === "TITAN" ? (
+                                                <Crown className="w-6 h-6 text-amber-500" />
                                             ) : mode === "DONJON" ? (
                                                 <Swords className="w-6 h-6 text-muted-foreground" />
                                             ) : (
@@ -742,7 +866,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                         </div>
                                         <div className="flex-1 min-w-0 relative z-10">
                                             <p className="font-black text-foreground text-lg tracking-tight truncate leading-tight">
-                                                {mode === "DONJON" ? selectedDungeon?.name : mode === "DEFI" ? selectedDefi?.name : selectedQuest?.name}
+                                                {mode === "DONJON" ? selectedDungeon?.name : mode === "DEFI" ? selectedDefi?.name : mode === "TITAN" ? selectedTitan?.name : selectedQuest?.name}
                                             </p>
                                             <div className="flex items-center gap-2 mt-1">
                                                 {mode === "DONJON" ? (
@@ -750,6 +874,8 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                         <span className="text-caption font-black bg-warning/10 text-warning px-1.5 py-0.5 rounded border border-warning/20">NIVEAU {selectedDungeon?.level}</span>
                                                         <span className="text-caption font-medium text-muted-foreground truncate">{selectedDungeon?.bossName}</span>
                                                     </>
+                                                ) : mode === "TITAN" ? (
+                                                    <span className="text-caption font-black bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20 uppercase tracking-widest">TITAN</span>
                                                 ) : (
                                                     <span className="text-caption font-black bg-success/10 text-success px-1.5 py-0.5 rounded border border-success/20 uppercase tracking-widest">GROUPE QUÊTE</span>
                                                 )}
@@ -880,26 +1006,38 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                 onChange={setTargetDate}
                                                 minDate={new Date()}
                                                 placeholder="Choisir date & heure"
-                                                timeOptional={true}
+                                                timeOptional={mode !== "TITAN"}
+                                                allowedDaysOfWeek={mode === "TITAN" ? titanSchedule?.days : undefined}
+                                                hourRange={mode === "TITAN" ? titanSchedule?.hourRange : undefined}
                                             />
+                                            {mode === "TITAN" && titanSchedule?.days && (
+                                                <p className="text-caption text-muted-foreground ml-1">📅 Jours & horaires calqués sur la disponibilité du titan.</p>
+                                            )}
                                             {!targetDate && (
                                                 <p className="text-caption text-warning/90 font-bold ml-1">Date requise pour continuer.</p>
                                             )}
                                         </div>
                                     )}
-                                    <div className="space-y-3">
+                                        <div className="space-y-3">
                                         <p className="text-caption font-black text-muted-foreground uppercase tracking-widest ml-1">Taille du groupe</p>
-                                        <div className="flex bg-surface border border-border rounded-xl p-1 h-[52px] items-center">
-                                            {[2, 3, 4, 5, 6, 7, 8].map((n) => (
-                                                <button
-                                                    key={n}
-                                                    onClick={() => setMaxMembers(n)}
-                                                    className={`flex-1 flex justify-center items-center h-full text-xs font-black transition-all rounded-xl ${maxMembers === n ? "bg-elevated text-foreground border border-border shadow-lg" : "text-muted-foreground hover:text-muted-foreground hover:bg-surface"}`}
-                                                >
-                                                    {n}
-                                                </button>
-                                            ))}
-                                        </div>
+                                        {mode === "TITAN" ? (
+                                            <div className="flex items-center gap-2 bg-surface border border-warning/30 rounded-xl px-4 h-[52px]">
+                                                <span className="text-lg font-black text-warning">{selectedTitan?.maxMembers ?? 4}</span>
+                                                <span className="text-caption font-bold text-muted-foreground">membre{(selectedTitan?.maxMembers ?? 4) > 1 ? "s" : ""} (taille fixe)</span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex bg-surface border border-border rounded-xl p-1 h-[52px] items-center">
+                                                {[2, 3, 4, 5, 6, 7, 8].map((n) => (
+                                                    <button
+                                                        key={n}
+                                                        onClick={() => setMaxMembers(n)}
+                                                        className={`flex-1 flex justify-center items-center h-full text-xs font-black transition-all rounded-xl ${maxMembers === n ? "bg-elevated text-foreground border border-border shadow-lg" : "text-muted-foreground hover:text-muted-foreground hover:bg-surface"}`}
+                                                    >
+                                                        {n}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 

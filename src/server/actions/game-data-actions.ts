@@ -276,7 +276,7 @@ export interface BestiaireEntry {
     dofensiveMonsterName?: string | null;
     dofensiveDungeonName?: string | null;
     isOcreQuest: boolean;
-    type: 'boss' | 'monstre';
+    type: 'boss' | 'monstre' | 'titan';
 }
 
 /**
@@ -352,7 +352,29 @@ export async function getBestiaireCatalog(): Promise<ActionResponse<BestiaireEnt
                 }));
         }
 
-        return { success: true, data: [...bossEntries, ...monsterEntries] };
+        // Onglet "Titans" (Événements Krosmiques) — boss Ankama référencé via dofusdbId (ex. 8062).
+        let titanEntries: BestiaireEntry[] = [];
+        try {
+            const titans = await db.titan.findMany({ orderBy: { level: 'asc' } });
+            titanEntries = titans.map((t) => ({
+                id: t.id,
+                name: t.zone || "Titan",
+                bossName: t.name,
+                level: t.level ?? 0,
+                imageUrl: t.imageUrl ?? null,
+                dofensiveUrl: t.dofensiveUrl ?? null,
+                dpnlUrl: t.dpnlUrl ?? t.dofuspourlesnoobsUrl ?? null,
+                dofusdbId: t.dofusdbId ?? null,
+                dofensiveMonsterName: t.name,
+                dofensiveDungeonName: t.mapName ?? null,
+                isOcreQuest: false,
+                type: 'titan' as const,
+            }));
+        } catch (e) {
+            logger.error('[getBestiaireCatalog] Erreur chargement titans:', { error: String(e) });
+        }
+
+        return { success: true, data: [...bossEntries, ...monsterEntries, ...titanEntries] };
     } catch (error) {
         logger.error('[getBestiaireCatalog] Error:', { error });
         return { success: false, error: 'Erreur lors du chargement du bestiaire' };

@@ -109,7 +109,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
     const isMulti = multiDungeons.length > 0;
     const title = isMulti
         ? `Multi-donjons — ${multiDungeons.length}`
-        : (post.mode === "DONJON" ? post.dungeon?.name : post.mode === "DEFI" ? (post.defiName || "Défi") : post.questName);
+        : (post.mode === "DONJON" ? post.dungeon?.name : post.mode === "DEFI" ? (post.defiName || "Défi") : post.mode === "TITAN" ? (post.titanName || "Titan") : post.questName);
     const subtitle = isMulti
         ? "Session de guilde multi-donjons"
         : (post.mode === "DONJON" ? `${post.dungeon?.bossName} · Lvl ${post.dungeon?.level}` : post.mode === "DEFI" ? "Événement one-shot" : "Quête");

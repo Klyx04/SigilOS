@@ -26,7 +26,7 @@ function buildDiscordCommandPayloads() {
     }> = [
         {
             name: "almanax",
-            description: "📅 Offrande & bonus Almanax du jour – prévisualise jusqu'à 7 jours",
+            description: "📅 Offrande & bonus Almanax du jour demandé",
             options: [
                 {
                     name: "date",
@@ -37,21 +37,8 @@ function buildDiscordCommandPayloads() {
             ]
         },
         {
-            name: "dofus",
-            description: "🥚 Guide, prérequis et avancement guilde pour un Dofus spécifique",
-            options: [
-                {
-                    name: "nom",
-                    description: "Nom du Dofus (ex: Ocre, Vulbis, Turquoise...)",
-                    type: 3, // STRING
-                    required: true,
-                    autocomplete: true // ← déclenche l'autocomplete Discord
-                }
-            ]
-        },
-        {
             name: "profil",
-            description: "🎖️ Fiche joueur – rang guilde, badges, Dofus obtenus et statistiques",
+            description: "🎖️ Fiche membre : avatar, classe, niveau et lien vers son profil",
             options: [
                 {
                     name: "membre",
@@ -60,28 +47,6 @@ function buildDiscordCommandPayloads() {
                     required: false
                 }
             ]
-        },
-        {
-            name: "sorties",
-            description: "🚪 Liste les sorties donjons, songes et quêtes ouvertes dans la guilde",
-            options: [
-                {
-                    name: "type",
-                    description: "Filtrer par type de sortie",
-                    type: 3, // STRING
-                    required: false,
-                    choices: [
-                        { name: "Tous", value: "all" },
-                        { name: "Donjons", value: "dungeon" },
-                        { name: "Songes Infinis", value: "dream" },
-                        { name: "Quêtes", value: "quest" }
-                    ]
-                }
-            ]
-        },
-        {
-            name: "defi",
-            description: "⚔️ Défi double boss en cours – bonus de points et classement participants"
         },
         {
             name: "boss",
@@ -110,16 +75,12 @@ function buildDiscordCommandPayloads() {
             ]
         },
         {
-            name: "stats",
-            description: "📊 Récapitulatif des succès, présences et activité de la guilde"
-        },
-        {
-            name: "artisan",
-            description: "🔨 Trouve les artisans et forgemages de la guilde pour un métier donné",
+            name: "metiers",
+            description: "🔨 Trouve qui a tel métier dans la guilde, avec les niveaux",
             options: [
                 {
                     name: "metier",
-                    description: "Nom du métier (ex: Tailleur, Bijoutier, Forgemage...)",
+                    description: "Nom du métier (ex: Tailleur, Mineur, Forgemage...)",
                     type: 3, // STRING
                     required: true,
                     autocomplete: true
@@ -139,22 +100,6 @@ function buildDiscordCommandPayloads() {
                 }
             ]
         },
-        {
-            name: "ladder",
-            description: "🏆 Classement et podium des meilleurs membres de la guilde",
-            options: [
-                {
-                    name: "categorie",
-                    description: "Catégorie du classement",
-                    type: 3, // STRING
-                    required: false,
-                    choices: [
-                        { name: "Points de contribution", value: "points" },
-                        { name: "Niveau Dofus", value: "niveau" }
-                    ]
-                }
-            ]
-        }
     ];
 
     // Discord API n'accepte pas `options: []` (tableau vide). On ne transmet options que s'il y en a.

@@ -34,17 +34,9 @@ import { API_SCOPES } from "@/lib/api-scopes";
 import crypto from "crypto";
 
 describe("⚡ Lot 4 — Slash Commands Discord (#158)", () => {
-    it("should have all 8 core slash commands configured in the catalog", () => {
+    it("should have the 6 kept slash commands configured in the catalog", () => {
         const names = SLASH_COMMANDS_CATALOG.map(c => c.name);
-        expect(names).toContain("almanax");
-        expect(names).toContain("dofus");
-        expect(names).toContain("profil");
-        expect(names).toContain("sorties");
-        expect(names).toContain("defi");
-        expect(names).toContain("boss");
-        expect(names).toContain("monstre");
-        expect(names).toContain("stats");
-        expect(SLASH_COMMANDS_CATALOG.length).toBeGreaterThanOrEqual(8);
+        expect(names).toEqual(["almanax", "profil", "boss", "monstre", "metiers", "ocre"]);
     });
 
     it("should validate command execution based on roles and channels", async () => {
@@ -84,14 +76,14 @@ describe("⚡ Lot 4 — Slash Commands Discord (#158)", () => {
         (db.guildConfig.findUnique as any).mockResolvedValueOnce({
             id: "guild-1",
             slashCommandPermissions: [{
-                commandName: "dofus",
+                commandName: "boss",
                 isEnabled: false,
                 roleIds: [],
                 channelIds: []
             }]
         });
 
-        const resDisabled = await checkSlashCommandExecutionAllowed("discord-guild-1", "dofus", ["role-1"], "channel-authorized");
+        const resDisabled = await checkSlashCommandExecutionAllowed("discord-guild-1", "boss", ["role-1"], "channel-authorized");
         expect(resDisabled.allowed).toBe(false);
         expect(resDisabled.reason).toContain("désactivée");
     });

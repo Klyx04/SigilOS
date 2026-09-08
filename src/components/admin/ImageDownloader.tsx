@@ -12,7 +12,7 @@ import { LocalImagePicker } from "./LocalImagePicker";
 
 type Props = {
     imageUrl: string;
-    type: "monster" | "achievement" | "dungeon" | "item" | "legendary" | "defi";
+    type: "monster" | "achievement" | "dungeon" | "item" | "legendary" | "defi" | "titan";
     identifier: string;
     onImageDownloaded: (localPath: string) => void;
     className?: string;

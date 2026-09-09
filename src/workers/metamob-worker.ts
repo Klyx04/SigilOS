@@ -383,17 +383,42 @@ cleanupWorker.on("failed", (job, err) => {
 const CRON_QUEUE_NAME = "sigilos-cron-tasks";
 const cronQueue = new Queue(CRON_QUEUE_NAME, defaultQueueOptions);
 
-// 1. Status Ping (Every 15 minutes)
-cronQueue.add(
-    "status-ping",
-    {},
-    {
-        repeat: { pattern: "*/15 * * * *" }, // Every 15 mins
-        jobId: "status-ping-repeat",
-        removeOnComplete: 10,
-        removeOnFail: 5,
+// 1. Status Ping — tick toutes les 5 min, le GARDE-FOU DE FRÉQUENCE dans
+// `sendGlobalStatusPingCore` (réglage God 5m/15m/1h) décide d'envoyer ou de
+// sauter. Le scheduler ne fait que réveiller, il ne spamme plus jamais.
+const STATUS_PING_PATTERN = "*/5 * * * *";
+void (async () => {
+    try {
+        // Nettoyage des anciens schedulers (ex. `*/15`) : sans ça, changer le
+        // pattern crée une DEUXIÈME entrée repeatable BullMQ et les deux tirent.
+        const existing = await cronQueue.getRepeatableJobs();
+        for (const job of existing) {
+            const jobPattern = (job as { cron?: string; pattern?: string }).cron
+                ?? (job as { pattern?: string }).pattern;
+            if (job.name === "status-ping" && jobPattern && jobPattern !== STATUS_PING_PATTERN) {
+                const removeByKey = (cronQueue as unknown as { removeRepeatableByKey?: (key: string) => Promise<void> }).removeRepeatableByKey;
+                if (typeof removeByKey === "function") {
+                    await removeByKey.call(cronQueue, job.key);
+                    logger.info(`[Cron] Ancien scheduler status-ping supprimé (${jobPattern}).`);
+                }
+            }
+        }
+    } catch (e) {
+        // API BullMQ indisponible → pas bloquant : le garde-fou de fréquence
+        // du core déduplique de toute façon les déclenchements redondants.
+        logger.warn("[Cron] Nettoyage schedulers status-ping impossible, on continue.", e);
     }
-);
+    await cronQueue.add(
+        "status-ping",
+        {},
+        {
+            repeat: { pattern: STATUS_PING_PATTERN },
+            jobId: "status-ping-repeat",
+            removeOnComplete: 10,
+            removeOnFail: 5,
+        }
+    );
+})().catch((e) => logger.error("[Cron] Planification status-ping impossible:", e));
 
 // 2. Daily Summary (Every morning at 08:30)
 cronQueue.add(
@@ -426,8 +451,10 @@ const cronWorker = new Worker(
     async (job) => {
         if (job.name === "status-ping") {
             logger.info("[Cron] Execution du Status Ping GLOBAL...");
-            const res = await sendGlobalStatusPingCore();
+            const res = await sendGlobalStatusPingCore({ source: "worker" });
             if (!res.success) logger.error(`[Cron] Status Ping échoué: ${res.error}`);
+            else if ((res as { skipped?: boolean }).skipped) logger.info(`[Cron] Status Ping sauté (fréquence ${(res as { frequencyMin?: number }).frequencyMin ?? "?"} min).`);
+            else logger.info(`[Cron] Status Ping ${res.action ?? "OK"}.`);
         }
 
         if (job.name === "daily-summary") {

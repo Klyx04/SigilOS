@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import { notifyGod } from "@/server/actions/god-notif-actions";
 import { safeEqualStrings } from "@/lib/god-route";
 import { rateLimit } from "@/lib/ratelimit";
+import { sendChannelMessage } from "@/server/discord";
 
 /**
  * ☕ Webhook Réception des dons Ko-fi (#198.2 / Monétisation)
@@ -49,7 +50,9 @@ export async function POST(req: Request) {
 
         // 🔒 Sécurité : Vérification du Token Ko-fi — fail-closed si absent (OWASP 2026).
         // Sans secret configuré, on refuse (503) plutôt que d'attribuer des badges à n'importe qui.
-        const expectedToken = process.env.KOFI_VERIFICATION_TOKEN;
+        // Les guillemets éventuels du .env (ex. TOKEN="abc") sont retirés : sinon
+        // la comparaison échoue et TOUS les webhooks sont rejetés en 401.
+        const expectedToken = (process.env.KOFI_VERIFICATION_TOKEN || "").replace(/^['"]|['"]$/g, "").trim();
         if (!expectedToken) {
             logger.error("[Ko-fi Webhook] KOFI_VERIFICATION_TOKEN non configuré — webhook bloqué (fail-closed)");
             return NextResponse.json({ error: "Webhook non configuré" }, { status: 503 });
@@ -138,10 +141,60 @@ export async function POST(req: Request) {
             success: true
         });
 
+        // 5. Remerciement public #DONS-KOFI — seulement si le donateur l'autorise.
+        // Ko-fi exige de masquer le message quand `is_public` est false.
+        const isPublic = dataJson.is_public !== false && String(dataJson.is_public ?? "true").toLowerCase() !== "false";
+        let publicPosted = false;
+        let pinged = false;
+        if (isPublic) {
+            const platformConfig = await (db as any).platformConfig.findUnique({
+                where: { id: "singleton" },
+                select: { kofiChannelId: true },
+            });
+            const kofiChannelId = (platformConfig as { kofiChannelId?: string | null } | null)?.kofiChannelId;
+            if (kofiChannelId) {
+                const publicName = donorName || "Un généreux mécène";
+                // Ping @ du donateur uniquement si UN SEUL profil matché avec un
+                // compte Discord connu — jamais de ping ambigu ou au hasard.
+                let mentionContent = "";
+                if (matchedProfiles.length === 1 && matchedProfiles[0]?.userId) {
+                    try {
+                        const discordAccount = await (db as any).account.findFirst({
+                            where: { userId: matchedProfiles[0].userId, provider: "discord" },
+                            select: { providerAccountId: true },
+                        });
+                        const discordId = discordAccount?.providerAccountId;
+                        if (typeof discordId === "string" && /^\d{15,21}$/.test(discordId)) {
+                            mentionContent = `<@${discordId}>`;
+                            pinged = true;
+                        }
+                    } catch {
+                        // Pas de ping plutôt qu'un mauvais ping.
+                    }
+                }
+                try {
+                    await sendChannelMessage(kofiChannelId, "", {
+                        embedTitle: `☕ Merci ${publicName} !`,
+                        embedDescription: `${publicName} vient d'offrir **${amount} ${currency}** sur Ko-fi pour soutenir SigilOS. Un énorme merci !${message ? `\n> « ${message} »` : ""}`,
+                        embedColor: 0xf59e0b,
+                        embedFooter: "SigilOS • Merci aux mécènes ☕",
+                        ...(mentionContent ? { mentionContent } : {}),
+                    });
+                    publicPosted = true;
+                } catch (e) {
+                    logger.error("[Ko-fi Webhook] Remerciement public impossible:", e);
+                }
+            } else {
+                logger.warn("[Ko-fi Webhook] kofiChannelId non configuré — remerciement public ignoré");
+            }
+        }
+
         return NextResponse.json({
             success: true,
             grantedProfiles: grantedCount,
-            donor: donorName
+            donor: donorName,
+            publicPosted,
+            pinged
         });
     } catch (err: any) {
         logger.error("[Ko-fi Webhook Fatal Error]", err);

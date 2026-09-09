@@ -1,5 +1,15 @@
 # Active Context — SigilOS
 
+## Chantier du jour (2026-09-08) — Module « Titans » (feat. de bout en bout)
+> Branche `feat/slash-rework` — **non commité**. Mémo : `src/temp/memo-2026-09-08-titans.md`.
+- ✅ Modèle `Titan` + `UserTitanProgress` + `DjSearchMode.TITAN` + champs DJ (`titanId/titanName/questName/questUrl`) ; Admin God `TitanManager`, server actions `titan-admin-actions`/`titan-actions`, seed Gargandyas (**8062**, Osavora, dispo WE 19h→8h, 5 victoires max).
+- ✅ `SuccesTitanTab` **parité fiche boss** : onglets **Stats & Sorts / Simulation (`SpellRangeGrid`) / Monstres de salle**.
+- ✅ Résolution Gargandyas validée (id **8062**, ⚠️ homonyme 8069) · **icônes** = set **déjà officiel** (aucune intégration d'assets desktop, conforme règle « proposer puis valider ») · barre de vues Succès en **assets Dofus** + « Fiche Titans » à côté de « Fiches Boss ».
+- ✅ DJ Titan : **taille FIXE = titan.maxMembers** (modale + `createDjPost` force) · **date/heure calquée sur `scheduleConfig`** (`DateTimePicker` allowedDaysOfWeek+hourRange, fenêtres nocturnes, verrou sélection) · cron `cleanup-inactive-posts` couvre TITAN · file d'attente déjà en place.
+- ✅ UI /boss : bouton « Overlay en jeu » retiré des cartes + amber→`warning` · **overlay fix flèche retour** (deep-linked 1 seule fois + clear search).
+- 🔴 **à réparer** : `SpellRangeGrid.tsx` **syntaxe JSX cassée** (bloc d'art boss ~1690+, `</g>`/`)}` en double vers 1716) → **bloque `tsc`** (pas de mon fait). Build non relancé.
+- ⚠️ Validation : mes fichiers **eslint 0 erreur** ; `tsc` bloqué par `SpellRangeGrid.tsx`.
+
 ## Chantier du jour (2026-09-04, suite) — Rush Sylvestre : refonte visuelle anti-slop + fil conducteur imagé
 > Branche `feat/chantier-2026-09-04-cyber-rescan` — **rush non committé** (commit + PR `dev` à faire).
 > Référence vs concurrent **Duffus** (capture) : consigne **inspiration, pas recopie** (100 % assets locaux).

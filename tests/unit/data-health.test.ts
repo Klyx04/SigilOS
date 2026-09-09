@@ -68,7 +68,8 @@ vi.mock("@/server/actions/game-data-actions", () => ({
     }),
 }));
 
-import { buildBossFicheGaps, checkBossFicheGaps, getDataHealthOverview } from "@/server/actions/data-health-actions";
+import { buildBossFicheGaps } from "@/lib/data-health";
+import { checkBossFicheGaps, getDataHealthOverview } from "@/server/actions/data-health-actions";
 
 const NOW = new Date("2026-09-09T12:00:00.000Z").getTime();
 const H = 60 * 60 * 1000;

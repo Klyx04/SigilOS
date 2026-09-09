@@ -6,9 +6,8 @@ import { Button } from '@/components/ui/button';
 import {
     getDataHealthOverview,
     checkBossFicheGaps,
-    type DataHealthRow,
-    type BossFicheGap,
 } from '@/server/actions/data-health-actions';
+import type { DataHealthRow, BossFicheGap } from '@/lib/data-health';
 import { getSiphonInventory, triggerBatchAssetSiphonAction } from '@/server/actions/asset-siphon-actions';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';

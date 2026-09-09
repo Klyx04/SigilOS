@@ -48,7 +48,8 @@ vi.mock("@/lib/dofensive-sync", () => ({
     persistMonsterStat: vi.fn(),
 }));
 
-import { getSiphonDashboardStats, bossMatchKey } from "@/server/actions/asset-siphon-actions";
+import { getSiphonDashboardStats } from "@/server/actions/asset-siphon-actions";
+import { bossMatchKey } from "@/lib/data-health";
 
 const H = 60 * 60 * 1000;
 const NOW = new Date("2026-09-09T12:00:00.000Z").getTime();

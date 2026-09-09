@@ -18,15 +18,19 @@ import { GameDataSiphonPanel } from "./GameDataSiphonPanel";
 import { GameItemSiphonPanel } from "./GameItemSiphonPanel";
 import DefiManager from "./DefiManager";
 import TitanManager from "./TitanManager";
+import { DataHealthPanel } from "./DataHealthPanel";
 
 
 export default function GameDataInterface() {
-    const [activeTab, setActiveTab] = useState("siphon");
+    const [activeTab, setActiveTab] = useState("etat");
 
     return (
         <div className="bg-surface/50 backdrop-blur-sm rounded-3xl border border-border/50 p-6">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="flex flex-nowrap justify-start gap-2 w-full bg-elevated/50 mb-6 p-2.5 rounded-2xl h-auto overflow-x-auto custom-scrollbar">
+                    <TabsTrigger value="etat" className="px-3.5 py-2 shrink-0 whitespace-nowrap rounded-xl font-bold gap-2 shadow-sm data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
+                        📊 État des données
+                    </TabsTrigger>
                     <TabsTrigger value="siphon" className="px-3.5 py-2 shrink-0 whitespace-nowrap rounded-xl font-bold gap-2 shadow-sm data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
                         🛡️ Siphon & Autonomie
                     </TabsTrigger>
@@ -70,6 +74,10 @@ export default function GameDataInterface() {
                         💀 Monstres Spéciaux
                     </TabsTrigger>
                 </TabsList>
+
+                <TabsContent value="etat" className="space-y-4">
+                    <DataHealthPanel onGoTab={setActiveTab} />
+                </TabsContent>
 
                 <TabsContent value="siphon" className="space-y-4">
                     <GameDataSiphonPanel />

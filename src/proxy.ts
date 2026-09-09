@@ -170,7 +170,10 @@ export default auth(async (req) => {
         nextUrl.pathname.startsWith("/api/proxy-image") ||
         nextUrl.pathname.startsWith("/api/god/notify") || 
         nextUrl.pathname.startsWith("/api/cron/") ||       // ✅ Protected by verifyCronSecret (x-cron-secret header)
-        nextUrl.pathname.startsWith("/api/discord/interactions") || 
+        nextUrl.pathname.startsWith("/api/discord/interactions") ||
+        // Webhooks entrants (Ko-fi…) : pas de session par nature, chacun a sa
+        // propre vérification de signature/token fail-closed dans sa route.
+        nextUrl.pathname.startsWith("/api/webhooks/") ||
         nextUrl.pathname.startsWith("/api/storage") || 
         nextUrl.pathname.startsWith("/api/csp-report") || 
         nextUrl.pathname.startsWith("/api/og"); 

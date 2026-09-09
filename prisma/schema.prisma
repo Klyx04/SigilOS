@@ -154,6 +154,7 @@ model PlatformConfig {
   godNotifyWebEnabled    Boolean  @default(true)
   geoguesserReportedMaps Int[]    @default([])
   donationsEnabled       Boolean  @default(true)
+  kofiChannelId          String?  // Salon Discord public des remerciements Ko-fi (#DONS-KOFI)
   maintenanceMode        Boolean  @default(false)
   maintenanceMessage     String?
   // Kill-switch God de l'auto-onboarding : OFF = les NOUVELLES guildes ne sont

@@ -119,7 +119,10 @@ function SigilTilesLayer({ activeWorld, selectedWorldId }: any) {
             // le fond noir pendant l'animation. keepBuffer:2 (défaut) au lieu de 6 :
             // 6 anneaux = centaines d'images/GPU textures → le compositeur (surtout
             // avec le limiteur RAM/VRAM d'Opera GX) droppe des textures = tuiles noires.
-            updateWhenIdle: true,
+            // updateWhenIdle:false (défaut desktop Leaflet) → les tuiles sont demandées
+            // PENDANT le pan (et non au moveend) : plus de bandes océan/bleues au bord
+            // d'attaque quand on déplace la carte.
+            updateWhenIdle: false,
             updateWhenZooming: true,
             updateInterval: 200,
             keepBuffer: 2
@@ -763,10 +766,30 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
         const t1 = setTimeout(handleResize, 100);
         const t2 = setTimeout(handleResize, 450);
         window.addEventListener('resize', handleResize);
+
+        // ResizeObserver : recalcule la taille de la carte dès que son conteneur change de
+        // dimensions (bascule plein écran ↔ mode normal de #worldmap-page, panneau latéral
+        // Opti-Farm qui s'ouvre/ferme, etc.). Sans cela, Leaflet conserve les tuiles
+        // dimensionnées pour l'ancien conteneur → fragments « micro aperçu » / tuiles
+        // décalées après avoir quitté le plein écran.
+        const container = map.getContainer();
+        let raf = 0;
+        const ro = typeof ResizeObserver !== 'undefined'
+            ? new ResizeObserver(() => {
+                cancelAnimationFrame(raf);
+                raf = requestAnimationFrame(() => map.invalidateSize());
+            })
+            : null;
+        if (ro && container) ro.observe(container);
+
         return () => {
             clearTimeout(t1);
             clearTimeout(t2);
             window.removeEventListener('resize', handleResize);
+            if (ro) {
+                ro.disconnect();
+                cancelAnimationFrame(raf);
+            }
         };
     }, [map]);
 

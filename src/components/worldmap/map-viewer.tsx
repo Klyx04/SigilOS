@@ -28,7 +28,8 @@ export function MapViewer({
     userName,
     userAvatar,
     isAdmin,
-    interactive
+    interactive,
+    startFullscreen
 }: { 
     initialLadder?: any[], 
     initialTab?: 'map' | 'games', 
@@ -41,7 +42,8 @@ export function MapViewer({
     userName?: string,
     userAvatar?: string,
     isAdmin?: boolean,
-    interactive?: boolean
+    interactive?: boolean,
+    startFullscreen?: boolean
 }) {
     const [data, setData] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
@@ -110,6 +112,7 @@ export function MapViewer({
             userAvatar={userAvatar}
             isAdmin={isAdmin}
             interactive={interactive}
+            startFullscreen={startFullscreen}
         />
     );
 }

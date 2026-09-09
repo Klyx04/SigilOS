@@ -25,7 +25,7 @@ export async function GET(req: Request) {
     const startedAt = Date.now();
 
     try {
-        const result = await sendGlobalStatusPingCore();
+        const result = await sendGlobalStatusPingCore({ source: "cron:discord-status" });
         const durationMs = Date.now() - startedAt;
 
         if (!result.success) {
@@ -42,7 +42,9 @@ export async function GET(req: Request) {
         await recordCronExecution("discord_status", {
             success: true,
             durationMs,
-            summary: `Statut Discord mis à jour (${result.action || "OK"})`,
+            summary: result.action === "skipped"
+                ? `Statut Discord ignoré (fréquence ${result.frequencyMin ?? "?"} min)`
+                : `Statut Discord mis à jour (${result.action || "OK"})`,
             details: result.stats,
         });
 

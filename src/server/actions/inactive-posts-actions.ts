@@ -118,7 +118,7 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
             const existingRemindersCount = (post.dungeonsJson as any)?._autoReminderCount ?? 0;
             const authorDiscordId = await getDiscordIdByUserId(post.profile.userId);
             const authorMention = authorDiscordId ? `<@${authorDiscordId}>` : post.profile.discordNickname || "Créateur";
-            const postTitle = post.questName || post.dungeon?.name || "Groupe Donjon/Quête";
+            const postTitle = post.questName || post.titanName || post.dungeon?.name || "Groupe Donjon/Quête";
 
             // Seuil 1 : J+7 (Rappel 1)
             if (existingRemindersCount === 0 && daysSinceUpdate >= 7) {

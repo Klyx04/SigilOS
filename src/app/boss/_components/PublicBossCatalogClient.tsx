@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Search, Sparkles, Swords, ExternalLink, ShieldAlert, Zap, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BestiaireEntry } from "@/server/actions/game-data-actions";
-import { useBossOverlay } from "@/hooks/use-boss-overlay";
 
 interface PublicBossCatalogClientProps {
   bosses: BestiaireEntry[];
@@ -20,17 +19,26 @@ const LEVEL_RANGES = [
   { label: "Niveau 191 — 200", min: 191, max: 200 },
 ];
 
+const TYPE_FILTERS = [
+  { label: "Tous", value: "all" },
+  { label: "Boss de donjon", value: "boss" },
+  { label: "Titans", value: "titan" },
+] as const;
+
+type TypeFilter = (typeof TYPE_FILTERS)[number]["value"];
+
 export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps) {
   const [search, setSearch] = useState("");
   const [selectedRange, setSelectedRange] = useState(0);
-  const { openBossOverlay } = useBossOverlay("public");
+  const [selectedType, setSelectedType] = useState<TypeFilter>("all");
 
   const filteredBosses = useMemo(() => {
     const range = LEVEL_RANGES[selectedRange];
     const q = search.trim().toLowerCase();
 
     return bosses.filter((b) => {
-      if (b.type !== "boss") return false;
+      if (b.type !== "boss" && b.type !== "titan") return false;
+      if (selectedType !== "all" && b.type !== selectedType) return false;
       const lvl = b.level ?? 0;
       if (lvl < range.min || lvl > range.max) return false;
       if (!q) return true;
@@ -39,7 +47,7 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
         b.bossName?.toLowerCase().includes(q)
       );
     });
-  }, [bosses, search, selectedRange]);
+  }, [bosses, search, selectedRange, selectedType]);
 
   return (
     <div className="space-y-6">
@@ -57,6 +65,25 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
           />
         </div>
 
+        {/* Type Filters (Boss / Titan) */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {TYPE_FILTERS.map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              onClick={() => setSelectedType(t.value)}
+              className={cn(
+                "px-3 py-2 rounded-xl text-xs font-bold shrink-0 border transition-colors",
+                selectedType === t.value
+                  ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                  : "bg-white/[0.02] text-zinc-400 border-white/10 hover:bg-white/[0.06] hover:text-zinc-200"
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
         {/* Level Filters */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 [scrollbar-width:none]">
           {LEVEL_RANGES.map((r, i) => (
@@ -67,7 +94,7 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
               className={cn(
                 "px-3 py-2 rounded-xl text-xs font-bold shrink-0 border transition-colors",
                 selectedRange === i
-                  ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                  ? "bg-warning/15 text-warning border-warning/30"
                   : "bg-white/[0.02] text-zinc-400 border-white/10 hover:bg-white/[0.06] hover:text-zinc-200"
               )}
             >
@@ -123,41 +150,38 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
                             }}
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-white/[0.04] text-amber-400/40">
+                          <div className="w-full h-full flex items-center justify-center bg-white/[0.04] text-warning/40">
                             <Sparkles className="w-5 h-5" />
                           </div>
                         );
                       })()}
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-sm font-bold text-foreground group-hover:text-amber-300 transition-colors truncate">
+                      <h3 className="text-sm font-bold text-foreground group-hover:text-warning transition-colors truncate">
                         {bossName}
                       </h3>
                       <p className="text-xs text-muted-foreground truncate">{dungeonName}</p>
                     </div>
                   </div>
 
-                  <span className="shrink-0 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 font-mono font-bold text-[11px]">
-                    Niv. {boss.level}
-                  </span>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span className="px-2 py-0.5 rounded-md bg-warning/10 border border-warning/20 text-warning font-mono font-bold text-[11px]">
+                      Niv. {boss.level}
+                    </span>
+                    {boss.type === "titan" && (
+                      <span className="px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/30 text-amber-300 font-black text-[10px] uppercase tracking-wider">
+                        Titan
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* Actions Footer */}
-              <div className="pt-4 mt-4 border-t border-white/[0.06] flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={() => openBossOverlay({ monsterName: bossName, dungeonName })}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-zinc-300 hover:text-white text-xs font-bold border border-white/10 transition-colors"
-                  title="Ouvrir la mini-fenêtre par-dessus votre jeu Dofus"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Overlay en jeu</span>
-                </button>
-
+              <div className="pt-4 mt-4 border-t border-white/[0.06] flex items-center justify-end gap-2">
                 <Link
                   href={`/boss/${boss.id}`}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-bold border border-amber-500/30 transition-colors"
+                  className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-warning/15 hover:bg-warning/25 text-warning text-xs font-bold border border-warning/30 transition-colors"
                 >
                   <span>Fiche complète</span>
                   <ArrowRight className="w-3.5 h-3.5" />

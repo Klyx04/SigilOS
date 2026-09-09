@@ -119,6 +119,11 @@ export const KNOWN_CRON_TASKS: Record<string, { name: string; schedule: string; 
         schedule: "Toutes les 5 min (garde-fou fréquence God)",
         logFile: "status-ping.log",
     },
+    data_watch: {
+        name: "Guetteur Nouveautés DofusDB",
+        schedule: "Hebdo dimanches 05h00 (UTC)",
+        logFile: "data-watch.log",
+    },
 };
 
 const REDIS_PREFIX = "cron:telemetry:";

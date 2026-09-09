@@ -33,17 +33,33 @@ export async function GET(req: Request) {
         }
 
         const deletedCount = result.data?.deletedCount || 0;
+
+        // Purge des notifications God lues/anciennes (> 90 j) — croissance
+        // lente mais sans borne sinon.
+        let godNotifDeleted = 0;
+        try {
+            const { db } = await import("@/lib/prisma");
+            const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+            const r = await (db as any).godNotification.deleteMany({
+                where: { createdAt: { lt: cutoff } },
+            });
+            godNotifDeleted = r.count ?? 0;
+        } catch (e) {
+            console.error('[CRON Cleanup Logs] Purge godNotification impossible:', e);
+        }
+
         const { recordCronExecution } = await import("@/lib/cron-telemetry");
         await recordCronExecution("cleanup_logs", {
             success: true,
             durationMs,
-            summary: `Purge logs : ${deletedCount} logs supprimés (> 30j)`,
-            details: { deletedCount },
+            summary: `Purge logs : ${deletedCount} logs supprimés (> 30j) + ${godNotifDeleted} notifs God (> 90j)`,
+            details: { deletedCount, godNotifDeleted },
         });
 
         return NextResponse.json({
             success: true,
             deletedCount,
+            godNotifDeleted,
             message: `${deletedCount} logs supprimés (rétention > 30 jours)`
         });
     } catch (e: any) {

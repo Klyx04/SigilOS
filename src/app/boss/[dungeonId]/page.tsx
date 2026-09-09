@@ -9,8 +9,9 @@ import { JsonLd } from "@/components/shared/json-ld";
 import { auth } from "@/auth";
 import { getAppBaseUrl } from "@/lib/utils";
 import { db } from "@/lib/prisma";
-import { getMonsterStats } from "@/server/actions/game-data-actions";
-import { getBossDofensiveSpells } from "@/server/actions/dofensive-actions";
+import { getMonsterStats, getDungeonMonsters } from "@/server/actions/game-data-actions";
+import { getBossDofensiveSpells, getDofensiveDungeonForBoss } from "@/server/actions/dofensive-actions";
+import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { PublicBossDetailClient } from "./_components/PublicBossDetailClient";
 
 export const revalidate = 3600;
@@ -25,15 +26,24 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     where: { id: dungeonId },
     select: { name: true, bossName: true, level: true, imageUrl: true },
   });
+  const titan = dungeon
+    ? null
+    : await db.titan.findUnique({
+        where: { id: dungeonId },
+        select: { name: true, level: true, imageUrl: true, zone: true },
+      });
 
-  if (!dungeon) {
+  if (!dungeon && !titan) {
     return { title: "Boss introuvable — SigilOS" };
   }
 
-  const bossName = dungeon.bossName || dungeon.name;
+  const bossName = dungeon ? dungeon.bossName || dungeon.name : titan!.name;
+  const dungeonLabel = dungeon ? dungeon.name : titan!.zone || "Titan";
+  const level = dungeon ? dungeon.level : titan!.level;
+  const imageUrl = dungeon ? dungeon.imageUrl : titan!.imageUrl;
   return {
-    title: `${bossName} (Niveau ${dungeon.level}) : Sorts, Portées & Stratégie | SigilOS`,
-    description: `Fiche tactique complète pour le boss ${bossName} du donjon ${dungeon.name}. Simulation isométrique de portée des sorts, résistances et mini-fenêtre overlay détachable par-dessus Dofus. 100% gratuit.`,
+    title: `${bossName} (Niveau ${level}) : Sorts, Portées & Stratégie | SigilOS`,
+    description: `Fiche tactique complète pour ${dungeon ? `le boss ${bossName} du donjon ${dungeonLabel}` : `le titan ${bossName} (${dungeonLabel})`}. Simulation isométrique de portée des sorts, résistances et mini-fenêtre overlay détachable par-dessus Dofus. 100% gratuit.`,
     alternates: {
       canonical: `${getAppBaseUrl()}/boss/${dungeonId}`,
     },
@@ -41,7 +51,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title: `${bossName} — Fiche Boss & Donjon (100% Gratuit) | SigilOS`,
       description: `Sorts, portées, résistances et compo de salle pour ${bossName}. Gratuit et sans compte requis.`,
       url: `${getAppBaseUrl()}/boss/${dungeonId}`,
-      images: dungeon.imageUrl ? [{ url: dungeon.imageUrl }] : [],
+      images: imageUrl ? [{ url: imageUrl }] : [],
     },
   };
 }
@@ -55,20 +65,43 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
   const dungeon = await db.dungeon.findUnique({
     where: { id: dungeonId },
   });
+  const titan = dungeon
+    ? null
+    : await db.titan.findUnique({ where: { id: dungeonId } });
 
-  if (!dungeon) {
+  if (!dungeon && !titan) {
     notFound();
   }
 
-  const bossName = dungeon.bossName || dungeon.name;
+  const isTitan = !dungeon && !!titan;
+  const bossName = dungeon ? dungeon.bossName || dungeon.name : titan!.name;
+  const dungeonName = dungeon ? dungeon.name : titan!.mapName || titan!.zone || titan!.name;
 
-  const [statsRes, spellsRes] = await Promise.all([
-    getMonsterStats(bossName, dungeon.name),
-    getBossDofensiveSpells(bossName, dungeon.name),
+  const [statsRes, spellsRes, familyRes, mapsRes] = await Promise.all([
+    getMonsterStats(bossName, dungeonName),
+    getBossDofensiveSpells(bossName, dungeonName),
+    getDungeonMonsters(bossName, dungeonName),
+    getDofensiveDungeonForBoss(
+      bossName,
+      dungeonName,
+      dungeon
+        ? {
+            dofensiveMonsterName: dungeon.dofensiveMonsterName,
+            dofensiveDungeonName: dungeon.dofensiveDungeonName,
+          }
+        : undefined
+    ),
   ]);
 
-  const monsterStats = statsRes.success ? statsRes.data : null;
+  let monsterStats = statsRes.success ? statsRes.data : null;
   const spellsData = spellsRes.success ? spellsRes.data : null;
+  if (monsterStats && spellsData) {
+    monsterStats = { ...monsterStats, spells: mergeDofensiveSpells(monsterStats.spells ?? [], spellsData) };
+  } else if (!monsterStats && spellsData) {
+    monsterStats = { name: bossName, spells: spellsData, grades: [], drops: [] };
+  }
+  const family = familyRes.success ? familyRes.data : null;
+  const dungeonMaps = mapsRes.success ? mapsRes.data : null;
 
   const headersList = await headers();
   const nonce = headersList.get("x-nonce") ?? "";
@@ -114,17 +147,34 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
 
         {/* Client Boss Detail Client */}
         <PublicBossDetailClient
-          dungeon={{
-            id: dungeon.id,
-            name: dungeon.name,
-            bossName: dungeon.bossName,
-            level: dungeon.level,
-            imageUrl: dungeon.imageUrl,
-            dofensiveUrl: dungeon.dofensiveUrl,
-            dofuspourlesnoobsUrl: dungeon.dofuspourlesnoobsUrl,
-          }}
+          dungeon={
+            dungeon
+              ? {
+                  id: dungeon.id,
+                  name: dungeon.name,
+                  bossName: dungeon.bossName,
+                  level: dungeon.level,
+                  imageUrl: dungeon.imageUrl,
+                  dofensiveUrl: dungeon.dofensiveUrl,
+                  dofuspourlesnoobsUrl: dungeon.dofuspourlesnoobsUrl,
+                  dofensiveMonsterName: dungeon.dofensiveMonsterName,
+                  dofensiveDungeonName: dungeon.dofensiveDungeonName,
+                  kind: "boss" as const,
+                }
+              : {
+                  id: titan!.id,
+                  name: titan!.mapName || titan!.zone || titan!.name,
+                  bossName: titan!.name,
+                  level: titan!.level,
+                  imageUrl: titan!.imageUrl,
+                  dofensiveUrl: titan!.dofensiveUrl,
+                  dofuspourlesnoobsUrl: titan!.dofuspourlesnoobsUrl,
+                  kind: "titan" as const,
+                }
+          }
           monsterStats={monsterStats}
-          spellsData={spellsData}
+          initialFamily={family}
+          initialDungeonMaps={dungeonMaps}
         />
       </main>
 

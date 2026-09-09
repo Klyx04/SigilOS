@@ -352,6 +352,19 @@ const ladderSyncWorker = new Worker(
 ladderSyncWorker.on("completed", async (job) => {
     logger.info(`[LadderSync] ✅ Job ${job.id} terminé.`);
 
+    // Télémétrie God (onglet cron-status) : sans ça, la sync tourne (toutes les
+    // 12h) mais le panneau affiche "Jamais" en permanence.
+    try {
+        const { recordCronExecution } = await import("../lib/cron-telemetry");
+        await recordCronExecution("ladder_sync", {
+            success: true,
+            summary: "Sync ladder terminée (worker)",
+            details: { jobId: job.id },
+        });
+    } catch (e) {
+        logger.warn("[LadderSync] Télémétrie impossible:", e);
+    }
+
     const { notifyGod } = await import("../server/actions/god-notif-actions");
     await notifyGod({
         title: "Ladder Background Sync Réussie",
@@ -364,6 +377,16 @@ ladderSyncWorker.on("completed", async (job) => {
 
 ladderSyncWorker.on("failed", async (job, err) => {
     logger.error(`[LadderSync] ❌ Job ${job?.id} a échoué: ${err.message}`);
+
+    try {
+        const { recordCronExecution } = await import("../lib/cron-telemetry");
+        await recordCronExecution("ladder_sync", {
+            success: false,
+            summary: `Échec sync ladder: ${err.message}`,
+        });
+    } catch (e) {
+        logger.warn("[LadderSync] Télémétrie impossible:", e);
+    }
 
     const { notifyGod } = await import("../server/actions/god-notif-actions");
     await notifyGod({

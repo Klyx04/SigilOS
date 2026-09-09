@@ -32,6 +32,13 @@ import {
 import { siphonDungeonMonstersDatasetAction } from '@/server/actions/game-data-admin-actions';
 import { toast } from 'sonner';
 
+/** Taille lisible du même périmètre que le compteur affiché. */
+function formatBytes(bytes: number): string {
+    if (!bytes || bytes <= 0) return '0 Ko';
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+}
+
 export function GameDataSiphonPanel() {
     const [stats, setStats] = useState<SiphonDashboardStats | null>(null);
     const [inventory, setInventory] = useState<SiphonInventoryItem[]>([]);
@@ -178,35 +185,40 @@ export function GameDataSiphonPanel() {
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
-            {/* Header & Score d'autonomie */}
+            {/* Header : chiffres honnêtes (pas de score) */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="p-5 rounded-2xl bg-surface/80 border border-border/70 backdrop-blur-sm relative overflow-hidden shadow-sm">
                     <div className="flex items-center justify-between">
                         <span className="text-caption font-black text-muted-foreground uppercase tracking-widest">
-                            Autonomie Globale
+                            Fiches fraîches
                         </span>
                         <ShieldCheck className="w-5 h-5 text-emerald-500" />
                     </div>
                     <div className="mt-3 flex items-baseline gap-2">
-                        <span className="text-3xl font-black text-foreground">{stats?.autonomyScore ?? 0}%</span>
-                        <span className="text-caption text-emerald-500 font-bold">100% Local-First</span>
+                        <span className="text-3xl font-black text-foreground">
+                            {stats?.freshDungeons ?? 0} <span className="text-sm font-medium text-muted-foreground">/ {stats?.totalDungeons ?? 0} donjons</span>
+                        </span>
                     </div>
-                    <Progress value={stats?.autonomyScore ?? 0} className="mt-3 h-2 bg-emerald-950/40" />
+                    <Progress
+                        value={stats && stats.totalDungeons > 0 ? Math.round((stats.freshDungeons / stats.totalDungeons) * 100) : 0}
+                        className="mt-3 h-2 bg-emerald-950/40"
+                    />
+                    <p className="text-caption text-muted-foreground mt-1">Fiches synchronisées il y a moins de 24 h</p>
                 </div>
 
                 <div className="p-5 rounded-2xl bg-surface/80 border border-border/70 backdrop-blur-sm shadow-sm">
                     <div className="flex items-center justify-between">
                         <span className="text-caption font-black text-muted-foreground uppercase tracking-widest">
-                            Fiches Boss en BDD
+                            Fiches en BDD
                         </span>
                         <Database className="w-5 h-5 text-indigo-500" />
                     </div>
                     <div className="mt-3">
                         <span className="text-3xl font-black text-foreground">
-                            {stats?.totalMonsterStatsInDb ?? 0} <span className="text-sm font-medium text-muted-foreground">/ {stats?.totalDungeons ?? 0}</span>
+                            {stats?.totalMonsterStatsInDb ?? 0} <span className="text-sm font-medium text-muted-foreground">lignes</span>
                         </span>
                     </div>
-                    <p className="text-caption text-muted-foreground mt-1">Données stats, sorts et résistances</p>
+                    <p className="text-caption text-muted-foreground mt-1">Toutes sources (boss + titans) · {stats?.totalDungeons ?? 0} donjons au référentiel</p>
                 </div>
 
                 <div className="p-5 rounded-2xl bg-surface/80 border border-border/70 backdrop-blur-sm shadow-sm">
@@ -233,9 +245,9 @@ export function GameDataSiphonPanel() {
                     </div>
                     <div className="mt-3 flex items-baseline gap-2">
                         <span className="text-3xl font-black text-foreground">{stats?.storage.monstersCount ?? 0}</span>
-                        <span className="text-caption text-amber-500 font-bold">({stats?.storage.totalSizeFormatted ?? '0 Mo'})</span>
+                        <span className="text-caption text-amber-500 font-bold">({formatBytes(stats?.storage.monstersSizeBytes ?? 0)})</span>
                     </div>
-                    <p className="text-caption text-muted-foreground mt-1">Sprites légers et zéro dépendance CDN</p>
+                    <p className="text-caption text-muted-foreground mt-1">WebP monstres réellement sur disque</p>
                 </div>
             </div>
 

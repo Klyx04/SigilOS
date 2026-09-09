@@ -41,6 +41,22 @@ function normKey(s: string | null | undefined): string {
 }
 
 /**
+ * Clé de matching fiche ↔ donjon (mêmes règles que l'inventaire + dry-run).
+ * Exportée car partagée entre l'inventaire siphon, le dry-run et les tests.
+ * (Module pur : interdit de la laisser dans un module 'use server' — Next 16.)
+ */
+export function bossMatchKey(s: string | null | undefined): string {
+    const k = (s || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .trim();
+    if (k.includes('reine nyee')) return 'reine nyee';
+    if (k.includes('dernier espoir') || k.includes('eliocalypse')) return 'servitude';
+    return k;
+}
+
+/**
  * Dry-run pur (testable) : donjons sans fiche fraîche (< 24 h).
  * Aucun I/O — les lignes BDD sont injectées.
  */

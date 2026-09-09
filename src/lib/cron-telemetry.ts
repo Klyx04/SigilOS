@@ -116,7 +116,7 @@ export const KNOWN_CRON_TASKS: Record<string, { name: string; schedule: string; 
     },
     status_ping: {
         name: "Ping Statut Global",
-        schedule: "Quotidien",
+        schedule: "Toutes les 5 min (garde-fou fréquence God)",
         logFile: "status-ping.log",
     },
 };

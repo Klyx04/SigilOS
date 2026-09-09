@@ -15,6 +15,10 @@ interface DateTimePickerProps {
     placeholder?: string;
     className?: string;
     timeOptional?: boolean;     // If true, show "Sans heure" option
+    /** Jours de la semaine AUTORISÉS (0=Dim … 6=Sam). Les autres jours sont grisés et non sélectionnables. */
+    allowedDaysOfWeek?: number[];
+    /** Fenêtre horaire [début, fin] en heures (0-23) pour la sélection d'heure. */
+    hourRange?: [number, number];
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -49,6 +53,8 @@ export function DateTimePicker({
     placeholder = "Choisir une date et heure",
     className,
     timeOptional = false,
+    allowedDaysOfWeek,
+    hourRange,
 }: DateTimePickerProps) {
     const [open, setOpen] = useState(false);
     const [view, setView] = useState<"calendar" | "time">("calendar");
@@ -66,13 +72,21 @@ export function DateTimePicker({
 
     function handleDaySelect(day: Date | undefined) {
         if (!day) return;
+        // Mode contraint (Titan) : bloque la sélection d'un jour hors fenêtre de disponibilité.
+        if (allowedDaysOfWeek && allowedDaysOfWeek.length > 0 && !allowedDaysOfWeek.includes(day.getDay())) return;
         if (noTime) {
             // Date only — set midnight, no time
             day.setHours(0, 0, 0, 0);
             onChange(toLocalISOString(day));
             setOpen(false);
         } else {
-            const h = selectedDate?.getHours() ?? 20;
+            let h = selectedDate?.getHours() ?? 20;
+            // Clampe l'heure par défaut dans la fenêtre de dispo (si fournie) pour ne pas atterrir hors créneau.
+            if (hourRange) {
+                const [lo, hi] = hourRange;
+                const inRange = lo <= hi ? (h >= lo && h <= hi) : (h >= lo || h <= hi);
+                if (!inRange) h = lo <= hi ? lo : hi;
+            }
             const m = selectedDate?.getMinutes() ?? 0;
             day.setHours(h, m, 0, 0);
             onChange(toLocalISOString(day));
@@ -192,7 +206,16 @@ export function DateTimePicker({
                             mode="single"
                             selected={selectedDate}
                             onSelect={handleDaySelect}
-                            disabled={minDate ? { before: minDate } : undefined}
+                            disabled={(() => {
+                                const matchers: any[] = [];
+                                if (minDate) matchers.push({ before: minDate });
+                                // Jours à griser = complément des jours AUTORISÉS (0=Dim … 6=Sam).
+                                if (allowedDaysOfWeek && allowedDaysOfWeek.length > 0) {
+                                    const toDisable = [0, 1, 2, 3, 4, 5, 6].filter((d) => !allowedDaysOfWeek.includes(d));
+                                    if (toDisable.length) matchers.push({ daysOfWeek: toDisable });
+                                }
+                                return matchers.length ? matchers : undefined;
+                            })()}
                             locale={fr}
                             className="text-foreground [&_.rdp-day]:text-foreground [&_.rdp-day_button:hover]:bg-info/20 [&_.rdp-day_button[aria-selected=true]]:bg-info [&_.rdp-day_button[aria-selected=true]]:text-info-foreground [&_.rdp-head_cell]:text-muted-foreground"
                         />
@@ -225,7 +248,13 @@ export function DateTimePicker({
                                     <ChevronLeft className="w-4 h-4 text-muted-foreground" />
                                 </button>
                                 <div className="flex-1 grid grid-cols-6 gap-1">
-                                    {HOURS.map((h) => (
+                                    {HOURS.filter((h) => {
+                                        if (!hourRange) return true;
+                                        // Gère les fenêtres qui passent minuit (ex. 19h→8h) : start > end.
+                                        return hourRange[0] <= hourRange[1]
+                                            ? (h >= hourRange[0] && h <= hourRange[1])
+                                            : (h >= hourRange[0] || h <= hourRange[1]);
+                                    }).map((h) => (
                                         <button
                                             key={h}
                                             type="button"

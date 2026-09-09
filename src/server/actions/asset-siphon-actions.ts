@@ -16,6 +16,7 @@ import {
 import { getDofensiveDungeonForBoss } from '@/server/actions/dofensive-actions';
 import { getMonsterStats } from '@/server/actions/game-data-actions';
 import { persistMonsterStat } from '@/lib/dofensive-sync';
+import { bossMatchKey } from '@/lib/data-health';
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -63,19 +64,6 @@ export interface SiphonInventoryItem {
 /**
  * Récupère les métriques globales pour le tableau de bord d'autonomie.
  */
-/**
- * Clé de matching fiche ↔ donjon (mêmes règles que l'inventaire + dry-run).
- */
-export function bossMatchKey(s: string | null | undefined): string {
-    const k = (s || '')
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '')
-        .trim();
-    if (k.includes('reine nyee')) return 'reine nyee';
-    if (k.includes('dernier espoir') || k.includes('eliocalypse')) return 'servitude';
-    return k;
-}
 
 const FRESH_MS = 24 * 60 * 60 * 1000;
 

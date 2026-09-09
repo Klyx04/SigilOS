@@ -249,14 +249,27 @@ export async function sendGlobalStatusPingCore(
             } catch (e) {
                 // Message supprimé / salon inaccessible / 429 persistant :
                 // on retombe sur la création + on ré-ancre la nouvelle ID.
+                // L'ID morte est purgée pour ne pas la retenter en boucle.
                 logger.warn(`[Status Ping] Living update failed, sending new message [${src}]`, { channelId, messageId: updatableId, error: String(e) });
+                try {
+                    await redis.del(REDIS_STATUS_MSG_KEY);
+                } catch {
+                    // Best-effort : le prochain tick réessaiera quand même.
+                }
             }
         }
 
-        // Mode 'notification' OR update failed: send a new message
+        // Mode 'notification' OR update failed: send a new message.
+        // `storeMessageIdKey` : en mode outbox, le worker ré-ancre le VRAI ID
+        // posté sous cette clé — le prochain tick PATCHera au lieu de recréer.
         if (!finalMessageId) {
             const mentionContent = config?.statusMention === 'none' ? "" : (config?.statusMention || "");
-            finalMessageId = await sendChannelMessage(channelId, mentionContent, embed);
+            finalMessageId = await sendChannelMessage(channelId, mentionContent, {
+                ...embed,
+                ...(effectiveMode === 'living'
+                    ? { storeMessageIdKey: REDIS_STATUS_MSG_KEY, storeMessageIdTTL: 60 * 60 * 24 * 30 }
+                    : {}),
+            });
             if (finalMessageId && effectiveMode === 'living' && isDiscordSnowflake(finalMessageId)) {
                 // Only save specifically for living status (et seulement les
                 // vrais IDs — jamais `outbox:<jobId>`).

@@ -706,6 +706,14 @@ interface SendChannelMessageOptions {
     mentionContent?: string;     // Text with @mentions (sent as content, triggers ping)
     components?: any[];          // Discord Components (Buttons, Select Menus)
     suppressEmbeds?: boolean;    // flags: 4 — prevent URL unfurl preview
+    /**
+     * Outbox (mode dégrade) : quand l'envoi passe par la file, le worker stocke
+     * le VRAI ID du message posté sous cette clé Redis (TTL ci-dessous) au lieu
+     * de perdre l'ID (`outbox:<jobId>`). Indispensable au living status :
+     * sans ça, chaque tick recrée un message, jamais d'édition.
+     */
+    storeMessageIdKey?: string;
+    storeMessageIdTTL?: number;  // secondes (défaut 30 j)
 }
 
 /**
@@ -832,9 +840,16 @@ export async function sendChannelMessage(
     // #223 P3.1 — Mode dégradé (outbox BullMQ/Redis) : on dépose l'écriture dans la file
     // (retry persistant 429/5xx par le worker) au lieu d'un HTTP synchrone. L'ID du job
     // est retourné sous forme `outbox:${jobId}` pour indiquer le succès de mise en file.
+    // `storeMessageIdKey` : le worker ré-ancre le VRAI ID posté (living status).
     if (isDiscordOutboxEnabled()) {
         const { enqueueDiscordWrite } = await import("@/server/discord-outbox");
-        const jobId = await enqueueDiscordWrite({ kind: "postMessage", channelId, body });
+        const jobId = await enqueueDiscordWrite({
+            kind: "postMessage",
+            channelId,
+            body,
+            ...(options?.storeMessageIdKey ? { storeMessageIdKey: options.storeMessageIdKey } : {}),
+            ...(options?.storeMessageIdTTL ? { storeMessageIdTTL: options.storeMessageIdTTL } : {}),
+        });
         return `outbox:${jobId}`;
     }
 

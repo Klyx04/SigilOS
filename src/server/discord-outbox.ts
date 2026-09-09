@@ -24,6 +24,10 @@ const postMessageSchema = z.object({
     kind: z.literal("postMessage"),
     channelId: z.string().min(1).max(200),
     body: z.record(z.string(), z.unknown()),
+    // Living status via outbox : le worker stocke le vrai ID posté sous cette
+    // clé Redis (au lieu de perdre l'ID derrière `outbox:<jobId>`).
+    storeMessageIdKey: z.string().min(1).max(200).optional(),
+    storeMessageIdTTL: z.number().int().positive().max(90 * 24 * 3600).optional(),
 });
 
 const deleteMessageSchema = z.object({
@@ -57,6 +61,10 @@ export type DiscordOutboxJobData = z.infer<typeof DiscordOutboxJobSchema>;
 export function isDiscordOutboxJobData(value: unknown): value is DiscordOutboxJobData {
     return DiscordOutboxJobSchema.safeParse(value).success;
 }
+
+// ID de message Discord = snowflake (15-21 chiffres). Local ici (pas d'import
+// du core status-ping : éviter tout cycle discord ↔ core).
+const SNOWFLAKE_RE = /^\d{15,21}$/;
 
 // ─── Idempotency ───────────────────────────────────────────────────────────────
 
@@ -93,6 +101,24 @@ export async function executeDiscordWrite(
         case "postMessage": {
             const messageId = await postChannelMessage(validated.channelId, validated.body);
             if (messageId === null) throw new Error("Discord outbox: postMessage a échoué");
+            // Living status : ré-ancre le VRAI ID posté pour que le prochain
+            // tick puisse PATCHer au lieu de recréer. Jamais de valeur non-snowflake.
+            if (validated.storeMessageIdKey && SNOWFLAKE_RE.test(messageId)) {
+                try {
+                    const { redis } = await import("@/lib/redis");
+                    await redis.set(
+                        validated.storeMessageIdKey,
+                        messageId,
+                        "EX",
+                        validated.storeMessageIdTTL ?? 60 * 60 * 24 * 30
+                    );
+                } catch (e) {
+                    // Persistance best-effort : l'envoi a réussi, on ne fait pas
+                    // échouer (retry) le job pour ça — le prochain tick recréera.
+                    const { logger } = await import("@/lib/logger");
+                    logger.warn("[Discord Outbox] Persistance ID message impossible:", e);
+                }
+            }
             return { success: true, messageId };
         }
         case "deleteMessage": {

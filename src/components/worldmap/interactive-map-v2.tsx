@@ -7,7 +7,7 @@ import dynamic from 'next/dynamic';
 import {
     Search, Map as MapIcon, Loader2, Target, Eye, EyeOff, Trophy,
     Clock, ZoomIn, Compass, ChevronDown, ChevronRight, Plus, Minus, Users, Trash2, X, CheckCircle2, Copy,
-    Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag, Rocket, Bomb, Lock, Shield, Mic, Zap, MapPin, Maximize2, Minimize2
+    Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag, Rocket, Bomb, Lock, Shield, Mic, Zap, MapPin
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { WorldData, MapNode, SubArea, Dungeon } from '@/types/worldmap';
@@ -69,6 +69,8 @@ interface InteractiveMapProps {
     interactive?: boolean;
     /** Affiche le bouton "Choix du Jeu" (navigation vers /mini-jeux) dans le header de la carte. */
     showGameEntry?: boolean;
+    /** Active le plein écran à l'arrivée (module carte ouvert via le bouton "Ouvrir en plein écran"). */
+    startFullscreen?: boolean;
 }
 
 // Retourne l'élément plein écran actif (worldmap, mini-jeux ou bomb)
@@ -113,7 +115,8 @@ export default function InteractiveMapV2({
     userAvatar,
     isAdmin,
     interactive,
-    showGameEntry = false
+    showGameEntry = false,
+    startFullscreen = false
 }: InteractiveMapProps) {
     const { data: sessionData } = useSession();
     const router = useRouter();
@@ -658,11 +661,15 @@ export default function InteractiveMapV2({
     }, []);
 
     useEffect(() => {
-        // Plein écran uniquement pendant une partie (gamePhase != idle) → se retire en revenant au menu
+        // Plein écran à l'arrivée pour le module carte (prop startFullscreen, ouvert via le
+        // bouton "Ouvrir la carte en plein écran" depuis la page d'accueil de la carte).
+        // Sans ce prop, et pour les mini-cartes (hideUI), on reste en plein écran uniquement
+        // pendant une partie.
+        const startFs = !!startFullscreen && !hideUI;
         const inGame = gamePhase !== 'idle';
-        applyFullscreen(inGame);
+        applyFullscreen(startFs || inGame);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [gamePhase]);
+    }, [gamePhase, hideUI, startFullscreen, applyFullscreen]);
 
     // Secours : vérifie périodiquement et force le plein écran tant qu'une partie est active
     useEffect(() => {
@@ -672,12 +679,22 @@ export default function InteractiveMapV2({
         return () => clearInterval(interval);
     }, [gamePhase, applyFullscreen]);
 
-    // Nettoyage du plein écran à la sortie de la page (retour dashboard = normal)
+    // Nettoyage du plein écran à la sortie de la page (retour accueil carte / dashboard = normal).
+    // On réinitialise aussi les styles inline posés par applyFullscreen (position:fixed,
+    // width:100vw, z-index:9999, inset...) sinon la carte reste en overlay et casse l'accueil
+    // après fermeture (vue « par-dessus la navbar »).
     useEffect(() => {
         return () => {
             setIsFullscreen(false);
-            const el = document.getElementById('worldmap-page');
-            if (el) el.classList.remove('worldmap-fullscreen');
+            ['worldmap-page', 'mini-games-page', 'sigil-bomb-page'].forEach((id) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.classList.remove('worldmap-fullscreen');
+                    ['position', 'top', 'left', 'right', 'bottom', 'width', 'height', 'margin', 'borderRadius', 'border', 'padding', 'zIndex', 'inset'].forEach((prop) => {
+                        (el.style as any)[prop] = '';
+                    });
+                }
+            });
             document.body.classList.remove('map-fullscreen');
         };
     }, []);
@@ -1373,20 +1390,6 @@ export default function InteractiveMapV2({
                                             <span className="hidden xl:inline">Zaaps</span>
                                         </button>
 
-                                        {/* Fullscreen Toggle */}
-                                        <button
-                                            onClick={() => applyFullscreen(!isFullscreen)}
-                                            className={cn(
-                                                "p-1.5 rounded-lg transition-all",
-                                                isFullscreen 
-                                                    ? "bg-elevated text-foreground border border-border-strong" 
-                                                    : "text-muted-foreground hover:text-foreground hover:bg-elevated border border-transparent"
-                                            )}
-                                            title={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
-                                        >
-                                            {isFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-                                        </button>
-
                                         {/* Help Toggle */}
                                         <button
                                             onClick={() => setShowMapHelp(true)}
@@ -1986,6 +1989,20 @@ export default function InteractiveMapV2({
                 {/* 🗺️ MODE NAVIGATION CARTE CLASSIQUE */}
                 {activeTab === 'map' && (
                     <div className="relative w-full h-full">
+                        {/* Croix propre : quitter le plein écran et revenir à l'accueil de la carte */}
+                        {!hideUI && guildId && (
+                            <button
+                                onClick={() => {
+                                    applyFullscreen(false);
+                                    router.push(`/dashboard/${guildId}/worldmap`);
+                                }}
+                                className="absolute top-3 right-3 z-[1200] w-9 h-9 rounded-full bg-surface/90 border border-border hover:bg-danger/20 hover:text-danger hover:border-danger/50 text-foreground backdrop-blur-md shadow-lg flex items-center justify-center transition-all active:scale-90 cursor-pointer"
+                                title="Quitter le plein écran et revenir à l'accueil de la carte"
+                                aria-label="Quitter le plein écran et revenir à l'accueil de la carte"
+                            >
+                                <X size={16} />
+                            </button>
+                        )}
                         <AnimatePresence>
                             {(showMapHelp && !hideUI) && (
                                 <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-4xl px-4 pointer-events-none">

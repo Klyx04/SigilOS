@@ -32,16 +32,18 @@ async function canManageSiphon(): Promise<boolean> {
 export interface SiphonDashboardStats {
     totalDungeons: number;
     totalMonsterStatsInDb: number;
+    /** Donjons avec fiche < 24 h (vrai numérateur de couverture, cf. dry-run). */
+    freshDungeons: number;
     totalDofensiveMapsInDb: number;
     storage: {
         monstersCount: number;
+        monstersSizeBytes: number;
         itemsCount: number;
         spellsCount: number;
         totalCount: number;
         totalSizeBytes: number;
         totalSizeFormatted: string;
     };
-    autonomyScore: number; // 0 à 100%
 }
 
 export interface SiphonInventoryItem {
@@ -61,38 +63,62 @@ export interface SiphonInventoryItem {
 /**
  * Récupère les métriques globales pour le tableau de bord d'autonomie.
  */
+/**
+ * Clé de matching fiche ↔ donjon (mêmes règles que l'inventaire + dry-run).
+ */
+export function bossMatchKey(s: string | null | undefined): string {
+    const k = (s || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .trim();
+    if (k.includes('reine nyee')) return 'reine nyee';
+    if (k.includes('dernier espoir') || k.includes('eliocalypse')) return 'servitude';
+    return k;
+}
+
+const FRESH_MS = 24 * 60 * 60 * 1000;
+
 export async function getSiphonDashboardStats(): Promise<ActionResponse<SiphonDashboardStats>> {
     try {
-        const [totalDungeons, totalMonsterStatsInDb, totalDofensiveMapsInDb] = await Promise.all([
-            db.dungeon.count(),
-            db.monsterStat.count(),
+        const [dungeons, statsRows, totalDofensiveMapsInDb] = await Promise.all([
+            db.dungeon.findMany({ select: { bossName: true, name: true } }),
+            db.monsterStat.findMany({ select: { monsterName: true, lastSyncedAt: true } }),
             db.dofensiveMap.count(),
         ]);
 
         const storageStats = getAssetStorageStats();
 
-        // Calcul du score d'autonomie (priorité absolue à l'indépendance CDN : stats BDD + images WebP locales)
-        const expectedBossCount = Math.max(totalDungeons, 1);
-        const statsRatio = Math.min(totalMonsterStatsInDb / expectedBossCount, 1);
-        const imagesRatio = Math.min(storageStats.monsters.count / expectedBossCount, 1);
-
-        const autonomyScore = Math.round(((statsRatio * 0.5) + (imagesRatio * 0.5)) * 100);
+        const freshByKey = new Map<string, number>();
+        for (const r of statsRows) {
+            const k = bossMatchKey(r.monsterName);
+            if (!k) continue;
+            const t = r.lastSyncedAt ? new Date(r.lastSyncedAt).getTime() : NaN;
+            if (Number.isFinite(t)) freshByKey.set(k, t);
+        }
+        const now = Date.now();
+        let freshDungeons = 0;
+        for (const d of dungeons) {
+            const t = freshByKey.get(bossMatchKey(d.bossName || d.name));
+            if (t !== undefined && now - t <= FRESH_MS) freshDungeons++;
+        }
 
         return {
             success: true,
             data: {
-                totalDungeons,
-                totalMonsterStatsInDb,
+                totalDungeons: dungeons.length,
+                totalMonsterStatsInDb: statsRows.length,
+                freshDungeons,
                 totalDofensiveMapsInDb,
                 storage: {
                     monstersCount: storageStats.monsters.count,
+                    monstersSizeBytes: storageStats.monsters.sizeBytes,
                     itemsCount: storageStats.items.count,
                     spellsCount: storageStats.spells.count,
                     totalCount: storageStats.totalCount,
                     totalSizeBytes: storageStats.totalSizeBytes,
                     totalSizeFormatted: storageStats.totalSizeFormatted,
                 },
-                autonomyScore,
             },
         };
     } catch (error) {

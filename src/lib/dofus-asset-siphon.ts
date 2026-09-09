@@ -117,25 +117,46 @@ export async function siphonAndCompressImage(
         // Jitter poli : pause de 250ms à 550ms pour ne pas bombarder le serveur source
         await sleep(Math.floor(Math.random() * 300) + 250);
 
-        // Tentative 1 : Téléchargement direct depuis l'API officielle DofusDB avec URL statique
-        const targetUrl = new URL('https://api.dofusdb.fr');
-        targetUrl.pathname = targetType === 'items'
-            ? `/img/items/${cleanId}.png`
-            : targetType === 'spells'
-            ? `/img/spells/${cleanId}.png`
-            : `/img/monsters/${cleanId}.png`;
+        // Tentative 0 : URL réelle fournie par l'appelant (ex. `monster.img` DofusDB).
+        // L'ID logique ≠ toujours l'ID image (ex. Cadob 3220 → img 499) : deviner
+        // le pattern en premier faisait échouer des assets pourtant disponibles.
+        const validatedRemoteUrl = getValidatedAssetUrl(remoteUrl);
+        if (validatedRemoteUrl) {
+            try {
+                const providedRes = await fetch(validatedRemoteUrl, {
+                    headers: DEFAULT_HEADERS,
+                    signal: AbortSignal.timeout(12_000),
+                    cache: 'no-store',
+                });
+                if (providedRes.ok) {
+                    const arrayBuffer = await providedRes.arrayBuffer();
+                    downloadedBuffer = Buffer.from(arrayBuffer);
+                }
+            } catch {}
+        }
 
-        try {
-            const response = await fetch(targetUrl.toString(), {
-                headers: DEFAULT_HEADERS,
-                signal: AbortSignal.timeout(12_000),
-                cache: 'no-store',
-            });
-            if (response.ok) {
-                const arrayBuffer = await response.arrayBuffer();
-                downloadedBuffer = Buffer.from(arrayBuffer);
-            }
-        } catch {}
+        // Tentative 1 : Téléchargement direct depuis l'API officielle DofusDB avec URL statique
+        // (seulement si la tentative 0 n'a rien donné — ne jamais écraser un succès).
+        if (!downloadedBuffer) {
+            const targetUrl = new URL('https://api.dofusdb.fr');
+            targetUrl.pathname = targetType === 'items'
+                ? `/img/items/${cleanId}.png`
+                : targetType === 'spells'
+                ? `/img/spells/${cleanId}.png`
+                : `/img/monsters/${cleanId}.png`;
+
+            try {
+                const response = await fetch(targetUrl.toString(), {
+                    headers: DEFAULT_HEADERS,
+                    signal: AbortSignal.timeout(12_000),
+                    cache: 'no-store',
+                });
+                if (response.ok) {
+                    const arrayBuffer = await response.arrayBuffer();
+                    downloadedBuffer = Buffer.from(arrayBuffer);
+                }
+            } catch {}
+        }
 
         // Tentative 2 (Auto-Healing) : Si échec et cible monster -> résolution du graphicLookId via DofusDB
         if (!downloadedBuffer && targetType === 'monsters') {

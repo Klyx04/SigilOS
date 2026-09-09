@@ -127,7 +127,7 @@ export function DofusDbHarvestSyncManager() {
                         className="border-border text-xs gap-2 font-bold"
                     >
                         {isCheckingHealth ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Activity className="w-3.5 h-3.5 text-sky-500" />}
-                        <span>Tester API DofusDB</span>
+                        <span title="Teste les endpoints JSON (items/ressources), pas les images ni Dofensive">Tester API JSON</span>
                     </Button>
                     <Button
                         onClick={loadData}

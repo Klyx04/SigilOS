@@ -32,6 +32,30 @@ import {
 import { siphonDungeonMonstersDatasetAction } from '@/server/actions/game-data-admin-actions';
 import { toast } from 'sonner';
 
+/**
+ * Vignette boss via le proxy `/api/assets-dofus` (jamais de 404 : local →
+ * siphon à la volée → placeholder SVG 200). `onError` → icône, en dernier recours.
+ */
+function BossThumb({ item }: { item: SiphonInventoryItem }) {
+    const [failed, setFailed] = useState(false);
+    const proxySrc = item.id
+        ? `/api/assets-dofus/monsters/${encodeURIComponent(String(item.id))}${item.remoteImageUrl ? `?url=${encodeURIComponent(item.remoteImageUrl)}` : ""}`
+        : null;
+    const src = item.localImageUrl || (!failed ? proxySrc : null);
+    if (!src) {
+        return <Swords className="w-4 h-4 text-muted-foreground" />;
+    }
+    return (
+        <img
+            src={src}
+            alt={item.name}
+            className="w-full h-full object-contain"
+            loading="lazy"
+            onError={() => setFailed(true)}
+        />
+    );
+}
+
 /** Taille lisible du même périmètre que le compteur affiché. */
 function formatBytes(bytes: number): string {
     if (!bytes || bytes <= 0) return '0 Ko';
@@ -303,19 +327,20 @@ export function GameDataSiphonPanel() {
                         onClick={handleSiphonDungeonDataset}
                         disabled={isSiphoningDataset || isPending}
                         className="rounded-xl font-black bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white shadow-lg shadow-amber-950/30 gap-2"
-                        title="Récupère et fige l'intégralité des donjons, familles et monstres de DofusDB en local (public/game-data/dungeon-monsters.json)"
+                        title="Régénère le catalogue JSON local (public/game-data/dungeon-monsters.json) — n'alimente PAS la BDD Donjons (CRUD manuel onglet Donjons)"
                     >
                         {isSiphoningDataset ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />}
-                        Siphoner Donjons & Familles
+                        Régénérer le catalogue JSON
                     </Button>
 
                     <Button
                         onClick={handleSiphonAllMissing}
                         disabled={isSiphoning || isPending}
                         className="rounded-xl font-black bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-950/30 gap-2"
+                        title="Siphonne les éléments manquants parmi les 100 affichés (filtre ci-dessus)"
                     >
                         {isSiphoning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                        Siphoner les manquants
+                        Siphonner les manquants affichés (100 max)
                     </Button>
 
                     <Button
@@ -365,13 +390,7 @@ export function GameDataSiphonPanel() {
                                         <td className="p-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-xl bg-background border border-border/80 flex items-center justify-center p-1 overflow-hidden shrink-0">
-                                                    {item.localImageUrl ? (
-                                                        <img src={item.localImageUrl} alt={item.name} className="w-full h-full object-contain" />
-                                                    ) : item.remoteImageUrl ? (
-                                                        <img src={item.remoteImageUrl} alt={item.name} className="w-full h-full object-contain opacity-70" />
-                                                    ) : (
-                                                        <Swords className="w-4 h-4 text-muted-foreground" />
-                                                    )}
+                                                    <BossThumb item={item} />
                                                 </div>
                                                 <div>
                                                     <div className="font-black text-foreground flex items-center gap-2">
@@ -406,8 +425,8 @@ export function GameDataSiphonPanel() {
                                                     ✓ WebP Local
                                                 </Badge>
                                             ) : (
-                                                <Badge variant="outline" className="bg-sky-500/10 border-sky-500/20 text-sky-400 font-bold">
-                                                    CDN DofusDB
+                                                <Badge variant="outline" className="bg-sky-500/10 border-sky-500/20 text-sky-400 font-bold" title="Aucun WebP local — URL distante non vérifiée">
+                                                    Distant — non siphonné
                                                 </Badge>
                                             )}
                                         </td>
@@ -418,8 +437,8 @@ export function GameDataSiphonPanel() {
                                                     ✓ Map 40×14
                                                 </Badge>
                                             ) : (
-                                                <span className="text-caption text-muted-foreground/40 font-medium px-2 py-0.5 rounded bg-surface/50 border border-border/30">
-                                                    Non requise
+                                                <span className="text-caption text-muted-foreground/40 font-medium px-2 py-0.5 rounded bg-surface/50 border border-border/30" title="Aucune map trouvée par matching de nom — pas forcément absente côté Dofensive">
+                                                    Non résolue (matching nom)
                                                 </span>
                                             )}
                                         </td>
@@ -430,8 +449,9 @@ export function GameDataSiphonPanel() {
                                                 variant="secondary"
                                                 size="sm"
                                                 className="rounded-lg text-xs font-bold"
+                                                title="Force le resync (ignore la fraîcheur 24h)"
                                             >
-                                                Siphoner
+                                                Forcer resync
                                             </Button>
                                         </td>
                                     </tr>

@@ -259,6 +259,9 @@ export async function triggerBatchAssetSiphonAction(
             const cleanDungeon = typeof target.dungeonName === 'string' ? target.dungeonName.trim() : undefined;
             const isPureNumeric = typeof target.id === 'number' || (/^\d+$/.test(String(target.id).trim()));
             let monsterId = isPureNumeric ? parseInt(String(target.id).trim(), 10) : 0;
+            // URL d'image réelle connue (prioritaire sur le pattern deviné :
+            // l'ID logique ≠ toujours l'ID image, ex. Cadob 3220 → img 499).
+            let knownImg: string | null = typeof target.remoteUrl === 'string' ? target.remoteUrl : null;
 
             try {
                 // 1. Si on a un ID numérique, on interroge l'API DofusDB pour les stats
@@ -273,6 +276,7 @@ export async function triggerBatchAssetSiphonAction(
                         if (directRes.ok) {
                             const data = await directRes.json();
                             await persistMonsterStat({ ...data, dungeonName: cleanDungeon });
+                            if (!knownImg && typeof data?.img === 'string') knownImg = data.img;
                         }
                     } catch {}
                 }
@@ -285,6 +289,11 @@ export async function triggerBatchAssetSiphonAction(
                         if (Number.isInteger(parsedFromStats) && parsedFromStats > 0) {
                             monsterId = parsedFromStats;
                         }
+                        if (!knownImg) {
+                            const sImg = (statsRes.data as { img?: unknown; imageUrl?: unknown }).img
+                                ?? (statsRes.data as { imageUrl?: unknown }).imageUrl;
+                            if (typeof sImg === 'string') knownImg = sImg;
+                        }
                     }
                 }
 
@@ -295,7 +304,7 @@ export async function triggerBatchAssetSiphonAction(
                 }
 
                 // 3. Télécharger et compresser en WebP local
-                const result = await siphonAndCompressImage(null, 'monsters', monsterId, options.forceRefresh);
+                const result = await siphonAndCompressImage(knownImg, 'monsters', monsterId, options.forceRefresh);
 
                 if (result.success) {
                     siphoned++;

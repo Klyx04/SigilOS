@@ -10,9 +10,73 @@ interface HealthStatus {
         redis: { status: "up" | "down" | "not_configured"; latency?: number };
     };
     version?: string;
+    checks?: {
+        discordBot: ExternalCheck;
+        metamob: ExternalCheck;
+        dofusdb: ExternalCheck;
+        dofensive: ExternalCheck;
+    };
+}
+
+interface ExternalCheck {
+    status: "up" | "degraded" | "down";
+    latencyMs?: number;
+}
+
+// La page /status + le healthcheck Docker appellent cette route en boucle :
+// les contrôles externes sont coûteux (rate-limits) → cache serveur court.
+const CACHE_TTL_MS = 90_000;
+const FETCH_TIMEOUT_MS = 4000;
+const SLOW_MS = 2000;
+let cache: { at: number; body: HealthStatus } | null = null;
+
+async function checkHttp(
+    url: string,
+    options?: { headers?: Record<string, string>; requireOk?: boolean }
+): Promise<ExternalCheck> {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+    const start = Date.now();
+    try {
+        const res = await fetch(url, {
+            headers: options?.headers,
+            signal: ctrl.signal,
+            cache: "no-store",
+        });
+        const latencyMs = Date.now() - start;
+        const ok = options?.requireOk ? res.ok : res.status < 500;
+        if (!ok) return { status: "down", latencyMs };
+        return { status: latencyMs > SLOW_MS ? "degraded" : "up", latencyMs };
+    } catch {
+        return { status: "down" };
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+async function checkDiscordBot(): Promise<ExternalCheck> {
+    // 1. Joignabilité de Discord (sans auth).
+    const gateway = await checkHttp("https://discord.com/api/v10/gateway");
+    if (gateway.status === "down") return gateway;
+    // 2. Validité du token (le token ne sort jamais du serveur).
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { status: "down", latencyMs: gateway.latencyMs };
+    const me = await checkHttp("https://discord.com/api/v10/users/@me", {
+        headers: { Authorization: `Bot ${token}` },
+        requireOk: true,
+    });
+    if (me.status === "down") return me;
+    return {
+        status: gateway.status === "degraded" || me.status === "degraded" ? "degraded" : "up",
+        latencyMs: (gateway.latencyMs ?? 0) + (me.latencyMs ?? 0),
+    };
 }
 
 export async function GET() {
+    if (cache && Date.now() - cache.at < CACHE_TTL_MS) {
+        return NextResponse.json(cache.body);
+    }
+
     const health: HealthStatus = {
         status: "healthy",
         timestamp: new Date().toISOString(),
@@ -58,6 +122,31 @@ export async function GET() {
         // Redis down = degraded, not unhealthy (fail-open design)
         health.status = health.status === "healthy" ? "degraded" : health.status;
     }
+
+    // Contrôles externes (parallèle, best-effort, jamais bloquant).
+    // NOTE (OWASP, page publique) : volontairement AUCUNE donnée interne ici
+    // (pas de tâches auto, pas de versions, pas de messages d'erreur) —
+    // uniquement des états + latences, déjà visibles par ailleurs.
+    const [discordBot, metamob, dofusdb, dofensive] = await Promise.all([
+        checkDiscordBot(),
+        checkHttp("https://www.metamob.fr/api/v1/quest-types"),
+        checkHttp("https://api.dofusdb.fr"),
+        checkHttp("https://dofensive.com/api/dofus2/bestiary"),
+    ]);
+    health.checks = { discordBot, metamob, dofusdb, dofensive };
+
+    // Un service externe HS ne rend pas la plateforme "en panne" (elle reste
+    // utilisable en mode dégradé), mais il doit se voir.
+    if (health.status === "healthy") {
+        const anyDown =
+            discordBot.status === "down" ||
+            metamob.status === "down" ||
+            dofusdb.status === "down" ||
+            dofensive.status === "down";
+        if (anyDown) health.status = "degraded";
+    }
+
+    cache = { at: Date.now(), body: health };
 
     const statusCode = health.status === "unhealthy" ? 503 : 200;
     return NextResponse.json(health, { status: statusCode });

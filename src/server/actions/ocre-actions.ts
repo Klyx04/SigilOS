@@ -2240,8 +2240,9 @@ export async function getTradeAvailableDuplicatesAction(guildId: string): Promis
         }
 
         const effectiveApiKey = profile.metamobApiKey ? (decrypt(profile.metamobApiKey as string) || undefined) : undefined;
-        const { getQuestDetails, normalizeQuestMonster } = await import("@/lib/metamob-client");
-        const details = await getQuestDetails(profile.metamobPseudo, profile.metamobQuestSlug, { guildApiKey: effectiveApiKey, limit: 500 });
+        // Résolveur self : public d'abord, repli privé (quête privée invisible à l'ancienne route).
+        const { getSelfQuestDetails, normalizeQuestMonster } = await import("@/lib/metamob-client");
+        const details = await getSelfQuestDetails(profile.metamobPseudo, profile.metamobQuestSlug, effectiveApiKey, { limit: 500 });
 
         const duplicates = details.monsters
             .map(m => normalizeQuestMonster(m, details.parallel_quests))

@@ -212,6 +212,21 @@ else
     echo "⚠️  Posts inactifs ignoré : CRON_SECRET ou APP_URL manquant"
 fi
 
+# 6c2. Purge auto des demandes de service inactives (sans réponse du passeur)
+# Règle : rappels au demandeur J+7 (sera supprimée dans 14 j) et J+14 (dans 7 j), clôture CANCELLED à J+21
+if [ -n "$CRON_SECRET" ] && [ -n "$APP_URL" ]; then
+    SVC_INACTIVE_RESPONSE=$(curl -s -o /tmp/svc-inactive-response.json -w "%{http_code}" \
+        -H "x-cron-secret: $CRON_SECRET" \
+        "$APP_URL/api/cron/cleanup-inactive-service-requests")
+    if [ "$SVC_INACTIVE_RESPONSE" -eq 200 ]; then
+        echo "✅ Demandes de service inactives traitées (J+7, J+14, Purge J+21)"
+    else
+        echo "⚠️  Demandes de service inactives : HTTP $SVC_INACTIVE_RESPONSE (non bloquant)"
+    fi
+else
+    echo "⚠️  Demandes de service inactives ignoré : CRON_SECRET ou APP_URL manquant"
+fi
+
 # 6d. Clôture auto des sondages expirés / « sans date » de plus de 30 jours
 # (cron close-old-polls — plafond durée sondage : 30 jours max)
 if [ -n "$CRON_SECRET" ] && [ -n "$APP_URL" ]; then

@@ -50,6 +50,7 @@ interface PlatformConfigPanelProps {
         statusMode: string;
         statusMention: string;
         statusFrequency: number;
+        kofiChannelId: string | null;
         nsfwFilterEnabled: boolean;
         donationsEnabled: boolean;
         questFeedbackChannelId: string | null;
@@ -80,6 +81,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
         statusMode: config?.statusMode || "living",
         statusMention: config?.statusMention || "none",
         statusFrequency: config?.statusFrequency || 15,
+        kofiChannelId: config?.kofiChannelId || "",
         nsfwFilterEnabled: config?.nsfwFilterEnabled !== undefined ? config?.nsfwFilterEnabled : true,
         donationsEnabled: config?.donationsEnabled !== undefined ? config?.donationsEnabled : true,
         questFeedbackChannelId: config?.questFeedbackChannelId || "",
@@ -270,7 +272,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                         <div className="flex justify-between items-start">
                             <div className="space-y-1">
                                 <span className="text-xs font-black text-white uppercase block">2. Salon Santé (Ping Status)</span>
-                                <p className="text-caption text-zinc-500 leading-normal">Surveillance automatique du bot.</p>
+                                <p className="text-caption text-zinc-500 leading-normal">Surveillance automatique du bot. La fréquence est appliquée en temps réel (garde-fou anti-spam).</p>
                             </div>
                             <Button size="sm" variant="ghost" onClick={handleTestPing} className="text-caption font-black uppercase text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20">
                                 Test Ping
@@ -292,6 +294,28 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                                 <SelectTrigger className="bg-zinc-900 border-white/10 text-caption font-bold uppercase"><SelectValue /></SelectTrigger>
                                 <SelectContent><SelectItem value="none">Sans mention</SelectItem><SelectItem value="@here">@here</SelectItem></SelectContent>
                             </Select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <Select value={formData.statusMode} onValueChange={(val) => setFormData(prev => ({ ...prev, statusMode: val }))}>
+                                <SelectTrigger className="bg-zinc-900 border-white/10 text-caption font-bold uppercase" title="Living = édite UN SEUL embed en place. Notification = nouveau message à chaque ping."><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="living">Living (1 embed édité)</SelectItem>
+                                    <SelectItem value="notification">Notification (nouveau msg)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <button
+                                type="button"
+                                onClick={() => setFormData(prev => ({ ...prev, statusIsLite: !prev.statusIsLite }))}
+                                title="Version compacte de l'embed (système + uptime + environnement)"
+                                className={cn(
+                                    "px-3 py-2 rounded-xl border text-caption font-bold uppercase transition-colors",
+                                    formData.statusIsLite
+                                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                                        : "bg-zinc-900 border-white/10 text-zinc-500 hover:border-white/20"
+                                )}
+                            >
+                                {formData.statusIsLite ? "Lite : ON" : "Lite : OFF"}
+                            </button>
                         </div>
                     </div>
 
@@ -336,6 +360,24 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                             value={formData.questFeedbackChannelId}
                             onChange={(e) => setFormData(prev => ({ ...prev, questFeedbackChannelId: e.target.value }))}
                             placeholder="ID Salon feedbacks..."
+                            className="bg-zinc-900 border-white/10 text-xs font-mono"
+                        />
+                    </div>
+
+                    {/* Salon Dons Ko-fi */}
+                    <div className="p-5 rounded-2xl bg-zinc-900/30 border border-white/5 space-y-4">
+                        <div className="space-y-1">
+                            <span className="text-xs font-black text-white uppercase block">5. Salon Dons Ko-fi</span>
+                            <p className="text-caption text-zinc-500 leading-normal">
+                                Remerciements publics automatiques à chaque don (dons privés exclus via `is_public`).
+                                <span className="text-zinc-600"> Non configuré : alerte God uniquement.</span>
+                            </p>
+                        </div>
+                        <Input
+                            type="text"
+                            value={formData.kofiChannelId}
+                            onChange={(e) => setFormData(prev => ({ ...prev, kofiChannelId: e.target.value }))}
+                            placeholder="ID Salon dons-kofi..."
                             className="bg-zinc-900 border-white/10 text-xs font-mono"
                         />
                     </div>

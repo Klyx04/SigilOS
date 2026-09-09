@@ -23,5 +23,6 @@ export async function sendGlobalStatusPing(
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) throw new Error("Accès refusé : Super-admin requis");
 
-    return sendGlobalStatusPingCore({ mode, isLite, targetChannelId });
+    // Envoi manuel God (dont TEST PING) : immédiat, hors garde-fou de fréquence.
+    return sendGlobalStatusPingCore({ mode, isLite, targetChannelId, force: true, source: "manual" });
 }

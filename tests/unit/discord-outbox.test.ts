@@ -24,6 +24,12 @@ vi.mock("@/server/discord", () => ({
     createForumThread: (...args: any[]) => mockCreateForumThread(...args),
 }));
 
+// Redis mocké : le vrai client pendrait (connexion) sur `set` en test.
+const mockRedisSet = vi.fn();
+vi.mock("@/lib/redis", () => ({
+    redis: { set: (...args: any[]) => mockRedisSet(...args) },
+}));
+
 import {
     enqueueDiscordWrite,
     executeDiscordWrite,
@@ -134,5 +140,42 @@ describe("executeDiscordWrite (worker)", () => {
     it("payload invalide → throw (fail-closed)", async () => {
         await expect(executeDiscordWrite({ kind: "hack", channelId: "1" } as any)).rejects.toThrow();
         expect(mockPostChannelMessage).not.toHaveBeenCalled();
+    });
+
+    it("postMessage + storeMessageIdKey → ré-ancre le vrai ID snowflake en Redis", async () => {
+        mockPostChannelMessage.mockResolvedValue("123456789012345678");
+        mockRedisSet.mockResolvedValue("OK");
+        const result = await executeDiscordWrite({
+            kind: "postMessage",
+            channelId: "123",
+            body: { content: "x" },
+            storeMessageIdKey: "sigilos:discord_status_message_id_beta",
+            storeMessageIdTTL: 999,
+        });
+        expect(result).toEqual({ success: true, messageId: "123456789012345678" });
+        expect(mockRedisSet).toHaveBeenCalledWith(
+            "sigilos:discord_status_message_id_beta",
+            "123456789012345678",
+            "EX",
+            999
+        );
+    });
+
+    it("postMessage + storeMessageIdKey → ignore les IDs non-snowflake (jamais outbox:*)", async () => {
+        mockPostChannelMessage.mockResolvedValue("outbox:abc123");
+        const result = await executeDiscordWrite({
+            kind: "postMessage",
+            channelId: "123",
+            body: { content: "x" },
+            storeMessageIdKey: "sigilos:discord_status_message_id_beta",
+        });
+        expect(result).toEqual({ success: true, messageId: "outbox:abc123" });
+        expect(mockRedisSet).not.toHaveBeenCalled();
+    });
+
+    it("postMessage sans storeMessageIdKey → aucun accès Redis", async () => {
+        mockPostChannelMessage.mockResolvedValue("123456789012345678");
+        await executeDiscordWrite({ kind: "postMessage", channelId: "123", body: { content: "x" } });
+        expect(mockRedisSet).not.toHaveBeenCalled();
     });
 });

@@ -149,7 +149,7 @@ export function GameItemSiphonPanel() {
                         <div className="text-2xl font-black text-foreground">
                             {loading ? '...' : stats?.totalItems.toLocaleString('fr-FR') || 0}
                         </div>
-                        <span className="text-caption text-muted-foreground font-medium">100% Autonome & Local</span>
+                        <span className="text-caption text-muted-foreground font-medium">Référentiel BDD</span>
                     </div>
                 </div>
 
@@ -175,7 +175,7 @@ export function GameItemSiphonPanel() {
                         <div className="text-2xl font-black text-foreground">
                             {loading ? '...' : stats?.totalWebpImages.toLocaleString('fr-FR') || 0}
                         </div>
-                        <span className="text-caption text-muted-foreground font-medium">Auto-siphon ~2.5 Ko / image</span>
+                        <span className="text-caption text-muted-foreground font-medium">WebP réellement sur disque</span>
                     </div>
                 </div>
 

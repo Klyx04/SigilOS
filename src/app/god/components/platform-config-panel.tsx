@@ -537,6 +537,58 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                         </div>
                     </div>
                 </div>
+                {/* CARTE 5: NETTOYAGE DES DEMANDES DE SERVICE INACTIVES */}
+                <div className="p-8 rounded-3xl bg-zinc-950/40 border border-white/5 space-y-6 md:col-span-2">
+                    <div className="border-b border-white/5 pb-4 space-y-1 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                                <MessageSquare className="w-4 h-4 text-emerald-400" />
+                                Purge des Demandes de Service sans réponse
+                            </h4>
+                            <p className="text-zinc-500 text-xs font-medium">
+                                Calendrier 7 &gt; 14 &gt; 21 : rappels automatiques par ping Discord au demandeur à J+7 (suppression dans 14 j) puis J+14 (dans 7 j), clôture CANCELLED et suppression de l'embed à J+21.
+                            </p>
+                        </div>
+                        <Button
+                            size="sm"
+                            disabled={isPending}
+                            onClick={() => {
+                                startTransition(async () => {
+                                    const { godProcessInactiveServiceRequests } = await import("@/server/actions/god-system-actions");
+                                    const res = await godProcessInactiveServiceRequests();
+                                    if (res.success) {
+                                        toast.success(`Balayage terminé : ${res.remindersSent} rappels envoyés, ${res.requestsCancelled} demandes annulées.`);
+                                    } else {
+                                        toast.error(res.error || "Erreur lors du balayage");
+                                    }
+                                });
+                            }}
+                            className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 text-xs font-bold shrink-0"
+                        >
+                            {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Activity className="w-4 h-4 mr-2" />}
+                            Lancer le balayage maintenant
+                        </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
+                            <span className="text-zinc-500 text-caption uppercase font-bold">Calendrier des Rappels</span>
+                            <p className="text-white font-black text-sm">J+7 • J+14</p>
+                            <span className="text-zinc-600 text-caption block">2 rappels progressifs par ping Discord au demandeur</span>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
+                            <span className="text-zinc-500 text-caption uppercase font-bold">Cible</span>
+                            <p className="text-white font-black text-sm">Statut PENDING</p>
+                            <span className="text-zinc-600 text-caption block">Demandes sans réponse du passeur ; le demandeur est pingé</span>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
+                            <span className="text-zinc-500 text-caption uppercase font-bold">Action finale</span>
+                            <p className="text-rose-400 font-black text-sm">Clôture & Purge à J+21</p>
+                            <span className="text-zinc-600 text-caption block">Statut CANCELLED + suppression de l'embed</span>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
         </div>

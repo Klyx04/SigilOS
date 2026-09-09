@@ -28,6 +28,15 @@ export async function checkDofusDbDeltas() {
         return { success: false, error: "Non autorisé" };
     }
 
+    return computeQuestDeltas();
+}
+
+/**
+ * Cœur du diff quêtes SANS contrôle d'accès (lecture seule, aucun write).
+ * Réservé aux contextes système déjà authentifiés (cron `verifyCronSecret`).
+ * L'appel direct navigateur DOIT passer par `checkDofusDbDeltas` (gate ci-dessus).
+ */
+export async function computeQuestDeltas() {
     try {
         // 1. Fetch DofusDB total quests count to see if we need deep checking
         const countRes = await fetch(`${DOFUSDB_API}/quests?$limit=1`, {

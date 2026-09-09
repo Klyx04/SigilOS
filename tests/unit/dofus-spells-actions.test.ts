@@ -7,6 +7,15 @@ vi.mock("@/lib/dofusdb-fetch", () => ({
     dofusdbFetch: vi.fn(),
 }));
 
+// Mock du cache Redis (I/O externe) : passthrough strict vers le fetcher.
+// Sinon un Redis local "ready" fait communiquer les tests entre eux via la
+// clé de cache getClassSpells (vécu 09/09 : test 2 remplit, test 3 lit).
+vi.mock("@/lib/cache", () => ({
+    withCache: (_key: string, _ttlSeconds: number, fetcher: () => Promise<unknown>) => fetcher(),
+    invalidateCache: vi.fn(),
+    clearCachePattern: vi.fn(),
+}));
+
 const mockedDofusdbFetch = dofusdbFetchModule.dofusdbFetch as unknown as ReturnType<typeof vi.fn>;
 
 // Un sort de classe (Cra) : name/description en objets L10n, img, spellLevels.

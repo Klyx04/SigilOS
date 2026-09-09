@@ -451,10 +451,22 @@ const cronWorker = new Worker(
     async (job) => {
         if (job.name === "status-ping") {
             logger.info("[Cron] Execution du Status Ping GLOBAL...");
+            const startedAt = Date.now();
             const res = await sendGlobalStatusPingCore({ source: "worker" });
-            if (!res.success) logger.error(`[Cron] Status Ping échoué: ${res.error}`);
-            else if ((res as { skipped?: boolean }).skipped) logger.info(`[Cron] Status Ping sauté (fréquence ${(res as { frequencyMin?: number }).frequencyMin ?? "?"} min).`);
-            else logger.info(`[Cron] Status Ping ${res.action ?? "OK"}.`);
+            const durationMs = Date.now() - startedAt;
+            // Télémétrie God (onglet cron-status) : sans ça, "Ping Statut Global"
+            // reste "Jamais" alors que le worker tourne toutes les 5 min.
+            const { recordCronExecution } = await import("../lib/cron-telemetry");
+            if (!res.success) {
+                logger.error(`[Cron] Status Ping échoué: ${res.error}`);
+                await recordCronExecution("status_ping", { success: false, durationMs, summary: `Échec ping: ${res.error}` });
+            } else if ((res as { skipped?: boolean }).skipped) {
+                logger.info(`[Cron] Status Ping sauté (fréquence ${(res as { frequencyMin?: number }).frequencyMin ?? "?"} min).`);
+                await recordCronExecution("status_ping", { success: true, durationMs, summary: `Ping sauté (fréquence ${(res as { frequencyMin?: number }).frequencyMin ?? "?"} min)` });
+            } else {
+                logger.info(`[Cron] Status Ping ${res.action ?? "OK"}.`);
+                await recordCronExecution("status_ping", { success: true, durationMs, summary: `Statut Discord mis à jour (${res.action ?? "OK"})` });
+            }
         }
 
         if (job.name === "daily-summary") {

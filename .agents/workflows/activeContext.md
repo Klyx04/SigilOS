@@ -1,5 +1,16 @@
 # Active Context — SigilOS
 
+## Session 2026-09-09 (nuit) — Landing boss + Status Discord + Ko-fi + Prod bot + Gitops
+> Branches : `feat/chantier-2026-09-08-titans` (PR **#613 MERGÉE** dans `dev` → déployée beta `4dc682f7`) · `fix/migrations-idempotentes` (PR **#614 OUVERTE** → `dev`).
+- ✅ **Landing `/boss` parité module Succès** (`cacc71686`) : filtre **Boss / Titans** + badge TITAN (catalogue) · fiche boss **et** titan (page résout `Dungeon` **ou** `Titan`, pré-charge sorts+famille+maps serveur) · onglets Sorts / Sorts détaillés / Simu + choix map / Grades / Drops (modale) / Monstres de salle · stats PV-PA-PM + résistances · `/travel` · `SpellRangeGrid.allowFreeCasterMove` (bypass boss libre opt-in public, dashboard épinglé inchangé).
+- ✅ **Status Discord anti-spam** (`fae7b556c`, partie core déjà sur dev via #611/#612) : cause = living-status retombé en création à chaque tick (ID stocké jamais réutilisé : TTL 30 j expirée 09/08→08/09 + aucune validation) + `statusFrequency` God jamais lu. Fix = **garde-fou fréquence** (`shouldSkipStatusPing`, marge 45 s, fail-soft si Redis KO) + validation **snowflake** (un `outbox:<jobId>` ne casse plus le PATCH — important car `DISCORD_OUTBOX_ENABLED=true` sur beta) + worker tick **5 min** + nettoyage anciens schedulers + TEST PING `force:true` + embed **vulgarisé** (Bot/Site/Données, zéro techno) + God : sélecteurs mode living/notif + lite (déjà persistés, sans UI avant).
+- ✅ **Ko-fi E2E** (`fae7b556c`) : vraie cause = URL Ko-fi pointait `/api/kofi` (inexistant, 404 silencieux) → **`/api/webhooks/kofi`** · 401 suivant = **`proxy.ts` bloquait `/api/webhooks/*`** (pas dans `isPublicApi`) → ajouté · token robuste aux guillemets `.env` · remerciement public `#DONS-KOFI` via `kofiChannelId` (God, migration `20260909014154`) + **ping @** si 1 seul profil Discord matché (jamais d'ambigu) + `is_public:false` respecté. Tests : 7 kofi + 9 guard.
+- ✅ **Prod bot ressuscité** : crash-loop 141k restarts, `TokenInvalid` — cause double : token partagé beta+prod (bagarre de sessions gateway) + mdp BDD divergent (`DATABASE_URL` vieux mdp vs `POSTGRES_PASSWORD` + spéciaux non encodés). Fix = **2e appli Discord `SigilOS Prod`** (token+AppID+secret+clé Ed25519 dédiés, intents Members+MessageContent, invite bitmask `6356836904068`) + mdp **alphanumérique** réaligné (`ALTER USER` + `.env.prod` + recreate). Tout healthy.
+- ✅ **Gitops** : 6 commits titans (boss, kofi+status, worldmap, purge J+7/14/21, divers, docs) + PR #613 mergée · **10 branches remote mergées supprimées** (reste : dev/main/inter-guilde + `onboarding-suite` avec 1 commit unique à trancher : `inline-onboarding-steps.tsx` — étapes inline sans navigation, greffe peu coûteuse mais redondante) · stash `wip-unrelated` trié et droppé (24/25 déjà absorbés, 1 helper orphelin sauvé en temp) · local 100 % poussé (vérifié : worktree vide, 0 stash, ahead=0 partout).
+- ⚠️ **Dette soldée ensuite** : migrations `IF NOT EXISTS` (PR #614, protège le futur deploy prod après le P3018 beta — colonne déjà créée hors migrations → `resolve --applied`).
+- ⚠️ **Leçons PowerShell session** : `>` écrit en UTF-16 (patches git corrompus — passer par `cmd /c` ou .NET) · `edit` échoue sur fichiers CRLF (normaliser LF d'abord) · `.env` relu uniquement au boot (`next dev` restart obligatoire) · `npx prisma` SANS version installe la v8 RC → toujours `prisma@7.9.1`.
+- ✅ Vérifs : `tsc` 0 · **587/587** tests.
+
 ## Chantier du jour (2026-09-08) — Module « Titans » (feat. de bout en bout)
 > Branche `feat/slash-rework` — **non commité**. Mémo : `src/temp/memo-2026-09-08-titans.md`.
 - ✅ Modèle `Titan` + `UserTitanProgress` + `DjSearchMode.TITAN` + champs DJ (`titanId/titanName/questName/questUrl`) ; Admin God `TitanManager`, server actions `titan-admin-actions`/`titan-actions`, seed Gargandyas (**8062**, Osavora, dispo WE 19h→8h, 5 victoires max).
@@ -7,8 +18,8 @@
 - ✅ Résolution Gargandyas validée (id **8062**, ⚠️ homonyme 8069) · **icônes** = set **déjà officiel** (aucune intégration d'assets desktop, conforme règle « proposer puis valider ») · barre de vues Succès en **assets Dofus** + « Fiche Titans » à côté de « Fiches Boss ».
 - ✅ DJ Titan : **taille FIXE = titan.maxMembers** (modale + `createDjPost` force) · **date/heure calquée sur `scheduleConfig`** (`DateTimePicker` allowedDaysOfWeek+hourRange, fenêtres nocturnes, verrou sélection) · cron `cleanup-inactive-posts` couvre TITAN · file d'attente déjà en place.
 - ✅ UI /boss : bouton « Overlay en jeu » retiré des cartes + amber→`warning` · **overlay fix flèche retour** (deep-linked 1 seule fois + clear search).
-- 🔴 **à réparer** : `SpellRangeGrid.tsx` **syntaxe JSX cassée** (bloc d'art boss ~1690+, `</g>`/`)}` en double vers 1716) → **bloque `tsc`** (pas de mon fait). Build non relancé.
-- ⚠️ Validation : mes fichiers **eslint 0 erreur** ; `tsc` bloqué par `SpellRangeGrid.tsx`.
+- ✅ ~~`SpellRangeGrid.tsx` syntaxe JSX cassée~~ → **RÉSOLU (vérifié 09/09)** : `tsc` 0 sur le repo, fichier sain + prop `allowFreeCasterMove` ajoutée (bypass boss libre landing publique).
+- ⚠️ Validation : mes fichiers **eslint 0 erreur** ; `tsc` vert.
 
 ## Chantier du jour (2026-09-04, suite) — Rush Sylvestre : refonte visuelle anti-slop + fil conducteur imagé
 > Branche `feat/chantier-2026-09-04-cyber-rescan` — **rush non committé** (commit + PR `dev` à faire).

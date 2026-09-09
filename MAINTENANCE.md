@@ -77,6 +77,9 @@ Chaque tâche CRON enregistre automatiquement son état, sa durée et son résum
 > ```
 > Puis relancer `./scripts/deploy-cd.sh beta`. Ne JAMAIS générer de migration via `prisma migrate diff --from-config-datasource` (drift local) : utiliser `--from-migrations`.
 
+> ⚠️ **INCIDENT beta 09/09 — P3018 sur `20261103000000_add_service_request_reminder_fields` (`lastReminderAt` already exists)** : colonne créée hors migrations sur beta (db push/ALTER manuel). Vérifié que les 2 colonnes existent (`information_schema`), puis `migrate resolve --applied` (avec `prisma@7.9.1` épinglé — SANS version, npx propose la v8 RC !) et re-deploy vert. **Règle** : nouvelles migrations `ADD COLUMN IF NOT EXISTS` (PR #614) pour blinder le futur deploy prod.
+> ⚠️ **Prod 09/09 — bot crash-loop 141k restarts `TokenInvalid`** : token partagé beta+prod (bagarre de sessions gateway) + `DATABASE_URL` au vieux mdp (spéciaux non encodés). Fix = **1 appli Discord par env** (`SigilOS Prod` : token+AppID+secret+clé Ed25519 dédiés, intents Members+MessageContent, invite bitmask `6356836904068`) + **`POSTGRES_PASSWORD` alphanumérique** (généré, `ALTER USER`, `.env.prod`, recreate). Diag type : `docker inspect` (restarts/OOM/exit) + `docker logs` + comparaison md5 URL vs `POSTGRES_PASSWORD` + test login `psql`.
+
 ---
 
 

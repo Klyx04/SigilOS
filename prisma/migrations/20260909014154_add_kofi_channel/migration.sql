@@ -1,2 +1,3 @@
 -- Salon Discord public des remerciements Ko-fi (#DONS-KOFI).
-ALTER TABLE "PlatformConfig" ADD COLUMN "kofiChannelId" TEXT;
+-- Idempotent : rejouable sans erreur si la colonne existe deja (drift hors migrations).
+ALTER TABLE "PlatformConfig" ADD COLUMN IF NOT EXISTS "kofiChannelId" TEXT;

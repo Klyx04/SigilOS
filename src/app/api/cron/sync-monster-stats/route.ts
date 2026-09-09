@@ -58,9 +58,14 @@ export async function GET(req: Request) {
                     }
                     await persistMonsterStat({ ...data, dungeonName: b.dungeonName });
 
-                    // Téléchargement et compression WebP locale (idempotent, anti-flag)
+                    // Téléchargement et compression WebP locale (idempotent, anti-flag).
+                    // L'objet enrichi porte `imageUrl` (pas `img`) : le lire en
+                    // premier, sinon on retombe toujours sur le pattern deviné
+                    // (ID logique ≠ ID image, ex. Cadob 3220 → img 499).
                     if (data.id) {
-                        const remoteImg = data.img || `https://api.dofusdb.fr/img/monsters/${data.id}.png`;
+                        const remoteImg = (data as { img?: string; imageUrl?: string }).img
+                            ?? (data as { imageUrl?: string }).imageUrl
+                            ?? `https://api.dofusdb.fr/img/monsters/${data.id}.png`;
                         const imgRes = await siphonAndCompressImage(remoteImg, "monsters", data.id);
                         if (imgRes.success) imagesSiphoned++;
                     }
@@ -91,7 +96,9 @@ export async function GET(req: Request) {
                             }
                             await persistMonsterStat({ ...data, dungeonName: t.mapName || undefined });
                             if (data.id) {
-                                const remoteImg = data.img || `https://api.dofusdb.fr/img/monsters/${data.id}.png`;
+                                const remoteImg = (data as { img?: string; imageUrl?: string }).img
+                                    ?? (data as { imageUrl?: string }).imageUrl
+                                    ?? `https://api.dofusdb.fr/img/monsters/${data.id}.png`;
                                 const imgRes = await siphonAndCompressImage(remoteImg, "monsters", data.id);
                                 if (imgRes.success) imagesSiphoned++;
                             }
@@ -123,7 +130,7 @@ export async function GET(req: Request) {
         const { notifyGod } = await import("@/server/actions/god-notif-actions");
         await notifyGod({
             title: "Siphon Monstres & Sorts terminé",
-            message: `${synced} monstres synchronisés avec succès (${errors} erreurs sur ${bosses.length}).`,
+            message: `${synced} monstres synchronisés avec succès (${errors} erreurs sur ${bosses.length}, ${imagesSiphoned} images siphonnées).`,
             type: "WORKER_SYNC",
             success: errors === 0,
             metadata: {

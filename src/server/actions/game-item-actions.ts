@@ -156,12 +156,23 @@ export async function getGameItemsStats(): Promise<
             byCategory[cat.category] = cat._count.id;
         }
 
+        // Vrai comptage FS (pas `total` : la jauge affichait 100 % en permanence
+        // même quand le siphon d'images échouait en fire-and-forget).
+        let realWebpCount = 0;
+        try {
+            const { getAssetStorageStats } = await import('@/lib/dofus-asset-siphon');
+            realWebpCount = getAssetStorageStats().items.count;
+        } catch {
+            // Repli : à défaut de lecture disque, ne pas mentir avec `total`.
+            realWebpCount = 0;
+        }
+
         return {
             success: true,
             data: {
                 totalItems: total,
                 totalWithRecipe: withRecipe,
-                totalWebpImages: total,
+                totalWebpImages: realWebpCount,
                 byCategory,
                 lastUpdated: lastItem?.updatedAt ? lastItem.updatedAt.toISOString() : null,
             },

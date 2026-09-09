@@ -72,6 +72,7 @@ services:
           memory: 2G
     volumes:
       - uploads-prod-data:/app/private_uploads # ✅ Persist private uploads
+      - assets-prod-data:/app/public/uploads/assets-dofus # ✅ Persist siphoned WebP (sinon remis à ~0 à chaque deploy)
       - /home/sigiladmin/SigilOS/public/game-data:/app/public/game-data # ✅ Game assets (bind mount — updated by sync-assets.sh)
     logging: *default-logging
     healthcheck: *app-healthcheck
@@ -192,6 +193,7 @@ services:
           memory: 2G
     volumes:
       - uploads-beta-data:/app/private_uploads # ✅ Persist private uploads
+      - assets-beta-data:/app/public/uploads/assets-dofus # ✅ Persist siphoned WebP (sinon remis à ~0 à chaque deploy)
       - /home/sigiladmin/SigilOS/public/game-data:/app/public/game-data # ✅ Game assets (bind mount — updated by sync-assets.sh)
     logging: *default-logging
     healthcheck: *app-healthcheck
@@ -476,6 +478,8 @@ volumes:
   uploads-prod-data: # ✅ Production uploads isolated
   uploads-beta-data:
     # ✅ Beta uploads isolated
+  assets-prod-data: # ✅ WebP siphonnés prod (phase 1 refonte siphon)
+  assets-beta-data: # ✅ WebP siphonnés beta (phase 1 refonte siphon)
 
 networks:
   prod-net:

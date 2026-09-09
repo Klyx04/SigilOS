@@ -96,17 +96,17 @@ export const KNOWN_CRON_TASKS: Record<string, { name: string; schedule: string; 
     },
     check_links: {
         name: "Vérificateur de liens DofusDB/Dofensive",
-        schedule: "Quotidien",
+        schedule: "Dimanches 04h15 (UTC)",
         logFile: "check-links.log",
     },
     cleanup_inactive_posts: {
         name: "Relance & Clôture Posts Inactifs (DJ/Quêtes/Songes)",
-        schedule: "Quotidien",
+        schedule: "Quotidien 04h35 (UTC)",
         logFile: "cleanup-inactive-posts.log",
     },
     guild_orphan_watch: {
         name: "Détection Guildes Orphelines",
-        schedule: "Quotidien",
+        schedule: "Quotidien 04h25 (UTC)",
         logFile: "guild-orphan-watch.log",
     },
     ladder_sync: {

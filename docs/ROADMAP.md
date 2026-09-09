@@ -27,6 +27,19 @@
   restauration DB automatique (`./scripts/restore_db.sh prod --download-latest`), retrait du rewrite Caddy `maintenance.html`
   sur `sigilos.fr`, noindexer la beta, resoumettre le sitemap, vérifier `/legal/*`. **+ trancher la décision landing immersive** (`page.tsx`).
 
+- 🔸 **Session 08/09/2026 — Module « Titans »** (branche `feat/slash-rework`, non commité ; mémo `src/temp/memo-2026-09-08-titans.md`) :
+  - **Fonctionnalité de bout en bout** : modèle `Titan` + `UserTitanProgress` + `DjSearchMode.TITAN` + champs DJ (`titanId/titanName/questName/questUrl`) — migrations `20261101000000_add_titan` + `20261102000000_add_titan_quests` appliquées. Admin GOD `TitanManager`, server actions `titan-admin-actions`/`titan-actions`, seed Gargandyas (id 8062, zone Osavora).
+  - **Dashboard DJ** : mode `TITAN` (création/filtre/embed/close/titres) + `maxMembers` plafonné au titan.
+  - **Succès** : `SuccesTitanTab` (fiche boss-like) · **Cron** `sync-monster-stats` étendu aux Titans · **Overlay Bestiaire** : filtre « 👑 Titans ».
+  - **Charte « fiche boss »** : icônes vitality/résistances + sorts Dofensive (dans `SuccesTitanTab`).
+  - **Correctifs** : overlay zoom (en-tête + légende restent visibles), boss épinglé + agrandi (`SpellRangeGrid`), correctifs TS (`LocalImagePicker`, `DOFUS_JOBS`).
+  - **Parité fiche boss** : onglets **Simulation + Monstres de salle** dans `SuccesTitanTab` · **Résolution Gargandyas** validée (8062, homonyme 8069) · **barre de vues** en assets Dofus + « Fiche Titans » à côté de « Fiches Boss ».
+  - **DJ Titan création** : **taille FIXE = titan.maxMembers** · **date/heure calquée sur `scheduleConfig`** (jours + fenêtre horaire) · **cron** relances/nettoyage couvre TITAN · **file d'attente** déjà en place.
+  - **UI /boss** : bouton « Overlay en jeu » retiré des cartes · overlay **fix flèche retour** (deep-linked une seule fois + clear search).
+  - Vérifs : **tsc 0** (hors `SpellRangeGrid` cassé) · **eslint 0 erreur**.
+  - ⚪ RESTE : **`SpellRangeGrid.tsx` JSX cassé à réparer** (préexistant) · branche/PR `feat/slash-rework`.
+
+
 - ✅ **Session 01/09/2026 (suite) — Rush Sylvestre : correctifs, S6, S7, S5** (`dev` HEAD `4c6a395b`) :
   - **Correctifs dashboard (reliquats 3/7/9)** (#572) : recherche + `hideDone` (un bloc entièrement terminé contenant un résultat reste visible via `effHideDone`) · cible de validation ≥36×36 desktop / 44×44 mobile · `data-tour` limité au premier contrôle visible (`isFirstVisible`).
   - **S6 moments premium** (#572) : `MilestoneCelebrationBurst` — burst doré + label « Bloc validé ✦ » à la validation d'un bloc (cohérent `RushCurrentObjective`).

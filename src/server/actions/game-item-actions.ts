@@ -5,6 +5,7 @@ import { isSuperAdmin, canAccessBrick } from '@/server/actions/super-admin-actio
 import { logger } from '@/lib/logger';
 import { siphonAndCompressImage } from '@/lib/dofus-asset-siphon';
 import { dofusDbFetch } from '@/lib/dofusdb-limiter';
+import { toNativeEffects } from '@/lib/market/effects';
 import crypto from 'crypto';
 
 type ActionResponse<T = void> = {
@@ -246,6 +247,24 @@ export async function siphonGameItemsBatch(skip = 0, limit = 50): Promise<
                 : null;
             const hasRecipe = Boolean(raw.hasRecipe || raw.is_recipe_item);
 
+            // ── S2 (chantier Marché) — champs DofusDB jusqu'ici non stockés (§6.11) ──
+            const realWeight = raw.realWeight != null ? Number(raw.realWeight) : null;
+            const priceNpc = raw.price != null ? Number(raw.price) : null;
+            const itemSetId =
+                raw.itemSetId != null
+                    ? Number(raw.itemSetId)
+                    : raw.itemSet?.id != null
+                    ? Number(raw.itemSet.id)
+                    : null;
+            const itemSetName = typeof raw.itemSet?.name?.fr === 'string' ? raw.itemSet.name.fr : null;
+            const isLegendary = Boolean(raw.isLegendary);
+            const isSaleable = raw.isSaleable === undefined ? true : Boolean(raw.isSaleable);
+            const superTypeId = raw.superTypeId != null ? Number(raw.superTypeId) : null;
+            const superTypeName = typeof raw.superType?.name?.fr === 'string' ? raw.superType.name.fr : null;
+            // Version LÉGÈRE des effets natifs (plages min–max) : source serveur de l'éditeur FM
+            // et de la carte d'item. `effects` (lourd, possibleEffects) est CONSERVÉ tel quel.
+            const nativeEffects = toNativeEffects(raw);
+
             // Déterminer la catégorie principale
             let category = 'equipment';
             const typeLower = typeName.toLowerCase();
@@ -258,7 +277,12 @@ export async function siphonGameItemsBatch(skip = 0, limit = 50): Promise<
             }
 
             // Calcul du Hash MD5 pour détecter les modifications réelles
-            const hashPayload = JSON.stringify({ name, level, typeName, effects, hasRecipe });
+            // (inclut les champs S2 : les items existants se COMPLÈTENT au prochain passage)
+            const hashPayload = JSON.stringify({
+                name, level, typeName, effects, hasRecipe,
+                realWeight, priceNpc, itemSetId, itemSetName,
+                isLegendary, isSaleable, superTypeId, superTypeName, nativeEffects,
+            });
             const dataHash = crypto.createHash('md5').update(hashPayload).digest('hex');
 
             const existing = await db.gameItem.findUnique({
@@ -267,6 +291,19 @@ export async function siphonGameItemsBatch(skip = 0, limit = 50): Promise<
             });
 
             const localIconUrl = `/uploads/assets-dofus/items/${ankamaId}.webp`;
+
+            // Champs communs create/update (évite toute divergence entre les deux branches)
+            const enrichi = {
+                realWeight,
+                priceNpc,
+                itemSetId,
+                itemSetName,
+                isLegendary,
+                isSaleable,
+                superTypeId,
+                superTypeName,
+                nativeEffects: (nativeEffects ?? undefined) as any,
+            };
 
             if (!existing) {
                 await db.gameItem.create({
@@ -283,6 +320,7 @@ export async function siphonGameItemsBatch(skip = 0, limit = 50): Promise<
                         iconUrl: localIconUrl,
                         dataHash,
                         isDeprecated: false,
+                        ...enrichi,
                     },
                 });
                 inserted++;
@@ -305,6 +343,7 @@ export async function siphonGameItemsBatch(skip = 0, limit = 50): Promise<
                         iconUrl: localIconUrl,
                         dataHash,
                         isDeprecated: false,
+                        ...enrichi,
                     },
                 });
                 updated++;

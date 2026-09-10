@@ -39,6 +39,56 @@ export interface SiphonResult {
     totalBossFamilies: number;
 }
 
+export interface CompiledDataset {
+    dungeons: unknown[];
+    monsters: unknown[];
+}
+
+/**
+ * Garde anti-écrasement partiel : refuse de persister un dataset incohérent
+ * (panne source en cours de run). Règles : jamais vide, et jamais moins de
+ * 50 % du fichier précédent (dérive massive = fetch tronqué, pas suppression
+ * réelle — DofusDB ne supprime pas la moitié de son catalogue d'un coup).
+ * Throw → l'appelant ne doit PAS écrire (le bon fichier reste en place).
+ */
+export function assertDatasetCoherent(
+    compiled: CompiledDataset,
+    previous: CompiledDataset | null
+): void {
+    const dungeons = compiled.dungeons.length;
+    const monsters = compiled.monsters.length;
+    if (dungeons === 0 || monsters === 0) {
+        throw new Error(
+            `[siphonDungeonMonsters] Dataset incohérent (donjons=${dungeons}, monstres=${monsters}) — persistance refusée`
+        );
+    }
+    if (previous) {
+        const prevD = previous.dungeons.length;
+        const prevM = previous.monsters.length;
+        if (prevD > 0 && dungeons < prevD / 2) {
+            throw new Error(
+                `[siphonDungeonMonsters] Effondrement donjons ${prevD} → ${dungeons} (< 50 %) — persistance refusée`
+            );
+        }
+        if (prevM > 0 && monsters < prevM / 2) {
+            throw new Error(
+                `[siphonDungeonMonsters] Effondrement monstres ${prevM} → ${monsters} (< 50 %) — persistance refusée`
+            );
+        }
+    }
+}
+
+function readPreviousDataset(): CompiledDataset | null {
+    try {
+        if (!fs.existsSync(OUTPUT_PATH)) return null;
+        const parsed = JSON.parse(fs.readFileSync(OUTPUT_PATH, "utf-8"));
+        if (!Array.isArray(parsed?.dungeons) || !Array.isArray(parsed?.monsters)) return null;
+        return { dungeons: parsed.dungeons, monsters: parsed.monsters };
+    } catch {
+        return null;
+    }
+}
+
 /**
  * Siphonne et synchronise localement l'intégralité des donjons, monstres de salles et familles de boss de DofusDB.
  * Génère le fichier public/game-data/dungeon-monsters.json garantissant l'indépendance réseau.
@@ -164,6 +214,12 @@ export async function siphonDungeonMonstersDataset(): Promise<SiphonResult> {
         dungeons: compiledDungeons,
         monsters: allMonstersList
     };
+
+    // Garde anti-écrasement partiel AVANT écriture (le bon fichier reste en place si throw).
+    assertDatasetCoherent(
+        { dungeons: compiledDungeons, monsters: allMonstersList },
+        readPreviousDataset()
+    );
 
     // Assurer le répertoire parent
     const dir = path.dirname(OUTPUT_PATH);

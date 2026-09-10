@@ -73,6 +73,11 @@ jobs:
     if: github.event_name != 'schedule' && needs.filter.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    # Plafond mémoire : `npx tsc --noEmit` et `next build` (phase « Running TypeScript »,
+    # type-check complet + client Prisma) atteignent ~2 Go → OOM avec le heap Node par
+    # défaut (~2 Go). 4 Go sur un runner 16 Go = marge confortable.
+    env:
+      NODE_OPTIONS: "--max-old-space-size=4096"
     steps:
       - name: Checkout
         uses: actions/checkout@v7

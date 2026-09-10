@@ -1,10 +1,11 @@
 # Active Context — SigilOS
 
-## 🔄 PR EN COURS — **#627** `feat/marche-b1` (Module « Marché » · B1 = S1) → **à suivre jusqu'au merge**
+## ✅ DERNIÈRE PR MERGÉE — **#627** `feat/marche-b1` (Module « Marché » · B1 = S1) → **suite : B2**
 
-> **PR :** https://github.com/Klyx04/SigilOS/pull/627 · base `dev` · commits **`c32257434`** (S1) · **`5136214ba`** (fixtures de tests) · **`66ffdd724`** (heap CI/CD).
-> **Règle de session :** tant que la PR est ouverte on la **surveille jusqu'au merge** (`gh pr checks 627` · `gh run view <id> --log-failed`) ; **si une étape CI/CD échoue → on fixe, on relance** (`gh run rerun <id> --failed`) **et on recommence jusqu'au vert, puis merge**. Jamais de merge sur rouge · jamais de test désactivé pour verdir · jamais `main`.
-> **Contexte de reprise :** plan `src/temp/refonte-marche/PLAN-MAITRE-MODULE-MARCHE.md` (§0.1.bis + bloc « 🔁 REPRISE B2 — état réel ») · mémo `src/temp/memo-2026-09-10-marche.md` · amorce `src/temp/refonte-marche/AMORCES-A-COPIER.md`.
+> **PR :** https://github.com/Klyx04/SigilOS/pull/627 · base `dev` · **MERGÉE** le 10/09/2026 21:50Z (merge `62e53aae4`) · CI **Verify & Build** ✅ + CD **Build & Push Images** ✅ · branche supprimée.
+> **Prochaine étape :** **B2 = S2 + S3** — branche `feat/marche-b2` **depuis `dev`** (plan §0.1.bis bloc B + bloc « 🔁 REPRISE B2 »).
+> **Règle de session (ratifiée 10/09) :** tant qu'une PR est **ouverte**, on la **surveille jusqu'au merge** (`gh pr checks <n>` · `gh run view <id> --log-failed`) ; **si une étape CI/CD échoue → on fixe, on relance** (`gh run rerun <id> --failed`) **et on recommence jusqu'au vert, puis merge**. Jamais de merge sur rouge · jamais de test désactivé pour verdir · jamais `main` · jamais de push direct sur `dev`.
+> **Contexte de reprise :** plan `src/temp/refonte-marche/PLAN-MAITRE-MODULE-MARCHE.md` · mémo `src/temp/memo-2026-09-10-marche.md` · amorce `src/temp/refonte-marche/AMORCES-A-COPIER.md`.
 
 ### Fichiers à surveiller sur cette PR (les toucher ⇒ relire les règles ci-dessous)
 - **CI/CD** : `.github/workflows/verify.yml` (Lint → tsc → bot tsc → tests → build) · `.github/workflows/deploy.yml` (image construite sur runner GitHub via buildx) · `Dockerfile` (stage `builder` = `npm run build`).
@@ -18,6 +19,7 @@
 - **Plafond mémoire Node ~2 Go** : `tsc --noEmit` et `next build` (« Running TypeScript ») tombaient en **OOM** ⇒ heap porté à **4 Go** (`NODE_OPTIONS` dans `verify.yml` **et** `Dockerfile`), commit `66ffdd724`.
 - **Tests à fixtures de date figée = bombes à retardement** ⇒ toujours une référence **relative** (`Date.now() - H`).
 - `npx prisma` sans version installe la **v8 RC** ⇒ toujours `prisma@7.10.0` · PowerShell : `[guildId]` est un wildcard ⇒ `-LiteralPath`.
+- **Déploiement VPS bloqué par un artefact de siphon** : `public/game-data/dungeon-monsters.json` est **versionné** (commit `ca7aed455`) **mais régénéré au runtime** (cron `sync-monster-stats` + bouton God) **à travers le bind mount compose** `~/SigilOS/public/game-data:/app/public/game-data` ⇒ le fichier est « modifié » côté serveur et **`git pull` abandonne** (`Your local changes … would be overwritten by merge → Aborting`). **Débloqué** par un garde-fou dans `scripts/deploy.sh` + `scripts/deploy-cd.sh` (`GENERATED[]`, PR **#628**). **Dette structurelle recommandée** : écrire l'artefact dans un chemin **non versionné** (volume dédié) et adapter `dungeon-monsters-siphon` (OUTPUT_PATH) + lecteurs (`game-data-actions`, `data-health-actions`) + mount Caddy statique — ou cesser de versionner le fichier (`.gitignore` + `git rm --cached` + génération au deploy).
 
 ## Session 2026-09-09 (nuit) — Landing boss + Status Discord + Ko-fi + Prod bot + Gitops
 > Branches : `feat/chantier-2026-09-08-titans` (PR **#613 MERGÉE** dans `dev` → déployée beta `4dc682f7`) · `fix/migrations-idempotentes` (PR **#614 OUVERTE** → `dev`).

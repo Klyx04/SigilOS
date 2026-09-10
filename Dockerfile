@@ -43,6 +43,12 @@ ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ARG NEXT_PUBLIC_SENTRY_DSN
 ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
 
+# Plafond mémoire du build Next : la phase « Running TypeScript » de `next build`
+# (type-check complet du projet + client Prisma généré) atteint ~2 Go → OOM avec le
+# heap Node par défaut (~2 Go), y compris sur le runner GitHub de deploy.yml.
+# 4 Go = marge confortable (runner/VPS ≥ 8 Go). Le stage `runner` n'en hérite pas.
+ENV NODE_OPTIONS=--max-old-space-size=4096
+
 RUN \
   if [ -f yarn.lock ]; then yarn run build; \
   elif [ -f package-lock.json ]; then npm run build; \

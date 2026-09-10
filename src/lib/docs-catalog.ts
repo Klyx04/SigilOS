@@ -312,6 +312,111 @@ La revente d'archimonstres capturés en guilde à l'hôtel des ventes est viveme
     // 🛠️ OUTILS & SERVICES
     // =========================================================================
     {
+        slug: 'marche',
+        title: 'Marché de Guilde — Annonces FM & Lots de Ressources',
+        category: 'Outils & Services',
+        accessLevel: 'MEMBER' as any,
+        content: `
+<h2>Le Marché de guilde : annonces d'équipements et de lots de ressources</h2>
+<p>Le module <strong>Marché</strong> remplace les messages éparpillés dans Discord par un catalogue d'annonces structuré, réservé aux membres de la guilde. Chaque annonce porte un objet du catalogue Dofus (ou un lot de ressources), un prix en kamas, un statut et un vendeur identifié.</p>
+
+<div class="callout callout-important">
+<strong>L'échange se conclut en jeu</strong>
+SigilOS publie, affiche et suit les annonces — mais <strong>n'effectue jamais</strong> le transfert d'objets ni celui des kamas, et <strong>ne garantit pas</strong> la transaction. Le bouton « Contacter » sert uniquement à ouvrir un échange avec le vendeur.
+</div>
+
+<h2>1. Consulter le catalogue</h2>
+<ol class="steps">
+    <li><strong>Ouvre le Marché</strong> depuis la barre latérale (menu Outils) ou depuis le dashboard.</li>
+    <li><strong>Filtre</strong> : recherche par objet ou vendeur, type (équipement / ressources), statut, tri par prix ou par niveau.</li>
+    <li><strong>Choisis ta vue</strong> : « Cartes » pour la lecture visuelle, « Tableau » pour comparer rapidement les prix.</li>
+    <li><strong>Ouvre la fiche</strong> d'une annonce pour voir le détail du lot, le jet déclaré et les conditions.</li>
+</ol>
+
+<div class="callout callout-tip">
+<strong>Astuce</strong>
+Le bouton « Masquer vendues / expirées » garde le catalogue lisible : décoche-le uniquement pour comparer les prix passés.
+</div>
+
+<h2>2. Publier une annonce</h2>
+<p>La création se fait en <strong>3 étapes</strong> (l'assistant multi-étapes complet et l'éditeur de jet arrivent avec le sprint suivant) :</p>
+<ol class="steps">
+    <li><strong>Nature</strong> : équipement forgemagie ou lot de ressources.</li>
+    <li><strong>Objet / lot</strong> : recherche l'objet dans le catalogue local Dofus, ou compose ton lot (jusqu'à 20 ressources).</li>
+    <li><strong>Prix & conditions</strong> : titre, description, prix en kamas, prix négociable, troc accepté.</li>
+</ol>
+<p>Tu peux enregistrer en <strong>brouillon</strong> (rien n'est publié) puis publier plus tard depuis <em>Mes espaces</em>.</p>
+
+<h3>Les lots de ressources</h3>
+<table>
+    <thead><tr><th>Type de lot</th><th>Contenu</th><th>Usage typique</th></tr></thead>
+    <tbody>
+        <tr><td><strong>Lot simple</strong></td><td>1 ressource + quantité (ex. 1 000 Bois de Frêne)</td><td>Vendre une récolte complète</td></tr>
+        <tr><td><strong>Lot composite</strong></td><td>N ressources (ex. Pack craft Coiffe = 120 Bois + 40 Cuivre + 12 Plumes)</td><td>Vendre un « pack » prêt à crafter</td></tr>
+    </tbody>
+</table>
+<p>La <strong>quantité minimale</strong> (facultative) permet d'accepter un achat partiel tout en garantissant un volume plancher.</p>
+
+<h2>3. Le cycle de vie d'une annonce</h2>
+<table>
+    <thead><tr><th>Statut</th><th>Signification</th></tr></thead>
+    <tbody>
+        <tr><td><strong>Brouillon</strong></td><td>Créée mais non publiée — visible uniquement par toi.</td></tr>
+        <tr><td><strong>Disponible</strong></td><td>Publiée, visible par la guilde.</td></tr>
+        <tr><td><strong>Réservé</strong></td><td>Quelqu'un a réservé ou une offre a été acceptée (arrive avec le sprint des interactions).</td></tr>
+        <tr><td><strong>Vendu</strong></td><td>Transaction confirmée par le vendeur (état terminal).</td></tr>
+        <tr><td><strong>Expiré</strong></td><td>Échéance dépassée — l'annonce sort du catalogue actif mais reste dans tes archives.</td></tr>
+        <tr><td><strong>Retiré</strong></td><td>Retirée par le vendeur ou la modération.</td></tr>
+    </tbody>
+</table>
+<p>Un cycle de rappels est appliqué automatiquement (par défaut à <strong>J+7</strong> et <strong>J+15</strong>) et l'annonce cesse d'être active à l'échéance maximale (par défaut <strong>J+20</strong>). Une annonce expirée peut être <strong>renouvelée une seule fois</strong>.</p>
+
+<div class="callout callout-info">
+<strong>Mes espaces</strong>
+L'onglet <em>Mes espaces</em> regroupe tes annonces <strong>en cours</strong> et tes <strong>archives</strong>, avec les actions : publier, retirer, renouveler, supprimer.
+</div>
+
+<h2>4. Comprendre un jet forgemagie</h2>
+<p>Le module étiquette chaque valeur déclarée par rapport à la plage native de l'objet :</p>
+<table>
+    <thead><tr><th>Étiquette</th><th>Signification</th></tr></thead>
+    <tbody>
+        <tr><td><strong>Parfait</strong></td><td>Valeur égale au maximum natif.</td></tr>
+        <tr><td><strong>Bon</strong></td><td>Dans la plage, au-dessus de la moyenne.</td></tr>
+        <tr><td><strong>Normal</strong></td><td>Dans la plage.</td></tr>
+        <tr><td><strong>Sous la plage</strong></td><td>Valeur inférieure au minimum natif.</td></tr>
+        <tr><td><strong>Over</strong></td><td>Valeur supérieure au maximum natif (légitime et recherché).</td></tr>
+        <tr><td><strong>Exotique</strong></td><td>Effet absent des natifs (ex. PA/PM/PO) — affiché en violet.</td></tr>
+    </tbody>
+</table>
+
+<div class="callout callout-important">
+<strong>Un over ou un exo n'est jamais refusé</strong>
+C'est la valeur du marché FM. SigilOS ne peut pas lire ton inventaire : il étiquette la valeur, il ne la juge pas. Seules les <strong>fautes de frappe manifestes</strong> (bornes anti-débilité) sont bloquées à la saisie.
+</div>
+
+<h2>5. Permissions</h2>
+<table>
+    <thead><tr><th>Permission</th><th>Ce qu'elle permet</th></tr></thead>
+    <tbody>
+        <tr><td><code>market:trade</code></td><td>Voir le catalogue, publier ses annonces et interagir (réserver, négocier).</td></tr>
+        <tr><td><code>market:moderate</code></td><td>Retirer ou restaurer une annonce, traiter les signalements et clôturer les dossiers.</td></tr>
+    </tbody>
+</table>
+<p>Le module doit également être <strong>activé</strong> par un administrateur (Pilotage → Gestion des Modules).</p>
+
+<h2>6. Questions fréquentes</h2>
+<h3>Le prix est-il garanti ?</h3>
+<p>Non : SigilOS n'est pas un hôtel de vente. Le prix est celui déclaré par le vendeur ; l'échange se conclut en jeu.</p>
+<h3>Pourquoi mon annonce a-t-elle disparu du catalogue ?</h3>
+<p>Elle est probablement <strong>expirée</strong> ou <strong>vendue</strong>. Décoche « Masquer vendues / expirées » ou ouvre <em>Mes espaces</em>.</p>
+<h3>Puis-je vendre plusieurs objets d'un coup ?</h3>
+<p>Oui, sous forme de <strong>lot composite</strong> (jusqu'à 20 ressources).</p>
+<h3>Les liens dans ma description s'affichent-ils ?</h3>
+<p>Non : les liens et invitations sont automatiquement retirés (anti-phishing).</p>
+`,
+    },
+    {
         slug: 'donjons-et-quetes',
         title: 'Donjons & Quêtes (Entraide LFG)',
         category: 'Outils & Services',
@@ -636,6 +741,8 @@ La revente d'archimonstres capturés en guilde à l'hôtel des ventes est viveme
         <tr><td><strong>Jeu</strong></td><td><code>points:manage</code></td><td>Gestion des points de contribution et boutique interne.</td></tr>
         <tr><td><strong>Communauté</strong></td><td><code>community:access</code></td><td>Consultation de l'Annuaire, Calendrier et Sondages.</td></tr>
         <tr><td><strong>Communauté</strong></td><td><code>community:mod</code></td><td>Création et modération des événements du calendrier.</td></tr>
+        <tr><td><strong>Jeu</strong></td><td><code>market:trade</code></td><td>Marché : voir le catalogue, publier ses annonces et interagir (réserver, négocier).</td></tr>
+        <tr><td><strong>Jeu</strong></td><td><code>market:moderate</code> ★</td><td>Marché : retirer / restaurer une annonce et traiter les signalements.</td></tr>
     </tbody>
 </table>
 
@@ -644,6 +751,62 @@ La revente d'archimonstres capturés en guilde à l'hôtel des ventes est viveme
 Les permissions marquées ★ ne peuvent être attribuées que par un réel Administrateur Discord. Un officier délégué ne peut pas s'auto-attribuer des privilèges supérieurs à son rang.
 </div>
         `
+    },
+    {
+        slug: 'admin-marche',
+        title: 'Configurer le Marché de guilde',
+        category: 'Administration & Staff',
+        accessLevel: 'ADMIN' as any,
+        content: `
+<h2>Réglages → Marché (groupe « Par Module »)</h2>
+<p>Avant de communiquer sur le Marché, vérifie la configuration Discord et les plafonds. L'écran se trouve dans <em>Réglages → Marché</em> (visible uniquement si le module est actif).</p>
+
+<h2>1. Activer le module</h2>
+<ol class="steps">
+    <li>Ouvre <em>Pilotage → Gestion des Modules</em>.</li>
+    <li>Active l'interrupteur <strong>Marché</strong>.</li>
+    <li>Attribue la permission <code>market:trade</code> aux rôles/membres concernés (et <code>market:moderate</code> aux modérateurs).</li>
+</ol>
+
+<h2>2. Salon de publication</h2>
+<p>Choisis un salon <strong>textuel, annonces ou forum</strong>. Le bot doit pouvoir le voir et y écrire. Si c'est un forum, SigilOS crée automatiquement les tags manquants (Disponible, Réservé, Vendu…).</p>
+<div class="callout callout-info">
+<strong>Validation serveur</strong>
+Le salon est revalidé à chaque sauvegarde et à chaque test : un identifiant fourni par le navigateur n'est jamais utilisé aveuglément.
+</div>
+
+<h2>3. Rôles</h2>
+<table>
+    <thead><tr><th>Réglage</th><th>Rôle attendu</th></tr></thead>
+    <tbody>
+        <tr><td><strong>Rôle à mentionner</strong></td><td>Rôle notifié à chaque publication (facultatif).</td></tr>
+        <tr><td><strong>Rôles « pinguables »</strong></td><td>Rôles que le créateur peut mentionner lui-même (vide = aucun ping possible).</td></tr>
+        <tr><td><strong>Rôle modérateur</strong></td><td>Rôle habilité à retirer / restaurer une annonce et traiter les signalements.</td></tr>
+        <tr><td><strong>Rôle minimum pour publier</strong></td><td>Filtre facultatif : seuls les membres avec ce rôle (ou au-dessus) publient.</td></tr>
+    </tbody>
+</table>
+
+<h2>4. Durées, plafonds & rétention</h2>
+<table>
+    <thead><tr><th>Réglage</th><th>Défaut</th><th>Rôle</th></tr></thead>
+    <tbody>
+        <tr><td>Annonces actives / membre</td><td>5</td><td>Anti-abus (plafond par membre).</td></tr>
+        <tr><td>Durée par défaut</td><td>7 jours</td><td>Durée proposée à la création.</td></tr>
+        <tr><td>Durée de vie maximale</td><td>20 jours</td><td>Échéance absolue de survie d'une annonce.</td></tr>
+        <tr><td>Paliers de rappel</td><td>7, 15</td><td>Jours des rappels automatiques (1 à 3 paliers).</td></tr>
+        <tr><td>Durée d'une réservation</td><td>12 h</td><td>Délai avant libération automatique.</td></tr>
+        <tr><td>Durée de vie d'une offre</td><td>48 h</td><td>Délai avant expiration d'une offre.</td></tr>
+        <tr><td>Rétention des médias</td><td>30 jours</td><td>Purge des captures de preuve.</td></tr>
+        <tr><td>Rétention des logs</td><td>365 jours</td><td>Conservation du journal d'audit du marché.</td></tr>
+    </tbody>
+</table>
+
+<h2>5. Bouton « Tester la configuration »</h2>
+<p>Le test vérifie que le salon est joignable, en détecte le type (texte / forum) et liste les points à corriger (rôle à mentionner absent, aucun rôle pinguable, aucun modérateur…). Aucun test n'est bloquant : le marché reste utilisable depuis le dashboard.</p>
+
+<h2>6. Modération</h2>
+<p>Les membres de la permission <code>market:moderate</code> peuvent retirer une annonce et traitent les signalements. Chaque action est journalisée dans le journal d'audit du marché (rétention configurable).</p>
+`,
     },
     {
         slug: 'admin-modules',

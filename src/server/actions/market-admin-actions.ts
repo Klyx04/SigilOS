@@ -354,3 +354,127 @@ export async function testMarketConfiguration(
     }
 }
 
+
+// ---------------------------------------------------------------------------
+// S3.8 — Réparation Discord (modérateur `market:moderate`)
+// ---------------------------------------------------------------------------
+
+/** Modérateur du marché requis (RBAC `market:moderate`). */
+async function requireMarketModerator(guildId: string) {
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated || !user.isMember) {
+        return { error: "Accès refusé" as const };
+    }
+    if (!user.canManageMarket) {
+        return { error: "Modérateur du Marché requis" as const };
+    }
+    return { user };
+}
+
+/** Vérifie qu'une annonce appartient bien à la guilde du contexte (§16.2). */
+async function findGuildListingId(guildId: string, listingId: string): Promise<string | null> {
+    const listing = await db.marketListing.findFirst({
+        where: { id: listingId, guild: { discordGuildId: guildId } },
+        select: { id: true },
+    });
+    return listing?.id ?? null;
+}
+
+/** Journalise une réparation Discord (jamais bloquant). */
+async function writeMarketAdminAudit(params: {
+    guildId: string;
+    listingId: string;
+    action: string;
+    actorUserId?: string | null;
+}): Promise<void> {
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: params.guildId },
+            select: { id: true },
+        });
+        if (!config) return;
+        await db.marketAuditLog.create({
+            data: {
+                guildId: config.id,
+                listingId: params.listingId,
+                actorUserId: params.actorUserId ?? null,
+                action: params.action,
+            },
+        });
+    } catch (error) {
+        logger.warn("[market-admin] audit failed", { err: error });
+    }
+}
+
+/**
+ * S3.8 — Rejoue la publication/édition Discord d'une annonce (God/modo).
+ * La réécriture est **synchrone** ici (action de réparation explicite) et
+ * renvoie le résultat pour un retour clair à l'opérateur.
+ */
+export async function resyncMarketListing(
+    guildId: string,
+    listingId: string
+): Promise<ActionResponse<{ messageId?: string | null; skipped?: boolean }>> {
+    try {
+        const guard = await requireMarketModerator(guildId);
+        if ("error" in guard) return { success: false, error: guard.error };
+
+        const id = await findGuildListingId(guildId, listingId);
+        if (!id) return { success: false, error: "Annonce introuvable" };
+
+        const { syncListingMessage } = await import("@/server/market/discord");
+        const result = await syncListingMessage(id);
+        if (!result.ok) {
+            await writeMarketAdminAudit({
+                guildId,
+                listingId: id,
+                action: MARKET_AUDIT_ACTIONS.DISCORD_SYNC_FAILED,
+                actorUserId: guard.user.id ?? null,
+            });
+            return { success: false, error: result.error || "Synchronisation Discord impossible" };
+        }
+        if (result.messageId) {
+            await writeMarketAdminAudit({
+                guildId,
+                listingId: id,
+                action: MARKET_AUDIT_ACTIONS.DISCORD_SYNC_RESTORED,
+                actorUserId: guard.user.id ?? null,
+            });
+        }
+        return { success: true, data: { messageId: result.messageId, skipped: result.skipped } };
+    } catch (error) {
+        logger.error("[resyncMarketListing] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+/** S3.8 — Régénère la carte PNG d'une annonce + resynchronise l'embed (God/modo). */
+export async function regenerateMarketImage(
+    guildId: string,
+    listingId: string
+): Promise<ActionResponse<{ messageId?: string | null }>> {
+    try {
+        const guard = await requireMarketModerator(guildId);
+        if ("error" in guard) return { success: false, error: guard.error };
+
+        const id = await findGuildListingId(guildId, listingId);
+        if (!id) return { success: false, error: "Annonce introuvable" };
+
+        const { regenerateMarketImage: regenerate } = await import("@/server/market/discord");
+        const result = await regenerate(id);
+        if (!result.ok) {
+            return { success: false, error: result.error || "Régénération impossible" };
+        }
+        await writeMarketAdminAudit({
+            guildId,
+            listingId: id,
+            action: MARKET_AUDIT_ACTIONS.IMAGE_REGENERATED,
+            actorUserId: guard.user.id ?? null,
+        });
+        return { success: true, data: { messageId: result.messageId } };
+    } catch (error) {
+        logger.error("[regenerateMarketImage] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+

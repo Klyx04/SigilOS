@@ -339,13 +339,17 @@ Le bouton « Masquer vendues / expirées » garde le catalogue lisible : décoch
 </div>
 
 <h2>2. Publier une annonce</h2>
-<p>La création se fait en <strong>3 étapes</strong> (l'assistant multi-étapes complet et l'éditeur de jet arrivent avec le sprint suivant) :</p>
+<p>La création se fait en <strong>4 étapes</strong> :</p>
 <ol class="steps">
     <li><strong>Nature</strong> : équipement forgemagie ou lot de ressources.</li>
-    <li><strong>Objet / lot</strong> : recherche l'objet dans le catalogue local Dofus, ou compose ton lot (jusqu'à 20 ressources).</li>
-    <li><strong>Prix & conditions</strong> : titre, description, prix en kamas, prix négociable, troc accepté.</li>
+    <li><strong>Objet & jet</strong> : recherche l'objet dans le catalogue (famille, type, niveau, nom) — les <strong>plages natives</strong> se pré-remplissent automatiquement et l'<strong>éditeur de jet</strong> s'ouvre.</li>
+    <li><strong>Prix & conditions</strong> : titre, description, prix en kamas, prix négociable, troc accepté, « Modifié par ».</li>
+    <li><strong>Publication Discord</strong> : aperçu fidèle de l'annonce, choix des rôles à mentionner (parmi ceux autorisés par l'admin), puis publication.</li>
 </ol>
 <p>Tu peux enregistrer en <strong>brouillon</strong> (rien n'est publié) puis publier plus tard depuis <em>Mes espaces</em>.</p>
+
+<h3>L'éditeur de jet</h3>
+<p>Sur un équipement, chaque ligne native est pré-remplie avec sa <strong>plage</strong> (ex. <code>251 à 300</code>). Tu saisis la valeur réelle et l'état se met à jour en direct : <strong>✦ Jet parfait</strong> remplit toutes les lignes au maximum, les boutons <strong>Exo PA / PM / PO / Invocation</strong> ajoutent un effet exotique en un clic, et une <strong>ligne libre</strong> couvre le mode avancé. Les plages natives viennent <strong>toujours du catalogue</strong> : c'est le serveur qui les recalcule, jamais le navigateur.</p>
 
 <h3>Les lots de ressources</h3>
 <table>
@@ -395,7 +399,19 @@ L'onglet <em>Mes espaces</em> regroupe tes annonces <strong>en cours</strong> et
 C'est la valeur du marché FM. SigilOS ne peut pas lire ton inventaire : il étiquette la valeur, il ne la juge pas. Seules les <strong>fautes de frappe manifestes</strong> (bornes anti-débilité) sont bloquées à la saisie.
 </div>
 
-<h2>5. Permissions</h2>
+<h2>5. La carte d'item et les prix</h2>
+<p>Chaque annonce affiche une <strong>carte d'item</strong> calquée sur l'affichage du jeu : nom, niveau et type, <strong>panoplie</strong>, image, lignes d'effets (valeur colorée selon l'état), « Modifié par », puis en pied le <strong>poids</strong> et le <strong>prix moyen de la guilde</strong> pour ce même objet. La même carte est générée en image PNG pour le message Discord.</p>
+
+<h2>6. Publication Discord</h2>
+<p>À la publication, SigilOS envoie l'annonce dans le <strong>salon configuré</strong> par l'admin (salon texte <strong>ou</strong> forum). Un <strong>seul message</strong> par annonce est maintenu à jour à chaque changement de statut (jamais de repost).</p>
+<ul>
+    <li>L'embed affiche le vendeur, le prix, le statut, la négociabilité et le <strong>nombre</strong> d'offres — <strong>jamais</strong> leur montant.</li>
+    <li>Le créateur choisit les rôles à mentionner, limités à ceux que l'admin a marqués comme « pinguables ».</li>
+    <li>Si Discord échoue, l'annonce reste publiée sur SigilOS ; la synchronisation est rejouée automatiquement (et manuellement par un modérateur).</li>
+</ul>
+<p>Si aucun salon n'est configuré, l'annonce est publiée <strong>sans Discord</strong> (aucune erreur).</p>
+
+<h2>7. Permissions</h2>
 <table>
     <thead><tr><th>Permission</th><th>Ce qu'elle permet</th></tr></thead>
     <tbody>
@@ -405,7 +421,7 @@ C'est la valeur du marché FM. SigilOS ne peut pas lire ton inventaire : il éti
 </table>
 <p>Le module doit également être <strong>activé</strong> par un administrateur (Pilotage → Gestion des Modules).</p>
 
-<h2>6. Questions fréquentes</h2>
+<h2>8. Questions fréquentes</h2>
 <h3>Le prix est-il garanti ?</h3>
 <p>Non : SigilOS n'est pas un hôtel de vente. Le prix est celui déclaré par le vendeur ; l'échange se conclut en jeu.</p>
 <h3>Pourquoi mon annonce a-t-elle disparu du catalogue ?</h3>
@@ -785,6 +801,11 @@ Le salon est revalidé à chaque sauvegarde et à chaque test : un identifiant f
         <tr><td><strong>Rôle minimum pour publier</strong></td><td>Filtre facultatif : seuls les membres avec ce rôle (ou au-dessus) publient.</td></tr>
     </tbody>
 </table>
+
+<div class="callout callout-important">
+<strong>Ping vérifié côté serveur</strong>
+Seuls les rôles listés dans « Rôles pinguables » peuvent être mentionnés à la publication : un identifiant envoyé par le navigateur est revalidé en base avant l'envoi et ignoré s'il n'est pas autorisé.
+</div>
 
 <h2>4. Durées, plafonds & rétention</h2>
 <table>

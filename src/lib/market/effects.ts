@@ -257,3 +257,104 @@ export function formatStatValue(value: number, label?: string | null): string {
     const sign = value >= 0 ? "+" : "";
     return `${sign}${value}${isPercentStat(label) ? " %" : ""}`;
 }
+
+// ---------------------------------------------------------------------------
+// S2.8 — Plages natives : source SERVEUR (jamais le client, §12.8)
+// ---------------------------------------------------------------------------
+
+/**
+ * Retrouve la plage native (`from` → `to`) d'un effet dans les `nativeEffects`
+ * du catalogue. La correspondance se fait par `effectId` d'abord (stable
+ * inter-versions), puis par `characteristic` en repli. Renvoie `null` si
+ * l'effet n'est pas natif (→ ligne EXO ou valeur libre).
+ */
+export function findNativeRange(
+    nativeEffects: MarketNativeEffect[] | null | undefined,
+    match: { effectId?: number | null; characteristic?: number | null }
+): { from: number; to: number } | null {
+    if (!Array.isArray(nativeEffects) || nativeEffects.length === 0) return null;
+    const byEffectId = match.effectId != null
+        ? nativeEffects.find((fx) => fx.effectId === match.effectId)
+        : undefined;
+    const found = byEffectId
+        ?? (match.characteristic != null
+            ? nativeEffects.find((fx) => fx.characteristic === match.characteristic)
+            : undefined);
+    return found ? { from: found.from, to: found.to } : null;
+}
+
+/** `true` si l'effet est natif de l'objet (sinon → EXO). */
+export function isNativeEffect(
+    nativeEffects: MarketNativeEffect[] | null | undefined,
+    match: { effectId?: number | null; characteristic?: number | null }
+): boolean {
+    return findNativeRange(nativeEffects, match) !== null;
+}
+
+/** Ligne de jet prête à saisir par l'éditeur (pré-remplie depuis le catalogue). */
+export type MarketStatDraft = {
+    effectId: number;
+    characteristic: number | null;
+    label: string;
+    naturalMin: number | null;
+    naturalMax: number | null;
+    actualValue: number;
+    origin: "NATIVE" | "EXO";
+};
+
+/**
+ * S2.8/S2.10 — Construit les lignes natives pré-remplies de l'éditeur FM à
+ * partir des `nativeEffects` du catalogue. La valeur par défaut est le **max
+ * natif** (un vendeur annonce rarement un jet bas) et l'état est recalculé
+ * côté serveur à l'enregistrement.
+ */
+export function buildNativeStatDrafts(
+    nativeEffects: MarketNativeEffect[] | null | undefined,
+    referential?: Record<number, string> | null
+): MarketStatDraft[] {
+    if (!Array.isArray(nativeEffects)) return [];
+    return nativeEffects.map((fx) => {
+        const label = getStatLabel(
+            { characteristic: fx.characteristic, effectId: fx.effectId },
+            referential ?? undefined
+        );
+        return {
+            effectId: fx.effectId,
+            characteristic: fx.characteristic,
+            label,
+            naturalMin: fx.from,
+            naturalMax: fx.to,
+            actualValue: fx.to,
+            origin: "NATIVE" as const,
+        };
+    });
+}
+
+/**
+ * S2.11 — Effets exotiques proposés **en un clic** dans l'éditeur.
+ * Un exo n'est jamais refusé (D34) : il est simplement marqué `EXO` et mis en
+ * avant sur la carte. Les `effectId` sont les identifiants canoniques Dofus des
+ * lignes exo (PA / PM / PO / invocation).
+ */
+export const EXO_EFFECT_PRESETS = [
+    { key: "pa", effectId: 111, characteristic: 1, label: "PA", code: "pa" },
+    { key: "pm", effectId: 128, characteristic: 23, label: "PM", code: "pm" },
+    { key: "po", effectId: 117, characteristic: 19, label: "Portée", code: "po" },
+    { key: "invocation", effectId: 182, characteristic: 28, label: "Invocations", code: "ic" },
+] as const;
+
+export type ExoEffectPreset = (typeof EXO_EFFECT_PRESETS)[number];
+
+/** Construit une ligne EXO prête à insérer (plage native inconnue). */
+export function buildExoStatDraft(preset: ExoEffectPreset, value = 1): MarketStatDraft {
+    return {
+        effectId: preset.effectId,
+        characteristic: preset.characteristic,
+        label: preset.label,
+        naturalMin: null,
+        naturalMax: null,
+        actualValue: value,
+        origin: "EXO",
+    };
+}
+

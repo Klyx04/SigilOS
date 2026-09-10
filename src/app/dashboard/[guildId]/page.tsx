@@ -136,13 +136,11 @@ export default async function DashboardPage({
     const isVitrineActive = !!user.missionVitrineMode;
 
     // Contextual greeting (direction 2026 : header contextuel, plus de watermark ghost)
-    const hour = new Date().getHours();
-    const greeting = hour < 6 ? "Bonne nuit" : hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
-    const firstName = (user.name || "Aventurier").split(" ")[0];
     const nextEvent = upcomingEvents[0] as any;
     const contextLine = nextEvent?.title
         ? `Prochain rendez-vous : ${nextEvent.title}`
         : "Rien de prévu — la guilde est au calme";
+    const todayLine = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
     // "À faire maintenant" (direction 2026 §9.3) — actions compactes, jamais de vide pur
     const todoItems: { href: string; label: string; action: string; image?: string | null; imageQty?: number }[] = [];
     const activePolls = (polls as any[]).filter((p: any) => p?.status === "ACTIVE");
@@ -185,8 +183,9 @@ export default async function DashboardPage({
 
                 <header className="flex items-end justify-between gap-6">
                     <div>
-                        <h1 className="text-[26px] md:text-[28px] font-bold italic tracking-tight text-foreground">
-                            {greeting} {firstName} ⚔
+                        <p className="text-xs font-medium text-muted-foreground capitalize">{todayLine}</p>
+                        <h1 className="text-[26px] md:text-[28px] font-bold tracking-tight text-foreground">
+                            {user.guildName || "Tableau de bord"}
                         </h1>
                         <p className="text-body-sm text-muted-foreground mt-1">{contextLine}</p>
                     </div>
@@ -212,7 +211,7 @@ export default async function DashboardPage({
                     <section data-tour="dash-todo" className="animate-in fade-in slide-in-from-top-1 duration-150">
                         <div className="rounded-xl border border-border/60 bg-background/40 p-3.5">
                             <div className="flex items-center gap-2 mb-2 px-1">
-                                <span className="text-caption font-semibold uppercase tracking-wider text-muted-foreground">À faire maintenant</span>
+                                <span className="text-caption font-semibold uppercase tracking-wider text-muted-foreground">Aujourd'hui</span>
                                 <span className="flex-1 h-px bg-surface" />
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">

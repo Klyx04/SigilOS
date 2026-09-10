@@ -123,7 +123,7 @@ export function PublicHeader({ activePage, user, variant: _variant = "standard",
                                     animate={{ opacity: 1, scale: 1 }}
                                     className="flex items-center gap-3"
                                 >
-                                    <DropdownMenu>
+                                    <DropdownMenu modal={false}>
                                         <DropdownMenuTrigger asChild>
                                             <button className="flex items-center gap-3 pl-3 pr-4 py-2 rounded-xl bg-background/[0.05] border border-border hover:bg-background/[0.08] hover:border-success/30 transition-colors outline-none">
                                                 <Avatar className="w-10 h-10 border border-border rounded-xl">

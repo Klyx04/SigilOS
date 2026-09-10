@@ -79,6 +79,8 @@ export function GameDataSiphonPanel() {
     const [isSiphoning, setIsSiphoning] = useState(false);
     const [isSiphoningDataset, setIsSiphoningDataset] = useState(false);
     const [progressValue, setProgressValue] = useState(0);
+    // Résumé persistant après la fin du run (la barre ne disparaît plus dans le vide)
+    const [siphonSummary, setSiphonSummary] = useState<string | null>(null);
 
     const handleSiphonDungeonDataset = async () => {
         setIsSiphoningDataset(true);
@@ -143,11 +145,13 @@ export function GameDataSiphonPanel() {
 
         setIsSiphoning(true);
         setProgressValue(0);
+        setSiphonSummary(null);
         setLogs((prev) => [`🚀 Démarrage du siphon de ${missingTargets.length} éléments par lots de 5...`, ...prev]);
 
         startTransition(async () => {
             let totalSiphoned = 0;
             let totalErrors = 0;
+            let totalSkipped = 0;
             const CHUNK_SIZE = 5;
 
             try {
@@ -156,7 +160,8 @@ export function GameDataSiphonPanel() {
                     const res = await triggerBatchAssetSiphonAction(
                         chunk.map((t) => ({
                             id: t.id,
-                            name: t.name,
+                            // Doubles boss : siphonner le vrai monstre (« Klime »), pas le libellé (« Comte et Klime »)
+                            name: t.resolvedMonsterName || t.name,
                             dungeonName: t.dungeonName,
                             remoteUrl: t.remoteImageUrl || undefined,
                         }))
@@ -166,6 +171,7 @@ export function GameDataSiphonPanel() {
                         const batchData = res.data;
                         totalSiphoned += batchData.siphoned;
                         totalErrors += batchData.errors;
+                        totalSkipped += batchData.skipped ?? 0;
                         if (batchData.details && batchData.details.length > 0) {
                             setLogs((prev) => [...batchData.details, ...prev]);
                         }
@@ -178,10 +184,9 @@ export function GameDataSiphonPanel() {
                     setProgressValue(progress);
                 }
 
-                setLogs((prev) => [
-                    `🎉 Siphon terminé : ${totalSiphoned} images WebP et fiches créées, ${totalErrors} erreurs.`,
-                    ...prev,
-                ]);
+                const summary = `Siphon terminé : ${totalSiphoned} siphonnés, ${totalSkipped} ignorés, ${totalErrors} erreurs.`;
+                setSiphonSummary(summary);
+                setLogs((prev) => [`🎉 ${summary}`, ...prev]);
             } catch (error) {
                 setLogs((prev) => [`❌ Exception globale : ${String(error)}`, ...prev]);
             } finally {
@@ -195,7 +200,7 @@ export function GameDataSiphonPanel() {
         setLogs((prev) => [`⏳ Siphon de ${item.name} (${item.dungeonName || 'Donjon'})...`, ...prev]);
         try {
             const res = await triggerBatchAssetSiphonAction(
-                [{ id: item.id, name: item.name, dungeonName: item.dungeonName, remoteUrl: item.remoteImageUrl || undefined }],
+                [{ id: item.id, name: item.resolvedMonsterName || item.name, dungeonName: item.dungeonName, remoteUrl: item.remoteImageUrl || undefined }],
                 { forceRefresh: true }
             );
             if (res.success && res.data) {
@@ -356,14 +361,18 @@ export function GameDataSiphonPanel() {
                 </div>
             </div>
 
-            {/* Barre de progression pendant le siphon */}
-            {isSiphoning && (
-                <div className="p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 space-y-2 animate-pulse">
+            {/* Barre de progression pendant le siphon + résumé persistant après */}
+            {(isSiphoning || siphonSummary) && (
+                <div className="p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 space-y-2">
                     <div className="flex items-center justify-between text-xs font-bold text-emerald-400">
-                        <span>Siphonnage & compression WebP en cours (concurrence 2 + jitter anti-flag)...</span>
-                        <span>{progressValue}%</span>
+                        <span>
+                            {isSiphoning
+                                ? "Siphonnage & compression WebP en cours (concurrence 2 + jitter anti-flag)..."
+                                : siphonSummary}
+                        </span>
+                        <span>{isSiphoning ? `${progressValue}%` : "100%"}</span>
                     </div>
-                    <Progress value={progressValue} className="h-2 bg-emerald-950/60" />
+                    <Progress value={isSiphoning ? progressValue : 100} className="h-2 bg-emerald-950/60" />
                 </div>
             )}
 
@@ -398,6 +407,11 @@ export function GameDataSiphonPanel() {
                                                         {isComplete && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 inline" />}
                                                     </div>
                                                     <div className="text-caption text-muted-foreground">ID: #{item.id}</div>
+                                                    {item.resolvedMonsterName && item.resolvedMonsterName !== item.name && (
+                                                        <div className="text-caption text-muted-foreground/70" title="Double boss : le siphon cible le vrai monstre, pas le libellé du donjon">
+                                                            Monstre siphonné : {item.resolvedMonsterName}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </td>

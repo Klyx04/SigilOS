@@ -114,7 +114,11 @@ export default auth(async (req) => {
     const csp = buildCsp({ nonce: cspNonce, enforce: process.env.CSP_ENFORCE === "true" });
 
     // ─── REWRITE UPLOADS: Must happen before any performance short-circuit ───
-    if (nextUrl.pathname.startsWith("/uploads/")) {
+    // ⚠️ Exclusion : les assets de jeu siphonnés vivent dans `public/uploads/assets-dofus`
+    // (données publiques DofusDB/Dofensive, servies statiquement). Sans elle, le rewrite
+    // ci-dessous les masque (404) alors que les fichiers existent sur disque.
+    // Seuls les uploads utilisateurs (preuves, docs…) passent par `/api/storage/*`.
+    if (nextUrl.pathname.startsWith("/uploads/") && !nextUrl.pathname.startsWith("/uploads/assets-dofus/")) {
         const protectedPath = nextUrl.pathname.replace("/uploads/", "/api/storage/");
         return NextResponse.rewrite(new URL(protectedPath, req.url));
     }

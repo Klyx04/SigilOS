@@ -35,7 +35,9 @@
   - **Docs & tour** : fiches `/docs/marche` + « Configurer le Marché », 2 permissions documentées, `docs-mapping`, `seed:docs`+`build:seeds` · tour `marche` (6 étapes) + les 2 boutons (`📖 Documentation` / `❓ Tutoriel`).
   - Vérifs : **`prisma validate`** ✅ · **`migrate diff` 0 écart** ✅ · **`tsc` 0 erreur** ✅ · **`build` OK** · tests Marché **27/27** ✅ · **suite complète 682/682** ✅ (2 tests « préexistants » réparés : fixtures `data-health` / `siphon-stats` figées au 09/09 → rendues relatives à l'horloge, commit `5136214ba`).
   - ⚠️ `prisma migrate dev` **impossible en local** (dérive préexistante `20260819000000_add_inter_guild` absente du repo → reset destructif refusé) ⇒ migration écrite à la main + `prisma db execute`.
-  - ⚪ RESTE : DoD visuelle dark/light/mobile (vérif user) · assistant **5 étapes** (S1.42 → B2) · ➡️ **B2 = S2 + S3**.
+  - ✅ **PR #627 MERGÉE** dans `dev` (merge `62e53aae4`, 21:50Z) — CI **Verify & Build** ✅ + CD **Build & Push Images** ✅ · branche mergée supprimée.
+  - 🔧 **2 bugs d'infra corrigés avant merge** : (1) **fixtures de tests figées** (`data-health`, `siphon-stats`) = bombes à retardement → `const NOW = Date.now()` (`5136214ba`) ; (2) **plafond mémoire Node ≈ 2 Go** → OOM sur `tsc --noEmit` **et** `next build` ⇒ `NODE_OPTIONS=--max-old-space-size=4096` dans `.github/workflows/verify.yml` **et** `Dockerfile` (`66ffdd724`).
+  - ⚪ RESTE : DoD visuelle dark/light/mobile (vérif user) · assistant **5 étapes** (S1.42 → B2) · ➡️ **B2 = S2 + S3** (branche depuis `dev`).
 
 - 🔸 **Session 08/09/2026 — Module « Titans »** (branche `feat/slash-rework`, non commité ; mémo `src/temp/memo-2026-09-08-titans.md`) :
   - **Fonctionnalité de bout en bout** : modèle `Titan` + `UserTitanProgress` + `DjSearchMode.TITAN` + champs DJ (`titanId/titanName/questName/questUrl`) — migrations `20261101000000_add_titan` + `20261102000000_add_titan_quests` appliquées. Admin GOD `TitanManager`, server actions `titan-admin-actions`/`titan-actions`, seed Gargandyas (id 8062, zone Osavora).

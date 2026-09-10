@@ -4,6 +4,7 @@ import { db } from '@/lib/prisma';
 import { isSuperAdmin, canAccessBrick } from '@/server/actions/super-admin-actions';
 import { logger } from '@/lib/logger';
 import { siphonAndCompressImage } from '@/lib/dofus-asset-siphon';
+import { dofusDbFetch } from '@/lib/dofusdb-limiter';
 import crypto from 'crypto';
 
 type ActionResponse<T = void> = {
@@ -203,7 +204,7 @@ export async function siphonGameItemsBatch(skip = 0, limit = 50): Promise<
         const safeLimit = Math.min(Math.max(limit, 10), 100);
         const url = `https://api.dofusdb.fr/items?$limit=${safeLimit}&$skip=${skip}`;
 
-        const res = await fetch(url, {
+        const res = await dofusDbFetch(url, {
             headers: {
                 Accept: 'application/json',
                 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)',
@@ -326,5 +327,108 @@ export async function siphonGameItemsBatch(skip = 0, limit = 50): Promise<
     } catch (error: any) {
         logger.error('[siphonGameItemsBatch] Error:', { error: error?.message, skip, limit });
         return { success: false, error: `Erreur lors du siphon: ${error?.message}` };
+    }
+}
+
+// ─── Phase 5.2 — Items disparus : flag isDeprecated, jamais supprimés ───────
+// DofusDB retire parfois des items (renommages, nettoyages). Sans traitement,
+// ils restent en BDD comme des fantômes à jour. On les flag dépréciés (exclus
+// des recherches — cf. `isDeprecated: false` partout) et on ressuscite ceux
+// qui réapparaissent. Suppression physique : JAMAIS (historique, drops liés).
+
+async function fetchAllRemoteItemIds(): Promise<number[] | null> {
+    const ids: number[] = [];
+    const limit = 500;
+    let skip = 0;
+    for (let page = 0; page < 100; page++) {
+        const res = await dofusDbFetch(`https://api.dofusdb.fr/items?$limit=${limit}&$skip=${skip}&$select[]=id`, {
+            headers: { Accept: 'application/json', 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
+            signal: AbortSignal.timeout(15_000),
+        });
+        if (!res.ok) return null;
+        const json = await res.json();
+        const batch: unknown[] = Array.isArray(json?.data) ? json.data : [];
+        for (const row of batch) {
+            const id = Number((row as { id?: unknown })?.id);
+            if (Number.isInteger(id) && id > 0) ids.push(id);
+        }
+        if (batch.length < limit) break;
+        skip += limit;
+    }
+    return ids;
+}
+
+export interface VanishedPreview {
+    vanished: { ankamaId: number; name: string }[];
+    revivable: { ankamaId: number; name: string }[];
+    localTotal: number;
+    remoteTotal: number;
+}
+
+/** Dry-run : calcule quoi flagger/ressusciter, n'écrit RIEN. */
+export async function previewVanishedGameItems(): Promise<ActionResponse<VanishedPreview>> {
+    if (!(await canManageGameItems())) {
+        return { success: false, error: 'Non autorisé' };
+    }
+    try {
+        const remoteIds = await fetchAllRemoteItemIds();
+        if (!remoteIds) return { success: false, error: 'DofusDB injoignable' };
+        const { diffVanishedIds } = await import('@/lib/data-health');
+        const remote = new Set(remoteIds);
+        const [active, flagged] = await Promise.all([
+            db.gameItem.findMany({ where: { isDeprecated: false }, select: { ankamaId: true, name: true } }),
+            db.gameItem.findMany({ where: { isDeprecated: true }, select: { ankamaId: true, name: true } }),
+        ]);
+        const vanishedIds = new Set(diffVanishedIds(active.map((i) => i.ankamaId), remoteIds));
+        return {
+            success: true,
+            data: {
+                vanished: active.filter((i) => vanishedIds.has(i.ankamaId)),
+                revivable: flagged.filter((i) => remote.has(i.ankamaId)),
+                localTotal: active.length + flagged.length,
+                remoteTotal: remote.size,
+            },
+        };
+    } catch (error: any) {
+        logger.error('[previewVanishedGameItems] Error:', { error: error?.message });
+        return { success: false, error: 'Dry-run impossible' };
+    }
+}
+
+/** Applique : flag les disparus + ressuscite les réapparus. Jamais de delete. */
+export async function flagVanishedGameItems(): Promise<
+    ActionResponse<{ deprecated: number; revived: number }>
+> {
+    if (!(await canManageGameItems())) {
+        return { success: false, error: 'Non autorisé' };
+    }
+    try {
+        const preview = await previewVanishedGameItems();
+        if (!preview.success || !preview.data) {
+            return { success: false, error: preview.error || 'Dry-run impossible' };
+        }
+        const toFlag = preview.data.vanished.map((i) => i.ankamaId);
+        const toRevive = preview.data.revivable.map((i) => i.ankamaId);
+        let deprecated = 0;
+        let revived = 0;
+        if (toFlag.length > 0) {
+            const r = await db.gameItem.updateMany({
+                where: { ankamaId: { in: toFlag }, isDeprecated: false },
+                data: { isDeprecated: true },
+            });
+            deprecated = r.count ?? 0;
+        }
+        if (toRevive.length > 0) {
+            const r = await db.gameItem.updateMany({
+                where: { ankamaId: { in: toRevive }, isDeprecated: true },
+                data: { isDeprecated: false },
+            });
+            revived = r.count ?? 0;
+        }
+        logger.info(`[flagVanishedGameItems] ${deprecated} déprécié(s), ${revived} ressuscité(s).`);
+        return { success: true, data: { deprecated, revived } };
+    } catch (error: any) {
+        logger.error('[flagVanishedGameItems] Error:', { error: error?.message });
+        return { success: false, error: 'Flag impossible' };
     }
 }

@@ -11,7 +11,7 @@ name: Build & Push Images
 # Prérequis :
 #  - Secrets GitHub : GHCR_PAT (Personal Access Token avec
 #    write:packages) ou utiliser GITHUB_TOKEN (défaut).
-#  - Secrets du build : BETA_PASSWORD, NEXT_PUBLIC_APP_URL
+#  - Secrets du build : BETA_PASSWORD, NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_SENTRY_DSN
 #    (définis dans Settings > Secrets and variables > Actions).
 # ─────────────────────────────────────────────────────────────
 on:
@@ -132,6 +132,7 @@ jobs:
               -f Dockerfile \
               --build-arg NEXT_PUBLIC_APP_URL="${APP_URL}" \
               --build-arg BETA_PASSWORD="${{ secrets.BETA_PASSWORD }}" \
+              --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" \
               --target runner \
               -t "${REG}/sigilos-${NAME}-${SUFFIX}:${SHA_SHORT}" \
               -t "${REG}/sigilos-${NAME}-${SUFFIX}:latest" \

@@ -23,7 +23,7 @@ import {
     ChevronDown
 } from "lucide-react";
 import { toast } from "sonner";
-import { updatePlatformConfig, testStatusPing, testBackupNotification, toggleMaintenanceMode } from "@/server/actions/changelog-actions";
+import { updatePlatformConfig, testStatusPing, testBackupNotification, toggleMaintenanceMode, sendSentryTestEvent } from "@/server/actions/changelog-actions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -127,6 +127,19 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                 loading: "Envoi de l'alerte ADMIN (Test)...",
                 success: (res: any) => {
                     if (res.success) return `Alerte ADMIN envoyée avec succès !`;
+                    throw new Error(res.error);
+                },
+                error: (err: any) => `Erreur : ${err.message}`
+            });
+        });
+    };
+
+    const handleTestSentry = () => {
+        startTransition(async () => {
+            toast.promise(sendSentryTestEvent(), {
+                loading: "Envoi de l'event test vers Sentry...",
+                success: (res: any) => {
+                    if (res.success) return `Event envoyé ! Vérifie sentry.io → Issues.`;
                     throw new Error(res.error);
                 },
                 error: (err: any) => `Erreur : ${err.message}`
@@ -326,9 +339,14 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                                 <span className="text-xs font-black text-white uppercase block">3. Salon Alertes GOD (Privé)</span>
                                 <p className="text-caption text-zinc-500 leading-normal">Rapports d'erreurs critiques & backups.</p>
                             </div>
-                            <Button size="sm" variant="ghost" onClick={handleTestBackup} className="text-caption font-black uppercase text-rose-400 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20">
-                                Test Alerte
-                            </Button>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <Button size="sm" variant="ghost" onClick={handleTestSentry} title="Envoie un event test vers Sentry (vérifie le DSN)" className="text-caption font-black uppercase text-violet-400 bg-violet-500/10 border border-violet-500/20 hover:bg-violet-500/20">
+                                    Test Sentry
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={handleTestBackup} className="text-caption font-black uppercase text-rose-400 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20">
+                                    Test Alerte
+                                </Button>
+                            </div>
                         </div>
                         <Input
                             type="text"

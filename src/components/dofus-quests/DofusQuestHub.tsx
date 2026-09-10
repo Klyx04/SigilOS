@@ -244,10 +244,6 @@ export function DofusQuestHub({
                                         </div>
                                     </div>
                                     <div className="space-y-3 pt-6 border-t border-border">
-                                        <div className="flex items-center justify-between text-body-sm font-semibold">
-                                            <span className="text-muted-foreground">Mode :</span>
-                                            <span className="text-success font-semibold">Collaboratif</span>
-                                        </div>
                                         <div className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-success/30 bg-success/10 text-caption font-bold text-success group-hover:bg-success/20 transition-colors">
                                             Démarrer le Rush <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                                         </div>
@@ -284,10 +280,6 @@ export function DofusQuestHub({
                                         </div>
                                     </div>
                                     <div className="space-y-3 pt-6 border-t border-border">
-                                        <div className="flex items-center justify-between text-body-sm font-semibold">
-                                            <span className="text-muted-foreground">Guides disponibles :</span>
-                                            <span className="text-info font-semibold">{guides.length}</span>
-                                        </div>
                                         <div className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-info/30 bg-info/10 text-caption font-bold text-info group-hover:bg-info/20 transition-colors">
                                             Consulter les Guides <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                                         </div>
@@ -394,10 +386,6 @@ export function DofusQuestHub({
                                         </div>
                                     </div>
                                     <div className="space-y-3 pt-6 border-t border-border">
-                                        <div className="flex items-center justify-between text-body-sm font-semibold">
-                                            <span className="text-muted-foreground">Membres actifs :</span>
-                                            <span className="text-success font-semibold">{guildStats?.totalMembers || 0}</span>
-                                        </div>
                                         <div className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-success/30 bg-success/10 text-caption font-bold text-success group-hover:bg-success/20 transition-colors">
                                             Voir la Guilde <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                                         </div>

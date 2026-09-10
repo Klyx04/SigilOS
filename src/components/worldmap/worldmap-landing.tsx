@@ -1,23 +1,17 @@
 import Link from "next/link";
-import {
-    Map,
-    Zap,
-    Swords,
-    Bug,
-    Sprout,
-    Compass,
-    Maximize2
-} from "lucide-react";
+import Image from "next/image";
+import { Maximize2 } from "lucide-react";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
+/** Icônes officielles du jeu (dump HD `dofus_assets/icons_assets_2x`). */
 const FEATURES = [
-    { icon: Map, title: "Tous les mondes", text: "Chaque monde est disponible et navigable." },
-    { icon: Zap, title: "Zaaps", text: "Localisez les zaaps et leurs destinations." },
-    { icon: Swords, title: "Donjons", text: "Tous les donjons, y compris la Quête Ocre." },
-    { icon: Bug, title: "Archimonstres", text: "Retrouvez-les sur chaque map en un clic." },
-    { icon: Sprout, title: "Farm & GPS", text: "Itinéraires de récolte optimisés." },
-    { icon: Compass, title: "Recherche & navigation", text: "Centre la carte sur la map cherchée." }
+    { icon: "/assets/dofus/icons/world.png", title: "Tous les mondes", text: "Le monde des Douze complet, en tuiles HD navigables." },
+    { icon: "/assets/dofus/icons/zaap.png", title: "Zaaps", text: "Chaque zaap positionné, avec ses destinations." },
+    { icon: "/assets/dofus/icons/boss.png", title: "Donjons", text: "Chaque donjon et son boss, Quête Ocre incluse." },
+    { icon: "/assets/dofus/icons/archimonster.png", title: "Archimonstres", text: "Leur position exacte, map par map." },
+    { icon: "/assets/dofus/icons/pickaxe.png", title: "Farm & GPS", text: "Itinéraires de récolte et guidage /travel." },
+    { icon: "/assets/dofus/icons/magnifier.png", title: "Recherche", text: "Une recherche, la carte se centre sur la map." }
 ];
 
 export function WorldmapLanding({ guildId }: { guildId: string }) {
@@ -61,7 +55,7 @@ export function WorldmapLanding({ guildId }: { guildId: string }) {
                                     className="rounded-xl border border-border bg-card px-3.5 py-3 flex flex-col gap-1 hover:border-border-strong transition-colors"
                                 >
                                     <div className="flex items-center gap-2">
-                                        <f.icon className="h-4 w-4 text-primary shrink-0" />
+                                        <Image src={f.icon} alt="" width={22} height={22} className="w-[22px] h-[22px] object-contain shrink-0 drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]" />
                                         <h2 className="text-sm font-semibold text-foreground">{f.title}</h2>
                                     </div>
                                     <p className="text-xs text-muted-foreground leading-relaxed">{f.text}</p>
@@ -84,16 +78,20 @@ export function WorldmapLanding({ guildId }: { guildId: string }) {
                         </div>
                     </div>
 
-                    {/* Colonne droite : aperçu de la carte */}
+                    {/* Colonne droite : aperçu HD (Astrub, cité) */}
                     <div className="lg:w-[42%] flex flex-col lg:min-h-0">
-                        <div className="flex-1 rounded-xl border border-border bg-surface overflow-hidden lg:min-h-0">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src="/assets/worldmap/map-monde.png"
-                                alt="Aperçu de la carte du monde"
+                        <div className="relative flex-1 rounded-xl border border-border bg-surface overflow-hidden lg:min-h-0 min-h-[240px]">
+                            <Image
+                                src="/assets/worldmap/astrub-apercu.webp"
+                                alt="Aperçu HD de la carte : la cité d'Astrub"
+                                fill
                                 loading="lazy"
-                                className="w-full h-full object-cover"
+                                sizes="(max-width: 1024px) 100vw, 42vw"
+                                className="object-cover"
                             />
+                            <span className="absolute left-3 bottom-3 px-2.5 py-1 rounded-lg text-xs font-semibold bg-black/60 text-zinc-100 border border-white/10">
+                                Astrub — cartes HD
+                            </span>
                         </div>
                     </div>
                 </div>

@@ -17,6 +17,7 @@ import { getDofensiveDungeonForBoss } from '@/server/actions/dofensive-actions';
 import { getMonsterStats } from '@/server/actions/game-data-actions';
 import { persistMonsterStat } from '@/lib/dofensive-sync';
 import { bossMatchKey } from '@/lib/data-health';
+import { deriveDofensiveMonsterName, resolveMonsterKey } from '@/lib/dofensive-boss';
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -59,6 +60,8 @@ export interface SiphonInventoryItem {
     remoteImageUrl?: string | null;
     localImageUrl?: string | null;
     lastSyncedAt?: string | null;
+    /** Nom du monstre réellement siphonné pour les doubles boss (« Comte et Klime » → « Klime »). */
+    resolvedMonsterName?: string | null;
 }
 
 /**
@@ -147,7 +150,18 @@ export async function getSiphonInventory(filters: {
             if (bossKey.includes('reine nyee')) bossKey = 'reine nyee';
             if (bossKey.includes('dernier espoir') || bossKey.includes('eliocalypse')) bossKey = 'servitude';
 
-            const statRow = monsterStatsMap.get(bossKey) || monsterStatsMap.get(dj.bossName.toLowerCase().trim());
+            // Doubles boss (« Comte et Klime ») : le monstre réel est la queue du nom
+            // (ou dofensiveMonsterName explicite). Sans ça, la fiche « Klime » en BDD
+            // ne matche jamais la ligne « Comte et Klime » → hétérogénéité permanente.
+            const explicitMonster = dj.dofensiveMonsterName?.trim() || null;
+            const derivedTail = deriveDofensiveMonsterName(dj.bossName);
+            const resolvedDisplay = explicitMonster
+                || (derivedTail ? derivedTail.charAt(0).toUpperCase() + derivedTail.slice(1) : null);
+            const resolvedKey = resolveMonsterKey(dj.dofensiveMonsterName, dj.bossName);
+
+            const statRow = monsterStatsMap.get(resolvedKey)
+                || monsterStatsMap.get(bossKey)
+                || monsterStatsMap.get(dj.bossName.toLowerCase().trim());
             const statsData = (statRow?.stats as any) || null;
 
             let numericMonsterId: number | null = null;
@@ -183,6 +197,7 @@ export async function getSiphonInventory(filters: {
                 remoteImageUrl: remoteImg,
                 localImageUrl: localImg,
                 lastSyncedAt: statRow?.lastSyncedAt?.toISOString() || null,
+                resolvedMonsterName: resolvedDisplay,
             });
         }
 

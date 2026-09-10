@@ -14,7 +14,6 @@ import { redirect } from "next/navigation";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { ToolsBentoShowcase } from "@/components/landing/tools-bento-showcase";
 import { FaqSection } from "@/components/landing/faq-section";
-import { PreFooterCta } from "@/components/landing/pre-footer-cta";
 import { getPublicLandingScreens } from "@/server/actions/landing-screen-actions";
 import { getAppBaseUrl } from "@/lib/utils";
 
@@ -98,24 +97,16 @@ export default async function Home({
 }) {
   const [session, info] = await Promise.all([auth(), searchParams]);
 
-  const { getUserContext, getUserGuilds } = await import("@/server/actions/user-actions");
+  const { getUserContext } = await import("@/server/actions/user-actions");
 
-  const [userContext, userGuilds] = await Promise.all([
-    getUserContext(),
-    session?.user ? getUserGuilds() : Promise.resolve([]),
-  ]);
+  const userContext = await getUserContext();
 
   // Landing v3 — showcase mini-dashboards par guilde (stats réelles, cache Redis 5 min)
   const showcaseGuilds = await getPublicGuildShowcase(6);
 
   // 🖼️ #140 — screens de la landing pilotés par le God (fallback captures par défaut)
-  const [productScreensRes, heroScreensRes] = await Promise.all([
-      getPublicLandingScreens("product-story"),
-      getPublicLandingScreens("hero"),
-  ]);
+  const productScreensRes = await getPublicLandingScreens("product-story");
   const productScreens = (productScreensRes.success && productScreensRes.data) ? productScreensRes.data : [];
-  const heroScreens = (heroScreensRes.success && heroScreensRes.data) ? heroScreensRes.data : [];
-  const heroImageUrl = heroScreens[0]?.imageUrl;
 
   if (info.error) {
     redirect(`/auth/error?error=${info.error}`);
@@ -156,10 +147,10 @@ export default async function Home({
         <main className="flex-1 w-full relative z-10 flex flex-col">
 
           {/* Hero — Dofus Unity Immersive */}
-          <DofusHeroSection user={session?.user} userGuilds={userGuilds} clientId={clientId} autoOnboardingOn={autoOnboardingOn} />
+          <DofusHeroSection clientId={clientId} autoOnboardingOn={autoOnboardingOn} isConnected={!!session?.user} />
 
           {/* Outils & Overlay Compagnon Bento Showcase (Gratuit / Sans Inscription) */}
-          <ToolsBentoShowcase />
+          <ToolsBentoShowcase clientId={clientId} />
 
           {/* Problème / solution */}
           <ProblemSolution />
@@ -176,11 +167,8 @@ export default async function Home({
           {/* Comment ça marche */}
           <HowItWorks />
 
-          {/* FAQ courte — rassure avant le CTA final, renvoie vers /legal/faq */}
+          {/* FAQ courte — rassure avant le footer, renvoie vers /legal/faq */}
           <FaqSection />
-
-          {/* CTA final */}
-          <PreFooterCta />
 
         </main>
 

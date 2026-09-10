@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { getAppBaseUrl } from "@/lib/utils";
 import { sendChannelMessage, deleteChannelMessage, deleteChannel } from "@/server/discord";
 import { createNotification } from "@/server/actions/notification-actions";
 import { deleteDiscordRunEmbed } from "@/server/songes-service";
@@ -119,11 +120,14 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
             const authorDiscordId = await getDiscordIdByUserId(post.profile.userId);
             const authorMention = authorDiscordId ? `<@${authorDiscordId}>` : post.profile.discordNickname || "Créateur";
             const postTitle = post.questName || post.titanName || post.dungeon?.name || "Groupe Donjon/Quête";
+            // Lien direct vers le module + jours restants avant clôture auto (J+21)
+            const postLink = `${getAppBaseUrl()}/dashboard/${post.guild.discordGuildId}/donjons-et-quetes`;
+            const daysLeft = Math.max(0, 21 - daysSinceUpdate);
 
             // Seuil 1 : J+7 (Rappel 1)
             if (existingRemindersCount === 0 && daysSinceUpdate >= 7) {
                 if (post.discordChannelId) {
-                    const reminderMsg = `⏳ **Rappel 1/3 d'inactivité (J+7)** — ${authorMention}, ton annonce pour **${postTitle}** n'a pas eu d'activité depuis 7 jours. Est-elle toujours d'actualité ?`;
+                    const reminderMsg = `⏳ **Rappel 1/3 d'inactivité (J+7)** — ${authorMention}, ton annonce pour **${postTitle}** n'a pas eu d'activité depuis 7 jours. Si elle n'est plus d'actualité, clôture-la : [tableau de bord](${postLink}). Sinon, clôture automatique dans ${daysLeft} jours (J+21).`;
                     await sendChannelMessage(post.discordChannelId, reminderMsg).catch(() => "");
                 }
 
@@ -143,7 +147,7 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
                     post.profile.userId,
                     "SYSTEM_INFO",
                     "Rappel Sortie Donjon/Quête",
-                    `Ton annonce **${postTitle}** est inactive depuis 7 jours. Pense à la clôturer si elle n'est plus d'actualité.`,
+                    `Ton annonce **${postTitle}** est inactive depuis 7 jours. Clôture-la si elle n'est plus d'actualité, sinon clôture automatique dans ${daysLeft} jours.`,
                     `/dashboard/${post.guild.discordGuildId}/donjons-et-quetes`,
                     post.guild.discordGuildId
                 ).catch(() => {});
@@ -153,7 +157,7 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
             // Seuil 2 : J+15 (Rappel 2)
             else if (existingRemindersCount === 1 && daysSinceUpdate >= 15 && hoursSinceLastReminder >= 24) {
                 if (post.discordChannelId) {
-                    const reminderMsg = `⏳ **Rappel 2/3 d'inactivité (J+15)** — ${authorMention}, ton annonce pour **${postTitle}** est sans activité depuis 15 jours. Peux-tu confirmer si le groupe est maintenu ?`;
+                    const reminderMsg = `⏳ **Rappel 2/3 d'inactivité (J+15)** — ${authorMention}, ton annonce pour **${postTitle}** est sans activité depuis 15 jours. Groupe maintenu ? Réagis sur l'annonce ou clôture-la : [tableau de bord](${postLink}). Clôture automatique dans ${daysLeft} jours.`;
                     await sendChannelMessage(post.discordChannelId, reminderMsg).catch(() => "");
                 }
 
@@ -173,7 +177,7 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
                     post.profile.userId,
                     "SYSTEM_INFO",
                     "Rappel Sortie Donjon/Quête (2/3)",
-                    `Ton annonce **${postTitle}** est sans activité depuis 15 jours.`,
+                    `Ton annonce **${postTitle}** est sans activité depuis 15 jours. Clôture automatique dans ${daysLeft} jours sans interaction.`,
                     `/dashboard/${post.guild.discordGuildId}/donjons-et-quetes`,
                     post.guild.discordGuildId
                 ).catch(() => {});
@@ -183,7 +187,7 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
             // Seuil 3 : J+20 (Rappel 3 - Ultime)
             else if (existingRemindersCount === 2 && daysSinceUpdate >= 20 && hoursSinceLastReminder >= 24) {
                 if (post.discordChannelId) {
-                    const reminderMsg = `⚠️ **DERNIER RAPPEL 3/3 (J+20)** — ${authorMention}, ton annonce pour **${postTitle}** est inactive depuis 20 jours. Sans interaction sous 24h, elle sera clôturée et supprimée définitivement.`;
+                    const reminderMsg = `⚠️ **DERNIER RAPPEL 3/3 (J+20)** — ${authorMention}, ton annonce pour **${postTitle}** est inactive depuis 20 jours. Sans interaction sous 24h, elle sera clôturée et supprimée définitivement : [tableau de bord](${postLink}).`;
                     await sendChannelMessage(post.discordChannelId, reminderMsg).catch(() => "");
                 }
 
@@ -261,11 +265,13 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
             const reminderCount = run.reminders?.length || 0;
             const leaderDiscordId = await getDiscordIdByUserId(run.leaderId);
             const leaderMention = leaderDiscordId ? `<@${leaderDiscordId}>` : "Chef de groupe";
+            const runLink = `${getAppBaseUrl()}/dashboard/${guildConfig.discordGuildId}/songes`;
+            const daysLeft = Math.max(0, 21 - daysSinceUpdate);
 
             // Seuil 1 : J+7
             if (reminderCount === 0 && daysSinceUpdate >= 7) {
                 if (run.discordChannelId) {
-                    const reminderMsg = `⏳ **Rappel 1/3 Songes (J+7)** — ${leaderMention}, ton run Songes (${run.difficulty}) est sans activité depuis 7 jours. Est-il toujours ouvert ?`;
+                    const reminderMsg = `⏳ **Rappel 1/3 Songes (J+7)** — ${leaderMention}, ton run Songes (${run.difficulty}) est sans activité depuis 7 jours. S'il n'est plus d'actualité, clôture-le : [tableau de bord](${runLink}). Sinon, clôture automatique dans ${daysLeft} jours (J+21).`;
                     const sentMsgId = await sendChannelMessage(run.discordChannelId, reminderMsg).catch(() => "");
                     if (sentMsgId) {
                         await (db as any).dreamRunReminder.create({
@@ -286,7 +292,7 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
             // Seuil 2 : J+15
             else if (reminderCount === 1 && daysSinceUpdate >= 15 && hoursSinceLastReminder >= 24) {
                 if (run.discordChannelId) {
-                    const reminderMsg = `⏳ **Rappel 2/3 Songes (J+15)** — ${leaderMention}, ton run Songes (${run.difficulty}) est sans activité depuis 15 jours. Peux-tu confirmer s'il continue ?`;
+                    const reminderMsg = `⏳ **Rappel 2/3 Songes (J+15)** — ${leaderMention}, ton run Songes (${run.difficulty}) est sans activité depuis 15 jours. Continue ? Confirme ou clôture ici : [tableau de bord](${runLink}). Clôture automatique dans ${daysLeft} jours.`;
                     const sentMsgId = await sendChannelMessage(run.discordChannelId, reminderMsg).catch(() => "");
                     if (sentMsgId) {
                         await (db as any).dreamRunReminder.create({
@@ -307,7 +313,7 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
             // Seuil 3 : J+20 (Ultime)
             else if (reminderCount === 2 && daysSinceUpdate >= 20 && hoursSinceLastReminder >= 24) {
                 if (run.discordChannelId) {
-                    const reminderMsg = `⚠️ **DERNIER RAPPEL 3/3 Songes (J+20)** — ${leaderMention}, ton run Songes (${run.difficulty}) est inactif depuis 20 jours. Sans interaction sous 24h, il sera clôturé et supprimé.`;
+                    const reminderMsg = `⚠️ **DERNIER RAPPEL 3/3 Songes (J+20)** — ${leaderMention}, ton run Songes (${run.difficulty}) est inactif depuis 20 jours. Sans interaction sous 24h, il sera clôturé et supprimé : [tableau de bord](${runLink}).`;
                     const sentMsgId = await sendChannelMessage(run.discordChannelId, reminderMsg).catch(() => "");
                     if (sentMsgId) {
                         await (db as any).dreamRunReminder.create({

@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { loginWithDiscord } from "@/server/actions/auth-actions";
+import { buildDiscordBotInviteUrl } from "@/lib/discord-permissions";
 import { DiscordIcon } from "@/components/shared/icons";
 
 function CardLabel({ icon, children }: { icon: string; children: React.ReactNode }) {
@@ -16,7 +17,23 @@ function CardLabel({ icon, children }: { icon: string; children: React.ReactNode
   );
 }
 
-export function ToolsBentoShowcase() {
+export function ToolsBentoShowcase({ clientId = "" }: { clientId?: string }) {
+  const openBotInstall = () => {
+    if (!clientId) {
+      void loginWithDiscord();
+      return;
+    }
+    const inviteUrl = buildDiscordBotInviteUrl(clientId, {
+      redirectUri: `${window.location.origin}/onboarding/success`,
+      scope: "bot applications.commands",
+    });
+    if (!inviteUrl) return;
+    const popup = window.open(inviteUrl, "_blank");
+    if (!popup || popup.closed || typeof popup.closed === "undefined") {
+      window.location.href = inviteUrl;
+    }
+  };
+
   return (
     <section className="relative w-full py-20 border-b border-border overflow-hidden bg-background">
       <div className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8">
@@ -41,9 +58,18 @@ export function ToolsBentoShowcase() {
                 Overlay · gratuit et sans inscription
               </CardLabel>
 
-              <h3 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-                Le guide de quête, flottant sur ton jeu
-              </h3>
+              <div className="flex items-start justify-between gap-4">
+                <h3 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+                  Le guide de quête, flottant sur ton jeu
+                </h3>
+                <Image
+                  src="/module-dofus/Dofus_Sylvestre.png"
+                  alt="Dofus Sylvestre"
+                  width={72}
+                  height={72}
+                  className="w-16 h-16 sm:w-[72px] sm:h-[72px] object-contain shrink-0 drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]"
+                />
+              </div>
 
               <p className="text-sm text-muted-foreground leading-relaxed max-w-lg">
                 Détache le guide en mini-fenêtre toujours au premier plan.
@@ -79,9 +105,18 @@ export function ToolsBentoShowcase() {
                 Bestiaire tactique
               </CardLabel>
 
-              <h3 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
-                Fiches boss et grilles de portée
-              </h3>
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
+                  Fiches boss et grilles de portée
+                </h3>
+                <Image
+                  src="/game-data/monsters/blop.webp"
+                  alt="Blop, monstre iconique de Dofus"
+                  width={64}
+                  height={64}
+                  className="w-14 h-14 sm:w-16 sm:h-16 object-contain shrink-0 drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]"
+                />
+              </div>
 
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                 Portée des sorts sur grille isométrique, résistances par grade,
@@ -143,14 +178,23 @@ export function ToolsBentoShowcase() {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => loginWithDiscord()}
-              className="inline-flex items-center gap-2.5 px-5 py-3 rounded-xl bg-[#5865F2] hover:brightness-110 text-white font-bold text-sm shrink-0 cursor-pointer"
-            >
-              <DiscordIcon className="w-4 h-4" />
-              <span>Connecter mon Discord</span>
-            </button>
+            <div className="flex flex-col items-stretch gap-3 shrink-0 sm:min-w-[320px]">
+              <button
+                type="button"
+                onClick={openBotInstall}
+                className="inline-flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-sm shrink-0 cursor-pointer"
+              >
+                <DiscordIcon className="w-4 h-4" />
+                <span>Configurer SigilOS pour mon serveur Discord</span>
+              </button>
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shrink-0"
+              >
+                <span>Voir le tableau de bord</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
         </div>
       </div>

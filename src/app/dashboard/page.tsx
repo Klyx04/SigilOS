@@ -10,7 +10,8 @@ import { NoGuildMessage } from "@/components/no-guild-message";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { PublicHeader } from "@/components/layout/public-header";
-import { Button } from "@/components/ui/button";
+import { loginWithDiscord } from "@/server/actions/auth-actions";
+import Image from "next/image";
 
 type GuildData = {
     id: string;
@@ -25,7 +26,57 @@ import { getGuildsSeparated } from "@/server/actions/user-actions";
 
 export default async function GuildSelectorPage() {
     const session = await auth();
-    if (!session?.user?.id) redirect("/");
+    // Non connecté → page de connexion sobre (bouton Discord + rappel CGU),
+    // au lieu d'un retour silencieux vers la landing. Le reste du routing
+    // est inchangé : 1 guilde → redirect direct, N → choix, 0 → NoGuildMessage.
+    if (!session?.user?.id) {
+        return (
+            <div className="relative min-h-screen w-full overflow-hidden flex flex-col bg-background font-sans landing-theme">
+                <PublicHeader user={undefined} dashboardHref="/dashboard" isMember={false} clientId="" />
+                <main className="flex-1 flex flex-col items-center justify-center p-4 relative z-10 pt-24 pb-24">
+                    <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-8 text-center space-y-6">
+                        <div className="mx-auto w-16 h-16 relative">
+                            <Image
+                                src="/assets/ui/logo-v2.png"
+                                alt="SigilOS"
+                                fill
+                                className="object-contain"
+                                priority
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                                Bon retour
+                            </h1>
+                            <p className="text-sm text-muted-foreground leading-relaxed">
+                                Connecte-toi pour accéder à ton tableau de bord.
+                            </p>
+                        </div>
+                        <form action={loginWithDiscord}>
+                            <button
+                                type="submit"
+                                className="w-full inline-flex items-center justify-center gap-2.5 h-12 px-6 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-sm cursor-pointer"
+                            >
+                                Se connecter avec Discord
+                            </button>
+                        </form>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                            En te connectant, tu acceptes nos{" "}
+                            <Link href="/legal/cgu" className="underline underline-offset-2 hover:text-foreground">
+                                Conditions d&apos;Utilisation
+                            </Link>{" "}
+                            et notre{" "}
+                            <Link href="/legal/privacy" className="underline underline-offset-2 hover:text-foreground">
+                                Politique de Confidentialité
+                            </Link>
+                            .
+                        </p>
+                    </div>
+                </main>
+                <GalacticFooter isMember={false} />
+            </div>
+        );
+    }
 
     const { active, pending, awaiting, rateLimited, needsReconnect } = await getGuildsSeparated();
     const clientId = process.env.DISCORD_CLIENT_ID || process.env.AUTH_DISCORD_ID || "";

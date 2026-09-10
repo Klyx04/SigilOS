@@ -8,7 +8,7 @@ import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { JsonLd } from "@/components/shared/json-ld";
 import { auth } from "@/auth";
-import { Calendar, Sparkles, Coins, Gift, ArrowRight, ShieldCheck, HelpCircle } from "lucide-react";
+import { Calendar, Sparkles, Coins, Gift, ShieldCheck } from "lucide-react";
 
 export const revalidate = 3600; // Cache ISR 1h
 
@@ -159,15 +159,6 @@ export default async function AlmanaxPublicPage() {
                                             Position [-4,-24] (Zaap Plaine des Scarafeuilles)
                                         </div>
                                     </div>
-
-                                    <div className="pt-4 border-t border-border">
-                                        <Link
-                                            href="/guilds"
-                                            className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-success text-success-foreground font-black text-xs uppercase tracking-wider hover:opacity-95 transition-all shadow-lg shadow-success/20"
-                                        >
-                                            Suivre avec ma guilde <ArrowRight className="w-4 h-4" />
-                                        </Link>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -241,12 +232,20 @@ export default async function AlmanaxPublicPage() {
 
                     {/* Educational / SEO Section */}
                     <div className="rounded-3xl border border-border bg-surface/30 p-8 md:p-10 space-y-6">
-                        <h3 className="text-lg md:text-xl font-black text-foreground flex items-center gap-2">
-                            <HelpCircle className="w-5 h-5 text-success" /> Tout savoir sur la quête de l'Almanax & le Dolmanax
+                        <h3 className="text-lg md:text-xl font-black text-foreground flex items-center gap-2.5">
+                            <Image
+                                src="/module-dofus/Dofus_Dolmanax.png"
+                                alt="Dofus Dolmanax"
+                                width={28}
+                                height={28}
+                                className="w-7 h-7 object-contain shrink-0"
+                                unoptimized
+                            />
+                            Tout savoir sur la quête de l'Almanax & le Dolmanax
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs md:text-sm text-muted-foreground leading-relaxed">
                             <div className="space-y-2">
-                                <strong className="text-foreground block text-sm">Le Dolmanax (Niveau 128)</strong>
+                                <strong className="text-foreground block text-sm">Le Dolmanax</strong>
                                 <p>
                                     Accomplir 365 offrandes débloque le Dofus Dolmanax qui confère un bonus permanent de +50 dans les 4 éléments (Force, Intelligence, Chance, Agilité).
                                 </p>

@@ -3,6 +3,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { loginWithDiscord } from "@/server/actions/auth-actions";
+import { buildDiscordBotInviteUrl } from "@/lib/discord-permissions";
 
 const DiscordIcon = ({ className }: { className?: string }) => (
     <svg className={className} viewBox="0 0 127.14 96.36" fill="currentColor" aria-hidden="true">
@@ -18,10 +19,27 @@ interface AccessRequestModalProps {
      * le bloc "En autonomie" (file God uniquement). Défaut true.
      */
     autoOnboardingOn?: boolean;
+    /** Client ID Discord pour le lien direct d'ajout du bot. Sans lui, repli login. */
+    clientId?: string;
 }
 
-export function AccessRequestModal({ open, onClose, autoOnboardingOn = true }: AccessRequestModalProps) {
+export function AccessRequestModal({ open, onClose, autoOnboardingOn = true, clientId = "" }: AccessRequestModalProps) {
     const discordInvite = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || "https://discord.gg/uX7G6SUDgN";
+
+    const addBotDirect = () => {
+        if (!clientId) {
+            void loginWithDiscord();
+            return;
+        }
+        const inviteUrl = buildDiscordBotInviteUrl(clientId, {
+            scope: "bot applications.commands",
+        });
+        if (!inviteUrl) return;
+        const popup = window.open(inviteUrl, "_blank");
+        if (!popup || popup.closed || typeof popup.closed === "undefined") {
+            window.location.href = inviteUrl;
+        }
+    };
 
     return (
         <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
@@ -46,15 +64,15 @@ export function AccessRequestModal({ open, onClose, autoOnboardingOn = true }: A
                             En autonomie <span className="font-medium text-muted-foreground">· immédiat et gratuit</span>
                         </p>
                         <p className="text-sm text-muted-foreground leading-relaxed">
-                            Chef de guilde ou admin Discord ? Connecte-toi et déploie
-                            ta guilde en 30 secondes.
+                            Chef de guilde ou admin Discord ? Ajoute le bot
+                            à ton serveur en 1 clic.
                         </p>
                         <Button
-                            onClick={() => loginWithDiscord()}
+                            onClick={addBotDirect}
                             className="w-full h-11 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm rounded-xl"
                         >
                             <DiscordIcon className="w-4 h-4 mr-2" />
-                            Continuer avec Discord
+                            Ajouter le bot à mon serveur
                         </Button>
                     </div>
                     )}

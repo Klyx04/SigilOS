@@ -154,6 +154,25 @@ git_fetch() {
     dim "Récupération du code source (non bloquant — le déploiement n'en dépend pas)..."
     local BRANCH DIRTY
     BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo dev)"
+
+    # ─── Artefacts RÉGÉNÉRÉS au runtime (bind mount compose) ────────────────
+    # Le siphon (cron `sync-monster-stats` + bouton God) réécrit ce fichier à travers
+    # le bind mount `public/game-data` → le fichier VERSIONNÉ devient « modifié » côté
+    # serveur et `git pull` refusait de l'écraser (« Your local changes ... would be
+    # overwritten by merge → Aborting »). Son contenu est éphémère (régénéré au tick
+    # suivant) ⇒ on restaure la version du dépôt avant le pull.
+    # ➕ Ajouter ici tout futur artefact généré dans un dossier versionné.
+    local GENERATED=(
+        "public/game-data/dungeon-monsters.json"
+    )
+    local f
+    for f in "${GENERATED[@]}"; do
+        if [[ -f "$f" ]] && ! git diff --quiet -- "$f" 2>/dev/null; then
+            dim "  → artefact régénéré : $f (restauration de la version du dépôt)"
+            git checkout -- "$f"
+        fi
+    done
+
     DIRTY="$(git status --porcelain 2>/dev/null)"
     if [[ -n "$DIRTY" ]]; then
         warn "Des fichiers locaux sont modifiés — le pull peut être bloqué (non bloquant)."

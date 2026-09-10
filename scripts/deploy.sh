@@ -63,6 +63,15 @@ if [ -d "public/uploads/guides" ]; then
     dim "🧹 Nettoyage temporaire des guides pour éviter les conflits de pull..."
     rm -rf public/uploads/guides
 fi
+# 🔁 Artefact RÉGÉNÉRÉ au runtime : le siphon (cron `sync-monster-stats` + bouton God) écrit
+# `public/game-data/dungeon-monsters.json` À TRAVERS le bind mount compose
+# (`~/SigilOS/public/game-data` → `/app/public/game-data`) → ce fichier VERSIONNÉ devient
+# « modifié » côté serveur et `git pull` refuse de l'écraser (merge aborted).
+# Il est régénéré au prochain tick du cron ⇒ on restaure la version du dépôt avant le pull.
+if ! git diff --quiet -- public/game-data/dungeon-monsters.json 2>/dev/null; then
+    dim "🧹 Artefact de siphon régénéré (dungeon-monsters.json) → restauration de la version du dépôt..."
+    git checkout -- public/game-data/dungeon-monsters.json
+fi
 git pull origin "$(git rev-parse --abbrev-ref HEAD)"
 
 # 3. Mise à jour de l'infrastructure de monitoring (silencieux)

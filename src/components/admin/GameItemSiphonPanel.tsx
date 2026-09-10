@@ -20,6 +20,7 @@ import { Progress } from '@/components/ui/progress';
 import {
     getGameItemsStats,
     siphonGameItemsBatch,
+    siphonMarketReferentials,
     searchLocalGameItems,
     type GameItemSearchResult,
 } from '@/server/actions/game-item-actions';
@@ -38,6 +39,8 @@ export function GameItemSiphonPanel() {
 
     // Siphon progress
     const [isSiphoning, setIsSiphoning] = useState(false);
+    // S2.5bis — siphon des référentiels d'effets & de caractéristiques (marché).
+    const [isSiphoningRefs, setIsSiphoningRefs] = useState(false);
     const [progressValue, setProgressValue] = useState(0);
     const [siphonStatus, setSiphonStatus] = useState<string | null>(null);
     const [logs, setLogs] = useState<string[]>([]);
@@ -136,6 +139,33 @@ export function GameItemSiphonPanel() {
         });
     };
 
+    /**
+     * S2.5bis — siphonne les référentiels DofusDB `/effects` + `/characteristics`
+     * (libellés FR, icônes, « % ») qui alimentent l'éditeur de jet et la carte d'item.
+     */
+    const handleSiphonReferentials = async () => {
+        setIsSiphoningRefs(true);
+        setLogs((prev) => ['📚 Siphon des référentiels (effets & caractéristiques)...', ...prev]);
+        startTransition(async () => {
+            try {
+                const res = await siphonMarketReferentials();
+                if (!res.success || !res.data) {
+                    setLogs((prev) => [`❌ Référentiels: ${res.error || 'Inconnue'}`, ...prev]);
+                    return;
+                }
+                const { characteristics, effects } = res.data;
+                setLogs((prev) => [
+                    `✅ Référentiels synchronisés : ${characteristics} caractéristique(s), ${effects} effet(s).`,
+                    ...prev,
+                ]);
+            } catch (err: any) {
+                setLogs((prev) => [`❌ Exception référentiels: ${err?.message}`, ...prev]);
+            } finally {
+                setIsSiphoningRefs(false);
+            }
+        });
+    };
+
     return (
         <div className="space-y-6">
             {/* Header Cards */}
@@ -202,6 +232,28 @@ export function GameItemSiphonPanel() {
                                 </>
                             )}
                         </Button>
+                        <Button
+                            onClick={handleSiphonReferentials}
+                            disabled={isSiphoningRefs || isPending}
+                            variant="outline"
+                            className="w-full mt-2 rounded-xl gap-2"
+                        >
+                            {isSiphoningRefs ? (
+                                <>
+                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                    Référentiels...
+                                </>
+                            ) : (
+                                <>
+                                    <Layers className="w-4 h-4" />
+                                    Synchroniser les référentiels
+                                </>
+                            )}
+                        </Button>
+                        <p className="text-caption text-muted-foreground mt-2">
+                            Effets &amp; caractéristiques DofusDB (libellés FR, icônes, « % ») — requis par
+                            l&apos;éditeur de jet FM du Marché.
+                        </p>
                     </div>
                 </div>
             </div>

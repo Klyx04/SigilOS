@@ -71,7 +71,11 @@ vi.mock("@/server/actions/game-data-actions", () => ({
 import { buildBossFicheGaps } from "@/lib/data-health";
 import { checkBossFicheGaps, getDataHealthOverview } from "@/server/actions/data-health-actions";
 
-const NOW = new Date("2026-09-09T12:00:00.000Z").getTime();
+// ⚠️ Référence RELATIVE à l'horloge réelle : `checkBossFicheGaps` / `buildBossFicheGaps`
+// comparent `lastSyncedAt` à l'horloge réelle (fenêtre « < 24 h »). Une date figée
+// rendait ces tests rouges dès que l'horloge dépassait cette date de plus de 24 h
+// (bombe à retardement déclenchée le 10/09/2026).
+const NOW = Date.now();
 const H = 60 * 60 * 1000;
 const iso = (ms: number) => new Date(ms).toISOString();
 

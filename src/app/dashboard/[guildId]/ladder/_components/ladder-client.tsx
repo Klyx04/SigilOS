@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { TrendingUp, Clock, Trophy, Loader2, ShieldCheck, CheckSquare, HandHeart, Zap, AlertTriangle, ChevronLeft, ChevronRight, MessageSquare, BookOpen, Heart, Tv, Swords, Search, X } from "lucide-react";
+import { Clock, Loader2, CheckSquare, Zap, AlertTriangle, ChevronLeft, ChevronRight, MessageSquare, BookOpen, Heart, Tv, Search, X } from "lucide-react";
 import { LeaderboardCard } from "./leaderboard-card";
 import {
     getActivityLadder,
@@ -227,202 +227,140 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
     };
 
     const categories = ([
-        { id: "activity", label: "Activité", icon: "/assets/icons/pa.png", isImage: true, color: "#10b981" },
+        { id: "activity", label: "Activité", icon: "/assets/dofus/icons/activity.png" },
         // « Général » (XP des membres) en 2e position pour être immédiatement visible.
-        { id: "general", label: "Général", icon: TrendingUp, isImage: false, color: "#3b82f6" },
-        { id: "guildatons", label: "Guildatons", icon: "/assets/icons/guildatons.png", isImage: true, color: "#eab308" },
-        { id: "raids", label: "Raids", icon: Swords, isImage: false, color: "#ef4444" },
-        { id: "discord", label: "Discord", icon: MessageSquare, isImage: false, color: "#818cf8" },
-        { id: "contribution", label: "Contribution", icon: HandHeart, isImage: false, color: "#a855f7" },
-        { id: "seniority", label: "Ancienneté", icon: Clock, isImage: false, color: "#06b6d4" },
-        { id: "success", label: "Succès", icon: Trophy, isImage: false, color: "#f59e0b" },
+        { id: "general", label: "Général", icon: "/assets/dofus/icons/crown.png" },
+        { id: "guildatons", label: "Guildatons", icon: "/assets/icons/guildatons.png" },
+        { id: "raids", label: "Raids", icon: "/assets/dofus/icons/crossedSwords.png" },
+        { id: "discord", label: "Discord", icon: "/assets/dofus/icons/chat.png" },
+        { id: "contribution", label: "Contribution", icon: "/assets/dofus/icons/heart.png" },
+        { id: "seniority", label: "Ancienneté", icon: "/assets/dofus/icons/hourglass.png" },
+        { id: "success", label: "Succès", icon: "/assets/dofus/icons/trophy-icon.png" },
     ] as const).filter(cat => !vitrineMode || (cat.id !== "activity" && cat.id !== "guildatons"));
 
     return (
         <div className="space-y-12">
             {/* Navigation par onglets */}
-            <div className="relative sticky top-0 z-50 py-2 sm:py-4 -mt-4 bg-background/80 backdrop-blur-xl border-b border-border shadow-xs">
+            <div className="sticky top-0 z-40 py-2 bg-background/90 backdrop-blur border-b border-border">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6">
                     <div className="flex items-center justify-between">
                         {/* Tab Container with Scroll Mask */}
                         <div className="relative flex-1 min-w-0">
-                            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar mask-horizontal-scroll premium-scrollbar lg:mask-none -mb-[1px] pb-1" data-tour="ladder-tabs">
+                            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar -mb-[1px]" data-tour="ladder-tabs">
                                 {categories.map((cat) => {
                                     const isActive = activeTab === cat.id;
                                     return (
                                         <button
                                             key={cat.id}
                                             onClick={() => setActiveTab(cat.id)}
+                                            aria-current={isActive ? "page" : undefined}
                                             className={cn(
-                                                "relative z-10 flex items-center gap-2.5 px-5 sm:px-6 py-3.5 sm:py-4 border-b-2 transition-colors group whitespace-nowrap",
-                                                isActive 
-                                                  ? "text-foreground" 
+                                                "flex items-center gap-2 px-4 sm:px-5 py-3 border-b-2 transition-colors whitespace-nowrap",
+                                                isActive
+                                                  ? "border-foreground text-foreground"
                                                   : "border-transparent text-muted-foreground hover:text-foreground"
                                             )}
-                                            style={isActive ? { borderColor: cat.color } : {}}
                                         >
-                                            {cat.isImage ? (
-                                                <div 
-                                                    className={cn(
-                                                        "w-5 h-5 relative",
-                                                        isActive ? "opacity-100" : "opacity-40 grayscale group-hover:opacity-100 group-hover:grayscale-0"
-                                                    )}
-                                                >
-                                                    <Image src={cat.icon as string} fill alt="" className="object-contain" />
-                                                </div>
-                                            ) : (
-                                                <cat.icon 
-                                                    className={cn(
-                                                        "w-4 h-4",
-                                                        isActive ? "opacity-100" : "text-muted-foreground group-hover:text-muted-foreground"
-                                                    )} 
-                                                    style={isActive ? { color: cat.color } : {}}
-                                                />
-                                            )}
-                                            <span className={cn(
-                                                "text-caption sm:text-caption font-semibold",
-                                                isActive ? "opacity-100" : "group-hover:text-foreground"
-                                            )}
-                                            style={isActive ? { color: cat.color } : {}}
-                                            >
+                                            <div className={cn("w-4 h-4 relative", !isActive && "opacity-50 grayscale")}>
+                                                <Image src={cat.icon} fill alt="" className="object-contain" />
+                                            </div>
+                                            <span className="text-xs font-semibold">
                                                 {cat.label}
                                             </span>
                                         </button>
                                     );
                                 })}
                             </div>
-                            
+
                             {/* Fading Edge for Scroll */}
-                            <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-black/80 to-transparent pointer-events-none md:hidden" />
+                            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none md:hidden" />
                         </div>
                     </div>
                 </div>
             </div>
 
             <div className="max-w-7xl mx-auto px-4 space-y-8">
-                {/* Explicative Card (2026 Style) */}
-                <div className="relative overflow-hidden rounded-3xl border border-border bg-surface/40 p-8 backdrop-blur-xl">
-                    <div 
-                        className="absolute top-0 right-0 w-64 h-64 blur-[100px] opacity-20 pointer-events-none"
-                        style={{ background: categories.find(c => c.id === activeTab)?.color || "#10b981" }}
-                    />
-                    
-                    <div className="relative flex flex-col md:flex-row items-start md:items-center gap-6">
-                        <div 
-                            className="w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 border border-border"
-                            style={{ backgroundColor: `${categories.find(c => c.id === activeTab)?.color}15` }}
-                        >
-                            {(() => {
-                                const cat = categories.find(c => c.id === activeTab);
-                                if (!cat) return <Trophy className="w-8 h-8" />;
-                                if (cat.isImage) {
-                                    return (
-                                        <div className="relative w-8 h-8">
-                                            <Image src={cat.icon as string} fill alt="" className="object-contain" />
-                                        </div>
-                                    );
-                                }
-                                const Icon = cat.icon as any;
-                                return <Icon className="w-8 h-8" style={{ color: cat.color }} />;
-                            })()}
-                        </div>
-                        
-                        <div className="space-y-2 flex-1 relative">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                <h2 className="text-2xl font-black text-foreground tracking-tighter uppercase flex items-center gap-3">
-                                    {categories.find(c => c.id === activeTab)?.label}
-                                    {activeTab === 'activity' && <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse " />}
-                                    {activeTab === 'guildatons' && <div className="w-1.5 h-1.5 rounded-full bg-warning animate-pulse " />}
-                                </h2>
-
-                                {/* Contextual Period Selector */}
-                                {(activeTab === "activity" || activeTab === "guildatons" || activeTab === "discord") && (
-                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 animate-in fade-in slide-in-from-right-4 duration-300 w-full sm:w-auto" data-tour="ladder-period">
-                                        {activeTab === "discord" && (
-                                            <Select value={discordMetric} onValueChange={(v) => setDiscordMetric(v as any)}>
-                                                <SelectTrigger className="w-full sm:w-[220px] h-9 sm:h-10 bg-surface border-border text-caption sm:text-caption font-black uppercase tracking-[0.2em] text-foreground rounded-xl hover:bg-surface transition-all shadow-xl backdrop-blur-3xl focus:ring-1 focus:ring-white/20 shrink-0">
-                                                    <div className="flex items-center gap-2">
-                                                        <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
-                                                        <SelectValue placeholder="Métrique" />
-                                                    </div>
-                                                </SelectTrigger>
-                                                <SelectContent className="bg-background/98 backdrop-blur-3xl border-border p-1 rounded-xl shadow-[0_30px_60px_-12px_rgba(0,0,0,0.8)]">
-                                                    <SelectItem value="voice" className="text-caption uppercase font-black tracking-widest rounded-lg focus:bg-surface text-info">🎙️ Vocal</SelectItem>
-                                                    <SelectItem value="messages" className="text-caption uppercase font-black tracking-widest rounded-lg focus:bg-surface text-info">💬 Messages</SelectItem>
-                                                    <SelectItem value="stream" className="text-caption uppercase font-black tracking-widest rounded-lg focus:bg-surface text-pink-400">📺 Streams (Vocal)</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        )}
-                                        <Select value={activityView} onValueChange={(v) => setActivityView(v as ActivityView)}>
-                                            <SelectTrigger className="w-full sm:w-[200px] h-9 sm:h-10 bg-surface border-border text-caption sm:text-caption font-black uppercase tracking-[0.2em] text-foreground rounded-xl hover:bg-surface transition-all shadow-xl backdrop-blur-3xl focus:ring-1 focus:ring-white/20">
-                                                <div className="flex items-center gap-2">
-                                                    <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                                                    <SelectValue placeholder="Période" />
-                                                </div>
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-background/98 backdrop-blur-3xl border-border p-1 rounded-xl shadow-[0_30px_60px_-12px_rgba(0,0,0,0.8)]">
-                                                <SelectItem value="weekly" className="text-caption uppercase font-black tracking-widest rounded-lg focus:bg-surface">📅 Cette semaine</SelectItem>
-                                                <SelectItem value="monthly" className="text-caption uppercase font-black tracking-widest rounded-lg focus:bg-surface">📅 Ce mois-ci</SelectItem>
-                                                <SelectItem value="alltime" className="text-caption uppercase font-black tracking-widest rounded-lg focus:bg-surface text-warning">🏆 Global (All-Time)</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                )}
-                            </div>
-                            
-                            <p className="text-muted-foreground text-sm leading-relaxed max-w-2xl">
-                                {activeTab === 'activity' && "Ce classement mesure votre engagement direct dans la guilde via la validation de missions et les dons de kamas. Seul l'XP gagné sur la période sélectionnée est comptabilisé."}
-                                {activeTab === 'contribution' && "Récompense les membres qui s'impliquent dans la vie de la guilde (aide aux succès, présence aux événements, parrainage). Ces points sont attribués manuellement par les officiers."}
-                                {activeTab === 'seniority' && "L'ordre de prestige basé sur votre date d'intégration au serveur de guilde. Plus vous êtes fidèle, plus vous montez dans ce panthéon d'honneur."}
-                                {activeTab === 'success' && "Le score de prestige Dofus par excellence. Ce ladder synchronise vos points de succès réels directement depuis les serveurs officiels d'Ankama."}
-                                {activeTab === 'general' && "L'expérience totale (XP) accumulée par votre personnage sur Dofus. Une mesure brute de puissance et de temps passé à parcourir le Monde des Douze."}
-                                {activeTab === 'guildatons' && "La richesse monétaire interne de la guilde. Le Guildaton est la monnaie virtuelle utilisée pour les échanges, les récompenses et la boutique exclusive."}
+                {/* Contexte du classement : titre, description, période */}
+                <div className="rounded-xl border border-border bg-card px-4 py-3.5">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex-1 min-w-[220px]">
+                            <h2 className="text-sm font-semibold text-foreground">
+                                {categories.find(c => c.id === activeTab)?.label}
+                            </h2>
+                            <p className="text-xs text-muted-foreground leading-relaxed mt-0.5 max-w-2xl">
+                                {activeTab === 'activity' && "Engagement de la guilde : missions validées et dons de kamas. Seul l'XP de la période compte."}
+                                {activeTab === 'contribution' && "Implication dans la vie de la guilde (entraide, événements, parrainage). Points attribués par les officiers."}
+                                {activeTab === 'seniority' && "Ordre d'arrivée sur le serveur de guilde. Les plus fidèles en tête."}
+                                {activeTab === 'success' && "Points de succès synchronisés depuis les serveurs Ankama."}
+                                {activeTab === 'general' && "Expérience totale accumulée par personnage sur Dofus."}
+                                {activeTab === 'guildatons' && "Monnaie interne de la guilde (échanges, récompenses, boutique)."}
                                 {activeTab === 'discord' && (
-                                    discordMetric === "messages" 
-                                        ? "Le volume de discussion sur Discord. Vos messages contribuent à l'animation de la guilde et à l'entraide communautaire."
-                                        : "Le temps passé en vocal pour jouer ensemble, coordonner des activités ou simplement discuter. Le cœur battant de la guilde."
+                                    discordMetric === "messages"
+                                        ? "Volume de discussion sur Discord."
+                                        : "Temps passé en vocal."
                                 )}
+                                {activeTab === 'raids' && "Participations aux raids et sorties organisées."}
                             </p>
-                            
-                            {(activeTab === 'success' || activeTab === 'general') && hasPseudoIssue && (
-                                <div className="mt-4 p-4 rounded-xl bg-warning/10 border border-warning/20 text-warning text-xs font-medium flex items-center gap-3 animate-in fade-in slide-in-from-left-4">
-                                    <AlertTriangle className="h-4 w-4 shrink-0" />
-                                    <span>
-                                        Vous n'apparaissez peut-être pas dans ce classement car votre 
-                                        <strong> pseudo Dofus</strong> {!pseudoDofus ? "n'est pas renseigné" : `("${pseudoDofus}") est invalide`}.
-                                        Rendez-vous sur <Link href={`/dashboard/${guildId}/profile`} className="underline font-black hover:text-warning">votre profil</Link> pour le corriger.
-                                    </span>
-                                </div>
-                            )}
                         </div>
+
+                        {/* Contextual Period Selector */}
+                        {(activeTab === "activity" || activeTab === "guildatons" || activeTab === "discord") && (
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto" data-tour="ladder-period">
+                                {activeTab === "discord" && (
+                                    <Select value={discordMetric} onValueChange={(v) => setDiscordMetric(v as any)}>
+                                        <SelectTrigger className="w-full sm:w-[180px] h-9 bg-surface border-border text-xs font-medium rounded-xl">
+                                            <SelectValue placeholder="Métrique" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="voice">Vocal</SelectItem>
+                                            <SelectItem value="messages">Messages</SelectItem>
+                                            <SelectItem value="stream">Streams</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                )}
+                                <Select value={activityView} onValueChange={(v) => setActivityView(v as ActivityView)}>
+                                    <SelectTrigger className="w-full sm:w-[180px] h-9 bg-surface border-border text-xs font-medium rounded-xl">
+                                        <SelectValue placeholder="Période" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="weekly">Cette semaine</SelectItem>
+                                        <SelectItem value="monthly">Ce mois-ci</SelectItem>
+                                        <SelectItem value="alltime">Global</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
                     </div>
+
+                    {(activeTab === 'success' || activeTab === 'general') && hasPseudoIssue && (
+                        <div className="mt-3 p-3 rounded-xl bg-warning/10 border border-warning/20 text-warning text-xs flex items-center gap-2.5">
+                            <AlertTriangle className="h-4 w-4 shrink-0" />
+                            <span>
+                                Vous n'apparaissez peut-être pas : votre
+                                <strong> pseudo Dofus</strong> {!pseudoDofus ? "n'est pas renseigné" : `("${pseudoDofus}") est invalide`}.
+                                Voir <Link href={`/dashboard/${guildId}/profile`} className="underline font-semibold hover:text-warning">votre profil</Link>.
+                            </span>
+                        </div>
+                    )}
                 </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
-                <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-3">
-                        <div className={cn(
-                            "w-2 h-2 rounded-full animate-pulse",
-                            activeTab === 'activity' ? 'bg-success' : activeTab === 'contribution' ? 'bg-info' : activeTab === 'seniority' ? 'bg-info' : activeTab === 'guildatons' ? 'bg-warning' : 'bg-warning'
-                        )} />
-                        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground">
-                             CLASSEMENT {
-                                activeTab === 'activity' ? 'D\'ACTIVITÉ' : 
-                                activeTab === 'contribution' ? 'DE CONTRIBUTION' : 
-                                activeTab === 'seniority' ? 'D\'ANCIENNETÉ' : 
-                                activeTab === 'guildatons' ? 'DE RICHESSE' : 
-                                activeTab === 'discord' ? (discordMetric === 'messages' ? 'DE DISCUSSION' : 'DE PRÉSENCE VOCALE') :
-                                (activeTab === 'general' ? 'D\'XP GÉNÉRALE' : 'DE PRESTIGE')
-                             }
-                        </h2>
-                    </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+                <h2 className="text-sm font-semibold text-foreground">
+                    Classement
+                    {pagination && pagination.totalCount > 0 && (
+                        <span className="ml-2 text-xs font-medium text-muted-foreground tabular-nums">
+                            {pagination.totalCount} membre{pagination.totalCount > 1 ? "s" : ""}
+                        </span>
+                    )}
+                </h2>
 
+                <div className="flex items-center gap-3">
                     {canValidate && (
                         <Button
                             asChild
                             variant="outline"
                             size="sm"
-                            className="h-8 border-border bg-surface hover:bg-surface text-caption font-black uppercase tracking-wider gap-2 px-3"
+                            className="h-8 border-border bg-surface hover:bg-surface text-xs font-semibold gap-2 px-3"
                         >
                             <Link href={`/dashboard/${guildId}/admin/validation?tab=achievements`}>
                                 <CheckSquare className="w-3.5 h-3.5 text-success" />
@@ -430,7 +368,6 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                             </Link>
                         </Button>
                     )}
-                    </div>
 
                     {/* #132 — Recherche de pseudo dans le classement */}
                     <div className="relative w-full sm:w-64 shrink-0">
@@ -452,6 +389,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                         )}
                     </div>
                 </div>
+            </div>
 
             {/* Ladder Results */}
             <div className="relative min-h-[400px]">

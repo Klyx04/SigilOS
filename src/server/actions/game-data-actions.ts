@@ -322,6 +322,22 @@ export async function getBestiaireCatalog(): Promise<ActionResponse<BestiaireEnt
                 type: 'boss',
             }));
 
+        // Fail-soft : le seed référence des visuels `/game-data/...` qui n'existent
+        // pas forcément sur ce checkout (siphonés ailleurs). Une URL morte = 404
+        // DevTools + case vide côté UI → on la neutralise, la carte bascule sur
+        // le proxy `/api/assets-dofus` (jamais de 404) ou son placeholder.
+        for (const e of bossEntries) {
+            if (e.imageUrl?.startsWith('/game-data/')) {
+                try {
+                    if (!fs.existsSync(path.join(process.cwd(), 'public', e.imageUrl))) {
+                        e.imageUrl = null;
+                    }
+                } catch {
+                    e.imageUrl = null;
+                }
+            }
+        }
+
         // Onglet "Monstres" = TOUS les monstres des familles et salles de boss de donjons.
         // Lu en local depuis public/game-data/dungeon-monsters.json (0ms, 100% autonome, zéro dépendance DofusDB).
         const localData = getLocalDungeonMonstersData();

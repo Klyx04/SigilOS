@@ -37,6 +37,11 @@ RUN npx prisma generate
 ARG BETA_PASSWORD
 ARG NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+# DSN public Sentry figé dans le bundle client au build (non secret : visible
+# dans le JS + quota protégé par Allowed Domains côté Sentry). Sans lui,
+# le navigateur ne remonte jamais rien même si le VPS a les vars.
+ARG NEXT_PUBLIC_SENTRY_DSN
+ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
 
 RUN \
   if [ -f yarn.lock ]; then yarn run build; \

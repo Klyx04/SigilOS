@@ -24,8 +24,17 @@ import { getAppBaseUrl } from '@/lib/utils';
 const ChangelogSchema = z.object({
     version: z.string().min(1).max(32).trim(),
     title: z.string().min(1).max(120).trim(),
-    summary: z.string().min(1).max(500).trim(),
-    content: z.string().min(1).max(20000).trim(),
+    // Le résumé est saisi via l'éditeur riche (HTML) : le plafond porte sur le
+    // TEXTE (500), pas sur le markup. Sans ça, quelques mots en gras suffisent
+    // à déclencher « at most 500 character(s) ».
+    summary: z.string().min(1).max(5000).trim().refine(
+        (s) => {
+            const text = s.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+            return text.length >= 1 && text.length <= 500;
+        },
+        { message: "Résumé : 500 caractères max (texte seul, sans la mise en forme)" }
+    ),
+    content: z.string().min(1).max(100000).trim(),
     category: z.nativeEnum(ChangelogCategory),
     isInternal: z.boolean().optional().default(false),
 });
@@ -522,6 +531,29 @@ export async function testBackupNotification(channelId?: string) {
     }
 }
 
+/**
+ * Envoie un event test vers Sentry (diagnostic observabilité).
+ * Prouve que le DSN est actif : l'event doit apparaître dans
+ * sentry.io → Issues en quelques secondes. Super-admin only.
+ */
+export async function sendSentryTestEvent() {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: 'Unauthorized' };
+
+    if (!process.env.SENTRY_DSN) {
+        return { success: false, error: 'SENTRY_DSN absent — pose-le dans .env.beta/.env.prod puis redéploie' };
+    }
+
+    try {
+        const Sentry = await import("@sentry/nextjs");
+        Sentry.captureMessage("SigilOS — event test God (diagnostic Sentry)", "info");
+        await Sentry.flush(3000);
+        return { success: true, error: undefined };
+    } catch (e: any) {
+        logger.error('[sendSentryTestEvent]', e);
+        return { success: false, error: e.message || "Erreur interne" };
+    }
+}
 const CATEGORY_EMOJI: Record<string, string> = {
     FEATURE: '✨', BUGFIX: '🐛', SECURITY: '🔒', PERFORMANCE: '⚡', DOCUMENTATION: '📄'
 };

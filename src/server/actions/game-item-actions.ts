@@ -4,6 +4,7 @@ import { db } from '@/lib/prisma';
 import { isSuperAdmin, canAccessBrick } from '@/server/actions/super-admin-actions';
 import { logger } from '@/lib/logger';
 import { siphonAndCompressImage } from '@/lib/dofus-asset-siphon';
+import { dofusDbFetch } from '@/lib/dofusdb-limiter';
 import crypto from 'crypto';
 
 type ActionResponse<T = void> = {
@@ -203,7 +204,7 @@ export async function siphonGameItemsBatch(skip = 0, limit = 50): Promise<
         const safeLimit = Math.min(Math.max(limit, 10), 100);
         const url = `https://api.dofusdb.fr/items?$limit=${safeLimit}&$skip=${skip}`;
 
-        const res = await fetch(url, {
+        const res = await dofusDbFetch(url, {
             headers: {
                 Accept: 'application/json',
                 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)',
@@ -346,7 +347,7 @@ async function fetchAllRemoteItemIds(): Promise<number[] | null> {
     const limit = 500;
     let skip = 0;
     for (let page = 0; page < 100; page++) {
-        const res = await fetch(`https://api.dofusdb.fr/items?$limit=${limit}&$skip=${skip}&$select[]=id`, {
+        const res = await dofusDbFetch(`https://api.dofusdb.fr/items?$limit=${limit}&$skip=${skip}&$select[]=id`, {
             headers: { Accept: 'application/json', 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
             signal: AbortSignal.timeout(15_000),
         });

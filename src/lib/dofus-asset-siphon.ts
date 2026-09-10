@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
 import { logger } from '@/lib/logger';
+import { dofusDbFetch } from '@/lib/dofusdb-limiter';
 
 // ─── Répertoires de stockage des assets siphonnés ───────────────────────────
 export const ASSET_DIRS = {
@@ -123,7 +124,7 @@ export async function siphonAndCompressImage(
         const validatedRemoteUrl = getValidatedAssetUrl(remoteUrl);
         if (validatedRemoteUrl) {
             try {
-                const providedRes = await fetch(validatedRemoteUrl, {
+                const providedRes = await dofusDbFetch(validatedRemoteUrl, {
                     headers: DEFAULT_HEADERS,
                     signal: AbortSignal.timeout(12_000),
                     cache: 'no-store',
@@ -146,7 +147,7 @@ export async function siphonAndCompressImage(
                 : `/img/monsters/${cleanId}.png`;
 
             try {
-                const response = await fetch(targetUrl.toString(), {
+                const response = await dofusDbFetch(targetUrl.toString(), {
                     headers: DEFAULT_HEADERS,
                     signal: AbortSignal.timeout(12_000),
                     cache: 'no-store',
@@ -163,7 +164,7 @@ export async function siphonAndCompressImage(
             try {
                 const monsterApiUrl = new URL('https://api.dofusdb.fr');
                 monsterApiUrl.pathname = `/monsters/${cleanId}`;
-                const monsterRes = await fetch(monsterApiUrl.toString(), {
+                const monsterRes = await dofusDbFetch(monsterApiUrl.toString(), {
                     headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
                     signal: AbortSignal.timeout(8_000),
                 });
@@ -176,7 +177,7 @@ export async function siphonAndCompressImage(
                             const cleanImgPath = parsedImg.pathname.replace(/[^a-zA-Z0-9_.\-\/]/g, '');
                             const safeImgUrl = new URL(`https://${imgHost}`);
                             safeImgUrl.pathname = cleanImgPath;
-                            const imgRes = await fetch(safeImgUrl.toString(), {
+                            const imgRes = await dofusDbFetch(safeImgUrl.toString(), {
                                 headers: DEFAULT_HEADERS,
                                 signal: AbortSignal.timeout(12_000),
                             });
@@ -195,7 +196,7 @@ export async function siphonAndCompressImage(
             try {
                 const itemApiUrl = new URL('https://api.dofusdb.fr');
                 itemApiUrl.pathname = `/items/${cleanId}`;
-                const itemRes = await fetch(itemApiUrl.toString(), {
+                const itemRes = await dofusDbFetch(itemApiUrl.toString(), {
                     headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
                     signal: AbortSignal.timeout(8_000),
                 });
@@ -205,7 +206,7 @@ export async function siphonAndCompressImage(
                     if (iconId && Number.isInteger(iconId) && iconId > 0) {
                         const directItemUrl = new URL('https://api.dofusdb.fr');
                         directItemUrl.pathname = `/img/items/${iconId}.png`;
-                        const imgRes = await fetch(directItemUrl.toString(), {
+                        const imgRes = await dofusDbFetch(directItemUrl.toString(), {
                             headers: DEFAULT_HEADERS,
                             signal: AbortSignal.timeout(12_000),
                         });

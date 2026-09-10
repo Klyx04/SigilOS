@@ -9,6 +9,9 @@ import { Prisma } from "@prisma/client";
 import { getUserContext, type ActionResponse } from "./user-actions";
 import { KAMAS_MAX } from "@/lib/market/kamas";
 import { computeStatQuality, computeStatsHash } from "@/lib/market/stat-quality";
+import { findNativeRange, type MarketNativeEffect } from "@/lib/market/effects";
+import { loadMarketReferential } from "@/lib/market/referential";
+import { publishListingToDiscord, syncListingMessage } from "@/server/market/discord";
 import {
     MARKET_AUDIT_ACTIONS,
     MARKET_DELETE_REASONS,
@@ -125,7 +128,15 @@ async function resolveMarketContext(guildId: string) {
     }
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
-        select: { id: true, marketMaxActivePerMember: true, marketMaxLifetimeDays: true },
+        select: {
+            id: true,
+            marketMaxActivePerMember: true,
+            marketMaxLifetimeDays: true,
+            marketNotifyChannelId: true,
+            marketNotifyRoleId: true,
+            marketChannelKind: true,
+            marketAllowedPingRoleIds: true,
+        },
     });
     if (!guildConfig) return { error: "Guilde introuvable" as const };
     return { user, guildConfig };
@@ -173,25 +184,63 @@ const MARKET_INCLUDE = {
     },
 } satisfies Prisma.MarketListingInclude;
 
-/** Recalcule les stats côté serveur (jamais de `quality` fournie par le client). */
-function buildRecomputedStats(
+/**
+ * S2.8/S2.9 — Recalcule les stats **côté serveur** : la plage native provient
+ * **toujours** du catalogue (`GameItem.nativeEffects`) et jamais du client (§12.8).
+ * Un effet non natif est étiqueté `EXO` (jamais refusé, D34/D35) ; le libellé est
+ * tiré du référentiel data-driven (S2.5bis) avec repli sur le libellé déclaré.
+ */
+async function resolveServerStats(
+    dofusDbItemId: number | null | undefined,
     stats: z.infer<typeof marketStatSchema>[]
-): Omit<Prisma.MarketListingStatCreateManyInput, "listingId">[] {
-    return stats.map((stat) => ({
-        effectId: stat.effectId,
-        characteristic: stat.characteristic ?? null,
-        label: stat.label,
-        naturalMin: stat.naturalMin ?? null,
-        naturalMax: stat.naturalMax ?? null,
-        actualValue: stat.actualValue,
-        origin: stat.origin,
-        quality: computeStatQuality({
-            naturalMin: stat.naturalMin ?? null,
-            naturalMax: stat.naturalMax ?? null,
+): Promise<{
+    rows: Omit<Prisma.MarketListingStatCreateManyInput, "listingId">[];
+    hash: string | null;
+}> {
+    if (stats.length === 0) return { rows: [], hash: null };
+
+    const [item, referential] = await Promise.all([
+        dofusDbItemId
+            ? db.gameItem.findUnique({
+                  where: { ankamaId: dofusDbItemId },
+                  select: { nativeEffects: true },
+              })
+            : Promise.resolve(null),
+        loadMarketReferential(),
+    ]);
+    const natives = (item?.nativeEffects as MarketNativeEffect[] | null) ?? null;
+
+    const rows = stats.map((stat) => {
+        const range = findNativeRange(natives, {
+            effectId: stat.effectId,
+            characteristic: stat.characteristic ?? null,
+        });
+        // La plage native est une SOURCE SERVEUR : le client ne la fixe jamais.
+        const naturalMin = range ? range.from : null;
+        const naturalMax = range ? range.to : null;
+        const origin = range ? stat.origin : "EXO";
+        const label =
+            (stat.characteristic != null && referential.labels[stat.characteristic]) ||
+            referential.effectLabels[stat.effectId] ||
+            stat.label;
+        return {
+            effectId: stat.effectId,
+            characteristic: stat.characteristic ?? null,
+            label,
+            naturalMin,
+            naturalMax,
             actualValue: stat.actualValue,
-            origin: stat.origin,
-        }),
-    }));
+            origin,
+            quality: computeStatQuality({
+                naturalMin,
+                naturalMax,
+                actualValue: stat.actualValue,
+                origin,
+            }),
+        };
+    });
+
+    return { rows, hash: computeStatsHash(rows) };
 }
 
 
@@ -375,6 +424,7 @@ export async function createMarketListing(
             };
         }
 
+        const resolvedStats = await resolveServerStats(data.dofusDbItemId, data.stats);
         const session = await auth();
         const listing = await db.marketListing.create({
             data: {
@@ -397,11 +447,11 @@ export async function createMarketListing(
                 quantity: data.quantity ?? null,
                 unitLabel: data.unitLabel ?? null,
                 minQuantity: data.minQuantity ?? null,
-                statsHash: data.stats.length > 0 ? computeStatsHash(data.stats) : null,
+                statsHash: resolvedStats.hash,
                 lastActivityAt: new Date(),
                 stats:
-                    data.stats.length > 0
-                        ? { create: buildRecomputedStats(data.stats) }
+                    resolvedStats.rows.length > 0
+                        ? { create: resolvedStats.rows }
                         : undefined,
                 components:
                     data.components.length > 0
@@ -473,6 +523,7 @@ export async function updateMarketListing(
         const coherenceError = validateListingCoherence(data);
         if (coherenceError) return { success: false, error: coherenceError };
 
+        const resolvedStats = await resolveServerStats(data.dofusDbItemId, data.stats);
         await db.$transaction(async (tx) => {
             await tx.marketListing.update({
                 where: { id: existing.id },
@@ -492,15 +543,15 @@ export async function updateMarketListing(
                     quantity: data.quantity ?? null,
                     unitLabel: data.unitLabel ?? null,
                     minQuantity: data.minQuantity ?? null,
-                    statsHash: data.stats.length > 0 ? computeStatsHash(data.stats) : null,
+                    statsHash: resolvedStats.hash,
                     lastActivityAt: new Date(),
                 },
             });
 
             await tx.marketListingStat.deleteMany({ where: { listingId: existing.id } });
-            if (data.stats.length > 0) {
+            if (resolvedStats.rows.length > 0) {
                 await tx.marketListingStat.createMany({
-                    data: buildRecomputedStats(data.stats).map((stat) => ({
+                    data: resolvedStats.rows.map((stat) => ({
                         ...stat,
                         listingId: existing.id,
                     })),
@@ -552,7 +603,8 @@ export async function updateMarketListing(
  */
 export async function publishMarketListing(
     guildId: string,
-    listingId: string
+    listingId: string,
+    pingRoleIds?: string[]
 ): Promise<ActionResponse> {
     try {
         const ctx = await resolveMarketContext(guildId);
@@ -613,6 +665,10 @@ export async function publishMarketListing(
         });
 
         revalidatePath(`/dashboard/${guildId}/marche`);
+        // S3.5 — publication Discord asynchrone : la réponse n'attend jamais Discord.
+        void publishListingToDiscord(existing.id, pingRoleIds).catch((err) =>
+            logger.warn("[market] publication Discord différée", { listingId: existing.id, err: String(err) })
+        );
         return { success: true };
     } catch (error) {
         logger.error("[publishMarketListing] failed", { err: error });
@@ -666,6 +722,10 @@ export async function withdrawMarketListing(
         });
 
         revalidatePath(`/dashboard/${guildId}/marche`);
+        // S3.9 — réécriture de l'embed (état WITHDRAWN) : jamais bloquante.
+        void syncListingMessage(existing.id).catch((err) =>
+            logger.warn("[market] synchronisation Discord différée", { listingId: existing.id, err: String(err) })
+        );
         return { success: true };
     } catch (error) {
         logger.error("[withdrawMarketListing] failed", { err: error });
@@ -729,6 +789,9 @@ export async function renewMarketListing(
         });
 
         revalidatePath(`/dashboard/${guildId}/marche`);
+        void syncListingMessage(existing.id).catch((err) =>
+            logger.warn("[market] synchronisation Discord différée", { listingId: existing.id, err: String(err) })
+        );
         return { success: true };
     } catch (error) {
         logger.error("[renewMarketListing] failed", { err: error });
@@ -778,6 +841,9 @@ export async function deleteMarketListing(
         });
 
         revalidatePath(`/dashboard/${guildId}/marche`);
+        void syncListingMessage(existing.id).catch((err) =>
+            logger.warn("[market] synchronisation Discord différée", { listingId: existing.id, err: String(err) })
+        );
         return { success: true };
     } catch (error) {
         logger.error("[deleteMarketListing] failed", { err: error });
@@ -804,6 +870,142 @@ export async function getMarketAuditTrail(
         return { success: true, data: logs };
     } catch (error) {
         logger.error("[getMarketAuditTrail] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+
+// ---------------------------------------------------------------------------
+// S2.18 / S3.14 — Aide à l'UI (prix moyen guilde, contexte de publication)
+// ---------------------------------------------------------------------------
+
+export type MarketPriceStats = {
+    average: number | null;
+    min: number | null;
+    max: number | null;
+    count: number;
+};
+
+/**
+ * S2.18 — « Prix moyen guilde » d'un objet : moyenne des prix des annonces de
+ * **la guilde du contexte** pour le même `dofusDbItemId`. Aucun appel externe.
+ */
+export async function getMarketPriceStats(
+    guildId: string,
+    dofusDbItemId: number
+): Promise<ActionResponse<MarketPriceStats>> {
+    const empty: MarketPriceStats = { average: null, min: null, max: null, count: 0 };
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+        if (!Number.isInteger(dofusDbItemId) || dofusDbItemId <= 0) {
+            return { success: true, data: empty };
+        }
+
+        const rows = await db.marketListing.findMany({
+            where: {
+                guildId: ctx.guildConfig.id,
+                dofusDbItemId,
+                deletedAt: null,
+                status: { in: ["ACTIVE", "RESERVED", "SOLD"] },
+                priceKamas: { not: null },
+            },
+            select: { priceKamas: true },
+        });
+        const prices = rows
+            .map((row) => row.priceKamas)
+            .filter((value): value is number => typeof value === "number" && value > 0);
+        if (prices.length === 0) return { success: true, data: empty };
+
+        const total = prices.reduce((sum, value) => sum + value, 0);
+        return {
+            success: true,
+            data: {
+                average: Math.round(total / prices.length),
+                min: Math.min(...prices),
+                max: Math.max(...prices),
+                count: prices.length,
+            },
+        };
+    } catch (error) {
+        logger.error("[getMarketPriceStats] failed", { err: error });
+        return { success: false, error: "Erreur interne", data: empty };
+    }
+}
+
+export type MarketPublishContext = {
+    channelConfigured: boolean;
+    channelKind: string | null;
+    allowedPingRoleIds: string[];
+    notifyRoleId: string | null;
+};
+
+/**
+ * S3.14 — Contexte de publication Discord pour l'assistant de création
+ * (salon configuré OU non, mode texte/forum, rôles « pinguables » autorisés).
+ * Lecture seule, aucune donnée sensible.
+ */
+export async function getMarketPublishContext(
+    guildId: string
+): Promise<ActionResponse<MarketPublishContext>> {
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+        const { guildConfig } = ctx;
+
+        const allowedPingRoleIds = Array.isArray(guildConfig.marketAllowedPingRoleIds)
+            ? (guildConfig.marketAllowedPingRoleIds as string[])
+            : [];
+
+        return {
+            success: true,
+            data: {
+                channelConfigured: !!guildConfig.marketNotifyChannelId,
+                channelKind: guildConfig.marketChannelKind,
+                allowedPingRoleIds,
+                notifyRoleId: guildConfig.marketNotifyRoleId,
+            },
+        };
+    } catch (error) {
+        logger.error("[getMarketPublishContext] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+/**
+ * S3.8 — État de synchronisation Discord d'une annonce (bandeau « à
+ * resynchroniser »). Accessible au **vendeur** et aux **modérateurs**.
+ */
+export async function getMarketListingDiscordState(
+    guildId: string,
+    listingId: string
+): Promise<ActionResponse<{ syncStatus: string | null; lastError: string | null; published: boolean }>> {
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+        const { user, guildConfig } = ctx;
+
+        const listing = await db.marketListing.findFirst({
+            where: { id: listingId, guildId: guildConfig.id },
+            select: {
+                profileId: true,
+                discordMessage: { select: { syncStatus: true, lastError: true, discordMessageId: true } },
+            },
+        });
+        if (!listing) return { success: false, error: "Annonce introuvable" };
+        const isOwner = listing.profileId === user.profileId;
+        if (!isOwner && !user.canManageMarket) return { success: false, error: "Accès refusé" };
+
+        return {
+            success: true,
+            data: {
+                syncStatus: listing.discordMessage?.syncStatus ?? null,
+                lastError: listing.discordMessage?.lastError ?? null,
+                published: !!listing.discordMessage?.discordMessageId,
+            },
+        };
+    } catch (error) {
+        logger.error("[getMarketListingDiscordState] failed", { err: error });
         return { success: false, error: "Erreur interne" };
     }
 }

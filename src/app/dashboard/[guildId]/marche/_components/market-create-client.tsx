@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,12 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { formatKamas, parseKamas } from "@/lib/market/kamas";
 import { MARKET_LIMITS } from "@/server/actions/market-constants";
-import { createMarketListing, publishMarketListing } from "@/server/actions/market-actions";
+import { createMarketListing, publishMarketListing, getMarketPublishContext } from "@/server/actions/market-actions";
+import { getGuildRoles } from "@/server/actions/bonus-actions";
 import { searchLocalGameItems, type GameItemSearchResult } from "@/server/actions/game-item-actions";
+import { buildNativeStatDrafts, type MarketStatDraft, type MarketNativeEffect } from "@/lib/market/effects";
+import { MarketJetEditor } from "./market-jet-editor";
+import { MarketPublishStep, type MarketPublishContext } from "./market-publish-step";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, Hammer, Loader2, Package, Plus, Search, Store, X } from "lucide-react";
 
@@ -36,11 +40,34 @@ export function MarketCreateClient({ guildId }: MarketCreateClientProps) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
 
-    const [step, setStep] = useState<1 | 2 | 3>(1);
+    const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
     const [kind, setKind] = useState<ListingKind>("EQUIPMENT");
 
     // Équipement
     const [item, setItem] = useState<GameItemSearchResult | null>(null);
+
+    // S2.10 — lignes de jet, pré-remplies depuis les plages natives du catalogue.
+    const [stats, setStats] = useState<MarketStatDraft[]>([]);
+
+    // S3.14 — contexte de publication Discord (salon, rôles pinguables).
+    const [publishContext, setPublishContext] = useState<MarketPublishContext | null>(null);
+    const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
+    const [pingRoleIds, setPingRoleIds] = useState<string[]>([]);
+
+    useEffect(() => {
+        let cancelled = false;
+        getMarketPublishContext(guildId).then((res) => {
+            if (!cancelled && res.success && res.data) setPublishContext(res.data);
+        });
+        getGuildRoles(guildId).then((res) => {
+            if (!cancelled && res.success && res.data) {
+                setRoles(res.data.map((role) => ({ id: role.id, name: role.name })));
+            }
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [guildId]);
 
     // Ressources (lot simple ou composite)
     const [components, setComponents] = useState<ComponentDraft[]>([]);
@@ -63,7 +90,15 @@ export function MarketCreateClient({ guildId }: MarketCreateClientProps) {
             ? kind === "EQUIPMENT"
                 ? !!item
                 : components.length > 0
-            : title.trim().length >= 3 && !priceInvalid;
+            : step === 3
+                ? title.trim().length >= 3 && !priceInvalid
+                : true; // étape 4 — publication Discord
+
+    function togglePing(roleId: string) {
+        setPingRoleIds((prev) =>
+            prev.includes(roleId) ? prev.filter((id) => id !== roleId) : [...prev, roleId].slice(0, 3)
+        );
+    }
 
     function addComponent(source: ComponentDraft) {
         setComponents((prev) => [...prev.slice(0, MARKET_LIMITS.MAX_COMPONENTS - 1), source]);
@@ -103,7 +138,15 @@ export function MarketCreateClient({ guildId }: MarketCreateClientProps) {
                     quantity: rest.quantity,
                     unitLabel: rest.unitLabel,
                 })),
-                stats: [],
+                stats: stats.map((stat) => ({
+                    effectId: stat.effectId,
+                    characteristic: stat.characteristic,
+                    label: stat.label,
+                    naturalMin: stat.naturalMin,
+                    naturalMax: stat.naturalMax,
+                    actualValue: stat.actualValue,
+                    origin: stat.origin,
+                })),
             });
 
             if (!created.success || !created.data) {
@@ -117,7 +160,7 @@ export function MarketCreateClient({ guildId }: MarketCreateClientProps) {
                 return;
             }
 
-            const published = await publishMarketListing(guildId, created.data.id);
+            const published = await publishMarketListing(guildId, created.data.id, pingRoleIds);
             if (!published.success) {
                 toast.error(published.error || "L'annonce est créée mais la publication a échoué.");
                 router.push(`/dashboard/${guildId}/marche/mes-espaces`);
@@ -144,14 +187,39 @@ export function MarketCreateClient({ guildId }: MarketCreateClientProps) {
             )}
 
             {step === 2 && kind === "EQUIPMENT" && (
-                <StepEquipment
-                    item={item}
-                    onSelect={(picked) => {
-                        setItem(picked);
-                        if (!title.trim()) setTitle(picked.name);
-                    }}
-                    onClear={() => setItem(null)}
-                />
+                <>
+                    <StepEquipment
+                        item={item}
+                        onSelect={(picked) => {
+                            setItem(picked);
+                            if (!title.trim()) setTitle(picked.name);
+                            // S2.8 — plages natives pré-remplies (source catalogue).
+                            setStats(
+                                buildNativeStatDrafts(
+                                    (picked.nativeEffects as MarketNativeEffect[] | null) ?? null
+                                )
+                            );
+                        }}
+                        onClear={() => {
+                            setItem(null);
+                            setStats([]);
+                        }}
+                    />
+                    {item && (
+                        <Card className="bg-surface/60 border-border">
+                            <CardHeader>
+                                <CardTitle className="text-base">Déclare ton jet</CardTitle>
+                                <CardDescription>
+                                    Les lignes natives sont pré-remplies depuis le catalogue. Ajuste la valeur
+                                    réelle, ajoute un exo, ou clique « ✦ Jet parfait ».
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <MarketJetEditor stats={stats} onChange={setStats} />
+                            </CardContent>
+                        </Card>
+                    )}
+                </>
             )}
 
             {step === 2 && kind === "RESOURCE" && (
@@ -188,6 +256,26 @@ export function MarketCreateClient({ guildId }: MarketCreateClientProps) {
                 />
             )}
 
+            {step === 4 && (
+                <MarketPublishStep
+                    channelName=""
+                    title={title || item?.name || "Annonce"}
+                    itemName={kind === "EQUIPMENT" ? item?.name ?? null : null}
+                    itemLevel={kind === "EQUIPMENT" ? item?.level ?? null : null}
+                    itemTypeName={kind === "EQUIPMENT" ? item?.typeName ?? null : null}
+                    priceKamas={parsedPrice}
+                    unitLabel={kind === "RESOURCE" && components.length === 1 ? components[0].unitLabel : null}
+                    negotiable={negotiable}
+                    forgedBy={forgedBy.trim() || null}
+                    exoLabels={stats.filter((stat) => stat.origin === "EXO").map((stat) => stat.label)}
+                    components={components.map((component) => ({ name: component.name, quantity: component.quantity }))}
+                    context={publishContext}
+                    roles={roles}
+                    selectedPingIds={pingRoleIds}
+                    onTogglePing={togglePing}
+                />
+            )}
+
             {/* Navigation */}
             <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
                 <Button
@@ -195,18 +283,18 @@ export function MarketCreateClient({ guildId }: MarketCreateClientProps) {
                     variant="ghost"
                     className="gap-2"
                     disabled={step === 1 || isPending}
-                    onClick={() => setStep((prev) => (prev > 1 ? ((prev - 1) as 1 | 2 | 3) : prev))}
+                    onClick={() => setStep((prev) => (prev > 1 ? ((prev - 1) as 1 | 2 | 3 | 4) : prev))}
                 >
                     <ChevronLeft className="w-4 h-4" />
                     Retour
                 </Button>
 
-                {step < 3 ? (
+                {step < 4 ? (
                     <Button
                         type="button"
                         className="gap-2"
                         disabled={!canGoNext}
-                        onClick={() => setStep((prev) => ((prev + 1) as 2 | 3))}
+                        onClick={() => setStep((prev) => ((prev + 1) as 2 | 3 | 4))}
                     >
                         Continuer
                         <ChevronRight className="w-4 h-4" />
@@ -228,12 +316,12 @@ export function MarketCreateClient({ guildId }: MarketCreateClientProps) {
 }
 
 
-/** Fil des étapes (1 Nature → 2 Objet/Lot → 3 Prix). */
-function StepIndicator({ step }: { step: 1 | 2 | 3 }) {
-    const labels = ["Nature", "Objet / Lot", "Prix"];
+/** Fil des étapes (1 Nature → 2 Objet/Lot + jet → 3 Prix → 4 Publication). */
+function StepIndicator({ step }: { step: 1 | 2 | 3 | 4 }) {
+    const labels = ["Nature", "Objet / Jet", "Prix", "Publication"];
     return (
         <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider font-black">
-            {[1, 2, 3].map((value) => (
+            {[1, 2, 3, 4].map((value) => (
                 <div key={value} className="flex items-center gap-2">
                     <span
                         className={cn(
@@ -246,7 +334,7 @@ function StepIndicator({ step }: { step: 1 | 2 | 3 }) {
                     <span className={step >= value ? "text-foreground" : "text-muted-foreground"}>
                         {labels[value - 1]}
                     </span>
-                    {value < 3 && <ChevronRight className="w-3 h-3 text-muted-foreground" />}
+                    {value < 4 && <ChevronRight className="w-3 h-3 text-muted-foreground" />}
                 </div>
             ))}
         </div>

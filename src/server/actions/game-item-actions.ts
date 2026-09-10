@@ -32,6 +32,16 @@ export interface GameItemSearchResult {
     recipe: any | null;
     hasRecipe: boolean;
     iconUrl: string | null;
+    // ── S2 (chantier Marché) — métadonnées utiles à l'éditeur de jet FM ──────
+    superTypeId?: number | null;
+    superTypeName?: string | null;
+    realWeight?: number | null;
+    priceNpc?: number | null;
+    itemSetId?: number | null;
+    itemSetName?: string | null;
+    isLegendary?: boolean;
+    /** Plages natives (source serveur) — `[{ effectId, characteristic, from, to, … }]`. */
+    nativeEffects?: unknown;
 }
 
 /**
@@ -79,6 +89,14 @@ export async function searchLocalGameItems(
                 recipe: true,
                 hasRecipe: true,
                 iconUrl: true,
+                superTypeId: true,
+                superTypeName: true,
+                realWeight: true,
+                priceNpc: true,
+                itemSetId: true,
+                itemSetName: true,
+                isLegendary: true,
+                nativeEffects: true,
             },
         });
 
@@ -112,6 +130,14 @@ export async function getLocalGameItemDetails(ankamaId: number): Promise<ActionR
                 recipe: true,
                 hasRecipe: true,
                 iconUrl: true,
+                superTypeId: true,
+                superTypeName: true,
+                realWeight: true,
+                priceNpc: true,
+                itemSetId: true,
+                itemSetName: true,
+                isLegendary: true,
+                nativeEffects: true,
             },
         });
 
@@ -366,6 +392,230 @@ export async function siphonGameItemsBatch(skip = 0, limit = 50): Promise<
     } catch (error: any) {
         logger.error('[siphonGameItemsBatch] Error:', { error: error?.message, skip, limit });
         return { success: false, error: `Erreur lors du siphon: ${error?.message}` };
+    }
+}
+
+// ─── S2.5bis — Siphon des référentiels d'effets & de caractéristiques ───────
+// Rend les libellés FR, les icônes et le « % » **data-driven** (remplace les
+// maps codées en dur de `ItemSearchPanel`). Idempotent (upsert), jamais destructif.
+
+/** Récupère toutes les caractéristiques DofusDB (≈123) → GameCharacteristic. */
+async function siphonAllCharacteristics(): Promise<{ count: number; names: Map<number, string> }> {
+    const names = new Map<number, string>();
+    let count = 0;
+    let skip = 0;
+    for (let page = 0; page < 10; page++) {
+        const res = await dofusDbFetch(
+            `https://api.dofusdb.fr/characteristics?$limit=200&$skip=${skip}`,
+            {
+                headers: { Accept: 'application/json', 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
+                signal: AbortSignal.timeout(15_000),
+            }
+        );
+        if (!res.ok) break;
+        const json = await res.json();
+        const rows: any[] = Array.isArray(json?.data) ? json.data : [];
+        if (rows.length === 0) break;
+        for (const raw of rows) {
+            const id = Number(raw?.id);
+            if (!Number.isInteger(id) || id <= 0) continue;
+            const name = typeof raw?.name?.fr === 'string' ? raw.name.fr : String(raw?.name ?? `Caractéristique ${id}`);
+            const keyword = typeof raw?.keyword === 'string' ? raw.keyword : null;
+            const iconKey = typeof raw?.asset === 'string' ? raw.asset : null;
+            await db.gameCharacteristic.upsert({
+                where: { id },
+                create: { id, name, keyword, iconKey },
+                update: { name, keyword, iconKey },
+            });
+            names.set(id, name);
+            count++;
+        }
+        skip += rows.length;
+        if (rows.length < 200) break;
+    }
+    return { count, names };
+}
+
+/** Récupère tous les effets DofusDB (≈872) → GameEffect. */
+async function siphonAllEffects(charNames: Map<number, string>): Promise<number> {
+    let count = 0;
+    let skip = 0;
+    for (let page = 0; page < 10; page++) {
+        const res = await dofusDbFetch(
+            `https://api.dofusdb.fr/effects?$limit=200&$skip=${skip}`,
+            {
+                headers: { Accept: 'application/json', 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
+                signal: AbortSignal.timeout(15_000),
+            }
+        );
+        if (!res.ok) break;
+        const json = await res.json();
+        const rows: any[] = Array.isArray(json?.data) ? json.data : [];
+        if (rows.length === 0) break;
+        for (const raw of rows) {
+            const id = Number(raw?.id);
+            if (!Number.isInteger(id) || id <= 0) continue;
+            const characteristic = raw?.characteristic != null ? Number(raw.characteristic) : null;
+            // Libellé : libellé de la caractéristique associée sinon description nettoyée.
+            const fromChar = characteristic != null ? charNames.get(characteristic) : undefined;
+            const rawDescription =
+                typeof raw?.description?.fr === 'string'
+                    ? raw.description.fr
+                    : typeof raw?.theoreticalDescription?.fr === 'string'
+                    ? raw.theoreticalDescription.fr
+                    : null;
+            const cleanDescription = rawDescription
+                ? rawDescription.replace(/\{[^}]*\}/g, '').replace(/#\d+(~\d+)?/g, '').replace(/\s{2,}/g, ' ').trim()
+                : null;
+            const name = fromChar || cleanDescription || `Effet ${id}`;
+            const isInPercent = Boolean(raw?.isInPercent);
+            const category = raw?.category != null ? Number(raw.category) : null;
+            const iconKey = raw?.iconId != null ? String(raw.iconId) : null;
+            await db.gameEffect.upsert({
+                where: { id },
+                create: { id, name, characteristic, isInPercent, category, iconKey },
+                update: { name, characteristic, isInPercent, category, iconKey },
+            });
+            count++;
+        }
+        skip += rows.length;
+        if (rows.length < 200) break;
+    }
+    return count;
+}
+
+/**
+ * 📚 S2.5bis — Siphonne `/effects` + `/characteristics` (≈20 requêtes, conforme
+ * DofusDB). Réservé au God / PIM. Fail-soft : une page en échec n'invalide pas
+ * les précédentes.
+ */
+export async function siphonMarketReferentials(): Promise<
+    ActionResponse<{ characteristics: number; effects: number }>
+> {
+    if (!(await canManageGameItems())) {
+        return { success: false, error: 'Non autorisé' };
+    }
+    try {
+        const { count: characteristics, names } = await siphonAllCharacteristics();
+        const effects = await siphonAllEffects(names);
+        logger.info(`[siphonMarketReferentials] ${characteristics} caractéristique(s), ${effects} effet(s).`);
+        return { success: true, data: { characteristics, effects } };
+    } catch (error: any) {
+        logger.error('[siphonMarketReferentials] Error:', { error: error?.message });
+        return { success: false, error: 'Siphon des référentiels impossible' };
+    }
+}
+
+// ─── S2.6/S2.7 — Catalogue Marché : facettes + remplissage à la demande ──────
+
+/**
+ * 🗂️ S2.7 — Familles (`superTypeName`) et types (`typeName`) distincts du
+ * catalogue, pour alimenter les filtres de recherche **sans liste codée en dur**.
+ */
+export async function getGameItemCatalogFacets(): Promise<
+    ActionResponse<{ families: { id: number | null; name: string; count: number }[]; types: string[] }>
+> {
+    try {
+        const [familiesGroup, typesRows] = await Promise.all([
+            db.gameItem.groupBy({
+                by: ['superTypeId', 'superTypeName'],
+                where: { isDeprecated: false },
+                _count: { id: true },
+                orderBy: { _count: { id: 'desc' } },
+                take: 60,
+            }),
+            db.gameItem.findMany({
+                distinct: ['typeName'],
+                where: { isDeprecated: false },
+                select: { typeName: true },
+                orderBy: { typeName: 'asc' },
+                take: 200,
+            }),
+        ]);
+        return {
+            success: true,
+            data: {
+                families: familiesGroup
+                    .filter((row) => !!row.superTypeName)
+                    .map((row) => ({
+                        id: row.superTypeId ?? null,
+                        name: row.superTypeName as string,
+                        count: row._count.id,
+                    })),
+                types: typesRows.map((row) => row.typeName),
+            },
+        };
+    } catch (error: any) {
+        logger.error('[getGameItemCatalogFacets] Error:', { error: error?.message });
+        return { success: false, error: 'Facettes indisponibles' };
+    }
+}
+
+/**
+ * 🧩 S2.6 — Siphon **à la demande** d'un item unique (repli DofusDB quand le
+ * catalogue local est incomplet). Additif : ne touche jamais les autres items.
+ */
+export async function siphonGameItemByAnkamaId(
+    ankamaId: number
+): Promise<ActionResponse<{ ankamaId: number }>> {
+    if (!Number.isInteger(ankamaId) || ankamaId <= 0) {
+        return { success: false, error: 'ID invalide' };
+    }
+    try {
+        const res = await dofusDbFetch(`https://api.dofusdb.fr/items/${ankamaId}`, {
+            headers: { Accept: 'application/json', 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
+            signal: AbortSignal.timeout(15_000),
+        });
+        if (!res.ok) return { success: false, error: 'Objet introuvable' };
+
+        const raw: any = await res.json();
+        if (!raw || !raw.id) return { success: false, error: 'Réponse invalide' };
+
+        const name = typeof raw.name?.fr === 'string' ? raw.name.fr : String(raw.name || 'Objet');
+        const typeName = typeof raw.type?.name?.fr === 'string' ? raw.type.name.fr : 'Équipement';
+        const effects = Array.isArray(raw.possibleEffects)
+            ? raw.possibleEffects
+            : Array.isArray(raw.effects)
+            ? raw.effects
+            : null;
+        const typeLower = typeName.toLowerCase();
+        let category = 'equipment';
+        if (typeLower.includes('ressource') || typeLower.includes('matière') || typeLower.includes('alliage')) category = 'resources';
+        else if (typeLower.includes('consommable') || typeLower.includes('potion') || typeLower.includes('pain') || typeLower.includes('viande')) category = 'consumables';
+        else if (typeLower.includes('apparat') || typeLower.includes('cosmétique') || typeLower.includes('montilier') || typeLower.includes('costume')) category = 'cosmetics';
+
+        const data = {
+            name,
+            level: Number(raw.level || 1),
+            typeId: raw.typeId ? Number(raw.typeId) : null,
+            typeName,
+            category,
+            description: typeof raw.description?.fr === 'string' ? raw.description.fr : null,
+            effects: effects as any,
+            hasRecipe: Boolean(raw.hasRecipe || raw.is_recipe_item),
+            iconUrl: `/uploads/assets-dofus/items/${ankamaId}.webp`,
+            realWeight: raw.realWeight != null ? Number(raw.realWeight) : null,
+            priceNpc: raw.price != null ? Number(raw.price) : null,
+            itemSetId: raw.itemSetId != null ? Number(raw.itemSetId) : raw.itemSet?.id != null ? Number(raw.itemSet.id) : null,
+            itemSetName: typeof raw.itemSet?.name?.fr === 'string' ? raw.itemSet.name.fr : null,
+            isLegendary: Boolean(raw.isLegendary),
+            isSaleable: raw.isSaleable === undefined ? true : Boolean(raw.isSaleable),
+            superTypeId: raw.superTypeId != null ? Number(raw.superTypeId) : null,
+            superTypeName: typeof raw.superType?.name?.fr === 'string' ? raw.superType.name.fr : null,
+            nativeEffects: (toNativeEffects(raw) ?? undefined) as any,
+            isDeprecated: false,
+        };
+
+        const dataHash = crypto.createHash('md5').update(JSON.stringify(data)).digest('hex');
+        await db.gameItem.upsert({
+            where: { ankamaId },
+            create: { ankamaId, ...data, dataHash },
+            update: { ...data, dataHash },
+        });
+        return { success: true, data: { ankamaId } };
+    } catch (error: any) {
+        logger.error('[siphonGameItemByAnkamaId] Error:', { error: error?.message, ankamaId });
+        return { success: false, error: 'Siphon indisponible' };
     }
 }
 

@@ -69,3 +69,33 @@ describe("computeStatsHash", () => {
         expect(computeStatsHash([])).toMatch(/^[a-f0-9]{32}$/);
     });
 });
+
+/**
+ * S2.13 — cas limites (bornes anti-débilité D35 : on n'invente pas de plafond,
+ * on ne juge jamais la légitimité — seulement l'étiquette).
+ */
+describe("computeStatQuality — cas limites", () => {
+    it("PERFECT quand min === max === valeur", () => {
+        expect(computeStatQuality({ naturalMin: 100, naturalMax: 100, actualValue: 100 })).toBe("PERFECT");
+    });
+
+    it("LOW quand min === max et valeur en dessous", () => {
+        expect(computeStatQuality({ naturalMin: 100, naturalMax: 100, actualValue: 99 })).toBe("LOW");
+    });
+
+    it("OVER quand min === max et valeur au-dessus", () => {
+        expect(computeStatQuality({ naturalMin: 100, naturalMax: 100, actualValue: 101 })).toBe("OVER");
+    });
+
+    it("gère une plage entièrement négative", () => {
+        expect(computeStatQuality({ naturalMin: -50, naturalMax: -10, actualValue: -60 })).toBe("LOW");
+        expect(computeStatQuality({ naturalMin: -50, naturalMax: -10, actualValue: -20 })).toBe("GOOD");
+        expect(computeStatQuality({ naturalMin: -50, naturalMax: -10, actualValue: -10 })).toBe("PERFECT");
+    });
+
+    it("accepte les valeurs hors bornes anti-débilité (le calcul ne bloque jamais)", () => {
+        // Les bornes -9 999 / 99 999 sont posées par Zod, PAS par computeStatQuality.
+        expect(computeStatQuality({ naturalMin: 0, naturalMax: 100, actualValue: 99_999 })).toBe("OVER");
+        expect(computeStatQuality({ naturalMin: 0, naturalMax: 100, actualValue: -9_999 })).toBe("LOW");
+    });
+});

@@ -17,14 +17,16 @@ import {
 } from "@/server/actions/market-constants";
 import { formatKamas } from "@/lib/market/kamas";
 import { cn } from "@/lib/utils";
+import { MarketItemCard } from "@/components/market/market-item-card";
 import {
     deleteMarketListing,
     publishMarketListing,
     renewMarketListing,
     withdrawMarketListing,
 } from "@/server/actions/market-actions";
+import { resyncMarketListing } from "@/server/actions/market-admin-actions";
 import { toast } from "sonner";
-import { Loader2, Package, RefreshCw, ShieldAlert, Store, Trash2, Upload, XCircle } from "lucide-react";
+import { AlertTriangle, Loader2, Package, RefreshCw, ShieldAlert, Store, Trash2, Upload, XCircle } from "lucide-react";
 
 type SerializedListing = {
     id: string;
@@ -55,6 +57,8 @@ type SerializedListing = {
     } | null;
     stats: {
         id: string;
+        effectId: number;
+        characteristic: number | null;
         label: string;
         actualValue: number;
         quality: string;
@@ -70,9 +74,24 @@ interface MarketListingClientProps {
     listing: SerializedListing;
     isOwner: boolean;
     canManage: boolean;
+    averagePrice: number | null;
+    itemSetName: string | null;
+    realWeight: number | null;
+    itemDescription: string | null;
+    discordState: { syncStatus: string | null; lastError: string | null; published: boolean } | null;
 }
 
-export function MarketListingClient({ guildId, listing, isOwner, canManage }: MarketListingClientProps) {
+export function MarketListingClient({
+    guildId,
+    listing,
+    isOwner,
+    canManage,
+    averagePrice,
+    itemSetName,
+    realWeight,
+    itemDescription,
+    discordState,
+}: MarketListingClientProps) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [reason, setReason] = useState("");
@@ -95,6 +114,53 @@ export function MarketListingClient({ guildId, listing, isOwner, canManage }: Ma
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Colonne principale */}
             <div className="lg:col-span-2 space-y-6">
+                {/* S3.8 — bandeau « à resynchroniser » (jamais bloquant) */}
+                {listing.status === "ACTIVE" && discordState?.syncStatus === "FAILED" && (
+                    <div className="flex items-center gap-3 rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3">
+                        <AlertTriangle className="h-5 w-5 shrink-0 text-warning" />
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-bold text-warning">Synchronisation Discord en échec</p>
+                            <p className="text-[11px] text-muted-foreground">
+                                L&apos;annonce est bien enregistrée sur SigilOS. La publication Discord sera
+                                rejouée automatiquement.
+                            </p>
+                        </div>
+                        {canManage && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                                disabled={isPending}
+                                onClick={() =>
+                                    run(() => resyncMarketListing(guildId, listing.id), "Synchronisation relancée.")
+                                }
+                            >
+                                <RefreshCw className="w-4 h-4" />
+                                Resynchroniser
+                            </Button>
+                        )}
+                    </div>
+                )}
+
+                {/* S2.15 — carte d'item (anatomie §12.3) */}
+                <MarketItemCard
+                    data={{
+                        name: listing.itemName || listing.title,
+                        level: listing.itemLevel,
+                        typeName: listing.itemTypeName,
+                        itemSetName,
+                        iconUrl: listing.itemIconUrl,
+                        description: itemDescription,
+                        forgedBy: listing.forgedBy,
+                        realWeight,
+                        averagePrice,
+                        priceKamas: listing.priceKamas,
+                        unitLabel: listing.unitLabel,
+                        stats: listing.stats,
+                        components: listing.components,
+                    }}
+                />
+
                 <Card className="bg-surface/60 border-border">
                     <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
                         <CardTitle className="text-base flex items-center gap-2">

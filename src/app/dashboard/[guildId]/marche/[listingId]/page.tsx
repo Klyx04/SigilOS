@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { getUserContext } from "@/server/actions/user-actions";
 import { isModuleEnabled } from "@/server/actions/module-actions";
-import { getMarketListing } from "@/server/actions/market-actions";
+import { getMarketListing, getMarketPriceStats, getMarketListingDiscordState } from "@/server/actions/market-actions";
+import { getItemCatalogEntry } from "@/lib/market/item-catalog";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { MarketListingClient } from "../_components/market-listing-client";
@@ -33,6 +34,16 @@ export default async function MarketListingPage({
     const listing = JSON.parse(JSON.stringify(listingRes.data));
     const isOwner = listing.profileId === user.profileId;
 
+    // S2.15/S2.18 — carte d'item (métadonnées catalogue + prix moyen guilde) et
+    // S3.8 — état de synchronisation Discord (bandeau « à resynchroniser »).
+    const [priceStatsRes, discordStateRes, catalogEntry] = await Promise.all([
+        listing.dofusDbItemId ? getMarketPriceStats(guildId, listing.dofusDbItemId) : Promise.resolve(null),
+        getMarketListingDiscordState(guildId, listingId),
+        listing.dofusDbItemId ? getItemCatalogEntry(listing.dofusDbItemId) : Promise.resolve(null),
+    ]);
+    const averagePrice = priceStatsRes?.success ? priceStatsRes.data?.average ?? null : null;
+    const discordState = discordStateRes.success ? discordStateRes.data ?? null : null;
+
     return (
         <div className="space-y-6 pb-12">
             <UnifiedModuleHeader
@@ -49,6 +60,11 @@ export default async function MarketListingPage({
                 listing={listing}
                 isOwner={isOwner}
                 canManage={user.canManageMarket}
+                averagePrice={averagePrice}
+                itemSetName={catalogEntry?.itemSetName ?? null}
+                realWeight={catalogEntry?.realWeight ?? null}
+                itemDescription={catalogEntry?.description ?? null}
+                discordState={discordState}
             />
         </div>
     );

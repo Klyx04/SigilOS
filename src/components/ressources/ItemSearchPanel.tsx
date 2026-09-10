@@ -8,6 +8,11 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import {
+    getStatLabel as sharedGetStatLabel,
+    resolveStatIconSpec,
+    type StatIconName,
+} from "@/lib/market/effects";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -56,46 +61,6 @@ interface DofusItem {
 // ─── Constants & Helpers ───────────────────────────────────────────────────
 
 
-const CHAR_NAMES: Record<number, string> = {
-    11: "Vitalité",
-    12: "Sagesse",
-    13: "Chance",
-    14: "Agilité",
-    15: "Intelligence",
-    16: "Force",
-    18: "Critique",
-    19: "Portée",
-    1: "PA",
-    23: "PM",
-    25: "Puissance",
-    26: "Soins",
-    27: "Dommages",
-    28: "Invocations",
-    48: "Résistance Feu (%)",
-    49: "Résistance Eau (%)",
-    50: "Résistance Air (%)",
-    51: "Résistance Terre (%)",
-    52: "Résistance Neutre (%)",
-    89: "Dommages Feu",
-    90: "Dommages Eau",
-    91: "Dommages Air",
-    92: "Dommages Terre",
-    93: "Dommages Neutre",
-    141: "Dommages Neutre",
-    78: "Fuite",
-    79: "Tacle",
-    80: "Retrait PA",
-    82: "Esquive PA",
-    83: "Retrait PM",
-    84: "Esquive PM",
-    412: "Retrait PM",
-    87: "Résistance Critiques",
-    88: "Résistance Poussée",
-    112: "Dommages Critiques",
-    114: "Dommages Poussée",
-    125: "Vitalité",
-};
-
 /**
  * 🛡️ Résolution locale-first des images d'items.
  * -> /api/assets-dofus/items/{id} : proxy auto-siphon WebP (0 404, 0 appel externe visible)
@@ -126,139 +91,47 @@ function getTypeColor(typeName: string): string {
     return "#818cf8";
 }
 
-const STAT_ICONS: Record<string | number, any> = {
-    // Numbers for DofusDB
-    11: { icon: Heart, color: "text-danger" },      // Vitalité
-    125: { icon: Heart, color: "text-danger" },     // Vitalité (variant)
-    12: { icon: Brain, color: "text-violet-400" },    // Sagesse
-    13: { icon: Droplet, color: "text-info" },    // Chance
-    14: { icon: Wind, color: "text-success" },   // Agilité
-    15: { icon: Flame, color: "text-warning" },    // Intelligence
-    16: { icon: Sword, color: "text-warning" },     // Force
-    1: { icon: Zap, color: "text-warning" },        // PA
-    23: { icon: Footprints, color: "text-success" }, // PM
-    18: { icon: Target, color: "text-info" },     // Critique
-    19: { icon: Eye, color: "text-info" },      // Portée
-    25: { icon: Star, color: "text-fuchsia-400" },    // Puissance
-    26: { icon: Plus, color: "text-success" },    // Soins
-    28: { icon: Plus, color: "text-warning" },      // Invocations
-    80: { icon: Shield, color: "text-muted-foreground" },     // Retrait PA
-    83: { icon: Shield, color: "text-muted-foreground" },     // Retrait PM
-    412: { icon: Shield, color: "text-muted-foreground" },    // Retrait PM
-    87: { icon: ShieldCheck, color: "text-danger" }, // Résistance Critiques
-
-    // Strings (Strict mapping)
-    "vi": { icon: Heart, color: "text-danger" },    // Vitalité
-    "fo": { icon: Sword, color: "text-warning" },     // Force
-    "sa": { icon: Brain, color: "text-violet-400" },    // Sagesse
-    "ag": { icon: Wind, color: "text-success" },   // Agilité
-    "in": { icon: Flame, color: "text-warning" },    // Intelligence
-    "ch": { icon: Droplet, color: "text-info" },    // Chance
-    "pu": { icon: Star, color: "text-fuchsia-400" },    // Puissance
-    "cc": { icon: Target, color: "text-info" },     // Critique
-    "dmg": { icon: Plus, color: "text-danger" },       // Dommages
-    "ii": { icon: Zap, color: "text-warning" },      // Initiative
-    "pi": { icon: Sparkles, color: "text-info" }, // Prospection (Solomonk case)
-    "pp": { icon: Eye, color: "text-info" },        // Prospection
-    "po": { icon: Eye, color: "text-info" },      // Portée
-    "ic": { icon: Target, color: "text-success" },  // Invocations
-    "pa": { icon: Zap, color: "text-warning" },
-    "pm": { icon: Footprints, color: "text-success" },
-    "ta": { icon: Plus, color: "text-green-500" },      // Tacle
-    "fu": { icon: Star, color: "text-warning" },     // Fuite
-    "so": { icon: Heart, color: "text-danger" },      // Soins
-
-    // Dommages Elémentaires
-    "dnf": { icon: Sword, color: "text-muted-foreground" },     // Dmg Neutre
-    "dtf": { icon: Sword, color: "text-warning" },    // Dmg Terre
-    "dff": { icon: Flame, color: "text-warning" },   // Dmg Feu
-    "def": { icon: Droplet, color: "text-info" },   // Dmg Eau
-    "daf": { icon: Wind, color: "text-success" },   // Dmg Air
-
-    // Résistances %
-    "rnp": { icon: Shield, color: "text-muted-foreground" },    // % Neutre
-    "rtp": { icon: Shield, color: "text-warning" },   // % Terre
-    "rfp": { icon: Shield, color: "text-warning" },  // % Feu
-    "rep": { icon: Shield, color: "text-info" },    // % Eau
-    "rap": { icon: Shield, color: "text-success" }, // % Air
-
-    // Résistances Fixes
-    "rn": { icon: ShieldCheck, color: "text-muted-foreground" },
-    "rt": { icon: ShieldCheck, color: "text-warning" },
-    "rf": { icon: ShieldCheck, color: "text-warning" },
-    "re": { icon: ShieldCheck, color: "text-info" },
-    "ra": { icon: ShieldCheck, color: "text-success" },
-
-    // Annexes
-    "rfc": { icon: Shield, color: "text-danger" },    // Rés. Crit
-    "rp": { icon: Shield, color: "text-warning" },    // Rés. Poussée
-    "pod": { icon: PackageOpen, color: "text-warning" }, // Pods
-    "rpa": { icon: Shield, color: "text-muted-foreground" },    // Retrait PA
-    "rpm": { icon: Shield, color: "text-muted-foreground" },    // Retrait PM
-    "epa": { icon: ShieldCheck, color: "text-info" }, // Esquive PA
-    "epm": { icon: ShieldCheck, color: "text-success" }, // Esquive PM
+/**
+ * Mapping **slug d'icône partagé** → composant lucide.
+ * Les slugs et les couleurs vivent désormais dans `src/lib/market/effects.ts`
+ * (`STAT_ICON_SPECS`) : ce composant n'est qu'un **consommateur** (S2.4).
+ */
+const ICON_COMPONENTS: Record<StatIconName, any> = {
+    heart: Heart,
+    brain: Brain,
+    droplet: Droplet,
+    wind: Wind,
+    flame: Flame,
+    sword: Sword,
+    zap: Zap,
+    footprints: Footprints,
+    target: Target,
+    eye: Eye,
+    star: Star,
+    plus: Plus,
+    shield: Shield,
+    shieldCheck: ShieldCheck,
+    sparkles: Sparkles,
+    pkg: PackageOpen,
 };
 
-const BOOK_STAT_NAMES: Record<string, string> = {
-    "vi": "Vitalité",
-    "fo": "Force",
-    "sa": "Sagesse",
-    "ag": "Agilité",
-    "in": "Intelligence",
-    "ch": "Chance",
-    "pu": "Puissance",
-    "cc": "Coup Critique",
-    "dmg": "Dommages",
-    "ii": "Initiative",
-    "pi": "Dommages Piège",
-    "pp": "Prospection",
-    "po": "Portée",
-    "pod": "Pods",
-    "ic": "Invocations",
-    "pa": "PA",
-    "pm": "PM",
-    "ta": "Tacle",
-    "fu": "Fuite",
-    "so": "Soins",
-    "rpa": "Retrait PA",
-    "epa": "Esquive PA",
-    "rpm": "Retrait PM",
-    "epm": "Esquive PM",
-    "dnf": "Dommages Neutre",
-    "dtf": "Dommages Terre",
-    "dff": "Dommages Feu",
-    "def": "Dommages Eau",
-    "daf": "Dommages Air",
-    "rnp": "Résistance Neutre (%)",
-    "rtp": "Résistance Terre (%)",
-    "rfp": "Résistance Feu (%)",
-    "rep": "Résistance Eau (%)",
-    "rap": "Résistance Air (%)",
-    "rn": "Résistance Neutre",
-    "rt": "Résistance Terre",
-    "rf": "Résistance Feu",
-    "re": "Résistance Eau",
-    "ra": "Résistance Air",
-    "dc": "Dommages Critiques",
-    "dp": "Résistance Poussée",
-    "rfc": "Résistance Critiques",
-    "rp": "Résistance Poussée",
-};
-
+/**
+ * Libellé FR d'un effet — **délégué** au module partagé (S2.4 / S2.5bis).
+ * Les tables `CHAR_NAMES` / `BOOK_STAT_NAMES` vivent maintenant dans
+ * `src/lib/market/effects.ts`, et le référentiel data-driven (base) est branché
+ * côté serveur via `getStatLabel(fx, referential)`.
+ */
 function getStatLabel(fx: DofusItemEffect): string {
-    if (fx.int_name && BOOK_STAT_NAMES[fx.int_name]) return BOOK_STAT_NAMES[fx.int_name];
-    if (fx.int_name) return fx.int_name;
-    const cid = fx.characteristic || fx.effectId || fx.int_id;
-    return cid && CHAR_NAMES[cid] ? CHAR_NAMES[cid] : "Effet";
+    return sharedGetStatLabel(fx);
 }
 
 function StatIcon({ characteristicId, charCode }: { characteristicId?: number, charCode?: string }) {
-    const key = charCode || characteristicId;
-    if (!key || !STAT_ICONS[key]) {
+    const spec = resolveStatIconSpec(characteristicId, charCode);
+    if (!spec) {
         return <div className="w-1.5 h-1.5 rounded-full bg-violet-500/40" />;
     }
-    const { icon: Icon, color } = STAT_ICONS[key];
-    return <Icon className={cn("h-3.5 w-3.5", color)} />;
+    const Icon = ICON_COMPONENTS[spec.icon];
+    return <Icon className={cn("h-3.5 w-3.5", spec.color)} />;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────

@@ -52,7 +52,11 @@ import { getSiphonDashboardStats } from "@/server/actions/asset-siphon-actions";
 import { bossMatchKey } from "@/lib/data-health";
 
 const H = 60 * 60 * 1000;
-const NOW = new Date("2026-09-09T12:00:00.000Z").getTime();
+// ⚠️ Référence RELATIVE à l'horloge réelle : le test porte sur la fenêtre « < 24 h »
+// du code testé (`getSiphonDashboardStats` utilise `Date.now()`). Une date figée
+// transformait ce test en bombe à retardement (rouge dès que la date dépassait
+// de plus de 24 h l'horloge réelle — arrivé le 10/09/2026).
+const NOW = Date.now();
 const iso = (ms: number) => new Date(ms).toISOString();
 
 beforeEach(() => {

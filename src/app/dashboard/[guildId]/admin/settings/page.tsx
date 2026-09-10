@@ -8,7 +8,8 @@ import { db } from "@/lib/prisma";
 import {
     Settings, Bell, Key, Moon, Users, Calendar, Sword, Target, BarChart3,
     HandCoins, ArrowLeft, ChevronRight, Loader2, Save, AlertTriangle, Hash, Megaphone,
-    ShieldAlert, UserCheck, Sparkles, Gem, Layout, Palette
+    ShieldAlert, UserCheck, Sparkles, Gem, Layout, Palette,
+    Store
 } from "lucide-react";
 import { AbsenceSettingsClient } from "../absence/_components/absence-settings-client";
 import { MetamobUnlocker } from "../archimonstres/_components/metamob-unlocker";
@@ -33,6 +34,7 @@ import { RelanceSettingsClient } from "../_components/relance-settings-client";
 import { GallerySettingsClient } from "../_components/gallery-settings-client";
 import { DirectorySettingsClient } from "../_components/directory-settings-client";
 import { ServicesSettingsClient } from "../_components/services-settings-client";
+import { MarketSettingsClient } from "../_components/market-settings-client";
 import Link from "next/link";
 import { Trophy } from "lucide-react";
 import { GuildStorageCard } from "@/components/admin/guild-storage-card";
@@ -91,6 +93,7 @@ function buildNavGroups(): SettingsGroup[] {
                 { id: "metamob", label: "Quête Ocre", icon: Key, description: "Suivi & Échanges d'Archis", accent: "emerald", module: "ocre" },
                 { id: "gallery", label: "Galerie", icon: Layout, description: "Salons Stuffs & Skins", accent: "emerald", module: "gallery" },
                 { id: "services", label: "Services Guilde", icon: Trophy, description: "Salon de mention des passeurs", accent: "emerald", module: "services" },
+                { id: "marche", label: "Marché", icon: Store, description: "Salon, rôles & cycle de vie des annonces", accent: "emerald", module: "marche" },
             ]
         }
     ];
@@ -317,6 +320,7 @@ export default async function FeatureSettingsPage({
                             { resolvedTab === "gallery" && <GallerySettingsClient guildId={guildId} /> }
                             { resolvedTab === "annuaire" && <DirectorySettingsClient guildId={guildId} /> }
                             { resolvedTab === "services" && <ServicesSettingsClient guildId={guildId} /> }
+                            { resolvedTab === "marche" && <MarketSettingsClient guildId={guildId} /> }
                             { resolvedTab === "apparence" && <GuildAppearanceSettingsClient guildId={guildId} initialHue={guild?.accentHue ?? null} /> }
                         </>
                     )}

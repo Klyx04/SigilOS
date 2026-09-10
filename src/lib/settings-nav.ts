@@ -38,4 +38,5 @@ export const SETTINGS_TAB_MODULES: Record<string, string> = {
     gallery: "gallery",
     services: "services",
     annuaire: "roster",
+    marche: "marche",
 };

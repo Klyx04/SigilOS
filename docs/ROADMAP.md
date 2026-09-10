@@ -27,6 +27,16 @@
   restauration DB automatique (`./scripts/restore_db.sh prod --download-latest`), retrait du rewrite Caddy `maintenance.html`
   sur `sigilos.fr`, noindexer la beta, resoumettre le sitemap, vérifier `/legal/*`. **+ trancher la décision landing immersive** (`page.tsx`).
 
+- ✅ **Session 10/09/2026 — Module « Marché » · B1 = S1 (fondations)** (branche `feat/marche-b1` → PR `dev` ; mémo `src/temp/memo-2026-09-10-marche.md` ; plan `src/temp/refonte-marche/PLAN-MAITRE-MODULE-MARCHE.md` §0.1.bis bloc B) :
+  - **Schéma** : 9 modèles (`MarketListing`, `MarketListingStat`, `MarketListingComponent`, `MarketOffer`, `MarketReservation`, `MarketListingMedia`, `MarketDiscordMessage`, `MarketReport`, `MarketAuditLog`) + 9 enums + `GuildModules.marche` (OFF par défaut) + 16 colonnes `GuildConfig.market*` · migration **idempotente** `20261110000000_add_market_module`.
+  - **Module activable** : `module-types` / `module-actions` (Zod + verrou God) / **2 permissions** `market:trade` + `market:moderate` (matrice RBAC) / `canViewMarket` + `canManageMarket` (`applyModule`) / sidebar « Marché » / carte Pilotage / onglet **Réglages → Marché**.
+  - **Écrans** : `/marche` (catalogue cartes + tableau + filtres), `/marche/nouveau` (assistant 3 étapes), `/marche/[listingId]` (fiche + jet étiqueté + actions vendeur), `/marche/mes-espaces` (en cours / terminées).
+  - **Actions** : catalogue, CRUD, publication (`expiresAt = +20 j`), retrait, renouvellement (1 fois), soft-delete, **journal d'audit** ; réglages + **« Tester la configuration »**.
+  - **Docs & tour** : fiches `/docs/marche` + « Configurer le Marché », 2 permissions documentées, `docs-mapping`, `seed:docs`+`build:seeds` · tour `marche` (6 étapes) + les 2 boutons (`📖 Documentation` / `❓ Tutoriel`).
+  - Vérifs : **`prisma validate`** ✅ · **`migrate diff` 0 écart** ✅ · **`tsc` 0 erreur** ✅ · **`build` OK** · tests Marché **27/27** ✅ · **suite complète 682/682** ✅ (2 tests « préexistants » réparés : fixtures `data-health` / `siphon-stats` figées au 09/09 → rendues relatives à l'horloge, commit `5136214ba`).
+  - ⚠️ `prisma migrate dev` **impossible en local** (dérive préexistante `20260819000000_add_inter_guild` absente du repo → reset destructif refusé) ⇒ migration écrite à la main + `prisma db execute`.
+  - ⚪ RESTE : DoD visuelle dark/light/mobile (vérif user) · assistant **5 étapes** (S1.42 → B2) · ➡️ **B2 = S2 + S3**.
+
 - 🔸 **Session 08/09/2026 — Module « Titans »** (branche `feat/slash-rework`, non commité ; mémo `src/temp/memo-2026-09-08-titans.md`) :
   - **Fonctionnalité de bout en bout** : modèle `Titan` + `UserTitanProgress` + `DjSearchMode.TITAN` + champs DJ (`titanId/titanName/questName/questUrl`) — migrations `20261101000000_add_titan` + `20261102000000_add_titan_quests` appliquées. Admin GOD `TitanManager`, server actions `titan-admin-actions`/`titan-actions`, seed Gargandyas (id 8062, zone Osavora).
   - **Dashboard DJ** : mode `TITAN` (création/filtre/embed/close/titres) + `maxMembers` plafonné au titan.

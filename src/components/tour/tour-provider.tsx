@@ -43,6 +43,7 @@ export type TourPhase =
     | "presentation"
     | "guide"
     | "succes"
+    | "marche"
     | null;
 
 /**
@@ -55,6 +56,7 @@ export const MODULE_TOUR_PHASES = [
     "services", "donjons", "calendar", "sondages", "annuaire",
     "quetesDofus", "galerie", "ressources", "docs", "minijeu", "stats", "presentation",
     "guide", "succes",
+    "marche",
 ] as const;
 
 export function isReplayableTourPhase(phase: TourPhase): boolean {
@@ -1294,6 +1296,62 @@ const SUCCES_STEPS: TourStep[] = [
     },
 ];
 
+/**
+ * Tour complet du module « Marché » (D36) — 6 étapes ancrées sur des
+ * `data-tour="marche-*"` stables (jamais de sélecteur fragile), filtrées par
+ * le module actif + la permission `market:trade`.
+ */
+const MARCHE_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="marche-header"]',
+        title: "Le Marché de guilde",
+        description: "Publie et consulte les annonces d'équipements forgemagie et de lots de ressources entre membres. L'échange se conclut en jeu : SigilOS ne garantit pas la transaction.",
+        placement: "bottom",
+        module: "marche",
+        requiresPerm: "canViewMarket",
+    },
+    {
+        target: '[data-tour="marche-create"]',
+        title: "Publier une annonce",
+        description: "Choisis ton objet du catalogue (ou compose ton lot de ressources), fixe ton prix en kamas et publie en 3 étapes.",
+        placement: "bottom",
+        module: "marche",
+        requiresPerm: "canViewMarket",
+    },
+    {
+        target: '[data-tour="marche-filters"]',
+        title: "Filtrer le catalogue",
+        description: "Recherche par objet ou vendeur, filtre par type et par statut, trie par prix ou par niveau, et passe en vue tableau pour une lecture dense.",
+        placement: "bottom",
+        module: "marche",
+        requiresPerm: "canViewMarket",
+    },
+    {
+        target: '[data-tour="marche-catalog"]',
+        title: "Les annonces",
+        description: "Chaque carte affiche l'objet, son prix, son statut (Disponible, Réservé, Vendu, Expiré) et son vendeur. Clique sur « Voir la fiche » pour le détail.",
+        placement: "top",
+        module: "marche",
+        requiresPerm: "canViewMarket",
+    },
+    {
+        target: '[data-tour="marche-my-listings"]',
+        title: "Mes espaces",
+        description: "Retrouve tes annonces en cours et tes archives, avec les actions de publication, de retrait et de renouvellement.",
+        placement: "bottom",
+        module: "marche",
+        requiresPerm: "canViewMarket",
+    },
+    {
+        target: '[data-tour="sidebar-marche"]',
+        title: "Où le retrouver",
+        description: "Le Marché reste accessible à tout moment depuis la barre latérale (menu Outils).",
+        placement: "right",
+        module: "marche",
+        requiresPerm: "canViewMarket",
+    },
+];
+
 export const TourContext = createContext<TourContextType | undefined>(undefined);
 
 export function TourProvider({
@@ -1372,6 +1430,7 @@ export function TourProvider({
     const statsSteps = applyFilters(STATS_STEPS);
     const presentationSteps = applyFilters(PRESENTATION_STEPS);
     const succesSteps = applyFilters(SUCCES_STEPS);
+    const marcheSteps = applyFilters(MARCHE_STEPS);
 
     const getPhaseSteps = (phase: TourPhase): TourStep[] => {
         switch (phase) {
@@ -1406,6 +1465,7 @@ export function TourProvider({
             case "stats": return statsSteps;
             case "presentation": return presentationSteps;
             case "succes": return succesSteps;
+            case "marche": return marcheSteps;
             default: return [];
         }
     };
@@ -1607,6 +1667,9 @@ export function TourProvider({
                 break;
             case "succes":
                 router.push(`/dashboard/${guildId}/succes`);
+                break;
+            case "marche":
+                router.push(`/dashboard/${guildId}/marche`);
                 break;
             default:
                 break;

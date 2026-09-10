@@ -35,6 +35,10 @@ export const PERMISSIONS = {
     RAID_OFFICER: "game:raid_officer",
     RAID_MEMBER: "game:raid_member",
     POINTS_MANAGE: "points:manage",
+
+    // Marché (module « marche »)
+    MARKET_TRADE: "market:trade",
+    MARKET_MODERATE: "market:moderate",
 } as const;
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -207,6 +211,21 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         module: "game",
         modules: ["Points de Contribution"]
     },
+    // Marché — « participer au marché » (voir le catalogue, publier, réserver, offrir).
+    [PERMISSIONS.MARKET_TRADE]: {
+        label: "Marché — Participer",
+        description: "Voir le catalogue du Marché, publier ses annonces (équipements, lots de ressources) et interagir (réserver, négocier).",
+        module: "game",
+        modules: ["Marché", "Mes annonces"]
+    },
+    // Marché — modération (retirer/restaurer une annonce, traiter les signalements).
+    [PERMISSIONS.MARKET_MODERATE]: {
+        label: "Marché — Modérer",
+        description: "Retirer ou restaurer une annonce, traiter les signalements et clôturer les dossiers du Marché.",
+        module: "game",
+        modules: ["Modération Marché", "Signalements"],
+        sensitive: true,
+    },
 };
 
 export const PERMISSION_LABELS: Record<PermissionId, string> =
@@ -241,6 +260,8 @@ export const PERMISSION_GUILD_MODULES: Record<string, string[]> = {
     [PERMISSIONS.COMMUNITY_MOD]: ["calendar"],
     [PERMISSIONS.AVAILABILITY_VIEW]: ["availability", "calendar"],
     [PERMISSIONS.RESOURCES_MANAGE]: ["resources"],
+    [PERMISSIONS.MARKET_TRADE]: ["marche"],
+    [PERMISSIONS.MARKET_MODERATE]: ["marche"],
     [PERMISSIONS.PRESENTATION_VIEW]: ["presentation"],
     [PERMISSIONS.STAFF_MEMBER_MGMT]: ["roster", "profile"],
     [PERMISSIONS.STAFF_CONTENT]: ["presentation", "docs"],
@@ -301,5 +322,6 @@ export const GUILD_MODULE_LABELS: Record<string, string> = {
     manualLadderSync: "Ladder OC",
     minigames: "Mini-Jeux",
     succes: "Succès",
+    marche: "Marché",
     admin: "Admin",
 };

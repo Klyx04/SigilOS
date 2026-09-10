@@ -426,6 +426,7 @@ model GuildConfig {
   kamaDonations                    KamaDonation[]
   welcomePosts                     MemberWelcome[]
   missions                         Mission[]
+  marketListings                   MarketListing[]
   ocreTradeRequests                OcreTradeRequest[]
   reactionRoleGroups               ReactionRoleGroup[]
   reactionRoleIconPacks            ReactionRoleIconPack[]
@@ -470,6 +471,25 @@ model GuildConfig {
   trialRoleId                      String?
   confirmedRoleId                  String?
   recruitmentWelcomeTemplate       String?
+  // ── Module « Marché » (chantier 2026-09-10) — réglages par guilde (§9.1) ──
+  // Toutes les valeurs sont lues côté serveur, jamais depuis un paramètre client.
+  marketNotifyChannelId            String?  // salon de publication (texte / annonces / forum)
+  marketNotifyRoleId               String?  // rôle mentionné à la publication (facultatif)
+  marketAllowedPingRoleIds         Json     @default("[]") // rôles que le créateur peut pinger
+  marketModeratorRoleId            String?  // rôle modérateur du marché (facultatif)
+  marketMinRoleId                  String?  // rôle minimum pour publier (facultatif)
+  marketMaxActivePerMember         Int      @default(5)
+  marketDefaultDurationDays        Int      @default(7)
+  marketMaxLifetimeDays            Int      @default(20)   // D18 — plafond de survie
+  marketReminderDays               Json     @default("[7, 15]") // D18 — paliers de rappel
+  marketReservationHours           Int      @default(12)
+  marketOfferHours                 Int      @default(48)
+  marketNegotiationsEnabled        Boolean  @default(true)
+  marketProofsEnabled              Boolean  @default(true)
+  marketMediaRetentionDays         Int      @default(30)
+  marketLogRetentionDays           Int      @default(365)
+  marketChannelKind                String?  // TEXT | FORUM — posé automatiquement (D19)
+  marketForumTags                  Json?    // mapping type/statut → tagId forum (D20)
 }
 
 model UserSkin {
@@ -538,6 +558,8 @@ model GuildModules {
   reactionRoles    Boolean     @default(true)
   tickets          Boolean     @default(false)
   commandes       Boolean     @default(true)
+  /** Module « Marché » — OFF par défaut pour les nouvelles guildes (D15). */
+  marche          Boolean     @default(false)
   guild            GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
   /**
    * Modules verrouillés par le staff (noms de ModuleKey). Un module verrouillé
@@ -742,6 +764,8 @@ model UserProfile {
   user                       User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
   skins                      UserSkin[]
   vaultEntries               VaultEntry[]
+  /** Module « Marché » — annonces du vendeur (relation nommée, cf. §6.10). */
+  marketListings             MarketListing[]            @relation("MarketListingsAsSeller")
   helpedSubmissions          Submission[]               @relation("SubmissionHelpers")
 
   @@unique([userId, guildId])
@@ -3343,4 +3367,339 @@ model GuildSlashCommandPermission {
 }
 
 
+
+
+// ============================================================================
+// 🛒 MODULE « MARCHÉ » (chantier 2026-09-10) — plan maître §6 (source de vérité)
+// Isolation multi-tenant : `guildId` = GuildConfig.id (JAMAIS le snowflake).
+// Toute requête filtre dessus ; l'isolation vient du contexte serveur.
+// ============================================================================
+
+enum MarketListingType {
+  EQUIPMENT
+  RESOURCE
+  SERVICE
+  WANTED
+}
+
+enum MarketListingStatus {
+  DRAFT
+  ACTIVE
+  RESERVED
+  SOLD
+  EXPIRED
+  WITHDRAWN
+}
+
+enum MarketStatOrigin {
+  NATIVE
+  EXO
+}
+
+enum MarketStatQuality {
+  LOW
+  NORMAL
+  GOOD
+  PERFECT
+  OVER
+}
+
+enum MarketOfferStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  EXPIRED
+}
+
+enum MarketReservationStatus {
+  ACTIVE
+  CANCELLED_BY_BUYER
+  CANCELLED_BY_SELLER
+  EXPIRED
+  COMPLETED
+}
+
+enum MarketMediaType {
+  PROOF_SCREENSHOT
+  OTHER
+}
+
+enum MarketReportReason {
+  JET_MISMATCH
+  SELLER_UNREACHABLE
+  BUYER_ABSENT
+  SUSPICIOUS
+  FORBIDDEN
+  OTHER
+}
+
+enum MarketReportStatus {
+  OPEN
+  REVIEWED
+  CLOSED
+}
+
+
+/// L'annonce — entité principale du marché.
+model MarketListing {
+  id             String              @id @default(cuid())
+
+  // ── Isolation multi-tenant + propriété ──────────────────────────────────
+  guildId        String              // = GuildConfig.id (JAMAIS le discordGuildId)
+  profileId      String              // UserProfile du vendeur (membre de la guilde)
+  userId         String              // propriétaire logique (autorisations, notifications)
+
+  // ── Nature de l'annonce ─────────────────────────────────────────────────
+  type           MarketListingType   @default(EQUIPMENT)
+  status         MarketListingStatus @default(DRAFT)
+
+  // ── Référence au catalogue d'objets (item réel, jamais inventé) ─────────
+  dofusDbItemId  Int?                // = GameItem.ankamaId
+  itemName       String?             // dénormalisé pour robustesse d'affichage
+  itemIconUrl    String?
+  itemLevel      Int?
+  itemTypeName   String?             // « Anneau », « Bottes », « Familier »…
+
+  // ── Contenu ─────────────────────────────────────────────────────────────
+  title          String              // titre affiché (pré-rempli : nom de l'item)
+  description    String?             // note du vendeur (nettoyée, liens filtrés)
+  forgedBy       String?             // « Modifié par » DÉCLARÉ (D11)
+
+  // ── Prix & conditions (D4) ──────────────────────────────────────────────
+  priceKamas     Int?                // ≤ 2 147 483 647 (garde Zod)
+  negotiable     Boolean             @default(true)
+  acceptsTrade   Boolean             @default(false)
+
+  // ── Ressources / lots (D23, MVP) ────────────────────────────────────────
+  quantity       Int?                // taille du lot (lot simple)
+  unitLabel      String?             // « lot de 1 000 », « unité »…
+  minQuantity    Int?                // quantité minimale par acheteur
+
+  // ── Cycle de vie / échéances (indexé pour les crons) ────────────────────
+  publishedAt    DateTime?
+  expiresAt      DateTime?           // J+20 par défaut (D18) — échéance MAXIMALE
+  reservedUntil  DateTime?
+  soldAt         DateTime?
+  withdrawnAt    DateTime?
+  // Cycle de rappels piloté par paliers (D18) : 0 = aucun, 1 = J+7, 2 = J+15
+  reminderStage  Int       @default(0)
+  lastReminderAt DateTime?           // horodatage du dernier rappel (idempotence + anti-spam)
+  renewCount     Int       @default(0)   // Q10=C : prolongation UNE SEULE fois
+  // « Aucun échange ni interaction » : mis à jour à chaque offre, réservation, vente
+  lastActivityAt DateTime  @default(now())
+  // Suppression automatique à J+20 (D18) : soft-delete (traçabilité) puis purge différée
+  deletedAt      DateTime?
+  deletedReason  String?             // AUTO_EXPIRED | SELLER | MODERATION | GUILD
+
+  // ── Anticipation inter-guilde (D24) — réservé, NON utilisé au MVP ───────
+  visibility     String    @default("GUILD")   // GUILD | INTER_GUILD (V2)
+
+  // ── Anti-duplication & intégrité serveur ────────────────────────────────
+  statsHash      String?             // MD5 des stats déclarées → cache de la carte PNG
+  moderationNote String?             // motif du dernier retrait modo
+
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  // ── Relations ───────────────────────────────────────────────────────────
+  guild          GuildConfig           @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  profile        UserProfile           @relation("MarketListingsAsSeller", fields: [profileId], references: [id], onDelete: Cascade)
+  stats          MarketListingStat[]
+  components     MarketListingComponent[]
+  offers         MarketOffer[]
+  reservations   MarketReservation[]
+  media          MarketListingMedia[]
+  reports        MarketReport[]
+  discordMessage MarketDiscordMessage?
+  auditLogs      MarketAuditLog[]
+
+  @@index([guildId, status])
+  @@index([guildId, type, status])
+  @@index([guildId, status, expiresAt])   // cron d'expiration
+  @@index([profileId, status])            // « Mes annonces »
+  @@index([guildId, dofusDbItemId])       // prix moyen guilde par item
+}
+
+
+/// Le jet déclaré (le cœur de la valeur). `quality` est TOUJOURS recalculée serveur.
+model MarketListingStat {
+  id             String            @id @default(cuid())
+  listingId      String
+
+  effectId       Int               // identifiant d'effet DofusDB (stabilité inter-versions)
+  characteristic Int?              // identifiant de caractéristique (icône/couleur)
+  label          String            // libellé FR figé au moment de la déclaration
+
+  naturalMin     Int?              // plage native (issue du CATALOGUE, jamais du client)
+  naturalMax     Int?
+  actualValue    Int               // valeur déclarée par le vendeur
+
+  origin         MarketStatOrigin  @default(NATIVE)   // NATIVE | EXO
+  quality        MarketStatQuality @default(NORMAL)   // RECALCULÉE côté serveur (D17)
+
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  listing        MarketListing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, effectId, origin])   // une ligne par effet et par origine
+  @@index([listingId])
+}
+
+/// Contenu d'un lot de ressources (lot simple ou composite, D23).
+model MarketListingComponent {
+  id            String        @id @default(cuid())
+  listingId     String
+  position      Int           @default(0)     // ordre d'affichage dans le lot
+
+  dofusDbItemId Int?                          // référence catalogue (ressource)
+  name          String                        // « Bois de Frêne »
+  iconUrl       String?
+  quantity      Int                           // 1 000
+  unitLabel     String?                       // « unité », « lot », « kamas »…
+
+  createdAt     DateTime      @default(now())
+
+  listing       MarketListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, position])
+}
+
+/// La négociation (offre / contre-offre).
+model MarketOffer {
+  id                String            @id @default(cuid())
+  listingId         String
+  buyerProfileId    String            // UserProfile de l'acheteur
+  buyerUserId       String
+
+  offeredKamas      Int?              // au moins UN des deux (kamas OU troc)
+  tradeDescription  String?           // description libre du troc
+  note              String?           // message au vendeur (max 500, nettoyé)
+
+  status            MarketOfferStatus @default(PENDING)
+  counterOfId       String?           // si contre-offre : offre d'origine
+  respondedAt       DateTime?
+  respondedByUserId String?
+  expiresAt         DateTime?         // 48 h par défaut
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  listing           MarketListing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, status])
+  @@index([buyerProfileId, status])
+  @@index([status, expiresAt])       // cron d'expiration des offres
+}
+
+/// L'intention d'achat au prix.
+model MarketReservation {
+  id                 String                   @id @default(cuid())
+  listingId          String
+  buyerProfileId     String
+  buyerUserId        String
+
+  status             MarketReservationStatus  @default(ACTIVE)
+  expiresAt          DateTime                  // durée de guilde (12 h par défaut)
+  completedAt        DateTime?
+  cancelledAt        DateTime?
+  cancelledByUserId  String?
+  cancellationReason String?
+
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+
+  listing            MarketListing             @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, status])
+  @@index([buyerProfileId, status])
+  @@index([status, expiresAt])       // cron de libération
+}
+
+
+/// Preuves facultatives (captures) — clé de stockage, jamais une URL fragile.
+model MarketListingMedia {
+  id              String          @id @default(cuid())
+  listingId       String
+  type            MarketMediaType @default(PROOF_SCREENSHOT)
+
+  storageKey      String          // /api/storage/...
+  mimeType        String          // image/png | image/jpeg | image/webp uniquement
+  sizeBytes       Int
+  createdByUserId String
+
+  createdAt       DateTime        @default(now())
+
+  listing         MarketListing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+}
+
+/// Suivi du message Discord publié (1 annonce = 1 message au MVP).
+model MarketDiscordMessage {
+  id                       String        @id @default(cuid())
+  listingId                String        @unique
+
+  discordGuildId           String        // snowflake Discord (traçabilité de l'app utilisée)
+  discordChannelId         String
+  discordMessageId         String
+
+  generatedImageStorageKey String?       // clé locale de la carte PNG mise en cache
+  lastSyncedAt             DateTime      @default(now())
+  syncStatus               String        @default("OK")   // OK | PENDING | FAILED
+  lastError                String?
+
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+
+  listing                  MarketListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([discordGuildId, syncStatus])
+}
+
+/// Signalement d'une annonce (dossiers humains, aucune sanction automatique).
+model MarketReport {
+  id                String             @id @default(cuid())
+  listingId         String
+  reporterUserId    String
+  reporterProfileId String
+
+  reason            MarketReportReason @default(OTHER)
+  details           String?            // texte libre, nettoyé
+  snapshot          Json?              // état figé de l'annonce au moment du signalement
+
+  status            MarketReportStatus @default(OPEN)
+  reviewedByUserId  String?
+  reviewedAt        DateTime?
+  resolution        String?
+
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  listing           MarketListing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, status])
+  @@index([status, createdAt])
+}
+
+/// Journal d'audit du marché (rétention 365 j par défaut, cf. §15.2).
+model MarketAuditLog {
+  id           String         @id @default(cuid())
+  guildId      String
+  listingId    String?
+  actorUserId  String?        // qui (null = système / cron)
+
+  action       String         // cf. MARKET_AUDIT_ACTIONS (constantes typées)
+  previousData Json?
+  nextData     Json?
+  reason       String?
+
+  createdAt    DateTime       @default(now())
+
+  listing      MarketListing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+
+  @@index([guildId, createdAt])
+  @@index([listingId])
+}
 

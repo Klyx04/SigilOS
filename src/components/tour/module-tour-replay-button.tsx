@@ -24,6 +24,7 @@ const TOUR_PHASE_TO_DOC_SLUG: Record<string, { slug: string; title: string }> = 
     songes:            { slug: "songes",                            title: "Songes Infinis" },
     stats:             { slug: "introduction",                      title: "Statistiques de Guilde" },
     succes:            { slug: "succes",                            title: "Succès Donjons" },
+    marche:            { slug: "marche",                            title: "Marché de Guilde" },
     guide:             { slug: "quetes-dofus",                      title: "Les Quêtes Dofus" },
     admin:             { slug: "admin-getting-started",             title: "Panneau Admin" },
     adminOverview:     { slug: "admin-getting-started",             title: "Panneau Admin" },

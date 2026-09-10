@@ -1,5 +1,24 @@
 # Active Context — SigilOS
 
+## 🔄 PR EN COURS — **#627** `feat/marche-b1` (Module « Marché » · B1 = S1) → **à suivre jusqu'au merge**
+
+> **PR :** https://github.com/Klyx04/SigilOS/pull/627 · base `dev` · commits **`c32257434`** (S1) · **`5136214ba`** (fixtures de tests) · **`66ffdd724`** (heap CI/CD).
+> **Règle de session :** tant que la PR est ouverte on la **surveille jusqu'au merge** (`gh pr checks 627` · `gh run view <id> --log-failed`) ; **si une étape CI/CD échoue → on fixe, on relance** (`gh run rerun <id> --failed`) **et on recommence jusqu'au vert, puis merge**. Jamais de merge sur rouge · jamais de test désactivé pour verdir · jamais `main`.
+> **Contexte de reprise :** plan `src/temp/refonte-marche/PLAN-MAITRE-MODULE-MARCHE.md` (§0.1.bis + bloc « 🔁 REPRISE B2 — état réel ») · mémo `src/temp/memo-2026-09-10-marche.md` · amorce `src/temp/refonte-marche/AMORCES-A-COPIER.md`.
+
+### Fichiers à surveiller sur cette PR (les toucher ⇒ relire les règles ci-dessous)
+- **CI/CD** : `.github/workflows/verify.yml` (Lint → tsc → bot tsc → tests → build) · `.github/workflows/deploy.yml` (image construite sur runner GitHub via buildx) · `Dockerfile` (stage `builder` = `npm run build`).
+- **Schéma/données** : `prisma/schema.prisma` + `prisma/migrations/**` (**idempotence obligatoire**) · `src/lib/module-types.ts` · `src/server/actions/module-actions.ts` (**`GOD_LOCKABLE_MODULES`**) · `src/lib/permissions.ts` · `src/server/actions/user-actions.ts` (**`applyModule` = piège n°1**).
+- **Module Marché** : `src/server/actions/market-actions.ts` · `market-admin-actions.ts` · `market-constants.ts` · `src/lib/market/{kamas,stat-quality}.ts` · `src/app/dashboard/[guildId]/marche/**`.
+- **Docs & tour (obligations RULES.md)** : `src/lib/docs-catalog.ts` (**la source** — puis `npm run seed:docs` **et** `npm run build:seeds`) · `src/components/tour/tour-provider.tsx` (+ `MODULE_TOUR_PHASES`) · `src/components/tour/module-tour-replay-button.tsx`.
+- **Fixtures sensibles aux modules/permissions** : `tests/unit/onboarding-console.test.ts` (`allOn()`).
+
+### Pièges connus (brief du 10/09/2026)
+- `prisma migrate dev` **échoue en local** (migration `20260819000000_add_inter_guild` appliquée en base mais absente du repo → Prisma propose un **reset destructif**) ⇒ migration **écrite à la main (idempotente)** + `prisma db execute --file`.
+- **Plafond mémoire Node ~2 Go** : `tsc --noEmit` et `next build` (« Running TypeScript ») tombaient en **OOM** ⇒ heap porté à **4 Go** (`NODE_OPTIONS` dans `verify.yml` **et** `Dockerfile`), commit `66ffdd724`.
+- **Tests à fixtures de date figée = bombes à retardement** ⇒ toujours une référence **relative** (`Date.now() - H`).
+- `npx prisma` sans version installe la **v8 RC** ⇒ toujours `prisma@7.10.0` · PowerShell : `[guildId]` est un wildcard ⇒ `-LiteralPath`.
+
 ## Session 2026-09-09 (nuit) — Landing boss + Status Discord + Ko-fi + Prod bot + Gitops
 > Branches : `feat/chantier-2026-09-08-titans` (PR **#613 MERGÉE** dans `dev` → déployée beta `4dc682f7`) · `fix/migrations-idempotentes` (PR **#614 OUVERTE** → `dev`).
 - ✅ **Landing `/boss` parité module Succès** (`cacc71686`) : filtre **Boss / Titans** + badge TITAN (catalogue) · fiche boss **et** titan (page résout `Dungeon` **ou** `Titan`, pré-charge sorts+famille+maps serveur) · onglets Sorts / Sorts détaillés / Simu + choix map / Grades / Drops (modale) / Monstres de salle · stats PV-PA-PM + résistances · `/travel` · `SpellRangeGrid.allowFreeCasterMove` (bypass boss libre opt-in public, dashboard épinglé inchangé).

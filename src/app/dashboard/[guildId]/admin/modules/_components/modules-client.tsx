@@ -33,6 +33,7 @@ import {
     Sparkles,
     Ticket,
     Terminal,
+    Store,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -74,6 +75,7 @@ const MODULE_ROUTES: Partial<Record<ModuleKey, { label: string; href: string }[]
     ladderSync: [{ label: "Classement (Ladder Ankama)", href: "/dashboard/{guildId}/ladder" }],
     manualLadderSync: [{ label: "Classement (Ladder Analyse OC)", href: "/dashboard/{guildId}/ladder" }],
     services: [{ label: "Services Guilde", href: "/dashboard/{guildId}/services" }],
+    marche: [{ label: "Marché", href: "/dashboard/{guildId}/marche" }],
     donjons: [{ label: "Donjons & Quêtes", href: "/dashboard/{guildId}/donjons-et-quetes" }],
     docs: [{ label: "Documentation (Wiki)", href: "/docs" }],
     polls: [{ label: "Sondages", href: "/dashboard/{guildId}/sondages" }],
@@ -244,6 +246,15 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 label: "Services Guilde",
                 description: "Passages de donjon et services entre membres. Coordination et suivi des échanges.",
                 icon: Key,
+                color: "text-info",
+                bgColor: "bg-info/10",
+                borderColor: "border-info/30",
+            },
+            {
+                key: "marche",
+                label: "Marché",
+                description: "Catalogue d'annonces FM (équipements et lots de ressources) entre membres — publication Discord, cycle de vie 7/15/20 j, lots simples et composites.",
+                icon: Store,
                 color: "text-info",
                 bgColor: "bg-info/10",
                 borderColor: "border-info/30",

@@ -1848,6 +1848,18 @@ model GameItem {
   iconUrl      String?
   dataHash     String?  // MD5 des stats/recette pour détection différentielle (nerf/buff/modifs)
   isDeprecated Boolean  @default(false)
+  // ── S2 (chantier Marché) — extension ADDITIVE issue de DofusDB (§6.11) ────
+  realWeight    Int?      // POIDS (pods)
+  priceNpc      Int?      // `price` DofusDB → prix PNJ de référence
+  itemSetId     Int?      // panoplie (-1 = aucune)
+  itemSetName   String?   // « Panoplie du Katcheur »
+  isLegendary   Boolean   @default(false)   // familiers / objets légendaires
+  isSaleable    Boolean   @default(true)
+  superTypeId   Int?      // famille (Arme, Consommable, Ressource…)
+  superTypeName String?   // libellé FR de la famille
+  // Version LÉGÈRE des effets natifs (plages min–max) — indispensable à l'éditeur FM
+  // et à la carte d'item : [{ effectId, characteristic, from, to, category, elementId }]
+  nativeEffects Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -1855,6 +1867,36 @@ model GameItem {
   @@index([category])
   @@index([typeName])
   @@index([level])
+  @@index([itemSetId])      // filtre « panoplie » (éditeur FM)
+  @@index([superTypeId])    // filtre « famille » (éditeur FM)
+}
+
+/// 📚 Référentiel DofusDB `/effects` — siphonné (S2.5bis).
+/// Rend les libellés FR, le « % » et la caractéristique **data-driven** :
+/// `CHAR_NAMES` (codé en dur côté composant) est remplacé par cette table.
+model GameEffect {
+  id             Int      @id                  // = effectId DofusDB
+  name           String                        // libellé FR (« Vitalité », « Dommages Feu »)
+  characteristic Int?                          // caractéristique associée (→ GameCharacteristic.id)
+  isInPercent    Boolean  @default(false)      // l'effet s'exprime en % (résistances…)
+  category       Int?                          // catégorie DofusDB (utile au tri d'affichage)
+  iconKey        String?                       // slug d'icône locale (`vi`, `fo`, `dmg`, `po`…)
+  updatedAt      DateTime @updatedAt
+
+  @@index([characteristic])
+}
+
+/// 📚 Référentiel DofusDB `/characteristics` — siphonné (S2.5bis).
+/// Alimente l'icône + la couleur d'une caractéristique **data-driven**
+/// (remplace `STAT_ICONS` codé en dur côté composant).
+model GameCharacteristic {
+  id        Int      @id                       // = characteristicId DofusDB
+  name      String                             // libellé FR (« Vitalité », « Force »…)
+  keyword   String?                            // code court historique (`vi`, `fo`, `dmg`…)
+  iconKey   String?                            // slug d'icône locale (public/assets/dofus/stats)
+  updatedAt DateTime @updatedAt
+
+  @@index([keyword])
 }
 
 /// 🖼️ #140 — Screens de la landing pilotés par le God (upload/suppression à la volée).

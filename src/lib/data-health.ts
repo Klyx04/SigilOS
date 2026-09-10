@@ -60,6 +60,16 @@ export function bossMatchKey(s: string | null | undefined): string {
  * Dry-run pur (testable) : donjons sans fiche fraîche (< 24 h).
  * Aucun I/O — les lignes BDD sont injectées.
  */
+/**
+ * Diff pur (testable) : IDs locaux absents du distant. Sert au flag
+ * `isDeprecated` (items disparus → flag, jamais supprimés).
+ * (Module pur : interdit dans un module 'use server' — Next 16.)
+ */
+export function diffVanishedIds(localIds: number[], remoteIds: number[]): number[] {
+    const remote = new Set(remoteIds.filter((n) => Number.isInteger(n) && n > 0));
+    return localIds.filter((n) => Number.isInteger(n) && n > 0 && !remote.has(n));
+}
+
 export function buildBossFicheGaps(
     dungeons: { bossName: string; name: string; level: number | null }[],
     statsRows: { monsterName: string; lastSyncedAt: Date | string | null }[],

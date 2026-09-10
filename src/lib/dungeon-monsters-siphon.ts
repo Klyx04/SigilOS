@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { logger } from "@/lib/logger";
+import { dofusDbFetch } from "@/lib/dofusdb-limiter";
 
 const OUTPUT_PATH = path.join(process.cwd(), "public", "game-data", "dungeon-monsters.json");
 
@@ -18,7 +19,7 @@ async function fetchPaged(baseUrl: string, limit = 50): Promise<any[]> {
     let skip = 0;
     while (true) {
         const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}$limit=${limit}&$skip=${skip}&lang=fr`;
-        const res = await fetch(url, { cache: 'no-store' });
+        const res = await dofusDbFetch(url, { cache: 'no-store' });
         if (!res.ok) {
             logger.error(`[siphonDungeonMonsters] Fetch failed for ${url}: status ${res.status}`);
             break;
@@ -37,6 +38,69 @@ export interface SiphonResult {
     totalDungeons: number;
     totalMonsters: number;
     totalBossFamilies: number;
+}
+
+export interface ContractIssue {
+    field: string;
+    message: string;
+}
+
+/**
+ * Phase 5.4 — Test de contrat DofusDB (pur, testé) : pin les endpoints et les
+ * champs critiques (dungeons, monster-races.monsters, monster.img/grades).
+ * Un renommage côté source doit ÉCHOUER explicitement (throw → pas d'écriture,
+ * alerte) au lieu de produire un dataset partiel silencieux.
+ */
+export function checkDungeonsContract(dungeons: unknown): ContractIssue[] {
+    const issues: ContractIssue[] = [];
+    if (!Array.isArray(dungeons) || dungeons.length === 0) {
+        return [{ field: 'dungeons', message: 'liste vide ou absente' }];
+    }
+    const d = dungeons[0] as Record<string, unknown>;
+    if (typeof d.id !== 'number') issues.push({ field: 'dungeons[].id', message: 'id numérique attendu' });
+    if (typeof d.name !== 'object' && typeof d.name !== 'string') {
+        issues.push({ field: 'dungeons[].name', message: 'nom (objet localisé ou chaîne) attendu' });
+    }
+    if (!Array.isArray(d.monsters) && !Array.isArray(d.bosses)) {
+        issues.push({ field: 'dungeons[].monsters|bosses', message: 'listes de monstres attendues' });
+    }
+    return issues;
+}
+
+export function checkRacesContract(races: unknown): ContractIssue[] {
+    const issues: ContractIssue[] = [];
+    if (!Array.isArray(races) || races.length === 0) {
+        return [{ field: 'monster-races', message: 'liste vide ou absente' }];
+    }
+    const r = races[0] as Record<string, unknown>;
+    if (typeof r.id !== 'number') issues.push({ field: 'monster-races[].id', message: 'id numérique attendu' });
+    if (!Array.isArray(r.monsters)) issues.push({ field: 'monster-races[].monsters', message: 'liste IDs attendue' });
+    return issues;
+}
+
+export function checkMonsterContract(m: unknown): ContractIssue[] {
+    const issues: ContractIssue[] = [];
+    const mon = (m || {}) as Record<string, unknown>;
+    if (typeof mon.id !== 'number') issues.push({ field: 'monster.id', message: 'id numérique attendu' });
+    if (mon.img !== undefined && mon.img !== null && typeof mon.img !== 'string') {
+        issues.push({ field: 'monster.img', message: 'URL chaîne attendue' });
+    }
+    if (!Array.isArray(mon.grades)) issues.push({ field: 'monster.grades', message: 'tableau attendu' });
+    return issues;
+}
+
+/** Valide un échantillon du fetch ; throw avec le détail (bloque l'écriture). */
+export function assertDatasetContract(input: { dungeons: unknown; races: unknown; sampleMonster: unknown }): void {
+    const issues = [
+        ...checkDungeonsContract(input.dungeons),
+        ...checkRacesContract(input.races),
+        ...checkMonsterContract(input.sampleMonster),
+    ];
+    if (issues.length > 0) {
+        throw new Error(
+            `[siphonDungeonMonsters] Contrat DofusDB rompu : ${issues.map((i) => `${i.field} (${i.message})`).join(' ; ')}`
+        );
+    }
 }
 
 export interface CompiledDataset {
@@ -137,15 +201,19 @@ export async function siphonDungeonMonstersDataset(): Promise<SiphonResult> {
     const mobMap = new Map<number, any>();
     const mobIdArray = Array.from(allNeededMobIds);
     const CHUNK_SIZE = 40;
+    let firstRawMonster: unknown = null;
 
     for (let i = 0; i < mobIdArray.length; i += CHUNK_SIZE) {
         const chunk = mobIdArray.slice(i, i + CHUNK_SIZE);
         const query = chunk.map(id => `id[$in][]=${id}`).join("&");
         const url = `https://api.dofusdb.fr/monsters?${query}&$limit=50&lang=fr`;
         try {
-            const res = await fetch(url, { cache: 'no-store' });
+            const res = await dofusDbFetch(url, { cache: 'no-store' });
             if (res.ok) {
                 const data = await res.json();
+                if (!firstRawMonster && Array.isArray(data.data) && data.data.length > 0) {
+                    firstRawMonster = data.data[0];
+                }
                 (data.data || []).forEach((m: any) => {
                     const r = raceMap.get(m.race);
                     const grades = m.grades || [];
@@ -166,6 +234,10 @@ export async function siphonDungeonMonstersDataset(): Promise<SiphonResult> {
             logger.warn(`[siphonDungeonMonsters] Erreur chunk ${i}:`, { error: e.message });
         }
     }
+
+    // 4bis. Contrat : un renommage côté DofusDB doit échouer explicitement
+    // (throw → pas d'écriture) plutôt que produire un dataset partiel silencieux.
+    assertDatasetContract({ dungeons, races, sampleMonster: firstRawMonster });
 
     // 5. Construction de la structure unifiée des Donjons
     const compiledDungeons = dungeons.map(d => {

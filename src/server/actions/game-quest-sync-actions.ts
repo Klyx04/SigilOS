@@ -3,6 +3,7 @@
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { isSuperAdmin, canAccessBrick } from "@/server/actions/super-admin-actions";
+import { dofusDbFetch } from "@/lib/dofusdb-limiter";
 
 const DOFUSDB_API = "https://api.dofusdb.fr";
 
@@ -39,7 +40,7 @@ export async function checkDofusDbDeltas() {
 export async function computeQuestDeltas() {
     try {
         // 1. Fetch DofusDB total quests count to see if we need deep checking
-        const countRes = await fetch(`${DOFUSDB_API}/quests?$limit=1`, {
+        const countRes = await dofusDbFetch(`${DOFUSDB_API}/quests?$limit=1`, {
             headers: { Accept: "application/json" },
             signal: AbortSignal.timeout(10000),
         });
@@ -74,7 +75,7 @@ export async function computeQuestDeltas() {
         const deltas: QuestDelta[] = [];
 
         while (skip < totalRemote) {
-            const res = await fetch(`${DOFUSDB_API}/quests?$limit=${limit}&$skip=${skip}&$select[]=id&$select[]=name&$select[]=levelMin&$select[]=levelMax&$select[]=categoryId`, {
+            const res = await dofusDbFetch(`${DOFUSDB_API}/quests?$limit=${limit}&$skip=${skip}&$select[]=id&$select[]=name&$select[]=levelMin&$select[]=levelMax&$select[]=categoryId`, {
                 headers: { Accept: "application/json" },
                 signal: AbortSignal.timeout(15000),
             });
@@ -149,7 +150,7 @@ export async function syncDeltas(selectedIds: number[]) {
 
     try {
         // 1. Fetch categories mappings
-        const catRes = await fetch(`${DOFUSDB_API}/quest-categories?$limit=100`, {
+        const catRes = await dofusDbFetch(`${DOFUSDB_API}/quest-categories?$limit=100`, {
             headers: { Accept: "application/json" },
             signal: AbortSignal.timeout(10000),
         });
@@ -173,7 +174,7 @@ export async function syncDeltas(selectedIds: number[]) {
                     const id = Number(rawId);
                     if (!Number.isInteger(id) || id < 0) return;
                     try {
-                        const res = await fetch(`${DOFUSDB_API}/quests/${id}`, {
+                        const res = await dofusDbFetch(`${DOFUSDB_API}/quests/${id}`, {
                             headers: { Accept: "application/json" },
                             signal: AbortSignal.timeout(10000),
                         });

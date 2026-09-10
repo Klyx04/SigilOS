@@ -41,6 +41,7 @@ const UpdateModulesSchema = z.object({
     manualLadderSync: z.boolean(),
     minigames: z.boolean(),
     succes: z.boolean(),
+    marche: z.boolean(),
     reactionRoles: z.boolean(),
     tickets: z.boolean(),
     commandes: z.boolean(),
@@ -114,6 +115,7 @@ export const getGuildModules = cache(async (discordGuildId: string): Promise<Gui
             manualLadderSync: dbModules.manualLadderSync ?? DEFAULT_MODULES.manualLadderSync,
             minigames: dbModules.minigames ?? DEFAULT_MODULES.minigames,
             succes: dbModules.succes ?? DEFAULT_MODULES.succes,
+            marche: dbModules.marche ?? DEFAULT_MODULES.marche,
             tickets: dbModules.tickets ?? DEFAULT_MODULES.tickets,
             commandes: dbModules.commandes ?? DEFAULT_MODULES.commandes,
         };
@@ -246,6 +248,7 @@ const GOD_LOCKABLE_MODULES = new Set<string>([
     "ocre", "ladder", "services", "donjons", "profile", "docs", "polls",
     "availability", "logs", "reactionRoles", "quests", "worldmap", "resources",
     "gallery", "ladderSync", "manualLadderSync", "minigames", "succes", "tickets",
+    "marche",
 ]);
 
 /**

@@ -216,6 +216,10 @@ export type UserContext = {
     canEditOwnSucces: boolean;
     canViewGuildSucces: boolean;
     canViewServices: boolean;
+    /** Marché — voir le catalogue / publier / réserver (module `marche` + `market:trade`). */
+    canViewMarket: boolean;
+    /** Marché — modération des annonces et signalements (`market:moderate`). */
+    canManageMarket: boolean;
     canViewStuffGallery: boolean;
     canViewMiniGames: boolean;
     canViewPolls: boolean;
@@ -417,6 +421,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canEditOwnSucces: false,
         canViewGuildSucces: false,
         canViewServices: false,
+        canViewMarket: false,
+        canManageMarket: false,
         canViewStuffGallery: false,
         canViewMiniGames: false,
         canViewPolls: false,
@@ -1077,6 +1083,10 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canEditOwnSucces = canViewSucces;
     const canViewGuildSucces = canViewSucces;
     const canViewServices = permissionSet.has(PERMISSIONS.GAME_OPERATIONS) || isAdminFinal;
+    // Marché — une permission unique porte « participer » (voir, publier, réserver,
+    // offrir) ; `market:moderate` est réservée à la modération (sensible).
+    const canViewMarket = permissionSet.has(PERMISSIONS.MARKET_TRADE) || isAdminFinal;
+    const canManageMarket = permissionSet.has(PERMISSIONS.MARKET_MODERATE) || isAdminFinal;
     const canViewMiniGames = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
     const canViewCalendar = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal;
     const canManageCalendar = permissionSet.has(PERMISSIONS.COMMUNITY_MOD) || isAdminFinal;
@@ -1167,6 +1177,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canEditOwnSucces: !!applyModule(!!mod?.succes, !!canEditOwnSucces),
         canViewGuildSucces: !!applyModule(!!mod?.succes, !!canViewGuildSucces),
         canViewServices: !!applyModule(!!mod?.services, !!canViewServices),
+        canViewMarket: !!applyModule(!!mod?.marche, !!canViewMarket),
+        canManageMarket: !!applyModule(!!mod?.marche, !!canManageMarket),
         canViewStuffGallery: !!applyModule(!!mod?.gallery, !!canViewStuffGallery),
         canViewMiniGames: !!applyModule(!!mod?.minigames, !!canViewMiniGames),
         canViewPolls: !!applyModule(!!mod?.polls, !!canViewPolls),
@@ -1249,6 +1261,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         finalContext.canEditOwnSucces = false;
         finalContext.canViewGuildSucces = false;
         finalContext.canViewServices = false;
+        finalContext.canViewMarket = false;
+        finalContext.canManageMarket = false;
         finalContext.canViewStuffGallery = false;
         finalContext.canViewMiniGames = false;
         finalContext.canViewPolls = false;

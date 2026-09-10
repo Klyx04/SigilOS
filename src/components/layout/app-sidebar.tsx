@@ -47,6 +47,7 @@ import {
     Ticket,
     UserCheck,
     Terminal,
+    Store,
 } from "lucide-react";
 import { SidebarSearch } from "./sidebar-search";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -211,6 +212,7 @@ export function AppSidebar({
         { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, imgSrc: "/assets/nav/infinite.png", color: "indigo", tourKey: "songes", visible: user.canViewSonges && modules.songes },
         { name: "Galerie Guilde", href: `/dashboard/${guildId}/galerie-stuff`, icon: Star, imgSrc: "/assets/nav/panoplie.png", color: "indigo", tourKey: "galerie", visible: user.canViewStuffGallery && modules.gallery },
         { name: "Services Guilde", href: `/dashboard/${guildId}/services`, icon: Activity, imgSrc: "/assets/nav/exchange.png", color: "indigo", tourKey: "services", visible: user.canViewServices && modules.services },
+        { name: "Marché", href: `/dashboard/${guildId}/marche`, icon: Store, imgSrc: "/assets/nav/exchange.png", color: "indigo", tourKey: "marche", visible: user.canViewMarket && modules.marche },
         { name: "Planning", href: `/dashboard/${guildId}/planning`, icon: CalendarClock, imgSrc: "/assets/nav/hourglass.png", color: "indigo", tourKey: "availability", visible: user.canViewAvailability && modules.availability },
     ];
 

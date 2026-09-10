@@ -30,8 +30,8 @@ vi.mock("@/lib/logger", () => ({
     logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
+import { diffVanishedIds } from "@/lib/data-health";
 import {
-    diffVanishedIds,
     previewVanishedGameItems,
     flagVanishedGameItems,
 } from "@/server/actions/game-item-actions";

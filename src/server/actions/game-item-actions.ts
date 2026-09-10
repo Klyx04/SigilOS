@@ -336,12 +336,6 @@ export async function siphonGameItemsBatch(skip = 0, limit = 50): Promise<
 // des recherches — cf. `isDeprecated: false` partout) et on ressuscite ceux
 // qui réapparaissent. Suppression physique : JAMAIS (historique, drops liés).
 
-/** Diff pur (testable) : présents en local mais absents du distant. */
-export function diffVanishedIds(localIds: number[], remoteIds: number[]): number[] {
-    const remote = new Set(remoteIds.filter((n) => Number.isInteger(n) && n > 0));
-    return localIds.filter((n) => Number.isInteger(n) && n > 0 && !remote.has(n));
-}
-
 async function fetchAllRemoteItemIds(): Promise<number[] | null> {
     const ids: number[] = [];
     const limit = 500;
@@ -379,15 +373,17 @@ export async function previewVanishedGameItems(): Promise<ActionResponse<Vanishe
     try {
         const remoteIds = await fetchAllRemoteItemIds();
         if (!remoteIds) return { success: false, error: 'DofusDB injoignable' };
+        const { diffVanishedIds } = await import('@/lib/data-health');
         const remote = new Set(remoteIds);
         const [active, flagged] = await Promise.all([
             db.gameItem.findMany({ where: { isDeprecated: false }, select: { ankamaId: true, name: true } }),
             db.gameItem.findMany({ where: { isDeprecated: true }, select: { ankamaId: true, name: true } }),
         ]);
+        const vanishedIds = new Set(diffVanishedIds(active.map((i) => i.ankamaId), remoteIds));
         return {
             success: true,
             data: {
-                vanished: active.filter((i) => !remote.has(i.ankamaId)),
+                vanished: active.filter((i) => vanishedIds.has(i.ankamaId)),
                 revivable: flagged.filter((i) => remote.has(i.ankamaId)),
                 localTotal: active.length + flagged.length,
                 remoteTotal: remote.size,

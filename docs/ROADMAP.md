@@ -33,9 +33,9 @@
   - **Écrans** : `/marche` (catalogue cartes + tableau + filtres), `/marche/nouveau` (assistant 3 étapes), `/marche/[listingId]` (fiche + jet étiqueté + actions vendeur), `/marche/mes-espaces` (en cours / terminées).
   - **Actions** : catalogue, CRUD, publication (`expiresAt = +20 j`), retrait, renouvellement (1 fois), soft-delete, **journal d'audit** ; réglages + **« Tester la configuration »**.
   - **Docs & tour** : fiches `/docs/marche` + « Configurer le Marché », 2 permissions documentées, `docs-mapping`, `seed:docs`+`build:seeds` · tour `marche` (6 étapes) + les 2 boutons (`📖 Documentation` / `❓ Tutoriel`).
-  - Vérifs : **`prisma validate`** ✅ · **`migrate diff` 0 écart** ✅ · **`tsc` 0 erreur** ✅ · **`build` OK** · tests Marché **27/27** ✅ · `onboarding-console` **20/20** (fixture MAJ).
+  - Vérifs : **`prisma validate`** ✅ · **`migrate diff` 0 écart** ✅ · **`tsc` 0 erreur** ✅ · **`build` OK** · tests Marché **27/27** ✅ · **suite complète 682/682** ✅ (2 tests « préexistants » réparés : fixtures `data-health` / `siphon-stats` figées au 09/09 → rendues relatives à l'horloge, commit `5136214ba`).
   - ⚠️ `prisma migrate dev` **impossible en local** (dérive préexistante `20260819000000_add_inter_guild` absente du repo → reset destructif refusé) ⇒ migration écrite à la main + `prisma db execute`.
-  - ⚪ RESTE : DoD visuelle dark/light/mobile (vérif user) · assistant **5 étapes** (S1.42 → B2) · 2 tests **préexistants** rouges (`data-health`, `siphon-stats`, fixtures figées au 09/09) · ➡️ **B2 = S2 + S3**.
+  - ⚪ RESTE : DoD visuelle dark/light/mobile (vérif user) · assistant **5 étapes** (S1.42 → B2) · ➡️ **B2 = S2 + S3**.
 
 - 🔸 **Session 08/09/2026 — Module « Titans »** (branche `feat/slash-rework`, non commité ; mémo `src/temp/memo-2026-09-08-titans.md`) :
   - **Fonctionnalité de bout en bout** : modèle `Titan` + `UserTitanProgress` + `DjSearchMode.TITAN` + champs DJ (`titanId/titanName/questName/questUrl`) — migrations `20261101000000_add_titan` + `20261102000000_add_titan_quests` appliquées. Admin GOD `TitanManager`, server actions `titan-admin-actions`/`titan-actions`, seed Gargandyas (id 8062, zone Osavora).

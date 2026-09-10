@@ -80,6 +80,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 # (Docker volume mount hides build-time files)
 RUN cp -r /app/public/uploads /app/public-static-uploads 2>/dev/null || mkdir -p /app/public-static-uploads
 
+# Writable asset dirs (siphon + proxy self-heal). Pré-créés nextjs-owned dans
+# l'image : les volumes nommés frais (assets-*-data) héritent de ce propriétaire.
+# Sans ça, le point de montage est root:root → EACCES (mkdir) → proxy 500 + sync 0/100.
+RUN mkdir -p /app/public/uploads/assets-dofus/monsters /app/public/uploads/assets-dofus/items /app/public/uploads/assets-dofus/spells \
+    && chown -R nextjs:nodejs /app/public/uploads
+
 # Set the correct permission for prerender cache
 RUN mkdir .next
 RUN chown nextjs:nodejs .next

@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Search, Sparkles, Swords, ExternalLink, ShieldAlert, Zap, ArrowRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Search, Sparkles, ChevronDown, ArrowRight } from "lucide-react";
 import type { BestiaireEntry } from "@/server/actions/game-data-actions";
 
 interface PublicBossCatalogClientProps {
@@ -26,6 +25,85 @@ const TYPE_FILTERS = [
 ] as const;
 
 type TypeFilter = (typeof TYPE_FILTERS)[number]["value"];
+
+/** Petit dropdown sobre (bouton + menu absolu, sans verrou scroll) : remplace le select natif. */
+function FilterDropdown({
+  value,
+  onChange,
+  options,
+  ariaLabel,
+  align = "left",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  ariaLabel: string;
+  align?: "left" | "right";
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open ]);
+
+  const current = options.find((o) => o.value === value);
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={ariaLabel}
+        className="w-full sm:w-auto h-10 inline-flex items-center justify-between gap-2.5 pl-3.5 pr-3 rounded-xl bg-background/60 border border-white/10 text-xs font-bold text-foreground hover:border-white/25 focus:outline-none focus:border-amber-500/50 transition-colors cursor-pointer"
+      >
+        <span className="whitespace-nowrap">{current?.label}</span>
+        <ChevronDown className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div
+          role="listbox"
+          aria-label={ariaLabel}
+          className={`absolute z-50 mt-2 min-w-full w-max max-w-[260px] rounded-xl border border-white/10 bg-popover shadow-2xl p-1 ${align === "right" ? "right-0" : "left-0"}`}
+        >
+          {options.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              role="option"
+              aria-selected={o.value === value}
+              onClick={() => {
+                onChange(o.value);
+                setOpen(false);
+              }}
+              className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
+                o.value === value
+                  ? "bg-amber-500/15 text-amber-300"
+                  : "text-muted-foreground hover:bg-surface hover:text-foreground"
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps) {
   const [search, setSearch] = useState("");
@@ -51,57 +129,37 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
 
   return (
     <div className="space-y-6">
-      {/* ── SEARCH & FILTERS BAR ── */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 p-4 rounded-2xl bg-surface/60 border border-white/[0.08] backdrop-blur-xl shadow-xl">
+      {/* ── SEARCH & FILTERS BAR : 1 champ + 2 dropdowns compacts ── */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-3 rounded-2xl bg-surface/60 border border-white/[0.08] backdrop-blur-xl shadow-xl">
         {/* Search */}
         <div className="relative flex-1">
-          <Search className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher un boss, un donjon..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-background/60 border border-white/10 text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:border-amber-500/50 transition-colors"
+            aria-label="Rechercher un boss ou un donjon"
+            className="w-full h-10 pl-10 pr-4 rounded-xl bg-background/60 border border-white/10 text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:border-amber-500/50 transition-colors"
           />
         </div>
 
-        {/* Type Filters (Boss / Titan) */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          {TYPE_FILTERS.map((t) => (
-            <button
-              key={t.value}
-              type="button"
-              onClick={() => setSelectedType(t.value)}
-              className={cn(
-                "px-3 py-2 rounded-xl text-xs font-bold shrink-0 border transition-colors",
-                selectedType === t.value
-                  ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
-                  : "bg-white/[0.02] text-zinc-400 border-white/10 hover:bg-white/[0.06] hover:text-zinc-200"
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        {/* Type dropdown (Tous / Boss / Titan) */}
+        <FilterDropdown
+          value={selectedType}
+          onChange={(v) => setSelectedType(v as TypeFilter)}
+          options={TYPE_FILTERS.map((t) => ({ value: t.value, label: t.label }))}
+          ariaLabel="Filtrer par type"
+        />
 
-        {/* Level Filters */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 [scrollbar-width:none]">
-          {LEVEL_RANGES.map((r, i) => (
-            <button
-              key={r.label}
-              type="button"
-              onClick={() => setSelectedRange(i)}
-              className={cn(
-                "px-3 py-2 rounded-xl text-xs font-bold shrink-0 border transition-colors",
-                selectedRange === i
-                  ? "bg-warning/15 text-warning border-warning/30"
-                  : "bg-white/[0.02] text-zinc-400 border-white/10 hover:bg-white/[0.06] hover:text-zinc-200"
-              )}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
+        {/* Level dropdown */}
+        <FilterDropdown
+          value={String(selectedRange)}
+          onChange={(v) => setSelectedRange(Number(v))}
+          options={LEVEL_RANGES.map((r, i) => ({ value: String(i), label: r.label }))}
+          ariaLabel="Filtrer par niveau"
+          align="right"
+        />
       </div>
 
       {/* ── COUNT & RESULT SUMMARY ── */}
@@ -143,10 +201,10 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
                             className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                             loading="lazy"
                             onError={(e) => {
-                              // Fallback élégant en cas d'absence
+                              // Fallback local garanti (l'ancien monster-fallback.png n'existe pas en public/)
                               const target = e.currentTarget;
                               target.onerror = null;
-                              target.src = "/assets/ui/monster-fallback.png";
+                              target.src = "/assets/dofus/icons/boss.png";
                             }}
                           />
                         ) : (

@@ -10,6 +10,12 @@ interface HealthStatus {
         redis: { status: "up" | "down" | "not_configured"; latency?: number };
     };
     version?: string;
+    /** Environnement d'exécution (beta/production) — distingue les deux apps dans les dashboards. */
+    environment?: string;
+    /** Observabilité active ou non (booléens, aucun secret exposé). */
+    observability?: {
+        sentry: boolean;
+    };
     checks?: {
         discordBot: ExternalCheck;
         metamob: ExternalCheck;
@@ -85,6 +91,10 @@ export async function GET() {
             redis: { status: "down" },
         },
         version: process.env.npm_package_version || "unknown",
+        environment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV || "unknown",
+        observability: {
+            sentry: !!process.env.SENTRY_DSN,
+        },
     };
 
     // Check Database

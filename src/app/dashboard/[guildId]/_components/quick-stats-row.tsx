@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { Users, Sparkles, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { PresenceFacepile } from "./presence-facepile";
 import { cn } from "@/lib/utils";
@@ -40,38 +39,6 @@ function DeltaBadge({ delta }: { delta: number | null | undefined }) {
     );
 }
 
-function StatCard({
-    icon: Icon,
-    label,
-    value,
-    sublabel,
-    delta,
-}: {
-    icon: typeof Users;
-    label: string;
-    value: ReactNode;
-    sublabel?: string;
-    delta?: number | null;
-}) {
-    return (
-        <div className="rounded-xl border border-border/60 bg-background/40 p-4">
-            <div className="flex items-center gap-2 text-muted-foreground text-label font-medium">
-                <Icon className="w-4 h-4 shrink-0" />
-                <span className="truncate">{label}</span>
-            </div>
-            <p className="mt-2 text-[22px] font-bold text-foreground tabular-nums leading-none">{value}</p>
-            {delta !== undefined && (
-                <p className="mt-1.5 flex items-center">
-                    <DeltaBadge delta={delta} />
-                </p>
-            )}
-            {sublabel && (
-                <p className="text-label text-muted-foreground font-medium mt-1 truncate">{sublabel}</p>
-            )}
-        </div>
-    );
-}
-
 export function QuickStatsRow({
     onlineCount,
     totalMembers,
@@ -82,40 +49,36 @@ export function QuickStatsRow({
     membersDelta,
     hideDofusProgress = false,
 }: QuickStatsRowProps) {
-    // En mode vitrine, on masque la carte "Progression Dofus" → une seule carte reste.
-    const gridCols = hideDofusProgress ? "grid-cols-1" : "sm:grid-cols-2";
-
     return (
-        <div className={cn("grid grid-cols-1 gap-4", gridCols)}>
-            {/* Online Members -- with facepile (preuve sociale) */}
-            <div className="rounded-xl border border-border/60 bg-background/40 p-4">
-                <div className="flex items-center gap-2 text-muted-foreground text-label font-medium">
-                    <Users className="w-4 h-4 shrink-0" />
-                    <span className="truncate">Membres actifs</span>
-                </div>
-                <p className="mt-2 text-[22px] font-bold text-foreground tabular-nums leading-none">
-                    {onlineCount}
-                    <span className="text-body-sm text-muted-foreground font-medium">/{totalMembers}</span>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-border/60 bg-background/40 px-4 py-3">
+            {/* Membres en ligne */}
+            <div className="flex items-center gap-2.5 min-w-0">
+                <Users className="w-4 h-4 shrink-0 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground tabular-nums whitespace-nowrap">
+                    <span className="font-bold text-foreground">{onlineCount}/{totalMembers}</span> en ligne
                 </p>
-                {membersDelta !== undefined && (
-                    <p className="mt-1.5 flex items-center">
-                        <DeltaBadge delta={membersDelta} />
-                    </p>
-                )}
-                {onlineUsers.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-border/40">
-                        <PresenceFacepile users={onlineUsers} />
-                    </div>
-                )}
+                {membersDelta !== undefined && <DeltaBadge delta={membersDelta} />}
             </div>
 
+            {onlineUsers.length > 0 && (
+                <>
+                    <span className="hidden sm:block w-px h-6 bg-border/60" aria-hidden="true" />
+                    <PresenceFacepile users={onlineUsers} />
+                </>
+            )}
+
+            {/* Progression Dofus (masquée en vitrine) */}
             {!hideDofusProgress && (
-                <StatCard
-                    icon={Sparkles}
-                    label="Progression Dofus"
-                    value={<>{dofusCompletionRate}%</>}
-                    sublabel={topActivityName ? `${topActivityName} · ${topActivityValue}` : "Moyenne guilde"}
-                />
+                <>
+                    <span className="hidden sm:block w-px h-6 bg-border/60" aria-hidden="true" />
+                    <div className="flex items-center gap-2.5 min-w-0">
+                        <Sparkles className="w-4 h-4 shrink-0 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground tabular-nums whitespace-nowrap">
+                            <span className="font-bold text-foreground">{dofusCompletionRate}%</span> Dofus
+                            <span className="hidden md:inline"> · {topActivityName ? `${topActivityName} · ${topActivityValue}` : "moyenne guilde"}</span>
+                        </p>
+                    </div>
+                </>
             )}
         </div>
     );

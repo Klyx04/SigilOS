@@ -5,7 +5,7 @@ import { auth } from "@/auth";
 import { logger } from "@/lib/logger";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { Prisma, type MarketOfferStatus } from "@prisma/client";
+import { Prisma, type MarketOfferStatus, type MarketReservationStatus } from "@prisma/client";
 import { getUserContext, type ActionResponse } from "./user-actions";
 import { KAMAS_MAX } from "@/lib/market/kamas";
 import { computeStatQuality, computeStatsHash } from "@/lib/market/stat-quality";
@@ -60,6 +60,31 @@ export type MarketCatalogFilters = {
     mineOnly?: boolean;
     hideTerminal?: boolean;
     sort?: "recent" | "price_asc" | "price_desc" | "level_desc";
+};
+
+/**
+ * S7.8 — **réservation active** telle qu'affichée au dashboard.
+ *
+ * §13.7 : cet écran est **privé à la guilde** — le pseudo Dofus du réservataire
+ * y est légitime pour que l'acheteur et le vendeur puissent se retrouver en jeu.
+ * Le salon Discord, lui, ne reçoit **jamais** de pseudo (compteur d'offres seul).
+ * Aucun identifiant Discord n'est exposé : `buyerProfileId` reste un id interne.
+ */
+export type MarketReservationView = {
+    id: string;
+    status: MarketReservationStatus;
+    expiresAt: string;
+    buyerProfileId: string;
+    /** Pseudo Dofus du réservataire (repli : nom d'utilisateur SigilOS). */
+    buyerLabel: string;
+    buyerClasse: string | null;
+    /** `true` si c'est **le membre courant** qui a posé la réservation. */
+    isMine: boolean;
+};
+
+/** Fiche d'annonce : la fiche + sa réservation active (ou `null`). */
+export type MarketListingDetail = MarketListingRecord & {
+    reservation: MarketReservationView | null;
 };
 
 /**
@@ -229,6 +254,36 @@ function withDisplayReadyStats<
 }
 
 /**
+ * S7.8 — Construit la vue **réservation** d'une annonce (pseudo, échéance, « c'est
+ * moi »). Le profil du réservataire est lu **dans la guilde du contexte**
+ * (défense en profondeur : un id de profil ne suffit jamais, cf. RULES.md).
+ */
+async function buildReservationView(
+    reservation: {
+        id: string;
+        status: MarketReservationStatus;
+        expiresAt: Date;
+        buyerProfileId: string;
+    },
+    viewerProfileId: string | null,
+    guildConfigId: string
+): Promise<MarketReservationView> {
+    const buyer = await db.userProfile.findFirst({
+        where: { id: reservation.buyerProfileId, guildId: guildConfigId },
+        select: { pseudoDofus: true, classe: true, user: { select: { name: true } } },
+    });
+    return {
+        id: reservation.id,
+        status: reservation.status,
+        expiresAt: reservation.expiresAt.toISOString(),
+        buyerProfileId: reservation.buyerProfileId,
+        buyerLabel: buyer?.pseudoDofus || buyer?.user?.name || "Un membre de la guilde",
+        buyerClasse: buyer?.classe ?? null,
+        isMine: !!viewerProfileId && viewerProfileId === reservation.buyerProfileId,
+    };
+}
+
+/**
  * S2.8/S2.9 — Recalcule les stats **côté serveur** : la plage native provient
  * **toujours** du catalogue (`GameItem.nativeEffects`) et jamais du client (§12.8).
  * Un effet non natif est étiqueté `EXO` (jamais refusé, D34/D35) ; le libellé est
@@ -374,7 +429,7 @@ export async function getMarketListings(
 export async function getMarketListing(
     guildId: string,
     listingId: string
-): Promise<ActionResponse<MarketListingRecord>> {
+): Promise<ActionResponse<MarketListingDetail>> {
     try {
         const ctx = await resolveMarketContext(guildId);
         if ("error" in ctx) return { success: false, error: ctx.error };
@@ -395,7 +450,28 @@ export async function getMarketListing(
             return { success: false, error: "Annonce introuvable" };
         }
 
-        return { success: true, data: withDisplayReadyStats(listing) };
+        // S7.8 — la réservation active est lue **seulement pour la fiche** (une
+        // requête indexée) et uniquement sur une annonce réservée : le catalogue
+        // n'a pas besoin du pseudo du réservataire, seulement de l'échéance
+        // (`MarketListing.reservedUntil`, déjà porté par la ligne).
+        const reservationRow =
+            listing.status === "RESERVED"
+                ? await db.marketReservation.findFirst({
+                      where: { listingId: listing.id, status: "ACTIVE" },
+                      orderBy: { createdAt: "desc" },
+                      select: { id: true, status: true, expiresAt: true, buyerProfileId: true },
+                  })
+                : null;
+
+        return {
+            success: true,
+            data: {
+                ...withDisplayReadyStats(listing),
+                reservation: reservationRow
+                    ? await buildReservationView(reservationRow, user.profileId ?? null, guildConfig.id)
+                    : null,
+            },
+        };
     } catch (error) {
         logger.error("[getMarketListing] failed", { err: error });
         return { success: false, error: "Erreur interne" };

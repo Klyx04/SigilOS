@@ -66,6 +66,24 @@ type SerializedListing = {
     publishedAt: string | null;
     expiresAt: string | null;
     renewCount: number;
+    /** S7.8 — échéance de la réservation en cours (portée par l'annonce). */
+    reservedUntil: string | null;
+    /**
+     * S7.8 — **réservation active** telle qu'affichée au dashboard (§13.7) :
+     * l'écran est privé à la guilde, le pseudo y est donc légitime (il ne l'est
+     * jamais dans le salon Discord, qui n'expose que le compteur d'offres).
+     */
+    reservation: {
+        id: string;
+        status: string;
+        expiresAt: string;
+        buyerProfileId: string;
+        /** Pseudo Dofus du réservataire (jamais un identifiant Discord). */
+        buyerLabel: string;
+        buyerClasse: string | null;
+        /** `true` si c'est **le membre courant** qui a réservé. */
+        isMine: boolean;
+    } | null;
     profileId: string;
     profile: {
         id: string;
@@ -107,6 +125,14 @@ function formatDeclaredRange(min: number | null, max: number | null): string {
     if (min == null || max == null) return "";
     const { from, to } = normalizeNativeRange(min, max);
     return from === to ? ` [${from}]` : ` [${from} à ${to}]`;
+}
+
+/** S7.8 — date + heure d'une échéance de réservation (jamais une date nue). */
+function formatDeadline(iso: string | null): string {
+    if (!iso) return "—";
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return "—";
+    return date.toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" });
 }
 
 export function MarketListingClient({
@@ -329,6 +355,44 @@ export function MarketListingClient({
                             {listing.renewCount > 0 && <p>Renouvelée {listing.renewCount} fois</p>}
                         </div>
 
+                        {/* S7.8/S7.9 — réservation ACTIVE : qui, jusqu'à quand (§13.7) */}
+                        {listing.reservation && (
+                            <div className="rounded-xl border border-info/30 bg-info/10 px-3 py-2 space-y-1">
+                                <p className="text-[11px] font-black uppercase tracking-wider text-info">
+                                    {listing.reservation.isMine
+                                        ? "Tu as réservé cette annonce"
+                                        : "Annonce réservée"}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground">
+                                    {listing.reservation.isMine ? (
+                                        <>
+                                            Le vendeur a été prévenu. Rendez-vous en jeu avant le{" "}
+                                            <span className="font-semibold text-foreground">
+                                                {formatDeadline(listing.reservation.expiresAt)}
+                                            </span>
+                                            .
+                                        </>
+                                    ) : (
+                                        <>
+                                            Par{" "}
+                                            <span className="font-semibold text-foreground">
+                                                {listing.reservation.buyerLabel}
+                                            </span>
+                                            {listing.reservation.buyerClasse
+                                                ? ` (${listing.reservation.buyerClasse})`
+                                                : ""}{" "}
+                                            jusqu&apos;au{" "}
+                                            <span className="font-semibold text-foreground">
+                                                {formatDeadline(listing.reservation.expiresAt)}
+                                            </span>
+                                            . Sans échange en jeu d&apos;ici là, l&apos;annonce repasse
+                                            automatiquement en vente.
+                                        </>
+                                    )}
+                                </p>
+                            </div>
+                        )}
+
                         <p className="text-[11px] text-muted-foreground border-t border-border pt-3">
                             L&apos;échange se conclut <strong>en jeu</strong> : SigilOS n&apos;effectue ni le transfert
                             d&apos;objets ni celui des kamas, et ne garantit pas la transaction.
@@ -366,6 +430,20 @@ export function MarketListingClient({
                                         prévue par la guilde. L&apos;échange se conclut toujours en jeu.
                                     </p>
                                 </>
+                            ) : listing.reservation?.isMine ? (
+                                <p className="text-xs text-info">
+                                    Tu as réservé cette annonce jusqu&apos;au{" "}
+                                    {formatDeadline(listing.reservation.expiresAt)}. Le vendeur a été
+                                    prévenu.
+                                </p>
+                            ) : listing.reservation ? (
+                                <p className="text-xs text-muted-foreground">
+                                    Déjà réservée par{" "}
+                                    <span className="font-semibold text-foreground">
+                                        {listing.reservation.buyerLabel}
+                                    </span>{" "}
+                                    jusqu&apos;au {formatDeadline(listing.reservation.expiresAt)}.
+                                </p>
                             ) : (
                                 <p className="text-xs text-muted-foreground">
                                     Cette annonce n&apos;est plus disponible à la réservation.

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ import {
     Handshake,
     Loader2,
     Package,
+    Pencil,
     RefreshCw,
     ShieldAlert,
     Store,
@@ -548,6 +550,15 @@ export function MarketListingClient({
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
+                            {/* S7.13 — le vendeur corrige son annonce (jet, quantité, prix). */}
+                            {isOwner && ["DRAFT", "ACTIVE", "EXPIRED"].includes(listing.status) && (
+                                <Button asChild variant="outline" className="w-full gap-2">
+                                    <Link href={`/dashboard/${guildId}/marche/${listing.id}/modifier`}>
+                                        <Pencil className="w-4 h-4" />
+                                        Modifier l&apos;annonce
+                                    </Link>
+                                </Button>
+                            )}
                             {isOwner && listing.status === "DRAFT" && (
                                 <Button
                                     className="w-full gap-2"

@@ -17,7 +17,7 @@ import {
     withdrawMarketListing,
 } from "@/server/actions/market-actions";
 import { toast } from "sonner";
-import { Boxes, Loader2, Plus, RefreshCw, Store, Trash2, Upload, XCircle } from "lucide-react";
+import { Boxes, Loader2, Pencil, Plus, RefreshCw, Store, Trash2, Upload, XCircle } from "lucide-react";
 import { MarketNegotiationPanel, type NegotiationOffer } from "./market-negotiation-panel";
 
 type MyListing = {
@@ -118,6 +118,16 @@ export function MarketMySpaceClient({ guildId, active, archived, received, sent 
                                     <Button asChild size="sm" variant="ghost">
                                         <Link href={`/dashboard/${guildId}/marche/${listing.id}`}>Fiche</Link>
                                     </Button>
+
+                                    {/* S7.13 — édition par le créateur (statuts éditables). */}
+                                    {["DRAFT", "ACTIVE", "EXPIRED"].includes(listing.status) && (
+                                        <Button asChild size="sm" variant="ghost" className="gap-2">
+                                            <Link href={`/dashboard/${guildId}/marche/${listing.id}/modifier`}>
+                                                <Pencil className="w-3.5 h-3.5" />
+                                                Modifier
+                                            </Link>
+                                        </Button>
+                                    )}
 
                                     {listing.status === "DRAFT" && (
                                         <Button

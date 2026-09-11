@@ -13,8 +13,9 @@ import { findNativeRange, toNativeEffects, type DofusItemEffectLike, type Market
 import { loadMarketReferential } from "@/lib/market/referential";
 import { publishListingToDiscord, syncListingMessage } from "@/server/market/discord";
 import { writeMarketAuditLog } from "@/server/market/audit";
-import { reserveMarketListingCore } from "@/server/market/reservations";
-import { createMarketOfferCore } from "@/server/market/offers";
+import { reserveMarketListingCore, cancelMarketReservationCore } from "@/server/market/reservations";
+import { createMarketOfferCore, respondToMarketOfferCore, type MarketOfferDecisionInput } from "@/server/market/offers";
+import { completeMarketSaleCore } from "@/server/market/sales";
 import { normalizeMarketOfferDraft } from "@/lib/market/discord-interactions";
 import {
     MARKET_AUDIT_ACTIONS,
@@ -397,6 +398,46 @@ export async function reserveMarketListing(
     }
 }
 
+/**
+ * Annule une réservation `ACTIVE` — **acheteur ou vendeur** (§11.2).
+ *
+ * Le rôle n'est **jamais** transmis par le client : il est déduit des identités
+ * résolues par le contexte serveur (§16.2). La garde de statut, la remise en
+ * vente de l'annonce et les deux notifications §11.9 vivent dans
+ * `cancelMarketReservationCore()`, partagé avec les interactions Discord (§13.4).
+ */
+export async function cancelMarketReservation(
+    guildId: string,
+    reservationId: string,
+    reason?: string | null
+): Promise<ActionResponse<{ cancelledBy: "BUYER" | "SELLER" }>> {
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+        const { user, guildConfig } = ctx;
+        if (!user.profileId) return { success: false, error: "Profil introuvable" };
+
+        const parsed = z.string().min(1).max(64).safeParse(reservationId);
+        if (!parsed.success) return { success: false, error: "Réservation introuvable" };
+
+        const session = await auth();
+        const outcome = await cancelMarketReservationCore({
+            guildConfigId: guildConfig.id,
+            reservationId: parsed.data,
+            actorProfileId: user.profileId,
+            actorUserId: session?.user?.id ?? user.id ?? "",
+            reason: sanitizeMarketText(reason),
+        });
+        if (!outcome.ok) return { success: false, error: outcome.error };
+
+        revalidatePath(`/dashboard/${guildId}/marche`);
+        return { success: true, data: { cancelledBy: outcome.cancelledBy } };
+    } catch (error) {
+        logger.error("[cancelMarketReservation] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
 
 // ---------------------------------------------------------------------------
 // OFFRES (S4.4 — §11.4 / §13.5)
@@ -468,6 +509,63 @@ export async function createMarketOffer(
     }
 }
 
+
+// ---------------------------------------------------------------------------
+// RÉPONSE DU VENDEUR (S4.9 — §11.4 / §14.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * Répond à une offre reçue : `ACCEPT` (l'annonce passe `RESERVED` au prix de
+ * l'offre, une réservation est créée, les autres offres expirent) ou `DECLINE`.
+ *
+ * Toute la règle — propriété de l'annonce, offre encore `PENDING`, offre non
+ * périmée, conflit de réservation/vente simultanée, journal, embed et
+ * notifications acheteur (§11.9) — vit **une seule fois** dans
+ * `respondToMarketOfferCore()`, partagé avec le centre de négociation (§13.4).
+ */
+export async function respondToMarketOffer(
+    guildId: string,
+    offerId: string,
+    decision: MarketOfferDecisionInput
+): Promise<
+    ActionResponse<{ status: "ACCEPTED" | "DECLINED"; reservationId?: string; expiresAt?: string }>
+> {
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+        const { user, guildConfig } = ctx;
+
+        const parsed = z.string().min(1).max(64).safeParse(offerId);
+        if (!parsed.success) return { success: false, error: "Offre introuvable" };
+        // La contre-offre (§11.4) appartient au centre de négociation (S4.10) :
+        // ici deux issues seulement, aucune troisième devinée (§0.1).
+        const parsedDecision = z.enum(["ACCEPT", "DECLINE"]).safeParse(decision);
+        if (!parsedDecision.success) return { success: false, error: "Décision invalide" };
+
+        const session = await auth();
+        const outcome = await respondToMarketOfferCore({
+            guildConfigId: guildConfig.id,
+            offerId: parsed.data,
+            sellerUserId: session?.user?.id ?? user.id ?? "",
+            decision: parsedDecision.data,
+            reservationHours: guildConfig.marketReservationHours,
+        });
+        if (!outcome.ok) return { success: false, error: outcome.error };
+
+        revalidatePath(`/dashboard/${guildId}/marche`);
+        return {
+            success: true,
+            data: {
+                status: outcome.status,
+                reservationId: outcome.reservationId,
+                expiresAt: outcome.expiresAt?.toISOString(),
+            },
+        };
+    } catch (error) {
+        logger.error("[respondToMarketOffer] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
 
 // ---------------------------------------------------------------------------
 // CRÉATION & MISE À JOUR (S1.14, S1.32)
@@ -828,6 +926,50 @@ export async function withdrawMarketListing(
         return { success: true };
     } catch (error) {
         logger.error("[withdrawMarketListing] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+
+// ---------------------------------------------------------------------------
+// CLÔTURE DE VENTE (S4.9 — §11.5)
+// ---------------------------------------------------------------------------
+
+/**
+ * Confirme la vente d'une annonce `RESERVED` (§11.5) : **le vendeur seul**,
+ * après confirmation explicite que l'échange a eu lieu en jeu.
+ *
+ * Effets (une transaction, gardes de statut dans le `WHERE` §11.3) : annonce
+ * `SOLD`, réservation `COMPLETED`, offres restantes `EXPIRED`, journal
+ * `LISTING_SOLD`, embed réécrit, acheteur notifié `MARKET_SOLD` (§11.9). Toute
+ * la règle vit dans `completeMarketSaleCore()` (§13.4).
+ */
+export async function markMarketListingSold(
+    guildId: string,
+    listingId: string,
+    confirmed: boolean
+): Promise<ActionResponse<{ expiredOffers: number }>> {
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+        const { user, guildConfig } = ctx;
+
+        const parsed = z.string().min(1).max(64).safeParse(listingId);
+        if (!parsed.success) return { success: false, error: "Annonce introuvable" };
+
+        const session = await auth();
+        const outcome = await completeMarketSaleCore({
+            guildConfigId: guildConfig.id,
+            listingId: parsed.data,
+            sellerUserId: session?.user?.id ?? user.id ?? "",
+            confirmed,
+        });
+        if (!outcome.ok) return { success: false, error: outcome.error };
+
+        revalidatePath(`/dashboard/${guildId}/marche`);
+        return { success: true, data: { expiredOffers: outcome.expiredOffers } };
+    } catch (error) {
+        logger.error("[markMarketListingSold] failed", { err: error });
         return { success: false, error: "Erreur interne" };
     }
 }

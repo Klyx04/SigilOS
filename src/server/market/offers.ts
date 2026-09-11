@@ -10,9 +10,10 @@
  *
  * Contrairement à la réservation (§11.3), une offre **ne change pas le statut**
  * de l'annonce : plusieurs offres `PENDING` coexistent, c'est le vendeur qui
- * tranche (S4.10). La seule écriture concurrente significative est donc
- * `lastActivityAt` (§11.6 : toute activité reporte les rappels), mise à jour
- * **dans la même transaction** que l'offre.
+ * tranche — `respondToMarketOfferCore()` (S4.9) porte cette décision, l'écran de
+ * négociation qui la déclenche est en S4.10. La seule écriture concurrente
+ * significative est donc `lastActivityAt` (§11.6 : toute activité reporte les
+ * rappels), mise à jour **dans la même transaction** que l'offre.
  */
 
 import { db } from "@/lib/prisma";
@@ -21,7 +22,7 @@ import { isValidKamas } from "@/lib/market/kamas";
 import { MARKET_AUDIT_ACTIONS, MARKET_SETTINGS_BOUNDS } from "@/server/actions/market-constants";
 import { writeMarketAuditLog } from "@/server/market/audit";
 import { syncListingMessage } from "@/server/market/discord";
-import { notifyMarketSellerActivity } from "@/server/market/notifications";
+import { notifyMarketBuyerActivity, notifyMarketSellerActivity } from "@/server/market/notifications";
 
 /** Motif de refus — sert à choisir le message affiché (aucun détail interne exposé). */
 export type MarketOfferFailure =
@@ -212,5 +213,308 @@ export async function createMarketOfferCore(params: {
     } catch (error) {
         logger.error("[market] createMarketOfferCore failed", { err: error });
         return fail("ERROR");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// RÉPONSE DU VENDEUR (S4.9 — §11.4 / §11.9)
+// ---------------------------------------------------------------------------
+
+/**
+ * Décision du vendeur (§14.1). La **contre-offre** (`COUNTER`, §11.4) appartient
+ * au centre de négociation (S4.10) : ici deux issues, aucune troisième devinée.
+ */
+export type MarketOfferDecisionInput = "ACCEPT" | "DECLINE";
+
+/** Motif de refus d'une réponse — sert au message affiché (aucun détail interne). */
+export type MarketOfferDecisionFailure =
+    | "NOT_FOUND"
+    | "FORBIDDEN"
+    | "NOT_PENDING"
+    | "EXPIRED"
+    | "CONFLICT"
+    | "INVALID"
+    | "ERROR";
+
+export type MarketOfferDecisionOutcome =
+    | {
+          ok: true;
+          offerId: string;
+          status: "ACCEPTED" | "DECLINED";
+          /** Renseigné par une acceptation (annonce passée `RESERVED`). */
+          reservationId?: string;
+          expiresAt?: Date;
+          /** Offres concurrentes passées `EXPIRED` (§11.4). */
+          expiredOthers: number;
+      }
+    | { ok: false; reason: MarketOfferDecisionFailure; error: string };
+
+const DECISION_FAILURE_MESSAGES: Record<MarketOfferDecisionFailure, string> = {
+    NOT_FOUND: "Cette offre est introuvable.",
+    FORBIDDEN: "Seul le vendeur peut répondre à cette offre.",
+    NOT_PENDING: "Cette offre a déjà reçu une réponse.",
+    EXPIRED: "Cette offre a expiré.",
+    CONFLICT: "Cette annonce vient d'être réservée.",
+    INVALID: "Demande invalide.",
+    ERROR: "Erreur interne, réessaie dans un instant.",
+};
+
+function failDecision(reason: MarketOfferDecisionFailure): MarketOfferDecisionOutcome {
+    return { ok: false, reason, error: DECISION_FAILURE_MESSAGES[reason] };
+}
+
+/**
+ * Conflit détecté **dans** la transaction : on **lève** pour forcer le
+ * `ROLLBACK` (§11.3). Une garde de statut qui échoue après une première écriture
+ * ne doit jamais laisser cette écriture derrière elle (jamais d'offre `ACCEPTED`
+ * sans annonce réservée).
+ */
+class MarketDecisionConflict extends Error {
+    constructor(readonly reason: MarketOfferDecisionFailure) {
+        super(`market offer decision conflict: ${reason}`);
+    }
+}
+
+/** Offre concurrente expirée, avec son destinataire (notification §11.9). */
+type MarketLoserOffer = { id: string; buyerUserId: string };
+
+/**
+ * Réponse du **vendeur** à une offre reçue (§14.1 / §11.4) — moteur **unique**
+ * partagé par le dashboard (`respondToMarketOffer`) et, demain, par le centre de
+ * négociation. §13.4 : la règle n'est jamais portée par l'appelant.
+ *
+ * · `DECLINE` → offre `DECLINED` (+ `respondedAt` / `respondedByUserId`) ; les
+ *   autres offres restent `PENDING` ; le vendeur n'est pas notifié de son propre
+ *   geste, **l'acheteur** reçoit `MARKET_OFFER_ANSWERED` (§11.9).
+ * · `ACCEPT` → offre `ACCEPTED`, annonce `RESERVED` **au prix de l'offre** avec
+ *   `reservedUntil`, réservation `ACTIVE` créée, **les autres offres passent
+ *   `EXPIRED`** (chaque offreur est notifié), journal `OFFER_ACCEPTED`, embed
+ *   réécrit.
+ *
+ * Concurrence (§11.3) : chaque garde de statut vit dans le `WHERE` d'un
+ * `updateMany` **dans** la transaction. Deux réponses simultanées, une
+ * réservation directe ou une vente confirmée entre-temps ⇒ `count === 0` ⇒
+ * rollback, jamais un écrasement.
+ */
+export async function respondToMarketOfferCore(params: {
+    /** `GuildConfig.id` **interne** (§16.2 : jamais le snowflake Discord). */
+    guildConfigId: string;
+    offerId: string;
+    /** `User.id` SigilOS du **vendeur** : seul le propriétaire peut répondre. */
+    sellerUserId: string;
+    decision: MarketOfferDecisionInput;
+    /** `GuildConfig.marketReservationHours` — durée de la réservation créée. */
+    reservationHours: number;
+}): Promise<MarketOfferDecisionOutcome> {
+    try {
+        const { min, max } = MARKET_SETTINGS_BOUNDS.marketReservationHours;
+        if (
+            !params.offerId ||
+            !Number.isFinite(params.reservationHours) ||
+            params.reservationHours < min ||
+            params.reservationHours > max
+        ) {
+            return failDecision("INVALID");
+        }
+
+        // Isolation (§16.2) : l'offre est cherchée par `id` **et** par guilde de
+        // son annonce — une offre d'une autre guilde n'existe pas ici.
+        const offer = await db.marketOffer.findFirst({
+            where: { id: params.offerId, listing: { guildId: params.guildConfigId, deletedAt: null } },
+            select: {
+                id: true,
+                status: true,
+                expiresAt: true,
+                buyerProfileId: true,
+                buyerUserId: true,
+                listing: {
+                    select: {
+                        id: true,
+                        userId: true,
+                        title: true,
+                        guild: { select: { discordGuildId: true } },
+                    },
+                },
+            },
+        });
+        if (!offer) return failDecision("NOT_FOUND");
+        // §14.1 — garde « **propriétaire** » : le vendeur de l'annonce, personne d'autre.
+        if (offer.listing.userId !== params.sellerUserId) return failDecision("FORBIDDEN");
+        if (offer.status !== "PENDING") return failDecision("NOT_PENDING");
+
+        const now = new Date();
+        // L'expiration **effective** appartient au cron (§15.1 point 5) : ici on
+        // refuse, on ne ressuscite jamais une offre périmée.
+        if (offer.expiresAt && offer.expiresAt.getTime() <= now.getTime()) return failDecision("EXPIRED");
+
+        if (params.decision === "DECLINE") {
+            const declined = await db.$transaction(async (tx) => {
+                const updated = await tx.marketOffer.updateMany({
+                    where: { id: offer.id, status: "PENDING" }, // garde dans le WHERE (§11.3)
+                    data: { status: "DECLINED", respondedAt: now, respondedByUserId: params.sellerUserId },
+                });
+                if (updated.count === 0) return false;
+                // §11.6 — répondre est une activité : les rappels J+7 / J+15 reculent.
+                await tx.marketListing.update({
+                    where: { id: offer.listing.id },
+                    data: { lastActivityAt: now },
+                });
+                return true;
+            });
+            if (!declined) return failDecision("NOT_PENDING");
+
+            await writeMarketAuditLog({
+                guildId: params.guildConfigId,
+                listingId: offer.listing.id,
+                actorUserId: params.sellerUserId,
+                action: MARKET_AUDIT_ACTIONS.OFFER_DECLINED,
+                previousData: { status: "PENDING" },
+                nextData: { status: "DECLINED", offerId: offer.id },
+            });
+
+            // Le compteur public « N offre(s) en cours » (S4.7) a changé : l'embed
+            // est réécrit sans bloquer la réponse au vendeur (§13.6).
+            void syncListingMessage(offer.listing.id).catch((err) =>
+                logger.warn("[market] synchronisation Discord différée", {
+                    listingId: offer.listing.id,
+                    err: String(err),
+                })
+            );
+
+            // §11.9 — « réponse à ton offre » → **acheteur**. `try` local : la
+            // décision est déjà commitée, une panne d'alerte ne la transforme
+            // jamais en échec renvoyé au vendeur.
+            try {
+                await notifyMarketBuyerActivity({
+                    type: "MARKET_OFFER_ANSWERED",
+                    buyerUserId: offer.buyerUserId,
+                    decision: "rejected",
+                    listingId: offer.listing.id,
+                    discordGuildId: offer.listing.guild.discordGuildId,
+                    itemLabel: offer.listing.title,
+                });
+            } catch (err) {
+                logger.warn("[market] notification acheteur différée", { offerId: offer.id, err: String(err) });
+            }
+
+            return { ok: true, offerId: offer.id, status: "DECLINED", expiredOthers: 0 };
+        }
+
+        // ── ACCEPTATION (§11.4 : RESERVED + les autres offres EXPIRED) ────────
+        const expiresAt = new Date(now.getTime() + params.reservationHours * 60 * 60 * 1000);
+
+        let locked: { reservationId: string; losers: MarketLoserOffer[] };
+        try {
+            locked = await db.$transaction(async (tx) => {
+                const accepted = await tx.marketOffer.updateMany({
+                    where: { id: offer.id, status: "PENDING" },
+                    data: { status: "ACCEPTED", respondedAt: now, respondedByUserId: params.sellerUserId },
+                });
+                if (accepted.count === 0) throw new MarketDecisionConflict("NOT_PENDING");
+
+                // §11.3 — `ACTIVE` reste dans le WHERE : accepter une offre ne peut
+                // pas écraser une réservation directe ni une vente simultanée.
+                const reserved = await tx.marketListing.updateMany({
+                    where: {
+                        id: offer.listing.id,
+                        guildId: params.guildConfigId,
+                        status: "ACTIVE",
+                        deletedAt: null,
+                    },
+                    data: { status: "RESERVED", reservedUntil: expiresAt, lastActivityAt: now },
+                });
+                if (reserved.count === 0) throw new MarketDecisionConflict("CONFLICT");
+
+                const reservation = await tx.marketReservation.create({
+                    data: {
+                        listingId: offer.listing.id,
+                        buyerProfileId: offer.buyerProfileId,
+                        buyerUserId: offer.buyerUserId,
+                        status: "ACTIVE",
+                        expiresAt,
+                    },
+                    select: { id: true },
+                });
+
+                // §11.4 — « les autres offres passent `EXPIRED` » : lues **dans** la
+                // transaction pour que chaque offreur soit notifié, écrites avec la
+                // même garde `PENDING`.
+                const losers = await tx.marketOffer.findMany({
+                    where: { listingId: offer.listing.id, status: "PENDING", id: { not: offer.id } },
+                    select: { id: true, buyerUserId: true },
+                });
+                if (losers.length > 0) {
+                    await tx.marketOffer.updateMany({
+                        where: { id: { in: losers.map((loser) => loser.id) }, status: "PENDING" },
+                        data: { status: "EXPIRED", respondedAt: now, respondedByUserId: params.sellerUserId },
+                    });
+                }
+
+                return { reservationId: reservation.id, losers };
+            });
+        } catch (err) {
+            if (err instanceof MarketDecisionConflict) return failDecision(err.reason);
+            throw err;
+        }
+
+        await writeMarketAuditLog({
+            guildId: params.guildConfigId,
+            listingId: offer.listing.id,
+            actorUserId: params.sellerUserId,
+            action: MARKET_AUDIT_ACTIONS.OFFER_ACCEPTED,
+            previousData: { status: "PENDING", listingStatus: "ACTIVE" },
+            nextData: {
+                status: "ACCEPTED",
+                offerId: offer.id,
+                reservationId: locked.reservationId,
+                expiresAt,
+                // §13.7 — le montant de l'offre reste **interne** : jamais dans le salon.
+                expiredOffers: locked.losers.length,
+            },
+        });
+
+        void syncListingMessage(offer.listing.id).catch((err) =>
+            logger.warn("[market] synchronisation Discord différée", {
+                listingId: offer.listing.id,
+                err: String(err),
+            })
+        );
+
+        // §11.9 — l'offre acceptée **et** chaque offre évincée reçoivent leur
+        // réponse : l'acheteur sait toujours où il en est (jamais bloquant).
+        try {
+            await notifyMarketBuyerActivity({
+                type: "MARKET_OFFER_ANSWERED",
+                buyerUserId: offer.buyerUserId,
+                decision: "accepted",
+                listingId: offer.listing.id,
+                discordGuildId: offer.listing.guild.discordGuildId,
+                itemLabel: offer.listing.title,
+            });
+            for (const loser of locked.losers) {
+                await notifyMarketBuyerActivity({
+                    type: "MARKET_OFFER_ANSWERED",
+                    buyerUserId: loser.buyerUserId,
+                    decision: "rejected",
+                    listingId: offer.listing.id,
+                    discordGuildId: offer.listing.guild.discordGuildId,
+                    itemLabel: offer.listing.title,
+                });
+            }
+        } catch (err) {
+            logger.warn("[market] notification acheteur différée", { offerId: offer.id, err: String(err) });
+        }
+
+        return {
+            ok: true,
+            offerId: offer.id,
+            status: "ACCEPTED",
+            reservationId: locked.reservationId,
+            expiresAt,
+            expiredOthers: locked.losers.length,
+        };
+    } catch (error) {
+        logger.error("[market] respondToMarketOfferCore failed", { err: error });
+        return failDecision("ERROR");
     }
 }

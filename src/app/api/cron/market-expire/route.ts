@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { logger } from "@/lib/logger";
+
+export const dynamic = "force-dynamic";
 import { expireMarketListingsCore, expireMarketOffersCore, remindMarketListingsCore } from "@/server/market/expiry";
 import { expireMarketReservationsCore, remindMarketReservationsEndingCore } from "@/server/market/reservations";
 
@@ -37,7 +39,9 @@ import { expireMarketReservationsCore, remindMarketReservationsEndingCore } from
  *
  * Renvoie le bilan de la passe (compteurs par étape) ; toute erreur globale
  * renvoie 500 — les gardes d'idempotence rendent la relance sans effet de bord.
- * Télémétrie `KNOWN_CRON_TASKS.market_expire` : livrée en S5.3.
+ * Télémétrie `KNOWN_CRON_TASKS.market_expire` (`recordCronExecution`, S5.3) :
+ * l'état, la durée, la fréquence et les volumes de la passe sont visibles dans
+ * **God → Tâches CRON** (`?tab=cron-status`) — aucun développement de plus.
  */
 async function handleMarketExpire(req: Request) {
     if (!verifyCronSecret(req)) {
@@ -45,6 +49,7 @@ async function handleMarketExpire(req: Request) {
     }
 
     try {
+        const startedAt = Date.now();
         const now = new Date();
 
         const reservations = await expireMarketReservationsCore({ now });
@@ -57,10 +62,37 @@ async function handleMarketExpire(req: Request) {
 
         logger.info("[MarketExpireCron] passe terminée", summary);
 
+        // Télémétrie God (§15.1) : un récapitulatif **par passe** (jamais une
+        // ligne par annonce) — libellés lisibles dans `?tab=cron-status`.
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("market_expire", {
+            // Un échec Discord est le seul « succès partiel » possible : la base
+            // a bien avancé (syncStatus = FAILED, rejouable), le cron le signale.
+            success: listings.discordFailed === 0,
+            durationMs: Date.now() - startedAt,
+            summary: [
+                `Marché : ${reservations.expired} réservation(s) expirée(s)`,
+                `${reservationReminders.reminded} rappel(s) H-1`,
+                `${reminders.reminded7} rappel(s) J+7`,
+                `${reminders.reminded15} rappel(s) J+15`,
+                `${listings.deleted} annonce(s) retirée(s)`,
+                `${offers.expired} offre(s) expirée(s)`,
+                `${listings.discordFailed} échec(s) Discord`,
+            ].join(", "),
+            details: summary,
+        });
+
         return NextResponse.json({ success: true, summary });
     } catch (error) {
         const message = error instanceof Error ? error.message : "unknown error";
         logger.error("[MarketExpireCron] Global Error", { error: message });
+
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("market_expire", {
+            success: false,
+            summary: `Erreur : ${message}`,
+        });
+
         return NextResponse.json({ error: message }, { status: 500 });
     }
 }

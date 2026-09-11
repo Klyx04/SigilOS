@@ -46,6 +46,45 @@ Appelés depuis le crontab VPS (`crontab -l`) via
 - `/api/cron/sync-monster-stats` — **siphon local fiches monstres (DofusDB + Dofensive)** : pour chaque boss de donjon, fiche DofusDB (grades/drops/sorts) fusionnée avec les sorts de combat Dofensive (AP/portée/zone/cooldown/maxCast) → table `MonsterStat`. ⚠️ 1er run lourd (10-30 min, ~tous les boss × 6-8 requêtes) — runs suivants rapides (tout déjà frais). Fréquence recommandée : quotidien (`45 3 * * *`).
 - `/api/cron/check-links` — **vérificateur de liens multi-sources (HEAD)** : flague les slugs cassés DofusDB/Dofensive/DPLN (résultat en audit God, rien stocké). Fréquence recommandée : hebdomadaire (`15 4 * * 0`).
 
+### 🛒 Module « Marché » — cron unique des échéances
+
+Toutes les échéances du marché passent par **une seule route** : `/api/cron/market-expire` (`GET` + `POST`, protégée par `x-cron-secret`, **fail-closed**). Une passe exécute **5 étapes dans un ordre imposé** (§15.1 du plan maître) :
+
+| # | Étape | Effet |
+|---|---|---|
+| 1 | `expireMarketReservationsCore` | réservations `ACTIVE` échues → `EXPIRED`, l'annonce repasse `RESERVED → ACTIVE` |
+| 2 | `remindMarketReservationsEndingCore` | rappel **H-1** au vendeur **et** à l'acheteur (fenêtre stricte de 60 min) |
+| 3 | `remindMarketListingsCore` | rappels **J+7 / J+15** au créateur des annonces **sans activité** (paliers `marketReminderDays`) |
+| 4 | `expireMarketListingsCore` | retrait **J+20** : annonces échues **sans activité** → `WITHDRAWN` + `deletedAt` (archivage, jamais de suppression dure) |
+| 5 | `expireMarketOffersCore` | offres `PENDING` hors délai → `EXPIRED` (acheteur prévenu) |
+
+**Crontab VPS** — ligne à ajouter **à la main** (D33) :
+```bash
+*/10 * * * * curl -s -H "x-cron-secret: $CRON_SECRET" https://sigilos.fr/api/cron/market-expire >/dev/null 2>&1
+```
+
+> 💡 **Aucun développement** pour la supervision : la tâche `market_expire` est déclarée dans `KNOWN_CRON_TASKS` (`src/lib/cron-telemetry.ts`) et apparaît **automatiquement** dans **God → Tâches CRON** (`/god?tab=cron-status`) avec son état, sa durée et son récapitulatif de passe.
+
+**Garde-fous vérifiés :**
+- **Idempotence** : chaque écriture est un `updateMany` conditionnel (statut, échéance, `reminderStage` / `deletedAt` rejoués dans le `where`) → une passe relancée dans les 10 minutes **ne fait rien** de plus ; une relance manuelle est sans effet de bord ;
+- **Volume** : traitement **par lots** (200 éléments / passe) et **un récapitulatif par passe** (jamais une ligne par annonce) ;
+- **Discord indisponible** : la base avance d'abord, Discord n'est **jamais bloquant** (échec → `syncStatus = FAILED`, rejouable ; succès → `SENT`) ;
+- **Annonce vendue/réservée** : le retrait J+20 et les rappels ne visent **jamais** une annonce avec une offre ou une réservation en cours ;
+- **Faible fuite d'information** : la réponse JSON ne contient que des compteurs (aucun montant, aucun pseudo, §13.7).
+
+**Rétention (module marché)** — valeurs par guilde (`GuildConfig`), réglables depuis le dashboard :
+
+| Donnée | Rétention | Mécanisme |
+|---|---|---|
+| Annonce active sans activité | retirée à **J+20** (soft-delete) | étape 4 du cron |
+| Annonce `SOLD` / `WITHDRAWN` | **conservée** (historique, preuve de vente), masquée des vues | filtres par défaut |
+| Offres, réservations, signalements | conservés avec l'annonce (traçabilité des litiges) | — |
+| Médias (preuves) | `marketMediaRetentionDays` — **30 j** par défaut (bornes 7–180) après la fin de vie de l'annonce | purge des objets de stockage, chaque média purgé étant **audité** (`MEDIA_PURGED`) |
+| Logs d'audit du marché | `marketLogRetentionDays` — **365 j** par défaut (bornes 30–730) | purge de la même famille que `cleanup-logs` |
+| Compte supprimé / profil archivé | les annonces **actives** passent `WITHDRAWN` | hook de cycle de vie membre (audit à la clé) |
+
+Le marché **n'efface jamais** une annonce : il l'**archive** (`WITHDRAWN` + `deletedAt` + `deletedReason`), puis laisse la rétention des logs faire le ménage.
+
 ### 📡 Télémétrie et Monitoring GOD (`/god?tab=cron-status`)
 Chaque tâche CRON enregistre automatiquement son état, sa durée et son résumé dans **Redis** via `recordCronExecution` (`src/lib/cron-telemetry.ts`).
 - **TTL automatique** : 7 jours (auto-nettoyage, pas d'accumulation de fichiers de log).

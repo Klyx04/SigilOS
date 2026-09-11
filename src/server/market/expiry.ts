@@ -24,7 +24,7 @@
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { MARKET_AUDIT_ACTIONS, MARKET_DELETE_REASONS } from "@/server/actions/market-constants";
+import { MARKET_AUDIT_ACTIONS, MARKET_DELETE_REASONS, MARKET_SETTINGS_BOUNDS, MARKET_SETTINGS_DEFAULTS } from "@/server/actions/market-constants";
 import { writeMarketAuditLog } from "@/server/market/audit";
 import { deleteListingDiscordMessage } from "@/server/market/discord";
 import { notifyMarketBuyerActivity, notifyMarketUser } from "@/server/market/notifications";
@@ -206,6 +206,208 @@ export async function expireMarketListingsCore(
         return outcome;
     } catch (error) {
         logger.error("[market] expireMarketListingsCore failed", { err: error });
+        return outcome;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// J+7 / J+15 — RAPPELS « AUCUNE ACTIVITÉ » (§11.6, D18)
+// ---------------------------------------------------------------------------
+
+/**
+ * Nombre de paliers réellement adressés par le cron : **2** (§11.6 / D18).
+ *
+ * La copie `MARKET_REMINDER` n'énonce que « depuis 7 jours » et « depuis
+ * 15 jours » : un 3ᵉ palier accepté par le réglage de guilde est donc **ignoré**
+ * (et logué en `warn`) plutôt que notifié avec un texte faux.
+ */
+export const MARKET_REMINDER_STAGES_SENT = 2;
+
+/** Une journée en millisecondes (paliers de rappel exprimés en jours). */
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Normalise `GuildConfig.marketReminderDays` (Json non typé côté Prisma) en
+ * paliers exploitables : entiers, bornés (`MARKET_SETTINGS_BOUNDS`),
+ * dédoublonnés, **croissants** et limités à `MARKET_REMINDER_STAGES_SENT`.
+ *
+ * Un réglage corrompu (chaîne, objet, tableau vide, valeurs absurdes) retombe
+ * sur le défaut `[7, 15]` : le cron ne dépend jamais d'une valeur qu'il ne sait
+ * pas lire.
+ */
+export function normalizeMarketReminderDays(value: unknown): number[] {
+    const raw = Array.isArray(value)
+        ? value.filter((day): day is number => typeof day === "number" && Number.isFinite(day))
+        : [];
+    const source = raw.length > 0 ? raw : [...MARKET_SETTINGS_DEFAULTS.marketReminderDays];
+
+    const { min, max } = MARKET_SETTINGS_BOUNDS.marketReminderDays;
+    const days = [...new Set(source.map((day) => Math.floor(day)))]
+        .filter((day) => day >= min && day <= max)
+        .sort((a, b) => a - b);
+
+    if (days.length === 0) return [MARKET_SETTINGS_DEFAULTS.marketReminderDays[0]];
+    return days.slice(0, MARKET_REMINDER_STAGES_SENT);
+}
+
+export type MarketListingReminderOutcome = {
+    /** Annonces éligibles lues dans la passe (borné par le lot et par guilde). */
+    scanned: number;
+    /** Annonces passées à `reminderStage = 1` (1ᵉʳ palier : J+7 par défaut). */
+    reminded7: number;
+    /** Annonces passées à `reminderStage = 2` (2ᵉ palier : J+15 par défaut). */
+    reminded15: number;
+    /** Créateurs prévenus (`MARKET_REMINDER`). */
+    notified: number;
+    /** Un lot était plein : le reste part à la passe suivante (10 min). */
+    hasMore: boolean;
+};
+
+/**
+ * Envoie les rappels J+7 / J+15 aux annonces **`ACTIVE` sans aucune activité**
+ * (§11.6, D18).
+ *
+ * Garanties :
+ *   · **idempotence sans état local** — `reminderStage` est rejoué **dans le
+ *     `where`** de l'écriture (`updateMany`) : deux passes concurrentes, ou une
+ *     passe rejouée après un redémarrage, ne trouvent qu'une fois la transition
+ *     `stage → stage + 1` (`count === 0` ⇒ rien à faire) ;
+ *   · **aucune activité requise** — `MARKET_NO_ACTIVITY_WHERE` est rejoué dans
+ *     l'écriture : une offre acceptée ou une réservation créée dans l'intervalle
+ *     annule le rappel au lieu de l'envoyer ;
+ *   · **jamais sur une annonce arrivée à échéance** (`expiresAt > now`) : elle
+ *     relève du retrait J+20, pas d'un rappel ;
+ *   · **aucun DM Discord** (D30) : l'entrée dashboard `MARKET_REMINDER` est
+ *     désactivable par le membre ;
+ *   · **paliers par guilde** : lus dans `GuildConfig.marketReminderDays`, jamais
+ *     imposés en dur.
+ *
+ * Ne lève jamais : renvoie le bilan de la passe.
+ */
+export async function remindMarketListingsCore(
+    params: MarketExpiryPass = {}
+): Promise<MarketListingReminderOutcome> {
+    const { limit, now } = normalizePass(params);
+    const outcome: MarketListingReminderOutcome = {
+        scanned: 0,
+        reminded7: 0,
+        reminded15: 0,
+        notified: 0,
+        hasMore: false,
+    };
+
+    try {
+        const guilds = await db.guildConfig.findMany({
+            where: params.guildConfigId ? { id: params.guildConfigId } : {},
+            select: { id: true, marketReminderDays: true },
+        });
+
+        for (const guild of guilds) {
+            const days = normalizeMarketReminderDays(guild.marketReminderDays);
+            const configured = Array.isArray(guild.marketReminderDays) ? guild.marketReminderDays.length : 0;
+            if (configured > MARKET_REMINDER_STAGES_SENT) {
+                logger.warn("[market] paliers de rappel au-delà du 2ᵉ ignorés", {
+                    guildConfigId: guild.id,
+                    configured,
+                    applied: days,
+                });
+            }
+
+            // `stage` = palier **déjà envoyé** : `0` ⇒ le rappel J+7 reste à
+            // envoyer (`reminderStage` passera à `1`), `1` ⇒ le J+15, etc.
+            for (let stage = 0; stage < days.length; stage += 1) {
+                const threshold = new Date(now.getTime() - days[stage] * DAY_MS);
+                const due = await db.marketListing.findMany({
+                    where: {
+                        guildId: guild.id,
+                        status: "ACTIVE",
+                        deletedAt: null,
+                        reminderStage: stage,
+                        publishedAt: { not: null, lte: threshold },
+                        expiresAt: { gt: now },
+                        ...MARKET_NO_ACTIVITY_WHERE,
+                    },
+                    select: {
+                        id: true,
+                        guildId: true,
+                        userId: true,
+                        title: true,
+                        reminderStage: true,
+                        guild: { select: { discordGuildId: true } },
+                    },
+                    orderBy: { publishedAt: "asc" },
+                    take: limit,
+                });
+
+                outcome.scanned += due.length;
+                if (due.length === limit) outcome.hasMore = true;
+
+                for (const listing of due) {
+                    try {
+                        // Garde de statut **et de palier** dans le `where` (§11.3) :
+                        // renouvellement, retrait, vente ou rappel déjà parti dans
+                        // l'intervalle ⇒ `count === 0` et rien n'est notifié.
+                        const advanced = await db.marketListing.updateMany({
+                            where: {
+                                id: listing.id,
+                                guildId: guild.id,
+                                status: "ACTIVE",
+                                deletedAt: null,
+                                reminderStage: stage,
+                                publishedAt: { not: null, lte: threshold },
+                                expiresAt: { gt: now },
+                                ...MARKET_NO_ACTIVITY_WHERE,
+                            },
+                            data: { reminderStage: stage + 1, lastReminderAt: now },
+                        });
+                        if (advanced.count === 0) continue;
+
+                        const nextStage = stage + 1;
+                        if (nextStage === 1) outcome.reminded7 += 1;
+                        else outcome.reminded15 += 1;
+
+                        await writeMarketAuditLog({
+                            guildId: listing.guildId,
+                            listingId: listing.id,
+                            // Rappel automatique : aucune action humaine ⇒ acteur nul.
+                            actorUserId: null,
+                            action: MARKET_AUDIT_ACTIONS.LISTING_REMINDER_SENT,
+                            previousData: { reminderStage: listing.reminderStage },
+                            nextData: { reminderStage: nextStage, reminderDays: days[stage] },
+                        });
+
+                        // §11.9 — le créateur est le **seul** destinataire (D30).
+                        const sent = await notifyMarketUser(
+                            "MARKET_REMINDER",
+                            {
+                                userId: listing.userId,
+                                discordGuildId: listing.guild.discordGuildId,
+                                listingId: listing.id,
+                                itemLabel: listing.title,
+                            },
+                            { reminderStage: nextStage }
+                        );
+                        if (sent) outcome.notified += 1;
+
+                        logger.info("[market] rappel d'annonce envoyé", {
+                            listingId: listing.id,
+                            guildConfigId: guild.id,
+                            reminderStage: nextStage,
+                            reminderDays: days[stage],
+                        });
+                    } catch (error) {
+                        logger.error("[market] remindMarketListingsCore — annonce ignorée", {
+                            listingId: listing.id,
+                            err: String(error),
+                        });
+                    }
+                }
+            }
+        }
+
+        return outcome;
+    } catch (error) {
+        logger.error("[market] remindMarketListingsCore failed", { err: error });
         return outcome;
     }
 }

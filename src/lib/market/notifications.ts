@@ -65,10 +65,22 @@ export const MARKET_NOTIFICATION_CATEGORY = "MARKET" as const;
 /** Longueur maximale d'un libellé d'annonce repris dans une copie. */
 export const MARKET_NOTIFICATION_LABEL_MAX = 80;
 
-/** Motif de fin de réservation (`MARKET_RESERVATION_ENDED`). */
-export type MarketReservationEndReason = "cancelled" | "expired";
+/**
+ * Motif de la ligne `MARKET_RESERVATION_ENDED` : `cancelled` (§11.2) et
+ * `expired` (§15.1 point 4) constatent la **fin** de la réservation, `expiring`
+ * est le **rappel H-1** (§11.6) — la réservation vit encore et expire dans moins
+ * d'une heure.
+ */
+export type MarketReservationEndReason = "cancelled" | "expired" | "expiring";
 /** Issue d'une offre (`MARKET_OFFER_ANSWERED`). */
 export type MarketOfferDecision = "accepted" | "rejected" | "counter" | "expired";
+
+/**
+ * Titre du **rappel H-1** (§11.6) : la réservation n'est pas terminée, elle
+ * expire dans moins d'une heure — le titre générique de `TITLES` dirait
+ * l'inverse.
+ */
+export const MARKET_RESERVATION_EXPIRING_TITLE = "⏳ Réservation bientôt terminée";
 
 const TITLES: Record<MarketNotificationType, string> = {
     MARKET_OFFER_RECEIVED: "🤝 Nouvelle offre reçue",
@@ -152,7 +164,9 @@ export function buildMarketNotificationCopy(
     type: MarketNotificationType,
     params: MarketNotificationCopyParams
 ): { title: string; message: string } {
-    const title = TITLES[type];
+    const title = type === "MARKET_RESERVATION_ENDED" && params.endReason === "expiring"
+        ? MARKET_RESERVATION_EXPIRING_TITLE
+        : TITLES[type];
     const label = sanitizeMarketLabel(params.itemLabel) || "ton annonce";
     const hours = params.reservationHours && params.reservationHours > 0
         ? Math.round(params.reservationHours)
@@ -169,9 +183,13 @@ export function buildMarketNotificationCopy(
                 : `« ${label} » vient d'être réservée. Contacte l'acheteur pour finaliser la vente.`;
             break;
         case "MARKET_RESERVATION_ENDED":
-            message = params.endReason === "cancelled"
-                ? `La réservation de « ${label} » a été annulée.`
-                : `La réservation de « ${label} » a expiré.`;
+            if (params.endReason === "expiring") {
+                message = `La réservation de « ${label} » expire dans moins d'une heure. Finalisez l'échange en jeu, sinon l'annonce repart en vente.`;
+            } else if (params.endReason === "cancelled") {
+                message = `La réservation de « ${label} » a été annulée.`;
+            } else {
+                message = `La réservation de « ${label} » a expiré.`;
+            }
             break;
         case "MARKET_OFFER_ANSWERED":
             if (params.decision === "accepted") message = `Ton offre sur « ${label} » a été acceptée.`;

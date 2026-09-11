@@ -17,7 +17,8 @@
  * Le **retour en vente** (§11.2 / §15.1 point 4) vit ici aussi, avec la même
  * garde de statut : `cancelMarketReservationCore()` (acheteur **ou** vendeur) et
  * `expireMarketReservationsCore()` (lot idempotent appelé par le cron S5.1).
- * Les deux notifient **le vendeur et l'acheteur** (§11.9).
+ * Les deux notifient **le vendeur et l'acheteur** (§11.9). Le **rappel H-1**
+ * (§11.6, S5.2) complète le cycle : `remindMarketReservationsEndingCore()`.
  */
 
 import { db } from "@/lib/prisma";
@@ -490,6 +491,193 @@ export async function expireMarketReservationsCore(
         return outcome;
     } catch (error) {
         logger.error("[market] expireMarketReservationsCore failed", { err: error });
+        return outcome;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// RAPPEL H-1 DES RÉSERVATIONS (S5.2 — §11.6)
+// ---------------------------------------------------------------------------
+
+/** Fenêtre d'anticipation du rappel « H-1 » (§11.6). */
+export const MARKET_RESERVATION_REMINDER_WINDOW_MS = 60 * 60 * 1000;
+
+/** Taille d'un lot d'une passe de rappel (miroir du lot d'expiration). */
+export const MARKET_RESERVATION_REMINDER_BATCH_SIZE = 200;
+
+/** Nombre de traces relues pour prouver qu'un rappel H-1 est déjà parti. */
+const MARKET_RESERVATION_REMINDER_LOOKBACK = 50;
+
+/** Compteurs d'une passe de rappel H-1 (télémétrie du cron S5.2). */
+export type MarketReservationReminderOutcome = {
+    /** Réservations éligibles lues dans la passe (borné par le lot). */
+    scanned: number;
+    /** Réservations rappelées — **0** au 2ᵉ passage : idempotent. */
+    reminded: number;
+    /** Entrées §11.9 réellement créées (vendeur + acheteur). */
+    notified: number;
+    /** Le lot était plein : le reste part à la passe suivante (10 min). */
+    hasMore: boolean;
+};
+
+/**
+ * Le rappel H-1 a-t-il **déjà** été envoyé pour cette réservation ?
+ *
+ * La réservation n'a pas de colonne dédiée à ce rappel : la trace d'audit
+ * `RESERVATION_REMINDER_SENT` (qui porte le `reservationId` dans son `nextData`)
+ * en fait office, ce qui garde le cron idempotent **sans écrire d'état
+ * supplémentaire**. La relecture est bornée et filtrée par annonce + action —
+ * jamais un plein-scan.
+ */
+async function hasReservationReminderEndingBeenSent(
+    listingId: string,
+    reservationId: string
+): Promise<boolean> {
+    const rows = await db.marketAuditLog.findMany({
+        where: { listingId, action: MARKET_AUDIT_ACTIONS.RESERVATION_REMINDER_SENT },
+        select: { nextData: true },
+        orderBy: { createdAt: "desc" },
+        take: MARKET_RESERVATION_REMINDER_LOOKBACK,
+    });
+
+    return rows.some((row) => {
+        const data = row.nextData;
+        if (!data || typeof data !== "object" || Array.isArray(data)) return false;
+        return (data as { reservationId?: unknown }).reservationId === reservationId;
+    });
+}
+
+/**
+ * Rappel **H-1** : prévient **vendeur et acheteur** qu'une réservation `ACTIVE`
+ * arrive à échéance dans moins d'une heure (§11.6, D18).
+ *
+ * Garanties :
+ *   · **idempotent** — la trace d'audit `RESERVATION_REMINDER_SENT` sert de
+ *     marqueur (relecture bornée) : une passe rejouée toutes les 10 min
+ *     **n'envoie rien** de plus ;
+ *   · **garde de statut** — la réservation est relue `ACTIVE` dans la fenêtre
+ *     juste avant l'envoi : une annulation ou une vente intervenue entre la
+ *     lecture et l'écriture annule le rappel (§11.3) ;
+ *   · **aucun DM Discord** (D30) : entrée dashboard `MARKET`, désactivable ;
+ *   · **isolé par élément** : l'échec d'une réservation n'interrompt pas la passe.
+ *
+ * ⚠️ Deux passes **strictement concurrentes** pourraient, dans une fenêtre très
+ * courte, rappeler deux fois (la trace est écrite juste avant l'envoi) : c'est un
+ * doublon cosmétique bénin, jamais une donnée incohérente. Le cron étant appelé
+ * toutes les 10 min pour une fenêtre de 60 min, la situation est improbable.
+ *
+ * Ne lève jamais : renvoie le bilan de la passe.
+ */
+export async function remindMarketReservationsEndingCore(
+    params: { limit?: number; now?: Date; guildConfigId?: string } = {}
+): Promise<MarketReservationReminderOutcome> {
+    const now = params.now ?? new Date();
+    const limit = params.limit && params.limit > 0
+        ? Math.min(params.limit, MARKET_RESERVATION_REMINDER_BATCH_SIZE)
+        : MARKET_RESERVATION_REMINDER_BATCH_SIZE;
+    const windowEnd = new Date(now.getTime() + MARKET_RESERVATION_REMINDER_WINDOW_MS);
+    const outcome: MarketReservationReminderOutcome = {
+        scanned: 0,
+        reminded: 0,
+        notified: 0,
+        hasMore: false,
+    };
+
+    try {
+        const due = await db.marketReservation.findMany({
+            where: {
+                status: "ACTIVE",
+                // Strictement dans la fenêtre : `> now` (un rappel n'a de sens que
+                // si la réservation court encore) et `<= now + 1 h` (§11.6).
+                expiresAt: { gt: now, lte: windowEnd },
+                // Le cron est global ; le filtre de guilde sert aux passes ciblées.
+                ...(params.guildConfigId ? { listing: { guildId: params.guildConfigId } } : {}),
+            },
+            select: {
+                id: true,
+                buyerUserId: true,
+                buyerProfileId: true,
+                expiresAt: true,
+                listing: {
+                    select: {
+                        id: true,
+                        guildId: true,
+                        userId: true,
+                        profileId: true,
+                        title: true,
+                        guild: { select: { discordGuildId: true } },
+                    },
+                },
+            },
+            orderBy: { expiresAt: "asc" },
+            take: limit,
+        });
+
+        outcome.scanned = due.length;
+        outcome.hasMore = due.length === limit;
+
+        for (const reservation of due) {
+            try {
+                if (await hasReservationReminderEndingBeenSent(reservation.listing.id, reservation.id)) {
+                    continue;
+                }
+
+                // Le rappel n'est utile que si la réservation court toujours.
+                const stillOpen = await db.marketReservation.count({
+                    where: {
+                        id: reservation.id,
+                        status: "ACTIVE",
+                        expiresAt: { gt: now, lte: windowEnd },
+                    },
+                });
+                if (stillOpen === 0) continue;
+
+                await writeMarketAuditLog({
+                    guildId: reservation.listing.guildId,
+                    listingId: reservation.listing.id,
+                    // Rappel automatique : aucune action humaine ⇒ acteur nul.
+                    actorUserId: null,
+                    action: MARKET_AUDIT_ACTIONS.RESERVATION_REMINDER_SENT,
+                    previousData: { reservationStatus: "ACTIVE", expiresAt: reservation.expiresAt },
+                    nextData: { reservationId: reservation.id, reminder: "H-1" },
+                });
+
+                // §11.9 — rappel « H-1 » : vendeur **et** acheteur, personne n'est
+                // écarté (aucun auteur d'action). Jamais bloquant.
+                try {
+                    outcome.notified += await notifyMarketReservationEnded({
+                        reason: "expiring",
+                        listingId: reservation.listing.id,
+                        discordGuildId: reservation.listing.guild.discordGuildId,
+                        itemLabel: reservation.listing.title,
+                        ...reservationParties(reservation),
+                    });
+                } catch (err) {
+                    logger.warn("[market] rappel H-1 : notification différée", {
+                        reservationId: reservation.id,
+                        err: String(err),
+                    });
+                }
+
+                outcome.reminded += 1;
+
+                logger.info("[market] rappel H-1 de réservation envoyé", {
+                    reservationId: reservation.id,
+                    listingId: reservation.listing.id,
+                    expiresAt: reservation.expiresAt,
+                });
+            } catch (error) {
+                // Une réservation en échec n'annule pas la passe : le cron repasse.
+                logger.error("[market] remindMarketReservationsEndingCore item failed", {
+                    reservationId: reservation.id,
+                    err: error,
+                });
+            }
+        }
+
+        return outcome;
+    } catch (error) {
+        logger.error("[market] remindMarketReservationsEndingCore failed", { err: error });
         return outcome;
     }
 }

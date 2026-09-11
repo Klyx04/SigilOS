@@ -156,9 +156,23 @@ export function GameItemSiphonPanel() {
                     setLogs((prev) => [`❌ Référentiels: ${res.error || 'Inconnue'}`, ...prev]);
                     return;
                 }
-                const { characteristics, effects, orphanFmIds } = res.data;
+                const {
+                    characteristics,
+                    characteristicsStored,
+                    characteristicsTotal,
+                    effects,
+                    effectsStored,
+                    effectsTotal,
+                    truncated,
+                    orphanFmIds,
+                } = res.data;
                 setLogs((prev) => [
-                    `✅ Référentiels synchronisés : ${characteristics} caractéristique(s), ${effects} effet(s).`,
+                    `✅ Référentiels lus : ${characteristics}/${characteristicsTotal} caractéristique(s) (${characteristicsStored} en base), ${effects}/${effectsTotal} effet(s) (${effectsStored} en base).`,
+                    ...(truncated
+                        ? [
+                              `⚠️ Référentiel INCOMPLET : des pages DofusDB n'ont pas été rendues (page en échec ou plafond atteint) — relancer le siphon pour compléter.`,
+                          ]
+                        : []),
                     ...(orphanFmIds && orphanFmIds.length > 0
                         ? [
                               `⚠️ Mapping FM : ${orphanFmIds.length} id(s) absent(s) du référentiel (${orphanFmIds.join(', ')}) — résolution FM par libellé uniquement.`,

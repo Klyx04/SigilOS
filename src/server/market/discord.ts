@@ -27,6 +27,7 @@ import {
     type MarketDiscordStatus,
 } from "@/lib/market/discord-payload";
 import { buildMarketDashboardUrl } from "@/lib/market/discord-interactions";
+import { countPendingMarketOffers } from "@/server/market/counters";
 
 export type MarketDiscordResult = {
     ok: boolean;
@@ -93,9 +94,9 @@ async function loadListingForDiscord(listingId: string) {
         listing.guild.marketChannelKind
     );
 
-    const offersCount = await db.marketOffer
-        .count({ where: { listingId, status: "PENDING" } })
-        .catch(() => 0);
+    // S4.7 — le compteur public vient d'**une seule** source (§13.7) : jamais un
+    // montant ni un pseudo, et jamais d'échec bloquant.
+    const offersCount = await countPendingMarketOffers(listingId);
 
     return { listing, offersCount };
 }

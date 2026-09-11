@@ -220,6 +220,12 @@ export const MARKET_AUDIT_ACTIONS = {
     LISTING_EXPIRED: "LISTING_EXPIRED",
     LISTING_SOLD: "LISTING_SOLD",
     LISTING_DELETED: "LISTING_DELETED",
+    /**
+     * S5.1 — archivage automatique : l'annonce a atteint son échéance J+20 sans
+     * aucune activité. Distinct de `LISTING_DELETED` (retrait humain vendeur/modo)
+     * pour que le journal permette de séparer les deux causes (§11.10).
+     */
+    LISTING_AUTO_DELETED: "LISTING_AUTO_DELETED",
     LISTING_TAKEN_DOWN: "LISTING_TAKEN_DOWN",
     LISTING_RESTORED: "LISTING_RESTORED",
     RESERVATION_CREATED: "RESERVATION_CREATED",

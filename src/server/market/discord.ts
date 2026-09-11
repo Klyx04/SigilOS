@@ -16,6 +16,7 @@ import { logger } from "@/lib/logger";
 import { getAppBaseUrl } from "@/lib/utils";
 import {
     createForumPost,
+    deleteChannelMessage,
     fetchChannel,
     sendChannelMessage,
     updateChannelMessage,
@@ -188,6 +189,9 @@ export async function publishListingToDiscord(
         if (!loaded) return { ok: false, error: "Annonce introuvable" };
         const { listing } = loaded;
 
+        // S5.1 — une annonce archivée ou supprimée n'est jamais (re)publiée.
+        if (listing.deletedAt) return { ok: true, skipped: true };
+
         const channelId = listing.guild.marketNotifyChannelId;
         if (!channelId) {
             logger.info("[market] publication Discord ignorée — salon non configuré", { listingId });
@@ -280,6 +284,12 @@ export async function syncListingMessage(listingId: string): Promise<MarketDisco
         const { listing } = loaded;
         const existing = listing.discordMessage;
 
+        // S5.1 — annonce archivée ou supprimée : plus jamais publiée ni réécrite.
+        // Sans cette garde, une synchronisation lancée en tâche de fond par une
+        // autre transition (ex. expiration d'une réservation) ressusciterait le
+        // message que le cron vient de retirer du salon.
+        if (listing.deletedAt) return { ok: true, skipped: true };
+
         // Jamais publiée (ou trace d'échec sans message) → on republie.
         if (!existing || !existing.discordMessageId) {
             if (!listing.guild.marketNotifyChannelId) return { ok: true, skipped: true };
@@ -310,6 +320,48 @@ export async function syncListingMessage(listingId: string): Promise<MarketDisco
     } catch (error) {
         const message = errorMessage(error);
         logger.error("[market] syncListingMessage failed", { listingId, err: message });
+        await markSyncFailed(listingId, message);
+        return { ok: false, error: message };
+    }
+}
+
+/**
+ * S5.1 — Retrait Discord d'une annonce qui quitte le marché (archivage J+20,
+ * retrait vendeur ou modo).
+ *
+ * Une annonce morte ne doit plus traîner dans le salon (§13.7) : on **supprime**
+ * le message — ou le post forum, Discord supprimant le fil avec son message
+ * d'ouverture — au lieu de resynchroniser un embed « retirée » que plus personne
+ * ne peut honorer.
+ *
+ * ⚠️ Toujours appelée **après** l'écriture en base, donc jamais bloquante : un
+ * échec Discord laisse la trace `syncStatus = "FAILED"` + `lastError` (rejouable
+ * en God S3.8 / réconciliation S5.4) et n'annule jamais l'archivage. Un succès
+ * note `syncStatus = "DELETED"` : la ligne est conservée comme trace d'audit,
+ * mais l'annonce n'a plus rien côté Discord.
+ */
+export async function deleteListingDiscordMessage(listingId: string): Promise<MarketDiscordResult> {
+    try {
+        const existing = await db.marketDiscordMessage.findUnique({
+            where: { listingId },
+            select: { discordChannelId: true, discordMessageId: true },
+        });
+
+        // Annonce jamais publiée (brouillon, salon non configuré) : rien à retirer.
+        if (!existing) return { ok: true, skipped: true };
+
+        const deleted = await deleteChannelMessage(existing.discordChannelId, existing.discordMessageId);
+        if (!deleted) throw new Error("Suppression Discord refusée");
+
+        await db.marketDiscordMessage.update({
+            where: { listingId },
+            data: { syncStatus: "DELETED", lastError: null, lastSyncedAt: new Date() },
+        });
+
+        return { ok: true, messageId: existing.discordMessageId };
+    } catch (error) {
+        const message = errorMessage(error);
+        logger.error("[market] deleteListingDiscordMessage failed", { listingId, err: message });
         await markSyncFailed(listingId, message);
         return { ok: false, error: message };
     }

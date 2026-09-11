@@ -68,7 +68,7 @@ export const MARKET_NOTIFICATION_LABEL_MAX = 80;
 /** Motif de fin de réservation (`MARKET_RESERVATION_ENDED`). */
 export type MarketReservationEndReason = "cancelled" | "expired";
 /** Issue d'une offre (`MARKET_OFFER_ANSWERED`). */
-export type MarketOfferDecision = "accepted" | "rejected" | "counter";
+export type MarketOfferDecision = "accepted" | "rejected" | "counter" | "expired";
 
 const TITLES: Record<MarketNotificationType, string> = {
     MARKET_OFFER_RECEIVED: "🤝 Nouvelle offre reçue",
@@ -177,6 +177,7 @@ export function buildMarketNotificationCopy(
             if (params.decision === "accepted") message = `Ton offre sur « ${label} » a été acceptée.`;
             else if (params.decision === "rejected") message = `Ton offre sur « ${label} » a été refusée.`;
             else if (params.decision === "counter") message = `Une contre-offre a été proposée sur « ${label} ».`;
+            else if (params.decision === "expired") message = `Ton offre sur « ${label} » a expiré sans réponse.`;
             else message = `Ta négociation sur « ${label} » a évolué.`;
             break;
         case "MARKET_SOLD":

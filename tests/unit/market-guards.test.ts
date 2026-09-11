@@ -28,6 +28,9 @@ vi.mock("@/lib/prisma", () => ({
             update: vi.fn(),
             count: vi.fn(),
         },
+        // S7.8 — fiche d'annonce : réservation active + profil du réservataire.
+        marketReservation: { findFirst: vi.fn() },
+        userProfile: { findFirst: vi.fn() },
         marketListingStat: { deleteMany: vi.fn(), createMany: vi.fn() },
         marketListingComponent: { deleteMany: vi.fn(), createMany: vi.fn() },
         marketAuditLog: { create: vi.fn() },
@@ -99,6 +102,83 @@ describe("market guards — isolation de guilde", () => {
         expect(res.success).toBe(false);
         const where = (db.marketListing.findFirst as ReturnType<typeof vi.fn>).mock.calls[0][0].where;
         expect(where.guildId).toBe(GUILD_CONFIG.id);
+    });
+});
+
+/**
+ * S7.8/S7.10 — la fiche expose la **réservation active** (pseudo + échéance) :
+ * c'est ce qui manquait (« on ne voit pas si l'item est déjà réservé ni par qui »).
+ * Le profil du réservataire est lu **dans la guilde du contexte**.
+ */
+describe("market guards — réservation visible sur la fiche", () => {
+    const RESERVED_LISTING = {
+        id: "listing-1",
+        profileId: "profile-seller",
+        status: "RESERVED",
+        reservedUntil: new Date("2026-09-12T18:00:00.000Z"),
+        stats: [],
+        components: [],
+        profile: { id: "profile-seller", pseudoDofus: "Vendeur", classe: "Iop", userId: "user-seller", user: null },
+    };
+
+    it("expose le pseudo du réservataire et l'échéance", async () => {
+        (db.marketListing.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(RESERVED_LISTING);
+        (db.marketReservation.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+            id: "res-1",
+            status: "ACTIVE",
+            expiresAt: new Date("2026-09-12T18:00:00.000Z"),
+            buyerProfileId: "profile-1",
+        });
+        (db.userProfile.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+            pseudoDofus: "Wylan",
+            classe: "Ecaflip",
+            user: { name: "wylan" },
+        });
+
+        const res = await getMarketListing("discord-1", "listing-1");
+
+        expect(res.success).toBe(true);
+        expect(res.data?.reservation).toMatchObject({
+            id: "res-1",
+            status: "ACTIVE",
+            buyerLabel: "Wylan",
+            buyerClasse: "Ecaflip",
+            isMine: true,
+        });
+        expect(res.data?.reservation?.expiresAt).toBe("2026-09-12T18:00:00.000Z");
+
+        // Isolation : le profil est TOUJOURS cherché dans la guilde du contexte.
+        const profileWhere = (db.userProfile.findFirst as ReturnType<typeof vi.fn>).mock.calls[0][0].where;
+        expect(profileWhere.guildId).toBe(GUILD_CONFIG.id);
+    });
+
+    it("masque le réservataire quand c'est un autre membre (isMine = false)", async () => {
+        (db.marketListing.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(RESERVED_LISTING);
+        (db.marketReservation.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+            id: "res-2",
+            status: "ACTIVE",
+            expiresAt: new Date("2026-09-12T18:00:00.000Z"),
+            buyerProfileId: "profile-other",
+        });
+        (db.userProfile.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+        const res = await getMarketListing("discord-1", "listing-1");
+
+        expect(res.data?.reservation?.isMine).toBe(false);
+        // Profil illisible (hors guilde) : repli neutre, jamais un identifiant brut.
+        expect(res.data?.reservation?.buyerLabel).toBe("Un membre de la guilde");
+    });
+
+    it("n'expose AUCUNE réservation sur une annonce non réservée", async () => {
+        (db.marketListing.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+            ...RESERVED_LISTING,
+            status: "ACTIVE",
+        });
+
+        const res = await getMarketListing("discord-1", "listing-1");
+
+        expect(res.data?.reservation).toBeNull();
+        expect(db.marketReservation.findFirst).not.toHaveBeenCalled();
     });
 });
 

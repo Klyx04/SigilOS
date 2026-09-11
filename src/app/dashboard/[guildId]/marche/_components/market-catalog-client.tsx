@@ -52,6 +52,8 @@ type SerializedListing = {
     minQuantity: number | null;
     publishedAt: string | null;
     expiresAt: string | null;
+    /** S7.9 — échéance de la réservation en cours (annonce `RESERVED`). */
+    reservedUntil: string | null;
     profile: {
         id: string;
         pseudoDofus: string | null;
@@ -69,6 +71,14 @@ interface MarketCatalogClientProps {
     canManage: boolean;
     isAdmin: boolean;
     channelConfigured: boolean;
+}
+
+/** S7.9 — échéance lisible (« jusqu'au 12 septembre 2026 à 20:30 »). */
+function formatDeadline(iso: string | null): string {
+    if (!iso) return "—";
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return "—";
+    return date.toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" });
 }
 
 export function MarketCatalogClient({
@@ -308,6 +318,13 @@ function MarketListingCard({ guildId, listing }: { guildId: string; listing: Ser
                         {listing.acceptsTrade ? " · Troc accepté" : ""}
                     </span>
                 </div>
+
+                {/* S7.9 — une annonce réservée affiche son échéance (jamais un simple badge). */}
+                {listing.status === "RESERVED" && listing.reservedUntil && (
+                    <p className="text-[11px] font-semibold text-info">
+                        Réservé jusqu&apos;au {formatDeadline(listing.reservedUntil)}
+                    </p>
+                )}
 
                 {listing.components.length > 0 && (
                     <div className="text-[11px] text-muted-foreground border-t border-border pt-2 space-y-0.5">

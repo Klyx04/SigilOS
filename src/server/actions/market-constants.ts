@@ -10,7 +10,7 @@
  * du design system (`text-success`, `text-warning`, `text-info`, `text-danger`).
  */
 
-import type { MarketListingStatus, MarketListingType } from "@prisma/client";
+import type { MarketListingStatus, MarketListingType, MarketOfferStatus } from "@prisma/client";
 import type { FmStatus } from "@/lib/market/fm-effects";
 
 // ---------------------------------------------------------------------------
@@ -88,6 +88,27 @@ export const MARKET_STATUS_CLASSES: Record<MarketListingStatus, string> = {
     SOLD: "text-info border-info/30 bg-info/10",
     EXPIRED: "text-muted-foreground border-border bg-muted/20",
     WITHDRAWN: "text-danger border-danger/30 bg-danger/10",
+};
+
+/**
+ * États d'une offre (§11.4) — écran **privé** (mes espaces) : « refusée » est
+ * toujours **motivé côté serveur**, jamais deviné ici (§0.1).
+ */
+export const MARKET_OFFER_STATUS_LABELS: Record<MarketOfferStatus, string> = {
+    PENDING: "En attente",
+    ACCEPTED: "Acceptée",
+    DECLINED: "Refusée",
+    CANCELLED: "Retirée",
+    EXPIRED: "Expirée",
+};
+
+/** Classe Tailwind (token du design system) associée à un état d'offre. */
+export const MARKET_OFFER_STATUS_CLASSES: Record<MarketOfferStatus, string> = {
+    PENDING: "text-warning border-warning/30 bg-warning/10",
+    ACCEPTED: "text-success border-success/30 bg-success/10",
+    DECLINED: "text-danger border-danger/30 bg-danger/10",
+    CANCELLED: "text-muted-foreground border-border bg-muted/20",
+    EXPIRED: "text-muted-foreground border-border bg-muted/20",
 };
 
 export const MARKET_QUALITY_LABELS = {

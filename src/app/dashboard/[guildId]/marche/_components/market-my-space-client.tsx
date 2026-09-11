@@ -18,6 +18,7 @@ import {
 } from "@/server/actions/market-actions";
 import { toast } from "sonner";
 import { Boxes, Loader2, Plus, RefreshCw, Store, Trash2, Upload, XCircle } from "lucide-react";
+import { MarketNegotiationPanel, type NegotiationOffer } from "./market-negotiation-panel";
 
 type MyListing = {
     id: string;
@@ -34,9 +35,13 @@ interface MarketMySpaceClientProps {
     guildId: string;
     active: MyListing[];
     archived: MyListing[];
+    /** S4.10 — offres reçues sur mes annonces (centre de négociation). */
+    received: NegotiationOffer[];
+    /** S4.10 — mes offres déposées + les contre-offres qui m'attendent. */
+    sent: NegotiationOffer[];
 }
 
-export function MarketMySpaceClient({ guildId, active, archived }: MarketMySpaceClientProps) {
+export function MarketMySpaceClient({ guildId, active, archived, received, sent }: MarketMySpaceClientProps) {
     const router = useRouter();
     const [tab, setTab] = useState<"active" | "archived">("active");
     const [isPending, startTransition] = useTransition();
@@ -57,6 +62,8 @@ export function MarketMySpaceClient({ guildId, active, archived }: MarketMySpace
 
     return (
         <div className="space-y-6">
+            <MarketNegotiationPanel guildId={guildId} received={received} sent={sent} />
+
             <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-1 rounded-xl border border-border p-1">
                     <Button variant={tab === "active" ? "secondary" : "ghost"} size="sm" className="h-8" onClick={() => setTab("active")}>

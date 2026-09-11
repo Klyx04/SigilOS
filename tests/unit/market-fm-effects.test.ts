@@ -1,9 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
+    FM_CHARACTERISTIC_KEYS,
+    FM_CHARACTERISTIC_LABELS,
     FM_DENSITY_CAP,
     FM_EFFECTS,
     FM_EFFECTS_BY_KEY,
+    FM_EFFECT_ID_KEYS,
     computeFmBudget,
+    computeItemWeight,
     describeFmReadonly,
     fmDensity,
     getFmEffect,
@@ -151,3 +155,191 @@ describe("fm-effects — budget de densité (101)", () => {
         expect(fmDensity(15, -6)).toBe(90);
     });
 });
+
+describe("fm-effects — S4.0a : la Portée n'est jamais « over » (D38)", () => {
+    it("refuse l'over de Portée (2 PO = 102 > 101) mais autorise l'exo", () => {
+        const range = getFmEffect("range")!;
+        expect(range.canOver).toBe(false);
+        expect(range.canExo).toBe(true);
+        // La règle est **arithmétique** : deux points de Portée dépassent le plafond,
+        // un seul point (exo ou natif) reste dans le budget.
+        expect(fmDensity(range.unitWeight, 2)).toBe(102);
+        expect(fmDensity(range.unitWeight, 2)).toBeGreaterThan(FM_DENSITY_CAP);
+        expect(fmDensity(range.unitWeight, 1)).toBeLessThanOrEqual(FM_DENSITY_CAP);
+    });
+
+    it("verrouille PA / PM (jamais over) et le plafond des Invocations", () => {
+        expect(getFmEffect("actionPoints")!.canOver).toBe(false);
+        expect(getFmEffect("movementPoints")!.canOver).toBe(false);
+        // Invocations : 3 max (3 × 30 = 90 ≤ 101) → over possible sous le plafond.
+        const summons = getFmEffect("summons")!;
+        expect(summons.canOver).toBe(true);
+        expect(fmDensity(summons.unitWeight, summons.maxOverStandalone)).toBeLessThanOrEqual(
+            FM_DENSITY_CAP
+        );
+    });
+});
+
+describe("fm-effects — S4.0b : mapping des caractéristiques vérifié (D39)", () => {
+    it("aligne exactement le mapping et les libellés vérifiés", () => {
+        expect(Object.keys(FM_CHARACTERISTIC_KEYS).map(Number).sort((a, b) => a - b)).toEqual(
+            Object.keys(FM_CHARACTERISTIC_LABELS).map(Number).sort((a, b) => a - b)
+        );
+    });
+
+    it("ne pointe que vers des lignes FM existantes", () => {
+        for (const key of Object.values(FM_CHARACTERISTIC_KEYS)) {
+            expect(FM_EFFECTS_BY_KEY[key]).toBeDefined();
+        }
+    });
+
+    it("résout chaque id ET son libellé DofusDB vers la même ligne FM", () => {
+        for (const [rawId, key] of Object.entries(FM_CHARACTERISTIC_KEYS)) {
+            const id = Number(rawId);
+            expect(resolveFmEffectKey({ characteristic: id })).toBe(key);
+            expect(resolveFmEffectKey({ label: FM_CHARACTERISTIC_LABELS[id] })).toBe(key);
+        }
+    });
+
+    it("porte les corrections de l'audit §12.8.4 (ids mesurés le 11/09/2026)", () => {
+        expect(FM_CHARACTERISTIC_KEYS[10]).toBe("strength");
+        expect(FM_CHARACTERISTIC_KEYS[11]).toBe("vitality");
+        expect(FM_CHARACTERISTIC_KEYS[16]).toBe("damage");
+        expect(FM_CHARACTERISTIC_KEYS[26]).toBe("summons");
+        expect(FM_CHARACTERISTIC_KEYS[27]).toBe("apDodge");
+        expect(FM_CHARACTERISTIC_KEYS[28]).toBe("mpDodge");
+        expect(FM_CHARACTERISTIC_KEYS[33]).toBe("earthResistancePercent");
+        expect(FM_CHARACTERISTIC_KEYS[34]).toBe("fireResistancePercent");
+        expect(FM_CHARACTERISTIC_KEYS[35]).toBe("waterResistancePercent");
+        expect(FM_CHARACTERISTIC_KEYS[36]).toBe("airResistancePercent");
+        expect(FM_CHARACTERISTIC_KEYS[37]).toBe("neutralResistancePercent");
+        expect(FM_CHARACTERISTIC_KEYS[40]).toBe("pods");
+        expect(FM_CHARACTERISTIC_KEYS[44]).toBe("initiative");
+        expect(FM_CHARACTERISTIC_KEYS[48]).toBe("prospecting");
+        expect(FM_CHARACTERISTIC_KEYS[49]).toBe("heals");
+        expect(FM_CHARACTERISTIC_KEYS[50]).toBe("reflectDamage");
+        expect(FM_CHARACTERISTIC_KEYS[82]).toBe("apReduction");
+        expect(FM_CHARACTERISTIC_KEYS[83]).toBe("mpReduction");
+        expect(FM_CHARACTERISTIC_KEYS[84]).toBe("pushbackDamage");
+        expect(FM_CHARACTERISTIC_KEYS[86]).toBe("criticalDamage");
+        expect(FM_CHARACTERISTIC_KEYS[88]).toBe("earthDamage");
+        expect(FM_CHARACTERISTIC_KEYS[89]).toBe("fireDamage");
+        expect(FM_CHARACTERISTIC_KEYS[90]).toBe("waterDamage");
+        expect(FM_CHARACTERISTIC_KEYS[91]).toBe("airDamage");
+        expect(FM_CHARACTERISTIC_KEYS[92]).toBe("neutralDamage");
+    });
+
+    it("retire les ids hors FM ou inexistants (aucun id non vérifié)", () => {
+        // 51/52 = Perte d'énergie / Points d'honneur · 80 = aggro JcJ ·
+        // 93 = max bombes · 141 = Sorts (%) · 112/114 = effectId / 404.
+        for (const removed of [51, 52, 80, 93, 112, 114, 141]) {
+            expect(FM_CHARACTERISTIC_KEYS[removed]).toBeUndefined();
+            expect(FM_CHARACTERISTIC_LABELS[removed]).toBeUndefined();
+        }
+    });
+
+    it("verrouille les effectIds FM canoniques (exos PA/PM/PO/Invocations)", () => {
+        expect(FM_EFFECT_ID_KEYS).toEqual({
+            111: "actionPoints",
+            117: "range",
+            128: "movementPoints",
+            182: "summons",
+        });
+        // Recoupement DofusDB : chaque effectId porte la caractéristique correspondante.
+        expect(FM_CHARACTERISTIC_KEYS[1]).toBe(FM_EFFECT_ID_KEYS[111]);
+        expect(FM_CHARACTERISTIC_KEYS[19]).toBe(FM_EFFECT_ID_KEYS[117]);
+        expect(FM_CHARACTERISTIC_KEYS[23]).toBe(FM_EFFECT_ID_KEYS[128]);
+        expect(FM_CHARACTERISTIC_KEYS[26]).toBe(FM_EFFECT_ID_KEYS[182]);
+    });
+});
+
+describe("fm-effects — S4.0c : Pods gelés (Q15, capture rune manquante)", () => {
+    it("gèle la densité historique 0,1/pt et son over max 1010", () => {
+        // Tant que la capture de la rune n'est pas fournie (0,1 / 0,25 / 0,025),
+        // le plan interdit de trancher ⇒ ce test verrouille la valeur **actuelle**.
+        const pods = getFmEffect("pods")!;
+        expect(pods.unitWeight).toBe(0.1);
+        expect(pods.maxOverStandalone).toBe(1010);
+        expect(fmDensity(pods.unitWeight, pods.maxOverStandalone)).toBe(FM_DENSITY_CAP);
+    });
+});
+
+describe("fm-effects — S4.0d : poids total d'un objet (Anneau du Cycloïde, id 14092)", () => {
+    // Jets réels DofusDB : Vita 251-300 · Fo/Ine/Age 31-40 · Ini 201-300 ·
+    // Do Neutre/Terre/Feu/Air 7-10 · %Ré Eau 6-8 · Tacle 4-6 (§12.8.4).
+    const ringWeight = (j: {
+        vita: number;
+        fo: number;
+        ine: number;
+        age: number;
+        ini: number;
+        dmg: number;
+        resEau: number;
+        tac: number;
+    }) =>
+        computeItemWeight(
+            (
+                [
+                    ["vitality", j.vita],
+                    ["strength", j.fo],
+                    ["intelligence", j.ine],
+                    ["agility", j.age],
+                    ["initiative", j.ini],
+                    ["neutralDamage", j.dmg],
+                    ["earthDamage", j.dmg],
+                    ["fireDamage", j.dmg],
+                    ["airDamage", j.dmg],
+                    ["waterResistancePercent", j.resEau],
+                    ["tackle", j.tac],
+                ] as const
+            ).map(([key, value]) => ({ unitWeight: getFmEffect(key)!.unitWeight, value }))
+        );
+
+    it("retrouve les poids mesurés : 482 parfait · 355,3 minimum · plafond 583", () => {
+        const perfect = ringWeight({
+            vita: 300,
+            fo: 40,
+            ine: 40,
+            age: 40,
+            ini: 300,
+            dmg: 10,
+            resEau: 8,
+            tac: 6,
+        });
+        const minimal = ringWeight({
+            vita: 251,
+            fo: 31,
+            ine: 31,
+            age: 31,
+            ini: 201,
+            dmg: 7,
+            resEau: 6,
+            tac: 4,
+        });
+        expect(perfect).toBe(482);
+        expect(minimal).toBe(355.3);
+        // Plafond FM = poids parfait + 101 (exo PM → 572, exo PA → 582).
+        expect(perfect + FM_DENSITY_CAP).toBe(583);
+        expect(perfect + getFmEffect("movementPoints")!.unitWeight).toBe(572);
+        expect(perfect + getFmEffect("actionPoints")!.unitWeight).toBe(582);
+    });
+
+    it("est additif, conserve le signe (un malus allège) et tolère les valeurs non finies", () => {
+        expect(
+            computeItemWeight([
+                { unitWeight: 0.2, value: 100 },
+                { unitWeight: 1, value: 50 },
+            ])
+        ).toBe(70);
+        expect(computeItemWeight([{ unitWeight: 1, value: -10 }])).toBe(-10);
+        expect(
+            computeItemWeight([
+                { unitWeight: 1, value: 10 },
+                { unitWeight: Number.NaN, value: 10 },
+                { unitWeight: 1, value: Number.POSITIVE_INFINITY },
+            ])
+        ).toBe(10);
+        expect(computeItemWeight([])).toBe(0);
+    });
+});
+

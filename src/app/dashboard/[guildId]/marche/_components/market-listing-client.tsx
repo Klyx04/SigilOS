@@ -18,8 +18,10 @@ import {
     MARKET_TYPE_LABELS,
 } from "@/server/actions/market-constants";
 import { formatKamas } from "@/lib/market/kamas";
+import { normalizeNativeRange } from "@/lib/market/effects";
 import { cn } from "@/lib/utils";
 import { MarketItemCard } from "@/components/market/market-item-card";
+import { StatIcon } from "@/components/market/stat-icon";
 import {
     deleteMarketListing,
     publishMarketListing,
@@ -95,6 +97,16 @@ interface MarketListingClientProps {
     realWeight: number | null;
     itemDescription: string | null;
     discordState: { syncStatus: string | null; lastError: string | null; published: boolean } | null;
+}
+
+/**
+ * S7.6 — Plage native lisible : jamais `[10 à 0]`.
+ * Utilise la **même** normalisation que le serveur (`normalizeNativeRange`, S7.4).
+ */
+function formatDeclaredRange(min: number | null, max: number | null): string {
+    if (min == null || max == null) return "";
+    const { from, to } = normalizeNativeRange(min, max);
+    return from === to ? ` [${from}]` : ` [${from} à ${to}]`;
 }
 
 export function MarketListingClient({
@@ -259,13 +271,18 @@ export function MarketListingClient({
                         </CardHeader>
                         <CardContent className="space-y-2">
                             {listing.stats.map((stat) => (
-                                <div key={stat.id} className="flex items-center justify-between text-sm border-b border-border/60 py-1.5">
-                                    <span className="text-foreground truncate">
-                                        {stat.label}
-                                        <span className="text-muted-foreground">
-                                            {stat.naturalMin !== null && stat.naturalMax !== null
-                                                ? ` [${stat.naturalMin} à ${stat.naturalMax}]`
-                                                : ""}
+                                <div key={stat.id} className="flex items-center justify-between gap-3 text-sm border-b border-border/60 py-1.5">
+                                    <span className="flex min-w-0 items-center gap-2 text-foreground">
+                                        <StatIcon
+                                            characteristicId={stat.characteristic}
+                                            effectId={stat.effectId}
+                                            label={stat.label}
+                                        />
+                                        <span className="truncate">
+                                            {stat.label}
+                                            <span className="text-muted-foreground">
+                                                {formatDeclaredRange(stat.naturalMin, stat.naturalMax)}
+                                            </span>
                                         </span>
                                     </span>
                                     <span

@@ -3,8 +3,14 @@
 /**
  * Module « Marché » — icône d'une stat (S2.4 / §12.4).
  *
- * Mapping **unique** des slugs d'icônes partagés (`src/lib/market/effects.ts`)
- * vers les composants lucide. Consommé par la carte d'item, l'éditeur de jet et
+ * Résolution en **deux temps** :
+ *   1. **asset graphique officiel** (`public/assets/dofus/stats/*.png`) via
+ *      `src/lib/dofus-stats-theme.ts` : c'est l'icône que le joueur voit en jeu
+ *      et celle que la galerie de stuff / l'overlay boss affichent déjà ;
+ *   2. **repli lucide** (`STAT_ICON_SPECS`) quand l'effet n'est pas
+ *      identifiable — jamais d'icône cassée ni de carré vide.
+ *
+ * Consommé par la carte d'item, la fiche d'annonce, l'éditeur de jet et
  * l'encyclopédie (`ItemSearchPanel`). Aucune couleur en dur : la couleur vient
  * des specs (tokens du design system).
  */
@@ -29,6 +35,7 @@ import {
     type LucideIcon,
 } from "lucide-react";
 import { resolveStatIconSpec, type StatIconName } from "@/lib/market/effects";
+import { dofusStatAssetUrl, resolveDofusStatTheme } from "@/lib/dofus-stats-theme";
 import { cn } from "@/lib/utils";
 
 const ICON_COMPONENTS: Record<StatIconName, LucideIcon> = {
@@ -52,14 +59,36 @@ const ICON_COMPONENTS: Record<StatIconName, LucideIcon> = {
 
 export function StatIcon({
     characteristicId,
+    effectId,
     charCode,
+    label,
     className,
 }: {
     characteristicId?: number | null;
+    /** Identifiant d'effet DofusDB — repli quand la caractéristique est absente. */
+    effectId?: number | null;
     charCode?: string | null;
+    /** Libellé déclaré — dernier filet (résolution par mots-clés). */
+    label?: string | null;
     className?: string;
 }) {
-    const spec = resolveStatIconSpec(characteristicId, charCode);
+    // 1 — Asset officiel (la « vraie » icône Dofus), cf. S7.1.
+    const theme = resolveDofusStatTheme(characteristicId, effectId, charCode, label);
+    if (theme) {
+        return (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+                src={dofusStatAssetUrl(theme.asset)}
+                alt=""
+                aria-hidden="true"
+                loading="lazy"
+                className={cn("h-4 w-4 shrink-0 object-contain", className)}
+            />
+        );
+    }
+
+    // 2 — Repli lucide (effet non identifiable) : jamais d'icône cassée.
+    const spec = resolveStatIconSpec(characteristicId ?? effectId, charCode);
     const Icon = spec ? ICON_COMPONENTS[spec.icon] : Zap;
     return (
         <Icon

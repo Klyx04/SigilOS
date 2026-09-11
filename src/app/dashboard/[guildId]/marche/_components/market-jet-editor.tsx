@@ -267,7 +267,11 @@ export function MarketJetEditor({ stats, onChange }: MarketJetEditorProps) {
                                 className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface/60 px-3 py-2"
                             >
                                 <span className="flex min-w-[150px] flex-1 items-center gap-2 text-sm">
-                                    <StatIcon characteristicId={stat.characteristic} />
+                                    <StatIcon
+                                        characteristicId={stat.characteristic}
+                                        effectId={stat.effectId}
+                                        label={stat.label}
+                                    />
                                     <span className="truncate font-semibold text-foreground">
                                         {definition ? definition.label : stat.label}
                                     </span>

@@ -49,6 +49,13 @@ export function computeStatQuality(input: StatQualityInput): MarketStatQualityVa
     // Plage inconnue : aucun jugement possible → NORMAL (jamais bloqué).
     if (!hasMin && !hasMax) return "NORMAL";
 
+    // S7.5 — plage **incohérente** (`min > max`) : donnée illisible (le plus
+    // souvent un `diceSide` absent côté DofusDB) ⇒ **aucun** jugement, jamais un
+    // faux « sous la plage » sur un objet parfait. `normalizeNativeRange()`
+    // corrige la source (S7.4) ; cette garde protège les lignes déjà persistées
+    // et les appels directs.
+    if (hasMin && hasMax && (naturalMin as number) > (naturalMax as number)) return "NORMAL";
+
     if (hasMin && actualValue < (naturalMin as number)) return "LOW";
     if (hasMax && actualValue > (naturalMax as number)) return "OVER";
     if (hasMax && actualValue === naturalMax) return "PERFECT";

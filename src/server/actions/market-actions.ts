@@ -9,7 +9,7 @@ import { Prisma, type MarketOfferStatus } from "@prisma/client";
 import { getUserContext, type ActionResponse } from "./user-actions";
 import { KAMAS_MAX } from "@/lib/market/kamas";
 import { computeStatQuality, computeStatsHash } from "@/lib/market/stat-quality";
-import { findNativeRange, toNativeEffects, type DofusItemEffectLike, type MarketNativeEffect } from "@/lib/market/effects";
+import { findNativeRange, isPlaceholderStatLabel, normalizeNativeRange, resolveStoredStatLabel, toNativeEffects, type DofusItemEffectLike, type MarketNativeEffect } from "@/lib/market/effects";
 import { loadMarketReferential } from "@/lib/market/referential";
 import { publishListingToDiscord, syncListingMessage } from "@/server/market/discord";
 import { writeMarketAuditLog } from "@/server/market/audit";
@@ -193,6 +193,42 @@ const MARKET_INCLUDE = {
 } satisfies Prisma.MarketListingInclude;
 
 /**
+ * S7.3/S7.4 — prépare les lignes de jet pour **l'affichage** (aucune écriture).
+ *
+ * (1) **Libellés** : la base conserve le libellé figé au moment de la
+ * déclaration ; les tables ayant été corrigées (S7.1/S7.3), les annonces créées
+ * **avant** le correctif affichaient « Effet ». On re-résout depuis les
+ * identifiants sans jamais écraser un libellé connu.
+ * (2) **Plages** : une plage déjà persistée sous forme décroissante
+ * (`[10 à 0]`, `diceSide` absent) est ramenée à la valeur fixe — aucune migration.
+ */
+function withDisplayReadyStats<
+    T extends {
+        stats: {
+            characteristic: number | null;
+            effectId: number;
+            label: string;
+            naturalMin: number | null;
+            naturalMax: number | null;
+        }[];
+    }
+>(listing: T): T {
+    if (listing.stats.length === 0) return listing;
+    return {
+        ...listing,
+        stats: listing.stats.map((stat) => {
+            const range = normalizeNativeRange(stat.naturalMin ?? stat.naturalMax ?? 0, stat.naturalMax ?? stat.naturalMin ?? 0);
+            return {
+                ...stat,
+                label: resolveStoredStatLabel(stat),
+                naturalMin: stat.naturalMin == null ? null : range.from,
+                naturalMax: stat.naturalMax == null ? null : range.to,
+            };
+        }),
+    } as T;
+}
+
+/**
  * S2.8/S2.9 — Recalcule les stats **côté serveur** : la plage native provient
  * **toujours** du catalogue (`GameItem.nativeEffects`) et jamais du client (§12.8).
  * Un effet non natif est étiqueté `EXO` (jamais refusé, D34/D35) ; le libellé est
@@ -235,8 +271,14 @@ async function resolveServerStats(
         const naturalMax = range ? range.to : null;
         const origin = range ? stat.origin : "EXO";
         const label =
-            (stat.characteristic != null && referential.labels[stat.characteristic]) ||
-            referential.effectLabels[stat.effectId] ||
+            (stat.characteristic != null &&
+            !isPlaceholderStatLabel(referential.labels[stat.characteristic])
+                ? referential.labels[stat.characteristic]
+                : null) ||
+            (!isPlaceholderStatLabel(stat.label) ? stat.label : null) ||
+            (!isPlaceholderStatLabel(referential.effectLabels[stat.effectId])
+                ? referential.effectLabels[stat.effectId]
+                : null) ||
             stat.label;
         return {
             effectId: stat.effectId,
@@ -321,7 +363,7 @@ export async function getMarketListings(
             take: MARKET_LIMITS.CATALOG_PAGE_SIZE,
         });
 
-        return { success: true, data: listings };
+        return { success: true, data: listings.map(withDisplayReadyStats) };
     } catch (error) {
         logger.error("[getMarketListings] failed", { err: error });
         return { success: false, error: "Erreur interne" };
@@ -353,7 +395,7 @@ export async function getMarketListing(
             return { success: false, error: "Annonce introuvable" };
         }
 
-        return { success: true, data: listing };
+        return { success: true, data: withDisplayReadyStats(listing) };
     } catch (error) {
         logger.error("[getMarketListing] failed", { err: error });
         return { success: false, error: "Erreur interne" };

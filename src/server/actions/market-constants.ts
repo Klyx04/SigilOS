@@ -263,6 +263,66 @@ export const MARKET_AUDIT_ACTIONS = {
 export type MarketAuditAction =
     (typeof MARKET_AUDIT_ACTIONS)[keyof typeof MARKET_AUDIT_ACTIONS];
 
+/**
+ * S5.8 — libellés FR des actions journalisées, pour l'historique d'audit par
+ * annonce (panneau modérateur) et le journal du God Panel (§18.2).
+ *
+ * Typé `Record<MarketAuditAction, string>` : ajouter une action à
+ * `MARKET_AUDIT_ACTIONS` **sans** son libellé casse la compilation (jamais un
+ * journal muet).
+ */
+export const MARKET_AUDIT_ACTION_LABELS: Record<MarketAuditAction, string> = {
+    LISTING_CREATED: "Annonce créée",
+    LISTING_UPDATED: "Annonce modifiée",
+    LISTING_PUBLISHED: "Annonce publiée",
+    LISTING_RENEWED: "Annonce renouvelée par le vendeur",
+    LISTING_WITHDRAWN: "Annonce retirée par le vendeur",
+    LISTING_EXPIRED: "Annonce expirée",
+    LISTING_SOLD: "Vente confirmée",
+    LISTING_DELETED: "Annonce supprimée par le vendeur",
+    LISTING_AUTO_DELETED: "Archivage automatique (échéance atteinte)",
+    LISTING_REMINDER_SENT: "Rappel envoyé au vendeur",
+    LISTING_TAKEN_DOWN: "Annonce retirée pour modération",
+    LISTING_RESTORED: "Annonce restaurée",
+    RESERVATION_CREATED: "Réservation créée",
+    RESERVATION_CANCELLED_BUYER: "Réservation annulée par l'acheteur",
+    RESERVATION_CANCELLED_SELLER: "Réservation annulée par le vendeur",
+    RESERVATION_EXPIRED: "Réservation expirée",
+    RESERVATION_REMINDER_SENT: "Rappel de réservation envoyé",
+    OFFER_CREATED: "Offre reçue",
+    OFFER_ACCEPTED: "Offre acceptée",
+    OFFER_DECLINED: "Offre refusée",
+    OFFER_CANCELLED: "Offre annulée",
+    OFFER_COUNTERED: "Contre-offre envoyée",
+    OFFER_EXPIRED: "Offre expirée",
+    LISTING_REPORTED: "Annonce signalée",
+    REPORT_REVIEWED: "Dossier de signalement traité",
+    DISCORD_SYNC_FAILED: "Échec de synchronisation Discord",
+    DISCORD_SYNC_RESTORED: "Synchronisation Discord rétablie",
+    IMAGE_REGENERATED: "Carte de l'annonce régénérée",
+    MEDIA_PURGED: "Médias purgés",
+    CONFIG_UPDATED: "Configuration du Marché modifiée",
+};
+
+/**
+ * Libellé FR d'une action journalisée. Repli **lisible** pour une action
+ * inconnue : une version future du module ne casse jamais l'affichage du
+ * journal (jamais de `undefined` à l'écran).
+ */
+export function marketAuditActionLabel(action: string): string {
+    const known = MARKET_AUDIT_ACTION_LABELS[action as MarketAuditAction];
+    if (known) return known;
+    const fallback = action.replace(/_/g, " ").trim().toLowerCase();
+    return fallback ? `Action non répertoriée (${fallback})` : "Action inconnue";
+}
+
+/** S5.8 — origine d'un retrait, reconstituée depuis le journal d'audit. */
+export const MARKET_WITHDRAWN_SOURCE_LABELS = {
+    MODERATION: "Retirée par la modération",
+    SELLER: "Retirée par le vendeur",
+    UNKNOWN: "Retrait (origine inconnue)",
+} as const;
+
 /** Motifs de suppression (soft-delete traçable). */
 export const MARKET_DELETE_REASONS = {
     AUTO_EXPIRED: "AUTO_EXPIRED",

@@ -26,6 +26,7 @@ import {
     type MarketDiscordPayloadInput,
     type MarketDiscordStatus,
 } from "@/lib/market/discord-payload";
+import { buildMarketDashboardUrl } from "@/lib/market/discord-interactions";
 
 export type MarketDiscordResult = {
     ok: boolean;
@@ -106,7 +107,6 @@ function buildPayload(
 ): { payload: MarketDiscordPayloadInput; forumMode: boolean; channelId: string | null; roleId: string | null } {
     const { listing, offersCount } = loaded;
     const forumMode = listing.guild.marketChannelKind === MARKET_CHANNEL_KIND_FORUM;
-    const baseUrl = getAppBaseUrl();
 
     const exoLabels = listing.stats
         .filter((stat) => stat.origin === "EXO")
@@ -129,7 +129,7 @@ function buildPayload(
         components: listing.components.map((c) => ({ name: c.name, quantity: c.quantity })),
         imageUrl,
         itemIconUrl: listing.itemIconUrl,
-        dashboardUrl: `${baseUrl}/dashboard/${listing.guild.discordGuildId}/marche/${listing.id}`,
+        dashboardUrl: buildMarketDashboardUrl(getAppBaseUrl(), listing.guild.discordGuildId, listing.id),
         forumMode,
     };
 

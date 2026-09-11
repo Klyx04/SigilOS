@@ -5,7 +5,8 @@ import { isSuperAdmin, canAccessBrick } from '@/server/actions/super-admin-actio
 import { logger } from '@/lib/logger';
 import { siphonAndCompressImage } from '@/lib/dofus-asset-siphon';
 import { dofusDbFetch } from '@/lib/dofusdb-limiter';
-import { toNativeEffects } from '@/lib/market/effects';
+import { resolveNativeEffects, toNativeEffects } from '@/lib/market/effects';
+import { Prisma } from '@prisma/client';
 import crypto from 'crypto';
 
 type ActionResponse<T = void> = {
@@ -100,7 +101,13 @@ export async function searchLocalGameItems(
             },
         });
 
-        return { success: true, data: items };
+        return {
+            success: true,
+            data: items.map((item) => ({
+                ...item,
+                nativeEffects: resolveNativeEffects(item),
+            })),
+        };
     } catch (error: any) {
         logger.error('[searchLocalGameItems] Error:', { error: error?.message, query });
         return { success: false, error: 'Erreur lors de la recherche', data: [] };
@@ -141,7 +148,12 @@ export async function getLocalGameItemDetails(ankamaId: number): Promise<ActionR
             },
         });
 
-        return { success: true, data: item };
+        return {
+            success: true,
+            data: item
+                ? { ...item, nativeEffects: resolveNativeEffects(item) }
+                : null,
+        };
     } catch (error: any) {
         logger.error('[getLocalGameItemDetails] Error:', { error: error?.message, ankamaId });
         return { success: false, error: 'Erreur récupération item' };
@@ -208,6 +220,63 @@ export async function getGameItemsStats(): Promise<
     } catch (error: any) {
         logger.error('[getGameItemsStats] Error:', { error: error?.message });
         return { success: false, error: 'Erreur statistiques' };
+    }
+}
+
+/**
+ * 🩹 S2.12 — Backfill **idempotent** des plages natives (`nativeEffects`).
+ *
+ * Réparation **locale et instantanée** (aucun appel réseau) : recalcule
+ * `nativeEffects` depuis `effects` (forme brute DofusDB, `diceNum`/`diceSide`)
+ * pour les fiches siphonnées AVANT l'ajout de la colonne S2.2. C'est le remède
+ * immédiat au message « aucun effet natif importé » de l'éditeur FM.
+ * Le siphon DofusDB complet reste la source de vérité (il rafraîchit aussi les
+ * nouvelles plages) ; cette action ne répare que ce qui est encore vide.
+ */
+export async function backfillNativeEffects(limit = 500): Promise<
+    ActionResponse<{ scanned: number; repaired: number; remaining: number }>
+> {
+    if (!(await canManageGameItems())) {
+        return { success: false, error: 'Non autorisé' };
+    }
+
+    const safeLimit = Math.min(Math.max(limit, 1), 2_000);
+    const pendingWhere: Prisma.GameItemWhereInput = {
+        OR: [
+            { nativeEffects: { equals: Prisma.DbNull } },
+            { nativeEffects: { equals: Prisma.JsonNull } },
+        ],
+    };
+
+    try {
+        const pending = await db.gameItem.findMany({
+            where: pendingWhere,
+            select: { id: true, ankamaId: true, effects: true, nativeEffects: true },
+            take: safeLimit,
+        });
+
+        let repaired = 0;
+        for (const row of pending) {
+            const natives = resolveNativeEffects(row);
+            if (!natives) continue; // aucun effet exploitable → ligne laissée telle quelle
+            await db.gameItem.update({
+                where: { id: row.id },
+                data: { nativeEffects: natives as unknown as Prisma.InputJsonValue },
+            });
+            repaired++;
+        }
+
+        const remaining = await db.gameItem.count({ where: pendingWhere });
+        logger.info('[backfillNativeEffects] terminé', {
+            scanned: pending.length,
+            repaired,
+            remaining,
+        });
+
+        return { success: true, data: { scanned: pending.length, repaired, remaining } };
+    } catch (error: any) {
+        logger.error('[backfillNativeEffects] Error:', { error: error?.message });
+        return { success: false, error: 'Backfill impossible' };
     }
 }
 

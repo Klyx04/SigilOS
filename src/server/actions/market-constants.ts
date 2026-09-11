@@ -11,6 +11,7 @@
  */
 
 import type { MarketListingStatus, MarketListingType } from "@prisma/client";
+import type { FmStatus } from "@/lib/market/fm-effects";
 
 // ---------------------------------------------------------------------------
 // BORNES & DÉFAUTS (garde-fous serveur — D35 : bornes anti-débilité uniquement)
@@ -116,6 +117,34 @@ export const MARKET_ORIGIN_CLASSES = {
     NATIVE: "",
     EXO: "text-info",
 } as const;
+
+// ---------------------------------------------------------------------------
+// FM (Forge de Magie) — étiquettes enrichies (§12.8)
+// ---------------------------------------------------------------------------
+// ⚠️ Purement **affichage** : la base ne stocke que `MarketStatQuality` (D17).
+// Un malus, un exo ou un jet atypique ne bloque JAMAIS une annonce (D34/D35).
+
+/** Libellés FR des étiquettes FM calculées par `getFmStatus()`. */
+export const MARKET_FM_STATUS_LABELS: Record<FmStatus, string> = {
+    MALUS: "Malus",
+    EXO: "Exo",
+    A_VERIFIER: "À vérifier",
+    OVER: "Over",
+    PARFAIT: "Parfait",
+    BON: "Bon",
+    FAIBLE: "Faible",
+};
+
+/** Couleur (token du design system) d'une étiquette FM. */
+export const MARKET_FM_STATUS_CLASSES: Record<FmStatus, string> = {
+    MALUS: "text-danger",
+    EXO: "text-info",
+    A_VERIFIER: "text-warning",
+    OVER: "text-info",
+    PARFAIT: "text-success",
+    BON: "text-success",
+    FAIBLE: "text-muted-foreground",
+};
 
 // ---------------------------------------------------------------------------
 // ACTIONS JOURNALISÉES (jamais de chaîne libre dans MarketAuditLog)

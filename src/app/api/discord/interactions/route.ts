@@ -1121,7 +1121,13 @@ export async function POST(request: NextRequest) {
                 }
                 return NextResponse.json({
                     type: 4,
-                    data: { content: outcome.content, flags: 64 },
+                    data: {
+                        content: outcome.content,
+                        flags: 64,
+                        // S4.5 : bouton lien « Ouvrir la fiche SigilOS » (jamais de
+                        // `custom_id` : la route ne fait que relayer la réponse).
+                        ...(outcome.components ? { components: outcome.components } : {}),
+                    },
                 });
             } else {
                 return NextResponse.json({ type: 4, data: { content: "Interaction inconnue", flags: 64 } });

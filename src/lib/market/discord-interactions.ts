@@ -10,7 +10,9 @@
  *      boutons de l'annonce (`mkt:<action>:<listingId>`, §13.3) ;
  *   2. le **catalogue des messages éphémères** (§13.5) : un membre reçoit
  *      **toujours** une explication, succès comme refus, jamais de silence ;
- *   3. la **construction d'URL** de la fiche SigilOS (bouton lien) ;
+ *   3. la **construction d'URL** de la fiche SigilOS et du **bouton lien**
+ *      (`style: 5`), partagés par l'annonce publique (§13.3) et par les
+ *      réponses éphémères (§13.5) ;
  *   4. la **lecture + le nettoyage** des 3 champs de la modale d'offre (S4.4),
  *      réutilisés par le formulaire du dashboard (une seule normalisation).
  *
@@ -99,6 +101,41 @@ export function parseMarketCustomId(customId: string): MarketCustomId | null {
 export function buildMarketDashboardUrl(baseUrl: string, discordGuildId: string, listingId: string): string {
     const base = baseUrl.replace(/\/+$/, "");
     return `${base}/dashboard/${discordGuildId}/marche/${listingId}`;
+}
+
+/** Ligne de composants Discord (`ActionRow` type 1) — même forme pour tous les envois. */
+export type MarketComponentRow = {
+    type: 1;
+    components: Array<Record<string, unknown>>;
+};
+
+/** Libellé du bouton lien de l'annonce publique (§13.3). */
+export const MARKET_DASHBOARD_LINK_LABEL = "Voir sur SigilOS";
+
+/** Libellé du bouton lien des réponses éphémères (S4.5). */
+export const MARKET_EPHEMERAL_LINK_LABEL = "Ouvrir la fiche SigilOS";
+
+/**
+ * Bouton **lien** (style 5) vers la fiche SigilOS.
+ *
+ * Discord refuse un `custom_id` sur un bouton lien : les deux formes (URL +
+ * `style: 5`) sont donc construites **ici**, une fois, et réutilisées par
+ * l'embed de l'annonce (§13.3) comme par les réponses éphémères (§13.5) — le
+ * libellé reste surchargeable pour rester au plus près de la spec.
+ */
+export function buildMarketDashboardLinkButton(
+    dashboardUrl: string,
+    label: string = MARKET_DASHBOARD_LINK_LABEL
+): Record<string, unknown> {
+    return { type: 2, style: 5, label, url: dashboardUrl };
+}
+
+/** Ligne (`ActionRow`) ne contenant que le bouton lien vers la fiche SigilOS. */
+export function buildMarketDashboardLinkRow(
+    dashboardUrl: string,
+    label: string = MARKET_DASHBOARD_LINK_LABEL
+): MarketComponentRow {
+    return { type: 1, components: [buildMarketDashboardLinkButton(dashboardUrl, label)] };
 }
 
 /**
@@ -301,6 +338,24 @@ export function parseMarketOfferSubmission(params: {
 }
 
 /**
+ * S4.5 — contenu éphémère du bouton **« Contacter »** : la commande `/w` prête à
+ * copier, plus rien à deviner.
+ *
+ * Le pseudo Dofus du vendeur est **public** (§13.2 : il figure déjà dans la
+ * ligne « Vendeur » de l'embed), tandis qu'**aucun** montant d'offre ni pseudo
+ * d'acheteur n'apparaît ici (§13.7). L'échange se conclut **en jeu** : SigilOS
+ * ne transmet ni contact Discord ni inventaire (§11.2).
+ */
+export function buildMarketContactContent(sellerPseudo: string): string {
+    return [
+        "📩 **Contacter le vendeur**",
+        "L'échange se conclut **en jeu**. Ouvre un message privé avec cette commande :",
+        `\`/w ${sellerPseudo} Bonjour, je te contacte pour ton annonce SigilOS.\``,
+        "Copie-la, remplace le message par le tien, puis valide dans Dofus.",
+    ].join("\n");
+}
+
+/**
  * Messages éphémères (§13.5) — **toutes** les issues d'un clic sont couvertes.
  *
  * Interdits : afficher un montant d'offre ou un pseudo d'acheteur (§13.7), ou
@@ -313,8 +368,6 @@ export const MARKET_EPHEMERAL = {
     GUILD_REQUIRED: "⚠️ Utilise ce bouton depuis le serveur Discord de ta guilde.",
     /** Module `marche` inactif pour la guilde (`DEFAULT_MODULES` inclus). */
     MODULE_DISABLED: "🔒 Le Marché est désactivé sur ce serveur.",
-    /** S4.3 → S4.5 : actions pas encore livrées, la fiche SigilOS prend le relais. */
-    ACTION_PENDING: "🚧 Cette action arrivera bientôt directement sur Discord. En attendant, ouvre la fiche de l'annonce sur SigilOS :",
     /** S4.2 — réservation acceptée (§11.2 : l'échange se conclut en jeu). */
     RESERVE_SUCCESS: "✅ Annonce réservée ! Le vendeur sera prévenu — l'échange se conclut **en jeu**.",
     /** S4.2 — un vendeur ne réserve pas sa propre annonce (§11.2/D34). */
@@ -335,6 +388,12 @@ export const MARKET_EPHEMERAL = {
     OFFER_EMPTY: "❌ Renseigne un montant en kamas **ou** un troc : une offre vide ne peut pas être envoyée.",
     /** S4.4 — kamas illisible / hors plafond, ou texte hors bornes (200 / 500). */
     OFFER_INVALID: "❌ Offre invalide : vérifie le montant en kamas et la longueur des textes.",
+    /** S4.5 — un vendeur ne se contacte pas lui-même. */
+    CONTACT_OWN_LISTING: "ℹ️ Tu es le vendeur de cette annonce : il n'y a personne à contacter.",
+    /** S4.5 — annonce vendue : le bouton Discord est désactivé, on explique pourquoi. */
+    CONTACT_UNAVAILABLE: "❌ Cette annonce est vendue ou retirée : elle n'est plus négociable.",
+    /** S4.5 — pseudo Dofus absent : la commande `/w` serait inutilisable, on le dit. */
+    CONTACT_NO_PSEUDO: "❌ Le vendeur n'a pas renseigné son pseudo Dofus : ouvre la fiche SigilOS pour le joindre autrement.",
     /** Annonce absente ou appartenant à une autre guilde (§16.2). */
     LISTING_NOT_FOUND: "❌ Cette annonce est introuvable.",
     /** Membre sans profil SigilOS actif dans la guilde : refus explicite. */

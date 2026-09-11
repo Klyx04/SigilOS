@@ -7,7 +7,9 @@
  *   4. réponse **toujours** explicite (§13.5) — éphémère (type 4), **ou** modale
  *      (type 9) — sans fuite de montant ni de pseudo d'acheteur (§13.7) ;
  *   5. soumission de la modale d'offre (type 5, S4.4) : la règle « kamas OU troc »
- *      est **recalculée serveur** — un envoi vide est refusé, jamais deviné.
+ *      est **recalculée serveur** — un envoi vide est refusé, jamais deviné ;
+ *   6. contact (S4.5) : commande `/w` du **vendeur** + bouton lien vers la fiche
+ *      SigilOS — jamais de montant ni de pseudo d'acheteur (§13.7).
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -52,7 +54,9 @@ vi.mock("@/lib/prisma", () => ({
 import { db } from "@/lib/prisma";
 import {
     MARKET_EPHEMERAL,
+    MARKET_EPHEMERAL_LINK_LABEL,
     MARKET_OFFER_MODAL,
+    buildMarketContactContent,
     buildMarketDashboardUrl,
     buildMarketOfferModal,
     parseMarketCustomId,
@@ -183,20 +187,117 @@ describe("market discord interactions — gardes serveur (S4.1)", () => {
         expect(mockIsModuleEnabled).toHaveBeenCalledTimes(1);
     });
 
-    it("action non encore livrée (contact) → éphémère pointant la fiche SigilOS (§13.5)", async () => {
-        const res = await handleMarketComponentInteraction({
+});
+
+describe("market discord interactions — contact mkt:contact (S4.5)", () => {
+    /** Clic réel du bouton « Contacter » de l'annonce (§13.3). */
+    const clickContact = () =>
+        handleMarketComponentInteraction({
             customId: `mkt:contact:${LISTING_ID}`,
             discordGuildId: GUILD_ID,
-            userId: "user-1",
+            userId: "user-buyer",
         });
 
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockIsModuleEnabled.mockResolvedValue(true);
+        mockGuildConfigFindUnique.mockResolvedValue({
+            id: "guild-internal-1",
+            marketReservationHours: 12,
+            marketOfferHours: 48,
+            marketNegotiationsEnabled: true,
+        });
+        mockUserProfileFindUnique.mockResolvedValue({ id: "profile-buyer", status: "ACTIVE" });
+        mockListingFindFirst.mockResolvedValue({
+            id: LISTING_ID,
+            profileId: "profile-seller",
+            status: "ACTIVE",
+            profile: { pseudoDofus: "Iop-Du-93" },
+        });
+    });
+
+    it("donne la commande `/w` du vendeur + le bouton lien vers la fiche (§13.5)", async () => {
+        const res = await clickContact();
+
         expect(res.kind).toBe("ephemeral");
-        const content = res.kind === "ephemeral" ? res.content : "";
-        expect(content).toContain(MARKET_EPHEMERAL.ACTION_PENDING);
-        expect(content).toContain(`https://sigilos.fr/dashboard/${GUILD_ID}/marche/${LISTING_ID}`);
-        // §13.7 : ni montant, ni pseudo d'acheteur dans la réponse Discord.
-        expect(content).not.toMatch(/\d+\s*(kamas|k\b)/i);
-        expect(mockIsModuleEnabled).toHaveBeenCalledWith(GUILD_ID, "marche");
+        if (res.kind !== "ephemeral") throw new Error("réponse éphémère attendue");
+
+        expect(res.ok).toBe(true);
+        expect(res.content).toBe(buildMarketContactContent("Iop-Du-93"));
+        expect(res.content).toContain("/w Iop-Du-93 ");
+        // §13.7 : ni montant d'offre ni pseudo d'acheteur dans la réponse.
+        expect(res.content).not.toMatch(/\d{2,}\s*k/i);
+        expect(res.content).not.toContain("profile-");
+
+        // Une seule ligne : le bouton lien, jamais de `custom_id` sur un lien.
+        expect(res.components).toHaveLength(1);
+        expect(res.components?.[0].type).toBe(1);
+        expect(res.components?.[0].components).toEqual([
+            {
+                type: 2,
+                style: 5,
+                label: MARKET_EPHEMERAL_LINK_LABEL,
+                url: `https://sigilos.fr/dashboard/${GUILD_ID}/marche/${LISTING_ID}`,
+            },
+        ]);
+        expect(JSON.stringify(res.components)).not.toContain("custom_id");
+
+        // Isolation §16.2 : l'annonce est relue dans la guilde interne résolue.
+        expect(mockListingFindFirst.mock.calls[0][0].where.guildId).toBe("guild-internal-1");
+    });
+
+    it("refuse de contacter sa propre annonce (aucune commande `/w`)", async () => {
+        mockListingFindFirst.mockResolvedValue({
+            id: LISTING_ID,
+            profileId: "profile-buyer",
+            status: "ACTIVE",
+            profile: { pseudoDofus: "Iop-Du-93" },
+        });
+
+        const res = await clickContact();
+
+        expect(res).toEqual({
+            kind: "ephemeral",
+            ok: false,
+            content: MARKET_EPHEMERAL.CONTACT_OWN_LISTING,
+        });
+        expect(JSON.stringify(res)).not.toContain("/w ");
+    });
+
+    it("refuse une annonce vendue mais laisse la fiche accessible (§13.3)", async () => {
+        mockListingFindFirst.mockResolvedValue({
+            id: LISTING_ID,
+            profileId: "profile-seller",
+            status: "SOLD",
+            profile: { pseudoDofus: "Iop-Du-93" },
+        });
+
+        const res = await clickContact();
+
+        expect(res.kind).toBe("ephemeral");
+        if (res.kind !== "ephemeral") throw new Error("réponse éphémère attendue");
+        expect(res.ok).toBe(false);
+        expect(res.content).toBe(MARKET_EPHEMERAL.CONTACT_UNAVAILABLE);
+        expect(JSON.stringify(res.components)).not.toContain("/w ");
+        expect(res.components?.[0].components[0]).toMatchObject({ style: 5 });
+    });
+
+    it("refuse un vendeur sans pseudo Dofus : jamais de commande `/w undefined`", async () => {
+        mockListingFindFirst.mockResolvedValue({
+            id: LISTING_ID,
+            profileId: "profile-seller",
+            status: "ACTIVE",
+            profile: { pseudoDofus: null },
+        });
+
+        const res = await clickContact();
+
+        expect(res.kind).toBe("ephemeral");
+        if (res.kind !== "ephemeral") throw new Error("réponse éphémère attendue");
+        expect(res.ok).toBe(false);
+        expect(res.content).toBe(MARKET_EPHEMERAL.CONTACT_NO_PSEUDO);
+        expect(JSON.stringify(res)).not.toContain("undefined");
+        expect(res.components?.[0].components[0]).toMatchObject({ style: 5 });
     });
 });
 

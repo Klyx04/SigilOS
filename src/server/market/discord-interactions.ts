@@ -14,7 +14,8 @@
  *   5. **action métier** : déléguée aux **moteurs partagés** avec le dashboard
  *      (`reserveMarketListingCore` pour `mkt:reserve`, `createMarketOfferCore`
  *      pour la modale `mkt:offer`) — aucune règle n'est dupliquée ici.
- *      `contact` n'est pas encore livrée (S4.5).
+ *      `mkt:contact` (S4.5) est la seule action 100 % Discord : la commande `/w`
+ *      du vendeur, recopiée telle quelle, aucun moteur métier n'étant en jeu.
  *
  * Deux formes de réponse (§13.5) : `ephemeral` (message du seul membre, type 4)
  * ou `modal` (modale d'offre, type 9 — S4.3). Aucune réponse ne contient un
@@ -27,10 +28,14 @@ import { getAppBaseUrl } from "@/lib/utils";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import {
     MARKET_EPHEMERAL,
+    MARKET_EPHEMERAL_LINK_LABEL,
+    buildMarketContactContent,
+    buildMarketDashboardLinkRow,
     buildMarketDashboardUrl,
     buildMarketOfferModal,
     parseMarketCustomId,
     parseMarketOfferSubmission,
+    type MarketComponentRow,
     type MarketModalPayload,
     type MarketModalSubmitRow,
 } from "@/lib/market/discord-interactions";
@@ -44,6 +49,11 @@ export type MarketEphemeralOutcome = {
     ok: boolean;
     /** Contenu Discord affiché au membre (`flags: 64`). */
     content: string;
+    /**
+     * Lignes de boutons facultatifs (S4.5 : bouton lien vers la fiche SigilOS).
+     * Absentes = réponse purement textuelle ; jamais de `custom_id` ici.
+     */
+    components?: MarketComponentRow[];
 };
 
 /**
@@ -54,8 +64,14 @@ export type MarketInteractionOutcome =
     | MarketEphemeralOutcome
     | { kind: "modal"; modal: MarketModalPayload };
 
-function ephemeral(content: string, ok = false): MarketEphemeralOutcome {
-    return { kind: "ephemeral", ok, content };
+function ephemeral(
+    content: string,
+    ok = false,
+    components?: MarketComponentRow[]
+): MarketEphemeralOutcome {
+    return components && components.length > 0
+        ? { kind: "ephemeral", ok, content, components }
+        : { kind: "ephemeral", ok, content };
 }
 
 function modal(modalPayload: MarketModalPayload): MarketInteractionOutcome {
@@ -212,6 +228,58 @@ async function handleOffer(
 }
 
 /**
+ * S4.5 — `mkt:contact:<listingId>` : met le membre en relation avec le vendeur.
+ *
+ * Discord ne permet **pas** d'ouvrir un message privé : la réponse éphémère
+ * porte donc la commande `/w` **prête à copier** plus le bouton lien vers la
+ * fiche SigilOS (§13.5). Seul le pseudo **du vendeur** est affiché — il est déjà
+ * public dans l'embed (§13.2) — et jamais un montant d'offre ni un pseudo
+ * d'acheteur (§13.7).
+ */
+async function handleContact(
+    discordGuildId: string,
+    listingId: string,
+    userId: string
+): Promise<MarketInteractionOutcome> {
+    const member = await resolveMemberContext(discordGuildId, userId);
+    if (!member.ok) return member.outcome;
+
+    const listing = await db.marketListing.findFirst({
+        where: { id: listingId, guildId: member.guildConfigId, deletedAt: null },
+        select: {
+            id: true,
+            profileId: true,
+            status: true,
+            profile: { select: { pseudoDofus: true } },
+        },
+    });
+    if (!listing) return ephemeral(MARKET_EPHEMERAL.LISTING_NOT_FOUND);
+    if (listing.profileId === member.profileId) return ephemeral(MARKET_EPHEMERAL.CONTACT_OWN_LISTING);
+
+    const dashboardUrl = buildMarketDashboardUrl(getAppBaseUrl(), discordGuildId, listingId);
+    const linkRow = [buildMarketDashboardLinkRow(dashboardUrl, MARKET_EPHEMERAL_LINK_LABEL)];
+
+    // Miroir exact de l'état du bouton (§13.3 : désactivé uniquement en `SOLD`) :
+    // une annonce vendue reste consultable via la fiche, pas négociable en jeu.
+    if (listing.status === "SOLD") {
+        return ephemeral(MARKET_EPHEMERAL.CONTACT_UNAVAILABLE, false, linkRow);
+    }
+
+    const sellerPseudo = listing.profile.pseudoDofus?.trim();
+    if (!sellerPseudo) {
+        // Jamais de commande `/w undefined` : on explique et on renvoie la fiche.
+        logger.info("[market] contact refusé — pseudo Dofus du vendeur absent", {
+            discordGuildId,
+            listingId,
+        });
+        return ephemeral(MARKET_EPHEMERAL.CONTACT_NO_PSEUDO, false, linkRow);
+    }
+
+    logger.info("[market] commande de contact transmise", { discordGuildId, listingId, userId });
+    return ephemeral(buildMarketContactContent(sellerPseudo), true, linkRow);
+}
+
+/**
  * Traite un clic de bouton du marché (`custom_id` `mkt:<action>:<listingId>`).
  *
  * @param customId       `custom_id` brut reçu de Discord.
@@ -261,18 +329,19 @@ export async function handleMarketComponentInteraction(params: {
         return handleOffer(params.discordGuildId, parsed.listingId, params.userId);
     }
 
-    const dashboardUrl = buildMarketDashboardUrl(getAppBaseUrl(), params.discordGuildId, parsed.listingId);
+    // S4.5 — contact : commande `/w` du vendeur + bouton lien vers la fiche.
+    if (parsed.action === "contact") {
+        return handleContact(params.discordGuildId, parsed.listingId, params.userId);
+    }
 
-    logger.info("[market] interaction Discord reçue", {
+    // Défensif : `parseMarketCustomId()` n'accepte que les 3 actions ci-dessus,
+    // une action non traitée ne doit jamais partir en silence (§13.5).
+    logger.warn("[market] action Discord non traitée", {
         action: parsed.action,
         listingId: parsed.listingId,
         discordGuildId: params.discordGuildId,
-        userId: params.userId,
     });
-
-    // S4.5 (`contact`) : déléguera au même moteur métier ; en attendant la fiche
-    // SigilOS prend le relais, aucune action n'est « avalée » (§13.5).
-    return ephemeral(`${MARKET_EPHEMERAL.ACTION_PENDING}\n${dashboardUrl}`);
+    return ephemeral(MARKET_EPHEMERAL.UNKNOWN_ACTION);
 }
 
 /**

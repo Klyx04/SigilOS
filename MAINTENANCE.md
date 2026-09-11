@@ -38,13 +38,86 @@ Appelés depuis le crontab VPS (`crontab -l`) via
 
 - `/api/cron/sync-members` — rattrapage départs/bans Discord (toutes les 30 min / 1h)
 - `/api/cron/avatar-resync` — **resync des hashs d'avatars Discord (#134)** : `GET /guilds/{id}/members`, mise à jour de `User.image` uniquement si le hash a changé ; `null` → avatar par défaut côté UI. Fréquence recommandée : quotidien (`0 5 * * *`).
-- `/api/cron/cleanup-proofs` · `/api/cron/cleanup-logs` · `/api/cron/cleanup-inactive-posts` · `/api/cron/cleanup-inactive-service-requests` — purges
+- `/api/cron/cleanup-proofs` · `/api/cron/cleanup-logs` · `/api/cron/cleanup-inactive-posts` · `/api/cron/cleanup-inactive-service-requests` — purges (depuis **S5.6**, `cleanup-logs` purge aussi les **logs d'audit du marché**, cf. §Module « Marché »)
 - `/api/cron/daily-summary` · `/api/cron/status-ping` · `/api/cron/mission-reset-notify` · `/api/cron/loan-reminders` — notifications
 - `/api/cron/ladder-sync` · `/api/cron/discord-status` — synchronisations
 - `/api/cron/account-retention` — **#168 rétention/purge comptes orphelins** (RGPD) : purge `User`+`Account` sans profil ACTIVE après 90 j et grâce `scheduledDeletion` écoulée, 50 max/exécution. Fréquence recommandée : quotidien (`0 6 * * *`).
 - `/api/cron/sync-dofensive-maps` — **siphon local Dofensive (fiches boss)** : `/dungeons/preview` + `/maps/{id}` → tables `DofensiveDungeon` + `DofensiveMap` (grille `Cells` 40×14, ally/enemyCells, coords). `versionHash` → update auto si changement, salles fraîches (< 24 h) sautées. Fréquence recommandée : quotidien (`30 3 * * *`).
 - `/api/cron/sync-monster-stats` — **siphon local fiches monstres (DofusDB + Dofensive)** : pour chaque boss de donjon, fiche DofusDB (grades/drops/sorts) fusionnée avec les sorts de combat Dofensive (AP/portée/zone/cooldown/maxCast) → table `MonsterStat`. ⚠️ 1er run lourd (10-30 min, ~tous les boss × 6-8 requêtes) — runs suivants rapides (tout déjà frais). Fréquence recommandée : quotidien (`45 3 * * *`).
 - `/api/cron/check-links` — **vérificateur de liens multi-sources (HEAD)** : flague les slugs cassés DofusDB/Dofensive/DPLN (résultat en audit God, rien stocké). Fréquence recommandée : hebdomadaire (`15 4 * * 0`).
+
+### 🛒 Module « Marché » — cron unique des échéances
+
+Toutes les échéances du marché passent par **une seule route** : `/api/cron/market-expire` (`GET` + `POST`, protégée par `x-cron-secret`, **fail-closed**). Une passe exécute **5 étapes dans un ordre imposé**, puis l'**entretien 1×/jour** (réconciliation Discord **puis** purge des médias — §15.1/§15.2 du plan maître) :
+
+| # | Étape | Effet |
+|---|---|---|
+| 1 | `expireMarketReservationsCore` | réservations `ACTIVE` échues → `EXPIRED`, l'annonce repasse `RESERVED → ACTIVE` |
+| 2 | `remindMarketReservationsEndingCore` | rappel **H-1** au vendeur **et** à l'acheteur (fenêtre stricte de 60 min) |
+| 3 | `remindMarketListingsCore` | rappels **J+7 / J+15** au créateur des annonces **sans activité** (paliers `marketReminderDays`) |
+| 4 | `expireMarketListingsCore` | retrait **J+20** : annonces échues **sans activité** → `WITHDRAWN` + `deletedAt` (archivage, jamais de suppression dure) |
+| 5 | `expireMarketOffersCore` | offres `PENDING` hors délai → `EXPIRED` (acheteur prévenu) |
+| 6 | `reconcileMarketDiscordMessagesCore` (**1×/jour**) | messages Discord divergents (`syncStatus = FAILED`/`PENDING`) réécrits, ou **recréés** si supprimés à la main (`404`) |
+| 7 | `purgeMarketListingMediaCore` (**1×/jour**) | médias des annonces **terminées** depuis plus de `marketMediaRetentionDays` : fichiers du disque **puis** lignes, chaque annonce purgée auditée (`MEDIA_PURGED`) |
+
+**Crontab VPS** — ligne à ajouter **à la main** (D33) :
+```bash
+*/10 * * * * curl -s -H "x-cron-secret: $CRON_SECRET" https://sigilos.fr/api/cron/market-expire >/dev/null 2>&1
+```
+
+> 💡 **Aucun développement** pour la supervision : la tâche `market_expire` est déclarée dans `KNOWN_CRON_TASKS` (`src/lib/cron-telemetry.ts`) et apparaît **automatiquement** dans **God → Tâches CRON** (`/god?tab=cron-status`) avec son état, sa durée et son récapitulatif de passe.
+
+**Entretien quotidien (étape 6)** — la route tourne toutes les 10 min, l'entretien ne doit donc s'exécuter **qu'une fois par jour** : le verrou est posé dans Redis (`SET market:maintenance:<AAAA-MM-JJ> 1 EX 86400 NX`, cf. `claimMarketDailyMaintenance`). Le verrou est **fail-open** : Redis indisponible → la passe tourne quand même (elle est bornée par lot et idempotente) ; c'est la seule façon de garantir que la réconciliation finisse par avoir lieu.
+
+| Cas Discord | Comportement de la passe |
+|---|---|
+| Message réécrit avec succès | `syncStatus = FAILED/PENDING → OK` + audit `DISCORD_SYNC_RESTORED` |
+| Message **supprimé à la main** (`404` sur l'édition) | la trace du message est vidée puis l'annonce est **republiée** (nouveau message) + audit `DISCORD_SYNC_RESTORED` (`recreated: true`) |
+| Annonce archivée / retirée (`deletedAt`) | **ignorée** — un message retiré n'est jamais ressuscité |
+| Échec persistant (salon supprimé, permissions, Discord KO) | reste `FAILED` + `lastError`, retenté à la passe du lendemain (aucun audit : pas de transition) |
+
+**Purge des médias (étape 7, S5.5)** — même verrou quotidien, exécutée **après** la réconciliation (les preuves d'une annonce qu'on vient de réparer côté Discord ont encore servi) :
+
+- la **fin de vie** est estimée sur les horodatages d'archivage (`deletedAt` / `soldAt` / `withdrawnAt`) : une annonce **active, réservée ou en brouillon** garde ses preuves, quel que soit l'âge des fichiers ;
+- la coupure vient de `marketMediaRetentionDays` **de chaque guilde** (défaut 30 j, bornes 7–180) : deux guildes n'ont pas la même rétention, la passe les traite séparément ;
+- **ordre sûr** : le fichier est supprimé **avant** sa ligne — purger la ligne d'abord rendrait l'orphelin indétectable (§13.4) ;
+- une annonce **revenue à la vie** entre la lecture et l'écriture (reprise, restauration par un modérateur) est **sautée** : rien n'est purgé ;
+- **idempotent** : une annonce dont les médias sont déjà partis n'est plus éligible (`media: { some: {} }`), elle ne consomme plus le lot ; traitement **par lots** de **100** annonces / guilde / passe ;
+- **isolation des échecs** : un fichier refusé (protégé, erreur disque) est compté (`filesFailed`) et journalisé, mais la ligne est purgée quand même — l'orphelin reste à surveiller ; une annonce en erreur (`failed`) n'arrête pas la passe ;
+- **Audit** : un `MEDIA_PURGED` par annonce purgée (`previousData: { media, bytes }`, `nextData: { media: 0, filesDeleted, filesMissing, filesFailed, retentionDays }`).
+
+**Réponse JSON** : `{ reservations, reservationReminders, reminders, listings, offers, maintenance: { ran, reason }, resynced, purged }` — `resynced = null` (ou `purged = null`) signifie « entretien déjà fait aujourd'hui » ; `purged = { listings, media, bytes, filesFailed, failed }`. `reason` vaut `claimed` · `already-ran` · `redis-unavailable`.
+
+**Relance manuelle** : un modérateur (`market:moderate`) peut rejouer la passe sur **sa** guilde sans attendre le lendemain — actions `reconcileMarketDiscordMessages(guildId, limit?)` et `purgeMarketMedia(guildId, limit?)` (`src/server/actions/market-admin-actions.ts`), même moteur, réparations et purges tracées à son nom. Elles sont consommées par l'onglet **God « Marché »** (S5.9).
+
+**Garde-fous vérifiés :**
+- **Idempotence** : chaque écriture est un `updateMany` conditionnel (statut, échéance, `reminderStage` / `deletedAt` rejoués dans le `where`) → une passe relancée dans les 10 minutes **ne fait rien** de plus ; une relance manuelle est sans effet de bord ;
+- **Volume** : traitement **par lots** (200 éléments / passe pour les échéances, **25** pour la réconciliation Discord, **100** annonces / guilde pour la purge des médias, **500** lignes / guilde pour la purge des logs d'audit — cette dernière étant portée par le cron `cleanup-logs`) et **un récapitulatif par passe** (jamais une ligne par annonce) ;
+- **Discord indisponible** : la base avance d'abord, Discord n'est **jamais bloquant** (échec → `syncStatus = FAILED` + `lastError`, rejouable ; succès → `syncStatus = OK` ; message retiré → `DELETED`) ;
+- **Annonce vendue/réservée** : le retrait J+20 et les rappels ne visent **jamais** une annonce avec une offre ou une réservation en cours ;
+- **Faible fuite d'information** : la réponse JSON ne contient que des compteurs (aucun montant, aucun pseudo, §13.7).
+
+**Rétention (module marché)** — valeurs par guilde (`GuildConfig`), réglables depuis le dashboard :
+
+| Donnée | Rétention | Mécanisme |
+|---|---|---|
+| Annonce active sans activité | retirée à **J+20** (soft-delete) | étape 4 du cron |
+| Annonce `SOLD` / `WITHDRAWN` | **conservée** (historique, preuve de vente), masquée des vues | filtres par défaut |
+| Offres, réservations, signalements | conservés avec l'annonce (traçabilité des litiges) | — |
+| Médias (preuves) | `marketMediaRetentionDays` — **30 j** par défaut (bornes 7–180) après la fin de vie de l'annonce | purge des objets de stockage, chaque média purgé étant **audité** (`MEDIA_PURGED`) |
+| Logs d'audit du marché | `marketLogRetentionDays` — **365 j** par défaut (bornes 30–730) | purge par le cron **`cleanup-logs`** (`purgeMarketAuditLogsCore`, cf. §Purge des logs d'audit), coupure **par guilde**, 500 lignes / guilde / passe |
+| Compte supprimé / profil archivé | les annonces **actives** passent `WITHDRAWN` | hook de cycle de vie membre (audit à la clé) |
+
+Le marché **n'efface jamais** une annonce : il l'**archive** (`WITHDRAWN` + `deletedAt` + `deletedReason`), puis laisse la rétention des logs faire le ménage.
+
+**Purge des logs d'audit (S5.6)** — `purgeMarketAuditLogsCore` (`src/server/market/retention.ts`), appelée par le cron **`/api/cron/cleanup-logs`** (même famille que le nettoyage global des logs d'audit, 1×/jour), et **non bloquante** : un échec du marché n'empêche jamais le nettoyage global (et inversement), il est compté et remonté en télémétrie `cleanup_logs`.
+
+- la **coupure vient de la rétention de chaque guilde** (`marketLogRetentionDays`, défaut 365 j, bornes 30–730) : la passe itère les `GuildConfig` et applique **sa** coupure à chaque guilde — une guilde ne purge jamais avec la rétention d'une autre ;
+- **jamais d'annonce touchée** : seuls les `MarketAuditLog` sont supprimés. Le marché archive (§11.10), il n'efface pas : offres, réservations et signalements restent attachés à l'annonce ;
+- **aucun audit de purge** : journaliser la purge dans le journal purgé le recréerait indéfiniment — la trace vit dans la télémétrie du cron ;
+- **isolation §16.2** : chaque `where` porte l'id **interne** de guilde (`GuildConfig.id`) + la coupure + les ids lus, et l'échec d'une guilde est journalisé et ignoré, sans interrompre les autres ;
+- **par lots et idempotent** : `take = 500 + 1` par guilde et par passe (`hasMore` signale le reste), relancer la passe ne fait rien de plus ; aucune ligne plus jeune que la coupure n'est jamais touchée ;
+- **réponse JSON `cleanup-logs`** : `{ success, deletedCount, godNotifDeleted, marketLogsDeleted, marketLogsHasMore, message }` — `success: false` si une guilde a échoué (`marketLogsFailed > 0`), le reste de la passe restant effectué ; télémétrie `details: { deletedCount, godNotifDeleted, marketLogsDeleted, marketLogsHasMore, marketLogsFailed }`.
 
 ### 📡 Télémétrie et Monitoring GOD (`/god?tab=cron-status`)
 Chaque tâche CRON enregistre automatiquement son état, sa durée et son résumé dans **Redis** via `recordCronExecution` (`src/lib/cron-telemetry.ts`).

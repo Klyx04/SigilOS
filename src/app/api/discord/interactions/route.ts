@@ -127,6 +127,7 @@ export async function POST(request: NextRequest) {
                 // (db.userProfile lookup). The Discord API gate can false-negative
                 // on rate limits or temporary API failures, blocking valid members.
                 svc: PERMISSIONS.GAME_OPERATIONS,         // Services = organisation d'activités
+                mkt: PERMISSIONS.MARKET_TRADE,            // Marché = réserver / offrir / contacter
             };
 
             const requiredPerm = DISCORD_PERM_MAP[prefix];
@@ -1104,6 +1105,30 @@ export async function POST(request: NextRequest) {
                 } else {
                     return NextResponse.json({ type: 4, data: { content: "Action ticket inconnue", flags: 64 } });
                 }
+            } else if (prefix === "mkt") {
+                // §13.4 — le Marché délègue TOUTE sa logique métier au service
+                // (guilde, module actif, actions du dashboard) : la route ne décide rien.
+                const { handleMarketComponentInteraction } = await import("@/server/market/discord-interactions");
+                const outcome = await handleMarketComponentInteraction({
+                    customId: custom_id,
+                    discordGuildId: guild_id ?? null,
+                    userId: account!.userId,
+                });
+                // Union discriminée : `modal` → réponse type 9 (S4.3), sinon
+                // message éphémère type 4 (jamais muet, §13.5).
+                if (outcome.kind === "modal") {
+                    return NextResponse.json({ type: 9, data: outcome.modal });
+                }
+                return NextResponse.json({
+                    type: 4,
+                    data: {
+                        content: outcome.content,
+                        flags: 64,
+                        // S4.5 : bouton lien « Ouvrir la fiche SigilOS » (jamais de
+                        // `custom_id` : la route ne fait que relayer la réponse).
+                        ...(outcome.components ? { components: outcome.components } : {}),
+                    },
+                });
             } else {
                 return NextResponse.json({ type: 4, data: { content: "Interaction inconnue", flags: 64 } });
             }
@@ -1347,6 +1372,26 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({
                     type: 4,
                     data: { content: `❌ ${res.error || "Impossible d'envoyer la réponse."}`, flags: 64 },
+                });
+            } else if (prefix === "mkt" && action === "offer") {
+                // =========================================================
+                // MARCHÉ (S4.4) — SOUMISSION DE LA MODALE D'OFFRE
+                // custom_id = mkt:offer:{listingId}
+                // §13.4 : la route ne décide de RIEN (elle ne lit ni le montant
+                // ni la guilde interne) — parsing fail-closed, module, profil et
+                // moteur métier partagé vivent dans le service du module.
+                // =========================================================
+                const { handleMarketModalSubmit } = await import("@/server/market/discord-interactions");
+                const marketOutcome = await handleMarketModalSubmit({
+                    customId: custom_id,
+                    components,
+                    discordGuildId: guild_id ?? null,
+                    userId: member.user.id,
+                });
+                // §13.7 : ni montant offert ni pseudo d'acheteur dans la réponse.
+                return NextResponse.json({
+                    type: 4,
+                    data: { content: marketOutcome.content, flags: 64 },
                 });
             } else if (prefix === "tb") {
                 // =========================================================

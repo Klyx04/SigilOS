@@ -124,6 +124,11 @@ export const KNOWN_CRON_TASKS: Record<string, { name: string; schedule: string; 
         schedule: "Hebdo dimanches 05h00 (UTC)",
         logFile: "data-watch.log",
     },
+    market_expire: {
+        name: "Marché — Fins de vie & Rappels",
+        schedule: "Toutes les 10 min",
+        logFile: "market-expire.log",
+    },
 };
 
 const REDIS_PREFIX = "cron:telemetry:";

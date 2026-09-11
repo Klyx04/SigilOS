@@ -6,6 +6,9 @@ import {
     toNativeEffects,
     resolveNativeEffects,
     getStatLabel,
+    isPlaceholderStatLabel,
+    resolveStoredStatLabel,
+    normalizeNativeRange,
     resolveStatIconSpec,
     isPercentStat,
     formatStatValue,
@@ -35,8 +38,65 @@ describe("effects — référentiel pur", () => {
 
     it("getStatLabel retombe sur int_name puis CHAR_NAMES puis « Effet »", () => {
         expect(getStatLabel({ int_name: "vi" })).toBe("Vitalité");
-        expect(getStatLabel({ characteristic: 16 })).toBe("Force");
+        expect(getStatLabel({ characteristic: 10 })).toBe("Force");
         expect(getStatLabel({ effectId: 999_999 })).toBe("Effet");
+    });
+
+    /**
+     * S7.3 — le référentiel siphonné `GameCharacteristic` fait autorité : les
+     * ancres codées étaient fausses sur plusieurs ids (16 = Dommages et non
+     * Force, 26 = Invocation, 27/28 = Esquive PA/PM, 48/49/50 = Prospection /
+     * Soins / Renvoi).
+     */
+    it("CHAR_NAMES est aligné sur les caractéristiques officielles", () => {
+        expect(CHAR_NAMES[10]).toBe("Force");
+        expect(CHAR_NAMES[16]).toBe("Dommages");
+        expect(CHAR_NAMES[26]).toBe("Invocation");
+        expect(CHAR_NAMES[27]).toBe("Esquive PA");
+        expect(CHAR_NAMES[28]).toBe("Esquive PM");
+        expect(CHAR_NAMES[48]).toBe("Prospection");
+        expect(CHAR_NAMES[49]).toBe("Soins");
+        expect(CHAR_NAMES[50]).toBe("Renvoi");
+        expect(CHAR_NAMES[33]).toBe("Résistance Terre (%)");
+        expect(CHAR_NAMES[37]).toBe("Résistance Neutre (%)");
+        expect(CHAR_NAMES[40]).toBe("Pods");
+        expect(CHAR_NAMES[44]).toBe("Initiative");
+    });
+
+    /**
+     * S7.3 — une caractéristique présente mais **non cartographiée** ne doit plus
+     * masquer un `effectId` pourtant connu (cause racine du libellé « Effet »).
+     */
+    it("getStatLabel résout par characteristic PUIS par effectId", () => {
+        expect(getStatLabel({ characteristic: 4242, effectId: 163 })).toBe("Résistance Critiques");
+        expect(getStatLabel({ effectId: 111 })).toBe("PA");
+        expect(getStatLabel({ effectId: 117 })).toBe("Portée");
+        expect(getStatLabel({ effectId: 182 })).toBe("Invocations");
+        expect(getStatLabel({ effectId: 162 })).toBe("Dommages Critiques");
+        expect(getStatLabel({ characteristic: 33 })).toBe("Résistance Terre (%)");
+    });
+
+    it("getStatLabel ignore les libellés placeholders du siphon /effects", () => {
+        expect(isPlaceholderStatLabel("Effet 63")).toBe(true);
+        expect(isPlaceholderStatLabel("}{ soins")).toBe(true);
+        expect(isPlaceholderStatLabel("  ")).toBe(true);
+        expect(isPlaceholderStatLabel("Vitalité")).toBe(false);
+
+        // Un libellé de référentiel fantôme ne doit jamais gagner.
+        expect(getStatLabel({ characteristic: 11 }, { 11: "Effet 11" })).toBe("Vitalité");
+        expect(getStatLabel({ characteristic: 11 }, { 11: "Vitalité (base)" })).toBe("Vitalité (base)");
+    });
+
+    it("resolveStoredStatLabel corrige un libellé figé sans écraser l'inconnu", () => {
+        expect(resolveStoredStatLabel({ characteristic: 11, effectId: 10, label: "Effet" })).toBe("Vitalité");
+        expect(resolveStoredStatLabel({ characteristic: null, effectId: 163, label: "Effet" })).toBe(
+            "Résistance Critiques"
+        );
+        // Inconnu : on conserve le libellé persisté plutôt que le repli « Effet ».
+        expect(resolveStoredStatLabel({ characteristic: null, effectId: 999_999, label: "Jet maison" })).toBe(
+            "Jet maison"
+        );
+        expect(resolveStoredStatLabel({ characteristic: null, effectId: 999_999, label: null })).toBe("Effet");
     });
 });
 
@@ -123,6 +183,45 @@ describe("effects — plages natives (source serveur)", () => {
         expect(drafts).toHaveLength(2);
         expect(drafts[0]).toMatchObject({ effectId: 10, label: "Vitalité", actualValue: 300, origin: "NATIVE" });
         expect(drafts[1]).toMatchObject({ effectId: 96, actualValue: 3 });
+    });
+});
+
+/**
+ * S7.4 — plages natives : DofusDB renvoie `diceSide = 0` quand le **second dé
+ * est absent** (valeur fixe). Une lecture naïve produisait `[10 à 0]` puis
+ * « 0 SOUS LA PLAGE » sur un objet parfait (capture user du 11/09).
+ */
+describe("effects — normalisation des plages natives", () => {
+    it("normalizeNativeRange ne produit jamais de plage décroissante", () => {
+        expect(normalizeNativeRange(251, 300)).toEqual({ from: 251, to: 300 });
+        expect(normalizeNativeRange(2, 2)).toEqual({ from: 2, to: 2 });
+        // Valeur fixe (second dé absent) — les deux sens sont ramenés au 1er dé.
+        expect(normalizeNativeRange(10, 0)).toEqual({ from: 10, to: 10 });
+        expect(normalizeNativeRange(300, 251)).toEqual({ from: 300, to: 300 });
+        // Valeur négative fixe (résistance critique, malus).
+        expect(normalizeNativeRange(-30, 0)).toEqual({ from: -30, to: -30 });
+    });
+
+    it("toNativeEffects normalise la forme BRUTE (diceSide = 0 ⇒ valeur fixe)", () => {
+        const result = toNativeEffects({
+            effects: [
+                { effectId: 163, characteristic: null, diceNum: -30, diceSide: 0 },
+                { effectId: 110, characteristic: 16, diceNum: 10, diceSide: 0 },
+                { effectId: 125, characteristic: 11, diceNum: 251, diceSide: 300 },
+            ],
+        });
+        expect(result).toHaveLength(3);
+        expect(result?.[0]).toMatchObject({ effectId: 163, from: -30, to: -30 });
+        expect(result?.[1]).toMatchObject({ effectId: 110, from: 10, to: 10 });
+        expect(result?.[2]).toMatchObject({ effectId: 125, from: 251, to: 300 });
+    });
+
+    it("findNativeRange soigne aussi une plage inversée déjà persistée", () => {
+        const stored: MarketNativeEffect[] = [
+            { effectId: 110, characteristic: 16, from: 10, to: 0, category: null, elementId: null },
+        ];
+        expect(findNativeRange(stored, { effectId: 110 })).toEqual({ from: 10, to: 10 });
+        expect(findNativeRange(stored, { effectId: 4242, characteristic: 16 })).toEqual({ from: 10, to: 10 });
     });
 });
 

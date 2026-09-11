@@ -13,7 +13,7 @@ import Image from "next/image";
 import { Package, Scale } from "lucide-react";
 import { StatIcon } from "@/components/market/stat-icon";
 import { formatKamas } from "@/lib/market/kamas";
-import { isPercentStat } from "@/lib/market/effects";
+import { isPercentStat, normalizeNativeRange } from "@/lib/market/effects";
 import { cn } from "@/lib/utils";
 
 export type MarketItemCardStat = {
@@ -75,11 +75,17 @@ function formatStatLineValue(stat: MarketItemCardStat): string {
 }
 
 function formatRange(stat: MarketItemCardStat): string {
-    if (stat.naturalMin == null && stat.naturalMax == null) return `[${stat.actualValue}]`;
-    if (stat.naturalMin != null && stat.naturalMax != null && stat.naturalMin !== stat.naturalMax) {
-        return `[${stat.naturalMin} à ${stat.naturalMax}]`;
-    }
-    return `[${stat.naturalMax ?? stat.naturalMin}]`;
+    const { naturalMin, naturalMax } = stat;
+    if (naturalMin == null && naturalMax == null) return `[${stat.actualValue}]`;
+    // S7.6 — même règle que le serveur (`normalizeNativeRange`, S7.4) : une valeur
+    // fixe s'affiche entre crochets simples, jamais `[10 à 0]`.
+    const { from, to } = normalizeNativeRange(
+        naturalMin ?? naturalMax ?? 0,
+        naturalMax ?? naturalMin ?? 0
+    );
+    if (naturalMin == null) return `[${to}]`;
+    if (naturalMax == null) return `[${from}]`;
+    return from === to ? `[${from}]` : `[${from} à ${to}]`;
 }
 
 export function MarketItemCard({ data, className }: { data: MarketItemCardData; className?: string }) {
@@ -141,7 +147,11 @@ export function MarketItemCard({ data, className }: { data: MarketItemCardData; 
                                 key={`${stat.effectId}-${stat.origin}`}
                                 className="flex items-center gap-2 text-label"
                             >
-                                <StatIcon characteristicId={stat.characteristic} />
+                                <StatIcon
+                                    characteristicId={stat.characteristic}
+                                    effectId={stat.effectId}
+                                    label={stat.label}
+                                />
                                 <span className={cn("tabular-nums font-bold", statValueClass(stat))}>
                                     {formatStatLineValue(stat)}
                                 </span>

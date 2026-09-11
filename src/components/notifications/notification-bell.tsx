@@ -142,6 +142,7 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
                         { id: "DONJONS", label: "Donjons" },
                         { id: "EVENT", label: "Events" },
                         { id: "POLL", label: "Sondages" },
+                        { id: "MARKET", label: "Marché" },
                         { id: "ADMIN_ALERT", label: "Admin" },
                     ].map((cat) => {
                         const count = cat.id === "ALL"

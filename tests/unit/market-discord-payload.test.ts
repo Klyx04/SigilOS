@@ -59,6 +59,13 @@ describe("buildMarketDiscordPayload", () => {
         expect(buttons.find((b) => b.custom_id?.startsWith("mkt:contact"))?.disabled).toBe(true);
     });
 
+    it("annonce NON négociable — bouton Offre désactivé, Réservation intacte (§13.5)", () => {
+        const payload = buildMarketDiscordPayload({ ...base, negotiable: false });
+        const buttons = buttonsOf(payload);
+        expect(buttons.find((b) => b.custom_id === `mkt:offer:${base.listingId}`)?.disabled).toBe(true);
+        expect(buttons.find((b) => b.custom_id === `mkt:reserve:${base.listingId}`)?.disabled).toBe(false);
+    });
+
     it("n'expose JAMAIS un montant d'offre ni un pseudo d'acheteur (compteur seulement)", () => {
         const payload = buildMarketDiscordPayload({ ...base, status: "RESERVED", offersCount: 3 });
         const serialized = JSON.stringify(payload);

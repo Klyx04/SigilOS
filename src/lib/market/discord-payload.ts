@@ -157,7 +157,8 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
             style: 1,
             label: "Faire une offre",
             custom_id: `mkt:offer:${listingId}`,
-            disabled: actionsDisabled,
+            // §13.5 : l'offre exige une annonce `ACTIVE` ET négociable.
+            disabled: actionsDisabled || !negotiable,
         },
         {
             type: 2,

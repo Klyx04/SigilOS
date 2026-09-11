@@ -23,10 +23,12 @@ import {
 } from "@/server/market/offers";
 import { completeMarketSaleCore } from "@/server/market/sales";
 import { normalizeMarketOfferDraft } from "@/lib/market/discord-interactions";
+import { sanitizeMarketText } from "@/lib/market/text";
 import {
     MARKET_AUDIT_ACTIONS,
     MARKET_DELETE_REASONS,
     MARKET_LIMITS,
+    MARKET_REPORT_REASONS,
     MARKET_TERMINAL_STATUSES,
     isMarketTransitionAllowed,
 } from "./market-constants";
@@ -147,17 +149,6 @@ export type MarketListingInput = z.input<typeof marketListingBaseSchema>;
 // ---------------------------------------------------------------------------
 // HELPERS INTERNES (non exportés — fichier "use server")
 // ---------------------------------------------------------------------------
-
-/** Retire les liens d'un texte libre (anti-phishing / anti-slop, §16.4). */
-function sanitizeMarketText(value: string | null | undefined): string | null {
-    if (!value) return null;
-    const cleaned = value
-        .replace(/https?:\/\/\S+/gi, "[lien retiré]")
-        .replace(/\bdiscord\.gg\/\S+/gi, "[invitation retirée]")
-        .replace(/\s{3,}/g, "  ")
-        .trim();
-    return cleaned.length > 0 ? cleaned : null;
-}
 
 /**
  * Résout le contexte (guildConfig interne) + vérifie module + permission.
@@ -814,6 +805,119 @@ export async function cancelMarketOffer(
         return { success: true, data: { offerId: outcome.offerId } };
     } catch (error) {
         logger.error("[cancelMarketOffer] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+// ---------------------------------------------------------------------------
+// SIGNALEMENT (S4.11 — §6.9)
+// ---------------------------------------------------------------------------
+
+/** Motif de signalement validé (liste unique `MARKET_REPORT_REASONS`). */
+export type MarketReportReasonInput = (typeof MARKET_REPORT_REASONS)[number];
+
+/**
+ * Signale une annonce (§6.9) : ouvre un **dossier de modération** avec l'état
+ * de l'annonce **figé** (`snapshot`) et journalise `LISTING_REPORTED`.
+ *
+ * Un signalement ne sanctionne **jamais** automatiquement : il donne au
+ * modérateur le contexte et l'accès au journal d'audit de l'annonce. Un membre
+ * signale une seule fois par annonce, et **jamais la sienne** (§8.2).
+ */
+export async function reportMarketListing(
+    guildId: string,
+    listingId: string,
+    reason: MarketReportReasonInput,
+    details?: string | null
+): Promise<ActionResponse<{ reportId: string }>> {
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+        const { user, guildConfig } = ctx;
+        if (!user.profileId) return { success: false, error: "Profil introuvable" };
+
+        const parsed = z.string().min(1).max(64).safeParse(listingId);
+        if (!parsed.success) return { success: false, error: "Annonce introuvable" };
+        const parsedReason = z.enum(MARKET_REPORT_REASONS).safeParse(reason);
+        if (!parsedReason.success) return { success: false, error: "Motif invalide" };
+
+        const listing = await db.marketListing.findFirst({
+            where: { id: parsed.data, guildId: guildConfig.id, deletedAt: null },
+            select: {
+                id: true,
+                profileId: true,
+                status: true,
+                type: true,
+                title: true,
+                priceKamas: true,
+                negotiable: true,
+                renewCount: true,
+                publishedAt: true,
+                expiresAt: true,
+            },
+        });
+        if (!listing) return { success: false, error: "Annonce introuvable" };
+        if (listing.profileId === user.profileId) {
+            return { success: false, error: "Tu ne peux pas signaler ta propre annonce." };
+        }
+        // Un brouillon n'est pas public : rien à signaler (§11.1).
+        if (listing.status === "DRAFT") {
+            return { success: false, error: "Cette annonce n'est pas encore publiée." };
+        }
+
+        const existing = await db.marketReport.findFirst({
+            where: { listingId: listing.id, reporterProfileId: user.profileId },
+            select: { status: true },
+        });
+        if (existing) {
+            return {
+                success: false,
+                error:
+                    existing.status === "CLOSED"
+                        ? "Tu as déjà signalé cette annonce : le dossier est clos."
+                        : "Tu as déjà signalé cette annonce — le dossier est ouvert.",
+            };
+        }
+
+        const session = await auth();
+        const actorUserId = session?.user?.id ?? user.id ?? "";
+        const report = await db.marketReport.create({
+            data: {
+                listingId: listing.id,
+                reporterUserId: actorUserId,
+                reporterProfileId: user.profileId,
+                reason: parsedReason.data,
+                details: sanitizeMarketText(details),
+                // Contexte **figé** : le modérateur juge l'état au moment des faits,
+                // même si le vendeur modifie l'annonce entre-temps (§6.9).
+                snapshot: {
+                    title: listing.title,
+                    type: listing.type,
+                    status: listing.status,
+                    priceKamas: listing.priceKamas,
+                    negotiable: listing.negotiable,
+                    renewCount: listing.renewCount,
+                    publishedAt: listing.publishedAt,
+                    expiresAt: listing.expiresAt,
+                    sellerProfileId: listing.profileId,
+                    capturedAt: new Date().toISOString(),
+                },
+            },
+            select: { id: true },
+        });
+
+        await writeMarketAuditLog({
+            guildId: guildConfig.id,
+            listingId: listing.id,
+            actorUserId,
+            action: MARKET_AUDIT_ACTIONS.LISTING_REPORTED,
+            nextData: { reportId: report.id, reason: parsedReason.data },
+        });
+
+        revalidatePath(`/dashboard/${guildId}/marche`);
+        return { success: true, data: { reportId: report.id } };
+    } catch (error) {
+        logger.error("[reportMarketListing] failed", { err: error });
         return { success: false, error: "Erreur interne" };
     }
 }

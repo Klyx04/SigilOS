@@ -29,6 +29,21 @@ vi.mock("@/server/market/discord", () => ({
     syncListingMessage: vi.fn().mockResolvedValue({ ok: true }),
 }));
 
+/**
+ * S4.8/S4.9 — les alertes §11.9 passent par `@/server/actions/notification-actions`
+ * (donc `@/auth`) ; leurs règles sont testées dans `market-notifications.test.ts`.
+ * Les moteurs réservation/offre les *appellent*, donc sans ce mock leur simple
+ * import chargerait la chaîne d'authentification dans ce fichier d'interactions.
+ */
+vi.mock("@/server/market/notifications", () => ({
+    notifyMarketUser: vi.fn().mockResolvedValue(true),
+    resolveMarketDiscordUserId: vi.fn().mockResolvedValue(null),
+    mentionMarketListingOwner: vi.fn().mockResolvedValue(undefined),
+    notifyMarketSellerActivity: vi.fn().mockResolvedValue(undefined),
+    notifyMarketBuyerActivity: vi.fn().mockResolvedValue(true),
+    notifyMarketReservationEnded: vi.fn().mockResolvedValue(2),
+}));
+
 /** Transaction simulée des moteurs (réservation S4.2, offre S4.4). */
 const tx = {
     marketListing: { updateMany: vi.fn(), update: vi.fn() },

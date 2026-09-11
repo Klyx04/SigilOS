@@ -120,6 +120,19 @@ const UpdateNotificationPrefsSchema = z.object({
         admin_validations: z.boolean().optional(),
         ocre: z.boolean().optional(),
         donjons: z.boolean().optional(),
+        // §11.9 — Marché : un booléen **par type** de notification. Clés
+        // explicites (jamais un `record` libre) : le Json du profil ne peut
+        // recevoir que ces huit clés connues.
+        market: z.object({
+            offer_received: z.boolean().optional(),
+            reserved: z.boolean().optional(),
+            reservation_ended: z.boolean().optional(),
+            offer_answered: z.boolean().optional(),
+            sold: z.boolean().optional(),
+            reminder: z.boolean().optional(),
+            archived: z.boolean().optional(),
+            report_opened: z.boolean().optional(),
+        }).optional(),
     }),
     targetUserId: z.string().optional(),
 });
@@ -1041,7 +1054,14 @@ export async function updateNotificationPrefs(rawData: z.infer<typeof UpdateNoti
         });
 
         const currentPrefs = (currentProfile?.notificationPrefs as any) || {};
-        const newPrefs = { ...currentPrefs, ...prefs };
+        // §11.9 — `market` est un objet imbriqué : une fusion **superficielle**
+        // écraserait les sept autres interrupteurs quand le client n'en envoie
+        // qu'un seul. On fusionne donc explicitement cette clé.
+        const newPrefs = {
+            ...currentPrefs,
+            ...prefs,
+            ...(prefs.market ? { market: { ...(currentPrefs.market ?? {}), ...prefs.market } } : {}),
+        };
 
         await db.userProfile.update({
             where: {

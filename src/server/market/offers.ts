@@ -21,6 +21,7 @@ import { isValidKamas } from "@/lib/market/kamas";
 import { MARKET_AUDIT_ACTIONS, MARKET_SETTINGS_BOUNDS } from "@/server/actions/market-constants";
 import { writeMarketAuditLog } from "@/server/market/audit";
 import { syncListingMessage } from "@/server/market/discord";
+import { notifyMarketSellerActivity } from "@/server/market/notifications";
 
 /** Motif de refus — sert à choisir le message affiché (aucun détail interne exposé). */
 export type MarketOfferFailure =
@@ -117,7 +118,17 @@ export async function createMarketOfferCore(params: {
         // Isolation : l'annonce est cherchée par `id` **et** par guilde interne.
         const listing = await db.marketListing.findFirst({
             where: { id: params.listingId, guildId: params.guildConfigId, deletedAt: null },
-            select: { id: true, profileId: true, status: true, negotiable: true },
+            select: {
+                id: true,
+                profileId: true,
+                status: true,
+                negotiable: true,
+                // §11.9 — destinataire de l'alerte vendeur (propriétaire logique)
+                // et deep-link : jamais le snowflake en dur côté appelant.
+                userId: true,
+                title: true,
+                guild: { select: { discordGuildId: true } },
+            },
         });
         if (!listing) return fail("NOT_FOUND");
         if (listing.profileId === params.buyerProfileId) return fail("OWN_LISTING");
@@ -176,6 +187,24 @@ export async function createMarketOfferCore(params: {
         void syncListingMessage(listing.id).catch((err) =>
             logger.warn("[market] synchronisation Discord différée", { listingId: listing.id, err: String(err) })
         );
+
+        // §11.9 / Q12 — le vendeur est alerté d'un dépôt d'offre : notification
+        // dashboard (`MARKET_OFFER_RECEIVED`) **et** mention dans le fil de son
+        // annonce. `try` local : l'offre est déjà commitée, une panne d'alerte
+        // ne doit jamais se transformer en échec renvoyé à l'acheteur.
+        try {
+            await notifyMarketSellerActivity({
+                type: "MARKET_OFFER_RECEIVED",
+                ownerUserId: listing.userId,
+                ownerProfileId: listing.profileId,
+                actorProfileId: params.buyerProfileId,
+                listingId: listing.id,
+                discordGuildId: listing.guild.discordGuildId,
+                itemLabel: listing.title,
+            });
+        } catch (err) {
+            logger.warn("[market] alerte vendeur différée", { listingId: listing.id, err: String(err) });
+        }
 
         // `MarketOffer.expiresAt` est nullable en base : on renvoie l'horodatage
         // que l'on vient d'écrire (jamais un `null` au membre).

@@ -16,7 +16,8 @@ import {
     Target,
     Flame,
     PieChart,
-    ShieldCheck
+    ShieldCheck,
+    Store
 } from "lucide-react";
 import {
     Tooltip,
@@ -45,6 +46,13 @@ import { signOut } from "next-auth/react";
 import { DiscordOwnershipModal } from "./discord-ownership-modal";
 import { updateNotificationPrefs } from "@/server/actions/profile-actions";
 import { PwaSettingsRow } from "@/components/pwa/PwaRegistration";
+import {
+    MARKET_NOTIFICATION_PREF_KEYS,
+    MARKET_NOTIFICATION_PREF_LABELS,
+    MARKET_NOTIFICATION_TYPES,
+    type MarketNotificationPrefKey,
+    type MarketNotificationPrefs,
+} from "@/lib/market/notifications";
 
 interface NotificationPrefs {
     missions: boolean;
@@ -55,6 +63,22 @@ interface NotificationPrefs {
     polls: boolean;
     admin_validations: boolean;
     ocre: boolean;
+    /** §11.9 — Marché : un booléen **par type** (`market.<clé>`), défaut activé. */
+    market?: MarketNotificationPrefs | null;
+}
+
+/**
+ * §11.9 — normalise `notificationPrefs.market` : les huit types sont toujours
+ * présents côté client, un `false` explicite étant le **seul** cas de coupure
+ * (même règle que le serveur, `isMarketNotificationEnabled`).
+ */
+function buildMarketPrefs(prefs?: NotificationPrefs | null): Required<MarketNotificationPrefs> {
+    const raw = prefs?.market ?? {};
+    return MARKET_NOTIFICATION_TYPES.reduce((acc, type) => {
+        const key = MARKET_NOTIFICATION_PREF_KEYS[type];
+        acc[key] = raw[key] !== false;
+        return acc;
+    }, {} as Required<MarketNotificationPrefs>);
 }
 
 interface UserSettingsProps {
@@ -98,13 +122,53 @@ export function UserSettings({
         ocre: notificationPrefs?.ocre ?? true,
     };
 
+    // §11.9 — Marché : un interrupteur par type, état local (UI optimiste).
+    const [marketPrefs, setMarketPrefs] = useState<Required<MarketNotificationPrefs>>(
+        () => buildMarketPrefs(notificationPrefs)
+    );
+
+    /**
+     * Bascule un interrupteur Marché.
+     *
+     * L'**objet complet** `market` est envoyé (et non la seule clé touchée) :
+     * le serveur fusionne déjà `market`, mais le parent (`profile-bento-grid`)
+     * remplace la clé en bloc — envoyer l'objet entier évite d'effacer les sept
+     * autres choix. Rollback local + parent en cas d'échec.
+     */
+    const handleMarketPrefChange = async (key: MarketNotificationPrefKey, checked: boolean) => {
+        const previous = marketPrefs;
+        const next = { ...marketPrefs, [key]: checked };
+
+        setMarketPrefs(next);
+        setLoading(true);
+        onNotificationPrefsSave?.({ market: next });
+
+        const res = await updateNotificationPrefs({
+            guildId,
+            prefs: { market: next },
+            targetUserId
+        });
+
+        if (res.success) {
+            toast.success("Préférences enregistrées");
+        } else {
+            toast.error(res.error || "Erreur");
+            setMarketPrefs(previous);
+            onNotificationPrefsSave?.({ market: previous });
+        }
+        setLoading(false);
+    };
+
     const handleUpdatePrefs = async (newPrefs: Partial<NotificationPrefs>) => { // Renamed and updated signature
         setLoading(true);
         onNotificationPrefsSave?.(newPrefs);
 
         const res = await updateNotificationPrefs({
             guildId,
-            prefs: newPrefs,
+            // §11.9 — la colonne Json du profil peut contenir `market: null` :
+            // le schéma Zod attend un objet, on normalise la clé absente plutôt
+            // que de faire échouer la sauvegarde de tous les autres réglages.
+            prefs: { ...newPrefs, market: newPrefs.market ?? undefined },
             targetUserId
         });
 
@@ -447,6 +511,49 @@ export function UserSettings({
                                     </TooltipContent>
                                 </Tooltip>
                             )}
+                        </div>
+
+                        {/* MARCHÉ (§11.9) — un interrupteur par type de notification */}
+                        <div className="mt-4 pt-4 border-t border-border space-y-3">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                    <Store className="w-4 h-4 text-primary" />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-caption font-semibold text-foreground">Marché</p>
+                                    <p className="text-caption text-muted-foreground truncate">
+                                        Annonces : offres, réservations, rappels
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {MARKET_NOTIFICATION_TYPES.map((type) => {
+                                    const key = MARKET_NOTIFICATION_PREF_KEYS[type];
+                                    const { label, hint } = MARKET_NOTIFICATION_PREF_LABELS[key];
+
+                                    return (
+                                        <Tooltip key={key}>
+                                            <TooltipTrigger asChild>
+                                                <div className="flex items-center justify-between p-2.5 border border-border rounded-2xl bg-surface group hover:border-primary/30 transition-all cursor-default">
+                                                    <div className="min-w-0 pr-2">
+                                                        <p className="text-caption font-semibold text-foreground truncate">{label}</p>
+                                                        <p className="text-caption text-muted-foreground truncate">{hint}</p>
+                                                    </div>
+                                                    <Switch
+                                                        checked={marketPrefs[key]}
+                                                        onCheckedChange={(checked) => handleMarketPrefChange(key, checked)}
+                                                        disabled={loading}
+                                                    />
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="bg-surface border-border text-foreground font-bold uppercase tracking-wider text-caption px-3 py-1.5 shadow-xl">
+                                                Notifications Marché
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    );
+                                })}
+                            </div>
                         </div>
                         </TooltipProvider>
                     </div>

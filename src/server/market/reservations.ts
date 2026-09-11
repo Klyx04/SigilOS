@@ -20,6 +20,7 @@ import { logger } from "@/lib/logger";
 import { MARKET_AUDIT_ACTIONS } from "@/server/actions/market-constants";
 import { writeMarketAuditLog } from "@/server/market/audit";
 import { syncListingMessage } from "@/server/market/discord";
+import { notifyMarketSellerActivity } from "@/server/market/notifications";
 
 /** Motif de refus — sert à choisir le message affiché (aucun détail interne exposé). */
 export type MarketReservationFailure =
@@ -72,7 +73,16 @@ export async function reserveMarketListingCore(params: {
         // Isolation : l'annonce est cherchée par `id` **et** par guilde interne.
         const listing = await db.marketListing.findFirst({
             where: { id: params.listingId, guildId: params.guildConfigId, deletedAt: null },
-            select: { id: true, profileId: true, status: true },
+            select: {
+                id: true,
+                profileId: true,
+                status: true,
+                // §11.9 — destinataire de l'alerte vendeur (propriétaire logique)
+                // et deep-link : jamais le snowflake en dur côté appelant.
+                userId: true,
+                title: true,
+                guild: { select: { discordGuildId: true } },
+            },
         });
         if (!listing) return fail("NOT_FOUND");
         if (listing.profileId === params.buyerProfileId) return fail("OWN_LISTING");
@@ -118,6 +128,26 @@ export async function reserveMarketListingCore(params: {
             previousData: { status: "ACTIVE" },
             nextData: { status: "RESERVED", reservationId: locked.id, expiresAt },
         });
+
+        // §11.9 / Q12 — le vendeur est la cible n°1 : notification dashboard
+        // (`MARKET_RESERVED`) **et** mention dans le fil de son annonce. Le
+        // `try` local garantit la promesse « jamais bloquant » : même une panne
+        // inattendue de l'alerte ne peut pas transformer une réservation
+        // **déjà commitée** en échec renvoyé à l'acheteur.
+        try {
+            await notifyMarketSellerActivity({
+                type: "MARKET_RESERVED",
+                ownerUserId: listing.userId,
+                ownerProfileId: listing.profileId,
+                actorProfileId: params.buyerProfileId,
+                listingId: listing.id,
+                discordGuildId: listing.guild.discordGuildId,
+                itemLabel: listing.title,
+                reservationHours: params.reservationHours,
+            });
+        } catch (err) {
+            logger.warn("[market] alerte vendeur différée", { listingId: listing.id, err: String(err) });
+        }
 
         // §11.2 — l'annonce passe en « Réservé » (embed réécrit, boutons
         // désactivés) : jamais bloquant pour la réponse à l'utilisateur.

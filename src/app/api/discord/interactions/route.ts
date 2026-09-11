@@ -1114,6 +1114,11 @@ export async function POST(request: NextRequest) {
                     discordGuildId: guild_id ?? null,
                     userId: account!.userId,
                 });
+                // Union discriminée : `modal` → réponse type 9 (S4.3), sinon
+                // message éphémère type 4 (jamais muet, §13.5).
+                if (outcome.kind === "modal") {
+                    return NextResponse.json({ type: 9, data: outcome.modal });
+                }
                 return NextResponse.json({
                     type: 4,
                     data: { content: outcome.content, flags: 64 },

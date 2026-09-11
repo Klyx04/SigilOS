@@ -1,5 +1,5 @@
 /**
- * Module « Marché » — service des interactions Discord (S4.1 → S4.2).
+ * Module « Marché » — service des interactions Discord (S4.1 → S4.3).
  *
  * ⚠️ **Serveur uniquement** (Prisma + server actions). Importé dynamiquement par
  * `src/app/api/discord/interactions/route.ts` pour la branche `mkt`.
@@ -10,12 +10,14 @@
  *      (DM, contexte non-Guild) ne peut pas être isolé par guilde ⇒ refus (§16.2) ;
  *   3. **module actif** : `isModuleEnabled(discordGuildId, "marche")`, qui inclut
  *      le verrou God et `DEFAULT_MODULES` ⇒ un serveur non configuré est refusé ;
- *   4. **action métier** : déléguée au **moteur partagé** avec le dashboard
+ *   4. **contexte membre** (guilde interne + profil SigilOS) résolu **serveur** ;
+ *   5. **action métier** : déléguée au **moteur partagé** avec le dashboard
  *      (`reserveMarketListingCore`) — aucune règle n'est dupliquée ici.
- *      `offer` / `contact` ne sont pas encore livrées (S4.3 → S4.5) : leur réponse
- *      renvoie la fiche SigilOS, aucune action n'est « avalée » (§13.5).
+ *      `contact` n'est pas encore livrée (S4.5).
  *
- * Aucune réponse ne contient un montant d'offre ni un pseudo d'acheteur (§13.7).
+ * Deux formes de réponse (§13.5) : `ephemeral` (message du seul membre, type 4)
+ * ou `modal` (modale d'offre, type 9 — S4.3). Aucune réponse ne contient un
+ * montant d'offre ni un pseudo d'acheteur (§13.7).
  */
 
 import { db } from "@/lib/prisma";
@@ -25,20 +27,35 @@ import { isModuleEnabled } from "@/server/actions/module-actions";
 import {
     MARKET_EPHEMERAL,
     buildMarketDashboardUrl,
+    buildMarketOfferModal,
     parseMarketCustomId,
+    type MarketModalPayload,
 } from "@/lib/market/discord-interactions";
 import { reserveMarketListingCore, type MarketReservationFailure } from "@/server/market/reservations";
 
-/** Résultat d'un clic : message éphémère à renvoyer au membre (jamais vide). */
-export type MarketInteractionOutcome = {
+/** Message éphémère renvoyé au membre (jamais vide, §13.5). */
+export type MarketEphemeralOutcome = {
+    kind: "ephemeral";
     /** `true` = l'action métier a abouti. */
     ok: boolean;
-    /** Contenu Discord affiché au membre (message éphémère, `flags: 64`). */
+    /** Contenu Discord affiché au membre (`flags: 64`). */
     content: string;
 };
 
-function ephemeral(content: string, ok = false): MarketInteractionOutcome {
-    return { ok, content };
+/**
+ * Résultat d'un clic : soit un message éphémère, soit la modale d'offre. La route
+ * ne fait que **traduire** cette union en JSON Discord (`type: 4` / `type: 9`).
+ */
+export type MarketInteractionOutcome =
+    | MarketEphemeralOutcome
+    | { kind: "modal"; modal: MarketModalPayload };
+
+function ephemeral(content: string, ok = false): MarketEphemeralOutcome {
+    return { kind: "ephemeral", ok, content };
+}
+
+function modal(modalPayload: MarketModalPayload): MarketInteractionOutcome {
+    return { kind: "modal", modal: modalPayload };
 }
 
 /** Message éphémère associé à chaque refus de réservation (§13.5 : jamais muet). */
@@ -52,24 +69,37 @@ const RESERVE_FAILURE_MESSAGES: Record<MarketReservationFailure, string> = {
 };
 
 /**
- * S4.2 — `mkt:reserve:<listingId>` : réserve l'annonce au prix demandé.
+ * Contexte **côté serveur uniquement** (§16.2) : la guilde interne vient du
+ * `guild_id` de l'interaction, le profil de la guilde vient de l'`User.id`
+ * SigilOS résolu par la route. Aucun identifiant n'est accepté du client.
  *
- * Résolution du contexte **côté serveur uniquement** : la guilde interne vient du
- * `guild_id` de l'interaction, le profil vient de l'`User.id` SigilOS résolu par
- * la route (§16.2). Aucun identifiant n'est accepté du client.
+ * Renvoie soit un refus éphémère prêt à afficher, soit le contexte résolu.
+ * Partagé par toutes les actions du marché : le handshake guilde/profil n'est
+ * écrit qu'une seule fois (§13.4).
  */
-async function handleReserve(
+type MarketMemberContext =
+    | {
+          ok: true;
+          guildConfigId: string;
+          profileId: string;
+          /** `GuildConfig.marketReservationHours` (réservation §11.2). */
+          reservationHours: number;
+          /** `GuildConfig.marketNegotiationsEnabled` (négociations §13.5). */
+          negotiationsEnabled: boolean;
+      }
+    | { ok: false; outcome: MarketEphemeralOutcome };
+
+async function resolveMemberContext(
     discordGuildId: string,
-    listingId: string,
     userId: string
-): Promise<MarketInteractionOutcome> {
+): Promise<MarketMemberContext> {
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId },
-        select: { id: true, marketReservationHours: true },
+        select: { id: true, marketReservationHours: true, marketNegotiationsEnabled: true },
     });
     if (!guildConfig) {
-        logger.warn("[market] réservation refusée — guilde non configurée", { discordGuildId });
-        return ephemeral(MARKET_EPHEMERAL.LISTING_NOT_FOUND);
+        logger.warn("[market] interaction refusée — guilde non configurée", { discordGuildId });
+        return { ok: false, outcome: ephemeral(MARKET_EPHEMERAL.LISTING_NOT_FOUND) };
     }
 
     const profile = await db.userProfile.findUnique({
@@ -77,19 +107,39 @@ async function handleReserve(
         select: { id: true, status: true },
     });
     if (!profile || profile.status !== "ACTIVE") {
-        logger.info("[market] réservation refusée — profil SigilOS absent ou inactif", {
+        logger.info("[market] interaction refusée — profil SigilOS absent ou inactif", {
             discordGuildId,
             userId,
         });
-        return ephemeral(MARKET_EPHEMERAL.PROFILE_REQUIRED);
+        return { ok: false, outcome: ephemeral(MARKET_EPHEMERAL.PROFILE_REQUIRED) };
     }
 
-    const outcome = await reserveMarketListingCore({
+    return {
+        ok: true,
         guildConfigId: guildConfig.id,
-        listingId,
-        buyerProfileId: profile.id,
-        buyerUserId: userId,
+        profileId: profile.id,
         reservationHours: guildConfig.marketReservationHours,
+        negotiationsEnabled: guildConfig.marketNegotiationsEnabled,
+    };
+}
+
+/**
+ * S4.2 — `mkt:reserve:<listingId>` : réserve l'annonce au prix demandé.
+ */
+async function handleReserve(
+    discordGuildId: string,
+    listingId: string,
+    userId: string
+): Promise<MarketInteractionOutcome> {
+    const member = await resolveMemberContext(discordGuildId, userId);
+    if (!member.ok) return member.outcome;
+
+    const outcome = await reserveMarketListingCore({
+        guildConfigId: member.guildConfigId,
+        listingId,
+        buyerProfileId: member.profileId,
+        buyerUserId: userId,
+        reservationHours: member.reservationHours,
     });
 
     if (!outcome.ok) {
@@ -107,6 +157,38 @@ async function handleReserve(
         reservationId: outcome.reservationId,
     });
     return ephemeral(MARKET_EPHEMERAL.RESERVE_SUCCESS, true);
+}
+
+/**
+ * S4.3 — `mkt:offer:<listingId>` : ouvre la **modale d'offre** (type 9).
+ *
+ * Les pré-requis du bouton (§13.5 : annonce `ACTIVE`, négociations activées,
+ * demandeur ≠ vendeur) sont vérifiés **avant** d'ouvrir la modale : un message
+ * non resynchronisé ne doit pas laisser saisir une offre vouée à l'échec. La
+ * **création** de l'offre à la soumission vit en S4.4 (même moteur que le
+ * dashboard).
+ */
+async function handleOffer(
+    discordGuildId: string,
+    listingId: string,
+    userId: string
+): Promise<MarketInteractionOutcome> {
+    const member = await resolveMemberContext(discordGuildId, userId);
+    if (!member.ok) return member.outcome;
+
+    const listing = await db.marketListing.findFirst({
+        where: { id: listingId, guildId: member.guildConfigId, deletedAt: null },
+        select: { id: true, profileId: true, status: true, negotiable: true },
+    });
+    if (!listing) return ephemeral(MARKET_EPHEMERAL.LISTING_NOT_FOUND);
+    if (listing.profileId === member.profileId) return ephemeral(MARKET_EPHEMERAL.OFFER_OWN_LISTING);
+    if (listing.status !== "ACTIVE") return ephemeral(MARKET_EPHEMERAL.OFFER_NOT_AVAILABLE);
+    if (!member.negotiationsEnabled || !listing.negotiable) {
+        return ephemeral(MARKET_EPHEMERAL.OFFER_DISABLED);
+    }
+
+    logger.info("[market] modale d'offre ouverte", { discordGuildId, listingId, userId });
+    return modal(buildMarketOfferModal(listingId));
 }
 
 /**
@@ -147,10 +229,16 @@ export async function handleMarketComponentInteraction(params: {
         return ephemeral(MARKET_EPHEMERAL.MODULE_DISABLED);
     }
 
-    // S4.2 — première action livrée : elle délègue au moteur partagé avec le
-    // dashboard (verrou §11.3, refus de sa propre annonce, embed réécrit).
+    // S4.2 — réservation : délègue au moteur partagé avec le dashboard (verrou
+    // §11.3, refus de sa propre annonce, embed réécrit).
     if (parsed.action === "reserve") {
         return handleReserve(params.discordGuildId, parsed.listingId, params.userId);
+    }
+
+    // S4.3 — offre : ouvre la modale (type 9). La création de l'offre à la
+    // soumission vit en S4.4 (même moteur que le dashboard).
+    if (parsed.action === "offer") {
+        return handleOffer(params.discordGuildId, parsed.listingId, params.userId);
     }
 
     const dashboardUrl = buildMarketDashboardUrl(getAppBaseUrl(), params.discordGuildId, parsed.listingId);
@@ -162,7 +250,7 @@ export async function handleMarketComponentInteraction(params: {
         userId: params.userId,
     });
 
-    // S4.3 (offer → modale) et S4.5 (contact) : chaque action déléguera au même
-    // moteur métier ; en attendant la fiche SigilOS prend le relais (§13.5).
+    // S4.5 (`contact`) : déléguera au même moteur métier ; en attendant la fiche
+    // SigilOS prend le relais, aucune action n'est « avalée » (§13.5).
     return ephemeral(`${MARKET_EPHEMERAL.ACTION_PENDING}\n${dashboardUrl}`);
 }

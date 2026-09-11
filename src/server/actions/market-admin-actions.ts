@@ -5,7 +5,12 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { Prisma, type MarketReportReason, type MarketReportStatus } from "@prisma/client";
+import {
+    Prisma,
+    type MarketListingType,
+    type MarketReportReason,
+    type MarketReportStatus,
+} from "@prisma/client";
 import { getUserContext, type ActionResponse } from "./user-actions";
 import { fetchChannel, validateChannelBelongsToGuild } from "@/server/discord";
 import { writeMarketAuditLog } from "@/server/market/audit";
@@ -17,6 +22,7 @@ import {
     MARKET_CHANNEL_KINDS,
     MARKET_SETTINGS_BOUNDS,
     MARKET_SETTINGS_DEFAULTS,
+    marketAuditActionLabel,
 } from "./market-constants";
 
 // ---------------------------------------------------------------------------
@@ -908,6 +914,245 @@ export async function resolveMarketReport(
         return { success: true, data: { status: parsedStatus.data } };
     } catch (error) {
         logger.error("[resolveMarketReport] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S5.8 — Panneau modérateur : annonces retirées + historique d'audit (§21)
+// ---------------------------------------------------------------------------
+
+/** Annonces retirées affichées par le panneau (§4.2 — borne de lecture). */
+const MARKET_WITHDRAWN_PAGE_SIZE = 50;
+
+/** Lignes d'audit renvoyées par annonce (§4.2 — borne de lecture). */
+const MARKET_AUDIT_TRAIL_PAGE_SIZE = 100;
+
+/**
+ * Fenêtre de lecture des traces de retrait, pour reconstituer l'**origine**
+ * d'un retrait (`LISTING_TAKEN_DOWN` vs `LISTING_WITHDRAWN`). Bornée : au-delà,
+ * l'origine reste `UNKNOWN` — jamais une requête non bornée (§4.2).
+ */
+const MARKET_WITHDRAWN_TRACE_WINDOW = 200;
+
+/** Origine d'un retrait, **reconstituée depuis le journal** (jamais devinée). */
+export type MarketWithdrawnSource = "MODERATION" | "SELLER" | "UNKNOWN";
+
+/** Ligne « annonce retirée » du panneau modérateur (S5.8). */
+export type MarketWithdrawnListingRecord = {
+    id: string;
+    title: string;
+    type: MarketListingType;
+    priceKamas: number | null;
+    /** Motif du dernier retrait (modération **ou** vendeur) — `null` si aucun. */
+    moderationNote: string | null;
+    withdrawnAt: string | null;
+    updatedAt: string;
+    expiresAt: string | null;
+    /** `true` : l'échéance est dépassée, la restauration est refusée (§11.7.3). */
+    restoreBlocked: boolean;
+    withdrawnSource: MarketWithdrawnSource;
+    /** Pseudo joint **côté modération uniquement** (écran privé, §13.7). */
+    sellerLabel: string | null;
+    /** Signalements encore ouverts sur cette annonce (contexte du retrait). */
+    openReports: number;
+};
+
+/** Pseudo affichable d'un profil (`pseudoDofus`, repli `discordNickname`). */
+function profileLabel(profile: {
+    pseudoDofus: string | null;
+    discordNickname: string | null;
+}): string | null {
+    return profile.pseudoDofus?.trim() || profile.discordNickname?.trim() || null;
+}
+
+/**
+ * S5.8 — liste les annonces **retirées** de la guilde : `WITHDRAWN` avec ou
+ * **sans** signalement, y compris celles retirées par le vendeur.
+ *
+ * `deletedAt: null` : une annonce supprimée (soft-delete) n'est pas
+ * restaurable — elle n'a donc rien à faire dans le panneau de modération (le
+ * `WHERE` de `restoreMarketListing` dit exactement la même chose).
+ *
+ * L'**origine** du retrait est relue du journal d'audit, pas déduite de
+ * `moderationNote` (ce champ est écrit par les deux chemins) : la modération
+ * doit voir d'un coup d'œil si le retrait vient d'elle.
+ */
+export async function listWithdrawnMarketListings(
+    guildId: string
+): Promise<ActionResponse<MarketWithdrawnListingRecord[]>> {
+    try {
+        const guard = await requireMarketModerator(guildId);
+        if ("error" in guard) return { success: false, error: guard.error };
+
+        const guildConfigId = await requireGuildConfigId(guildId);
+        if (!guildConfigId) return { success: false, error: "Guilde introuvable" };
+
+        const listings = await db.marketListing.findMany({
+            // Isolation par identifiant interne de guilde, jamais le snowflake (§16.2).
+            where: { guildId: guildConfigId, status: "WITHDRAWN", deletedAt: null },
+            select: {
+                id: true,
+                title: true,
+                type: true,
+                priceKamas: true,
+                moderationNote: true,
+                withdrawnAt: true,
+                updatedAt: true,
+                expiresAt: true,
+                profileId: true,
+                reports: { where: { status: "OPEN" }, select: { id: true } },
+            },
+            // `updatedAt` est retouché à chaque transition : tri stable même si
+            // `withdrawnAt` est absent (annonces retirées avant S2.x).
+            orderBy: [{ updatedAt: "desc" }],
+            take: MARKET_WITHDRAWN_PAGE_SIZE,
+        });
+
+        if (listings.length === 0) return { success: true, data: [] };
+
+        const listingIds = listings.map((listing) => listing.id);
+
+        // Origine du retrait : la trace la plus récente, par annonce.
+        const traces = await db.marketAuditLog.findMany({
+            where: {
+                guildId: guildConfigId,
+                listingId: { in: listingIds },
+                action: {
+                    in: [
+                        MARKET_AUDIT_ACTIONS.LISTING_TAKEN_DOWN,
+                        MARKET_AUDIT_ACTIONS.LISTING_WITHDRAWN,
+                        MARKET_AUDIT_ACTIONS.LISTING_DELETED,
+                    ],
+                },
+            },
+            orderBy: { createdAt: "desc" },
+            select: { listingId: true, action: true },
+            take: MARKET_WITHDRAWN_TRACE_WINDOW,
+        });
+        const sourceByListing = new Map<string, MarketWithdrawnSource>();
+        for (const trace of traces) {
+            if (!trace.listingId || sourceByListing.has(trace.listingId)) continue;
+            sourceByListing.set(
+                trace.listingId,
+                trace.action === MARKET_AUDIT_ACTIONS.LISTING_TAKEN_DOWN ? "MODERATION" : "SELLER"
+            );
+        }
+
+        const profileIds = Array.from(new Set(listings.map((listing) => listing.profileId)));
+        const sellers = profileIds.length
+            ? await db.userProfile.findMany({
+                  where: { id: { in: profileIds } },
+                  select: { id: true, pseudoDofus: true, discordNickname: true },
+              })
+            : [];
+        const labelById = new Map(sellers.map((seller) => [seller.id, profileLabel(seller)]));
+
+        const now = Date.now();
+        return {
+            success: true,
+            data: listings.map((listing) => ({
+                id: listing.id,
+                title: listing.title,
+                type: listing.type,
+                priceKamas: listing.priceKamas,
+                moderationNote: listing.moderationNote,
+                withdrawnAt: listing.withdrawnAt ? listing.withdrawnAt.toISOString() : null,
+                updatedAt: listing.updatedAt.toISOString(),
+                expiresAt: listing.expiresAt ? listing.expiresAt.toISOString() : null,
+                // Même règle que `restoreMarketListing` : l'échéance ferme la
+                // restauration (miroir UI d'un refus serveur, §11.7.3).
+                restoreBlocked: Boolean(listing.expiresAt && listing.expiresAt.getTime() <= now),
+                withdrawnSource: sourceByListing.get(listing.id) ?? "UNKNOWN",
+                sellerLabel: labelById.get(listing.profileId) ?? null,
+                openReports: listing.reports.length,
+            })),
+        };
+    } catch (error) {
+        logger.error("[listWithdrawnMarketListings] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+/** Ligne d'historique d'audit d'une annonce (S5.8). */
+export type MarketListingAuditRecord = {
+    id: string;
+    /** Action brute journalisée (`MARKET_AUDIT_ACTIONS`). */
+    action: string;
+    /** Libellé FR prêt à afficher — jamais l'action brute à l'écran. */
+    actionLabel: string;
+    /** Auteur résolu ; `null` = action **système** (cron, webhook). */
+    actorLabel: string | null;
+    reason: string | null;
+    previousData: Prisma.JsonValue | null;
+    nextData: Prisma.JsonValue | null;
+    createdAt: string;
+};
+
+/**
+ * S5.8 — historique d'audit **d'une annonce** (§21), du plus récent au plus
+ * ancien. Lecture réservée aux modérateurs de la guilde (fail-closed).
+ *
+ * Isolation (§16.2) : l'annonce est d'abord retrouvée **dans la guilde du
+ * contexte** (`findGuildListingId`), puis les lignes sont filtrées sur le
+ * `guildId` **interne** (`guildConfig.id`) — jamais un identifiant fourni par
+ * le client.
+ */
+export async function listMarketListingAuditTrail(
+    guildId: string,
+    listingId: string
+): Promise<ActionResponse<MarketListingAuditRecord[]>> {
+    try {
+        const guard = await requireMarketModerator(guildId);
+        if ("error" in guard) return { success: false, error: guard.error };
+
+        const parsed = z.string().min(1).max(64).safeParse(listingId);
+        if (!parsed.success) return { success: false, error: "Annonce introuvable" };
+
+        const guildConfigId = await requireGuildConfigId(guildId);
+        if (!guildConfigId) return { success: false, error: "Guilde introuvable" };
+
+        const listingIdInGuild = await findGuildListingId(guildId, parsed.data);
+        if (!listingIdInGuild) return { success: false, error: "Annonce introuvable" };
+
+        const logs = await db.marketAuditLog.findMany({
+            where: { guildId: guildConfigId, listingId: listingIdInGuild },
+            orderBy: { createdAt: "desc" },
+            take: MARKET_AUDIT_TRAIL_PAGE_SIZE,
+        });
+
+        const actorIds = Array.from(
+            new Set(
+                logs
+                    .map((log) => log.actorUserId)
+                    .filter((actorId): actorId is string => Boolean(actorId))
+            )
+        );
+        const actors = actorIds.length
+            ? await db.userProfile.findMany({
+                  where: { userId: { in: actorIds }, guildId: guildConfigId },
+                  select: { userId: true, pseudoDofus: true, discordNickname: true },
+              })
+            : [];
+        const labelByUser = new Map(actors.map((actor) => [actor.userId, profileLabel(actor)]));
+
+        return {
+            success: true,
+            data: logs.map((log) => ({
+                id: log.id,
+                action: log.action,
+                actionLabel: marketAuditActionLabel(log.action),
+                actorLabel: log.actorUserId
+                    ? labelByUser.get(log.actorUserId) ?? "Membre non résolu"
+                    : null,
+                reason: log.reason,
+                previousData: log.previousData ?? null,
+                nextData: log.nextData ?? null,
+                createdAt: log.createdAt.toISOString(),
+            })),
+        };
+    } catch (error) {
+        logger.error("[listMarketListingAuditTrail] failed", { err: error });
         return { success: false, error: "Erreur interne" };
     }
 }

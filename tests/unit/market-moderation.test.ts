@@ -6,7 +6,10 @@
  *      statut **dans le `WHERE`** (§11.3), journal `LISTING_TAKEN_DOWN` /
  *      `LISTING_RESTORED`, embed réécrit sans jamais bloquer ;
  *   3. dossiers : lecture isolée par la guilde du contexte, classement unique
- *      d'un dossier `OPEN` (`REPORT_REVIEWED`).
+ *      d'un dossier `OPEN` (`REPORT_REVIEWED`) ;
+ *   4. S5.8 : annonces **retirées** (origine relue du journal, échéance,
+ *      signalements ouverts, pseudo vendeur) et **historique d'audit** par
+ *      annonce relu à la demande, toujours borné et isolé par guilde.
  *
  * Les server actions sont testées **de bout en bout** (contexte serveur +
  * Prisma simulés) : ce que voit le panneau et ce qui est écrit en base.
@@ -29,9 +32,9 @@ vi.mock("@/server/market/discord", () => ({
 const { mockDb } = vi.hoisted(() => ({
     mockDb: {
         guildConfig: { findUnique: vi.fn() },
-        marketListing: { findFirst: vi.fn(), updateMany: vi.fn() },
+        marketListing: { findFirst: vi.fn(), findMany: vi.fn(), updateMany: vi.fn() },
         marketReport: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
-        marketAuditLog: { create: vi.fn() },
+        marketAuditLog: { create: vi.fn(), findMany: vi.fn() },
         userProfile: { findMany: vi.fn() },
     },
 }));
@@ -43,7 +46,9 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { syncListingMessage } from "@/server/market/discord";
 import { reportMarketListing } from "@/server/actions/market-actions";
 import {
+    listMarketListingAuditTrail,
     listMarketReports,
+    listWithdrawnMarketListings,
     resolveMarketReport,
     restoreMarketListing,
     takeDownMarketListing,
@@ -99,7 +104,9 @@ beforeEach(() => {
     mockDb.marketReport.findMany.mockResolvedValue([]);
     mockDb.marketReport.updateMany.mockResolvedValue({ count: 1 });
     mockDb.marketListing.updateMany.mockResolvedValue({ count: 1 });
+    mockDb.marketListing.findMany.mockResolvedValue([]);
     mockDb.marketAuditLog.create.mockResolvedValue({});
+    mockDb.marketAuditLog.findMany.mockResolvedValue([]);
     mockDb.userProfile.findMany.mockResolvedValue([]);
 });
 
@@ -375,5 +382,194 @@ describe("marché — dossiers de signalement (S4.11)", () => {
 
         expect(res.success).toBe(false);
         expect(mockDb.marketAuditLog.create).not.toHaveBeenCalled();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// S5.8 — annonces retirées (modérateur)
+// ---------------------------------------------------------------------------
+
+describe("marché — annonces retirées (S5.8)", () => {
+    const rawWithdrawn = {
+        id: LISTING_ID,
+        title: "Dofus Turquoise",
+        type: "EQUIPMENT" as const,
+        priceKamas: 45_000_000,
+        moderationNote: "Annonce trompeuse",
+        withdrawnAt: new Date("2026-09-09T10:00:00.000Z"),
+        updatedAt: new Date("2026-09-09T10:00:00.000Z"),
+        expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+        profileId: SELLER_PROFILE_ID,
+        reports: [{ id: REPORT_ID }],
+    };
+
+    it("liste les annonces WITHDRAWN de la guilde : origine, vendeur et signalements ouverts", async () => {
+        mockGetUserContext.mockResolvedValue(moderatorContext());
+        mockDb.marketListing.findMany.mockResolvedValue([rawWithdrawn]);
+        mockDb.marketAuditLog.findMany.mockResolvedValue([
+            { listingId: LISTING_ID, action: "LISTING_TAKEN_DOWN" },
+        ]);
+        mockDb.userProfile.findMany.mockResolvedValue([
+            { id: SELLER_PROFILE_ID, pseudoDofus: null, discordNickname: "Vendeur#1234" },
+        ]);
+
+        const res = await listWithdrawnMarketListings(GUILD_ID);
+
+        expect(res.success).toBe(true);
+        expect(res.data?.[0]).toEqual({
+            id: LISTING_ID,
+            title: "Dofus Turquoise",
+            type: "EQUIPMENT",
+            priceKamas: 45_000_000,
+            moderationNote: "Annonce trompeuse",
+            withdrawnAt: "2026-09-09T10:00:00.000Z",
+            updatedAt: "2026-09-09T10:00:00.000Z",
+            expiresAt: rawWithdrawn.expiresAt.toISOString(),
+            restoreBlocked: false,
+            withdrawnSource: "MODERATION",
+            sellerLabel: "Vendeur#1234",
+            openReports: 1,
+        });
+        // Isolation §16.2 : identifiant interne de guilde, statut, soft-delete.
+        expect(mockDb.marketListing.findMany.mock.calls[0][0]).toMatchObject({
+            where: { guildId: GUILD_CONFIG_ID, status: "WITHDRAWN", deletedAt: null },
+            take: 50,
+        });
+        // L'origine est relue du journal, bornée et filtrée sur les retraits.
+        expect(mockDb.marketAuditLog.findMany.mock.calls[0][0]).toMatchObject({
+            where: {
+                guildId: GUILD_CONFIG_ID,
+                listingId: { in: [LISTING_ID] },
+                action: { in: ["LISTING_TAKEN_DOWN", "LISTING_WITHDRAWN", "LISTING_DELETED"] },
+            },
+            take: 200,
+        });
+    });
+
+    it("distingue un retrait vendeur d'un retrait de modération", async () => {
+        mockGetUserContext.mockResolvedValue(moderatorContext());
+        mockDb.marketListing.findMany.mockResolvedValue([rawWithdrawn]);
+        mockDb.marketAuditLog.findMany.mockResolvedValue([
+            { listingId: LISTING_ID, action: "LISTING_WITHDRAWN" },
+        ]);
+
+        const res = await listWithdrawnMarketListings(GUILD_ID);
+
+        expect(res.data?.[0]?.withdrawnSource).toBe("SELLER");
+    });
+
+    it("bloque la restauration affichée quand l'échéance est dépassée", async () => {
+        mockGetUserContext.mockResolvedValue(moderatorContext());
+        mockDb.marketListing.findMany.mockResolvedValue([
+            { ...rawWithdrawn, expiresAt: new Date(Date.now() - 1000) },
+        ]);
+        mockDb.marketAuditLog.findMany.mockResolvedValue([]);
+
+        const res = await listWithdrawnMarketListings(GUILD_ID);
+
+        expect(res.data?.[0]?.restoreBlocked).toBe(true);
+        // Aucune trace exploitable : l'origine n'est jamais devinée. Le vendeur
+        // n'est pas résolu non plus (aucun profil joint).
+        expect(res.data?.[0]?.withdrawnSource).toBe("UNKNOWN");
+        expect(res.data?.[0]?.sellerLabel).toBeNull();
+    });
+
+    it("liste vide : aucune requête annexe (journal, profils)", async () => {
+        mockGetUserContext.mockResolvedValue(moderatorContext());
+        mockDb.marketListing.findMany.mockResolvedValue([]);
+
+        const res = await listWithdrawnMarketListings(GUILD_ID);
+
+        expect(res).toEqual({ success: true, data: [] });
+        expect(mockDb.marketAuditLog.findMany).not.toHaveBeenCalled();
+        expect(mockDb.userProfile.findMany).not.toHaveBeenCalled();
+    });
+
+    it("refuse la lecture à un membre non modérateur", async () => {
+        const res = await listWithdrawnMarketListings(GUILD_ID);
+
+        expect(res.success).toBe(false);
+        expect(mockDb.marketListing.findMany).not.toHaveBeenCalled();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// S5.8 — historique d'audit par annonce (§21)
+// ---------------------------------------------------------------------------
+
+describe("marché — historique d'audit d'une annonce (S5.8)", () => {
+    const rawLog = {
+        id: "audit-1",
+        action: "LISTING_TAKEN_DOWN",
+        actorUserId: BUYER_USER_ID,
+        reason: "Annonce trompeuse",
+        previousData: { status: "ACTIVE" },
+        nextData: { status: "WITHDRAWN" },
+        createdAt: new Date("2026-09-09T10:00:00.000Z"),
+    };
+
+    it("renvoie l'historique de la guilde, libellés FR et auteur résolu", async () => {
+        mockGetUserContext.mockResolvedValue(moderatorContext());
+        mockDb.marketListing.findFirst.mockResolvedValue({ id: LISTING_ID });
+        mockDb.marketAuditLog.findMany.mockResolvedValue([rawLog]);
+        mockDb.userProfile.findMany.mockResolvedValue([
+            { userId: BUYER_USER_ID, pseudoDofus: "Aaz", discordNickname: null },
+        ]);
+
+        const res = await listMarketListingAuditTrail(GUILD_ID, LISTING_ID);
+
+        expect(res.success).toBe(true);
+        expect(res.data?.[0]).toEqual({
+            id: "audit-1",
+            action: "LISTING_TAKEN_DOWN",
+            actionLabel: "Annonce retirée pour modération",
+            actorLabel: "Aaz",
+            reason: "Annonce trompeuse",
+            previousData: { status: "ACTIVE" },
+            nextData: { status: "WITHDRAWN" },
+            createdAt: "2026-09-09T10:00:00.000Z",
+        });
+        // Isolation §16.2 : l'annonce est d'abord retrouvée dans la guilde du
+        // contexte, puis la lecture est bornée et triée du plus récent au plus ancien.
+        expect(mockDb.marketListing.findFirst.mock.calls[0][0].where).toMatchObject({
+            id: LISTING_ID,
+            guild: { discordGuildId: GUILD_ID },
+        });
+        expect(mockDb.marketAuditLog.findMany.mock.calls[0][0]).toMatchObject({
+            where: { guildId: GUILD_CONFIG_ID, listingId: LISTING_ID },
+            orderBy: { createdAt: "desc" },
+            take: 100,
+        });
+    });
+
+    it("action système (sans acteur) : aucun profil joint, auteur null", async () => {
+        mockGetUserContext.mockResolvedValue(moderatorContext());
+        mockDb.marketListing.findFirst.mockResolvedValue({ id: LISTING_ID });
+        mockDb.marketAuditLog.findMany.mockResolvedValue([
+            { ...rawLog, action: "LISTING_EXPIRED", actorUserId: null },
+        ]);
+
+        const res = await listMarketListingAuditTrail(GUILD_ID, LISTING_ID);
+
+        expect(res.data?.[0]?.actorLabel).toBeNull();
+        expect(res.data?.[0]?.actionLabel).toBe("Annonce expirée");
+        expect(mockDb.userProfile.findMany).not.toHaveBeenCalled();
+    });
+
+    it("refuse l'historique d'une annonce hors guilde (isolation §16.2)", async () => {
+        mockGetUserContext.mockResolvedValue(moderatorContext());
+        mockDb.marketListing.findFirst.mockResolvedValue(null);
+
+        const res = await listMarketListingAuditTrail(GUILD_ID, LISTING_ID);
+
+        expect(res.success).toBe(false);
+        expect(mockDb.marketAuditLog.findMany).not.toHaveBeenCalled();
+    });
+
+    it("refuse l'historique à un membre non modérateur", async () => {
+        const res = await listMarketListingAuditTrail(GUILD_ID, LISTING_ID);
+
+        expect(res.success).toBe(false);
+        expect(mockDb.marketListing.findFirst).not.toHaveBeenCalled();
     });
 });

@@ -28,6 +28,13 @@ export type DofusItemEffectLike = {
     characteristic?: number | null;
     from?: number | null;
     to?: number | null;
+    /**
+     * Forme **BRUTE** DofusDB (`/items`) — c'est elle qui est stockée telle
+     * quelle dans `GameItem.effects` quand la ligne n'a jamais été re-siphonnée.
+     * Tolérée ici pour que les données périmées restent exploitables (S2.12).
+     */
+    diceNum?: number | null;
+    diceSide?: number | null;
     int_name?: string | null;
     category?: number | null;
     elementId?: number | null;
@@ -203,6 +210,9 @@ export const STAT_ICON_SPECS: Record<string, { icon: StatIconName; color: string
  * stockée sur `GameItem` : ce sont les **plages natives** (source serveur) que
  * l'éditeur de jet pré-remplit et que la carte d'item affiche.
  * Renvoie `null` si l'item n'a aucun effet natif.
+ * ⚠️ S2.12 — tolère la forme **BRUTE** DofusDB (`diceNum`/`diceSide`) : les
+ * lignes siphonnées avant l'existence de `nativeEffects` restent exploitables
+ * (filet de sécurité, le backfill les répare définitivement côté God).
  */
 export function toNativeEffects(
     raw: { effects?: DofusItemEffectLike[] | null } | null | undefined
@@ -212,14 +222,34 @@ export function toNativeEffects(
         .map((fx) => ({
             effectId: Number(fx.effectId ?? fx.int_id ?? 0),
             characteristic: fx.characteristic != null ? Number(fx.characteristic) : null,
-            from: Number(fx.from ?? 0),
-            to: Number(fx.to ?? 0),
+            from: Number(fx.from ?? fx.diceNum ?? 0),
+            to: Number(fx.to ?? fx.diceSide ?? 0),
             category: fx.category != null ? Number(fx.category) : null,
             elementId: fx.elementId != null ? Number(fx.elementId) : null,
         }))
         .filter((fx) => Number.isFinite(fx.effectId) && fx.effectId > 0);
 
     return mapped.length > 0 ? mapped : null;
+}
+
+/**
+ * 🛡️ S2.12 — Plages natives **exploitables** d'un item, avec filet de sécurité.
+ *
+ * La colonne `GameItem.nativeEffects` (S2.2) est vide sur les fiches siphonnées
+ * **avant** son ajout : on dérive alors les plages depuis `effects` (forme brute
+ * DofusDB tolérée — `diceNum`/`diceSide`). Les lecteurs catalogue (recherche,
+ * fiche item, recalcul serveur des annonces) ne peuvent donc **jamais** afficher
+ * « aucun effet natif » sur un objet qui en possède.
+ *
+ * ⚠️ Aucune écriture : la réparation définitive est `backfillNativeEffects()`
+ * (panneau God) et le prochain siphon DofusDB.
+ */
+export function resolveNativeEffects(
+    item: { nativeEffects?: unknown; effects?: unknown } | null | undefined
+): MarketNativeEffect[] | null {
+    const stored = item?.nativeEffects as MarketNativeEffect[] | null;
+    if (Array.isArray(stored) && stored.length > 0) return stored;
+    return toNativeEffects({ effects: (item?.effects ?? null) as DofusItemEffectLike[] | null });
 }
 
 /**

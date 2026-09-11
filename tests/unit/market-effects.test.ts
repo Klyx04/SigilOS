@@ -4,6 +4,7 @@ import {
     BOOK_STAT_NAMES,
     STAT_ICON_SPECS,
     toNativeEffects,
+    resolveNativeEffects,
     getStatLabel,
     resolveStatIconSpec,
     isPercentStat,
@@ -56,6 +57,47 @@ describe("effects — parsing des effets natifs", () => {
     it("toNativeEffects renvoie null pour une entrée vide", () => {
         expect(toNativeEffects(null)).toBeNull();
         expect(toNativeEffects({ effects: [] })).toBeNull();
+    });
+
+    /**
+     * S2.12 — filet de sécurité : les effets stockés AVANT l'ajout de la colonne
+     * `nativeEffects` sont en forme BRUTE DofusDB (`diceNum`/`diceSide`). Sans
+     * cette tolérance, l'éditeur FM afficherait « aucun effet natif ».
+     * Valeurs réelles de l'Anneau du Cycloïde (cf. diagnostic B2).
+     */
+    it("toNativeEffects tolère la forme BRUTE DofusDB (diceNum/diceSide)", () => {
+        const result = toNativeEffects({
+            effects: [
+                { effectId: 125, characteristic: 11, diceNum: 251, diceSide: 300 },
+                { effectId: 96, characteristic: 16, diceNum: 31, diceSide: 40 },
+                { effectId: 174, characteristic: 48, diceNum: 6, diceSide: 8 },
+            ],
+        });
+        expect(result).toHaveLength(3);
+        expect(result?.[0]).toMatchObject({ effectId: 125, from: 251, to: 300 });
+        expect(result?.[1]).toMatchObject({ effectId: 96, from: 31, to: 40 });
+        expect(result?.[2]).toMatchObject({ characteristic: 48, from: 6, to: 8 });
+    });
+
+    /**
+     * S2.12 — filet centralisé utilisé par les lecteurs catalogue : la colonne
+     * `nativeEffects` est prioritaire, sinon on dérive de `effects` bruts.
+     */
+    it("resolveNativeEffects privilégie la colonne, sinon dérive de `effects`", () => {
+        const stored: MarketNativeEffect[] = [
+            { effectId: 10, characteristic: 11, from: 1, to: 2, category: null, elementId: null },
+        ];
+        expect(resolveNativeEffects({ nativeEffects: stored, effects: null })).toEqual(stored);
+
+        const derived = resolveNativeEffects({
+            nativeEffects: null,
+            effects: [{ effectId: 125, characteristic: 11, diceNum: 251, diceSide: 300 }],
+        });
+        expect(derived?.[0]).toMatchObject({ effectId: 125, from: 251, to: 300 });
+
+        // Colonne vide ET effets illisibles → null (l'appelant retombe sur « libre »).
+        expect(resolveNativeEffects({ nativeEffects: [], effects: [] })).toBeNull();
+        expect(resolveNativeEffects(null)).toBeNull();
     });
 });
 

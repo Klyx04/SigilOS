@@ -9,7 +9,7 @@ import { Prisma } from "@prisma/client";
 import { getUserContext, type ActionResponse } from "./user-actions";
 import { KAMAS_MAX } from "@/lib/market/kamas";
 import { computeStatQuality, computeStatsHash } from "@/lib/market/stat-quality";
-import { findNativeRange, type MarketNativeEffect } from "@/lib/market/effects";
+import { findNativeRange, toNativeEffects, type DofusItemEffectLike, type MarketNativeEffect } from "@/lib/market/effects";
 import { loadMarketReferential } from "@/lib/market/referential";
 import { publishListingToDiscord, syncListingMessage } from "@/server/market/discord";
 import {
@@ -203,12 +203,19 @@ async function resolveServerStats(
         dofusDbItemId
             ? db.gameItem.findUnique({
                   where: { ankamaId: dofusDbItemId },
-                  select: { nativeEffects: true },
+                  select: { nativeEffects: true, effects: true },
               })
             : Promise.resolve(null),
         loadMarketReferential(),
     ]);
-    const natives = (item?.nativeEffects as MarketNativeEffect[] | null) ?? null;
+    // 🛡️ Filet de sécurité (S2.12) : `nativeEffects` est vide sur les lignes
+    // siphonnées AVANT l'ajout de la colonne (données périmées). On dérive alors
+    // les plages depuis `effects` (forme brute DofusDB tolérée, `diceNum`/
+    // `diceSide`). Lecture seule : la réparation définitive (backfill) se fait
+    // depuis le panneau God, et le prochain siphon complète les données.
+    const natives =
+        (item?.nativeEffects as MarketNativeEffect[] | null) ??
+        toNativeEffects({ effects: item?.effects as DofusItemEffectLike[] | null });
 
     const rows = stats.map((stat) => {
         const range = findNativeRange(natives, {

@@ -247,12 +247,27 @@ export async function backfillNativeEffects(limit = 500): Promise<
             { nativeEffects: { equals: Prisma.DbNull } },
             { nativeEffects: { equals: Prisma.JsonNull } },
         ],
+        // ⚠️ Correctif S4.0e — ne balayer que les fiches ayant **réellement** des
+        // effets. Sans ce filtre, `take` renvoyait d'abord des milliers de lignes
+        // sans effet (ressources, runes, pains… stockées `effects = []`) : le lot
+        // ressortait « 0 réparée » et la boucle du panneau God **s'arrêtait à la
+        // 1ʳᵉ passe** (mesuré : **0 / 1000** réparable alors que **10 661** fiches
+        // le sont). Le compteur `remaining` renvoie désormais le **reste à
+        // rattraper**, pas les fiches définitivement sans effet.
+        //
+        // ⚠️ Forme `NOT: { effects: { equals: [] } }` OBLIGATOIRE : la forme
+        // `effects: { not: { equals: [] } }` est **silencieusement ignorée** par
+        // Prisma (vérifié : 19 952 lignes renvoyées au lieu de 10 661).
+        NOT: { effects: { equals: [] } },
     };
 
     try {
         const pending = await db.gameItem.findMany({
             where: pendingWhere,
             select: { id: true, ankamaId: true, effects: true, nativeEffects: true },
+            // Tri **déterministe** (sans lui, l'ordre physique décide du lot et
+            // rendait la progression imprévisible d'une passe à l'autre).
+            orderBy: { ankamaId: "asc" },
             take: safeLimit,
         });
 

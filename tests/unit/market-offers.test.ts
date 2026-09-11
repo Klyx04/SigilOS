@@ -22,6 +22,11 @@ vi.mock("@/server/market/discord", () => ({
     syncListingMessage: vi.fn().mockResolvedValue({ ok: true }),
 }));
 
+/** S4.8 — alerte vendeur : effet de bord, couvert par `market-notifications`. */
+vi.mock("@/server/market/notifications", () => ({
+    notifyMarketSellerActivity: vi.fn().mockResolvedValue(undefined),
+}));
+
 /** Transaction simulée : le callback reçoit ce `tx` (jamais un vrai Prisma). */
 const tx = {
     marketOffer: { create: vi.fn() },
@@ -38,14 +43,18 @@ vi.mock("@/lib/prisma", () => ({
 
 import { db } from "@/lib/prisma";
 import { syncListingMessage } from "@/server/market/discord";
+import { notifyMarketSellerActivity } from "@/server/market/notifications";
 import { createMarketOfferCore } from "@/server/market/offers";
 import { KAMAS_MAX } from "@/lib/market/kamas";
 
 const GUILD_CONFIG_ID = "guild-internal-1";
+const GUILD_DISCORD_ID = "123456789012345678";
 const LISTING_ID = "cm5marketlisting0001";
 const BUYER_PROFILE_ID = "profile-buyer";
 const BUYER_USER_ID = "user-buyer";
 const SELLER_PROFILE_ID = "profile-seller";
+const SELLER_USER_ID = "user-seller";
+const ITEM_LABEL = "Dofus Turquoise";
 
 /** Paramètres par défaut : un acheteur légitime, 45 M de kamas, sur une annonce ACTIVE. */
 function baseParams(overrides: Record<string, unknown> = {}) {
@@ -68,9 +77,12 @@ beforeEach(() => {
     vi.clearAllMocks();
     (db.marketListing.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
         id: LISTING_ID,
+        userId: SELLER_USER_ID,
+        title: ITEM_LABEL,
         profileId: SELLER_PROFILE_ID,
         status: "ACTIVE",
         negotiable: true,
+        guild: { discordGuildId: GUILD_DISCORD_ID },
     });
     (db.marketAuditLog.create as ReturnType<typeof vi.fn>).mockResolvedValue({});
     (db.$transaction as ReturnType<typeof vi.fn>).mockImplementation(
@@ -284,5 +296,44 @@ describe("market offre — journal & synchronisation (effets non bloquants)", ()
         const res = await createMarketOfferCore(baseParams());
 
         expect(res).toMatchObject({ ok: false, reason: "ERROR" });
+    });
+
+    it("alerte le vendeur (S4.8) : dépôt d'offre dans son fil + notification dashboard", async () => {
+        await createMarketOfferCore(baseParams());
+
+        expect(notifyMarketSellerActivity).toHaveBeenCalledWith({
+            type: "MARKET_OFFER_RECEIVED",
+            ownerUserId: SELLER_USER_ID,
+            ownerProfileId: SELLER_PROFILE_ID,
+            actorProfileId: BUYER_PROFILE_ID,
+            listingId: LISTING_ID,
+            discordGuildId: GUILD_DISCORD_ID,
+            itemLabel: ITEM_LABEL,
+        });
+    });
+
+    it("ne fait pas échouer l'offre si l'alerte vendeur tombe (§0.1 : jamais bloquant)", async () => {
+        (notifyMarketSellerActivity as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("boom"));
+
+        const res = await createMarketOfferCore(baseParams());
+
+        expect(res.ok).toBe(true);
+    });
+
+    it("n'alerte pas sur un refus : aucune offre commitée, donc rien à annoncer", async () => {
+        (db.marketListing.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+            id: LISTING_ID,
+            userId: SELLER_USER_ID,
+            title: ITEM_LABEL,
+            profileId: SELLER_PROFILE_ID,
+            status: "RESERVED",
+            negotiable: true,
+            guild: { discordGuildId: GUILD_DISCORD_ID },
+        });
+
+        const res = await createMarketOfferCore(baseParams());
+
+        expect(res).toMatchObject({ ok: false, reason: "NOT_AVAILABLE" });
+        expect(notifyMarketSellerActivity).not.toHaveBeenCalled();
     });
 });

@@ -21,6 +21,7 @@
  */
 
 import { KAMAS_MAX, parseKamas } from "@/lib/market/kamas";
+import { sanitizeMarketText } from "@/lib/market/text";
 
 /** Préfixe de toutes les interactions du marché (cf. `DISCORD_PERM_MAP.mkt`). */
 export const MARKET_INTERACTION_PREFIX = "mkt";
@@ -246,20 +247,6 @@ export type MarketOfferDraft = {
 };
 
 /**
- * Retire les liens d'un texte libre (§16.4 — anti-phishing / anti-slop) et
- * compacte les espaces. Miroir de `sanitizeMarketText()` du dashboard : ce
- * fichier étant **pur**, il ne peut pas importer un module `"use server"`.
- */
-function sanitizeMarketOfferText(value: string): string | null {
-    const cleaned = value
-        .replace(/https?:\/\/\S+/gi, "[lien retiré]")
-        .replace(/\bdiscord\.gg\/\S+/gi, "[invitation retirée]")
-        .replace(/\s{3,}/g, "  ")
-        .trim();
-    return cleaned.length > 0 ? cleaned : null;
-}
-
-/**
  * Extrait les 3 champs d'une soumission de modale, **sans** les interpréter.
  *
  * Un champ absent (ligne manquante, `custom_id` inconnu) vaut chaîne vide : la
@@ -311,8 +298,8 @@ export function normalizeMarketOfferDraft(
     return {
         // §11.4 : une offre de 0 kama n'existe pas — le montant est alors absent.
         offeredKamas: kamasInvalid || parsedKamas === null || parsedKamas <= 0 ? null : parsedKamas,
-        tradeDescription: sanitizeMarketOfferText(tradeRaw),
-        note: sanitizeMarketOfferText(noteRaw),
+        tradeDescription: sanitizeMarketText(tradeRaw),
+        note: sanitizeMarketText(noteRaw),
         invalid: kamasInvalid || tooLong,
     };
 }

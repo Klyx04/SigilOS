@@ -30,6 +30,7 @@ import {
     Plus,
     Search,
     Settings,
+    ShieldAlert,
     Store,
     Table2,
 } from "lucide-react";
@@ -157,10 +158,13 @@ export function MarketCatalogClient({
                         </Link>
                     </Button>
                 )}
-                {!isAdmin && canManage && (
-                    <Badge variant="outline" className="sm:ml-auto text-info border-info/30 bg-info/10 text-[10px] font-black uppercase tracking-wider">
-                        Modérateur du marché
-                    </Badge>
+                {canManage && (
+                    <Button asChild variant="outline" className="gap-2">
+                        <Link href={`/dashboard/${guildId}/marche/moderation`}>
+                            <ShieldAlert className="w-4 h-4" />
+                            Modération
+                        </Link>
+                    </Button>
                 )}
             </div>
 

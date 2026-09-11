@@ -5,8 +5,11 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { Prisma, type MarketReportReason, type MarketReportStatus } from "@prisma/client";
 import { getUserContext, type ActionResponse } from "./user-actions";
 import { fetchChannel, validateChannelBelongsToGuild } from "@/server/discord";
+import { writeMarketAuditLog } from "@/server/market/audit";
+import { sanitizeMarketText } from "@/lib/market/text";
 import {
     MARKET_AUDIT_ACTIONS,
     MARKET_CHANNEL_KINDS,
@@ -474,6 +477,315 @@ export async function regenerateMarketImage(
         return { success: true, data: { messageId: result.messageId } };
     } catch (error) {
         logger.error("[regenerateMarketImage] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+
+// ---------------------------------------------------------------------------
+// S4.11 — Modération des annonces & signalements (`market:moderate`, §6.9)
+// ---------------------------------------------------------------------------
+
+/** Ligne du panneau de signalements — tout ce que le modérateur doit voir. */
+export type MarketReportRecord = {
+    id: string;
+    listingId: string;
+    listingTitle: string;
+    listingStatus: string;
+    reason: MarketReportReason;
+    details: string | null;
+    /** État de l'annonce **au moment du signalement** (§6.9). */
+    snapshot: Prisma.JsonValue | null;
+    status: MarketReportStatus;
+    resolution: string | null;
+    /** Pseudo du membre qui a signalé (`UserProfile` — écran privé). */
+    reporterLabel: string | null;
+    createdAt: string;
+    reviewedAt: string | null;
+};
+
+/** La guilde du contexte doit exister : sans elle, rien n'est isolé (§16.2). */
+async function requireGuildConfigId(guildId: string): Promise<string | null> {
+    const config = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { id: true },
+    });
+    return config?.id ?? null;
+}
+
+/**
+ * S4.11 — retire une annonce de la vue publique (modération).
+ *
+ * `WITHDRAWN` + `moderationNote` : le vendeur garde son annonce (il peut la
+ * corriger), le public ne la voit plus. La **garde de statut est dans le
+ * `WHERE`** (§11.3) : deux modérateurs simultanés, ou une annonce vendue
+ * entre-temps, ne produisent jamais un retrait incohérent.
+ */
+export async function takeDownMarketListing(
+    guildId: string,
+    listingId: string,
+    note?: string | null
+): Promise<ActionResponse<{ status: "WITHDRAWN" }>> {
+    try {
+        const guard = await requireMarketModerator(guildId);
+        if ("error" in guard) return { success: false, error: guard.error };
+
+        const parsed = z.string().min(1).max(64).safeParse(listingId);
+        if (!parsed.success) return { success: false, error: "Annonce introuvable" };
+
+        const guildConfigId = await requireGuildConfigId(guildId);
+        if (!guildConfigId) return { success: false, error: "Guilde introuvable" };
+
+        const moderationNote = sanitizeMarketText(note);
+        const now = new Date();
+        const updated = await db.marketListing.updateMany({
+            where: {
+                id: parsed.data,
+                guildId: guildConfigId,
+                deletedAt: null,
+                status: { in: ["DRAFT", "ACTIVE", "RESERVED"] },
+            },
+            data: { status: "WITHDRAWN", moderationNote, lastActivityAt: now },
+        });
+        // `count === 0` : annonce absente, déjà vendue/expirée ou déjà retirée.
+        if (updated.count === 0) {
+            return { success: false, error: "Cette annonce ne peut pas être retirée (statut incompatible)." };
+        }
+
+        await writeMarketAuditLog({
+            guildId: guildConfigId,
+            listingId: parsed.data,
+            actorUserId: guard.user.id ?? null,
+            action: MARKET_AUDIT_ACTIONS.LISTING_TAKEN_DOWN,
+            reason: moderationNote,
+            nextData: { status: "WITHDRAWN", moderationNote },
+        });
+
+        // §13.6 — l'embed public dit « retirée » ; jamais bloquant pour le modo.
+        const { syncListingMessage } = await import("@/server/market/discord");
+        void syncListingMessage(parsed.data).catch((err) =>
+            logger.warn("[market] synchronisation Discord différée", {
+                listingId: parsed.data,
+                err: String(err),
+            })
+        );
+
+        revalidatePath(`/dashboard/${guildId}/marche/${parsed.data}`);
+        revalidatePath(`/dashboard/${guildId}/marche`);
+        return { success: true, data: { status: "WITHDRAWN" } };
+    } catch (error) {
+        logger.error("[takeDownMarketListing] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+/**
+ * S4.11 — restaure une annonce retirée (`WITHDRAWN → ACTIVE`).
+ *
+ * Une annonce dont la durée de vie est dépassée n'est **pas** ressuscitée : le
+ * cron l'expirerait aussitôt et le vendeur n'aurait qu'un faux espoir — on lui
+ * dit de la renouveler (§11.7).
+ */
+export async function restoreMarketListing(
+    guildId: string,
+    listingId: string
+): Promise<ActionResponse<{ status: "ACTIVE" }>> {
+    try {
+        const guard = await requireMarketModerator(guildId);
+        if ("error" in guard) return { success: false, error: guard.error };
+
+        const parsed = z.string().min(1).max(64).safeParse(listingId);
+        if (!parsed.success) return { success: false, error: "Annonce introuvable" };
+
+        const guildConfigId = await requireGuildConfigId(guildId);
+        if (!guildConfigId) return { success: false, error: "Guilde introuvable" };
+
+        const listing = await db.marketListing.findFirst({
+            where: { id: parsed.data, guildId: guildConfigId, deletedAt: null },
+            select: { id: true, status: true, expiresAt: true },
+        });
+        if (!listing) return { success: false, error: "Annonce introuvable" };
+        if (listing.status !== "WITHDRAWN") {
+            return { success: false, error: "Seule une annonce retirée peut être restaurée." };
+        }
+        const now = new Date();
+        if (listing.expiresAt && listing.expiresAt.getTime() <= now.getTime()) {
+            return { success: false, error: "Annonce expirée : le vendeur doit la renouveler." };
+        }
+
+        const updated = await db.marketListing.updateMany({
+            where: { id: listing.id, status: "WITHDRAWN" }, // garde de statut (§11.3)
+            data: { status: "ACTIVE", moderationNote: null, lastActivityAt: now },
+        });
+        if (updated.count === 0) {
+            return { success: false, error: "Cette annonce vient d'être modifiée, réessaie." };
+        }
+
+        await writeMarketAuditLog({
+            guildId: guildConfigId,
+            listingId: listing.id,
+            actorUserId: guard.user.id ?? null,
+            action: MARKET_AUDIT_ACTIONS.LISTING_RESTORED,
+            previousData: { status: "WITHDRAWN" },
+            nextData: { status: "ACTIVE" },
+        });
+
+        const { syncListingMessage } = await import("@/server/market/discord");
+        void syncListingMessage(listing.id).catch((err) =>
+            logger.warn("[market] synchronisation Discord différée", { listingId: listing.id, err: String(err) })
+        );
+
+        revalidatePath(`/dashboard/${guildId}/marche/${listing.id}`);
+        revalidatePath(`/dashboard/${guildId}/marche`);
+        return { success: true, data: { status: "ACTIVE" } };
+    } catch (error) {
+        logger.error("[restoreMarketListing] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+/** Nombre de dossiers affichés par le panneau (S4.11, base). */
+const MARKET_REPORT_PAGE_SIZE = 50;
+
+/** Filtre du panneau : un statut précis, ou tout l'historique. */
+export type MarketReportFilter = MarketReportStatus | "ALL";
+
+/**
+ * S4.11 — liste les dossiers de signalement de la guilde (§6.9).
+ *
+ * Lecture **stricte** de la guilde du contexte (isolation par la relation
+ * `listing.guildId` : `MarketReport` ne porte pas de `guildId` propre) et
+ * pseudos joints à part — la modération voit **qui** signale, jamais le public.
+ */
+export async function listMarketReports(
+    guildId: string,
+    filter: MarketReportFilter = "OPEN"
+): Promise<ActionResponse<MarketReportRecord[]>> {
+    try {
+        const guard = await requireMarketModerator(guildId);
+        if ("error" in guard) return { success: false, error: guard.error };
+
+        const guildConfigId = await requireGuildConfigId(guildId);
+        if (!guildConfigId) return { success: false, error: "Guilde introuvable" };
+
+        const parsedFilter = z.enum(["OPEN", "REVIEWED", "CLOSED", "ALL"]).safeParse(filter);
+        if (!parsedFilter.success) return { success: false, error: "Filtre invalide" };
+
+        const reports = await db.marketReport.findMany({
+            where: {
+                listing: { guildId: guildConfigId },
+                ...(parsedFilter.data === "ALL" ? {} : { status: parsedFilter.data }),
+            },
+            select: {
+                id: true,
+                reason: true,
+                details: true,
+                snapshot: true,
+                status: true,
+                resolution: true,
+                createdAt: true,
+                reviewedAt: true,
+                reporterProfileId: true,
+                listing: { select: { id: true, title: true, status: true } },
+            },
+            orderBy: [{ createdAt: "desc" }],
+            take: MARKET_REPORT_PAGE_SIZE,
+        });
+
+        const reporterIds = Array.from(new Set(reports.map((report) => report.reporterProfileId)));
+        const reporters = reporterIds.length
+            ? await db.userProfile.findMany({
+                  where: { id: { in: reporterIds } },
+                  select: { id: true, pseudoDofus: true, discordNickname: true },
+              })
+            : [];
+        const labelById = new Map(
+            reporters.map((profile) => [
+                profile.id,
+                profile.pseudoDofus?.trim() || profile.discordNickname?.trim() || null,
+            ])
+        );
+
+        return {
+            success: true,
+            data: reports.map((report) => ({
+                id: report.id,
+                listingId: report.listing.id,
+                listingTitle: report.listing.title,
+                listingStatus: report.listing.status,
+                reason: report.reason,
+                details: report.details,
+                snapshot: report.snapshot,
+                status: report.status,
+                resolution: report.resolution,
+                reporterLabel: labelById.get(report.reporterProfileId) ?? null,
+                createdAt: report.createdAt.toISOString(),
+                reviewedAt: report.reviewedAt ? report.reviewedAt.toISOString() : null,
+            })),
+        };
+    } catch (error) {
+        logger.error("[listMarketReports] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+/**
+ * S4.11 — classe un dossier : `REVIEWED` (pris en charge) ou `CLOSED` (réglé),
+ * avec la note de résolution du modérateur.
+ *
+ * Un dossier `OPEN` ne se traite qu'**une fois** : la garde de statut est dans
+ * le `WHERE` (§11.3) et tout est journalisé (`REPORT_REVIEWED`).
+ */
+export async function resolveMarketReport(
+    guildId: string,
+    reportId: string,
+    status: "REVIEWED" | "CLOSED",
+    resolution?: string | null
+): Promise<ActionResponse<{ status: "REVIEWED" | "CLOSED" }>> {
+    try {
+        const guard = await requireMarketModerator(guildId);
+        if ("error" in guard) return { success: false, error: guard.error };
+
+        const parsed = z.string().min(1).max(64).safeParse(reportId);
+        if (!parsed.success) return { success: false, error: "Dossier introuvable" };
+        const parsedStatus = z.enum(["REVIEWED", "CLOSED"]).safeParse(status);
+        if (!parsedStatus.success) return { success: false, error: "Statut invalide" };
+
+        const guildConfigId = await requireGuildConfigId(guildId);
+        if (!guildConfigId) return { success: false, error: "Guilde introuvable" };
+
+        const report = await db.marketReport.findFirst({
+            where: { id: parsed.data, listing: { guildId: guildConfigId } },
+            select: { id: true, status: true, listingId: true },
+        });
+        if (!report) return { success: false, error: "Dossier introuvable" };
+        if (report.status !== "OPEN") return { success: false, error: "Ce dossier est déjà traité." };
+
+        const note = sanitizeMarketText(resolution);
+        const updated = await db.marketReport.updateMany({
+            where: { id: report.id, status: "OPEN" }, // garde de statut (§11.3)
+            data: {
+                status: parsedStatus.data,
+                reviewedByUserId: guard.user.id ?? null,
+                reviewedAt: new Date(),
+                resolution: note,
+            },
+        });
+        if (updated.count === 0) return { success: false, error: "Ce dossier vient d'être traité." };
+
+        await writeMarketAuditLog({
+            guildId: guildConfigId,
+            listingId: report.listingId,
+            actorUserId: guard.user.id ?? null,
+            action: MARKET_AUDIT_ACTIONS.REPORT_REVIEWED,
+            previousData: { status: "OPEN" },
+            nextData: { status: parsedStatus.data, reportId: report.id, resolution: note },
+        });
+
+        revalidatePath(`/dashboard/${guildId}/marche/moderation`);
+        return { success: true, data: { status: parsedStatus.data } };
+    } catch (error) {
+        logger.error("[resolveMarketReport] failed", { err: error });
         return { success: false, error: "Erreur interne" };
     }
 }

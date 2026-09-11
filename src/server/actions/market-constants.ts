@@ -10,7 +10,13 @@
  * du design system (`text-success`, `text-warning`, `text-info`, `text-danger`).
  */
 
-import type { MarketListingStatus, MarketListingType, MarketOfferStatus } from "@prisma/client";
+import type {
+    MarketListingStatus,
+    MarketListingType,
+    MarketOfferStatus,
+    MarketReportReason,
+    MarketReportStatus,
+} from "@prisma/client";
 import type { FmStatus } from "@/lib/market/fm-effects";
 
 // ---------------------------------------------------------------------------
@@ -109,6 +115,40 @@ export const MARKET_OFFER_STATUS_CLASSES: Record<MarketOfferStatus, string> = {
     DECLINED: "text-danger border-danger/30 bg-danger/10",
     CANCELLED: "text-muted-foreground border-border bg-muted/20",
     EXPIRED: "text-muted-foreground border-border bg-muted/20",
+};
+
+/**
+ * Motifs de signalement d'une annonce (§6.9) — ordre d'affichage du formulaire,
+ * repris tel quel par la validation Zod (une seule liste, jamais deux).
+ */
+export const MARKET_REPORT_REASONS = [
+    "JET_MISMATCH",
+    "SELLER_UNREACHABLE",
+    "BUYER_ABSENT",
+    "SUSPICIOUS",
+    "FORBIDDEN",
+    "OTHER",
+] as const;
+
+export const MARKET_REPORT_REASON_LABELS: Record<MarketReportReason, string> = {
+    JET_MISMATCH: "Le jet ne correspond pas à l'annonce",
+    SELLER_UNREACHABLE: "Vendeur injoignable",
+    BUYER_ABSENT: "Acheteur absent au rendez-vous",
+    SUSPICIOUS: "Annonce suspecte",
+    FORBIDDEN: "Objet ou service interdit",
+    OTHER: "Autre motif",
+};
+
+export const MARKET_REPORT_STATUS_LABELS: Record<MarketReportStatus, string> = {
+    OPEN: "À traiter",
+    REVIEWED: "En cours",
+    CLOSED: "Clôturé",
+};
+
+export const MARKET_REPORT_STATUS_CLASSES: Record<MarketReportStatus, string> = {
+    OPEN: "text-warning border-warning/30 bg-warning/10",
+    REVIEWED: "text-info border-info/30 bg-info/10",
+    CLOSED: "text-muted-foreground border-border bg-muted/20",
 };
 
 export const MARKET_QUALITY_LABELS = {

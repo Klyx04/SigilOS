@@ -10,7 +10,13 @@
  * du design system (`text-success`, `text-warning`, `text-info`, `text-danger`).
  */
 
-import type { MarketListingStatus, MarketListingType } from "@prisma/client";
+import type {
+    MarketListingStatus,
+    MarketListingType,
+    MarketOfferStatus,
+    MarketReportReason,
+    MarketReportStatus,
+} from "@prisma/client";
 import type { FmStatus } from "@/lib/market/fm-effects";
 
 // ---------------------------------------------------------------------------
@@ -51,6 +57,7 @@ export const MARKET_SETTINGS_BOUNDS = {
     marketMaxActivePerMember: { min: 1, max: 20 },
     marketDefaultDurationDays: { min: 1, max: 30 },
     marketMaxLifetimeDays: { min: 5, max: 60 },
+    marketReminderDays: { min: 1, max: 59 },
     marketReservationHours: { min: 1, max: 72 },
     marketOfferHours: { min: 6, max: 168 },
     marketMediaRetentionDays: { min: 7, max: 180 },
@@ -88,6 +95,61 @@ export const MARKET_STATUS_CLASSES: Record<MarketListingStatus, string> = {
     SOLD: "text-info border-info/30 bg-info/10",
     EXPIRED: "text-muted-foreground border-border bg-muted/20",
     WITHDRAWN: "text-danger border-danger/30 bg-danger/10",
+};
+
+/**
+ * États d'une offre (§11.4) — écran **privé** (mes espaces) : « refusée » est
+ * toujours **motivé côté serveur**, jamais deviné ici (§0.1).
+ */
+export const MARKET_OFFER_STATUS_LABELS: Record<MarketOfferStatus, string> = {
+    PENDING: "En attente",
+    ACCEPTED: "Acceptée",
+    DECLINED: "Refusée",
+    CANCELLED: "Retirée",
+    EXPIRED: "Expirée",
+};
+
+/** Classe Tailwind (token du design system) associée à un état d'offre. */
+export const MARKET_OFFER_STATUS_CLASSES: Record<MarketOfferStatus, string> = {
+    PENDING: "text-warning border-warning/30 bg-warning/10",
+    ACCEPTED: "text-success border-success/30 bg-success/10",
+    DECLINED: "text-danger border-danger/30 bg-danger/10",
+    CANCELLED: "text-muted-foreground border-border bg-muted/20",
+    EXPIRED: "text-muted-foreground border-border bg-muted/20",
+};
+
+/**
+ * Motifs de signalement d'une annonce (§6.9) — ordre d'affichage du formulaire,
+ * repris tel quel par la validation Zod (une seule liste, jamais deux).
+ */
+export const MARKET_REPORT_REASONS = [
+    "JET_MISMATCH",
+    "SELLER_UNREACHABLE",
+    "BUYER_ABSENT",
+    "SUSPICIOUS",
+    "FORBIDDEN",
+    "OTHER",
+] as const;
+
+export const MARKET_REPORT_REASON_LABELS: Record<MarketReportReason, string> = {
+    JET_MISMATCH: "Le jet ne correspond pas à l'annonce",
+    SELLER_UNREACHABLE: "Vendeur injoignable",
+    BUYER_ABSENT: "Acheteur absent au rendez-vous",
+    SUSPICIOUS: "Annonce suspecte",
+    FORBIDDEN: "Objet ou service interdit",
+    OTHER: "Autre motif",
+};
+
+export const MARKET_REPORT_STATUS_LABELS: Record<MarketReportStatus, string> = {
+    OPEN: "À traiter",
+    REVIEWED: "En cours",
+    CLOSED: "Clôturé",
+};
+
+export const MARKET_REPORT_STATUS_CLASSES: Record<MarketReportStatus, string> = {
+    OPEN: "text-warning border-warning/30 bg-warning/10",
+    REVIEWED: "text-info border-info/30 bg-info/10",
+    CLOSED: "text-muted-foreground border-border bg-muted/20",
 };
 
 export const MARKET_QUALITY_LABELS = {
@@ -159,12 +221,30 @@ export const MARKET_AUDIT_ACTIONS = {
     LISTING_EXPIRED: "LISTING_EXPIRED",
     LISTING_SOLD: "LISTING_SOLD",
     LISTING_DELETED: "LISTING_DELETED",
+    /**
+     * S5.1 — archivage automatique : l'annonce a atteint son échéance J+20 sans
+     * aucune activité. Distinct de `LISTING_DELETED` (retrait humain vendeur/modo)
+     * pour que le journal permette de séparer les deux causes (§11.10).
+     */
+    LISTING_AUTO_DELETED: "LISTING_AUTO_DELETED",
+    /**
+     * S5.2 — palier de rappel franchi (J+7 puis J+15, §11.6). Le numéro du
+     * palier vit dans `previousData`/`nextData` : une seule action d'audit pour
+     * les deux rappels, jamais de doublon (`reminderStage` les rend uniques).
+     */
+    LISTING_REMINDER_SENT: "LISTING_REMINDER_SENT",
     LISTING_TAKEN_DOWN: "LISTING_TAKEN_DOWN",
     LISTING_RESTORED: "LISTING_RESTORED",
     RESERVATION_CREATED: "RESERVATION_CREATED",
     RESERVATION_CANCELLED_BUYER: "RESERVATION_CANCELLED_BUYER",
     RESERVATION_CANCELLED_SELLER: "RESERVATION_CANCELLED_SELLER",
     RESERVATION_EXPIRED: "RESERVATION_EXPIRED",
+    /**
+     * S5.2 — rappel « H-1 » : la réservation expire dans moins d'une heure
+     * (§11.6). La trace porte le `reservationId` dans `nextData` et sert de
+     * **marqueur d'idempotence** : une passe rejouée ne rappelle pas deux fois.
+     */
+    RESERVATION_REMINDER_SENT: "RESERVATION_REMINDER_SENT",
     OFFER_CREATED: "OFFER_CREATED",
     OFFER_ACCEPTED: "OFFER_ACCEPTED",
     OFFER_DECLINED: "OFFER_DECLINED",
@@ -182,6 +262,66 @@ export const MARKET_AUDIT_ACTIONS = {
 
 export type MarketAuditAction =
     (typeof MARKET_AUDIT_ACTIONS)[keyof typeof MARKET_AUDIT_ACTIONS];
+
+/**
+ * S5.8 — libellés FR des actions journalisées, pour l'historique d'audit par
+ * annonce (panneau modérateur) et le journal du God Panel (§18.2).
+ *
+ * Typé `Record<MarketAuditAction, string>` : ajouter une action à
+ * `MARKET_AUDIT_ACTIONS` **sans** son libellé casse la compilation (jamais un
+ * journal muet).
+ */
+export const MARKET_AUDIT_ACTION_LABELS: Record<MarketAuditAction, string> = {
+    LISTING_CREATED: "Annonce créée",
+    LISTING_UPDATED: "Annonce modifiée",
+    LISTING_PUBLISHED: "Annonce publiée",
+    LISTING_RENEWED: "Annonce renouvelée par le vendeur",
+    LISTING_WITHDRAWN: "Annonce retirée par le vendeur",
+    LISTING_EXPIRED: "Annonce expirée",
+    LISTING_SOLD: "Vente confirmée",
+    LISTING_DELETED: "Annonce supprimée par le vendeur",
+    LISTING_AUTO_DELETED: "Archivage automatique (échéance atteinte)",
+    LISTING_REMINDER_SENT: "Rappel envoyé au vendeur",
+    LISTING_TAKEN_DOWN: "Annonce retirée pour modération",
+    LISTING_RESTORED: "Annonce restaurée",
+    RESERVATION_CREATED: "Réservation créée",
+    RESERVATION_CANCELLED_BUYER: "Réservation annulée par l'acheteur",
+    RESERVATION_CANCELLED_SELLER: "Réservation annulée par le vendeur",
+    RESERVATION_EXPIRED: "Réservation expirée",
+    RESERVATION_REMINDER_SENT: "Rappel de réservation envoyé",
+    OFFER_CREATED: "Offre reçue",
+    OFFER_ACCEPTED: "Offre acceptée",
+    OFFER_DECLINED: "Offre refusée",
+    OFFER_CANCELLED: "Offre annulée",
+    OFFER_COUNTERED: "Contre-offre envoyée",
+    OFFER_EXPIRED: "Offre expirée",
+    LISTING_REPORTED: "Annonce signalée",
+    REPORT_REVIEWED: "Dossier de signalement traité",
+    DISCORD_SYNC_FAILED: "Échec de synchronisation Discord",
+    DISCORD_SYNC_RESTORED: "Synchronisation Discord rétablie",
+    IMAGE_REGENERATED: "Carte de l'annonce régénérée",
+    MEDIA_PURGED: "Médias purgés",
+    CONFIG_UPDATED: "Configuration du Marché modifiée",
+};
+
+/**
+ * Libellé FR d'une action journalisée. Repli **lisible** pour une action
+ * inconnue : une version future du module ne casse jamais l'affichage du
+ * journal (jamais de `undefined` à l'écran).
+ */
+export function marketAuditActionLabel(action: string): string {
+    const known = MARKET_AUDIT_ACTION_LABELS[action as MarketAuditAction];
+    if (known) return known;
+    const fallback = action.replace(/_/g, " ").trim().toLowerCase();
+    return fallback ? `Action non répertoriée (${fallback})` : "Action inconnue";
+}
+
+/** S5.8 — origine d'un retrait, reconstituée depuis le journal d'audit. */
+export const MARKET_WITHDRAWN_SOURCE_LABELS = {
+    MODERATION: "Retirée par la modération",
+    SELLER: "Retirée par le vendeur",
+    UNKNOWN: "Retrait (origine inconnue)",
+} as const;
 
 /** Motifs de suppression (soft-delete traçable). */
 export const MARKET_DELETE_REASONS = {

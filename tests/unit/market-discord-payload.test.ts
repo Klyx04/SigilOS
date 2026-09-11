@@ -6,6 +6,12 @@ import {
     MARKET_DISCORD_COLORS,
     type MarketDiscordPayloadInput,
 } from "@/lib/market/discord-payload";
+import {
+    MARKET_DASHBOARD_LINK_LABEL,
+    MARKET_EPHEMERAL_LINK_LABEL,
+    buildMarketDashboardLinkButton,
+    buildMarketDashboardLinkRow,
+} from "@/lib/market/discord-interactions";
 
 /**
  * Module « Marché » — payload Discord par état (S3.1 / S3.10).
@@ -59,6 +65,13 @@ describe("buildMarketDiscordPayload", () => {
         expect(buttons.find((b) => b.custom_id?.startsWith("mkt:contact"))?.disabled).toBe(true);
     });
 
+    it("annonce NON négociable — bouton Offre désactivé, Réservation intacte (§13.5)", () => {
+        const payload = buildMarketDiscordPayload({ ...base, negotiable: false });
+        const buttons = buttonsOf(payload);
+        expect(buttons.find((b) => b.custom_id === `mkt:offer:${base.listingId}`)?.disabled).toBe(true);
+        expect(buttons.find((b) => b.custom_id === `mkt:reserve:${base.listingId}`)?.disabled).toBe(false);
+    });
+
     it("n'expose JAMAIS un montant d'offre ni un pseudo d'acheteur (compteur seulement)", () => {
         const payload = buildMarketDiscordPayload({ ...base, status: "RESERVED", offersCount: 3 });
         const serialized = JSON.stringify(payload);
@@ -89,6 +102,51 @@ describe("buildMarketDiscordPayload", () => {
         });
         expect(payload.embedThumbnail).toBe("https://sigilos.fr/api/assets-dofus/items/1");
         expect(payload.embedImage).toBeUndefined();
+    });
+
+    it("S4.6 — 4ᵉ bouton = lien « Voir sur SigilOS », dans TOUS les états (jamais retiré)", () => {
+        const expectedLink = buildMarketDashboardLinkButton(base.dashboardUrl);
+        expect(expectedLink.style).toBe(5);
+
+        for (const status of ["DRAFT", "ACTIVE", "RESERVED", "SOLD", "EXPIRED", "WITHDRAWN"] as const) {
+            const payload = buildMarketDiscordPayload({ ...base, status });
+            const buttons = buttonsOf(payload);
+
+            expect(buttons).toHaveLength(4);
+            // Même forme que les réponses éphémères de S4.5 (une seule définition).
+            expect(buttons[3]).toEqual(expectedLink);
+            expect(buttons[3]).not.toHaveProperty("custom_id"); // un lien n'en accepte pas
+            // Une seule ActionRow, jamais désactivée (un lien reste toujours cliquable).
+            expect(payload.components[0]).toMatchObject({ type: 1 });
+            expect(payload.components).toHaveLength(1);
+        }
+    });
+});
+
+describe("bouton lien fiche SigilOS (S4.5 / S4.6)", () => {
+    it("construit un bouton lien (style 5) sans custom_id, libellé surchargeable", () => {
+        const standard = buildMarketDashboardLinkButton(base.dashboardUrl);
+        expect(standard).toEqual({
+            type: 2,
+            style: 5,
+            label: MARKET_DASHBOARD_LINK_LABEL,
+            url: base.dashboardUrl,
+        });
+        expect(standard).not.toHaveProperty("custom_id");
+
+        // Même bouton, libellé des réponses éphémères (§13.5).
+        const ephemeral = buildMarketDashboardLinkButton(base.dashboardUrl, MARKET_EPHEMERAL_LINK_LABEL);
+        expect(ephemeral.label).toBe(MARKET_EPHEMERAL_LINK_LABEL);
+        expect(ephemeral.url).toBe(base.dashboardUrl);
+    });
+
+    it("buildMarketDashboardLinkRow encapsule le bouton dans une ActionRow type 1", () => {
+        const row = buildMarketDashboardLinkRow(base.dashboardUrl, MARKET_EPHEMERAL_LINK_LABEL);
+        expect(row).toEqual({
+            type: 1,
+            components: [buildMarketDashboardLinkButton(base.dashboardUrl, MARKET_EPHEMERAL_LINK_LABEL)],
+        });
+        expect(row.components).toHaveLength(1);
     });
 });
 

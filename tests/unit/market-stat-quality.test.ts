@@ -31,6 +31,16 @@ describe("computeStatQuality", () => {
         expect(computeStatQuality({ naturalMin: null, naturalMax: null, actualValue: 400 })).toBe("NORMAL");
     });
 
+    /**
+     * S7.5 — une plage **incohérente** (`min > max`) est une donnée illisible :
+     * aucun jugement, jamais un faux « sous la plage » (capture user : `[10 à 0]`
+     * + « 0 SOUS LA PLAGE » sur un objet parfait).
+     */
+    it("NORMAL quand la plage est inversée (min > max)", () => {
+        expect(computeStatQuality({ naturalMin: 10, naturalMax: 0, actualValue: 0 })).toBe("NORMAL");
+        expect(computeStatQuality({ naturalMin: 300, naturalMax: 251, actualValue: 300 })).toBe("NORMAL");
+    });
+
     it("fonctionne avec une borne unique connue", () => {
         expect(computeStatQuality({ naturalMin: null, naturalMax: 100, actualValue: 150 })).toBe("OVER");
         expect(computeStatQuality({ naturalMin: 10, naturalMax: null, actualValue: 5 })).toBe("LOW");

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,22 +12,41 @@ import {
     MARKET_ORIGIN_LABELS,
     MARKET_QUALITY_CLASSES,
     MARKET_QUALITY_LABELS,
+    MARKET_REPORT_REASON_LABELS,
+    MARKET_REPORT_REASONS,
     MARKET_STATUS_CLASSES,
     MARKET_STATUS_LABELS,
     MARKET_TYPE_LABELS,
 } from "@/server/actions/market-constants";
 import { formatKamas } from "@/lib/market/kamas";
+import { normalizeNativeRange } from "@/lib/market/effects";
 import { cn } from "@/lib/utils";
 import { MarketItemCard } from "@/components/market/market-item-card";
+import { StatIcon } from "@/components/market/stat-icon";
 import {
     deleteMarketListing,
     publishMarketListing,
     renewMarketListing,
+    reportMarketListing,
+    reserveMarketListing,
     withdrawMarketListing,
 } from "@/server/actions/market-actions";
-import { resyncMarketListing } from "@/server/actions/market-admin-actions";
+import { resyncMarketListing, restoreMarketListing, takeDownMarketListing } from "@/server/actions/market-admin-actions";
 import { toast } from "sonner";
-import { AlertTriangle, Loader2, Package, RefreshCw, ShieldAlert, Store, Trash2, Upload, XCircle } from "lucide-react";
+import {
+    AlertTriangle,
+    Flag,
+    Handshake,
+    Loader2,
+    Package,
+    Pencil,
+    RefreshCw,
+    ShieldAlert,
+    Store,
+    Trash2,
+    Upload,
+    XCircle,
+} from "lucide-react";
 
 type SerializedListing = {
     id: string;
@@ -48,6 +68,24 @@ type SerializedListing = {
     publishedAt: string | null;
     expiresAt: string | null;
     renewCount: number;
+    /** S7.8 — échéance de la réservation en cours (portée par l'annonce). */
+    reservedUntil: string | null;
+    /**
+     * S7.8 — **réservation active** telle qu'affichée au dashboard (§13.7) :
+     * l'écran est privé à la guilde, le pseudo y est donc légitime (il ne l'est
+     * jamais dans le salon Discord, qui n'expose que le compteur d'offres).
+     */
+    reservation: {
+        id: string;
+        status: string;
+        expiresAt: string;
+        buyerProfileId: string;
+        /** Pseudo Dofus du réservataire (jamais un identifiant Discord). */
+        buyerLabel: string;
+        buyerClasse: string | null;
+        /** `true` si c'est **le membre courant** qui a réservé. */
+        isMine: boolean;
+    } | null;
     profileId: string;
     profile: {
         id: string;
@@ -81,6 +119,24 @@ interface MarketListingClientProps {
     discordState: { syncStatus: string | null; lastError: string | null; published: boolean } | null;
 }
 
+/**
+ * S7.6 — Plage native lisible : jamais `[10 à 0]`.
+ * Utilise la **même** normalisation que le serveur (`normalizeNativeRange`, S7.4).
+ */
+function formatDeclaredRange(min: number | null, max: number | null): string {
+    if (min == null || max == null) return "";
+    const { from, to } = normalizeNativeRange(min, max);
+    return from === to ? ` [${from}]` : ` [${from} à ${to}]`;
+}
+
+/** S7.8 — date + heure d'une échéance de réservation (jamais une date nue). */
+function formatDeadline(iso: string | null): string {
+    if (!iso) return "—";
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return "—";
+    return date.toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" });
+}
+
 export function MarketListingClient({
     guildId,
     listing,
@@ -95,6 +151,11 @@ export function MarketListingClient({
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [reason, setReason] = useState("");
+    // S4.11 — signalement (membre) et retrait de modération (modérateur).
+    const [reportOpen, setReportOpen] = useState(false);
+    const [reportReason, setReportReason] = useState<(typeof MARKET_REPORT_REASONS)[number]>("JET_MISMATCH");
+    const [reportDetails, setReportDetails] = useState("");
+    const [moderationNote, setModerationNote] = useState("");
 
     function run(action: () => Promise<{ success: boolean; error?: string }>, successMessage: string) {
         startTransition(async () => {
@@ -238,13 +299,18 @@ export function MarketListingClient({
                         </CardHeader>
                         <CardContent className="space-y-2">
                             {listing.stats.map((stat) => (
-                                <div key={stat.id} className="flex items-center justify-between text-sm border-b border-border/60 py-1.5">
-                                    <span className="text-foreground truncate">
-                                        {stat.label}
-                                        <span className="text-muted-foreground">
-                                            {stat.naturalMin !== null && stat.naturalMax !== null
-                                                ? ` [${stat.naturalMin} à ${stat.naturalMax}]`
-                                                : ""}
+                                <div key={stat.id} className="flex items-center justify-between gap-3 text-sm border-b border-border/60 py-1.5">
+                                    <span className="flex min-w-0 items-center gap-2 text-foreground">
+                                        <StatIcon
+                                            characteristicId={stat.characteristic}
+                                            effectId={stat.effectId}
+                                            label={stat.label}
+                                        />
+                                        <span className="truncate">
+                                            {stat.label}
+                                            <span className="text-muted-foreground">
+                                                {formatDeclaredRange(stat.naturalMin, stat.naturalMax)}
+                                            </span>
                                         </span>
                                     </span>
                                     <span
@@ -291,6 +357,44 @@ export function MarketListingClient({
                             {listing.renewCount > 0 && <p>Renouvelée {listing.renewCount} fois</p>}
                         </div>
 
+                        {/* S7.8/S7.9 — réservation ACTIVE : qui, jusqu'à quand (§13.7) */}
+                        {listing.reservation && (
+                            <div className="rounded-xl border border-info/30 bg-info/10 px-3 py-2 space-y-1">
+                                <p className="text-[11px] font-black uppercase tracking-wider text-info">
+                                    {listing.reservation.isMine
+                                        ? "Tu as réservé cette annonce"
+                                        : "Annonce réservée"}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground">
+                                    {listing.reservation.isMine ? (
+                                        <>
+                                            Le vendeur a été prévenu. Rendez-vous en jeu avant le{" "}
+                                            <span className="font-semibold text-foreground">
+                                                {formatDeadline(listing.reservation.expiresAt)}
+                                            </span>
+                                            .
+                                        </>
+                                    ) : (
+                                        <>
+                                            Par{" "}
+                                            <span className="font-semibold text-foreground">
+                                                {listing.reservation.buyerLabel}
+                                            </span>
+                                            {listing.reservation.buyerClasse
+                                                ? ` (${listing.reservation.buyerClasse})`
+                                                : ""}{" "}
+                                            jusqu&apos;au{" "}
+                                            <span className="font-semibold text-foreground">
+                                                {formatDeadline(listing.reservation.expiresAt)}
+                                            </span>
+                                            . Sans échange en jeu d&apos;ici là, l&apos;annonce repasse
+                                            automatiquement en vente.
+                                        </>
+                                    )}
+                                </p>
+                            </div>
+                        )}
+
                         <p className="text-[11px] text-muted-foreground border-t border-border pt-3">
                             L&apos;échange se conclut <strong>en jeu</strong> : SigilOS n&apos;effectue ni le transfert
                             d&apos;objets ni celui des kamas, et ne garantit pas la transaction.
@@ -298,7 +402,145 @@ export function MarketListingClient({
                     </CardContent>
                 </Card>
 
-                {/* Actions vendeur (S1.22 / S1.31) */}
+                {/* Actions acheteur (S4.2) — réserver au prix (verrou §11.3) */}
+                {!isOwner && (
+                    <Card className="bg-surface/60 border-border">
+                        <CardHeader>
+                            <CardTitle className="text-sm flex items-center gap-2">
+                                <Handshake className="w-4 h-4 text-success" />
+                                Acheter
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                            {listing.status === "ACTIVE" ? (
+                                <>
+                                    <Button
+                                        className="w-full gap-2"
+                                        disabled={isPending}
+                                        onClick={() =>
+                                            run(
+                                                () => reserveMarketListing(guildId, listing.id),
+                                                "Annonce réservée. Le vendeur est prévenu."
+                                            )
+                                        }
+                                    >
+                                        {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Handshake className="w-4 h-4" />}
+                                        Réserver au prix
+                                    </Button>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        La réservation bloque l&apos;annonce pour les autres membres pendant la durée
+                                        prévue par la guilde. L&apos;échange se conclut toujours en jeu.
+                                    </p>
+                                </>
+                            ) : listing.reservation?.isMine ? (
+                                <p className="text-xs text-info">
+                                    Tu as réservé cette annonce jusqu&apos;au{" "}
+                                    {formatDeadline(listing.reservation.expiresAt)}. Le vendeur a été
+                                    prévenu.
+                                </p>
+                            ) : listing.reservation ? (
+                                <p className="text-xs text-muted-foreground">
+                                    Déjà réservée par{" "}
+                                    <span className="font-semibold text-foreground">
+                                        {listing.reservation.buyerLabel}
+                                    </span>{" "}
+                                    jusqu&apos;au {formatDeadline(listing.reservation.expiresAt)}.
+                                </p>
+                            ) : (
+                                <p className="text-xs text-muted-foreground">
+                                    Cette annonce n&apos;est plus disponible à la réservation.
+                                </p>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Signalement (S4.11, §6.9) — jamais sa propre annonce, une fois par annonce */}
+                {!isOwner && (
+                    <Card className="bg-surface/60 border-border">
+                        <CardHeader>
+                            <CardTitle className="text-sm flex items-center gap-2">
+                                <Flag className="w-4 h-4 text-warning" />
+                                Signaler cette annonce
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                            {reportOpen ? (
+                                <>
+                                    <select
+                                        value={reportReason}
+                                        onChange={(event) =>
+                                            setReportReason(
+                                                event.target.value as (typeof MARKET_REPORT_REASONS)[number]
+                                            )
+                                        }
+                                        className="w-full h-10 rounded-xl border border-border bg-background/60 px-3 text-sm"
+                                    >
+                                        {MARKET_REPORT_REASONS.map((value) => (
+                                            <option key={value} value={value}>
+                                                {MARKET_REPORT_REASON_LABELS[value]}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <textarea
+                                        value={reportDetails}
+                                        onChange={(event) => setReportDetails(event.target.value)}
+                                        rows={3}
+                                        maxLength={500}
+                                        placeholder="Contexte (facultatif) : ce qui ne correspond pas, quand, avec qui…"
+                                        className="w-full rounded-xl border border-border bg-background/60 px-3 py-2 text-sm"
+                                    />
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Button
+                                            size="sm"
+                                            className="gap-2"
+                                            disabled={isPending}
+                                            onClick={() =>
+                                                run(
+                                                    () =>
+                                                        reportMarketListing(
+                                                            guildId,
+                                                            listing.id,
+                                                            reportReason,
+                                                            reportDetails
+                                                        ),
+                                                    "Signalement transmis à la modération."
+                                                )
+                                            }
+                                        >
+                                            <Flag className="w-3.5 h-3.5" />
+                                            Envoyer le signalement
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            disabled={isPending}
+                                            onClick={() => setReportOpen(false)}
+                                        >
+                                            Annuler
+                                        </Button>
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Un signalement ouvre un <strong>dossier</strong> : la modération tranche, aucune
+                                        sanction automatique.
+                                    </p>
+                                </>
+                            ) : (
+                                <Button
+                                    variant="outline"
+                                    className="w-full gap-2"
+                                    disabled={isPending}
+                                    onClick={() => setReportOpen(true)}
+                                >
+                                    <Flag className="w-4 h-4" />
+                                    Signaler
+                                </Button>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Actions vendeur (S1.22 / S1.31) — et modération (S4.11) */}
                 {(isOwner || canManage) && (
                     <Card className="bg-surface/60 border-border">
                         <CardHeader>
@@ -308,6 +550,15 @@ export function MarketListingClient({
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
+                            {/* S7.13 — le vendeur corrige son annonce (jet, quantité, prix). */}
+                            {isOwner && ["DRAFT", "ACTIVE", "EXPIRED"].includes(listing.status) && (
+                                <Button asChild variant="outline" className="w-full gap-2">
+                                    <Link href={`/dashboard/${guildId}/marche/${listing.id}/modifier`}>
+                                        <Pencil className="w-4 h-4" />
+                                        Modifier l&apos;annonce
+                                    </Link>
+                                </Button>
+                            )}
                             {isOwner && listing.status === "DRAFT" && (
                                 <Button
                                     className="w-full gap-2"
@@ -361,9 +612,54 @@ export function MarketListingClient({
                                 </Button>
                             )}
                             {!isOwner && canManage && (
-                                <p className="text-xs text-muted-foreground">
-                                    Tu es modérateur : le retrait pour modération arrive avec le sprint S4 (signalements).
-                                </p>
+                                <>
+                                    {(listing.status === "ACTIVE" || listing.status === "RESERVED") && (
+                                        <>
+                                            <input
+                                                value={moderationNote}
+                                                onChange={(event) => setModerationNote(event.target.value)}
+                                                placeholder="Motif du retrait (visible du vendeur)"
+                                                maxLength={200}
+                                                className="w-full h-10 rounded-xl border border-border bg-background/60 px-3 text-sm"
+                                            />
+                                            <Button
+                                                variant="outline"
+                                                className="w-full gap-2 text-danger hover:text-danger"
+                                                disabled={isPending}
+                                                onClick={() =>
+                                                    run(
+                                                        () =>
+                                                            takeDownMarketListing(guildId, listing.id, moderationNote),
+                                                        "Annonce retirée pour modération."
+                                                    )
+                                                }
+                                            >
+                                                <XCircle className="w-4 h-4" />
+                                                Retirer pour modération
+                                            </Button>
+                                        </>
+                                    )}
+                                    {listing.status === "WITHDRAWN" && (
+                                        <Button
+                                            variant="outline"
+                                            className="w-full gap-2"
+                                            disabled={isPending}
+                                            onClick={() =>
+                                                run(
+                                                    () => restoreMarketListing(guildId, listing.id),
+                                                    "Annonce restaurée."
+                                                )
+                                            }
+                                        >
+                                            <RefreshCw className="w-4 h-4" />
+                                            Restaurer l&apos;annonce
+                                        </Button>
+                                    )}
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Chaque retrait et chaque restauration est journalisé dans l&apos;audit de
+                                        l&apos;annonce. Le vendeur peut corriger puis republier une annonce retirée.
+                                    </p>
+                                </>
                             )}
                         </CardContent>
                     </Card>

@@ -6,6 +6,7 @@ import { NotificationType, NotificationCategory } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { redis } from "@/lib/redis";
+import { isMarketNotificationEnabled, type MarketNotificationType } from "@/lib/market/notifications";
 import { getUserContext } from "./user-actions";
 
 // --- Types ---
@@ -35,6 +36,7 @@ function inferCategory(type: NotificationType, title: string): NotificationCateg
     if (type === "POLL_CREATED" || type === "POLL_CLOSED" || title.toLowerCase().includes("sondage")) return "POLL";
     if (type.startsWith("OCRE_") || title.toLowerCase().includes("ocre")) return "OCRE";
     if (type.startsWith("FINDER_") || title.toLowerCase().includes("donjon")) return "DONJONS";
+    if (type.startsWith("MARKET_")) return "MARKET";
     return "SYSTEM";
 }
 
@@ -277,6 +279,12 @@ export async function createNotification(
                     if (finalCategory === "OCRE" && prefs.ocre === false) return;
                     if (finalCategory === "DONJONS" && prefs.donjons === false) return;
                     if (finalCategory === "ADMIN_ALERT" && prefs.admin_validations === false) return;
+                    // §11.9 — Marché : un booléen **par type** (`market.<clé>`),
+                    // défaut activé ; seul un `false` explicite coupe la notif.
+                    if (
+                        finalCategory === "MARKET"
+                        && !isMarketNotificationEnabled(prefs, type as MarketNotificationType)
+                    ) return;
                 }
             }
         }

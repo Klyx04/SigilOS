@@ -48,7 +48,7 @@ Appelés depuis le crontab VPS (`crontab -l`) via
 
 ### 🛒 Module « Marché » — cron unique des échéances
 
-Toutes les échéances du marché passent par **une seule route** : `/api/cron/market-expire` (`GET` + `POST`, protégée par `x-cron-secret`, **fail-closed**). Une passe exécute **5 étapes dans un ordre imposé** (§15.1 du plan maître) :
+Toutes les échéances du marché passent par **une seule route** : `/api/cron/market-expire` (`GET` + `POST`, protégée par `x-cron-secret`, **fail-closed**). Une passe exécute **5 étapes dans un ordre imposé**, puis l'**entretien 1×/jour** (§15.1 du plan maître) :
 
 | # | Étape | Effet |
 |---|---|---|
@@ -57,6 +57,7 @@ Toutes les échéances du marché passent par **une seule route** : `/api/cron/m
 | 3 | `remindMarketListingsCore` | rappels **J+7 / J+15** au créateur des annonces **sans activité** (paliers `marketReminderDays`) |
 | 4 | `expireMarketListingsCore` | retrait **J+20** : annonces échues **sans activité** → `WITHDRAWN` + `deletedAt` (archivage, jamais de suppression dure) |
 | 5 | `expireMarketOffersCore` | offres `PENDING` hors délai → `EXPIRED` (acheteur prévenu) |
+| 6 | `reconcileMarketDiscordMessagesCore` (**1×/jour**) | messages Discord divergents (`syncStatus = FAILED`/`PENDING`) réécrits, ou **recréés** si supprimés à la main (`404`) |
 
 **Crontab VPS** — ligne à ajouter **à la main** (D33) :
 ```bash
@@ -65,10 +66,23 @@ Toutes les échéances du marché passent par **une seule route** : `/api/cron/m
 
 > 💡 **Aucun développement** pour la supervision : la tâche `market_expire` est déclarée dans `KNOWN_CRON_TASKS` (`src/lib/cron-telemetry.ts`) et apparaît **automatiquement** dans **God → Tâches CRON** (`/god?tab=cron-status`) avec son état, sa durée et son récapitulatif de passe.
 
+**Entretien quotidien (étape 6)** — la route tourne toutes les 10 min, l'entretien ne doit donc s'exécuter **qu'une fois par jour** : le verrou est posé dans Redis (`SET market:maintenance:<AAAA-MM-JJ> 1 EX 86400 NX`, cf. `claimMarketDailyMaintenance`). Le verrou est **fail-open** : Redis indisponible → la passe tourne quand même (elle est bornée par lot et idempotente) ; c'est la seule façon de garantir que la réconciliation finisse par avoir lieu.
+
+| Cas Discord | Comportement de la passe |
+|---|---|
+| Message réécrit avec succès | `syncStatus = FAILED/PENDING → OK` + audit `DISCORD_SYNC_RESTORED` |
+| Message **supprimé à la main** (`404` sur l'édition) | la trace du message est vidée puis l'annonce est **republiée** (nouveau message) + audit `DISCORD_SYNC_RESTORED` (`recreated: true`) |
+| Annonce archivée / retirée (`deletedAt`) | **ignorée** — un message retiré n'est jamais ressuscité |
+| Échec persistant (salon supprimé, permissions, Discord KO) | reste `FAILED` + `lastError`, retenté à la passe du lendemain (aucun audit : pas de transition) |
+
+**Réponse JSON** : `{ reservations, reservationReminders, reminders, listings, offers, maintenance: { ran, reason }, resynced }` — `resynced = null` signifie « entretien déjà fait aujourd'hui ». `reason` vaut `claimed` · `already-ran` · `redis-unavailable`.
+
+**Relance manuelle** : un modérateur (`market:moderate`) peut rejouer la passe sur **sa** guilde sans attendre le lendemain — action `reconcileMarketDiscordMessages(guildId, limit?)` (`src/server/actions/market-admin-actions.ts`), même moteur, réparations tracées à son nom. Elle est consommée par l'onglet **God « Marché »** (S5.9).
+
 **Garde-fous vérifiés :**
 - **Idempotence** : chaque écriture est un `updateMany` conditionnel (statut, échéance, `reminderStage` / `deletedAt` rejoués dans le `where`) → une passe relancée dans les 10 minutes **ne fait rien** de plus ; une relance manuelle est sans effet de bord ;
-- **Volume** : traitement **par lots** (200 éléments / passe) et **un récapitulatif par passe** (jamais une ligne par annonce) ;
-- **Discord indisponible** : la base avance d'abord, Discord n'est **jamais bloquant** (échec → `syncStatus = FAILED`, rejouable ; succès → `SENT`) ;
+- **Volume** : traitement **par lots** (200 éléments / passe pour les échéances, **25** pour la réconciliation Discord) et **un récapitulatif par passe** (jamais une ligne par annonce) ;
+- **Discord indisponible** : la base avance d'abord, Discord n'est **jamais bloquant** (échec → `syncStatus = FAILED` + `lastError`, rejouable ; succès → `syncStatus = OK` ; message retiré → `DELETED`) ;
 - **Annonce vendue/réservée** : le retrait J+20 et les rappels ne visent **jamais** une annonce avec une offre ou une réservation en cours ;
 - **Faible fuite d'information** : la réponse JSON ne contient que des compteurs (aucun montant, aucun pseudo, §13.7).
 

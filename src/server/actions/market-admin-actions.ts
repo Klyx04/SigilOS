@@ -11,6 +11,7 @@ import { fetchChannel, validateChannelBelongsToGuild } from "@/server/discord";
 import { writeMarketAuditLog } from "@/server/market/audit";
 import { sanitizeMarketText } from "@/lib/market/text";
 import type { MarketDiscordReconcileOutcome } from "@/server/market/maintenance";
+import type { MarketMediaPurgeOutcome } from "@/server/market/retention";
 import {
     MARKET_AUDIT_ACTIONS,
     MARKET_CHANNEL_KINDS,
@@ -547,6 +548,61 @@ export async function reconcileMarketDiscordMessages(
     }
 }
 
+// ---------------------------------------------------------------------------
+// S5.5 — Purge des médias expirés d'une guilde (modérateur `market:moderate`)
+// ---------------------------------------------------------------------------
+
+/** Bornes de la relance manuelle : jamais toute la base d'un coup. */
+const marketMediaPurgeSchema = z.object({
+    guildId: snowflake,
+    limit: z.number().int().min(1).max(200).optional(),
+});
+
+/**
+ * S5.5 — Rejoue la purge des médias **de cette guilde** (§15.2).
+ *
+ * Même moteur que l'entretien quotidien du cron (`purgeMarketListingMediaCore`,
+ * §15.1 étape 8) : un modérateur n'a pas à attendre la passe du lendemain quand
+ * la guilde vient de réduire sa rétention, ou quand le disque doit être libéré
+ * tout de suite. Les purges sont ici tracées à **son** nom (`MEDIA_PURGED`),
+ * là où le cron les attribue à personne (§13.4).
+ *
+ * Isolation §16.2 : la passe est bornée à cette guilde via l'id interne de
+ * `GuildConfig` — le snowflake reçu du client ne sert qu'à retrouver la
+ * configuration, jamais à filtrer les données.
+ */
+export async function purgeMarketMedia(
+    guildId: string,
+    limit?: number
+): Promise<ActionResponse<MarketMediaPurgeOutcome>> {
+    try {
+        const guard = await requireMarketModerator(guildId);
+        if ("error" in guard) return { success: false, error: guard.error };
+
+        const parsed = marketMediaPurgeSchema.safeParse({ guildId, limit });
+        if (!parsed.success) return { success: false, error: "Paramètres invalides" };
+
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: parsed.data.guildId },
+            select: { id: true },
+        });
+        if (!config) return { success: false, error: "Serveur introuvable" };
+
+        const { purgeMarketListingMediaCore } = await import("@/server/market/retention");
+        const outcome = await purgeMarketListingMediaCore({
+            guildConfigId: config.id,
+            limit: parsed.data.limit,
+            actorUserId: guard.user.id ?? null,
+        });
+
+        logger.info("[purgeMarketMedia] passe manuelle terminée", { guildId, ...outcome });
+
+        return { success: true, data: outcome };
+    } catch (error) {
+        logger.error("[purgeMarketMedia] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
 
 // ---------------------------------------------------------------------------
 // S4.11 — Modération des annonces & signalements (`market:moderate`, §6.9)

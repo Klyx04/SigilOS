@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 import { expireMarketListingsCore, expireMarketOffersCore, remindMarketListingsCore } from "@/server/market/expiry";
 import { expireMarketReservationsCore, remindMarketReservationsEndingCore } from "@/server/market/reservations";
 import { claimMarketDailyMaintenance, reconcileMarketDiscordMessagesCore } from "@/server/market/maintenance";
+import { purgeMarketListingMediaCore } from "@/server/market/retention";
 
 /**
  * 🔒 CRON « Marché » — fin de vie automatique et rappels (§15.1, S5.2).
@@ -22,8 +23,12 @@ import { claimMarketDailyMaintenance, reconcileMarketDiscordMessagesCore } from 
  *      (`expireMarketListingsCore`, S5.1) — archivage en douceur ;
  *   5. **offres** `PENDING` hors délai (`expireMarketOffersCore`, S5.1) ;
  *   6. **entretien** (1×/jour seulement, S5.4) : **réconciliation Discord** des
- *      messages divergents (`FAILED`/`PENDING`) puis purges (S5.5/S5.6) —
- *      verrou quotidien Redis (`claimMarketDailyMaintenance`, fail-open).
+ *      messages divergents (`FAILED`/`PENDING`) — verrou quotidien Redis
+ *      (`claimMarketDailyMaintenance`, fail-open) ;
+ *   7. **purge des médias** (S5.5) des annonces terminées depuis plus de
+ *      `marketMediaRetentionDays` : fichiers du disque puis lignes, chaque
+ *      annonce purgée étant auditée (`MEDIA_PURGED`). La purge des logs du
+ *      marché (S5.6) restera branchée sur le cron `cleanup-logs`.
  *
  * L'**ordre est imposé** : le retrait J+20 ne vise que les annonces sans
  * activité (§11.6) ; archiver les annonces avant d'avoir libéré celles dont la
@@ -68,6 +73,9 @@ async function handleMarketExpire(req: Request) {
         // même) : bornée par lot et idempotente, elle ne coûte qu'un peu d'I/O.
         const maintenance = await claimMarketDailyMaintenance(now);
         const reconciled = maintenance.run ? await reconcileMarketDiscordMessagesCore() : null;
+        // Purge des médias (§15.2) **après** la réconciliation : les preuves
+        // d'une annonce qui vient d'être réparée côté Discord ont encore servi.
+        const purged = maintenance.run ? await purgeMarketListingMediaCore({ now }) : null;
 
         const summary = {
             reservations,
@@ -78,6 +86,16 @@ async function handleMarketExpire(req: Request) {
             maintenance: { ran: maintenance.run, reason: maintenance.reason },
             // `null` = passe d'entretien non exécutée aujourd'hui (verrou déjà posé).
             resynced: reconciled?.resynced ?? null,
+            // `null` = idem : la purge des médias fait partie du même entretien.
+            purged: purged
+                ? {
+                      listings: purged.purgedListings,
+                      media: purged.mediaDeleted,
+                      bytes: purged.bytesDeleted,
+                      filesFailed: purged.filesFailed,
+                      failed: purged.failed,
+                  }
+                : null,
         };
 
         logger.info("[MarketExpireCron] passe terminée", summary);
@@ -88,7 +106,13 @@ async function handleMarketExpire(req: Request) {
         await recordCronExecution("market_expire", {
             // Un échec Discord est le seul « succès partiel » possible : la base
             // a bien avancé (syncStatus = FAILED, rejouable), le cron le signale.
-            success: listings.discordFailed === 0 && (reconciled?.stillFailed ?? 0) === 0,
+            // Idem pour la purge : un fichier protégé ou une annonce ignorée est
+            // un état à regarder (God, S5.9), pas un « tout va bien ».
+            success:
+                listings.discordFailed === 0 &&
+                (reconciled?.stillFailed ?? 0) === 0 &&
+                (purged?.filesFailed ?? 0) === 0 &&
+                (purged?.failed ?? 0) === 0,
             durationMs: Date.now() - startedAt,
             summary: [
                 `Marché : ${reservations.expired} réservation(s) expirée(s)`,
@@ -101,6 +125,9 @@ async function handleMarketExpire(req: Request) {
                 maintenance.run
                     ? `entretien : ${reconciled?.resynced ?? 0} resync, ${reconciled?.recreated ?? 0} recréé(s), ${reconciled?.stillFailed ?? 0} échec(s)`
                     : `entretien : non déclenchée (${maintenance.reason})`,
+                maintenance.run
+                    ? `médias purgés : ${purged?.purgedListings ?? 0} annonce(s), ${purged?.mediaDeleted ?? 0} fichier(s), ${purged?.filesFailed ?? 0} échec(s)`
+                    : `médias : non purgés (${maintenance.reason})`,
             ].join(", "),
             details: summary,
         });

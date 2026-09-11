@@ -21,6 +21,7 @@ import {
     getGameItemsStats,
     siphonGameItemsBatch,
     siphonMarketReferentials,
+    backfillNativeEffects,
     searchLocalGameItems,
     type GameItemSearchResult,
 } from '@/server/actions/game-item-actions';
@@ -41,6 +42,8 @@ export function GameItemSiphonPanel() {
     const [isSiphoning, setIsSiphoning] = useState(false);
     // S2.5bis — siphon des référentiels d'effets & de caractéristiques (marché).
     const [isSiphoningRefs, setIsSiphoningRefs] = useState(false);
+    // S2.12 — rattrapage local des plages natives (`nativeEffects`) manquantes.
+    const [isBackfilling, setIsBackfilling] = useState(false);
     const [progressValue, setProgressValue] = useState(0);
     const [siphonStatus, setSiphonStatus] = useState<string | null>(null);
     const [logs, setLogs] = useState<string[]>([]);
@@ -166,6 +169,49 @@ export function GameItemSiphonPanel() {
         });
     };
 
+    /**
+     * 🩹 S2.12 — rattrape les plages natives (`nativeEffects`) des items
+     * siphonnés AVANT l'ajout de la colonne S2.2. Calcul **local**, sans réseau :
+     * c'est le remède direct au message « aucun effet natif importé ».
+     * Idempotent : relancer ne réécrit que ce qui est encore vide.
+     */
+    const handleBackfillNatives = async () => {
+        setIsBackfilling(true);
+        setLogs((prev) => ['🩹 Rattrapage des effets natifs (calcul local)...', ...prev]);
+        startTransition(async () => {
+            let totalRepaired = 0;
+            let remaining = 0;
+            try {
+                for (let pass = 0; pass < 60; pass++) {
+                    const res = await backfillNativeEffects(1000);
+                    if (!res.success || !res.data) {
+                        setLogs((prev) => [`❌ Rattrapage: ${res.error || 'Inconnue'}`, ...prev]);
+                        break;
+                    }
+                    totalRepaired += res.data.repaired;
+                    remaining = res.data.remaining;
+                    setSiphonStatus(
+                        `Effets natifs rattrapés : ${totalRepaired} (restants: ${remaining})`
+                    );
+                    // Lot sans rien à réparer → inutile d'insister (lignes sans effet).
+                    if (res.data.repaired === 0 || remaining === 0) break;
+                }
+                const suffix = remaining > 0
+                    ? `, ${remaining} sans effet exploitable`
+                    : '';
+                setLogs((prev) => [
+                    `✅ Effets natifs : ${totalRepaired} fiche(s) réparée(s)${suffix}.`,
+                    ...prev,
+                ]);
+            } catch (err: any) {
+                setLogs((prev) => [`❌ Exception rattrapage: ${err?.message}`, ...prev]);
+            } finally {
+                setIsBackfilling(false);
+                loadStats();
+            }
+        });
+    };
+
     return (
         <div className="space-y-6">
             {/* Header Cards */}
@@ -253,6 +299,29 @@ export function GameItemSiphonPanel() {
                         <p className="text-caption text-muted-foreground mt-2">
                             Effets &amp; caractéristiques DofusDB (libellés FR, icônes, « % ») — requis par
                             l&apos;éditeur de jet FM du Marché.
+                        </p>
+                        <Button
+                            onClick={handleBackfillNatives}
+                            disabled={isBackfilling || isPending}
+                            variant="outline"
+                            className="w-full mt-2 rounded-xl gap-2"
+                        >
+                            {isBackfilling ? (
+                                <>
+                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                    Rattrapage...
+                                </>
+                            ) : (
+                                <>
+                                    <ShieldCheck className="w-4 h-4" />
+                                    Rattraper les effets natifs
+                                </>
+                            )}
+                        </Button>
+                        <p className="text-caption text-muted-foreground mt-2">
+                            Calcule les plages natives manquantes (colonne ajoutée après le premier
+                            siphon) — local et instantané, sans réseau. Requis pour que
+                            l&apos;éditeur de jet affiche les jets de base de l&apos;objet.
                         </p>
                     </div>
                 </div>

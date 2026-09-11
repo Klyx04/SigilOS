@@ -10,6 +10,7 @@
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { Prisma } from "@prisma/client";
+import { resolveNativeEffects } from "@/lib/market/effects";
 import { siphonGameItemByAnkamaId } from "@/server/actions/game-item-actions";
 
 export type ItemCatalogCategory = "all" | "equipment" | "resources" | "consumables" | "cosmetics";
@@ -151,8 +152,27 @@ export async function searchItems(
     }
 }
 
+/**
+ * Fiche item : `CATALOG_SELECT` + `effects` bruts — nécessaires au filet de
+ * sécurité des plages natives (S2.12). Une seule fiche par appel : coût nul.
+ */
+const CATALOG_ENTRY_SELECT = {
+    ...CATALOG_SELECT,
+    effects: true,
+} satisfies Prisma.GameItemSelect;
+
 /** Récupère les métadonnées + plages natives d'un item (source serveur, S2.8). */
 export async function getItemCatalogEntry(ankamaId: number): Promise<ItemCatalogEntry | null> {
     if (!Number.isInteger(ankamaId) || ankamaId <= 0) return null;
-    return db.gameItem.findUnique({ where: { ankamaId }, select: CATALOG_SELECT });
+    const item = await db.gameItem.findUnique({
+        where: { ankamaId },
+        select: CATALOG_ENTRY_SELECT,
+    });
+    if (!item) return null;
+
+    // 🛡️ S2.12 — filet : plages natives dérivées de `effects` si la colonne
+    // `nativeEffects` est encore vide (fiche siphonnée AVANT S2.2). `effects`
+    // (lourd) est écarté du retour : il ne doit jamais partir au client.
+    const { effects: _rawEffects, ...entry } = item;
+    return { ...entry, nativeEffects: resolveNativeEffects(item) };
 }

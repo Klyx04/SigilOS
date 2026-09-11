@@ -1,8 +1,9 @@
 /**
- * Module « Marché » — notifications du vendeur (§11.9 / D30 / Q12).
+ * Module « Marché » — notifications dashboard du vendeur **et de l'acheteur**
+ * (§11.9 / D30 / Q12).
  *
  * ⚠️ Fichier **serveur partagé** : ni `"use server"` (ce n'est pas un server
- * action), ni React. Il porte l'**unique** implémentation de l'alerte Marché,
+ * action), ni React. Il porte l'**unique** implémentation des alertes Marché,
  * appelée à l'identique par le dashboard et par les interactions Discord :
  *   · `notifyMarketUser()` — trace persistante (`Notification`, catégorie
  *     `MARKET`) ; le réglage `notificationPrefs.market[<type>]` est appliqué
@@ -10,7 +11,11 @@
  *   · `mentionMarketListingOwner()` — ping du **créateur** dans le fil de son
  *     annonce, pour qu'il soit alerté sans ouvrir le site (Q12) ;
  *   · `notifyMarketSellerActivity()` — les deux, pour une arrivée (offre /
- *     réservation).
+ *     réservation) ;
+ *   · `notifyMarketBuyerActivity()` — l'acheteur apprend la **décision du
+ *     vendeur** (`MARKET_OFFER_ANSWERED`) ou la **conclusion** (`MARKET_SOLD`) ;
+ *   · `notifyMarketReservationEnded()` — la ligne « vendeur **+** acheteur »
+ *     d'une réservation annulée ou expirée (§11.2 / §15.1 point 4).
  *
  * ❌ D30 : **aucun DM Discord** — tout passe par SigilOS + la mention du fil.
  * Aucune de ces fonctions ne lève : une panne Discord ou BDD ne doit jamais
@@ -28,6 +33,8 @@ import {
     buildMarketOwnerMentionCopy,
     type MarketNotificationCopyParams,
     type MarketNotificationType,
+    type MarketOfferDecision,
+    type MarketReservationEndReason,
 } from "@/lib/market/notifications";
 
 /** Événements qui déclenchent aussi une mention Discord du créateur (Q12). */
@@ -183,4 +190,106 @@ export async function notifyMarketSellerActivity(params: {
         itemLabel: params.itemLabel,
         reservationHours: params.reservationHours,
     });
+}
+
+// ---------------------------------------------------------------------------
+// ACHETEUR (S4.9 — §11.9)
+// ---------------------------------------------------------------------------
+
+/** Événements dont l'**acheteur** est le seul destinataire (§11.9). */
+export type MarketBuyerActivityType = "MARKET_OFFER_ANSWERED" | "MARKET_SOLD";
+
+/**
+ * Informe **l'acheteur** de la suite donnée à sa démarche (§11.9) : réponse du
+ * vendeur à son offre (`MARKET_OFFER_ANSWERED`) ou vente confirmée
+ * (`MARKET_SOLD`).
+ *
+ * ❌ Aucune mention Discord : Q12 ne ping que le **créateur** de l'annonce, et
+ * D30 supprime tout message privé. La ligne du tableau dit « toast + entrée »
+ * pour une réponse d'offre : le toast est porté par l'action immédiate (S4.10),
+ * l'entrée persistante par cette fonction.
+ *
+ * Le réglage `notificationPrefs.market[...]` de l'acheteur est appliqué par
+ * `createNotification` (fail-closed §11.9) : rien à dupliquer ici. Ne lève
+ * jamais ; renvoie `true` si le `create` a été tenté.
+ */
+export async function notifyMarketBuyerActivity(params: {
+    type: MarketBuyerActivityType;
+    /** `MarketOffer.buyerUserId` / `MarketReservation.buyerUserId`. */
+    buyerUserId: string;
+    listingId: string;
+    discordGuildId: string;
+    itemLabel: string;
+    /** `MARKET_OFFER_ANSWERED` : issue transmise à l'acheteur. */
+    decision?: MarketOfferDecision;
+}): Promise<boolean> {
+    return notifyMarketUser(
+        params.type,
+        {
+            userId: params.buyerUserId,
+            discordGuildId: params.discordGuildId,
+            listingId: params.listingId,
+            itemLabel: params.itemLabel,
+        },
+        { decision: params.decision }
+    );
+}
+
+/** Une partie d'une réservation (`UserProfile.id` sert à écarter l'auteur). */
+export type MarketReservationParty = {
+    /** `User.id` SigilOS du destinataire. */
+    userId: string;
+    /** `UserProfile.id` — l'auteur de l'action n'est jamais notifié de son geste. */
+    profileId?: string;
+};
+
+/**
+ * Réservation terminée — **annulation** (§11.2) ou **expiration** (§15.1 point 4).
+ *
+ * La ligne §11.9 vise « vendeur **+** acheteur » : les deux parties reçoivent la
+ * même entrée `MARKET_RESERVATION_ENDED`, sans jamais notifier l'auteur de
+ * l'action (annulation) ni deux fois le même membre. Ne lève jamais : chaque
+ * envoi est absorbé par `notifyMarketUser`.
+ *
+ * Renvoie le nombre d'entrées réellement créées (télémétrie du cron S5.1).
+ */
+export async function notifyMarketReservationEnded(params: {
+    /** `cancelled` (§11.2) ou `expired` (§15.1 point 4). */
+    reason: MarketReservationEndReason;
+    listingId: string;
+    discordGuildId: string;
+    itemLabel: string;
+    /** Le vendeur (`MarketListing.userId`) — cible n°1. */
+    seller?: MarketReservationParty;
+    /** L'acheteur (`MarketReservation.buyerUserId`). */
+    buyer?: MarketReservationParty;
+    /** `UserProfile.id` de l'auteur de l'action, s'il y en a un (annulation). */
+    actorProfileId?: string;
+}): Promise<number> {
+    const parties = [params.seller, params.buyer].filter(
+        (party): party is MarketReservationParty => Boolean(party?.userId)
+    );
+
+    const seen = new Set<string>();
+    let sent = 0;
+
+    for (const party of parties) {
+        if (seen.has(party.userId)) continue;
+        seen.add(party.userId);
+        if (params.actorProfileId && party.profileId === params.actorProfileId) continue;
+
+        const created = await notifyMarketUser(
+            "MARKET_RESERVATION_ENDED",
+            {
+                userId: party.userId,
+                discordGuildId: params.discordGuildId,
+                listingId: params.listingId,
+                itemLabel: params.itemLabel,
+            },
+            { endReason: params.reason }
+        );
+        if (created) sent += 1;
+    }
+
+    return sent;
 }

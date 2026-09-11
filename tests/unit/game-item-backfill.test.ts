@@ -93,8 +93,10 @@ describe("backfillNativeEffects — réparation", () => {
         expect(mockUpdate).toHaveBeenCalledTimes(1);
         const update = mockUpdate.mock.calls[0][0];
         expect(update.where).toEqual({ id: "item-effectueux" });
+        // S7.4 — `diceSide = 0` ⇒ **valeur fixe** : la plage devient `[568, 568]`
+        // (avant, `to: 0` produisait `[568 à 0]` puis « 0 SOUS LA PLAGE »).
         expect(update.data.nativeEffects).toEqual([
-            { effectId: 724, characteristic: null, from: 568, to: 0, category: null, elementId: null },
+            { effectId: 724, characteristic: null, from: 568, to: 568, category: null, elementId: null },
         ]);
     });
 });

@@ -48,7 +48,7 @@ Appelés depuis le crontab VPS (`crontab -l`) via
 
 ### 🛒 Module « Marché » — cron unique des échéances
 
-Toutes les échéances du marché passent par **une seule route** : `/api/cron/market-expire` (`GET` + `POST`, protégée par `x-cron-secret`, **fail-closed**). Une passe exécute **5 étapes dans un ordre imposé**, puis l'**entretien 1×/jour** (§15.1 du plan maître) :
+Toutes les échéances du marché passent par **une seule route** : `/api/cron/market-expire` (`GET` + `POST`, protégée par `x-cron-secret`, **fail-closed**). Une passe exécute **5 étapes dans un ordre imposé**, puis l'**entretien 1×/jour** (réconciliation Discord **puis** purge des médias — §15.1/§15.2 du plan maître) :
 
 | # | Étape | Effet |
 |---|---|---|
@@ -58,6 +58,7 @@ Toutes les échéances du marché passent par **une seule route** : `/api/cron/m
 | 4 | `expireMarketListingsCore` | retrait **J+20** : annonces échues **sans activité** → `WITHDRAWN` + `deletedAt` (archivage, jamais de suppression dure) |
 | 5 | `expireMarketOffersCore` | offres `PENDING` hors délai → `EXPIRED` (acheteur prévenu) |
 | 6 | `reconcileMarketDiscordMessagesCore` (**1×/jour**) | messages Discord divergents (`syncStatus = FAILED`/`PENDING`) réécrits, ou **recréés** si supprimés à la main (`404`) |
+| 7 | `purgeMarketListingMediaCore` (**1×/jour**) | médias des annonces **terminées** depuis plus de `marketMediaRetentionDays` : fichiers du disque **puis** lignes, chaque annonce purgée auditée (`MEDIA_PURGED`) |
 
 **Crontab VPS** — ligne à ajouter **à la main** (D33) :
 ```bash
@@ -75,13 +76,23 @@ Toutes les échéances du marché passent par **une seule route** : `/api/cron/m
 | Annonce archivée / retirée (`deletedAt`) | **ignorée** — un message retiré n'est jamais ressuscité |
 | Échec persistant (salon supprimé, permissions, Discord KO) | reste `FAILED` + `lastError`, retenté à la passe du lendemain (aucun audit : pas de transition) |
 
-**Réponse JSON** : `{ reservations, reservationReminders, reminders, listings, offers, maintenance: { ran, reason }, resynced }` — `resynced = null` signifie « entretien déjà fait aujourd'hui ». `reason` vaut `claimed` · `already-ran` · `redis-unavailable`.
+**Purge des médias (étape 7, S5.5)** — même verrou quotidien, exécutée **après** la réconciliation (les preuves d'une annonce qu'on vient de réparer côté Discord ont encore servi) :
 
-**Relance manuelle** : un modérateur (`market:moderate`) peut rejouer la passe sur **sa** guilde sans attendre le lendemain — action `reconcileMarketDiscordMessages(guildId, limit?)` (`src/server/actions/market-admin-actions.ts`), même moteur, réparations tracées à son nom. Elle est consommée par l'onglet **God « Marché »** (S5.9).
+- la **fin de vie** est estimée sur les horodatages d'archivage (`deletedAt` / `soldAt` / `withdrawnAt`) : une annonce **active, réservée ou en brouillon** garde ses preuves, quel que soit l'âge des fichiers ;
+- la coupure vient de `marketMediaRetentionDays` **de chaque guilde** (défaut 30 j, bornes 7–180) : deux guildes n'ont pas la même rétention, la passe les traite séparément ;
+- **ordre sûr** : le fichier est supprimé **avant** sa ligne — purger la ligne d'abord rendrait l'orphelin indétectable (§13.4) ;
+- une annonce **revenue à la vie** entre la lecture et l'écriture (reprise, restauration par un modérateur) est **sautée** : rien n'est purgé ;
+- **idempotent** : une annonce dont les médias sont déjà partis n'est plus éligible (`media: { some: {} }`), elle ne consomme plus le lot ; traitement **par lots** de **100** annonces / guilde / passe ;
+- **isolation des échecs** : un fichier refusé (protégé, erreur disque) est compté (`filesFailed`) et journalisé, mais la ligne est purgée quand même — l'orphelin reste à surveiller ; une annonce en erreur (`failed`) n'arrête pas la passe ;
+- **Audit** : un `MEDIA_PURGED` par annonce purgée (`previousData: { media, bytes }`, `nextData: { media: 0, filesDeleted, filesMissing, filesFailed, retentionDays }`).
+
+**Réponse JSON** : `{ reservations, reservationReminders, reminders, listings, offers, maintenance: { ran, reason }, resynced, purged }` — `resynced = null` (ou `purged = null`) signifie « entretien déjà fait aujourd'hui » ; `purged = { listings, media, bytes, filesFailed, failed }`. `reason` vaut `claimed` · `already-ran` · `redis-unavailable`.
+
+**Relance manuelle** : un modérateur (`market:moderate`) peut rejouer la passe sur **sa** guilde sans attendre le lendemain — actions `reconcileMarketDiscordMessages(guildId, limit?)` et `purgeMarketMedia(guildId, limit?)` (`src/server/actions/market-admin-actions.ts`), même moteur, réparations et purges tracées à son nom. Elles sont consommées par l'onglet **God « Marché »** (S5.9).
 
 **Garde-fous vérifiés :**
 - **Idempotence** : chaque écriture est un `updateMany` conditionnel (statut, échéance, `reminderStage` / `deletedAt` rejoués dans le `where`) → une passe relancée dans les 10 minutes **ne fait rien** de plus ; une relance manuelle est sans effet de bord ;
-- **Volume** : traitement **par lots** (200 éléments / passe pour les échéances, **25** pour la réconciliation Discord) et **un récapitulatif par passe** (jamais une ligne par annonce) ;
+- **Volume** : traitement **par lots** (200 éléments / passe pour les échéances, **25** pour la réconciliation Discord, **100** annonces / guilde pour la purge des médias) et **un récapitulatif par passe** (jamais une ligne par annonce) ;
 - **Discord indisponible** : la base avance d'abord, Discord n'est **jamais bloquant** (échec → `syncStatus = FAILED` + `lastError`, rejouable ; succès → `syncStatus = OK` ; message retiré → `DELETED`) ;
 - **Annonce vendue/réservée** : le retrait J+20 et les rappels ne visent **jamais** une annonce avec une offre ou une réservation en cours ;
 - **Faible fuite d'information** : la réponse JSON ne contient que des compteurs (aucun montant, aucun pseudo, §13.7).

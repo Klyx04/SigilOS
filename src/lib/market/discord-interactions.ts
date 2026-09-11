@@ -84,6 +84,20 @@ export const MARKET_EPHEMERAL = {
     GUILD_REQUIRED: "⚠️ Utilise ce bouton depuis le serveur Discord de ta guilde.",
     /** Module `marche` inactif pour la guilde (`DEFAULT_MODULES` inclus). */
     MODULE_DISABLED: "🔒 Le Marché est désactivé sur ce serveur.",
-    /** S4.2 → S4.5 : actions pas encore livrées, la fiche SigilOS prend le relais. */
+    /** S4.3 → S4.5 : actions pas encore livrées, la fiche SigilOS prend le relais. */
     ACTION_PENDING: "🚧 Cette action arrivera bientôt directement sur Discord. En attendant, ouvre la fiche de l'annonce sur SigilOS :",
+    /** S4.2 — réservation acceptée (§11.2 : l'échange se conclut en jeu). */
+    RESERVE_SUCCESS: "✅ Annonce réservée ! Le vendeur sera prévenu — l'échange se conclut **en jeu**.",
+    /** S4.2 — un vendeur ne réserve pas sa propre annonce (§11.2/D34). */
+    RESERVE_OWN_LISTING: "❌ Tu ne peux pas réserver ta propre annonce.",
+    /** S4.2 — annonce déjà `RESERVED`/`SOLD`/`EXPIRED`/`WITHDRAWN`. */
+    RESERVE_UNAVAILABLE: "❌ Cette annonce n'est plus disponible.",
+    /** S4.2 — §11.3 : quelqu'un a validé le verrou transactionnel avant. */
+    RESERVE_CONFLICT: "❌ Cette annonce vient d'être réservée par quelqu'un d'autre.",
+    /** Annonce absente ou appartenant à une autre guilde (§16.2). */
+    LISTING_NOT_FOUND: "❌ Cette annonce est introuvable.",
+    /** Membre sans profil SigilOS actif dans la guilde : refus explicite. */
+    PROFILE_REQUIRED: "❌ Termine d'abord ton profil SigilOS dans cette guilde pour utiliser le Marché.",
+    /** Échec technique inattendu : jamais de silence (§13.5). */
+    GENERIC_ERROR: "❌ L'action a échoué, réessaie dans un instant.",
 } as const;

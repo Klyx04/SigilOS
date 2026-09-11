@@ -21,6 +21,32 @@ vi.mock("@/server/actions/module-actions", () => ({
 
 vi.mock("@/lib/utils", () => ({ getAppBaseUrl: () => "https://sigilos.fr" }));
 
+vi.mock("@/server/market/discord", () => ({
+    syncListingMessage: vi.fn().mockResolvedValue({ ok: true }),
+}));
+
+/** Transaction simulée du moteur de réservation (S4.2). */
+const tx = {
+    marketListing: { updateMany: vi.fn() },
+    marketReservation: { create: vi.fn() },
+};
+
+const mockGuildConfigFindUnique = vi.fn();
+const mockUserProfileFindUnique = vi.fn();
+const mockListingFindFirst = vi.fn();
+const mockAuditCreate = vi.fn();
+
+vi.mock("@/lib/prisma", () => ({
+    db: {
+        guildConfig: { findUnique: (...args: unknown[]) => mockGuildConfigFindUnique(...args) },
+        userProfile: { findUnique: (...args: unknown[]) => mockUserProfileFindUnique(...args) },
+        marketListing: { findFirst: (...args: unknown[]) => mockListingFindFirst(...args) },
+        marketAuditLog: { create: (...args: unknown[]) => mockAuditCreate(...args) },
+        $transaction: vi.fn(),
+    },
+}));
+
+import { db } from "@/lib/prisma";
 import {
     MARKET_EPHEMERAL,
     buildMarketDashboardUrl,
@@ -106,8 +132,8 @@ describe("market discord interactions — gardes serveur (S4.1)", () => {
         expect(mockIsModuleEnabled).toHaveBeenCalledTimes(1);
     });
 
-    it("module ON → réponse éphémère explicite pointant la fiche SigilOS (§13.5)", async () => {
-        for (const action of ["reserve", "offer", "contact"]) {
+    it("module ON → réponse éphémère explicite pointant la fiche SigilOS (§13.5) pour offer/contact", async () => {
+        for (const action of ["offer", "contact"]) {
             const res = await handleMarketComponentInteraction({
                 customId: `mkt:${action}:${LISTING_ID}`,
                 discordGuildId: GUILD_ID,
@@ -122,5 +148,107 @@ describe("market discord interactions — gardes serveur (S4.1)", () => {
         }
 
         expect(mockIsModuleEnabled).toHaveBeenCalledWith(GUILD_ID, "marche");
+    });
+});
+
+describe("market discord interactions — réservation mkt:reserve (S4.2)", () => {
+    const PROFILE_ID = "profile-buyer";
+    const SELLER_PROFILE_ID = "profile-seller";
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockIsModuleEnabled.mockResolvedValue(true);
+        mockGuildConfigFindUnique.mockResolvedValue({ id: "guild-internal-1", marketReservationHours: 12 });
+        mockUserProfileFindUnique.mockResolvedValue({ id: PROFILE_ID, status: "ACTIVE" });
+        mockListingFindFirst.mockResolvedValue({
+            id: LISTING_ID,
+            profileId: SELLER_PROFILE_ID,
+            status: "ACTIVE",
+        });
+        mockAuditCreate.mockResolvedValue({});
+        (db.$transaction as ReturnType<typeof vi.fn>).mockImplementation(
+            async (callback: (client: unknown) => unknown) => callback(tx)
+        );
+        tx.marketListing.updateMany.mockResolvedValue({ count: 1 });
+        tx.marketReservation.create.mockResolvedValue({
+            id: "reservation-1",
+            expiresAt: new Date("2026-09-11T20:00:00.000Z"),
+        });
+    });
+
+    it("réserve l'annonce et confirme en éphémère (§11.2)", async () => {
+        const res = await handleMarketComponentInteraction({
+            customId: `mkt:reserve:${LISTING_ID}`,
+            discordGuildId: GUILD_ID,
+            userId: "user-buyer",
+        });
+
+        expect(res.ok).toBe(true);
+        expect(res.content).toBe(MARKET_EPHEMERAL.RESERVE_SUCCESS);
+        // Le contexte vient du serveur : la guilde est résolue depuis guild_id.
+        const guildWhere = mockGuildConfigFindUnique.mock.calls[0][0].where;
+        expect(guildWhere.discordGuildId).toBe(GUILD_ID);
+        expect(mockListingFindFirst).toHaveBeenCalledTimes(1);
+        // §13.7 : ni montant, ni pseudo dans la réponse.
+        expect(res.content).not.toMatch(/\d+\s*(kamas|k\b)/i);
+    });
+
+    it("refuse de réserver sa propre annonce (acheteur = vendeur)", async () => {
+        mockListingFindFirst.mockResolvedValue({
+            id: LISTING_ID,
+            profileId: PROFILE_ID,
+            status: "ACTIVE",
+        });
+
+        const res = await handleMarketComponentInteraction({
+            customId: `mkt:reserve:${LISTING_ID}`,
+            discordGuildId: GUILD_ID,
+            userId: "user-buyer",
+        });
+
+        expect(res.ok).toBe(false);
+        expect(res.content).toBe(MARKET_EPHEMERAL.RESERVE_OWN_LISTING);
+        expect(tx.marketReservation.create).not.toHaveBeenCalled();
+    });
+
+    it("refuse quand le membre n'a pas de profil SigilOS actif dans la guilde", async () => {
+        mockUserProfileFindUnique.mockResolvedValue(null);
+
+        const res = await handleMarketComponentInteraction({
+            customId: `mkt:reserve:${LISTING_ID}`,
+            discordGuildId: GUILD_ID,
+            userId: "user-stranger",
+        });
+
+        expect(res.ok).toBe(false);
+        expect(res.content).toBe(MARKET_EPHEMERAL.PROFILE_REQUIRED);
+        expect(mockListingFindFirst).not.toHaveBeenCalled();
+    });
+
+    it("signale la collision quand le verrou transactionnel a été pris avant (§11.3)", async () => {
+        tx.marketListing.updateMany.mockResolvedValue({ count: 0 });
+
+        const res = await handleMarketComponentInteraction({
+            customId: `mkt:reserve:${LISTING_ID}`,
+            discordGuildId: GUILD_ID,
+            userId: "user-buyer",
+        });
+
+        expect(res.ok).toBe(false);
+        expect(res.content).toBe(MARKET_EPHEMERAL.RESERVE_CONFLICT);
+        expect(tx.marketReservation.create).not.toHaveBeenCalled();
+    });
+
+    it("refuse une annonce absente / d'une autre guilde (aucune fuite d'existence)", async () => {
+        mockListingFindFirst.mockResolvedValue(null);
+
+        const res = await handleMarketComponentInteraction({
+            customId: `mkt:reserve:${LISTING_ID}`,
+            discordGuildId: GUILD_ID,
+            userId: "user-buyer",
+        });
+
+        expect(res.ok).toBe(false);
+        expect(res.content).toBe(MARKET_EPHEMERAL.LISTING_NOT_FOUND);
     });
 });

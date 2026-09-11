@@ -228,6 +228,10 @@ const THEME_BY_CODE: Record<string, StatThemeKey> = {
  * spécifique au plus général : « Résistance Feu » avant « Feu »).
  */
 const LABEL_THEME_PATTERNS: { pattern: RegExp; theme: StatThemeKey }[] = [
+    // S7.16 — libellés courts du référentiel FM (« PA », « PM », « PO »).
+    { pattern: /^\s*pa\s*$/i, theme: "actionPoints" },
+    { pattern: /^\s*pm\s*$/i, theme: "movementPoints" },
+    { pattern: /^\s*po\s*$/i, theme: "range" },
     { pattern: /retrait\s+pa/i, theme: "apReduction" },
     { pattern: /retrait\s+pm/i, theme: "mpReduction" },
     { pattern: /esquive\s+pa/i, theme: "apDodge" },
@@ -264,6 +268,7 @@ const LABEL_THEME_PATTERNS: { pattern: RegExp; theme: StatThemeKey }[] = [
     { pattern: /tacle/i, theme: "tackle" },
     { pattern: /port[eé]e/i, theme: "range" },
     { pattern: /[eé]rosion/i, theme: "erosion" },
+    { pattern: /renvoi/i, theme: "shield" },
     { pattern: /bouclier/i, theme: "shield" },
 ];
 

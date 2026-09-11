@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -708,25 +708,63 @@ function CataloguePicker({
     const [results, setResults] = useState<GameItemSearchResult[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    /** `true` dès qu'une recherche aboutie correspond à la saisie courante. */
+    const [searched, setSearched] = useState(false);
+    /** Anti-course : seule la **dernière** frappe peut écrire les résultats (S7.15). */
+    const requestId = useRef(0);
 
-    async function runSearch() {
-        if (query.trim().length < 2) return;
+    /**
+     * S7.15 — recherche **déclenchée à la frappe** : plus besoin de cliquer sur
+     * « Rechercher ». Le bouton reste (accessibilité et repli explicite) et les
+     * réponses obsolètes sont ignorées (`requestId`).
+     */
+    function runSearch(term: string) {
+        const trimmed = term.trim();
+        if (trimmed.length < 2) {
+            setResults([]);
+            setError(null);
+            setSearched(false);
+            return;
+        }
+
+        const id = ++requestId.current;
         setIsSearching(true);
         setError(null);
-        try {
-            const res = await searchLocalGameItems(query.trim(), category, 12);
-            if (!res.success) {
-                setError(res.error || "Recherche indisponible");
-                setResults([]);
-            } else {
-                setResults(res.data || []);
-            }
-        } catch {
-            setError("Recherche indisponible pour le moment.");
-        } finally {
-            setIsSearching(false);
-        }
+        void searchLocalGameItems(trimmed, category, 12)
+            .then((res) => {
+                if (id !== requestId.current) return;
+                if (!res.success) {
+                    setError(res.error || "Recherche indisponible");
+                    setResults([]);
+                } else {
+                    setResults(res.data || []);
+                }
+            })
+            .catch(() => {
+                if (id === requestId.current) setError("Recherche indisponible pour le moment.");
+            })
+            .finally(() => {
+                if (id === requestId.current) {
+                    setIsSearching(false);
+                    setSearched(true);
+                }
+            });
     }
+
+    useEffect(() => {
+        const trimmed = query.trim();
+        if (trimmed.length < 2) {
+            setResults([]);
+            setError(null);
+            setSearched(false);
+            return;
+        }
+        // Debounce : on attend 300 ms d'inactivité avant d'interroger le catalogue.
+        const timer = setTimeout(() => runSearch(trimmed), 300);
+        return () => clearTimeout(timer);
+        // `runSearch` ne dépend que de `category` (rejouée si la nature change).
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [query, category]);
 
     return (
         <div className="space-y-3">
@@ -739,14 +777,19 @@ function CataloguePicker({
                         onKeyDown={(event) => {
                             if (event.key === "Enter") {
                                 event.preventDefault();
-                                runSearch();
+                                runSearch(query);
                             }
                         }}
                         placeholder={placeholder}
-                        className="pl-9"
+                        className="pl-9 pr-9"
                     />
+                    {/* S7.15 — la recherche se déclenche à la frappe : le témoin de
+                        chargement remplace le clic obligatoire d'avant. */}
+                    {isSearching && (
+                        <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                    )}
                 </div>
-                <Button type="button" variant="outline" onClick={runSearch} disabled={isSearching || query.trim().length < 2}>
+                <Button type="button" variant="outline" onClick={() => runSearch(query)} disabled={isSearching || query.trim().length < 2}>
                     {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : "Rechercher"}
                 </Button>
             </div>
@@ -778,7 +821,7 @@ function CataloguePicker({
                 </div>
             )}
 
-            {!isSearching && !error && results.length === 0 && query.trim().length >= 2 && (
+            {searched && !isSearching && !error && results.length === 0 && (
                 <p className="text-xs text-muted-foreground">Aucun objet trouvé. Essaie un autre nom.</p>
             )}
         </div>

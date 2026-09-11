@@ -59,6 +59,16 @@ describe("dofus-stats-theme — résolution des thèmes", () => {
         });
     });
 
+    /** S7.16 — libellés courts du référentiel FM (modale « Ligne libre FM »). */
+    it("résout les libellés courts PA / PM / PO et « Renvoi »", () => {
+        expect(resolveDofusStatTheme(null, null, null, "PA")).toMatchObject({ asset: "pa.png" });
+        expect(resolveDofusStatTheme(null, null, null, "PM")).toMatchObject({ asset: "pm.png" });
+        expect(resolveDofusStatTheme(null, null, null, "PO")).toMatchObject({ asset: "po.png" });
+        expect(resolveDofusStatTheme(null, null, null, "Renvoi")).toMatchObject({ asset: "bouclier.png" });
+        // « Pods » ne doit jamais tomber sur l'icône Portée.
+        expect(resolveDofusStatTheme(null, null, null, "Pods")).toMatchObject({ asset: "pod.png" });
+    });
+
     it("priorise la caractéristique, puis l'effectId, puis le libellé", () => {
         expect(resolveDofusStatTheme(11, 111, "pa", "PA")).toMatchObject({ asset: "pv.png" });
         expect(resolveDofusStatTheme(null, 111, "vi", "Vitalité")).toMatchObject({ asset: "pa.png" });

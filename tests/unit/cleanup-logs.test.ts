@@ -1,5 +1,6 @@
 /**
  * Phase 4 — `/api/cron/cleanup-logs` purge aussi les notifs God > 90 j.
+ * S5.6 — … et les logs d'audit du marché selon la rétention de **chaque** guilde.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -14,6 +15,11 @@ vi.mock("@/lib/prisma", () => ({
     db: { godNotification: { deleteMany: (...args: any[]) => mockGodNotifDeleteMany(...args) } },
 }));
 
+const mockPurgeMarketAuditLogs = vi.fn();
+vi.mock("@/server/market/retention", () => ({
+    purgeMarketAuditLogsCore: (...args: any[]) => mockPurgeMarketAuditLogs(...args),
+}));
+
 const mockRecordCronExecution = vi.fn();
 vi.mock("@/lib/cron-telemetry", () => ({
     recordCronExecution: (...args: any[]) => mockRecordCronExecution(...args),
@@ -21,11 +27,14 @@ vi.mock("@/lib/cron-telemetry", () => ({
 
 import { GET } from "@/app/api/cron/cleanup-logs/route";
 
+const emptyMarketOutcome = { guilds: 0, scanned: 0, deleted: 0, failed: 0, hasMore: false };
+
 beforeEach(() => {
     vi.clearAllMocks();
     process.env.CRON_SECRET = "test-cron-secret";
     mockCleanupGlobalAuditLogs.mockResolvedValue({ success: true, data: { deletedCount: 5 } });
     mockGodNotifDeleteMany.mockResolvedValue({ count: 12 });
+    mockPurgeMarketAuditLogs.mockResolvedValue(emptyMarketOutcome);
     mockRecordCronExecution.mockResolvedValue(true);
     vi.unstubAllGlobals();
 });
@@ -53,7 +62,90 @@ describe("GET /api/cron/cleanup-logs", () => {
         expect(ageDays).toBeLessThan(91);
         expect(mockRecordCronExecution).toHaveBeenCalledWith(
             "cleanup_logs",
-            expect.objectContaining({ success: true })
+            expect.objectContaining({
+                success: true,
+                details: expect.objectContaining({ marketLogsDeleted: 0 }),
+            })
+        );
+    });
+
+    it("purge aussi les logs d'audit du marché (rétention par guilde) et le remonte", async () => {
+        mockPurgeMarketAuditLogs.mockResolvedValue({
+            guilds: 3,
+            scanned: 120,
+            deleted: 118,
+            failed: 0,
+            hasMore: true,
+        });
+
+        const req = new Request("http://localhost:3000/api/cron/cleanup-logs", {
+            headers: { "x-cron-secret": "test-cron-secret" },
+        });
+        const res = await GET(req);
+        const data = await res.json();
+
+        // La passe est appelée sans argument : la rétention de chaque guilde est
+        // résolue côté serveur (§9.1), jamais passée par le client.
+        expect(mockPurgeMarketAuditLogs).toHaveBeenCalledWith();
+        expect(res.status).toBe(200);
+        expect(data.marketLogsDeleted).toBe(118);
+        expect(data.marketLogsHasMore).toBe(true);
+        expect(mockRecordCronExecution).toHaveBeenCalledWith(
+            "cleanup_logs",
+            expect.objectContaining({
+                success: true,
+                details: expect.objectContaining({
+                    marketLogsDeleted: 118,
+                    marketLogsHasMore: true,
+                    marketLogsFailed: 0,
+                }),
+            })
+        );
+    });
+
+    it("reste non bloquant : un échec de la purge du marché ne casse pas le cron", async () => {
+        mockPurgeMarketAuditLogs.mockRejectedValue(new Error("db down"));
+
+        const req = new Request("http://localhost:3000/api/cron/cleanup-logs", {
+            headers: { "x-cron-secret": "test-cron-secret" },
+        });
+        const res = await GET(req);
+        const data = await res.json();
+
+        // La purge globale des logs a bien eu lieu et la route répond 200 : seul
+        // le compteur d'échec et la télémétrie signalent l'incident (§15.3).
+        expect(res.status).toBe(200);
+        expect(data.deletedCount).toBe(5);
+        expect(data.marketLogsDeleted).toBe(0);
+        expect(mockRecordCronExecution).toHaveBeenCalledWith(
+            "cleanup_logs",
+            expect.objectContaining({
+                success: false,
+                details: expect.objectContaining({ marketLogsFailed: 1 }),
+            })
+        );
+    });
+
+    it("signale un échec partiel remonté par la purge (guilde isolée)", async () => {
+        mockPurgeMarketAuditLogs.mockResolvedValue({
+            guilds: 2,
+            scanned: 4,
+            deleted: 3,
+            failed: 1,
+            hasMore: false,
+        });
+
+        const req = new Request("http://localhost:3000/api/cron/cleanup-logs", {
+            headers: { "x-cron-secret": "test-cron-secret" },
+        });
+        const res = await GET(req);
+        const data = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(data.marketLogsDeleted).toBe(3);
+        expect(mockRecordCronExecution).toHaveBeenCalledWith(
+            "cleanup_logs",
+            expect.objectContaining({ success: false })
         );
     });
 

@@ -1,5 +1,6 @@
 /**
- * Module « Marché » — rétention des médias (S5.5, §15.2).
+ * Module « Marché » — rétention (§15.2) : **médias** (S5.5) et **logs d'audit**
+ * (S5.6).
  *
  * Une annonce garde ses preuves tant qu'elle **vit**. À sa fin de vie
  * (`SOLD`, `WITHDRAWN`, archivage automatique J+20…), les fichiers ne servent
@@ -18,6 +19,12 @@
  *   • il est **idempotent** : le filtre `media: { some: {} }` écarte les
  *     annonces dont les médias sont déjà partis ; relancer la passe (cron
  *     10 min, relance manuelle) ne fait donc rien de plus.
+ *
+ * La **seconde moitié** de ce fichier (S5.6) applique exactement la même
+ * philosophie aux **logs d'audit** du marché (`marketLogRetentionDays` : 365 j
+ * par défaut, bornes 30–730, §9.1), purgés par le cron `cleanup-logs` : un
+ * journal de transitions n'a pas vocation à croître sans borne, mais il n'est
+ * jamais purgé avant son échéance ni en dehors de sa guilde.
  *
  * ⚠️ Fichier **serveur partagé** : ni `"use server"`, ni React — appelable et
  * testable directement (S5.12), exactement comme `maintenance.ts`.
@@ -249,6 +256,140 @@ export async function purgeMarketListingMediaCore(
 
     if (outcome.scanned > 0 || outcome.hasMore) {
         logger.info("[market] purge des médias terminée", { ...outcome });
+    }
+
+    return outcome;
+}
+
+// ---------------------------------------------------------------------------
+// S5.6 — RÉTENTION DES LOGS D'AUDIT (`marketLogRetentionDays`, §15.2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Taille du lot par guilde et par passe. Le cron `cleanup-logs` tourne **1×/j**
+ * et l'index `@@index([guildId, createdAt])` porte la sélection : un lot large
+ * évite des dizaines de passes sans jamais charger une table entière (§15.1).
+ */
+export const MARKET_LOG_PURGE_BATCH_SIZE = 500;
+
+/**
+ * Ramène `marketLogRetentionDays` dans ses bornes (§9.1) : valeur absente ou
+ * aberrante → défaut du module (365 j). La rétention ne peut donc jamais être
+ * `0 j` (un journal effacé à la transition qui l'a écrit) ni « infinie ».
+ */
+export function resolveMarketLogRetentionDays(value: number | null | undefined): number {
+    const bounds = MARKET_SETTINGS_BOUNDS.marketLogRetentionDays;
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+        return MARKET_SETTINGS_DEFAULTS.marketLogRetentionDays;
+    }
+    return Math.min(Math.max(Math.floor(value), bounds.min), bounds.max);
+}
+
+/** Date de coupure : « ce qui a été journalisé **avant** N jours ». */
+export function marketLogPurgeCutoff(now: Date, retentionDays: number): Date {
+    return new Date(now.getTime() - resolveMarketLogRetentionDays(retentionDays) * MS_PER_DAY);
+}
+
+export type MarketLogPurgeOutcome = {
+    /** Configurations de guilde balayées par la passe. */
+    guilds: number;
+    /** Lignes d'audit examinées (bornées par le lot de chaque guilde). */
+    scanned: number;
+    /** Lignes d'audit supprimées. */
+    deleted: number;
+    /** Guildes isolées sur erreur : la passe ne s'arrête jamais pour une guilde. */
+    failed: number;
+    /** Une guilde avait plus de travail que son lot : le reste attend la passe suivante. */
+    hasMore: boolean;
+};
+
+/**
+ * S5.6 — Purge des **logs d'audit du marché** échus (§15.2).
+ *
+ * Appelée **1×/jour** par `/api/cron/cleanup-logs` (même famille que le
+ * nettoyage des logs d'audit globaux) : la rétention étant un réglage **de
+ * guilde** (§9.1), la passe balaie les configurations, mais chaque `where`
+ * reste épinglé sur l'id **interne** (`GuildConfig.id`) — jamais un snowflake
+ * (§16.2), et jamais un `deleteMany` global qui ferait déborder une guilde sur
+ * l'autre.
+ *
+ * Garanties :
+ *   • **âge seul** : une ligne plus jeune que la coupure de **sa** guilde n'est
+ *     jamais touchée — deux guildes ne purgent pas au même moment ;
+ *   • **par lot** (`MARKET_LOG_PURGE_BATCH_SIZE`) + `hasMore` : la base n'est
+ *     jamais bloquée par une passe ;
+ *   • **idempotent** : seules les lignes déjà échues sont supprimées, relancer
+ *     la passe ne fait donc rien de plus ;
+ *   • **les annonces ne sont jamais supprimées** : la purge ne touche que
+ *     `MarketAuditLog`. Le marché **n'efface pas** une annonce (§11.10) — ses
+ *     offres, réservations et signalements restent attachés à une annonce
+ *     seulement archivée ; seuls les **logs** ont une durée de vie (§15.2) ;
+ *   • **pas d'audit de purge** : journaliser la purge dans le journal purgé le
+ *     recréerait indéfiniment. La trace vit dans la **télémétrie** du cron
+ *     (`cleanup_logs`, God → Tâches CRON, §15.3).
+ *
+ * Le résultat ne contient que des compteurs : aucun montant, aucun pseudo,
+ * aucune donnée d'annonce (§13.7).
+ */
+export async function purgeMarketAuditLogsCore(
+    params: { now?: Date; limit?: number; guildConfigId?: string } = {}
+): Promise<MarketLogPurgeOutcome> {
+    const now = params.now ?? new Date();
+    const limit = params.limit ?? MARKET_LOG_PURGE_BATCH_SIZE;
+    const outcome: MarketLogPurgeOutcome = {
+        guilds: 0,
+        scanned: 0,
+        deleted: 0,
+        failed: 0,
+        hasMore: false,
+    };
+
+    const guilds = await db.guildConfig.findMany({
+        where: params.guildConfigId ? { id: params.guildConfigId } : undefined,
+        orderBy: { id: "asc" },
+        select: { id: true, marketLogRetentionDays: true },
+    });
+
+    for (const guild of guilds) {
+        outcome.guilds += 1;
+        try {
+            const retentionDays = resolveMarketLogRetentionDays(guild.marketLogRetentionDays);
+            const cutoff = marketLogPurgeCutoff(now, retentionDays);
+
+            const due = await db.marketAuditLog.findMany({
+                where: { guildId: guild.id, createdAt: { lt: cutoff } },
+                orderBy: { createdAt: "asc" },
+                take: limit + 1, // +1 : savoir s'il reste du travail après ce lot
+                select: { id: true },
+            });
+
+            if (due.length > limit) outcome.hasMore = true;
+            const batch = due.length > limit ? due.slice(0, limit) : due;
+            outcome.scanned += batch.length;
+            if (batch.length === 0) continue;
+
+            // Conditions **rejouées** dans le `deleteMany` (guilde + coupure +
+            // ids lus) : rien d'autre que ce lot ne peut être emporté.
+            const removed = await db.marketAuditLog.deleteMany({
+                where: {
+                    guildId: guild.id,
+                    createdAt: { lt: cutoff },
+                    id: { in: batch.map((log) => log.id) },
+                },
+            });
+            outcome.deleted += removed.count;
+        } catch (error) {
+            outcome.failed += 1;
+            logger.error("[market] purge des logs d'audit — guilde ignorée", {
+                guildConfigId: guild.id,
+                err: error,
+            });
+        }
+    }
+
+    if (outcome.deleted > 0 || outcome.hasMore || outcome.failed > 0) {
+        // Récapitulatif de passe (§15.1) : jamais une ligne par log purgé.
+        logger.info("[market] purge des logs d'audit terminée", { ...outcome });
     }
 
     return outcome;

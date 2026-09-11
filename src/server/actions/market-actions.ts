@@ -14,6 +14,8 @@ import { loadMarketReferential } from "@/lib/market/referential";
 import { publishListingToDiscord, syncListingMessage } from "@/server/market/discord";
 import { writeMarketAuditLog } from "@/server/market/audit";
 import { reserveMarketListingCore } from "@/server/market/reservations";
+import { createMarketOfferCore } from "@/server/market/offers";
+import { normalizeMarketOfferDraft } from "@/lib/market/discord-interactions";
 import {
     MARKET_AUDIT_ACTIONS,
     MARKET_DELETE_REASONS,
@@ -135,6 +137,8 @@ async function resolveMarketContext(guildId: string) {
             marketMaxActivePerMember: true,
             marketMaxLifetimeDays: true,
             marketReservationHours: true,
+            marketOfferHours: true,
+            marketNegotiationsEnabled: true,
             marketNotifyChannelId: true,
             marketNotifyRoleId: true,
             marketChannelKind: true,
@@ -389,6 +393,77 @@ export async function reserveMarketListing(
         return { success: true, data: { reservationId: outcome.reservationId } };
     } catch (error) {
         logger.error("[reserveMarketListing] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+
+// ---------------------------------------------------------------------------
+// OFFRES (S4.4 — §11.4 / §13.5)
+// ---------------------------------------------------------------------------
+
+/** Saisie d'offre du dashboard : kamas tolérants (`"12 500 k"`), 2 textes facultatifs. */
+export type MarketOfferInput = {
+    /** Montant saisi en texte (`KAMAS_MAX` §11.4) ; vide ⇒ aucun montant offert. */
+    offeredKamas?: string | number | null;
+    /** Troc proposé (facultatif). */
+    tradeDescription?: string | null;
+    /** Message au vendeur (facultatif). */
+    note?: string | null;
+};
+
+/**
+ * Crée une offre `PENDING` sur une annonce négociable (§11.4).
+ *
+ * La **règle métier** (« kamas > 0 **ou** troc non vide », plafond Int32, refus
+ * de sa propre annonce, isolation de guilde, statut `ACTIVE`) vit **une seule
+ * fois** dans `createMarketOfferCore()` — **partagé** avec la soumission de la
+ * modale Discord (S4.4, §13.4). Cette action ne fait donc que : résoudre le
+ * contexte serveur (§16.2), **normaliser** la saisie avec la même fonction pure
+ * que Discord (`normalizeMarketOfferDraft`) et déléguer.
+ */
+export async function createMarketOffer(
+    guildId: string,
+    listingId: string,
+    input: MarketOfferInput = {}
+): Promise<ActionResponse<{ offerId: string }>> {
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+        const { user, guildConfig } = ctx;
+        if (!user.profileId) return { success: false, error: "Profil introuvable" };
+
+        const parsed = z.string().min(1).max(64).safeParse(listingId);
+        if (!parsed.success) return { success: false, error: "Annonce introuvable" };
+
+        const draft = normalizeMarketOfferDraft({
+            kamas:
+                input.offeredKamas === null || input.offeredKamas === undefined
+                    ? ""
+                    : String(input.offeredKamas),
+            trade: input.tradeDescription ?? "",
+            note: input.note ?? "",
+        });
+
+        const session = await auth();
+        const outcome = await createMarketOfferCore({
+            guildConfigId: guildConfig.id,
+            listingId: parsed.data,
+            buyerProfileId: user.profileId,
+            buyerUserId: session?.user?.id ?? user.id ?? "",
+            negotiationsEnabled: guildConfig.marketNegotiationsEnabled,
+            offerHours: guildConfig.marketOfferHours,
+            offeredKamas: draft.offeredKamas,
+            tradeDescription: draft.tradeDescription,
+            note: draft.note,
+            invalid: draft.invalid,
+        });
+        if (!outcome.ok) return { success: false, error: outcome.error };
+
+        revalidatePath(`/dashboard/${guildId}/marche`);
+        return { success: true, data: { offerId: outcome.offerId } };
+    } catch (error) {
+        logger.error("[createMarketOffer] failed", { err: error });
         return { success: false, error: "Erreur interne" };
     }
 }

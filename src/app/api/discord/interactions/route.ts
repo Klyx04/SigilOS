@@ -1367,6 +1367,26 @@ export async function POST(request: NextRequest) {
                     type: 4,
                     data: { content: `❌ ${res.error || "Impossible d'envoyer la réponse."}`, flags: 64 },
                 });
+            } else if (prefix === "mkt" && action === "offer") {
+                // =========================================================
+                // MARCHÉ (S4.4) — SOUMISSION DE LA MODALE D'OFFRE
+                // custom_id = mkt:offer:{listingId}
+                // §13.4 : la route ne décide de RIEN (elle ne lit ni le montant
+                // ni la guilde interne) — parsing fail-closed, module, profil et
+                // moteur métier partagé vivent dans le service du module.
+                // =========================================================
+                const { handleMarketModalSubmit } = await import("@/server/market/discord-interactions");
+                const marketOutcome = await handleMarketModalSubmit({
+                    customId: custom_id,
+                    components,
+                    discordGuildId: guild_id ?? null,
+                    userId: member.user.id,
+                });
+                // §13.7 : ni montant offert ni pseudo d'acheteur dans la réponse.
+                return NextResponse.json({
+                    type: 4,
+                    data: { content: marketOutcome.content, flags: 64 },
+                });
             } else if (prefix === "tb") {
                 // =========================================================
                 // TICKET BOT MODAL SUBMITS

@@ -10,13 +10,15 @@
  *      boutons de l'annonce (`mkt:<action>:<listingId>`, §13.3) ;
  *   2. le **catalogue des messages éphémères** (§13.5) : un membre reçoit
  *      **toujours** une explication, succès comme refus, jamais de silence ;
- *   3. la **construction d'URL** de la fiche SigilOS (bouton lien).
+ *   3. la **construction d'URL** de la fiche SigilOS (bouton lien) ;
+ *   4. la **lecture + le nettoyage** des 3 champs de la modale d'offre (S4.4),
+ *      réutilisés par le formulaire du dashboard (une seule normalisation).
  *
  * Rien ici ne connaît la base : la guilde, le module actif et les actions
  * vivent dans `src/server/market/discord-interactions.ts`.
  */
 
-import { KAMAS_MAX } from "@/lib/market/kamas";
+import { KAMAS_MAX, parseKamas } from "@/lib/market/kamas";
 
 /** Préfixe de toutes les interactions du marché (cf. `DISCORD_PERM_MAP.mkt`). */
 export const MARKET_INTERACTION_PREFIX = "mkt";
@@ -163,6 +165,142 @@ export function buildMarketOfferModal(listingId: string): MarketModalPayload {
 }
 
 /**
+// ---------------------------------------------------------------------------
+// SOUMISSION DE LA MODALE D'OFFRE (S4.4) — lecture & nettoyage des 3 champs
+// ---------------------------------------------------------------------------
+
+/**
+ * Composant reçu dans `data.components` d'une **soumission de modale** (type 5).
+ *
+ * Discord imbrique toujours les champs dans des lignes (`ActionRow`), mais un
+ * payload bricolé peut ne rien contenir : tout est facultatif ici et
+ * `extractMarketOfferInputs()` ne devine jamais une valeur.
+ */
+export type MarketModalSubmitComponent = {
+    custom_id?: string | null;
+    value?: string | null;
+};
+
+/** Ligne (`ActionRow`) d'une soumission de modale (type 5). */
+export type MarketModalSubmitRow = {
+    components?: MarketModalSubmitComponent[] | null;
+};
+
+/** Champs bruts d'une modale d'offre, **tels que saisis** (jamais interprétés). */
+export type MarketOfferRawInput = {
+    kamas: string;
+    trade: string;
+    note: string;
+};
+
+/**
+ * Offre **nettoyée et bornée** (§13.5), prête pour le moteur serveur
+ * (`createMarketOfferCore()`, partagé avec le dashboard).
+ */
+export type MarketOfferDraft = {
+    /** Montant lisible et **strictement positif**, `null` si aucun kama offert (§11.4). */
+    offeredKamas: number | null;
+    /** Troc nettoyé (liens retirés, §16.4), `null` si vide. */
+    tradeDescription: string | null;
+    /** Message au vendeur nettoyé, `null` si vide. */
+    note: string | null;
+    /** `true` = saisie inexploitable (kamas illisible, texte hors bornes) ⇒ refus explicite. */
+    invalid: boolean;
+};
+
+/**
+ * Retire les liens d'un texte libre (§16.4 — anti-phishing / anti-slop) et
+ * compacte les espaces. Miroir de `sanitizeMarketText()` du dashboard : ce
+ * fichier étant **pur**, il ne peut pas importer un module `"use server"`.
+ */
+function sanitizeMarketOfferText(value: string): string | null {
+    const cleaned = value
+        .replace(/https?:\/\/\S+/gi, "[lien retiré]")
+        .replace(/\bdiscord\.gg\/\S+/gi, "[invitation retirée]")
+        .replace(/\s{3,}/g, "  ")
+        .trim();
+    return cleaned.length > 0 ? cleaned : null;
+}
+
+/**
+ * Extrait les 3 champs d'une soumission de modale, **sans** les interpréter.
+ *
+ * Un champ absent (ligne manquante, `custom_id` inconnu) vaut chaîne vide : la
+ * décision « kamas OU troc » n'est jamais prise ici (§13.4).
+ */
+export function extractMarketOfferInputs(
+    rows: readonly MarketModalSubmitRow[] | null | undefined
+): MarketOfferRawInput {
+    const inputs: MarketOfferRawInput = { kamas: "", trade: "", note: "" };
+    if (!Array.isArray(rows)) return inputs;
+
+    for (const row of rows) {
+        if (!row || !Array.isArray(row.components)) continue;
+        for (const component of row.components) {
+            if (!component || typeof component.custom_id !== "string") continue;
+            const value = typeof component.value === "string" ? component.value : "";
+            if (component.custom_id === MARKET_OFFER_MODAL.FIELDS.KAMAS) inputs.kamas = value;
+            if (component.custom_id === MARKET_OFFER_MODAL.FIELDS.TRADE) inputs.trade = value;
+            if (component.custom_id === MARKET_OFFER_MODAL.FIELDS.NOTE) inputs.note = value;
+        }
+    }
+
+    return inputs;
+}
+
+/**
+ * Normalise une saisie d'offre : **mêmes règles** pour la modale Discord et
+ * pour le formulaire du dashboard (§13.4 — une seule source de vérité).
+ *
+ * · kamas : séparateurs tolérés (`"12 500 k"`), entier `1 → KAMAS_MAX` ;
+ *   `0`, négatif ou champ illisible ⇒ aucun montant (et `invalid` si le champ
+ *   était rempli : jamais un `0` en silence) ;
+ * · troc / note : nettoyés (§16.4) puis **bornés** à 200 / 500 caractères — un
+ *   texte hors bornes est **refusé**, jamais tronqué à l'insu du membre.
+ */
+export function normalizeMarketOfferDraft(
+    input: Partial<MarketOfferRawInput> | null | undefined
+): MarketOfferDraft {
+    const kamasRaw = (input?.kamas ?? "").trim();
+    const parsedKamas = parseKamas(kamasRaw);
+    const kamasInvalid = kamasRaw.length > 0 && parsedKamas === null;
+
+    const tradeRaw = (input?.trade ?? "").trim();
+    const noteRaw = (input?.note ?? "").trim();
+    const tooLong =
+        tradeRaw.length > MARKET_OFFER_MODAL.TRADE_MAX_LENGTH ||
+        noteRaw.length > MARKET_OFFER_MODAL.NOTE_MAX_LENGTH;
+
+    return {
+        // §11.4 : une offre de 0 kama n'existe pas — le montant est alors absent.
+        offeredKamas: kamasInvalid || parsedKamas === null || parsedKamas <= 0 ? null : parsedKamas,
+        tradeDescription: sanitizeMarketOfferText(tradeRaw),
+        note: sanitizeMarketOfferText(noteRaw),
+        invalid: kamasInvalid || tooLong,
+    };
+}
+
+/**
+ * Extrait + normalise l'offre d'une **soumission de modale** (type 5).
+ *
+ * Retourne `null` si le `custom_id` n'est pas celui produit par
+ * `buildMarketOfferModal()` (`mkt:offer:<listingId>`) : aucune action métier
+ * n'est déclenchée sur un payload bricolé ou d'une autre version (§0.1).
+ */
+export function parseMarketOfferSubmission(params: {
+    customId: string;
+    components: readonly MarketModalSubmitRow[] | null | undefined;
+}): (MarketOfferDraft & { listingId: string }) | null {
+    const parsed = parseMarketCustomId(params.customId);
+    if (!parsed || parsed.action !== "offer") return null;
+
+    return {
+        listingId: parsed.listingId,
+        ...normalizeMarketOfferDraft(extractMarketOfferInputs(params.components)),
+    };
+}
+
+/**
  * Messages éphémères (§13.5) — **toutes** les issues d'un clic sont couvertes.
  *
  * Interdits : afficher un montant d'offre ou un pseudo d'acheteur (§13.7), ou
@@ -191,6 +329,12 @@ export const MARKET_EPHEMERAL = {
     OFFER_NOT_AVAILABLE: "❌ Cette annonce n'est plus disponible.",
     /** S4.3 — négociations coupées (réglage guilde ou annonce non négociable). */
     OFFER_DISABLED: "❌ Les négociations sont désactivées sur cette annonce.",
+    /** S4.4 — offre `PENDING` créée : le vendeur est prévenu (DM en S4.8, §13.7). */
+    OFFER_SUCCESS: "✅ Offre envoyée au vendeur ! L'échange se conclut **en jeu** s'il l'accepte.",
+    /** S4.4 — §11.4 : offre vide (ni kamas, ni troc) ⇒ refusée, jamais devinée. */
+    OFFER_EMPTY: "❌ Renseigne un montant en kamas **ou** un troc : une offre vide ne peut pas être envoyée.",
+    /** S4.4 — kamas illisible / hors plafond, ou texte hors bornes (200 / 500). */
+    OFFER_INVALID: "❌ Offre invalide : vérifie le montant en kamas et la longueur des textes.",
     /** Annonce absente ou appartenant à une autre guilde (§16.2). */
     LISTING_NOT_FOUND: "❌ Cette annonce est introuvable.",
     /** Membre sans profil SigilOS actif dans la guilde : refus explicite. */

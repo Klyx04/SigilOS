@@ -1,5 +1,5 @@
 /**
- * Module « Marché » — service des interactions Discord (S4.1 → S4.3).
+ * Module « Marché » — service des interactions Discord (S4.1 → S4.4).
  *
  * ⚠️ **Serveur uniquement** (Prisma + server actions). Importé dynamiquement par
  * `src/app/api/discord/interactions/route.ts` pour la branche `mkt`.
@@ -11,8 +11,9 @@
  *   3. **module actif** : `isModuleEnabled(discordGuildId, "marche")`, qui inclut
  *      le verrou God et `DEFAULT_MODULES` ⇒ un serveur non configuré est refusé ;
  *   4. **contexte membre** (guilde interne + profil SigilOS) résolu **serveur** ;
- *   5. **action métier** : déléguée au **moteur partagé** avec le dashboard
- *      (`reserveMarketListingCore`) — aucune règle n'est dupliquée ici.
+ *   5. **action métier** : déléguée aux **moteurs partagés** avec le dashboard
+ *      (`reserveMarketListingCore` pour `mkt:reserve`, `createMarketOfferCore`
+ *      pour la modale `mkt:offer`) — aucune règle n'est dupliquée ici.
  *      `contact` n'est pas encore livrée (S4.5).
  *
  * Deux formes de réponse (§13.5) : `ephemeral` (message du seul membre, type 4)
@@ -29,9 +30,12 @@ import {
     buildMarketDashboardUrl,
     buildMarketOfferModal,
     parseMarketCustomId,
+    parseMarketOfferSubmission,
     type MarketModalPayload,
+    type MarketModalSubmitRow,
 } from "@/lib/market/discord-interactions";
 import { reserveMarketListingCore, type MarketReservationFailure } from "@/server/market/reservations";
+import { createMarketOfferCore, type MarketOfferFailure } from "@/server/market/offers";
 
 /** Message éphémère renvoyé au membre (jamais vide, §13.5). */
 export type MarketEphemeralOutcome = {
@@ -68,6 +72,19 @@ const RESERVE_FAILURE_MESSAGES: Record<MarketReservationFailure, string> = {
     ERROR: MARKET_EPHEMERAL.GENERIC_ERROR,
 };
 
+/** Message éphémère associé à chaque refus d'offre (S4.4 — §13.5 : jamais muet). */
+const OFFER_FAILURE_MESSAGES: Record<MarketOfferFailure, string> = {
+    NOT_FOUND: MARKET_EPHEMERAL.LISTING_NOT_FOUND,
+    OWN_LISTING: MARKET_EPHEMERAL.OFFER_OWN_LISTING,
+    NOT_AVAILABLE: MARKET_EPHEMERAL.OFFER_NOT_AVAILABLE,
+    NEGOTIATIONS_OFF: MARKET_EPHEMERAL.OFFER_DISABLED,
+    // §11.4 — « ni kamas ni troc » : la modale laisse tout facultatif, la règle
+    // est donc recalculée ici, côté serveur (jamais devinée, §0.1).
+    EMPTY_OFFER: MARKET_EPHEMERAL.OFFER_EMPTY,
+    INVALID: MARKET_EPHEMERAL.OFFER_INVALID,
+    ERROR: MARKET_EPHEMERAL.GENERIC_ERROR,
+};
+
 /**
  * Contexte **côté serveur uniquement** (§16.2) : la guilde interne vient du
  * `guild_id` de l'interaction, le profil de la guilde vient de l'`User.id`
@@ -84,6 +101,8 @@ type MarketMemberContext =
           profileId: string;
           /** `GuildConfig.marketReservationHours` (réservation §11.2). */
           reservationHours: number;
+          /** `GuildConfig.marketOfferHours` (durée de vie d'une offre, §11.4). */
+          offerHours: number;
           /** `GuildConfig.marketNegotiationsEnabled` (négociations §13.5). */
           negotiationsEnabled: boolean;
       }
@@ -95,7 +114,7 @@ async function resolveMemberContext(
 ): Promise<MarketMemberContext> {
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId },
-        select: { id: true, marketReservationHours: true, marketNegotiationsEnabled: true },
+        select: { id: true, marketReservationHours: true, marketOfferHours: true, marketNegotiationsEnabled: true },
     });
     if (!guildConfig) {
         logger.warn("[market] interaction refusée — guilde non configurée", { discordGuildId });
@@ -119,6 +138,7 @@ async function resolveMemberContext(
         guildConfigId: guildConfig.id,
         profileId: profile.id,
         reservationHours: guildConfig.marketReservationHours,
+        offerHours: guildConfig.marketOfferHours,
         negotiationsEnabled: guildConfig.marketNegotiationsEnabled,
     };
 }
@@ -253,4 +273,85 @@ export async function handleMarketComponentInteraction(params: {
     // S4.5 (`contact`) : déléguera au même moteur métier ; en attendant la fiche
     // SigilOS prend le relais, aucune action n'est « avalée » (§13.5).
     return ephemeral(`${MARKET_EPHEMERAL.ACTION_PENDING}\n${dashboardUrl}`);
+}
+
+/**
+ * S4.4 — soumission de la **modale d'offre** (`mkt:offer:<listingId>`, type 5).
+ *
+ * Même chaîne de gardes que les clics (§13.4) : parsing **fail-closed** de la
+ * soumission → guilde → module actif → contexte membre → **moteur partagé**
+ * `createMarketOfferCore()` (le dashboard appelle exactement le même).
+ *
+ * La modale ne peut pas exprimer « kamas **ou** troc » (les 3 champs sont
+ * facultatifs côté Discord) : la règle est donc **recalculée ici**, côté serveur
+ * — un envoi totalement vide est refusé (§0.1/§11.4). Le montant offert et
+ * l'identité de l'acheteur ne sortent **jamais** du serveur (§13.7) : seul un
+ * message de succès/refus est renvoyé au membre (§13.5, jamais muet).
+ */
+export async function handleMarketModalSubmit(params: {
+    /** `custom_id` de la modale soumise (`mkt:offer:<listingId>`). */
+    customId: string;
+    /** `data.components` brut de la soumission (jamais fiable ⇒ relu, §0.1). */
+    components: readonly MarketModalSubmitRow[] | null | undefined;
+    discordGuildId: string | null;
+    userId: string;
+}): Promise<MarketEphemeralOutcome> {
+    const submission = parseMarketOfferSubmission({
+        customId: params.customId,
+        components: params.components,
+    });
+    if (!submission) {
+        logger.warn("[market] soumission de modale refusée — custom_id invalide", {
+            customId: params.customId,
+            discordGuildId: params.discordGuildId,
+        });
+        return ephemeral(MARKET_EPHEMERAL.UNKNOWN_ACTION);
+    }
+
+    if (!params.discordGuildId) {
+        logger.warn("[market] soumission de modale refusée — hors serveur (guilde non isolable)", {
+            listingId: submission.listingId,
+        });
+        return ephemeral(MARKET_EPHEMERAL.GUILD_REQUIRED);
+    }
+
+    const enabled = await isModuleEnabled(params.discordGuildId, "marche");
+    if (!enabled) {
+        logger.info("[market] soumission de modale refusée — module marché désactivé", {
+            discordGuildId: params.discordGuildId,
+        });
+        return ephemeral(MARKET_EPHEMERAL.MODULE_DISABLED);
+    }
+
+    const member = await resolveMemberContext(params.discordGuildId, params.userId);
+    if (!member.ok) return member.outcome;
+
+    const outcome = await createMarketOfferCore({
+        guildConfigId: member.guildConfigId,
+        listingId: submission.listingId,
+        buyerProfileId: member.profileId,
+        buyerUserId: params.userId,
+        negotiationsEnabled: member.negotiationsEnabled,
+        offerHours: member.offerHours,
+        offeredKamas: submission.offeredKamas,
+        tradeDescription: submission.tradeDescription,
+        note: submission.note,
+        invalid: submission.invalid,
+    });
+
+    if (!outcome.ok) {
+        logger.info("[market] offre refusée", {
+            discordGuildId: params.discordGuildId,
+            listingId: submission.listingId,
+            reason: outcome.reason,
+        });
+        return ephemeral(OFFER_FAILURE_MESSAGES[outcome.reason]);
+    }
+
+    logger.info("[market] offre créée depuis Discord", {
+        discordGuildId: params.discordGuildId,
+        listingId: submission.listingId,
+        offerId: outcome.offerId,
+    });
+    return ephemeral(MARKET_EPHEMERAL.OFFER_SUCCESS, true);
 }

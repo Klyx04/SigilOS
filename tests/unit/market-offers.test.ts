@@ -6,7 +6,9 @@
  *   3. plafond `KAMAS_MAX` (Int32) et bornes `marketOfferHours` ;
  *   4. écriture de l'offre **et** de `lastActivityAt` dans la **même** transaction
  *      (§11.6 : pas d'activité fantôme si la création échoue) ;
- *   5. journal `OFFER_CREATED` (montant **interne** §13.7) + embed réécrit (non bloquant).
+ *   5. journal `OFFER_CREATED` (montant **interne** §13.7) + embed réécrit (non bloquant) ;
+ *   6. S4.10 — décision de la **contrepartie** (`ACCEPT` / `DECLINE` / `COUNTER`) et
+ *      retrait par l'auteur (§14.1 : `PENDING` seulement, aucun message privé).
  *
  * Le moteur est **partagé** par le dashboard (`createMarketOffer`) et par la
  * modale Discord : ces tests fixent donc le contrat des deux appelants (§13.4).
@@ -38,7 +40,7 @@ const tx = {
 vi.mock("@/lib/prisma", () => ({
     db: {
         marketListing: { findFirst: vi.fn() },
-        marketOffer: { findFirst: vi.fn() },
+        marketOffer: { findFirst: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn() },
         marketAuditLog: { create: vi.fn() },
         $transaction: vi.fn(),
     },
@@ -47,7 +49,7 @@ vi.mock("@/lib/prisma", () => ({
 import { db } from "@/lib/prisma";
 import { syncListingMessage } from "@/server/market/discord";
 import { notifyMarketBuyerActivity, notifyMarketSellerActivity } from "@/server/market/notifications";
-import { createMarketOfferCore, respondToMarketOfferCore } from "@/server/market/offers";
+import { createMarketOfferCore, respondToMarketOfferCore, cancelMarketOfferCore } from "@/server/market/offers";
 import { KAMAS_MAX } from "@/lib/market/kamas";
 
 const GUILD_CONFIG_ID = "guild-internal-1";
@@ -119,6 +121,8 @@ beforeEach(() => {
     tx.marketOffer.findMany.mockResolvedValue([]);
     tx.marketListing.updateMany.mockResolvedValue({ count: 1 });
     tx.marketReservation.create.mockResolvedValue({ id: RESERVATION_ID });
+    // S4.10 — retrait d'offre : hors transaction, mais re-armé comme le reste.
+    (db.marketOffer.updateMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 1 });
 });
 
 describe("market offre — gardes d'entrée (avant tout accès BDD)", () => {
@@ -368,12 +372,13 @@ describe("market offre — journal & synchronisation (effets non bloquants)", ()
 // S4.9 — réponse du vendeur (ACCEPT / DECLINE)
 // ---------------------------------------------------------------------------
 
-/** Paramètres de décision : le vendeur est explicite (jamais déduit du client). */
+/** Paramètres de décision : le répondant est explicite (jamais déduit du client). */
 function decisionParams(overrides: Record<string, unknown> = {}) {
     return {
         guildConfigId: GUILD_CONFIG_ID,
         offerId: OFFER_ID,
-        sellerUserId: SELLER_USER_ID,
+        responderUserId: SELLER_USER_ID,
+        responderProfileId: SELLER_PROFILE_ID,
         decision: "ACCEPT" as const,
         reservationHours: 12,
         ...overrides,
@@ -488,7 +493,7 @@ describe("market offre — décision du vendeur (S4.9)", () => {
 
     it("refuse un non-vendeur et une offre déjà répondue (§14.1)", async () => {
         expect(
-            await respondToMarketOfferCore(decisionParams({ sellerUserId: "user-autre" }))
+            await respondToMarketOfferCore(decisionParams({ responderUserId: "user-autre" }))
         ).toMatchObject({ ok: false, reason: "FORBIDDEN" });
 
         (db.marketOffer.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -552,6 +557,236 @@ describe("market offre — décision du vendeur (S4.9)", () => {
         (db.$transaction as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("tx down"));
 
         const res = await respondToMarketOfferCore(decisionParams());
+
+        expect(res).toMatchObject({ ok: false, reason: "ERROR" });
+    });
+});
+
+// ---------------------------------------------------------------------------
+// S4.10 — contre-offre (§11.4 : l'offre courante tombe, une nouvelle repart)
+// ---------------------------------------------------------------------------
+
+describe("market offre — contre-offre (S4.10)", () => {
+    /** Contre-offre du vendeur : 50 M, en réponse à une offre `PENDING` de 45 M. */
+    function counterParams(overrides: Record<string, unknown> = {}) {
+        return decisionParams({
+            decision: "COUNTER",
+            offerHours: 48,
+            counter: { offeredKamas: 50_000_000, tradeDescription: null, note: null },
+            ...overrides,
+        });
+    }
+
+    it("refuse la contre-offre courante et crée la nouvelle dans la même transaction", async () => {
+        tx.marketOffer.create.mockResolvedValue({ id: "offer-counter" });
+
+        const res = await respondToMarketOfferCore(counterParams());
+
+        expect(res).toMatchObject({ ok: true, status: "COUNTERED", counterOfferId: "offer-counter" });
+        // L'offre remplacée ne peut pas rester vivante en face (§11.4).
+        expect(tx.marketOffer.updateMany.mock.calls[0][0]).toMatchObject({
+            where: { id: OFFER_ID, status: "PENDING" },
+            data: { status: "DECLINED", respondedByUserId: SELLER_USER_ID },
+        });
+        // L'auteur de la contre-offre est **le répondant** : le vendeur, ici.
+        expect(tx.marketOffer.create.mock.calls[0][0].data).toMatchObject({
+            listingId: LISTING_ID,
+            buyerProfileId: SELLER_PROFILE_ID,
+            buyerUserId: SELLER_USER_ID,
+            offeredKamas: 50_000_000,
+            status: "PENDING",
+            counterOfId: OFFER_ID,
+        });
+        // §11.6 — négocier est une activité : les rappels reculent.
+        expect(tx.marketListing.update).toHaveBeenCalledWith({
+            where: { id: LISTING_ID },
+            data: { lastActivityAt: expect.any(Date) },
+        });
+        const audit = (db.marketAuditLog.create as ReturnType<typeof vi.fn>).mock.calls[0][0].data;
+        expect(audit.action).toBe("OFFER_COUNTERED");
+        expect(audit.nextData).toMatchObject({
+            status: "COUNTERED",
+            declinedOfferId: OFFER_ID,
+            counterOfferId: "offer-counter",
+        });
+        // §11.9 — « contre » part chez l'**auteur** de l'offre remplacée (l'acheteur).
+        expect(notifyMarketBuyerActivity).toHaveBeenCalledWith(
+            expect.objectContaining({ type: "MARKET_OFFER_ANSWERED", decision: "counter", buyerUserId: BUYER_USER_ID })
+        );
+        // Le compteur public ne bouge pas : une offre en remplace une autre (§13.7).
+        expect(syncListingMessage).not.toHaveBeenCalled();
+    });
+
+    it("refuse une contre-offre vide (ni kamas ni troc) : jamais devinée (§0.1)", async () => {
+        const res = await respondToMarketOfferCore(
+            counterParams({ counter: { offeredKamas: null, tradeDescription: null, note: "juste un mot" } })
+        );
+
+        expect(res).toMatchObject({ ok: false, reason: "EMPTY_OFFER" });
+        expect(db.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("refuse une saisie inexploitable (`invalid`) au lieu de la lire de travers", async () => {
+        const res = await respondToMarketOfferCore(
+            counterParams({ counter: { offeredKamas: 12, tradeDescription: null, note: null, invalid: true } })
+        );
+
+        expect(res).toMatchObject({ ok: false, reason: "INVALID" });
+        expect(db.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("refuse une durée de contre-offre hors bornes sans rien écrire", async () => {
+        const res = await respondToMarketOfferCore(counterParams({ offerHours: 200 }));
+
+        expect(res).toMatchObject({ ok: false, reason: "INVALID" });
+        expect(db.$transaction).not.toHaveBeenCalled();
+        expect(db.marketAuditLog.create).not.toHaveBeenCalled();
+    });
+
+    it("alterne la négociation : l'auteur de l'offre référencée est la seule autre partie (§11.4)", async () => {
+        // L'offre courante est la contre-offre du vendeur (celle de l'acheteur est tombée).
+        (db.marketOffer.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+            id: OFFER_ID,
+            status: "PENDING",
+            expiresAt: null,
+            buyerProfileId: SELLER_PROFILE_ID,
+            buyerUserId: SELLER_USER_ID,
+            counterOfId: "offer-origin",
+            listing: {
+                id: LISTING_ID,
+                userId: SELLER_USER_ID,
+                profileId: SELLER_PROFILE_ID,
+                title: ITEM_LABEL,
+                guild: { discordGuildId: GUILD_DISCORD_ID },
+            },
+        });
+        (db.marketOffer.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
+            buyerUserId: BUYER_USER_ID,
+            buyerProfileId: BUYER_PROFILE_ID,
+        });
+        tx.marketOffer.create.mockResolvedValue({ id: "offer-counter-2" });
+
+        const res = await respondToMarketOfferCore(
+            counterParams({
+                responderUserId: BUYER_USER_ID,
+                responderProfileId: BUYER_PROFILE_ID,
+                counter: { offeredKamas: 46_000_000, tradeDescription: null, note: null },
+            })
+        );
+
+        expect(res).toMatchObject({ ok: true, status: "COUNTERED", counterOfferId: "offer-counter-2" });
+        // La contre-offre « du contre » est écrite au nom de l'acheteur (le répondant).
+        expect(tx.marketOffer.create.mock.calls[0][0].data.buyerUserId).toBe(BUYER_USER_ID);
+        // L'auteur de l'offre remplacée est le **vendeur** : alerte vendeur, pas acheteur.
+        expect(notifyMarketSellerActivity).toHaveBeenCalledWith(
+            expect.objectContaining({ type: "MARKET_OFFER_RECEIVED", ownerUserId: SELLER_USER_ID })
+        );
+        expect(notifyMarketBuyerActivity).not.toHaveBeenCalled();
+    });
+
+    it("refuse la contre-offre d'une partie qui n'est pas l'autre (§14.1)", async () => {
+        const res = await respondToMarketOfferCore(counterParams({ responderUserId: "user-tiers" }));
+
+        expect(res).toMatchObject({ ok: false, reason: "FORBIDDEN" });
+        expect(db.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("ne fait pas échouer la contre-offre si l'alerte tombe (§0.1)", async () => {
+        (notifyMarketBuyerActivity as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("boom"));
+
+        const res = await respondToMarketOfferCore(counterParams());
+
+        expect(res.ok).toBe(true);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// S4.10 — retrait d'une offre par son auteur (§14.1)
+// ---------------------------------------------------------------------------
+
+describe("market offre — retrait par l'auteur (S4.10)", () => {
+    const cancelParams = (overrides: Record<string, unknown> = {}) => ({
+        guildConfigId: GUILD_CONFIG_ID,
+        offerId: OFFER_ID,
+        actorUserId: BUYER_USER_ID,
+        ...overrides,
+    });
+
+    /** Offre `PENDING` déposée par l'acheteur — c'est **lui** qui peut la retirer. */
+    function pendingOffer(overrides: Record<string, unknown> = {}) {
+        return {
+            id: OFFER_ID,
+            status: "PENDING",
+            expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
+            buyerUserId: BUYER_USER_ID,
+            listing: { id: LISTING_ID },
+            ...overrides,
+        };
+    }
+
+    it("retire mon offre `PENDING` (garde de statut dans le WHERE) et réécrit le compteur public", async () => {
+        (db.marketOffer.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(pendingOffer());
+
+        const res = await cancelMarketOfferCore(cancelParams());
+
+        expect(res).toMatchObject({ ok: true, offerId: OFFER_ID, status: "CANCELLED" });
+        expect(db.marketOffer.updateMany).toHaveBeenCalledWith({
+            where: { id: OFFER_ID, status: "PENDING" },
+            data: { status: "CANCELLED", respondedAt: expect.any(Date), respondedByUserId: BUYER_USER_ID },
+        });
+        expect((db.marketAuditLog.create as ReturnType<typeof vi.fn>).mock.calls[0][0].data.action).toBe(
+            "OFFER_CANCELLED"
+        );
+        expect(syncListingMessage).toHaveBeenCalledWith(LISTING_ID);
+        // §11.9 / D30 — un retrait volontaire n'envoie **aucun** message privé.
+        expect(notifyMarketBuyerActivity).not.toHaveBeenCalled();
+        expect(notifyMarketSellerActivity).not.toHaveBeenCalled();
+    });
+
+    it("refuse le retrait d'une offre qui n'est pas la mienne (§14.1)", async () => {
+        (db.marketOffer.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(pendingOffer());
+
+        const res = await cancelMarketOfferCore(cancelParams({ actorUserId: "user-tiers" }));
+
+        expect(res).toMatchObject({ ok: false, reason: "FORBIDDEN" });
+        expect(db.marketOffer.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("refuse une offre déjà répondue ou déjà périmée (le cron seul écrit l'expiration)", async () => {
+        (db.marketOffer.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(pendingOffer({ status: "ACCEPTED" }));
+        expect(await cancelMarketOfferCore(cancelParams())).toMatchObject({ ok: false, reason: "NOT_PENDING" });
+
+        (db.marketOffer.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(
+            pendingOffer({ expiresAt: new Date(Date.now() - 1000) })
+        );
+        expect(await cancelMarketOfferCore(cancelParams())).toMatchObject({ ok: false, reason: "EXPIRED" });
+        expect(db.marketOffer.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("offre introuvable dans la guilde du contexte : jamais un retrait croisé (§16.2)", async () => {
+        (db.marketOffer.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+        const res = await cancelMarketOfferCore(cancelParams());
+
+        expect(res).toMatchObject({ ok: false, reason: "NOT_FOUND" });
+        expect(db.marketOffer.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("conflit : la réponse du vendeur arrive entre-temps ⇒ rien n'est retiré", async () => {
+        (db.marketOffer.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(pendingOffer());
+        (db.marketOffer.updateMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 0 });
+
+        const res = await cancelMarketOfferCore(cancelParams());
+
+        expect(res).toMatchObject({ ok: false, reason: "NOT_PENDING" });
+        expect(db.marketAuditLog.create).not.toHaveBeenCalled();
+        expect(syncListingMessage).not.toHaveBeenCalled();
+    });
+
+    it("retourne ERROR (jamais une exception) si la base tombe", async () => {
+        (db.marketOffer.updateMany as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("db down"));
+
+        const res = await cancelMarketOfferCore(cancelParams());
 
         expect(res).toMatchObject({ ok: false, reason: "ERROR" });
     });

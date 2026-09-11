@@ -9,9 +9,10 @@
  * §13.4 — la logique métier n'est **jamais** dupliquée ni portée par la route.
  *
  * Contrairement à la réservation (§11.3), une offre **ne change pas le statut**
- * de l'annonce : plusieurs offres `PENDING` coexistent, c'est le vendeur qui
- * tranche — `respondToMarketOfferCore()` (S4.9) porte cette décision, l'écran de
- * négociation qui la déclenche est en S4.10. La seule écriture concurrente
+ * de l'annonce : plusieurs offres `PENDING` coexistent et ce sont les parties qui
+ * tranchent — `respondToMarketOfferCore()` (S4.9 : accepter / refuser) et sa
+ * contre-offre (S4.10) portent cette décision, `cancelMarketOfferCore()` (S4.10)
+ * permet à l'auteur de retirer sa proposition. La seule écriture concurrente
  * significative est donc `lastActivityAt` (§11.6 : toute activité reporte les
  * rappels), mise à jour **dans la même transaction** que l'offre.
  */
@@ -217,14 +218,15 @@ export async function createMarketOfferCore(params: {
 }
 
 // ---------------------------------------------------------------------------
-// RÉPONSE DU VENDEUR (S4.9 — §11.4 / §11.9)
+// RÉPONSE À UNE OFFRE (S4.9 / S4.10 — §11.4 / §11.9)
 // ---------------------------------------------------------------------------
 
 /**
- * Décision du vendeur (§14.1). La **contre-offre** (`COUNTER`, §11.4) appartient
- * au centre de négociation (S4.10) : ici deux issues, aucune troisième devinée.
+ * Décision d'une **partie** à une offre vivante (§14.1). `COUNTER` (S4.10) ne
+ * décide pas : l'offre courante passe `DECLINED` et une offre de remplacement
+ * `PENDING`, rattachée par `counterOfId`, repart chez l'autre partie (§11.4).
  */
-export type MarketOfferDecisionInput = "ACCEPT" | "DECLINE";
+export type MarketOfferDecisionInput = "ACCEPT" | "DECLINE" | "COUNTER";
 
 /** Motif de refus d'une réponse — sert au message affiché (aucun détail interne). */
 export type MarketOfferDecisionFailure =
@@ -233,6 +235,7 @@ export type MarketOfferDecisionFailure =
     | "NOT_PENDING"
     | "EXPIRED"
     | "CONFLICT"
+    | "EMPTY_OFFER"
     | "INVALID"
     | "ERROR";
 
@@ -240,21 +243,36 @@ export type MarketOfferDecisionOutcome =
     | {
           ok: true;
           offerId: string;
-          status: "ACCEPTED" | "DECLINED";
+          status: "ACCEPTED" | "DECLINED" | "COUNTERED";
           /** Renseigné par une acceptation (annonce passée `RESERVED`). */
           reservationId?: string;
+          /** Renseigné par une contre-offre : la nouvelle offre `PENDING`. */
+          counterOfferId?: string;
           expiresAt?: Date;
           /** Offres concurrentes passées `EXPIRED` (§11.4). */
           expiredOthers: number;
       }
     | { ok: false; reason: MarketOfferDecisionFailure; error: string };
 
+/** Saisie d'une contre-offre (§11.4) — mêmes champs qu'un dépôt d'offre. */
+export type MarketOfferCounterDraft = {
+    /** Montant offert (`null` si troc pur). */
+    offeredKamas: number | null;
+    /** Troc nettoyé (`null` si absent). */
+    tradeDescription: string | null;
+    /** Message net(`null` si absent). */
+    note: string | null;
+    /** `true` = saisie inexploitable (`normalizeMarketOfferDraft()`). */
+    invalid?: boolean;
+};
+
 const DECISION_FAILURE_MESSAGES: Record<MarketOfferDecisionFailure, string> = {
     NOT_FOUND: "Cette offre est introuvable.",
-    FORBIDDEN: "Seul le vendeur peut répondre à cette offre.",
+    FORBIDDEN: "Seule la partie concernée peut répondre à cette offre.",
     NOT_PENDING: "Cette offre a déjà reçu une réponse.",
     EXPIRED: "Cette offre a expiré.",
     CONFLICT: "Cette annonce vient d'être réservée.",
+    EMPTY_OFFER: "Renseigne un montant en kamas ou un troc.",
     INVALID: "Demande invalide.",
     ERROR: "Erreur interne, réessaie dans un instant.",
 };
@@ -279,17 +297,29 @@ class MarketDecisionConflict extends Error {
 type MarketLoserOffer = { id: string; buyerUserId: string };
 
 /**
- * Réponse du **vendeur** à une offre reçue (§14.1 / §11.4) — moteur **unique**
- * partagé par le dashboard (`respondToMarketOffer`) et, demain, par le centre de
- * négociation. §13.4 : la règle n'est jamais portée par l'appelant.
+ * Réponse d'**une partie** à une offre vivante (§14.1 / §11.4) — moteur
+ * **unique** partagé par le dashboard (`respondToMarketOffer`) et le centre de
+ * négociation (§13.4). §13.4 : la règle n'est jamais portée par l'appelant.
+ *
+ * Qui peut répondre ? L'**autre partie** que l'auteur de l'offre vivante :
+ *   · offre d'origine (déposée par l'acheteur) ⇒ le **vendeur** de l'annonce ;
+ *   · contre-offre (`counterOfId`), peu importe son auteur ⇒ l'auteur de
+ *     l'offre **référencée**. La négociation alterne donc, et personne ne peut
+ *     répondre à sa propre proposition (§11.4).
  *
  * · `DECLINE` → offre `DECLINED` (+ `respondedAt` / `respondedByUserId`) ; les
- *   autres offres restent `PENDING` ; le vendeur n'est pas notifié de son propre
- *   geste, **l'acheteur** reçoit `MARKET_OFFER_ANSWERED` (§11.9).
+ *   autres offres restent `PENDING` ; le répondant n'est jamais notifié de son
+ *   propre geste, **l'auteur** de l'offre reçoit `MARKET_OFFER_ANSWERED` (§11.9).
  * · `ACCEPT` → offre `ACCEPTED`, annonce `RESERVED` **au prix de l'offre** avec
- *   `reservedUntil`, réservation `ACTIVE` créée, **les autres offres passent
- *   `EXPIRED`** (chaque offreur est notifié), journal `OFFER_ACCEPTED`, embed
- *   réécrit.
+ *   `reservedUntil`, réservation `ACTIVE` créée pour **l'acheteur** (l'auteur de
+ *   l'offre acceptée — ou l'auteur de l'offre d'origine quand on accepte une
+ *   contre-offre émise par le vendeur), **les autres offres passent `EXPIRED`**
+ *   (chaque offreur est notifié), journal `OFFER_ACCEPTED`, embed réécrit.
+ * · `COUNTER` → l'offre courante passe `DECLINED` et une offre **de
+ *   remplacement** `PENDING` (rattachée par `counterOfId`) part chez l'auteur de
+ *   l'offre courante, pour `marketOfferHours`. Le compteur public « N offre(s)
+ *   en cours » (S4.7) est **inchangé** (une offre en remplace une autre) : aucune
+ *   réécriture d'embed n'est nécessaire.
  *
  * Concurrence (§11.3) : chaque garde de statut vit dans le `WHERE` d'un
  * `updateMany` **dans** la transaction. Deux réponses simultanées, une
@@ -300,11 +330,17 @@ export async function respondToMarketOfferCore(params: {
     /** `GuildConfig.id` **interne** (§16.2 : jamais le snowflake Discord). */
     guildConfigId: string;
     offerId: string;
-    /** `User.id` SigilOS du **vendeur** : seul le propriétaire peut répondre. */
-    sellerUserId: string;
+    /** `User.id` SigilOS du répondant (contexte serveur, jamais le client). */
+    responderUserId: string;
+    /** `UserProfile.id` du répondant : auteur de la contre-offre (§11.4). */
+    responderProfileId: string;
     decision: MarketOfferDecisionInput;
     /** `GuildConfig.marketReservationHours` — durée de la réservation créée. */
     reservationHours: number;
+    /** `GuildConfig.marketOfferHours` — durée de vie de la contre-offre créée. */
+    offerHours?: number;
+    /** Saisie nettoyée (`normalizeMarketOfferDraft`) — requise pour `COUNTER`. */
+    counter?: MarketOfferCounterDraft;
 }): Promise<MarketOfferDecisionOutcome> {
     try {
         const { min, max } = MARKET_SETTINGS_BOUNDS.marketReservationHours;
@@ -327,10 +363,12 @@ export async function respondToMarketOfferCore(params: {
                 expiresAt: true,
                 buyerProfileId: true,
                 buyerUserId: true,
+                counterOfId: true,
                 listing: {
                     select: {
                         id: true,
                         userId: true,
+                        profileId: true,
                         title: true,
                         guild: { select: { discordGuildId: true } },
                     },
@@ -338,8 +376,29 @@ export async function respondToMarketOfferCore(params: {
             },
         });
         if (!offer) return failDecision("NOT_FOUND");
-        // §14.1 — garde « **propriétaire** » : le vendeur de l'annonce, personne d'autre.
-        if (offer.listing.userId !== params.sellerUserId) return failDecision("FORBIDDEN");
+
+        // §11.4 — quelle est l'**autre partie**, la seule à pouvoir répondre ?
+        // L'offre d'origine vient de l'acheteur : c'est le vendeur qui répond. Une
+        // contre-offre, elle, se répond par l'auteur de l'offre qu'elle référence :
+        // la négociation alterne, chacun répond à l'autre, jamais à soi-même.
+        let counterpart: { userId: string; profileId: string };
+        if (offer.counterOfId) {
+            const origin = await db.marketOffer.findUnique({
+                where: { id: offer.counterOfId },
+                select: { buyerUserId: true, buyerProfileId: true },
+            });
+            // Chaîne cassée (donnée incohérente) : on refuse, on ne devine pas.
+            if (!origin) return failDecision("NOT_FOUND");
+            counterpart = { userId: origin.buyerUserId, profileId: origin.buyerProfileId };
+        } else {
+            // Une offre d'origine est déposée par l'acheteur en vertu de la
+            // contrainte `OWN_LISTING` de la création ; sinon la donnée est
+            // incohérente, et une offre « du vendeur » ne serait plus négociable.
+            if (offer.buyerUserId === offer.listing.userId) return failDecision("FORBIDDEN");
+            counterpart = { userId: offer.listing.userId, profileId: offer.listing.profileId };
+        }
+        // §14.1 — la propriété de l'annonce ne suffit plus : c'est **cette** partie.
+        if (params.responderUserId !== counterpart.userId) return failDecision("FORBIDDEN");
         if (offer.status !== "PENDING") return failDecision("NOT_PENDING");
 
         const now = new Date();
@@ -347,11 +406,17 @@ export async function respondToMarketOfferCore(params: {
         // refuse, on ne ressuscite jamais une offre périmée.
         if (offer.expiresAt && offer.expiresAt.getTime() <= now.getTime()) return failDecision("EXPIRED");
 
+        // Auteur de l'offre vivante (celui qui a proposé les termes courants) et
+        // **acheteur** d'une acceptation : la partie qui n'est pas le vendeur.
+        const author = { userId: offer.buyerUserId, profileId: offer.buyerProfileId };
+        const isAuthorOwner = author.userId === offer.listing.userId;
+        const buyer = isAuthorOwner ? counterpart : author;
+
         if (params.decision === "DECLINE") {
             const declined = await db.$transaction(async (tx) => {
                 const updated = await tx.marketOffer.updateMany({
                     where: { id: offer.id, status: "PENDING" }, // garde dans le WHERE (§11.3)
-                    data: { status: "DECLINED", respondedAt: now, respondedByUserId: params.sellerUserId },
+                    data: { status: "DECLINED", respondedAt: now, respondedByUserId: params.responderUserId },
                 });
                 if (updated.count === 0) return false;
                 // §11.6 — répondre est une activité : les rappels J+7 / J+15 reculent.
@@ -366,7 +431,7 @@ export async function respondToMarketOfferCore(params: {
             await writeMarketAuditLog({
                 guildId: params.guildConfigId,
                 listingId: offer.listing.id,
-                actorUserId: params.sellerUserId,
+                actorUserId: params.responderUserId,
                 action: MARKET_AUDIT_ACTIONS.OFFER_DECLINED,
                 previousData: { status: "PENDING" },
                 nextData: { status: "DECLINED", offerId: offer.id },
@@ -387,7 +452,7 @@ export async function respondToMarketOfferCore(params: {
             try {
                 await notifyMarketBuyerActivity({
                     type: "MARKET_OFFER_ANSWERED",
-                    buyerUserId: offer.buyerUserId,
+                    buyerUserId: author.userId,
                     decision: "rejected",
                     listingId: offer.listing.id,
                     discordGuildId: offer.listing.guild.discordGuildId,
@@ -400,6 +465,136 @@ export async function respondToMarketOfferCore(params: {
             return { ok: true, offerId: offer.id, status: "DECLINED", expiredOthers: 0 };
         }
 
+        // ── CONTRE-OFFRE (§11.4 : l'offre courante tombe, une nouvelle repart) ─
+        if (params.decision === "COUNTER") {
+            const bounds = MARKET_SETTINGS_BOUNDS.marketOfferHours;
+            const counter = params.counter;
+            const counterHours = params.offerHours;
+            if (
+                !counter ||
+                typeof counterHours !== "number" ||
+                !Number.isFinite(counterHours) ||
+                counterHours < bounds.min ||
+                counterHours > bounds.max
+            ) {
+                return failDecision("INVALID");
+            }
+            // Mêmes règles de contenu qu'un dépôt d'offre (§11.4) : une contre-offre
+            // n'est jamais vide, et un montant illisible ou hors bornes est refusé
+            // plutôt que ramené en silence (§0.1).
+            if (counter.invalid) return failDecision("INVALID");
+            if (counter.offeredKamas !== null && (!isValidKamas(counter.offeredKamas) || counter.offeredKamas <= 0)) {
+                return failDecision("INVALID");
+            }
+            const trade = counter.tradeDescription?.trim() || null;
+            const note = counter.note?.trim() || null;
+            if (counter.offeredKamas === null && trade === null) return failDecision("EMPTY_OFFER");
+
+            const counterExpiresAt = new Date(now.getTime() + counterHours * 60 * 60 * 1000);
+
+            let counterOfferId: string;
+            try {
+                counterOfferId = await db.$transaction(async (tx) => {
+                    // L'offre courante est refusée **dans la même transaction** : une
+                    // contre-offre ne doit jamais laisser deux offres vivantes en face.
+                    const declinedCurrent = await tx.marketOffer.updateMany({
+                        where: { id: offer.id, status: "PENDING" },
+                        data: { status: "DECLINED", respondedAt: now, respondedByUserId: params.responderUserId },
+                    });
+                    if (declinedCurrent.count === 0) throw new MarketDecisionConflict("NOT_PENDING");
+
+                    const created = await tx.marketOffer.create({
+                        data: {
+                            listingId: offer.listing.id,
+                            // L'auteur de la contre-offre est **le répondant** : sur une
+                            // contre-offre du vendeur, `buyer*` porte donc le vendeur ;
+                            // c'est `counterOfId` qui désigne les rôles (§11.4).
+                            buyerProfileId: params.responderProfileId,
+                            buyerUserId: params.responderUserId,
+                            offeredKamas: counter.offeredKamas,
+                            tradeDescription: trade,
+                            note,
+                            status: "PENDING",
+                            counterOfId: offer.id,
+                            expiresAt: counterExpiresAt,
+                        },
+                        select: { id: true },
+                    });
+
+                    // §11.6 — négocier est une activité : les rappels J+7 / J+15 reculent.
+                    await tx.marketListing.update({
+                        where: { id: offer.listing.id },
+                        data: { lastActivityAt: now },
+                    });
+
+                    return created.id;
+                });
+            } catch (err) {
+                if (err instanceof MarketDecisionConflict) return failDecision(err.reason);
+                throw err;
+            }
+
+            await writeMarketAuditLog({
+                guildId: params.guildConfigId,
+                listingId: offer.listing.id,
+                actorUserId: params.responderUserId,
+                action: MARKET_AUDIT_ACTIONS.OFFER_COUNTERED,
+                previousData: { status: "PENDING", offerId: offer.id },
+                nextData: {
+                    status: "COUNTERED",
+                    declinedOfferId: offer.id,
+                    counterOfferId,
+                    expiresAt: counterExpiresAt,
+                    // §13.7 — montant **interne** (journal modo), jamais dans le salon.
+                    offeredKamas: counter.offeredKamas,
+                    hasTrade: trade !== null,
+                },
+            });
+
+            // §11.9 — « la réponse à mon offre » part chez **l'auteur** de l'offre
+            // remplacée : `MARKET_OFFER_ANSWERED` (`counter`) quand c'est l'acheteur,
+            // l'alerte vendeur habituelle quand c'est le vendeur (« une offre sur ton
+            // annonce » — Q12 ne mentionne jamais que le créateur).
+            try {
+                if (author.userId === offer.listing.userId) {
+                    await notifyMarketSellerActivity({
+                        type: "MARKET_OFFER_RECEIVED",
+                        ownerUserId: author.userId,
+                        ownerProfileId: offer.listing.profileId,
+                        actorProfileId: params.responderProfileId,
+                        listingId: offer.listing.id,
+                        discordGuildId: offer.listing.guild.discordGuildId,
+                        itemLabel: offer.listing.title,
+                    });
+                } else {
+                    await notifyMarketBuyerActivity({
+                        type: "MARKET_OFFER_ANSWERED",
+                        buyerUserId: author.userId,
+                        decision: "counter",
+                        listingId: offer.listing.id,
+                        discordGuildId: offer.listing.guild.discordGuildId,
+                        itemLabel: offer.listing.title,
+                    });
+                }
+            } catch (err) {
+                logger.warn("[market] notification de contre-offre différée", {
+                    offerId: offer.id,
+                    err: String(err),
+                });
+            }
+
+            // Aucune réécriture d'embed (S4.7 / §13.7) : le compteur public « N
+            // offre(s) en cours » est inchangé, une offre en remplace une autre.
+            return {
+                ok: true,
+                offerId: offer.id,
+                status: "COUNTERED",
+                counterOfferId,
+                expiresAt: counterExpiresAt,
+                expiredOthers: 0,
+            };
+        }
+
         // ── ACCEPTATION (§11.4 : RESERVED + les autres offres EXPIRED) ────────
         const expiresAt = new Date(now.getTime() + params.reservationHours * 60 * 60 * 1000);
 
@@ -408,7 +603,7 @@ export async function respondToMarketOfferCore(params: {
             locked = await db.$transaction(async (tx) => {
                 const accepted = await tx.marketOffer.updateMany({
                     where: { id: offer.id, status: "PENDING" },
-                    data: { status: "ACCEPTED", respondedAt: now, respondedByUserId: params.sellerUserId },
+                    data: { status: "ACCEPTED", respondedAt: now, respondedByUserId: params.responderUserId },
                 });
                 if (accepted.count === 0) throw new MarketDecisionConflict("NOT_PENDING");
 
@@ -428,8 +623,11 @@ export async function respondToMarketOfferCore(params: {
                 const reservation = await tx.marketReservation.create({
                     data: {
                         listingId: offer.listing.id,
-                        buyerProfileId: offer.buyerProfileId,
-                        buyerUserId: offer.buyerUserId,
+                        // L'acheteur est **la partie qui n'est pas le vendeur** —
+                        // l'auteur de l'offre acceptée, ou l'auteur de l'offre d'origine
+                        // si l'on accepte la contre-offre émise par le vendeur (§11.4).
+                        buyerProfileId: buyer.profileId,
+                        buyerUserId: buyer.userId,
                         status: "ACTIVE",
                         expiresAt,
                     },
@@ -446,7 +644,7 @@ export async function respondToMarketOfferCore(params: {
                 if (losers.length > 0) {
                     await tx.marketOffer.updateMany({
                         where: { id: { in: losers.map((loser) => loser.id) }, status: "PENDING" },
-                        data: { status: "EXPIRED", respondedAt: now, respondedByUserId: params.sellerUserId },
+                        data: { status: "EXPIRED", respondedAt: now, respondedByUserId: params.responderUserId },
                     });
                 }
 
@@ -460,7 +658,7 @@ export async function respondToMarketOfferCore(params: {
         await writeMarketAuditLog({
             guildId: params.guildConfigId,
             listingId: offer.listing.id,
-            actorUserId: params.sellerUserId,
+            actorUserId: params.responderUserId,
             action: MARKET_AUDIT_ACTIONS.OFFER_ACCEPTED,
             previousData: { status: "PENDING", listingStatus: "ACTIVE" },
             nextData: {
@@ -485,7 +683,7 @@ export async function respondToMarketOfferCore(params: {
         try {
             await notifyMarketBuyerActivity({
                 type: "MARKET_OFFER_ANSWERED",
-                buyerUserId: offer.buyerUserId,
+                buyerUserId: buyer.userId,
                 decision: "accepted",
                 listingId: offer.listing.id,
                 discordGuildId: offer.listing.guild.discordGuildId,
@@ -518,3 +716,104 @@ export async function respondToMarketOfferCore(params: {
         return failDecision("ERROR");
     }
 }
+
+// ---------------------------------------------------------------------------
+// RETRAIT D'UNE OFFRE (S4.10 — §14.1)
+// ---------------------------------------------------------------------------
+
+/** Motif de refus d'un retrait — sert au message affiché (aucun détail interne). */
+export type MarketOfferCancelFailure =
+    | "NOT_FOUND"
+    | "FORBIDDEN"
+    | "NOT_PENDING"
+    | "EXPIRED"
+    | "INVALID"
+    | "ERROR";
+
+export type MarketOfferCancelOutcome =
+    | { ok: true; offerId: string; status: "CANCELLED" }
+    | { ok: false; reason: MarketOfferCancelFailure; error: string };
+
+const CANCEL_FAILURE_MESSAGES: Record<MarketOfferCancelFailure, string> = {
+    NOT_FOUND: "Cette offre est introuvable.",
+    FORBIDDEN: "Seul l'auteur d'une offre peut la retirer.",
+    NOT_PENDING: "Cette offre a déjà reçu une réponse.",
+    EXPIRED: "Cette offre a expiré.",
+    INVALID: "Demande invalide.",
+    ERROR: "Erreur interne, réessaie dans un instant.",
+};
+
+function failCancel(reason: MarketOfferCancelFailure): MarketOfferCancelOutcome {
+    return { ok: false, reason, error: CANCEL_FAILURE_MESSAGES[reason] };
+}
+
+/**
+ * Retrait d'une offre **par son auteur**, tant qu'elle est `PENDING` (§14.1).
+ *
+ * ❌ Aucune notification : §11.9 ne prévoit rien pour un retrait volontaire et
+ * D30 interdit tout message privé. ✅ Le compteur public « N offre(s) en cours »
+ * (S4.7) redescend, en revanche : l'embed est réécrit, la BDD restant la
+ * référence (jamais bloquant pour le membre).
+ */
+export async function cancelMarketOfferCore(params: {
+    /** `GuildConfig.id` **interne** (§16.2 : jamais le snowflake Discord). */
+    guildConfigId: string;
+    offerId: string;
+    /** `User.id` SigilOS de l'auteur — déduit du contexte serveur, jamais du client. */
+    actorUserId: string;
+}): Promise<MarketOfferCancelOutcome> {
+    try {
+        if (!params.offerId) return failCancel("INVALID");
+
+        // Isolation (§16.2) : l'offre est cherchée par `id` **et** par guilde de
+        // son annonce — une offre d'une autre guilde n'existe pas ici.
+        const offer = await db.marketOffer.findFirst({
+            where: { id: params.offerId, listing: { guildId: params.guildConfigId, deletedAt: null } },
+            select: {
+                id: true,
+                status: true,
+                expiresAt: true,
+                buyerUserId: true,
+                listing: { select: { id: true } },
+            },
+        });
+        if (!offer) return failCancel("NOT_FOUND");
+        // §14.1 — garde « **auteur** » : celui qui a déposé l'offre, personne d'autre.
+        // (Vrai aussi pour une contre-offre : son auteur est `buyer*` par construction.)
+        if (offer.buyerUserId !== params.actorUserId) return failCancel("FORBIDDEN");
+        if (offer.status !== "PENDING") return failCancel("NOT_PENDING");
+
+        const now = new Date();
+        if (offer.expiresAt && offer.expiresAt.getTime() <= now.getTime()) return failCancel("EXPIRED");
+
+        // Garde de statut **dans le `WHERE`** (§11.3) : deux retraits simultanés ou
+        // une réponse du vendeur arrivée entre-temps ⇒ `count === 0` ⇒ rien écrit.
+        const cancelled = await db.marketOffer.updateMany({
+            where: { id: offer.id, status: "PENDING" },
+            data: { status: "CANCELLED", respondedAt: now, respondedByUserId: params.actorUserId },
+        });
+        if (cancelled.count === 0) return failCancel("NOT_PENDING");
+
+        await writeMarketAuditLog({
+            guildId: params.guildConfigId,
+            listingId: offer.listing.id,
+            actorUserId: params.actorUserId,
+            action: MARKET_AUDIT_ACTIONS.OFFER_CANCELLED,
+            previousData: { status: "PENDING" },
+            nextData: { status: "CANCELLED", offerId: offer.id },
+        });
+
+        void syncListingMessage(offer.listing.id).catch((err) =>
+            logger.warn("[market] synchronisation Discord différée", {
+                listingId: offer.listing.id,
+                err: String(err),
+            })
+        );
+
+        return { ok: true, offerId: offer.id, status: "CANCELLED" };
+    } catch (error) {
+        logger.error("[market] cancelMarketOfferCore failed", { err: error });
+        return failCancel("ERROR");
+    }
+}
+

@@ -5,7 +5,7 @@ import { auth } from "@/auth";
 import { logger } from "@/lib/logger";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
+import { Prisma, type MarketOfferStatus } from "@prisma/client";
 import { getUserContext, type ActionResponse } from "./user-actions";
 import { KAMAS_MAX } from "@/lib/market/kamas";
 import { computeStatQuality, computeStatsHash } from "@/lib/market/stat-quality";
@@ -14,7 +14,13 @@ import { loadMarketReferential } from "@/lib/market/referential";
 import { publishListingToDiscord, syncListingMessage } from "@/server/market/discord";
 import { writeMarketAuditLog } from "@/server/market/audit";
 import { reserveMarketListingCore, cancelMarketReservationCore } from "@/server/market/reservations";
-import { createMarketOfferCore, respondToMarketOfferCore, type MarketOfferDecisionInput } from "@/server/market/offers";
+import {
+    cancelMarketOfferCore,
+    createMarketOfferCore,
+    respondToMarketOfferCore,
+    type MarketOfferCounterDraft,
+    type MarketOfferDecisionInput,
+} from "@/server/market/offers";
 import { completeMarketSaleCore } from "@/server/market/sales";
 import { normalizeMarketOfferDraft } from "@/lib/market/discord-interactions";
 import {
@@ -54,9 +60,40 @@ export type MarketCatalogFilters = {
     sort?: "recent" | "price_asc" | "price_desc" | "level_desc";
 };
 
+/**
+ * Offre du **centre de négociation** (S4.10), telle que vue par le membre courant.
+ * §13.7 : cet écran est privé — le pseudo de l'autre partie y est légitime, il ne
+ * l'est jamais dans le salon Discord (seul le compteur d'offres y est public).
+ */
+export type MarketNegotiationOffer = {
+    id: string;
+    listingId: string;
+    listingTitle: string;
+    status: MarketOfferStatus;
+    /** `true` = contre-offre rattachée à une offre précédente (§11.4). */
+    isCounter: boolean;
+    /** `AUTHOR` = j'ai déposé cette offre · `COUNTERPART` = c'est à moi de répondre. */
+    role: "AUTHOR" | "COUNTERPART";
+    offeredKamas: number | null;
+    tradeDescription: string | null;
+    note: string | null;
+    createdAt: string;
+    expiresAt: string | null;
+    /** Pseudo de l'autre partie, quand c'est à moi de répondre. */
+    counterpartLabel: string | null;
+    /** `true` = accepter / refuser / contre-proposer (§11.4). */
+    canRespond: boolean;
+    /** `true` = retirer mon offre (§14.1). */
+    canCancel: boolean;
+};
+
 export type MyMarketData = {
     active: MarketListingRecord[];
     archived: MarketListingRecord[];
+    /** S4.10 — offres reçues sur mes annonces, encore `PENDING`. */
+    receivedOffers: MarketNegotiationOffer[];
+    /** S4.10 — mes offres (en cours **et** tranchées) + contre-offres qui m'attendent. */
+    sentOffers: MarketNegotiationOffer[];
 };
 
 // ---------------------------------------------------------------------------
@@ -332,7 +369,71 @@ export async function getMarketListing(
     }
 }
 
-/** « Mes espaces » : mes annonces actives + mes archives. */
+/** Sélection commune aux offres du centre de négociation (S4.10). */
+const NEGOTIATION_OFFER_SELECT = {
+    id: true,
+    listingId: true,
+    status: true,
+    counterOfId: true,
+    buyerProfileId: true,
+    offeredKamas: true,
+    tradeDescription: true,
+    note: true,
+    createdAt: true,
+    expiresAt: true,
+    listing: { select: { id: true, title: true } },
+} as const;
+
+/** Ligne brute renvoyée par `NEGOTIATION_OFFER_SELECT`. */
+type NegotiationOfferRow = {
+    id: string;
+    listingId: string;
+    status: MarketOfferStatus;
+    counterOfId: string | null;
+    buyerProfileId: string;
+    offeredKamas: number | null;
+    tradeDescription: string | null;
+    note: string | null;
+    createdAt: Date;
+    expiresAt: Date | null;
+    listing: { id: string; title: string };
+};
+
+/** Nombre d'offres conservées dans l'historique « mes offres » (S4.10). */
+const MARKET_NEGOTIATION_HISTORY_LIMIT = 20;
+
+/**
+ * Met une ligne `MarketOffer` en forme pour le centre de négociation (§14.1).
+ *
+ * Les capacités (`canRespond` / `canCancel`) sont calculées **serveur** : une
+ * offre `PENDING` mais déjà **périmée** n'est plus actionnable (l'expiration est
+ * écrite par le cron, §15.1 point 5 — le moteur la refuserait de toute façon).
+ */
+function toNegotiationOffer(
+    row: NegotiationOfferRow,
+    params: { role: "AUTHOR" | "COUNTERPART"; counterpartLabel: string | null; now: number }
+): MarketNegotiationOffer {
+    const live = row.status === "PENDING" && !(row.expiresAt && row.expiresAt.getTime() <= params.now);
+    return {
+        id: row.id,
+        listingId: row.listing.id,
+        listingTitle: row.listing.title,
+        status: row.status,
+        isCounter: row.counterOfId !== null,
+        role: params.role,
+        offeredKamas: row.offeredKamas,
+        tradeDescription: row.tradeDescription,
+        note: row.note,
+        createdAt: row.createdAt.toISOString(),
+        expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
+        counterpartLabel: params.counterpartLabel,
+        // Répondre = être **la contrepartie** (§11.4) ; retirer = être l'**auteur**.
+        canRespond: live && params.role === "COUNTERPART",
+        canCancel: live && params.role === "AUTHOR",
+    };
+}
+
+/** « Mes espaces » (S1.23 / S1.31) : mes annonces actives, mes archives et, depuis S4.10, mon centre de négociation. */
 export async function getMyMarketData(guildId: string): Promise<ActionResponse<MyMarketData>> {
     try {
         const ctx = await resolveMarketContext(guildId);
@@ -349,7 +450,86 @@ export async function getMyMarketData(guildId: string): Promise<ActionResponse<M
         const active = rows.filter((row) => !MARKET_TERMINAL_STATUSES.includes(row.status));
         const archived = rows.filter((row) => MARKET_TERMINAL_STATUSES.includes(row.status));
 
-        return { success: true, data: { active, archived } };
+        // S4.10 — centre de négociation. Une seule règle de lecture, deux listes :
+        //  • « reçues » : offres `PENDING` déposées par d'autres sur mes annonces ;
+        //  • « mes offres » : celles dont je suis l'auteur (en cours **et**
+        //    tranchées), **plus** les contre-offres qui me répondent — une
+        //    contre-offre est écrite au nom de son auteur, pas du destinataire,
+        //    donc c'est `counterOfId` qui dit « c'est à moi de répondre » (§11.4).
+        const receivedRows = rows.length
+            ? await db.marketOffer.findMany({
+                  where: {
+                      listingId: { in: rows.map((row) => row.id) },
+                      status: "PENDING",
+                      buyerProfileId: { not: user.profileId },
+                  },
+                  select: NEGOTIATION_OFFER_SELECT,
+                  orderBy: [{ createdAt: "desc" }],
+              })
+            : [];
+
+        const myOfferRows = await db.marketOffer.findMany({
+            where: {
+                buyerProfileId: user.profileId,
+                listing: { guildId: guildConfig.id, deletedAt: null },
+            },
+            select: NEGOTIATION_OFFER_SELECT,
+            orderBy: [{ createdAt: "desc" }],
+            take: MARKET_NEGOTIATION_HISTORY_LIMIT,
+        });
+
+        const incomingRows = myOfferRows.length
+            ? await db.marketOffer.findMany({
+                  where: { counterOfId: { in: myOfferRows.map((offer) => offer.id) }, status: "PENDING" },
+                  select: NEGOTIATION_OFFER_SELECT,
+                  orderBy: [{ createdAt: "desc" }],
+              })
+            : [];
+
+        // Pseudos des contreparties : `MarketOffer.buyerProfileId` n'a pas de
+        // relation Prisma, une requête dédiée évite une jointure implicite (§13.7).
+        const counterpartIds = Array.from(
+            new Set(
+                [...receivedRows, ...incomingRows]
+                    .map((offer) => offer.buyerProfileId)
+                    .filter((profileId) => profileId !== user.profileId)
+            )
+        );
+        const counterpartProfiles = counterpartIds.length
+            ? await db.userProfile.findMany({
+                  where: { id: { in: counterpartIds } },
+                  select: { id: true, pseudoDofus: true, discordNickname: true },
+              })
+            : [];
+        const labelByProfileId = new Map(
+            counterpartProfiles.map((profile) => [
+                profile.id,
+                profile.pseudoDofus?.trim() || profile.discordNickname?.trim() || null,
+            ])
+        );
+
+        const now = Date.now();
+        const receivedOffers = receivedRows.map((row) =>
+            toNegotiationOffer(row, {
+                role: "COUNTERPART",
+                counterpartLabel: labelByProfileId.get(row.buyerProfileId) ?? null,
+                now,
+            })
+        );
+        const sentOffers = [
+            ...myOfferRows.map((row) =>
+                toNegotiationOffer(row, { role: "AUTHOR", counterpartLabel: null, now })
+            ),
+            ...incomingRows.map((row) =>
+                toNegotiationOffer(row, {
+                    role: "COUNTERPART",
+                    counterpartLabel: labelByProfileId.get(row.buyerProfileId) ?? null,
+                    now,
+                })
+            ),
+        ];
+
+        return { success: true, data: { active, archived, receivedOffers, sentOffers } };
     } catch (error) {
         logger.error("[getMyMarketData] failed", { err: error });
         return { success: false, error: "Erreur interne" };
@@ -518,37 +698,71 @@ export async function createMarketOffer(
  * Répond à une offre reçue : `ACCEPT` (l'annonce passe `RESERVED` au prix de
  * l'offre, une réservation est créée, les autres offres expirent) ou `DECLINE`.
  *
- * Toute la règle — propriété de l'annonce, offre encore `PENDING`, offre non
- * périmée, conflit de réservation/vente simultanée, journal, embed et
- * notifications acheteur (§11.9) — vit **une seule fois** dans
- * `respondToMarketOfferCore()`, partagé avec le centre de négociation (§13.4).
+ * Toute la règle — qui a le droit de répondre (le **vendeur** sur une offre
+ * d'origine, l'auteur de l'offre référencée sur une contre-offre), offre encore
+ * `PENDING`, offre non périmée, conflit de réservation/vente simultanée, journal,
+ * embed et notifications (§11.9) — vit **une seule fois** dans
+ * `respondToMarketOfferCore()`, partagé avec les interactions Discord (§13.4).
+ *
+ * S4.10 — `COUNTER` refuse l'offre courante et dépose une **contre-offre**
+ * `PENDING` rattachée par `counterOfId` (§11.4). La saisie passe par la **même**
+ * normalisation pure que la modale Discord (`normalizeMarketOfferDraft`).
  */
 export async function respondToMarketOffer(
     guildId: string,
     offerId: string,
-    decision: MarketOfferDecisionInput
+    decision: MarketOfferDecisionInput,
+    counter: MarketOfferInput = {}
 ): Promise<
-    ActionResponse<{ status: "ACCEPTED" | "DECLINED"; reservationId?: string; expiresAt?: string }>
+    ActionResponse<{
+        status: "ACCEPTED" | "DECLINED" | "COUNTERED";
+        reservationId?: string;
+        expiresAt?: string;
+        counterOfferId?: string;
+    }>
 > {
     try {
         const ctx = await resolveMarketContext(guildId);
         if ("error" in ctx) return { success: false, error: ctx.error };
         const { user, guildConfig } = ctx;
+        if (!user.profileId) return { success: false, error: "Profil introuvable" };
 
         const parsed = z.string().min(1).max(64).safeParse(offerId);
         if (!parsed.success) return { success: false, error: "Offre introuvable" };
-        // La contre-offre (§11.4) appartient au centre de négociation (S4.10) :
-        // ici deux issues seulement, aucune troisième devinée (§0.1).
-        const parsedDecision = z.enum(["ACCEPT", "DECLINE"]).safeParse(decision);
+        const parsedDecision = z.enum(["ACCEPT", "DECLINE", "COUNTER"]).safeParse(decision);
         if (!parsedDecision.success) return { success: false, error: "Décision invalide" };
+
+        // Le nettoyage de la contre-offre est fait **ici** (kamas tolérants
+        // « 12 500 k », textes bornés) puis vérifié par le moteur : une saisie
+        // illisible est refusée en clair, jamais ramenée en silence (§0.1).
+        let counterDraft: MarketOfferCounterDraft | undefined;
+        if (parsedDecision.data === "COUNTER") {
+            const draft = normalizeMarketOfferDraft({
+                kamas:
+                    counter.offeredKamas === null || counter.offeredKamas === undefined
+                        ? ""
+                        : String(counter.offeredKamas),
+                trade: counter.tradeDescription ?? "",
+                note: counter.note ?? "",
+            });
+            counterDraft = {
+                offeredKamas: draft.offeredKamas,
+                tradeDescription: draft.tradeDescription,
+                note: draft.note,
+                invalid: draft.invalid,
+            };
+        }
 
         const session = await auth();
         const outcome = await respondToMarketOfferCore({
             guildConfigId: guildConfig.id,
             offerId: parsed.data,
-            sellerUserId: session?.user?.id ?? user.id ?? "",
+            responderUserId: session?.user?.id ?? user.id ?? "",
+            responderProfileId: user.profileId,
             decision: parsedDecision.data,
             reservationHours: guildConfig.marketReservationHours,
+            offerHours: guildConfig.marketOfferHours,
+            counter: counterDraft,
         });
         if (!outcome.ok) return { success: false, error: outcome.error };
 
@@ -559,10 +773,47 @@ export async function respondToMarketOffer(
                 status: outcome.status,
                 reservationId: outcome.reservationId,
                 expiresAt: outcome.expiresAt?.toISOString(),
+                counterOfferId: outcome.counterOfferId,
             },
         };
     } catch (error) {
         logger.error("[respondToMarketOffer] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+/**
+ * Retire une offre que **j'ai déposée** (S4.10, §14.1) tant qu'elle est `PENDING`.
+ *
+ * Aucune notification n'est émise : §11.9 ne prévoit rien pour un retrait
+ * volontaire et D30 interdit tout message privé. Le compteur public « N offre(s)
+ * en cours » (S4.7) est réécrit après coup, sans jamais bloquer le membre.
+ */
+export async function cancelMarketOffer(
+    guildId: string,
+    offerId: string
+): Promise<ActionResponse<{ offerId: string }>> {
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+        const { user, guildConfig } = ctx;
+        if (!user.profileId) return { success: false, error: "Profil introuvable" };
+
+        const parsed = z.string().min(1).max(64).safeParse(offerId);
+        if (!parsed.success) return { success: false, error: "Offre introuvable" };
+
+        const session = await auth();
+        const outcome = await cancelMarketOfferCore({
+            guildConfigId: guildConfig.id,
+            offerId: parsed.data,
+            actorUserId: session?.user?.id ?? user.id ?? "",
+        });
+        if (!outcome.ok) return { success: false, error: outcome.error };
+
+        revalidatePath(`/dashboard/${guildId}/marche`);
+        return { success: true, data: { offerId: outcome.offerId } };
+    } catch (error) {
+        logger.error("[cancelMarketOffer] failed", { err: error });
         return { success: false, error: "Erreur interne" };
     }
 }

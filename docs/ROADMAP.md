@@ -69,6 +69,15 @@
   - **UI** : bandeau « **Réservé par X jusqu'au …** » sur la fiche (variante « **Tu as réservé cette annonce** » pour l'acheteur) + carte « Acheter » adaptée (déjà réservée / c'est moi) + **échéance sur la carte du catalogue** (`RESERVED`). Échéance affichée **date + heure** (`formatDeadline`).
   - **Tests** : `market-guards.test.ts` **13** (+3 : pseudo + échéance, `isMine`/repli neutre, aucune réservation hors `RESERVED`) → **suite complète 963/963** ✅ (94 fichiers) · `tsc` 0 · `eslint` 0 · `build` exit 0 · **0 migration**.
 
+- ✅ **Session 11/09/2026 (suite) — Module « Marché » · S7 lot 3 : le créateur peut éditer son annonce** (branche `feat/marche-b3` ; plan §21 S7) :
+  - **Symptôme user** : « le créateur peut pas éditer ses fiches et changer par exemple le jet de l'item / quantité » — le serveur (`updateMarketListing`) le permettait **depuis S1**, mais **aucun écran ne l'appelait**.
+  - **Route `marche/[listingId]/modifier`** (S7.11) : gardes identiques à la fiche (module + `canViewMarket`) **+ propriétaire uniquement**, **statuts éditables** (`DRAFT`/`ACTIVE`/`EXPIRED`) et types couverts par l'assistant (`EQUIPMENT`/`RESOURCE`) — sinon redirection vers la fiche (le serveur reste l'autorité).
+  - **`MarketCreateClient` en mode `edit`** (S7.12) : le **même** assistant est rejoué sur l'état initial (nature, objet du catalogue relu par `getLocalGameItemDetails`, jet, lot/quantités, prix, description, troc) — **aucune duplication** ; l'étape 4 (publication Discord) disparaît (fil à **3 étapes**) et la dernière étape enregistre (`updateMarketListing` : vendeur + statut revalidés, **jet recalculé serveur**, `statsHash` rejoué, journal `LISTING_UPDATED`). Charge utile **mutualisée** (`buildPayload()`) création/édition : jamais de `quality` client.
+  - **Resynchro Discord non bloquante** après édition d'une annonce `ACTIVE`/`RESERVED` (`void syncListingMessage(...)`, même invariant qu'en S3) + `revalidatePath` de la fiche.
+  - **Boutons « Modifier »** (S7.13) : fiche (carte « Actions du vendeur ») **et** « Mes espaces », visibles seulement pour le vendeur et les statuts éditables.
+  - **Tests** (S7.14) : `market-guards.test.ts` **16** (+3 : non-vendeur refusé, `RESERVED`/`SOLD`/`WITHDRAWN` refusés, **`quality` client ignoré** → `OVER` recalculé + plage du catalogue) → **suite complète 966/966** ✅ (94 fichiers) · `tsc` 0 · `eslint` 0 · `build` **exit 0** · **0 migration**.
+
+
 - 🔸 **Session 08/09/2026 — Module « Titans »** (branche `feat/slash-rework`, non commité ; mémo `src/temp/memo-2026-09-08-titans.md`) :
   - **Fonctionnalité de bout en bout** : modèle `Titan` + `UserTitanProgress` + `DjSearchMode.TITAN` + champs DJ (`titanId/titanName/questName/questUrl`) — migrations `20261101000000_add_titan` + `20261102000000_add_titan_quests` appliquées. Admin GOD `TitanManager`, server actions `titan-admin-actions`/`titan-actions`, seed Gargandyas (id 8062, zone Osavora).
   - **Dashboard DJ** : mode `TITAN` (création/filtre/embed/close/titres) + `maxMembers` plafonné au titan.

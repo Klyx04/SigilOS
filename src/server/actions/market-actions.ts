@@ -1254,7 +1254,20 @@ export async function updateMarketListing(
             nextData: { title: data.title, priceKamas: data.priceKamas ?? null },
         });
 
+        // S7.12 — l'annonce peut **déjà être publiée** : l'embed Discord doit
+        // refléter le nouveau titre / prix / jet. Même invariant qu'en S3 :
+        // la resynchronisation n'est **jamais bloquante**.
+        if (existing.status === "ACTIVE" || existing.status === "RESERVED") {
+            void syncListingMessage(existing.id).catch((err) => {
+                logger.warn("[market] resynchro Discord différée après édition", {
+                    listingId: existing.id,
+                    err: String(err),
+                });
+            });
+        }
+
         revalidatePath(`/dashboard/${guildId}/marche`);
+        revalidatePath(`/dashboard/${guildId}/marche/${existing.id}`);
         return { success: true };
     } catch (error) {
         logger.error("[updateMarketListing] failed", { err: error });

@@ -127,6 +127,7 @@ export async function POST(request: NextRequest) {
                 // (db.userProfile lookup). The Discord API gate can false-negative
                 // on rate limits or temporary API failures, blocking valid members.
                 svc: PERMISSIONS.GAME_OPERATIONS,         // Services = organisation d'activités
+                mkt: PERMISSIONS.MARKET_TRADE,            // Marché = réserver / offrir / contacter
             };
 
             const requiredPerm = DISCORD_PERM_MAP[prefix];
@@ -1104,6 +1105,19 @@ export async function POST(request: NextRequest) {
                 } else {
                     return NextResponse.json({ type: 4, data: { content: "Action ticket inconnue", flags: 64 } });
                 }
+            } else if (prefix === "mkt") {
+                // §13.4 — le Marché délègue TOUTE sa logique métier au service
+                // (guilde, module actif, actions du dashboard) : la route ne décide rien.
+                const { handleMarketComponentInteraction } = await import("@/server/market/discord-interactions");
+                const outcome = await handleMarketComponentInteraction({
+                    customId: custom_id,
+                    discordGuildId: guild_id ?? null,
+                    userId: account!.userId,
+                });
+                return NextResponse.json({
+                    type: 4,
+                    data: { content: outcome.content, flags: 64 },
+                });
             } else {
                 return NextResponse.json({ type: 4, data: { content: "Interaction inconnue", flags: 64 } });
             }

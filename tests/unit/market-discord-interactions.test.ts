@@ -1,11 +1,13 @@
 /**
- * Module « Marché » — tests des interactions Discord (S4.1 → S4.3) :
+ * Module « Marché » — tests des interactions Discord (S4.1 → S4.4) :
  *   1. parsing **fail-closed** du `custom_id` (`mkt:<action>:<listingId>`) ;
  *   2. refus AVANT toute action métier : `custom_id` invalide, hors serveur,
  *      module `marche` désactivé pour la guilde (§0.1 / §16.2) ;
  *   3. garde module interrogée avec l'id de guilde Discord reçu (isolation) ;
- *   4. réponse **toujours** explicite (§13.5) — éphémère (type 4) **ou** modale
- *      (type 9) — sans fuite de montant ni de pseudo d'acheteur (§13.7).
+ *   4. réponse **toujours** explicite (§13.5) — éphémère (type 4), **ou** modale
+ *      (type 9) — sans fuite de montant ni de pseudo d'acheteur (§13.7) ;
+ *   5. soumission de la modale d'offre (type 5, S4.4) : la règle « kamas OU troc »
+ *      est **recalculée serveur** — un envoi vide est refusé, jamais deviné.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -25,10 +27,11 @@ vi.mock("@/server/market/discord", () => ({
     syncListingMessage: vi.fn().mockResolvedValue({ ok: true }),
 }));
 
-/** Transaction simulée du moteur de réservation (S4.2). */
+/** Transaction simulée des moteurs (réservation S4.2, offre S4.4). */
 const tx = {
-    marketListing: { updateMany: vi.fn() },
+    marketListing: { updateMany: vi.fn(), update: vi.fn() },
     marketReservation: { create: vi.fn() },
+    marketOffer: { create: vi.fn() },
 };
 
 const mockGuildConfigFindUnique = vi.fn();
@@ -54,11 +57,26 @@ import {
     buildMarketOfferModal,
     parseMarketCustomId,
 } from "@/lib/market/discord-interactions";
-import { handleMarketComponentInteraction } from "@/server/market/discord-interactions";
+import {
+    handleMarketComponentInteraction,
+    handleMarketModalSubmit,
+} from "@/server/market/discord-interactions";
 
 /** `cuid()` d'annonce utilisé dans tous les tests. */
 const LISTING_ID = "cm5marketlisting0001";
 const GUILD_ID = "123456789012345678";
+
+/**
+ * Soumission de modale (type 5) telle que Discord l'envoie : chaque champ est
+ * imbriqué dans sa propre ligne (`ActionRow` type 1), les absents valant `""`.
+ */
+function marketModalValues(values: { kamas?: string; trade?: string; note?: string }) {
+    return [
+        { components: [{ custom_id: MARKET_OFFER_MODAL.FIELDS.KAMAS, value: values.kamas ?? "" }] },
+        { components: [{ custom_id: MARKET_OFFER_MODAL.FIELDS.TRADE, value: values.trade ?? "" }] },
+        { components: [{ custom_id: MARKET_OFFER_MODAL.FIELDS.NOTE, value: values.note ?? "" }] },
+    ];
+}
 
 describe("market discord interactions — parsing des custom_id (S4.1)", () => {
     it("accepte les 3 actions produites par les boutons de l'annonce (§13.3)", () => {
@@ -293,6 +311,7 @@ describe("market discord interactions — offre mkt:offer (S4.3)", () => {
         mockGuildConfigFindUnique.mockResolvedValue({
             id: "guild-internal-1",
             marketReservationHours: 12,
+            marketOfferHours: 48,
             marketNegotiationsEnabled: true,
         });
         mockUserProfileFindUnique.mockResolvedValue({ id: PROFILE_ID, status: "ACTIVE" });
@@ -413,6 +432,317 @@ describe("market discord interactions — offre mkt:offer (S4.3)", () => {
 
         expect(res).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.PROFILE_REQUIRED });
         expect(mockListingFindFirst).not.toHaveBeenCalled();
+    });
+});
+
+describe("market discord interactions — soumission modale mkt:offer (S4.4)", () => {
+    const PROFILE_ID = "profile-buyer";
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockIsModuleEnabled.mockResolvedValue(true);
+        mockGuildConfigFindUnique.mockResolvedValue({
+            id: "guild-internal-1",
+            marketReservationHours: 12,
+            marketOfferHours: 48,
+            marketNegotiationsEnabled: true,
+        });
+        mockUserProfileFindUnique.mockResolvedValue({ id: PROFILE_ID, status: "ACTIVE" });
+        mockListingFindFirst.mockResolvedValue({
+            id: LISTING_ID,
+            profileId: "profile-seller",
+            status: "ACTIVE",
+            negotiable: true,
+        });
+        mockAuditCreate.mockResolvedValue({});
+        (db.$transaction as ReturnType<typeof vi.fn>).mockImplementation(
+            async (callback: (client: unknown) => unknown) => callback(tx)
+        );
+        tx.marketOffer.create.mockResolvedValue({
+            id: "offer-1",
+            expiresAt: new Date("2026-09-13T20:00:00.000Z"),
+        });
+        tx.marketListing.update.mockResolvedValue({});
+    });
+
+    it("crée l'offre depuis la soumission et confirme en éphémère (§11.4)", async () => {
+        const res = await handleMarketModalSubmit({
+            customId: `mkt:offer:${LISTING_ID}`,
+            components: marketModalValues({ kamas: "45 000 000", note: "Dispo ce soir ?" }),
+            discordGuildId: GUILD_ID,
+            userId: "user-buyer",
+        });
+
+        expect(res).toEqual({ kind: "ephemeral", ok: true, content: MARKET_EPHEMERAL.OFFER_SUCCESS });
+
+        // Contexte serveur : la guilde est résolue depuis `guild_id` (§16.2).
+        expect(mockGuildConfigFindUnique.mock.calls[0][0].where.discordGuildId).toBe(GUILD_ID);
+
+        const created = tx.marketOffer.create.mock.calls[0][0].data;
+        expect(created).toMatchObject({
+            listingId: LISTING_ID,
+            buyerProfileId: PROFILE_ID,
+            buyerUserId: "user-buyer",
+            offeredKamas: 45_000_000,
+            tradeDescription: null,
+            status: "PENDING",
+        });
+        expect(created.note).toBe("Dispo ce soir ?");
+        expect(created.expiresAt).toBeInstanceOf(Date);
+
+        // §11.6 : l'activité de l'annonce est reportée dans la même transaction.
+        expect(tx.marketListing.update).toHaveBeenCalledWith({
+            where: { id: LISTING_ID },
+            data: { lastActivityAt: expect.any(Date) },
+        });
+        // §13.7 : ni montant, ni pseudo d'acheteur dans la réponse Discord.
+        expect(res.content).not.toMatch(/45|buyer|profile-/i);
+    });
+
+    it("accepte un troc pur (aucun kama) et journalise OFFER_CREATED", async () => {
+        const res = await handleMarketModalSubmit({
+            customId: `mkt:offer:${LISTING_ID}`,
+            components: marketModalValues({ trade: "Épée + 10 potions" }),
+            discordGuildId: GUILD_ID,
+            userId: "user-buyer",
+        });
+
+        expect(res.ok).toBe(true);
+        const created = tx.marketOffer.create.mock.calls[0][0].data;
+        expect(created.offeredKamas).toBeNull();
+        expect(created.tradeDescription).toBe("Épée + 10 potions");
+
+        const audit = mockAuditCreate.mock.calls[0][0].data;
+        expect(audit.action).toBe("OFFER_CREATED");
+        expect(audit.actorUserId).toBe("user-buyer");
+    });
+
+    it("nettoie les liens du troc et du message (§16.4) au lieu de les refuser", async () => {
+        const res = await handleMarketModalSubmit({
+            customId: `mkt:offer:${LISTING_ID}`,
+            components: marketModalValues({ trade: "voir https://exemple.fr", note: "discord.gg/abc" }),
+            discordGuildId: GUILD_ID,
+            userId: "user-buyer",
+        });
+
+        expect(res.ok).toBe(true);
+        const created = tx.marketOffer.create.mock.calls[0][0].data;
+        expect(created.tradeDescription).toBe("voir [lien retiré]");
+        expect(created.note).toBe("[invitation retirée]");
+    });
+
+    it("refuse une soumission totalement vide : « kamas OU troc » recalculé serveur (§11.4)", async () => {
+        const res = await handleMarketModalSubmit({
+            customId: `mkt:offer:${LISTING_ID}`,
+            components: marketModalValues({}),
+            discordGuildId: GUILD_ID,
+            userId: "user-buyer",
+        });
+
+        expect(res).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.OFFER_EMPTY });
+        expect(tx.marketOffer.create).not.toHaveBeenCalled();
+        expect(mockAuditCreate).not.toHaveBeenCalled();
+    });
+
+    it("refuse 0 kama sans troc : aucune offre à 0 ne peut naître (§11.4)", async () => {
+        const res = await handleMarketModalSubmit({
+            customId: `mkt:offer:${LISTING_ID}`,
+            components: marketModalValues({ kamas: "0" }),
+            discordGuildId: GUILD_ID,
+            userId: "user-buyer",
+        });
+
+        expect(res).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.OFFER_EMPTY });
+        expect(tx.marketOffer.create).not.toHaveBeenCalled();
+    });
+
+    it("refuse un montant illisible sans le convertir en troc muet (OFFER_INVALID)", async () => {
+        const res = await handleMarketModalSubmit({
+            customId: `mkt:offer:${LISTING_ID}`,
+            components: marketModalValues({ kamas: "12abc", trade: "Épée" }),
+            discordGuildId: GUILD_ID,
+            userId: "user-buyer",
+        });
+
+        expect(res).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.OFFER_INVALID });
+        expect(tx.marketOffer.create).not.toHaveBeenCalled();
+    });
+});
+
+describe("market discord interactions — gardes d'accès modale mkt:offer (S4.4)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockIsModuleEnabled.mockResolvedValue(true);
+        mockGuildConfigFindUnique.mockResolvedValue({
+            id: "guild-internal-1",
+            marketReservationHours: 12,
+            marketOfferHours: 48,
+            marketNegotiationsEnabled: true,
+        });
+        mockUserProfileFindUnique.mockResolvedValue({ id: "profile-buyer", status: "ACTIVE" });
+        mockListingFindFirst.mockResolvedValue({
+            id: LISTING_ID,
+            profileId: "profile-seller",
+            status: "ACTIVE",
+            negotiable: true,
+        });
+    });
+
+    it("refuse un custom_id qui n'est pas la modale d'offre (fail-closed, §0.1)", async () => {
+        const res = await handleMarketModalSubmit({
+            customId: `mkt:reserve:${LISTING_ID}`,
+            components: marketModalValues({ kamas: "1000" }),
+            discordGuildId: GUILD_ID,
+            userId: "user-buyer",
+        });
+
+        expect(res).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.UNKNOWN_ACTION });
+        expect(mockIsModuleEnabled).not.toHaveBeenCalled();
+        expect(mockGuildConfigFindUnique).not.toHaveBeenCalled();
+    });
+
+    it("refuse une soumission hors serveur : la guilde n'est pas isolable (§16.2)", async () => {
+        const res = await handleMarketModalSubmit({
+            customId: `mkt:offer:${LISTING_ID}`,
+            components: marketModalValues({ kamas: "1000" }),
+            discordGuildId: null,
+            userId: "user-buyer",
+        });
+
+        expect(res).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.GUILD_REQUIRED });
+        expect(mockIsModuleEnabled).not.toHaveBeenCalled();
+    });
+
+    it("refuse quand le module `marche` est OFF pour cette guilde (fail-closed)", async () => {
+        mockIsModuleEnabled.mockResolvedValue(false);
+
+        const res = await handleMarketModalSubmit({
+            customId: `mkt:offer:${LISTING_ID}`,
+            components: marketModalValues({ kamas: "1000" }),
+            discordGuildId: GUILD_ID,
+            userId: "user-buyer",
+        });
+
+        expect(res).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.MODULE_DISABLED });
+        expect(mockIsModuleEnabled).toHaveBeenCalledWith(GUILD_ID, "marche");
+    });
+
+    it("refuse un membre sans profil SigilOS actif SANS lire l'annonce", async () => {
+        mockUserProfileFindUnique.mockResolvedValue(null);
+
+        const res = await handleMarketModalSubmit({
+            customId: `mkt:offer:${LISTING_ID}`,
+            components: marketModalValues({ kamas: "1000" }),
+            discordGuildId: GUILD_ID,
+            userId: "user-stranger",
+        });
+
+        expect(res).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.PROFILE_REQUIRED });
+        expect(mockListingFindFirst).not.toHaveBeenCalled();
+    });
+});
+
+describe("market discord interactions — gardes métier modale mkt:offer (S4.4)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockIsModuleEnabled.mockResolvedValue(true);
+        mockGuildConfigFindUnique.mockResolvedValue({
+            id: "guild-internal-1",
+            marketReservationHours: 12,
+            marketOfferHours: 48,
+            marketNegotiationsEnabled: true,
+        });
+        mockUserProfileFindUnique.mockResolvedValue({ id: "profile-buyer", status: "ACTIVE" });
+        mockListingFindFirst.mockResolvedValue({
+            id: LISTING_ID,
+            profileId: "profile-seller",
+            status: "ACTIVE",
+            negotiable: true,
+        });
+    });
+
+    it("refuse l'offre sur sa propre annonce (§11.2/D34)", async () => {
+        mockListingFindFirst.mockResolvedValue({
+            id: LISTING_ID,
+            profileId: "profile-buyer",
+            status: "ACTIVE",
+            negotiable: true,
+        });
+
+        const res = await handleMarketModalSubmit({
+            customId: `mkt:offer:${LISTING_ID}`,
+            components: marketModalValues({ trade: "Épée" }),
+            discordGuildId: GUILD_ID,
+            userId: "user-buyer",
+        });
+
+        expect(res).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.OFFER_OWN_LISTING });
+    });
+
+    it("refuse une annonce plus ACTIVE, puis une annonce non négociable (§13.5)", async () => {
+        mockListingFindFirst.mockResolvedValue({
+            id: LISTING_ID,
+            profileId: "profile-seller",
+            status: "RESERVED",
+            negotiable: true,
+        });
+        const reserved = await handleMarketModalSubmit({
+            customId: `mkt:offer:${LISTING_ID}`,
+            components: marketModalValues({ trade: "Épée" }),
+            discordGuildId: GUILD_ID,
+            userId: "user-buyer",
+        });
+        expect(reserved).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.OFFER_NOT_AVAILABLE });
+
+        mockListingFindFirst.mockResolvedValue({
+            id: LISTING_ID,
+            profileId: "profile-seller",
+            status: "ACTIVE",
+            negotiable: false,
+        });
+        const notNegotiable = await handleMarketModalSubmit({
+            customId: `mkt:offer:${LISTING_ID}`,
+            components: marketModalValues({ trade: "Épée" }),
+            discordGuildId: GUILD_ID,
+            userId: "user-buyer",
+        });
+        expect(notNegotiable).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.OFFER_DISABLED });
+    });
+
+    it("refuse quand les négociations sont coupées par la guilde (§13.5)", async () => {
+        mockGuildConfigFindUnique.mockResolvedValue({
+            id: "guild-internal-1",
+            marketReservationHours: 12,
+            marketOfferHours: 48,
+            marketNegotiationsEnabled: false,
+        });
+
+        const res = await handleMarketModalSubmit({
+            customId: `mkt:offer:${LISTING_ID}`,
+            components: marketModalValues({ trade: "Épée" }),
+            discordGuildId: GUILD_ID,
+            userId: "user-buyer",
+        });
+
+        expect(res).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.OFFER_DISABLED });
+    });
+
+    it("refuse une annonce absente / d'une autre guilde (aucune fuite d'existence)", async () => {
+        mockListingFindFirst.mockResolvedValue(null);
+
+        const res = await handleMarketModalSubmit({
+            customId: `mkt:offer:${LISTING_ID}`,
+            components: marketModalValues({ kamas: "1000" }),
+            discordGuildId: GUILD_ID,
+            userId: "user-buyer",
+        });
+
+        expect(res).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.LISTING_NOT_FOUND });
+
+        // Isolation §16.2 : annonce cherchée par `id` ET par guilde interne.
+        const where = mockListingFindFirst.mock.calls[0][0].where;
+        expect(where.guildId).toBe("guild-internal-1");
+        expect(where.deletedAt).toBeNull();
     });
 });
 

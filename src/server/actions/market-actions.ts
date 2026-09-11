@@ -12,6 +12,8 @@ import { computeStatQuality, computeStatsHash } from "@/lib/market/stat-quality"
 import { findNativeRange, toNativeEffects, type DofusItemEffectLike, type MarketNativeEffect } from "@/lib/market/effects";
 import { loadMarketReferential } from "@/lib/market/referential";
 import { publishListingToDiscord, syncListingMessage } from "@/server/market/discord";
+import { writeMarketAuditLog } from "@/server/market/audit";
+import { reserveMarketListingCore } from "@/server/market/reservations";
 import {
     MARKET_AUDIT_ACTIONS,
     MARKET_DELETE_REASONS,
@@ -132,6 +134,7 @@ async function resolveMarketContext(guildId: string) {
             id: true,
             marketMaxActivePerMember: true,
             marketMaxLifetimeDays: true,
+            marketReservationHours: true,
             marketNotifyChannelId: true,
             marketNotifyRoleId: true,
             marketChannelKind: true,
@@ -140,34 +143,6 @@ async function resolveMarketContext(guildId: string) {
     });
     if (!guildConfig) return { error: "Guilde introuvable" as const };
     return { user, guildConfig };
-}
-
-/** Journalise une transition dans MarketAuditLog (jamais bloquant). */
-async function writeMarketAuditLog(params: {
-    guildId: string;
-    listingId?: string | null;
-    actorUserId?: string | null;
-    action: string;
-    previousData?: unknown;
-    nextData?: unknown;
-    reason?: string | null;
-}) {
-    try {
-        await db.marketAuditLog.create({
-            data: {
-                guildId: params.guildId,
-                listingId: params.listingId ?? null,
-                actorUserId: params.actorUserId ?? null,
-                action: params.action,
-                previousData: (params.previousData ?? null) as Prisma.InputJsonValue,
-                nextData: (params.nextData ?? null) as Prisma.InputJsonValue,
-                reason: params.reason ?? null,
-            },
-        });
-    } catch (error) {
-        // Le journal ne doit JAMAIS faire échouer l'action métier.
-        logger.error("[market] audit log failed", { action: params.action, err: error });
-    }
 }
 
 const MARKET_INCLUDE = {
@@ -372,6 +347,48 @@ export async function getMyMarketData(guildId: string): Promise<ActionResponse<M
         return { success: true, data: { active, archived } };
     } catch (error) {
         logger.error("[getMyMarketData] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+
+// ---------------------------------------------------------------------------
+// RÉSERVATIONS (S4.2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Réserve une annonce `ACTIVE` « au prix » (l'acheteur ne peut pas être le
+ * vendeur). Le verrou transactionnel de §11.3 et l'unicité de la réservation
+ * active vivent dans `reserveMarketListingCore()`, **partagé** avec les
+ * interactions Discord : une seule implémentation, deux points d'entrée.
+ */
+export async function reserveMarketListing(
+    guildId: string,
+    listingId: string
+): Promise<ActionResponse<{ reservationId: string }>> {
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+        const { user, guildConfig } = ctx;
+        if (!user.profileId) return { success: false, error: "Profil introuvable" };
+
+        const parsed = z.string().min(1).max(64).safeParse(listingId);
+        if (!parsed.success) return { success: false, error: "Annonce introuvable" };
+
+        const session = await auth();
+        const outcome = await reserveMarketListingCore({
+            guildConfigId: guildConfig.id,
+            listingId: parsed.data,
+            buyerProfileId: user.profileId,
+            buyerUserId: session?.user?.id ?? user.id ?? "",
+            reservationHours: guildConfig.marketReservationHours,
+        });
+        if (!outcome.ok) return { success: false, error: outcome.error };
+
+        revalidatePath(`/dashboard/${guildId}/marche`);
+        return { success: true, data: { reservationId: outcome.reservationId } };
+    } catch (error) {
+        logger.error("[reserveMarketListing] failed", { err: error });
         return { success: false, error: "Erreur interne" };
     }
 }

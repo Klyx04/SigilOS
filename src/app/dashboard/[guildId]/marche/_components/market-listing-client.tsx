@@ -22,11 +22,12 @@ import {
     deleteMarketListing,
     publishMarketListing,
     renewMarketListing,
+    reserveMarketListing,
     withdrawMarketListing,
 } from "@/server/actions/market-actions";
 import { resyncMarketListing } from "@/server/actions/market-admin-actions";
 import { toast } from "sonner";
-import { AlertTriangle, Loader2, Package, RefreshCw, ShieldAlert, Store, Trash2, Upload, XCircle } from "lucide-react";
+import { AlertTriangle, Handshake, Loader2, Package, RefreshCw, ShieldAlert, Store, Trash2, Upload, XCircle } from "lucide-react";
 
 type SerializedListing = {
     id: string;
@@ -297,6 +298,45 @@ export function MarketListingClient({
                         </p>
                     </CardContent>
                 </Card>
+
+                {/* Actions acheteur (S4.2) — réserver au prix (verrou §11.3) */}
+                {!isOwner && (
+                    <Card className="bg-surface/60 border-border">
+                        <CardHeader>
+                            <CardTitle className="text-sm flex items-center gap-2">
+                                <Handshake className="w-4 h-4 text-success" />
+                                Acheter
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                            {listing.status === "ACTIVE" ? (
+                                <>
+                                    <Button
+                                        className="w-full gap-2"
+                                        disabled={isPending}
+                                        onClick={() =>
+                                            run(
+                                                () => reserveMarketListing(guildId, listing.id),
+                                                "Annonce réservée. Le vendeur est prévenu."
+                                            )
+                                        }
+                                    >
+                                        {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Handshake className="w-4 h-4" />}
+                                        Réserver au prix
+                                    </Button>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        La réservation bloque l&apos;annonce pour les autres membres pendant la durée
+                                        prévue par la guilde. L&apos;échange se conclut toujours en jeu.
+                                    </p>
+                                </>
+                            ) : (
+                                <p className="text-xs text-muted-foreground">
+                                    Cette annonce n&apos;est plus disponible à la réservation.
+                                </p>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* Actions vendeur (S1.22 / S1.31) */}
                 {(isOwner || canManage) && (

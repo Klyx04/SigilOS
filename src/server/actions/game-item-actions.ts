@@ -7,6 +7,7 @@ import { siphonAndCompressImage } from '@/lib/dofus-asset-siphon';
 import { dofusDbFetch } from '@/lib/dofusdb-limiter';
 import { resolveNativeEffects, toNativeEffects } from '@/lib/market/effects';
 import { FM_CHARACTERISTIC_KEYS } from '@/lib/market/fm-effects';
+import { collectDofusDbPages } from '@/lib/market/referential-pagination';
 import { Prisma } from '@prisma/client';
 import crypto from 'crypto';
 
@@ -489,97 +490,108 @@ export async function siphonGameItemsBatch(skip = 0, limit = 50): Promise<
  *
  * ⚠️ S4.0b — l'API **plafonne à 50 résultats par appel** quel que soit `$limit`
  * demandé : la pagination doit se caler sur la taille de page **réellement
- * retournée** (`json.limit`), sinon la boucle s'arrête après la première page
- * (bug constaté en base : **48** lignes stockées pour **123** exposées).
+ * retournée** (`json.limit`) : correctif **insuffisant**, l'API peut rendre
+ * **moins** de lignes que `$limit` ⇒ la boucle coupait encore après la 1re page
+ * (base constatée : **48** lignes pour **123** exposées).
+ *
+ * 🧪 S7.18 — la pagination est désormais déléguée à `collectDofusDbPages`, qui
+ * se cale sur le **`total` exposé par l'API** (`skip < total`) au lieu de la
+ * taille de la page reçue : c'est la seule source de vérité fiable.
  */
-async function siphonAllCharacteristics(): Promise<{ count: number; names: Map<number, string> }> {
+/** Init réseau **par page** (en-têtes + timeout neuf : un signal ne se partage pas). */
+function dofusDbRefInit(): RequestInit {
+    return {
+        headers: { Accept: 'application/json', 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
+        signal: AbortSignal.timeout(15_000),
+    };
+}
+
+async function siphonAllCharacteristics(): Promise<{
+    count: number;
+    names: Map<number, string>;
+    expected: number;
+    received: number;
+    truncated: boolean;
+    failedPages: number[];
+}> {
     const names = new Map<number, string>();
+    const collected = await collectDofusDbPages<any>(
+        (skip, limit) => `https://api.dofusdb.fr/characteristics?$limit=${limit}&$skip=${skip}`,
+        { initFor: dofusDbRefInit }
+    );
     let count = 0;
-    let skip = 0;
-    for (let page = 0; page < 10; page++) {
-        const res = await dofusDbFetch(
-            `https://api.dofusdb.fr/characteristics?$limit=50&$skip=${skip}`,
-            {
-                headers: { Accept: 'application/json', 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
-                signal: AbortSignal.timeout(15_000),
-            }
-        );
-        if (!res.ok) break;
-        const json = await res.json();
-        const rows: any[] = Array.isArray(json?.data) ? json.data : [];
-        if (rows.length === 0) break;
-        const pageSize = Number(json?.limit) > 0 ? Number(json.limit) : rows.length;
-        for (const raw of rows) {
-            const id = Number(raw?.id);
-            if (!Number.isInteger(id) || id <= 0) continue;
-            const name = typeof raw?.name?.fr === 'string' ? raw.name.fr : String(raw?.name ?? `Caractéristique ${id}`);
-            const keyword = typeof raw?.keyword === 'string' ? raw.keyword : null;
-            const iconKey = typeof raw?.asset === 'string' ? raw.asset : null;
-            await db.gameCharacteristic.upsert({
-                where: { id },
-                create: { id, name, keyword, iconKey },
-                update: { name, keyword, iconKey },
-            });
-            names.set(id, name);
-            count++;
-        }
-        skip += rows.length;
-        if (rows.length < pageSize) break;
+    for (const raw of collected.rows) {
+        const id = Number(raw?.id);
+        if (!Number.isInteger(id) || id <= 0) continue;
+        const name = typeof raw?.name?.fr === 'string' ? raw.name.fr : String(raw?.name ?? `Caractéristique ${id}`);
+        const keyword = typeof raw?.keyword === 'string' ? raw.keyword : null;
+        const iconKey = typeof raw?.asset === 'string' ? raw.asset : null;
+        await db.gameCharacteristic.upsert({
+            where: { id },
+            create: { id, name, keyword, iconKey },
+            update: { name, keyword, iconKey },
+        });
+        names.set(id, name);
+        count++;
     }
-    return { count, names };
+    return {
+        count,
+        names,
+        expected: collected.expected,
+        received: collected.rows.length,
+        truncated: collected.truncated,
+        failedPages: collected.failedPages,
+    };
 }
 
 /**
  * Récupère tous les effets DofusDB (≈872) → GameEffect.
  * ⚠️ S4.0b — même plafond à 50/appel : la borne de pages couvre les ≈18 pages
  * nécessaires (l'ancienne borne de 10 tronquait le référentiel).
+ * 🧪 S7.18 — pagination déléguée à `collectDofusDbPages` (pilotée par le `total`
+ * de l'API) : la base était restée à **49** effets sur **872**.
  */
-async function siphonAllEffects(charNames: Map<number, string>): Promise<number> {
+async function siphonAllEffects(
+    charNames: Map<number, string>
+): Promise<{ count: number; expected: number; received: number; truncated: boolean; failedPages: number[] }> {
+    const collected = await collectDofusDbPages<any>(
+        (skip, limit) => `https://api.dofusdb.fr/effects?$limit=${limit}&$skip=${skip}`,
+        { initFor: dofusDbRefInit }
+    );
     let count = 0;
-    let skip = 0;
-    for (let page = 0; page < 40; page++) {
-        const res = await dofusDbFetch(
-            `https://api.dofusdb.fr/effects?$limit=50&$skip=${skip}`,
-            {
-                headers: { Accept: 'application/json', 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
-                signal: AbortSignal.timeout(15_000),
-            }
-        );
-        if (!res.ok) break;
-        const json = await res.json();
-        const rows: any[] = Array.isArray(json?.data) ? json.data : [];
-        if (rows.length === 0) break;
-        const pageSize = Number(json?.limit) > 0 ? Number(json.limit) : rows.length;
-        for (const raw of rows) {
-            const id = Number(raw?.id);
-            if (!Number.isInteger(id) || id <= 0) continue;
-            const characteristic = raw?.characteristic != null ? Number(raw.characteristic) : null;
-            // Libellé : libellé de la caractéristique associée sinon description nettoyée.
-            const fromChar = characteristic != null ? charNames.get(characteristic) : undefined;
-            const rawDescription =
-                typeof raw?.description?.fr === 'string'
-                    ? raw.description.fr
-                    : typeof raw?.theoreticalDescription?.fr === 'string'
-                    ? raw.theoreticalDescription.fr
-                    : null;
-            const cleanDescription = rawDescription
-                ? rawDescription.replace(/\{[^}]*\}/g, '').replace(/#\d+(~\d+)?/g, '').replace(/\s{2,}/g, ' ').trim()
+    for (const raw of collected.rows) {
+        const id = Number(raw?.id);
+        if (!Number.isInteger(id) || id <= 0) continue;
+        const characteristic = raw?.characteristic != null ? Number(raw.characteristic) : null;
+        // Libellé : libellé de la caractéristique associée sinon description nettoyée.
+        const fromChar = characteristic != null ? charNames.get(characteristic) : undefined;
+        const rawDescription =
+            typeof raw?.description?.fr === 'string'
+                ? raw.description.fr
+                : typeof raw?.theoreticalDescription?.fr === 'string'
+                ? raw.theoreticalDescription.fr
                 : null;
-            const name = fromChar || cleanDescription || `Effet ${id}`;
-            const isInPercent = Boolean(raw?.isInPercent);
-            const category = raw?.category != null ? Number(raw.category) : null;
-            const iconKey = raw?.iconId != null ? String(raw.iconId) : null;
-            await db.gameEffect.upsert({
-                where: { id },
-                create: { id, name, characteristic, isInPercent, category, iconKey },
-                update: { name, characteristic, isInPercent, category, iconKey },
-            });
-            count++;
-        }
-        skip += rows.length;
-        if (rows.length < pageSize) break;
+        const cleanDescription = rawDescription
+            ? rawDescription.replace(/\{[^}]*\}/g, '').replace(/#\d+(~\d+)?/g, '').replace(/\s{2,}/g, ' ').trim()
+            : null;
+        const name = fromChar || cleanDescription || `Effet ${id}`;
+        const isInPercent = Boolean(raw?.isInPercent);
+        const category = raw?.category != null ? Number(raw.category) : null;
+        const iconKey = raw?.iconId != null ? String(raw.iconId) : null;
+        await db.gameEffect.upsert({
+            where: { id },
+            create: { id, name, characteristic, isInPercent, category, iconKey },
+            update: { name, characteristic, isInPercent, category, iconKey },
+        });
+        count++;
     }
-    return count;
+    return {
+        count,
+        expected: collected.expected,
+        received: collected.rows.length,
+        truncated: collected.truncated,
+        failedPages: collected.failedPages,
+    };
 }
 
 /**
@@ -593,14 +605,29 @@ async function siphonAllEffects(charNames: Map<number, string>): Promise<number>
  * **signalé** au God sans jamais échouer (la résolution retombe sur le libellé).
  */
 export async function siphonMarketReferentials(): Promise<
-    ActionResponse<{ characteristics: number; effects: number; orphanFmIds: number[] }>
+    ActionResponse<{
+        characteristics: number;
+        characteristicsStored: number;
+        characteristicsTotal: number;
+        effects: number;
+        effectsStored: number;
+        effectsTotal: number;
+        truncated: boolean;
+        orphanFmIds: number[];
+    }>
 > {
     if (!(await canManageGameItems())) {
         return { success: false, error: 'Non autorisé' };
     }
     try {
-        const { count: characteristics, names } = await siphonAllCharacteristics();
-        const effects = await siphonAllEffects(names);
+        // 🧪 S7.18 — pagination pilotée par le `total` de l'API (`collectDofusDbPages`) :
+        // la base était restée à 48/123 caractéristiques et 49/872 effets, car
+        // l'ancienne boucle s'arrêtait dès qu'une page revenait plus courte que `$limit`.
+        const chars = await siphonAllCharacteristics();
+        const effs = await siphonAllEffects(chars.names);
+        const names = chars.names;
+        const truncated = chars.truncated || effs.truncated;
+        const failedPages = [...chars.failedPages, ...effs.failedPages];
         const orphanFmIds = Object.keys(FM_CHARACTERISTIC_KEYS)
             .map(Number)
             .filter((id) => !names.has(id))
@@ -610,10 +637,27 @@ export async function siphonMarketReferentials(): Promise<
                 orphanFmIds,
             });
         }
+        if (truncated) {
+            logger.warn(
+                `[siphonMarketReferentials] Référentiel INCOMPLET : ${chars.received}/${chars.expected} caractéristique(s), ${effs.received}/${effs.expected} effet(s) lus — page(s) en échec : ${failedPages.join(', ') || 'aucune'} (relancer le siphon).`
+            );
+        }
         logger.info(
-            `[siphonMarketReferentials] ${characteristics} caractéristique(s), ${effects} effet(s), ${orphanFmIds.length} orphelin(s) FM.`
+            `[siphonMarketReferentials] ${chars.received}/${chars.expected} caractéristique(s) et ${effs.received}/${effs.expected} effet(s) lus ; ${chars.count + effs.count} ligne(s) en base ; ${orphanFmIds.length} orphelin(s) FM.`
         );
-        return { success: true, data: { characteristics, effects, orphanFmIds } };
+        return {
+            success: true,
+            data: {
+                characteristics: chars.received,
+                characteristicsStored: chars.count,
+                characteristicsTotal: chars.expected,
+                effects: effs.received,
+                effectsStored: effs.count,
+                effectsTotal: effs.expected,
+                truncated,
+                orphanFmIds,
+            },
+        };
     } catch (error: any) {
         logger.error('[siphonMarketReferentials] Error:', { error: error?.message });
         return { success: false, error: 'Siphon des référentiels impossible' };

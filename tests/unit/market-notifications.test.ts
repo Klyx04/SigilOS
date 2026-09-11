@@ -39,6 +39,7 @@ import {
     MARKET_NOTIFICATION_PREF_KEYS,
     MARKET_NOTIFICATION_PREF_LABELS,
     MARKET_NOTIFICATION_TYPES,
+    MARKET_RESERVATION_EXPIRING_TITLE,
     buildMarketNotificationCopy,
     buildMarketNotificationLink,
     buildMarketOwnerMentionCopy,
@@ -202,6 +203,17 @@ describe("buildMarketNotificationCopy — copie pauvre §13.7", () => {
         expect(cancelled.message).toContain("annulée");
         expect(expired.message).toContain("expiré");
         expect(cancelled.message).not.toBe(expired.message);
+
+        // S5.2 — rappel H-1 (§11.6) : la réservation vit encore, la copie ne doit
+        // donc **pas** dire qu'elle est terminée.
+        const expiring = buildMarketNotificationCopy("MARKET_RESERVATION_ENDED", {
+            itemLabel: ITEM_LABEL,
+            endReason: "expiring",
+        });
+        expect(expiring.title).toBe(MARKET_RESERVATION_EXPIRING_TITLE);
+        expect(expiring.message).toContain("moins d'une heure");
+        expect(expiring.message).not.toContain("a expiré");
+        expect(expiring.message).not.toBe(expired.message);
 
         const decisions = (["accepted", "rejected", "counter"] as const).map(
             (decision) => buildMarketNotificationCopy("MARKET_OFFER_ANSWERED", {

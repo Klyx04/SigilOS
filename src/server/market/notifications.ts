@@ -244,17 +244,19 @@ export type MarketReservationParty = {
 };
 
 /**
- * Réservation terminée — **annulation** (§11.2) ou **expiration** (§15.1 point 4).
+ * Réservation terminée — **annulation** (§11.2) ou **expiration** (§15.1 point 4)
+ * — **ou** rappel **H-1** (`reason: "expiring"`, §11.6).
  *
  * La ligne §11.9 vise « vendeur **+** acheteur » : les deux parties reçoivent la
  * même entrée `MARKET_RESERVATION_ENDED`, sans jamais notifier l'auteur de
- * l'action (annulation) ni deux fois le même membre. Ne lève jamais : chaque
- * envoi est absorbé par `notifyMarketUser`.
+ * l'action (annulation) ni deux fois le même membre. Le rappel H-1, lui, n'a pas
+ * d'auteur (`actorProfileId` absent) : **les deux parties** sont prévenues.
+ * Ne lève jamais : chaque envoi est absorbé par `notifyMarketUser`.
  *
- * Renvoie le nombre d'entrées réellement créées (télémétrie du cron S5.1).
+ * Renvoie le nombre d'entrées réellement créées (télémétrie des crons S5.1/S5.2).
  */
 export async function notifyMarketReservationEnded(params: {
-    /** `cancelled` (§11.2) ou `expired` (§15.1 point 4). */
+    /** `cancelled` / `expired` (§11.2, §15.1) ou `expiring` (rappel H-1, §11.6). */
     reason: MarketReservationEndReason;
     listingId: string;
     discordGuildId: string;

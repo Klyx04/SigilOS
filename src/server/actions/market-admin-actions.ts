@@ -75,7 +75,16 @@ const marketSettingsSchema = z.object({
         .int()
         .min(MARKET_SETTINGS_BOUNDS.marketMaxLifetimeDays.min)
         .max(MARKET_SETTINGS_BOUNDS.marketMaxLifetimeDays.max),
-    marketReminderDays: z.array(z.number().int().min(1).max(59)).min(1).max(3),
+    marketReminderDays: z
+        .array(
+            z
+                .number()
+                .int()
+                .min(MARKET_SETTINGS_BOUNDS.marketReminderDays.min)
+                .max(MARKET_SETTINGS_BOUNDS.marketReminderDays.max)
+        )
+        .min(1)
+        .max(3),
     marketReservationHours: z
         .number()
         .int()

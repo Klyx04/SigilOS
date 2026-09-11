@@ -57,6 +57,7 @@ export const MARKET_SETTINGS_BOUNDS = {
     marketMaxActivePerMember: { min: 1, max: 20 },
     marketDefaultDurationDays: { min: 1, max: 30 },
     marketMaxLifetimeDays: { min: 5, max: 60 },
+    marketReminderDays: { min: 1, max: 59 },
     marketReservationHours: { min: 1, max: 72 },
     marketOfferHours: { min: 6, max: 168 },
     marketMediaRetentionDays: { min: 7, max: 180 },
@@ -226,12 +227,24 @@ export const MARKET_AUDIT_ACTIONS = {
      * pour que le journal permette de séparer les deux causes (§11.10).
      */
     LISTING_AUTO_DELETED: "LISTING_AUTO_DELETED",
+    /**
+     * S5.2 — palier de rappel franchi (J+7 puis J+15, §11.6). Le numéro du
+     * palier vit dans `previousData`/`nextData` : une seule action d'audit pour
+     * les deux rappels, jamais de doublon (`reminderStage` les rend uniques).
+     */
+    LISTING_REMINDER_SENT: "LISTING_REMINDER_SENT",
     LISTING_TAKEN_DOWN: "LISTING_TAKEN_DOWN",
     LISTING_RESTORED: "LISTING_RESTORED",
     RESERVATION_CREATED: "RESERVATION_CREATED",
     RESERVATION_CANCELLED_BUYER: "RESERVATION_CANCELLED_BUYER",
     RESERVATION_CANCELLED_SELLER: "RESERVATION_CANCELLED_SELLER",
     RESERVATION_EXPIRED: "RESERVATION_EXPIRED",
+    /**
+     * S5.2 — rappel « H-1 » : la réservation expire dans moins d'une heure
+     * (§11.6). La trace porte le `reservationId` dans `nextData` et sert de
+     * **marqueur d'idempotence** : une passe rejouée ne rappelle pas deux fois.
+     */
+    RESERVATION_REMINDER_SENT: "RESERVATION_REMINDER_SENT",
     OFFER_CREATED: "OFFER_CREATED",
     OFFER_ACCEPTED: "OFFER_ACCEPTED",
     OFFER_DECLINED: "OFFER_DECLINED",

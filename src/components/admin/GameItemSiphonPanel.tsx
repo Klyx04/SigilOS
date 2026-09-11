@@ -156,9 +156,14 @@ export function GameItemSiphonPanel() {
                     setLogs((prev) => [`❌ Référentiels: ${res.error || 'Inconnue'}`, ...prev]);
                     return;
                 }
-                const { characteristics, effects } = res.data;
+                const { characteristics, effects, orphanFmIds } = res.data;
                 setLogs((prev) => [
                     `✅ Référentiels synchronisés : ${characteristics} caractéristique(s), ${effects} effet(s).`,
+                    ...(orphanFmIds && orphanFmIds.length > 0
+                        ? [
+                              `⚠️ Mapping FM : ${orphanFmIds.length} id(s) absent(s) du référentiel (${orphanFmIds.join(', ')}) — résolution FM par libellé uniquement.`,
+                          ]
+                        : [`✅ Mapping FM confronté au référentiel : 0 id orphelin.`]),
                     ...prev,
                 ]);
             } catch (err: any) {

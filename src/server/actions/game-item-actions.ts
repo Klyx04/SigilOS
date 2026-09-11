@@ -6,6 +6,7 @@ import { logger } from '@/lib/logger';
 import { siphonAndCompressImage } from '@/lib/dofus-asset-siphon';
 import { dofusDbFetch } from '@/lib/dofusdb-limiter';
 import { resolveNativeEffects, toNativeEffects } from '@/lib/market/effects';
+import { FM_CHARACTERISTIC_KEYS } from '@/lib/market/fm-effects';
 import { Prisma } from '@prisma/client';
 import crypto from 'crypto';
 
@@ -468,14 +469,21 @@ export async function siphonGameItemsBatch(skip = 0, limit = 50): Promise<
 // Rend les libellés FR, les icônes et le « % » **data-driven** (remplace les
 // maps codées en dur de `ItemSearchPanel`). Idempotent (upsert), jamais destructif.
 
-/** Récupère toutes les caractéristiques DofusDB (≈123) → GameCharacteristic. */
+/**
+ * Récupère toutes les caractéristiques DofusDB (≈123) → GameCharacteristic.
+ *
+ * ⚠️ S4.0b — l'API **plafonne à 50 résultats par appel** quel que soit `$limit`
+ * demandé : la pagination doit se caler sur la taille de page **réellement
+ * retournée** (`json.limit`), sinon la boucle s'arrête après la première page
+ * (bug constaté en base : **48** lignes stockées pour **123** exposées).
+ */
 async function siphonAllCharacteristics(): Promise<{ count: number; names: Map<number, string> }> {
     const names = new Map<number, string>();
     let count = 0;
     let skip = 0;
     for (let page = 0; page < 10; page++) {
         const res = await dofusDbFetch(
-            `https://api.dofusdb.fr/characteristics?$limit=200&$skip=${skip}`,
+            `https://api.dofusdb.fr/characteristics?$limit=50&$skip=${skip}`,
             {
                 headers: { Accept: 'application/json', 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
                 signal: AbortSignal.timeout(15_000),
@@ -485,6 +493,7 @@ async function siphonAllCharacteristics(): Promise<{ count: number; names: Map<n
         const json = await res.json();
         const rows: any[] = Array.isArray(json?.data) ? json.data : [];
         if (rows.length === 0) break;
+        const pageSize = Number(json?.limit) > 0 ? Number(json.limit) : rows.length;
         for (const raw of rows) {
             const id = Number(raw?.id);
             if (!Number.isInteger(id) || id <= 0) continue;
@@ -500,18 +509,22 @@ async function siphonAllCharacteristics(): Promise<{ count: number; names: Map<n
             count++;
         }
         skip += rows.length;
-        if (rows.length < 200) break;
+        if (rows.length < pageSize) break;
     }
     return { count, names };
 }
 
-/** Récupère tous les effets DofusDB (≈872) → GameEffect. */
+/**
+ * Récupère tous les effets DofusDB (≈872) → GameEffect.
+ * ⚠️ S4.0b — même plafond à 50/appel : la borne de pages couvre les ≈18 pages
+ * nécessaires (l'ancienne borne de 10 tronquait le référentiel).
+ */
 async function siphonAllEffects(charNames: Map<number, string>): Promise<number> {
     let count = 0;
     let skip = 0;
-    for (let page = 0; page < 10; page++) {
+    for (let page = 0; page < 40; page++) {
         const res = await dofusDbFetch(
-            `https://api.dofusdb.fr/effects?$limit=200&$skip=${skip}`,
+            `https://api.dofusdb.fr/effects?$limit=50&$skip=${skip}`,
             {
                 headers: { Accept: 'application/json', 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
                 signal: AbortSignal.timeout(15_000),
@@ -521,6 +534,7 @@ async function siphonAllEffects(charNames: Map<number, string>): Promise<number>
         const json = await res.json();
         const rows: any[] = Array.isArray(json?.data) ? json.data : [];
         if (rows.length === 0) break;
+        const pageSize = Number(json?.limit) > 0 ? Number(json.limit) : rows.length;
         for (const raw of rows) {
             const id = Number(raw?.id);
             if (!Number.isInteger(id) || id <= 0) continue;
@@ -548,7 +562,7 @@ async function siphonAllEffects(charNames: Map<number, string>): Promise<number>
             count++;
         }
         skip += rows.length;
-        if (rows.length < 200) break;
+        if (rows.length < pageSize) break;
     }
     return count;
 }
@@ -557,9 +571,14 @@ async function siphonAllEffects(charNames: Map<number, string>): Promise<number>
  * 📚 S2.5bis — Siphonne `/effects` + `/characteristics` (≈20 requêtes, conforme
  * DofusDB). Réservé au God / PIM. Fail-soft : une page en échec n'invalide pas
  * les précédentes.
+ *
+ * 🧪 S4.0b / D39 — le mapping FM (`FM_CHARACTERISTIC_KEYS`) est **confronté** au
+ * référentiel fraîchement siphonné : tout id du mapping absent de
+ * `GameCharacteristic` (DofusDB a renommé/retiré la caractéristique) est
+ * **signalé** au God sans jamais échouer (la résolution retombe sur le libellé).
  */
 export async function siphonMarketReferentials(): Promise<
-    ActionResponse<{ characteristics: number; effects: number }>
+    ActionResponse<{ characteristics: number; effects: number; orphanFmIds: number[] }>
 > {
     if (!(await canManageGameItems())) {
         return { success: false, error: 'Non autorisé' };
@@ -567,8 +586,19 @@ export async function siphonMarketReferentials(): Promise<
     try {
         const { count: characteristics, names } = await siphonAllCharacteristics();
         const effects = await siphonAllEffects(names);
-        logger.info(`[siphonMarketReferentials] ${characteristics} caractéristique(s), ${effects} effet(s).`);
-        return { success: true, data: { characteristics, effects } };
+        const orphanFmIds = Object.keys(FM_CHARACTERISTIC_KEYS)
+            .map(Number)
+            .filter((id) => !names.has(id))
+            .sort((a, b) => a - b);
+        if (orphanFmIds.length > 0) {
+            logger.warn('[siphonMarketReferentials] Mapping FM orphelin (id absent du référentiel):', {
+                orphanFmIds,
+            });
+        }
+        logger.info(
+            `[siphonMarketReferentials] ${characteristics} caractéristique(s), ${effects} effet(s), ${orphanFmIds.length} orphelin(s) FM.`
+        );
+        return { success: true, data: { characteristics, effects, orphanFmIds } };
     } catch (error: any) {
         logger.error('[siphonMarketReferentials] Error:', { error: error?.message });
         return { success: false, error: 'Siphon des référentiels impossible' };

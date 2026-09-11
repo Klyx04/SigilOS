@@ -78,6 +78,14 @@
   - **Tests** (S7.14) : `market-guards.test.ts` **16** (+3 : non-vendeur refusé, `RESERVED`/`SOLD`/`WITHDRAWN` refusés, **`quality` client ignoré** → `OVER` recalculé + plage du catalogue) → **suite complète 966/966** ✅ (94 fichiers) · `tsc` 0 · `eslint` 0 · `build` **exit 0** · **0 migration**.
 
 
+- ✅ **Session 11/09/2026 (suite) — Module « Marché » · S7 lot 4 : recherche live & modale « Ligne libre FM »** (branche `feat/marche-b3` ; plan §21 S7) :
+  - **Symptômes user** : « obligé de cliquer sur Rechercher car les items n'apparaissent pas dynamiquement » · « le *Ligne libre FM* en dropdown vaut mieux une modale qui s'ouvre avec le choix ».
+  - **S7.15 — recherche à la frappe** (`market-create-client.tsx` → `CataloguePicker`) : **debounce 300 ms** + **anti-course** (`requestId` : seule la dernière frappe écrit les résultats, aucune réponse obsolète), témoin de chargement dans le champ, message « aucun objet » conditionné à une recherche **aboutie**. Le bouton « Rechercher » **reste** (accessibilité + repli explicite) et la touche Entrée force la recherche.
+  - **S7.16 — modale FM** (`market-jet-editor.tsx`) : le `Select` de 52 lignes est remplacé par un `Dialog` avec **recherche** (libellé / rune / libellé court), **icône officielle** (asset Dofus via `StatIcon`), **rune + densité/pt**, badges **Exo / Over +N** et la mention « déjà ajoutée » (entrée désactivée, aucun doublon).
+  - **Icônes** : `dofus-stats-theme` résout désormais les **libellés courts** du référentiel FM (`PA`, `PM`, `PO`, `Renvoi`) — `Pods` ne tombe jamais sur l'icône Portée.
+  - **Tests** : `dofus-stats-theme.test.ts` **9** (+1) → **suite complète 967/967** ✅ (94 fichiers) · `tsc` 0 · `eslint` 0 · `build` **exit 0** · **0 migration**.
+
+
 - 🔸 **Session 08/09/2026 — Module « Titans »** (branche `feat/slash-rework`, non commité ; mémo `src/temp/memo-2026-09-08-titans.md`) :
   - **Fonctionnalité de bout en bout** : modèle `Titan` + `UserTitanProgress` + `DjSearchMode.TITAN` + champs DJ (`titanId/titanName/questName/questUrl`) — migrations `20261101000000_add_titan` + `20261102000000_add_titan_quests` appliquées. Admin GOD `TitanManager`, server actions `titan-admin-actions`/`titan-actions`, seed Gargandyas (id 8062, zone Osavora).
   - **Dashboard DJ** : mode `TITAN` (création/filtre/embed/close/titres) + `maxMembers` plafonné au titan.

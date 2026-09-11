@@ -19,12 +19,13 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
 import {
     MARKET_FM_STATUS_CLASSES,
     MARKET_FM_STATUS_LABELS,
@@ -50,7 +51,7 @@ import {
 } from "@/lib/market/fm-effects";
 import { StatIcon } from "@/components/market/stat-icon";
 import { cn } from "@/lib/utils";
-import { Gauge, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Gauge, Plus, Search, Sparkles, Trash2 } from "lucide-react";
 
 interface MarketJetEditorProps {
     stats: MarketStatDraft[];
@@ -104,8 +105,19 @@ function analyzeLine(stat: MarketStatDraft): FmLineInfo {
 }
 
 export function MarketJetEditor({ stats, onChange }: MarketJetEditorProps) {
-    // Ligne libre choisie dans le référentiel FM complet (52 lignes forgeables).
-    const [freeKey, setFreeKey] = useState<string>(FM_EFFECTS[0].key);
+    // S7.16 — « Ligne libre FM » : modale du référentiel (52 lignes forgeables),
+    // avec recherche, icône officielle, rune et densité.
+    const [fmOpen, setFmOpen] = useState(false);
+    const [fmQuery, setFmQuery] = useState("");
+
+    /** Référentiel filtré par la recherche (libellé, rune, libellé court). */
+    const filteredFmEffects = useMemo(() => {
+        const term = fmQuery.trim().toLowerCase();
+        if (!term) return FM_EFFECTS;
+        return FM_EFFECTS.filter((effect) =>
+            `${effect.label} ${effect.shortLabel} ${effect.rune}`.toLowerCase().includes(term)
+        );
+    }, [fmQuery]);
 
     /** Analyse FM de chaque ligne (étiquette + densité + lecture seule). */
     const analysis = useMemo(() => stats.map(analyzeLine), [stats]);
@@ -191,33 +203,97 @@ export function MarketJetEditor({ stats, onChange }: MarketJetEditorProps) {
                 ))}
             </div>
 
-            {/* Ligne libre guidée par le référentiel FM (52 lignes forgeables) */}
+            {/* S7.16 — Ligne libre : modale du référentiel FM (52 lignes forgeables) */}
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface/40 px-3 py-2">
                 <span className="text-[11px] font-bold uppercase text-muted-foreground">
                     Ligne libre FM
                 </span>
-                <Select value={freeKey} onValueChange={setFreeKey}>
-                    <SelectTrigger className="h-9 w-[280px]" aria-label="Choisir une ligne FM">
-                        <SelectValue placeholder="Choisir une ligne" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {FM_EFFECTS.map((effect) => (
-                            <SelectItem key={effect.key} value={effect.key}>
-                                {effect.label} — {effect.rune} ({effect.unitWeight} densité/pt)
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="gap-1"
-                    onClick={() => addFmLine(freeKey)}
+                <Dialog
+                    open={fmOpen}
+                    onOpenChange={(next) => {
+                        setFmOpen(next);
+                        if (!next) setFmQuery("");
+                    }}
                 >
-                    <Plus className="h-3.5 w-3.5" />
-                    Ajouter
-                </Button>
+                    <DialogTrigger asChild>
+                        <Button type="button" variant="outline" size="sm" className="gap-2">
+                            <Plus className="h-3.5 w-3.5" />
+                            Choisir dans le référentiel ({FM_EFFECTS.length} lignes)
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Ligne libre FM</DialogTitle>
+                            <DialogDescription>
+                                Rune et densité officielles du référentiel versionné. Un over ou un
+                                exo n&apos;est jamais refusé : il est simplement étiqueté.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                value={fmQuery}
+                                onChange={(event) => setFmQuery(event.target.value)}
+                                placeholder="Rechercher une caractéristique ou une rune (ex. Vitalité, Cri…)"
+                                className="pl-9"
+                                autoFocus
+                            />
+                        </div>
+
+                        <ul className="max-h-[420px] space-y-1 overflow-y-auto custom-scrollbar pr-1">
+                            {filteredFmEffects.length === 0 && (
+                                <li className="px-3 py-6 text-center text-sm text-muted-foreground">
+                                    Aucune ligne FM ne correspond à « {fmQuery} ».
+                                </li>
+                            )}
+                            {filteredFmEffects.map((effect) => {
+                                const alreadyAdded = stats.some(
+                                    (stat) => stat.label === effect.label && stat.origin === "EXO"
+                                );
+                                return (
+                                    <li key={effect.key}>
+                                        <button
+                                            type="button"
+                                            disabled={alreadyAdded}
+                                            onClick={() => {
+                                                addFmLine(effect.key);
+                                                setFmOpen(false);
+                                                setFmQuery("");
+                                            }}
+                                            className={cn(
+                                                "flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors",
+                                                alreadyAdded
+                                                    ? "border-border bg-surface/40 opacity-50"
+                                                    : "border-border bg-surface/60 hover:border-border-strong"
+                                            )}
+                                        >
+                                            <StatIcon label={effect.label} />
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block text-sm font-semibold text-foreground">
+                                                    {effect.label}
+                                                </span>
+                                                <span className="block text-[11px] text-muted-foreground">
+                                                    Rune {effect.rune} · {effect.unitWeight} densité/pt
+                                                </span>
+                                            </span>
+                                            <span className="shrink-0 text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                                                {effect.canExo ? "Exo" : ""}
+                                                {effect.canExo && effect.canOver ? " · " : ""}
+                                                {effect.canOver ? `Over +${effect.maxOverStandalone}` : ""}
+                                            </span>
+                                            {alreadyAdded && (
+                                                <span className="shrink-0 text-[10px] font-black uppercase text-muted-foreground">
+                                                    déjà ajoutée
+                                                </span>
+                                            )}
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </DialogContent>
+                </Dialog>
             </div>
 
             {/* Budget de densité FM : 101 points partagés entre overs et exos (§12.8) */}

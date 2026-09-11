@@ -10,6 +10,7 @@ import { getUserContext, type ActionResponse } from "./user-actions";
 import { fetchChannel, validateChannelBelongsToGuild } from "@/server/discord";
 import { writeMarketAuditLog } from "@/server/market/audit";
 import { sanitizeMarketText } from "@/lib/market/text";
+import type { MarketDiscordReconcileOutcome } from "@/server/market/maintenance";
 import {
     MARKET_AUDIT_ACTIONS,
     MARKET_CHANNEL_KINDS,
@@ -486,6 +487,62 @@ export async function regenerateMarketImage(
         return { success: true, data: { messageId: result.messageId } };
     } catch (error) {
         logger.error("[regenerateMarketImage] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S5.4 — Réconciliation Discord d'un lot (modérateur `market:moderate`)
+// ---------------------------------------------------------------------------
+
+/** Bornes de la relance manuelle : jamais l'ensemble de la base d'un coup. */
+const marketReconcileSchema = z.object({
+    guildId: snowflake,
+    limit: z.number().int().min(1).max(200).optional(),
+});
+
+/**
+ * S5.4 — Rejoue l'entretien Discord des annonces divergentes (§13.6).
+ *
+ * Même moteur que la passe quotidienne du cron (`reconcileMarketDiscordMessagesCore`,
+ * §15.1 étape 7) : l'opérateur n'a pas à attendre la passe du lendemain quand un
+ * salon vient d'être reconfiguré, ou quand Discord était en panne la nuit. Les
+ * réparations sont tracées au nom du modérateur (contrairement au cron, qui les
+ * attribue à personne).
+ *
+ * Isolation §16.2 : la passe est bornée à **cette** guilde via l'id interne de
+ * `GuildConfig` — le snowflake transmis par le client ne sert qu'à retrouver la
+ * configuration, jamais à filtrer les données.
+ */
+export async function reconcileMarketDiscordMessages(
+    guildId: string,
+    limit?: number
+): Promise<ActionResponse<MarketDiscordReconcileOutcome>> {
+    try {
+        const guard = await requireMarketModerator(guildId);
+        if ("error" in guard) return { success: false, error: guard.error };
+
+        const parsed = marketReconcileSchema.safeParse({ guildId, limit });
+        if (!parsed.success) return { success: false, error: "Paramètres invalides" };
+
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: parsed.data.guildId },
+            select: { id: true },
+        });
+        if (!config) return { success: false, error: "Serveur introuvable" };
+
+        const { reconcileMarketDiscordMessagesCore } = await import("@/server/market/maintenance");
+        const outcome = await reconcileMarketDiscordMessagesCore({
+            guildConfigId: config.id,
+            limit: parsed.data.limit,
+            actorUserId: guard.user.id ?? null,
+        });
+
+        logger.info("[reconcileMarketDiscordMessages] passe manuelle terminée", { guildId, ...outcome });
+
+        return { success: true, data: outcome };
+    } catch (error) {
+        logger.error("[reconcileMarketDiscordMessages] failed", { err: error });
         return { success: false, error: "Erreur interne" };
     }
 }

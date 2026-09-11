@@ -5,6 +5,7 @@ import { logger } from "@/lib/logger";
 export const dynamic = "force-dynamic";
 import { expireMarketListingsCore, expireMarketOffersCore, remindMarketListingsCore } from "@/server/market/expiry";
 import { expireMarketReservationsCore, remindMarketReservationsEndingCore } from "@/server/market/reservations";
+import { claimMarketDailyMaintenance, reconcileMarketDiscordMessagesCore } from "@/server/market/maintenance";
 
 /**
  * 🔒 CRON « Marché » — fin de vie automatique et rappels (§15.1, S5.2).
@@ -19,7 +20,10 @@ import { expireMarketReservationsCore, remindMarketReservationsEndingCore } from
  *      (`remindMarketListingsCore`, S5.2) ;
  *   4. **annonces** à échéance J+20 et sans aucune activité
  *      (`expireMarketListingsCore`, S5.1) — archivage en douceur ;
- *   5. **offres** `PENDING` hors délai (`expireMarketOffersCore`, S5.1).
+ *   5. **offres** `PENDING` hors délai (`expireMarketOffersCore`, S5.1) ;
+ *   6. **entretien** (1×/jour seulement, S5.4) : **réconciliation Discord** des
+ *      messages divergents (`FAILED`/`PENDING`) puis purges (S5.5/S5.6) —
+ *      verrou quotidien Redis (`claimMarketDailyMaintenance`, fail-open).
  *
  * L'**ordre est imposé** : le retrait J+20 ne vise que les annonces sans
  * activité (§11.6) ; archiver les annonces avant d'avoir libéré celles dont la
@@ -58,7 +62,23 @@ async function handleMarketExpire(req: Request) {
         const listings = await expireMarketListingsCore({ now });
         const offers = await expireMarketOffersCore({ now });
 
-        const summary = { reservations, reservationReminders, reminders, listings, offers };
+        // Entretien 1×/jour (§15.1 étapes 7-8) — le cron tourne toutes les
+        // 10 min : sans verrou, la réconciliation s'exécuterait 144 fois par jour.
+        // Le verrou est *fail-open* (Redis indisponible → la passe tourne quand
+        // même) : bornée par lot et idempotente, elle ne coûte qu'un peu d'I/O.
+        const maintenance = await claimMarketDailyMaintenance(now);
+        const reconciled = maintenance.run ? await reconcileMarketDiscordMessagesCore() : null;
+
+        const summary = {
+            reservations,
+            reservationReminders,
+            reminders,
+            listings,
+            offers,
+            maintenance: { ran: maintenance.run, reason: maintenance.reason },
+            // `null` = passe d'entretien non exécutée aujourd'hui (verrou déjà posé).
+            resynced: reconciled?.resynced ?? null,
+        };
 
         logger.info("[MarketExpireCron] passe terminée", summary);
 
@@ -68,7 +88,7 @@ async function handleMarketExpire(req: Request) {
         await recordCronExecution("market_expire", {
             // Un échec Discord est le seul « succès partiel » possible : la base
             // a bien avancé (syncStatus = FAILED, rejouable), le cron le signale.
-            success: listings.discordFailed === 0,
+            success: listings.discordFailed === 0 && (reconciled?.stillFailed ?? 0) === 0,
             durationMs: Date.now() - startedAt,
             summary: [
                 `Marché : ${reservations.expired} réservation(s) expirée(s)`,
@@ -78,6 +98,9 @@ async function handleMarketExpire(req: Request) {
                 `${listings.deleted} annonce(s) retirée(s)`,
                 `${offers.expired} offre(s) expirée(s)`,
                 `${listings.discordFailed} échec(s) Discord`,
+                maintenance.run
+                    ? `entretien : ${reconciled?.resynced ?? 0} resync, ${reconciled?.recreated ?? 0} recréé(s), ${reconciled?.stillFailed ?? 0} échec(s)`
+                    : `entretien : non déclenchée (${maintenance.reason})`,
             ].join(", "),
             details: summary,
         });

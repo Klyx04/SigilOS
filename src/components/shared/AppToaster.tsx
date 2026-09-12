@@ -16,14 +16,14 @@ export function AppToaster() {
   if (isOverlay) {
     return (
       <Toaster
-        position="top-right"
+        position="bottom-right"
         expand={false}
-        closeButton
+        closeButton={false}
         toastOptions={{
           className:
-            "group font-sans !p-2 !pr-3 !rounded-lg !text-xs !w-auto max-w-[230px] border border-border/70 bg-popover/95 text-popover-foreground backdrop-blur-xl shadow-xl",
+            "group font-sans !p-2 !px-3 !rounded-lg !text-xs !w-auto max-w-[240px] border border-white/10 bg-[#030712]/95 text-white backdrop-blur-xl shadow-2xl",
           style: { fontSize: "12px", minWidth: 0, width: "auto" },
-          descriptionClassName: "text-[11px] !text-muted-foreground",
+          descriptionClassName: "text-[10px] !text-white/60",
         }}
       />
     );

@@ -52,6 +52,8 @@ type AdminCard = {
     modules?: string | string[];
     /** Identifiant stable pour le tour admin (data-tour). */
     tourId?: string;
+    /** Official Dofus 2x UI asset path (e.g. /assets/dofus/modules/guild.png) */
+    dofusAsset?: string;
 };
 
 type AdminSection = {
@@ -78,6 +80,7 @@ function buildSections(guildId: string): AdminSection[] {
                     accent: "amber",
                     permission: (u) => u.canViewSettings,
                     tourId: "admin-overview-card-settings",
+                    dofusAsset: "/assets/dofus/modules/guildBonus.png",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/permissions`,
@@ -87,6 +90,7 @@ function buildSections(guildId: string): AdminSection[] {
                     accent: "blue",
                     permission: (u) => u.canManageRBAC,
                     tourId: "admin-overview-card-permissions",
+                    dofusAsset: "/assets/dofus/modules/guildShop.png",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/modules`,
@@ -96,6 +100,7 @@ function buildSections(guildId: string): AdminSection[] {
                     accent: "violet",
                     permission: (u) => u.isDiscordAdmin,
                     tourId: "admin-overview-card-modules",
+                    dofusAsset: "/assets/dofus/modules/build.png",
                 },
                 {
                     href: `/dashboard/${guildId}/reaction-roles`,
@@ -106,6 +111,7 @@ function buildSections(guildId: string): AdminSection[] {
                     modules: "reactionRoles",
                     permission: (u) => u.canManageReactionRoles,
                     tourId: "admin-overview-card-reaction-roles",
+                    dofusAsset: "/assets/dofus/modules/ornamentCard.png",
                 },
                 {
                     href: `/dashboard/${guildId}/tickets`,
@@ -116,6 +122,7 @@ function buildSections(guildId: string): AdminSection[] {
                     modules: "tickets",
                     permission: (u) => u.canManageTickets,
                     tourId: "admin-overview-card-tickets",
+                    dofusAsset: "/assets/dofus/modules/party.png",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/commandes`,
@@ -135,6 +142,7 @@ function buildSections(guildId: string): AdminSection[] {
                     modules: "presentation",
                     permission: (u) => u.canEditPresentation,
                     tourId: "admin-overview-card-presentation",
+                    dofusAsset: "/assets/dofus/modules/guild.png",
                 },
             ],
         },
@@ -151,6 +159,7 @@ function buildSections(guildId: string): AdminSection[] {
                     modules: "missions",
                     permission: (u) => u.canManageMissions,
                     tourId: "admin-overview-card-missions",
+                    dofusAsset: "/assets/dofus/modules/quest.png",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/validation`,
@@ -171,6 +180,7 @@ function buildSections(guildId: string): AdminSection[] {
                     modules: "roster",
                     permission: (u) => u.canManageMembers || u.canManageRelance,
                     tourId: "admin-overview-card-members",
+                    dofusAsset: "/assets/dofus/modules/social.png",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/recruitment`,
@@ -373,6 +383,7 @@ export default async function AdminPage({
                                             initialPinned={user.pinnedNavItems?.includes(card.href) || false}
                                             warningBadge={warningBadge}
                                             tourId={card.tourId}
+                                            dofusAsset={card.dofusAsset}
                                         />
                                     );
                                 })}

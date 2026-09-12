@@ -25,11 +25,24 @@ export async function GET(
         return NextResponse.json(cached.data);
     }
 
+    // 0. LOCAL-FIRST : Recherche dans notre base locale GameItem (0ms)
+    try {
+        const { getLocalGameItemDetails } = await import("@/server/actions/game-item-actions");
+        const localRes = await getLocalGameItemDetails(id);
+        if (localRes.success && localRes.data?.recipe) {
+            const recipeData = localRes.data.recipe;
+            recipeCache.set(id, { data: recipeData, expiresAt: Date.now() + RECIPE_TTL_MS });
+            return NextResponse.json(recipeData);
+        }
+    } catch {
+        // Poursuite vers le fallback externe
+    }
+
     try {
         const res = await fetch(`https://api.dofusdb.fr/recipes/${id}`, {
             headers: { Accept: "application/json", "User-Agent": "SigilOS/1.0" },
             next: { revalidate: 600 }, // cache Next 10min
-            signal: AbortSignal.timeout(6000),
+            signal: AbortSignal.timeout(3000), // Timeout court 3s au lieu de bloquer 20s
         });
 
         if (!res.ok) {

@@ -249,6 +249,20 @@ export type GuildPresentation = {
     minSuccesses: number | null;
 };
 
+function buildGuildLookupConditions(guildId: string): any[] {
+    const decoded = decodeURIComponent(guildId).trim();
+    const withSpaces = decoded.replace(/[-_]/g, ' ').trim();
+    const conditions: any[] = [
+        { id: decoded },
+        { discordGuildId: decoded },
+        { name: { equals: decoded, mode: 'insensitive' } },
+    ];
+    if (withSpaces.toLowerCase() !== decoded.toLowerCase()) {
+        conditions.push({ name: { equals: withSpaces, mode: 'insensitive' } });
+    }
+    return conditions;
+}
+
 /**
  * Get public presentation data for a specific guild
  */
@@ -257,10 +271,7 @@ export async function getGuildPresentation(
     checkEnabled: boolean = true
 ): Promise<GuildPresentation | null> {
     const whereClause: any = {
-        OR: [
-            { id: guildId },
-            { discordGuildId: guildId },
-        ],
+        OR: buildGuildLookupConditions(guildId),
         isActive: true,
     };
 
@@ -340,10 +351,7 @@ export async function getPublicGuildBasicInfo(
 ): Promise<{ id: string; name: string; iconUrl: string | null; presentationEnabled: boolean } | null> {
     const guild = await db.guildConfig.findFirst({
         where: {
-            OR: [
-                { id: guildId },
-                { discordGuildId: guildId },
-            ],
+            OR: buildGuildLookupConditions(guildId),
             isActive: true, // Only if guild is active in system
         },
         select: {

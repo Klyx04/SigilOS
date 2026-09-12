@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ShieldCheck } from "lucide-react";
+import { getGuildSlug } from "@/lib/presentation-constants";
 
 export interface ShowcaseGuild {
     id: string;
@@ -47,7 +48,7 @@ export function GuildShowcaseSection({ guilds }: { guilds: ShowcaseGuild[] }) {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 max-w-6xl mx-auto">
                     {guilds.map((guild) => (
-                        <Link key={guild.id} href={`/guilds/${guild.discordGuildId}`} className="group block h-full">
+                        <Link key={guild.id} href={`/guilds/${getGuildSlug(guild)}`} className="group block h-full">
                             <div className="relative h-full rounded-2xl bg-surface/40 border border-border hover:border-success/20 hover:bg-surface/60 transition-colors duration-150 overflow-hidden p-5">
                                 <div className="flex items-center gap-3">
                                     <div className="relative w-10 h-10 rounded-xl border border-border overflow-hidden bg-elevated shrink-0">

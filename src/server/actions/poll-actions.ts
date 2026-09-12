@@ -153,8 +153,8 @@ export async function updatePollSettings(
 
 const CreatePollSchema = z.object({
     guildId: z.string().min(1),
-    title: z.string().min(3).max(200),
-    description: z.string().max(2000).optional(),
+    title: z.string().min(3, "Titre trop court (min 3 caractères)").max(80, "Titre trop long (max 80 caractères)"),
+    description: z.string().min(5, "La description est obligatoire (min 5 caractères)").max(2000, "Description trop longue (max 2000 caractères)"),
     category: z.enum(["SUGGESTION", "AMELIORATION", "EVENT", "MISSION", "AUTRE"]),
     options: z.array(z.object({
         label: z.string().min(1).max(200),
@@ -176,8 +176,8 @@ const CreatePollSchema = z.object({
 const UpdatePollSchema = z.object({
     pollId: z.string().min(1),
     guildId: z.string().min(1),
-    title: z.string().min(3).max(200).optional(),
-    description: z.string().max(2000).optional().nullable(),
+    title: z.string().min(3).max(80).optional(),
+    description: z.string().min(5).max(2000).optional().nullable(),
     category: z.enum(["SUGGESTION", "AMELIORATION", "EVENT", "MISSION", "AUTRE"]).optional(),
     allowMultipleVotes: z.boolean().optional(),
     isAnonymous: z.boolean().optional(),
@@ -394,7 +394,13 @@ export async function getPoll(
                         votes: {
                             include: {
                                 voter: {
-                                    select: { id: true, pseudoDofus: true, discordNickname: true, userId: true },
+                                    select: {
+                                        id: true,
+                                        pseudoDofus: true,
+                                        discordNickname: true,
+                                        userId: true,
+                                        user: { select: { image: true, name: true } },
+                                    },
                                 },
                             },
                         },
@@ -429,7 +435,8 @@ export async function getPoll(
                     : o.votes.map((v: any) => ({
                         id: v.id,
                         voterId: v.voterId,
-                        voterName: v.voter.pseudoDofus || v.voter.discordNickname || "Membre",
+                        voterName: v.voter.pseudoDofus || v.voter.discordNickname || v.voter.user?.name || "Membre",
+                        voterImage: v.voter.user?.image || null,
                         createdAt: v.createdAt,
                     })),
                 voteCount: o._count.votes,
@@ -731,27 +738,45 @@ export async function castVote(
 export async function processPollVote(
     discordGuildId: string,
     profileId: string,
-    optionId: string
+    optionId: string,
+    /**
+     * verifiedUserId — fourni UNIQUEMENT par /api/discord/interactions.
+     * L'identité est déjà prouvée par :
+     *   1. Signature Ed25519 Discord vérifiée cryptographiquement
+     *   2. findUserByDiscordId(member.user.id) → account.userId SigilOS
+     *   3. db.userProfile.findUnique({ userId: account.userId, guildId }) → profil membre
+     * On bypasse auth() (cookie absent dans une requête HTTP bot), mais on re-vérifie
+     * que userId → profil ACTIVE en DB. Zéro confiance sur le paramètre profileId client.
+     */
+    verifiedUserId?: string
 ): Promise<ActionResponse<{ action: "voted" | "removed" }>> {
-    // 🔒 Fail-closed anti-impersonation : le votant est toujours dérivé de la session,
-    // le `profileId` client est ignoré s'il ne correspond pas au profil du caller.
-    const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+    // 🔒 Résolution de l'identité :
+    //   - Chemin web  → session NextAuth (cookie)
+    //   - Chemin Discord → verifiedUserId fourni par la route interactions (Ed25519 vérifié)
+    let resolvedUserId: string | undefined;
+    if (verifiedUserId) {
+        resolvedUserId = verifiedUserId;
+    } else {
+        const session = await auth();
+        resolvedUserId = session?.user?.id;
+    }
+    if (!resolvedUserId) return { success: false, error: "Non authentifié" };
     try {
         const guildConfig = await db.guildConfig.findUniqueOrThrow({ where: { discordGuildId } });
 
+        // Re-vérification en DB : le profil doit être ACTIVE dans cette guilde.
+        // Le paramètre `profileId` client est ignoré — anti-impersonation.
         const me = await db.userProfile.findFirst({
-            where: { userId: session.user.id, guildId: guildConfig.id, status: "ACTIVE" },
+            where: { userId: resolvedUserId, guildId: guildConfig.id, status: "ACTIVE" },
             select: { id: true },
         });
-        if (!me) return { success: false, error: "Profil introuvable" };
-        // Ignore le param client (anti-impersonation) — le vote est toujours pour soi.
+        if (!me) return { success: false, error: "Profil introuvable ou inactif dans cette guilde" };
         if (profileId !== me.id) {
-            logger.warn("[Polls] processPollVote profileId mismatch — forced to self", { discordGuildId });
+            logger.warn("[Polls] processPollVote profileId mismatch — forced to self", { discordGuildId, verifiedUserId: !!verifiedUserId });
         }
         const effectiveProfileId = me.id;
 
-        const rl = await rateLimit(`poll:vote:${session.user.id}:${discordGuildId}`, 30, 60_000);
+        const rl = await rateLimit(`poll:vote:${resolvedUserId}:${discordGuildId}`, 30, 60_000);
         if (!rl.success) return { success: false, error: "Trop de votes, réessaie dans une minute." };
 
         // Get option + poll

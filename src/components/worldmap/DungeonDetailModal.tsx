@@ -33,10 +33,11 @@ interface DungeonDetailModalProps {
     isOpen: boolean;
     onClose: () => void;
     dungeons: Dungeon[];
-    guildId: string;
+    guildId?: string;
+    isPublic?: boolean;
 }
 
-export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: DungeonDetailModalProps) {
+export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId, isPublic = false }: DungeonDetailModalProps) {
     const [selectedDungeonIndex, setSelectedDungeonIndex] = useState(0);
     const [directoryData, setDirectoryData] = useState<AchievementDirectory[]>([]);
     const [resolvedDj, setResolvedDj] = useState<any>(null);
@@ -47,6 +48,7 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
 
     const dungeon = dungeons[selectedDungeonIndex];
     const isOcreQuest = !!(dungeon as any).__isOcreQuest;
+    const canShowGuildMembers = !isPublic && !!guildId;
 
     useEffect(() => {
         if (isOpen && dungeon) {
@@ -58,23 +60,39 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
             const dName = typeof dungeon.name === 'string' ? dungeon.name : dungeon.name?.fr;
             
             // Resolve real DJ info for official boss name, image, etc.
-            searchDungeons(dName || dungeon.id.toString()).then(res => {
+            const djPromise = searchDungeons(dName || dungeon.id.toString()).then(res => {
                 if (res.success && res.data && res.data.length > 0) {
-                    setResolvedDj(res.data[0]);
+                    const first = res.data[0];
+                    setResolvedDj(first);
+                    // Si public, peupler les succès avec les données du donjon sans membres
+                    if (!canShowGuildMembers && first.achievements?.length > 0) {
+                        setDirectoryData(first.achievements.map((a: any) => ({
+                            achievementId: a.id,
+                            achievementName: a.challenge?.name || a.name || "Succès",
+                            iconUrl: a.challenge?.iconUrl || null,
+                            points: a.points || 10,
+                            hasCompleted: [],
+                            missing: []
+                        })));
+                    }
                 }
             });
 
-            getDungeonDirectory(guildId, dungeon.id.toString(), dName).then((res) => {
-                if (res.success && res.data) {
-                    setDirectoryData(res.data);
-                    if (res.data.length > 0) {
-                        setExpandedAchv(res.data[0].achievementId);
+            if (canShowGuildMembers && guildId) {
+                getDungeonDirectory(guildId, dungeon.id.toString(), dName).then((res) => {
+                    if (res.success && res.data) {
+                        setDirectoryData(res.data);
+                        if (res.data.length > 0) {
+                            setExpandedAchv(res.data[0].achievementId);
+                        }
                     }
-                }
-                setLoading(false);
-            });
+                    setLoading(false);
+                }).catch(() => setLoading(false));
+            } else {
+                djPromise.finally(() => setLoading(false));
+            }
         }
-    }, [isOpen, dungeon, guildId]);
+    }, [isOpen, dungeon, guildId, canShowGuildMembers]);
 
     if (!isOpen || !dungeon) return null;
 
@@ -198,9 +216,9 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                                             <div className="flex items-center gap-4 flex-1">
                                                 <div className="w-12 h-12 rounded-xl bg-black/40 border border-border flex items-center justify-center shrink-0 shadow-inner group">
                                                     {achv.iconUrl ? (
-                                                        <img src={achv.iconUrl} alt="" className="w-8 h-8 object-contain drop-shadow-md group- transition-transform" />
+                                                        <img src={achv.iconUrl} alt="" className="w-8 h-8 object-contain drop-shadow-md group-hover:scale-110 transition-transform" />
                                                     ) : (
-                                                        <Trophy className="text-amber-500" size={20} />
+                                                        <img src="/assets/icons/icone-succes.png" alt="Succès" className="w-6 h-6 object-contain" />
                                                     )}
                                                 </div>
                                                 <div className="min-w-0">
@@ -209,19 +227,23 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                                                         <span className="text-caption md:text-caption font-black text-amber-500 bg-amber-500/10 px-1.5 md:px-2 py-0.5 rounded-lg border border-amber-500/20">
                                                             {achv.points} PTS
                                                         </span>
-                                                        <span className="text-caption md:text-caption font-bold text-foreground/30 uppercase tracking-widest">
-                                                            Complétion : {completionRate}%
-                                                        </span>
+                                                        {canShowGuildMembers && (
+                                                            <span className="text-caption md:text-caption font-bold text-foreground/30 uppercase tracking-widest">
+                                                                Complétion : {completionRate}%
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isExpanded ? "bg-amber-500/20 text-amber-500" : "bg-surface text-foreground/20 border border-border"}`}>
-                                                <ChevronDown size={14} className={`transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`} />
-                                            </div>
+                                            {canShowGuildMembers && (
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isExpanded ? "bg-amber-500/20 text-amber-500" : "bg-surface text-foreground/20 border border-border"}`}>
+                                                    <ChevronDown size={14} className={`transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`} />
+                                                </div>
+                                            )}
                                         </button>
 
                                         <AnimatePresence>
-                                            {isExpanded && (
+                                            {canShowGuildMembers && isExpanded && (
                                                 <motion.div
                                                     initial={{ height: 0, opacity: 0 }}
                                                     animate={{ height: "auto", opacity: 1 }}
@@ -281,30 +303,35 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                 {/* Footer / Actions */}
                 <div className="p-6 bg-surface border-t border-border flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
-                             <Users size={14} />
+                        <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center p-1.5 shrink-0">
+                             <img src="/assets/dofus/game-icons/crossed-swords.png" alt="" className="w-5 h-5 object-contain" />
                         </div>
                         <p className="text-caption text-foreground/30 font-bold uppercase tracking-widest leading-tight">
-                            Consultez les membres de guilde<br/>pour organiser vos groupes
+                            {canShowGuildMembers ? (
+                                <>Consultez les membres de guilde<br/>pour organiser vos groupes</>
+                            ) : (
+                                <>Carte Interactive Dofus Unity<br/>Données officielles et succès répertoriés</>
+                            )}
                         </p>
                     </div>
-                    {/* #175 — création DJ directe depuis la WorldMap : donjon pré-rempli si répertorié,
-                        sinon popup de blocage demandant l'ajout du donjon. */}
-                    {resolvedDj ? (
-                        <a
-                            href={`/dashboard/${guildId}/donjons-et-quetes?dungeonId=${encodeURIComponent(resolvedDj.id)}`}
-                            className="px-6 py-3 rounded-2xl bg-amber-600 text-warning-foreground font-black text-caption uppercase italic shadow-lg shadow-amber-600/20 hover:bg-amber-500 hover:-translate-y-0.5 transition-all flex items-center gap-2"
-                        >
-                            Créer un groupe <ChevronRight size={14} />
-                        </a>
-                    ) : (
-                        <button
-                            type="button"
-                            onClick={() => setDjNotListedOpen(true)}
-                            className="px-6 py-3 rounded-2xl bg-amber-600 text-warning-foreground font-black text-caption uppercase italic shadow-lg shadow-amber-600/20 hover:bg-amber-500 hover:-translate-y-0.5 transition-all flex items-center gap-2"
-                        >
-                            Créer un groupe <ChevronRight size={14} />
-                        </button>
+                    {/* En mode guilde : création DJ directe depuis la WorldMap. En mode public : pas de lien dashboard */}
+                    {canShowGuildMembers && (
+                        resolvedDj ? (
+                            <a
+                                href={`/dashboard/${guildId}/donjons-et-quetes?dungeonId=${encodeURIComponent(resolvedDj.id)}`}
+                                className="px-6 py-3 rounded-2xl bg-amber-600 text-warning-foreground font-black text-caption uppercase italic shadow-lg shadow-amber-600/20 hover:bg-amber-500 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                            >
+                                Créer un groupe <ChevronRight size={14} />
+                            </a>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => setDjNotListedOpen(true)}
+                                className="px-6 py-3 rounded-2xl bg-amber-600 text-warning-foreground font-black text-caption uppercase italic shadow-lg shadow-amber-600/20 hover:bg-amber-500 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                            >
+                                Créer un groupe <ChevronRight size={14} />
+                            </button>
+                        )
                     )}
                 </div>
             </DialogContent>

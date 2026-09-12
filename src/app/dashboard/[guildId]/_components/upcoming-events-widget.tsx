@@ -30,6 +30,7 @@ const EVENT_LABELS: Record<string, string> = {
     GUILD_MISSION: "Mission guilde",
     ALMANAX_BONUS: "Almanax",
     OFFICIAL_RESET: "Reset",
+    KRALAMOURE: "Kralamoure",
     OTHERS: "Autre",
 };
 
@@ -152,6 +153,10 @@ export function UpcomingEventsWidget({
                                 className="rounded-xl border border-border hover:border-border-strong hover:bg-surface p-3 transition-colors"
                             >
                                 <div className="flex items-center gap-2 mb-1.5">
+                                    {event.type === "KRALAMOURE" && (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src="/assets/calendar/kralamoure-head.png" alt="Kralamoure" className="w-4 h-4 object-contain shrink-0" />
+                                    )}
                                     <span className="text-xs text-muted-foreground">{label}</span>
                                     <span className={cn(
                                         "text-xs tabular-nums",

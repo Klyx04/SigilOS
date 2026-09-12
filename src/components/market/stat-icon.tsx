@@ -29,6 +29,7 @@ import {
     type LucideIcon,
 } from "lucide-react";
 import { resolveStatIconSpec, type StatIconName } from "@/lib/market/effects";
+import { resolveDofusStatTheme } from "@/lib/dofus-stats-theme";
 import { cn } from "@/lib/utils";
 
 const ICON_COMPONENTS: Record<StatIconName, LucideIcon> = {
@@ -59,6 +60,19 @@ export function StatIcon({
     charCode?: string | null;
     className?: string;
 }) {
+    const dofusTheme = resolveDofusStatTheme(characteristicId, null, charCode);
+    if (dofusTheme?.asset) {
+        return (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+                src={`/assets/dofus/stats/${dofusTheme.asset}`}
+                alt={dofusTheme.label || "stat"}
+                className={cn("h-4 w-4 shrink-0 object-contain", className)}
+                aria-hidden="true"
+            />
+        );
+    }
+
     const spec = resolveStatIconSpec(characteristicId, charCode);
     const Icon = spec ? ICON_COMPONENTS[spec.icon] : Zap;
     return (

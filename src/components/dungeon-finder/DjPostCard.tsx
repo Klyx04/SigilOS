@@ -23,6 +23,8 @@ import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { getClass } from "@/lib/dofus-assets";
+import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle } from "@/lib/dungeon-finder-utils";
+import { DjMultiBossAvatars } from "./DjMultiBossAvatars";
 
 // -------------------------------------------------------
 // Constants
@@ -105,15 +107,13 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
         });
     }
 
-    const multiDungeons = (post.dungeonsJson ?? []) as any[];
+    const multiDungeons = getMultiDungeons(post.dungeonsJson);
     const isMulti = multiDungeons.length > 0;
-    const title = isMulti
-        ? `Multi-donjons — ${multiDungeons.length}`
-        : (post.mode === "DONJON" ? post.dungeon?.name : post.mode === "DEFI" ? (post.defiName || "Défi") : post.mode === "TITAN" ? (post.titanName || "Titan") : post.questName);
-    const subtitle = isMulti
-        ? "Session de guilde multi-donjons"
-        : (post.mode === "DONJON" ? `${post.dungeon?.bossName} · Lvl ${post.dungeon?.level}` : post.mode === "DEFI" ? "Événement one-shot" : "Quête");
-    const coverImage = isMulti ? (multiDungeons[0]?.imageUrl ?? null) : (post.mode === "DONJON" ? post.dungeon?.imageUrl : post.mode === "DEFI" ? post.defi?.imageUrl : null);
+    const title = getDjPostTitle(post);
+    const subtitle = getDjPostSubtitle(post);
+    const coverImage = !isMulti
+        ? (post.mode === "DONJON" ? post.dungeon?.imageUrl : post.mode === "DEFI" ? post.defi?.imageUrl : null)
+        : null;
 
     const isOpen = post.status === "OPEN" || post.status === "FULL";
     const isDonjon = post.mode === "DONJON";
@@ -131,17 +131,29 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
             >
                 {/* Banner */}
                 <div className="relative h-28 bg-surface overflow-hidden flex items-center shrink-0 border-b border-border">
+                    {isMulti && multiDungeons[0]?.imageUrl ? (
+                        <img
+                            src={multiDungeons[0].imageUrl}
+                            alt=""
+                            aria-hidden
+                            className="absolute inset-0 w-full h-full object-cover opacity-[0.08] blur-xl scale-125"
+                        />
+                    ) : null}
 
                     <div className="relative flex items-center gap-4 px-5 w-full">
                         <div className={cn(
-                            "w-14 h-14 rounded-xl overflow-hidden shrink-0 flex flex-col items-center justify-center border",
+                            "w-14 h-14 rounded-xl overflow-hidden shrink-0 flex flex-col items-center justify-center border shadow-sm",
                             isOpen
-                                ? isDonjon
+                                ? isMulti
+                                    ? "bg-surface/80 border-info/40"
+                                    : isDonjon
                                     ? "bg-surface border-info/30"
                                     : "bg-info/50 border-info/30"
                                 : "bg-background border-border"
                         )}>
-                            {coverImage ? (
+                            {isMulti ? (
+                                <DjMultiBossAvatars dungeons={multiDungeons} />
+                            ) : coverImage ? (
                                 <img src={coverImage} alt={subtitle} className="w-full h-full object-cover" />
                             ) : (
                                 <ModIcon className={cn("w-6 h-6", isDonjon ? "text-info" : "text-info")} />

@@ -25,6 +25,8 @@ import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions"
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
+import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle } from "@/lib/dungeon-finder-utils";
+import { DjMultiBossAvatars } from "./DjMultiBossAvatars";
 
 const MODE_LABELS: Record<string, string> = {
     FARM: "Farm", SUCCES: "Succès", MIXED: "Mixte", QUETE: "Quête", DONJON: "Donjon",
@@ -59,6 +61,15 @@ export function DjPostDetailModal({
     const isOwner = post.profileId === currentProfileId;
     const myParticipation = currentProfileId
         ? post.participants.find((p) => p.profile.id === currentProfileId)
+        : null;
+
+    // Multi-donjons
+    const multiDungeons = getMultiDungeons(post.dungeonsJson);
+    const isMulti = multiDungeons.length > 0;
+    const postTitle = getDjPostTitle(post);
+    const postSubtitle = getDjPostSubtitle(post);
+    const coverImage = !isMulti
+        ? (post.mode === "DONJON" ? post.dungeon?.imageUrl : post.mode === "DEFI" ? post.defi?.imageUrl : null)
         : null;
 
     // Creator counts as 1 slot, ACCEPTED participants fill remaining slots
@@ -148,9 +159,9 @@ export function DjPostDetailModal({
                     {/* Hero Image / Banner */}
                     <div className="relative h-24 bg-surface border-b border-border overflow-hidden shrink-0">
                         {/* Ambiance : léger voile du visuel du donjon (flouté + fondu, jamais pixelisé) */}
-                        {(post.mode === "DONJON" && (post.dungeon?.imageUrl || (post.dungeonsJson as any[])?.[0]?.imageUrl)) || (post.mode === "DEFI" && post.defi?.imageUrl) ? (
+                        {(isMulti && multiDungeons[0]?.imageUrl) || (!isMulti && coverImage) ? (
                             <img
-                                src={post.mode === "DEFI" ? post.defi?.imageUrl : post.dungeon?.imageUrl ?? (post.dungeonsJson as any[])?.[0]?.imageUrl}
+                                src={isMulti ? multiDungeons[0]!.imageUrl! : coverImage!}
                                 alt=""
                                 aria-hidden
                                 className="absolute inset-0 w-full h-full object-cover opacity-[0.10] blur-2xl scale-110"
@@ -162,10 +173,10 @@ export function DjPostDetailModal({
 
                         <div className="relative z-10 flex items-center gap-4 px-5 h-full">
                             <div className={cn("w-16 h-16 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center border shadow-lg", post.mode === "DONJON" ? "bg-elevated/80 border-border" : post.mode === "DEFI" ? "bg-amber-500/20 border-amber-500/30" : "bg-info/80 border-info/30")}>
-                                {(post.mode === "DONJON" && (post.dungeon?.imageUrl || (post.dungeonsJson as any[])?.[0]?.imageUrl)) ? (
-                                    <img src={post.dungeon?.imageUrl ?? (post.dungeonsJson as any[])?.[0]?.imageUrl} alt="" className="w-full h-full object-cover" />
-                                ) : post.mode === "DEFI" && post.defi?.imageUrl ? (
-                                    <img src={post.defi.imageUrl} alt="" className="w-full h-full object-cover" />
+                                {isMulti ? (
+                                    <DjMultiBossAvatars dungeons={multiDungeons} size="lg" />
+                                ) : coverImage ? (
+                                    <img src={coverImage} alt="" className="w-full h-full object-cover" />
                                 ) : post.mode === "DEFI" ? (
                                     <Zap className="w-6 h-6 text-amber-500" />
                                 ) : post.mode === "DONJON" ? (
@@ -176,14 +187,10 @@ export function DjPostDetailModal({
                             </div>
                             <div className="flex-1 min-w-0">
                                 <h2 className="text-xl font-black text-foreground truncate">
-                                    {(post.dungeonsJson as any[])?.length > 0
-                                        ? `Multi-donjons — ${(post.dungeonsJson as any[]).length}`
-                                        : (post.mode === "DONJON" ? post.dungeon?.name : post.questName || "Quête")}
+                                    {postTitle}
                                 </h2>
                                 <p className="text-sm font-medium text-muted-foreground">
-                                    {(post.dungeonsJson as any[])?.length > 0
-                                        ? "Session de guilde multi-donjons"
-                                        : (post.mode === "DONJON" ? `Niv. ${post.dungeon?.level} — ${post.dungeon?.bossName}` : post.mode === "DEFI" ? (post.defiName || "Mode Défi") : post.mode === "TITAN" ? (post.titanName || "Mode Titan") : "Mode Quête")}
+                                    {postSubtitle}
                                 </p>
                             </div>
                             <Badge className={`text-caption font-black uppercase tracking-wider px-2.5 py-1 backdrop-blur-md ${post.status === "OPEN" ? "bg-success/10 text-success border-success/20 " : "bg-surface text-muted-foreground border-border"}`}>
@@ -226,9 +233,7 @@ export function DjPostDetailModal({
                                 <div>
                                     <p className="text-caption text-info/70 font-bold uppercase tracking-widest mb-0.5">Guides & Base de données</p>
                                     <span className="text-sm text-info font-bold">
-                                        {(post.dungeonsJson as any[])?.length > 0
-                                            ? `Multi-donjons — ${(post.dungeonsJson as any[]).length}`
-                                            : (post.mode === "DONJON" ? post.dungeon?.name : post.questName || "Quête")}
+                                        {postTitle}
                                     </span>
                                 </div>
                             </div>
@@ -261,10 +266,10 @@ export function DjPostDetailModal({
                         </div>
 
                         {/* Multi-donjons : liste de la session (#26) */}
-                        {(post.dungeonsJson as any[])?.length > 0 && (
+                        {isMulti && (
                             <div className="space-y-2">
                                 <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5"><Layers className="w-3.5 h-3.5" /> Donjons de la session</p>
-                                {(post.dungeonsJson as any[]).map((d: any, idx: number) => (
+                                {multiDungeons.map((d, idx) => (
                                     <div key={d.dungeonId ?? idx} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-surface/40 border border-border">
                                         {d.imageUrl ? (
                                             <img src={d.imageUrl} alt="" className="w-9 h-9 rounded-lg object-contain bg-background border border-border shrink-0 p-0.5" />
@@ -277,7 +282,7 @@ export function DjPostDetailModal({
                                             <p className="text-xs font-bold text-foreground truncate">{d.name}</p>
                                             <p className="text-caption text-muted-foreground">
                                                 Lvl {d.level}
-                                                {(d.wantedAchievementIds?.length ?? 0) > 0 && ` · ${d.wantedAchievementIds.length} succès`}
+                                                {(d.wantedAchievementIds?.length ?? 0) > 0 && ` · ${d.wantedAchievementIds!.length} succès`}
                                                 {d.targetDate && ` · ${new Date(d.targetDate).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`}
                                             </p>
                                         </div>

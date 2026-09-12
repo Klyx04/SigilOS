@@ -6,7 +6,7 @@ import { replyToServiceRequestAction } from "@/server/actions/service-actions";
 import { NotificationType, NotificationCategory } from "@prisma/client";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Bell, CheckCircle2, Info, AlertTriangle, Shield, X, Check, Target, Trophy, Flame, Calendar, PieChart, ShieldCheck, Swords, Gem, MessageSquare, Loader2, Eye, EyeOff, Filter } from "lucide-react";
+import { Bell, CheckCircle2, Info, AlertTriangle, Shield, X, Check, Target, Trophy, Flame, Calendar, PieChart, ShieldCheck, Swords, Gem, MessageSquare, Loader2, Eye, EyeOff, Filter, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -133,6 +133,7 @@ export default function NotificationsPage() {
             case "ADMIN_ALERT": return <ShieldCheck className="w-5 h-5 text-danger" />;
             case "DONJONS": return <Swords className="w-5 h-5 text-info" />;
             case "OCRE": return <Gem className="w-5 h-5 text-success" />;
+            case "MARKET": return <Store className="w-5 h-5 text-primary" />;
             default: return <Bell className="w-5 h-5 text-muted-foreground" />;
         }
     };
@@ -147,6 +148,7 @@ export default function NotificationsPage() {
             case "ADMIN_ALERT": return "Administration";
             case "DONJONS": return "Donjons";
             case "OCRE": return "Ocre";
+            case "MARKET": return "Marché";
             default: return "Système";
         }
     };
@@ -174,6 +176,7 @@ export default function NotificationsPage() {
         { id: "EVENT", label: "Events" },
         { id: "POLL", label: "Sondages" },
         { id: "OCRE", label: "Ocre" },
+        { id: "MARKET", label: "Marché" },
         { id: "ADMIN_ALERT", label: "Admin" },
     ];
 
@@ -310,6 +313,7 @@ export default function NotificationsPage() {
                                 notif.category === "ADMIN_ALERT" && "bg-danger",
                                 notif.category === "DONJONS" && "bg-info",
                                 notif.category === "OCRE" && "bg-success",
+                                notif.category === "MARKET" && "bg-primary",
                                 notif.category === "SYSTEM" && "bg-muted",
                             )} />
 

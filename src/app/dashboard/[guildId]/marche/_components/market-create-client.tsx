@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -12,18 +12,18 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { formatKamas, parseKamas } from "@/lib/market/kamas";
 import { MARKET_LIMITS } from "@/server/actions/market-constants";
-import { createMarketListing, publishMarketListing, getMarketPublishContext } from "@/server/actions/market-actions";
+import { createMarketListing, publishMarketListing, updateMarketListing, getMarketPublishContext } from "@/server/actions/market-actions";
 import { getGuildRoles } from "@/server/actions/bonus-actions";
 import { searchLocalGameItems, type GameItemSearchResult } from "@/server/actions/game-item-actions";
 import { buildNativeStatDrafts, type MarketStatDraft, type MarketNativeEffect } from "@/lib/market/effects";
 import { MarketJetEditor } from "./market-jet-editor";
 import { MarketPublishStep, type MarketPublishContext } from "./market-publish-step";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Hammer, Loader2, Package, Plus, Search, Store, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Hammer, Loader2, Package, Plus, Save, Search, Store, X } from "lucide-react";
 
 type ListingKind = "EQUIPMENT" | "RESOURCE";
 
-type ComponentDraft = {
+export type ComponentDraft = {
     key: string;
     dofusDbItemId: number | null;
     name: string;
@@ -32,22 +32,52 @@ type ComponentDraft = {
     unitLabel: string | null;
 };
 
+/**
+ * S7.11/S7.12 — **état initial** d'une annonce à modifier (mode `edit`).
+ *
+ * Le même assistant 4 étapes est rejoué sur ces valeurs : aucune duplication du
+ * parcours, et **aucun** champ `quality` n'est transmis (il est **recalculé**
+ * côté serveur par `updateMarketListing`, cf. D17).
+ */
+export type MarketListingEditInitial = {
+    id: string;
+    type: ListingKind;
+    title: string;
+    description: string | null;
+    forgedBy: string | null;
+    priceKamas: number | null;
+    negotiable: boolean;
+    acceptsTrade: boolean;
+    quantity: number | null;
+    unitLabel: string | null;
+    minQuantity: number | null;
+    /** Objet du catalogue (jamais inventé : il vient de la fiche persistée). */
+    item: GameItemSearchResult | null;
+    stats: MarketStatDraft[];
+    components: ComponentDraft[];
+};
+
 interface MarketCreateClientProps {
     guildId: string;
+    /** S7.12 — annonce existante ⇒ mode **édition** (sinon création). */
+    initial?: MarketListingEditInitial | null;
 }
 
-export function MarketCreateClient({ guildId }: MarketCreateClientProps) {
+export function MarketCreateClient({ guildId, initial = null }: MarketCreateClientProps) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
+    /** S7.12 — édition d'une annonce existante : l'étape 4 (Discord) disparaît. */
+    const isEdit = initial !== null;
 
-    const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-    const [kind, setKind] = useState<ListingKind>("EQUIPMENT");
+    // Édition : on démarre directement sur « Objet / Jet », pré-rempli.
+    const [step, setStep] = useState<1 | 2 | 3 | 4>(initial ? 2 : 1);
+    const [kind, setKind] = useState<ListingKind>(initial?.type ?? "EQUIPMENT");
 
     // Équipement
-    const [item, setItem] = useState<GameItemSearchResult | null>(null);
+    const [item, setItem] = useState<GameItemSearchResult | null>(initial?.item ?? null);
 
     // S2.10 — lignes de jet, pré-remplies depuis les plages natives du catalogue.
-    const [stats, setStats] = useState<MarketStatDraft[]>([]);
+    const [stats, setStats] = useState<MarketStatDraft[]>(initial?.stats ?? []);
 
     // S3.14 — contexte de publication Discord (salon, rôles pinguables).
     const [publishContext, setPublishContext] = useState<MarketPublishContext | null>(null);
@@ -55,6 +85,9 @@ export function MarketCreateClient({ guildId }: MarketCreateClientProps) {
     const [pingRoleIds, setPingRoleIds] = useState<string[]>([]);
 
     useEffect(() => {
+        // S7.12 — en édition il n'y a **pas** d'étape de publication Discord :
+        // on évite deux appels serveur inutiles.
+        if (isEdit) return;
         let cancelled = false;
         getMarketPublishContext(guildId).then((res) => {
             if (!cancelled && res.success && res.data) setPublishContext(res.data);
@@ -67,19 +100,23 @@ export function MarketCreateClient({ guildId }: MarketCreateClientProps) {
         return () => {
             cancelled = true;
         };
-    }, [guildId]);
+    }, [guildId, isEdit]);
 
     // Ressources (lot simple ou composite)
-    const [components, setComponents] = useState<ComponentDraft[]>([]);
+    const [components, setComponents] = useState<ComponentDraft[]>(initial?.components ?? []);
 
     // Commun
-    const [title, setTitle] = useState("");
-    const [description, setDescription] = useState("");
-    const [forgedBy, setForgedBy] = useState("");
-    const [priceInput, setPriceInput] = useState("");
-    const [negotiable, setNegotiable] = useState(true);
-    const [acceptsTrade, setAcceptsTrade] = useState(false);
-    const [minQuantity, setMinQuantity] = useState("");
+    const [title, setTitle] = useState(initial?.title ?? "");
+    const [description, setDescription] = useState(initial?.description ?? "");
+    const [forgedBy, setForgedBy] = useState(initial?.forgedBy ?? "");
+    const [priceInput, setPriceInput] = useState(
+        initial?.priceKamas != null ? String(initial.priceKamas) : ""
+    );
+    const [negotiable, setNegotiable] = useState(initial?.negotiable ?? true);
+    const [acceptsTrade, setAcceptsTrade] = useState(initial?.acceptsTrade ?? false);
+    const [minQuantity, setMinQuantity] = useState(
+        initial?.minQuantity != null ? String(initial.minQuantity) : ""
+    );
 
     const parsedPrice = parseKamas(priceInput);
     const priceInvalid = priceInput.trim().length > 0 && parsedPrice === null;
@@ -100,54 +137,87 @@ export function MarketCreateClient({ guildId }: MarketCreateClientProps) {
         );
     }
 
-    function addComponent(source: ComponentDraft) {
-        setComponents((prev) => [...prev.slice(0, MARKET_LIMITS.MAX_COMPONENTS - 1), source]);
+    /**
+     * Charge utile **commune** création / mise à jour.
+     * ⚠️ Aucun champ `quality` ni plage native calculée côté client : le serveur
+     * **recalcule** tout (§12.8, D17).
+     */
+    function buildPayload() {
+        return {
+            type: kind,
+            title: title.trim(),
+            description: description.trim() || null,
+            forgedBy: forgedBy.trim() || null,
+            priceKamas: parsedPrice,
+            negotiable,
+            acceptsTrade,
+            dofusDbItemId: kind === "EQUIPMENT" ? item?.ankamaId ?? null : null,
+            itemName: kind === "EQUIPMENT" ? item?.name ?? null : null,
+            itemIconUrl: kind === "EQUIPMENT" ? item?.iconUrl ?? null : null,
+            itemLevel: kind === "EQUIPMENT" ? item?.level ?? null : null,
+            itemTypeName: kind === "EQUIPMENT" ? item?.typeName ?? null : null,
+            quantity: kind === "RESOURCE" && components.length === 1 ? components[0].quantity : null,
+            unitLabel: kind === "RESOURCE" && components.length === 1 ? components[0].unitLabel : null,
+            minQuantity: kind === "RESOURCE" ? parseKamas(minQuantity) ?? null : null,
+            components: components.map((component) => ({
+                dofusDbItemId: component.dofusDbItemId,
+                name: component.name,
+                iconUrl: component.iconUrl,
+                quantity: component.quantity,
+                unitLabel: component.unitLabel,
+            })),
+            stats: stats.map((stat) => ({
+                effectId: stat.effectId,
+                characteristic: stat.characteristic,
+                label: stat.label,
+                naturalMin: stat.naturalMin,
+                naturalMax: stat.naturalMax,
+                actualValue: stat.actualValue,
+                origin: stat.origin,
+            })),
+        };
     }
 
-    function handleSubmit(publishNow: boolean) {
+    /** Champs communs aux deux modes. `true` si le formulaire est inutilisable. */
+    function hasFormError(): boolean {
         if (!title.trim()) {
             toast.error("Renseigne un titre pour ton annonce.");
-            return;
+            return true;
         }
         if (priceInvalid) {
             toast.error("Prix invalide (entier de kamas attendu).");
-            return;
+            return true;
         }
+        return false;
+    }
+
+    /**
+     * S7.12 — enregistre les modifications d'une annonce existante.
+     * `updateMarketListing` revalide tout côté serveur : **vendeur** propriétaire,
+     * statut éditable (`DRAFT`/`ACTIVE`/`EXPIRED`), **jet recalculé** (plages
+     * natives du catalogue), `statsHash` rejoué et journal `LISTING_UPDATED`.
+     */
+    function handleUpdate() {
+        if (!initial || hasFormError()) return;
 
         startTransition(async () => {
-            const created = await createMarketListing(guildId, {
-                type: kind,
-                title: title.trim(),
-                description: description.trim() || null,
-                forgedBy: forgedBy.trim() || null,
-                priceKamas: parsedPrice,
-                negotiable,
-                acceptsTrade,
-                dofusDbItemId: kind === "EQUIPMENT" ? item?.ankamaId ?? null : null,
-                itemName: kind === "EQUIPMENT" ? item?.name ?? null : null,
-                itemIconUrl: kind === "EQUIPMENT" ? item?.iconUrl ?? null : null,
-                itemLevel: kind === "EQUIPMENT" ? item?.level ?? null : null,
-                itemTypeName: kind === "EQUIPMENT" ? item?.typeName ?? null : null,
-                quantity: kind === "RESOURCE" && components.length === 1 ? components[0].quantity : null,
-                unitLabel: kind === "RESOURCE" && components.length === 1 ? components[0].unitLabel : null,
-                minQuantity: kind === "RESOURCE" ? (parseKamas(minQuantity) ?? null) : null,
-                components: components.map(({ key, ...rest }) => ({
-                    dofusDbItemId: rest.dofusDbItemId,
-                    name: rest.name,
-                    iconUrl: rest.iconUrl,
-                    quantity: rest.quantity,
-                    unitLabel: rest.unitLabel,
-                })),
-                stats: stats.map((stat) => ({
-                    effectId: stat.effectId,
-                    characteristic: stat.characteristic,
-                    label: stat.label,
-                    naturalMin: stat.naturalMin,
-                    naturalMax: stat.naturalMax,
-                    actualValue: stat.actualValue,
-                    origin: stat.origin,
-                })),
-            });
+            const updated = await updateMarketListing(guildId, initial.id, buildPayload());
+            if (!updated.success) {
+                toast.error(updated.error || "Impossible d'enregistrer les modifications.");
+                return;
+            }
+
+            toast.success("Annonce mise à jour.");
+            router.push(`/dashboard/${guildId}/marche/${initial.id}`);
+            router.refresh();
+        });
+    }
+
+    function handleSubmit(publishNow: boolean) {
+        if (hasFormError()) return;
+
+        startTransition(async () => {
+            const created = await createMarketListing(guildId, buildPayload());
 
             if (!created.success || !created.data) {
                 toast.error(created.error || "Impossible de créer l'annonce.");
@@ -174,7 +244,7 @@ export function MarketCreateClient({ guildId }: MarketCreateClientProps) {
 
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
-            <StepIndicator step={step} />
+            <StepIndicator step={step} stepCount={isEdit ? 3 : 4} />
 
             {step === 1 && (
                 <StepNature
@@ -256,7 +326,7 @@ export function MarketCreateClient({ guildId }: MarketCreateClientProps) {
                 />
             )}
 
-            {step === 4 && (
+            {!isEdit && step === 4 && (
                 <MarketPublishStep
                     channelName=""
                     title={title || item?.name || "Annonce"}
@@ -289,17 +359,18 @@ export function MarketCreateClient({ guildId }: MarketCreateClientProps) {
                     Retour
                 </Button>
 
-                {step < 4 ? (
+                {/* S7.12 — en édition, la dernière étape enregistre les modifications. */}
+                {isEdit && step === 3 ? (
                     <Button
                         type="button"
                         className="gap-2"
-                        disabled={!canGoNext}
-                        onClick={() => setStep((prev) => ((prev + 1) as 2 | 3 | 4))}
+                        disabled={isPending || !canGoNext}
+                        onClick={handleUpdate}
                     >
-                        Continuer
-                        <ChevronRight className="w-4 h-4" />
+                        {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        Enregistrer les modifications
                     </Button>
-                ) : (
+                ) : !isEdit && step === 4 ? (
                     <div className="flex items-center gap-2">
                         <Button type="button" variant="outline" disabled={isPending || !canGoNext} onClick={() => handleSubmit(false)}>
                             Enregistrer en brouillon
@@ -309,6 +380,16 @@ export function MarketCreateClient({ guildId }: MarketCreateClientProps) {
                             Publier l&apos;annonce
                         </Button>
                     </div>
+                ) : (
+                    <Button
+                        type="button"
+                        className="gap-2"
+                        disabled={!canGoNext}
+                        onClick={() => setStep((prev) => ((prev + 1) as 2 | 3 | 4))}
+                    >
+                        Continuer
+                        <ChevronRight className="w-4 h-4" />
+                    </Button>
                 )}
             </div>
         </div>
@@ -317,26 +398,36 @@ export function MarketCreateClient({ guildId }: MarketCreateClientProps) {
 
 
 /** Fil des étapes (1 Nature → 2 Objet/Lot + jet → 3 Prix → 4 Publication). */
-function StepIndicator({ step }: { step: 1 | 2 | 3 | 4 }) {
-    const labels = ["Nature", "Objet / Jet", "Prix", "Publication"];
+/**
+ * Fil des étapes — **4** en création (jusqu'à la publication Discord), **3** en
+ * édition (S7.12 : l'annonce existe déjà, on ne rejoue pas l'étape Discord).
+ */
+function StepIndicator({ step, stepCount = 4 }: { step: 1 | 2 | 3 | 4; stepCount?: 3 | 4 }) {
+    const labels =
+        stepCount === 3
+            ? ["Nature", "Objet / Jet", "Prix"]
+            : ["Nature", "Objet / Jet", "Prix", "Publication"];
     return (
         <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider font-black">
-            {[1, 2, 3, 4].map((value) => (
-                <div key={value} className="flex items-center gap-2">
-                    <span
-                        className={cn(
-                            "h-7 w-7 rounded-full border flex items-center justify-center",
-                            step >= value ? "border-gold/40 bg-gold/10 text-gold" : "border-border text-muted-foreground"
-                        )}
-                    >
-                        {value}
-                    </span>
-                    <span className={step >= value ? "text-foreground" : "text-muted-foreground"}>
-                        {labels[value - 1]}
-                    </span>
-                    {value < 4 && <ChevronRight className="w-3 h-3 text-muted-foreground" />}
-                </div>
-            ))}
+            {labels.map((label, index) => {
+                const value = index + 1;
+                return (
+                    <div key={label} className="flex items-center gap-2">
+                        <span
+                            className={cn(
+                                "h-7 w-7 rounded-full border flex items-center justify-center",
+                                step >= value ? "border-gold/40 bg-gold/10 text-gold" : "border-border text-muted-foreground"
+                            )}
+                        >
+                            {value}
+                        </span>
+                        <span className={step >= value ? "text-foreground" : "text-muted-foreground"}>
+                            {label}
+                        </span>
+                        {value < labels.length && <ChevronRight className="w-3 h-3 text-muted-foreground" />}
+                    </div>
+                );
+            })}
         </div>
     );
 }
@@ -617,25 +708,63 @@ function CataloguePicker({
     const [results, setResults] = useState<GameItemSearchResult[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    /** `true` dès qu'une recherche aboutie correspond à la saisie courante. */
+    const [searched, setSearched] = useState(false);
+    /** Anti-course : seule la **dernière** frappe peut écrire les résultats (S7.15). */
+    const requestId = useRef(0);
 
-    async function runSearch() {
-        if (query.trim().length < 2) return;
+    /**
+     * S7.15 — recherche **déclenchée à la frappe** : plus besoin de cliquer sur
+     * « Rechercher ». Le bouton reste (accessibilité et repli explicite) et les
+     * réponses obsolètes sont ignorées (`requestId`).
+     */
+    function runSearch(term: string) {
+        const trimmed = term.trim();
+        if (trimmed.length < 2) {
+            setResults([]);
+            setError(null);
+            setSearched(false);
+            return;
+        }
+
+        const id = ++requestId.current;
         setIsSearching(true);
         setError(null);
-        try {
-            const res = await searchLocalGameItems(query.trim(), category, 12);
-            if (!res.success) {
-                setError(res.error || "Recherche indisponible");
-                setResults([]);
-            } else {
-                setResults(res.data || []);
-            }
-        } catch {
-            setError("Recherche indisponible pour le moment.");
-        } finally {
-            setIsSearching(false);
-        }
+        void searchLocalGameItems(trimmed, category, 12)
+            .then((res) => {
+                if (id !== requestId.current) return;
+                if (!res.success) {
+                    setError(res.error || "Recherche indisponible");
+                    setResults([]);
+                } else {
+                    setResults(res.data || []);
+                }
+            })
+            .catch(() => {
+                if (id === requestId.current) setError("Recherche indisponible pour le moment.");
+            })
+            .finally(() => {
+                if (id === requestId.current) {
+                    setIsSearching(false);
+                    setSearched(true);
+                }
+            });
     }
+
+    useEffect(() => {
+        const trimmed = query.trim();
+        if (trimmed.length < 2) {
+            setResults([]);
+            setError(null);
+            setSearched(false);
+            return;
+        }
+        // Debounce : on attend 300 ms d'inactivité avant d'interroger le catalogue.
+        const timer = setTimeout(() => runSearch(trimmed), 300);
+        return () => clearTimeout(timer);
+        // `runSearch` ne dépend que de `category` (rejouée si la nature change).
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [query, category]);
 
     return (
         <div className="space-y-3">
@@ -648,14 +777,19 @@ function CataloguePicker({
                         onKeyDown={(event) => {
                             if (event.key === "Enter") {
                                 event.preventDefault();
-                                runSearch();
+                                runSearch(query);
                             }
                         }}
                         placeholder={placeholder}
-                        className="pl-9"
+                        className="pl-9 pr-9"
                     />
+                    {/* S7.15 — la recherche se déclenche à la frappe : le témoin de
+                        chargement remplace le clic obligatoire d'avant. */}
+                    {isSearching && (
+                        <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                    )}
                 </div>
-                <Button type="button" variant="outline" onClick={runSearch} disabled={isSearching || query.trim().length < 2}>
+                <Button type="button" variant="outline" onClick={() => runSearch(query)} disabled={isSearching || query.trim().length < 2}>
                     {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : "Rechercher"}
                 </Button>
             </div>
@@ -687,7 +821,7 @@ function CataloguePicker({
                 </div>
             )}
 
-            {!isSearching && !error && results.length === 0 && query.trim().length >= 2 && (
+            {searched && !isSearching && !error && results.length === 0 && (
                 <p className="text-xs text-muted-foreground">Aucun objet trouvé. Essaie un autre nom.</p>
             )}
         </div>

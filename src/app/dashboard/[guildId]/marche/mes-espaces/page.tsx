@@ -24,7 +24,7 @@ export default async function MarketMySpacePage({ params }: { params: Promise<{ 
     const myRes = await getMyMarketData(guildId);
     const data = myRes.success && myRes.data
         ? JSON.parse(JSON.stringify(myRes.data))
-        : { active: [], archived: [] };
+        : { active: [], archived: [], receivedOffers: [], sentOffers: [] };
 
     return (
         <div className="space-y-6 pb-12">
@@ -37,7 +37,13 @@ export default async function MarketMySpacePage({ params }: { params: Promise<{ 
                 backLabel="Marché"
                 compact
             />
-            <MarketMySpaceClient guildId={guildId} active={data.active} archived={data.archived} />
+            <MarketMySpaceClient
+                guildId={guildId}
+                active={data.active}
+                archived={data.archived}
+                received={data.receivedOffers}
+                sent={data.sentOffers}
+            />
         </div>
     );
 }

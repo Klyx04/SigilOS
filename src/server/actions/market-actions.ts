@@ -5,17 +5,30 @@ import { auth } from "@/auth";
 import { logger } from "@/lib/logger";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
+import { Prisma, type MarketOfferStatus, type MarketReservationStatus } from "@prisma/client";
 import { getUserContext, type ActionResponse } from "./user-actions";
 import { KAMAS_MAX } from "@/lib/market/kamas";
 import { computeStatQuality, computeStatsHash } from "@/lib/market/stat-quality";
-import { findNativeRange, toNativeEffects, type DofusItemEffectLike, type MarketNativeEffect } from "@/lib/market/effects";
+import { findNativeRange, isPlaceholderStatLabel, normalizeNativeRange, resolveStoredStatLabel, toNativeEffects, type DofusItemEffectLike, type MarketNativeEffect } from "@/lib/market/effects";
 import { loadMarketReferential } from "@/lib/market/referential";
 import { publishListingToDiscord, syncListingMessage } from "@/server/market/discord";
+import { writeMarketAuditLog } from "@/server/market/audit";
+import { reserveMarketListingCore, cancelMarketReservationCore } from "@/server/market/reservations";
+import {
+    cancelMarketOfferCore,
+    createMarketOfferCore,
+    respondToMarketOfferCore,
+    type MarketOfferCounterDraft,
+    type MarketOfferDecisionInput,
+} from "@/server/market/offers";
+import { completeMarketSaleCore } from "@/server/market/sales";
+import { normalizeMarketOfferDraft } from "@/lib/market/discord-interactions";
+import { sanitizeMarketText } from "@/lib/market/text";
 import {
     MARKET_AUDIT_ACTIONS,
     MARKET_DELETE_REASONS,
     MARKET_LIMITS,
+    MARKET_REPORT_REASONS,
     MARKET_TERMINAL_STATUSES,
     isMarketTransitionAllowed,
 } from "./market-constants";
@@ -49,9 +62,65 @@ export type MarketCatalogFilters = {
     sort?: "recent" | "price_asc" | "price_desc" | "level_desc";
 };
 
+/**
+ * S7.8 — **réservation active** telle qu'affichée au dashboard.
+ *
+ * §13.7 : cet écran est **privé à la guilde** — le pseudo Dofus du réservataire
+ * y est légitime pour que l'acheteur et le vendeur puissent se retrouver en jeu.
+ * Le salon Discord, lui, ne reçoit **jamais** de pseudo (compteur d'offres seul).
+ * Aucun identifiant Discord n'est exposé : `buyerProfileId` reste un id interne.
+ */
+export type MarketReservationView = {
+    id: string;
+    status: MarketReservationStatus;
+    expiresAt: string;
+    buyerProfileId: string;
+    /** Pseudo Dofus du réservataire (repli : nom d'utilisateur SigilOS). */
+    buyerLabel: string;
+    buyerClasse: string | null;
+    /** `true` si c'est **le membre courant** qui a posé la réservation. */
+    isMine: boolean;
+};
+
+/** Fiche d'annonce : la fiche + sa réservation active (ou `null`). */
+export type MarketListingDetail = MarketListingRecord & {
+    reservation: MarketReservationView | null;
+};
+
+/**
+ * Offre du **centre de négociation** (S4.10), telle que vue par le membre courant.
+ * §13.7 : cet écran est privé — le pseudo de l'autre partie y est légitime, il ne
+ * l'est jamais dans le salon Discord (seul le compteur d'offres y est public).
+ */
+export type MarketNegotiationOffer = {
+    id: string;
+    listingId: string;
+    listingTitle: string;
+    status: MarketOfferStatus;
+    /** `true` = contre-offre rattachée à une offre précédente (§11.4). */
+    isCounter: boolean;
+    /** `AUTHOR` = j'ai déposé cette offre · `COUNTERPART` = c'est à moi de répondre. */
+    role: "AUTHOR" | "COUNTERPART";
+    offeredKamas: number | null;
+    tradeDescription: string | null;
+    note: string | null;
+    createdAt: string;
+    expiresAt: string | null;
+    /** Pseudo de l'autre partie, quand c'est à moi de répondre. */
+    counterpartLabel: string | null;
+    /** `true` = accepter / refuser / contre-proposer (§11.4). */
+    canRespond: boolean;
+    /** `true` = retirer mon offre (§14.1). */
+    canCancel: boolean;
+};
+
 export type MyMarketData = {
     active: MarketListingRecord[];
     archived: MarketListingRecord[];
+    /** S4.10 — offres reçues sur mes annonces, encore `PENDING`. */
+    receivedOffers: MarketNegotiationOffer[];
+    /** S4.10 — mes offres (en cours **et** tranchées) + contre-offres qui m'attendent. */
+    sentOffers: MarketNegotiationOffer[];
 };
 
 // ---------------------------------------------------------------------------
@@ -106,17 +175,6 @@ export type MarketListingInput = z.input<typeof marketListingBaseSchema>;
 // HELPERS INTERNES (non exportés — fichier "use server")
 // ---------------------------------------------------------------------------
 
-/** Retire les liens d'un texte libre (anti-phishing / anti-slop, §16.4). */
-function sanitizeMarketText(value: string | null | undefined): string | null {
-    if (!value) return null;
-    const cleaned = value
-        .replace(/https?:\/\/\S+/gi, "[lien retiré]")
-        .replace(/\bdiscord\.gg\/\S+/gi, "[invitation retirée]")
-        .replace(/\s{3,}/g, "  ")
-        .trim();
-    return cleaned.length > 0 ? cleaned : null;
-}
-
 /**
  * Résout le contexte (guildConfig interne) + vérifie module + permission.
  * ⚠️ L'isolation vient TOUJOURS du contexte serveur (§16.2).
@@ -132,6 +190,9 @@ async function resolveMarketContext(guildId: string) {
             id: true,
             marketMaxActivePerMember: true,
             marketMaxLifetimeDays: true,
+            marketReservationHours: true,
+            marketOfferHours: true,
+            marketNegotiationsEnabled: true,
             marketNotifyChannelId: true,
             marketNotifyRoleId: true,
             marketChannelKind: true,
@@ -140,34 +201,6 @@ async function resolveMarketContext(guildId: string) {
     });
     if (!guildConfig) return { error: "Guilde introuvable" as const };
     return { user, guildConfig };
-}
-
-/** Journalise une transition dans MarketAuditLog (jamais bloquant). */
-async function writeMarketAuditLog(params: {
-    guildId: string;
-    listingId?: string | null;
-    actorUserId?: string | null;
-    action: string;
-    previousData?: unknown;
-    nextData?: unknown;
-    reason?: string | null;
-}) {
-    try {
-        await db.marketAuditLog.create({
-            data: {
-                guildId: params.guildId,
-                listingId: params.listingId ?? null,
-                actorUserId: params.actorUserId ?? null,
-                action: params.action,
-                previousData: (params.previousData ?? null) as Prisma.InputJsonValue,
-                nextData: (params.nextData ?? null) as Prisma.InputJsonValue,
-                reason: params.reason ?? null,
-            },
-        });
-    } catch (error) {
-        // Le journal ne doit JAMAIS faire échouer l'action métier.
-        logger.error("[market] audit log failed", { action: params.action, err: error });
-    }
 }
 
 const MARKET_INCLUDE = {
@@ -183,6 +216,72 @@ const MARKET_INCLUDE = {
         },
     },
 } satisfies Prisma.MarketListingInclude;
+
+/**
+ * S7.3/S7.4 — prépare les lignes de jet pour **l'affichage** (aucune écriture).
+ *
+ * (1) **Libellés** : la base conserve le libellé figé au moment de la
+ * déclaration ; les tables ayant été corrigées (S7.1/S7.3), les annonces créées
+ * **avant** le correctif affichaient « Effet ». On re-résout depuis les
+ * identifiants sans jamais écraser un libellé connu.
+ * (2) **Plages** : une plage déjà persistée sous forme décroissante
+ * (`[10 à 0]`, `diceSide` absent) est ramenée à la valeur fixe — aucune migration.
+ */
+function withDisplayReadyStats<
+    T extends {
+        stats: {
+            characteristic: number | null;
+            effectId: number;
+            label: string;
+            naturalMin: number | null;
+            naturalMax: number | null;
+        }[];
+    }
+>(listing: T): T {
+    if (listing.stats.length === 0) return listing;
+    return {
+        ...listing,
+        stats: listing.stats.map((stat) => {
+            const range = normalizeNativeRange(stat.naturalMin ?? stat.naturalMax ?? 0, stat.naturalMax ?? stat.naturalMin ?? 0);
+            return {
+                ...stat,
+                label: resolveStoredStatLabel(stat),
+                naturalMin: stat.naturalMin == null ? null : range.from,
+                naturalMax: stat.naturalMax == null ? null : range.to,
+            };
+        }),
+    } as T;
+}
+
+/**
+ * S7.8 — Construit la vue **réservation** d'une annonce (pseudo, échéance, « c'est
+ * moi »). Le profil du réservataire est lu **dans la guilde du contexte**
+ * (défense en profondeur : un id de profil ne suffit jamais, cf. RULES.md).
+ */
+async function buildReservationView(
+    reservation: {
+        id: string;
+        status: MarketReservationStatus;
+        expiresAt: Date;
+        buyerProfileId: string;
+    },
+    viewerProfileId: string | null,
+    guildConfigId: string
+): Promise<MarketReservationView> {
+    const buyer = await db.userProfile.findFirst({
+        where: { id: reservation.buyerProfileId, guildId: guildConfigId },
+        select: { pseudoDofus: true, classe: true, user: { select: { name: true } } },
+    });
+    return {
+        id: reservation.id,
+        status: reservation.status,
+        expiresAt: reservation.expiresAt.toISOString(),
+        buyerProfileId: reservation.buyerProfileId,
+        buyerLabel: buyer?.pseudoDofus || buyer?.user?.name || "Un membre de la guilde",
+        buyerClasse: buyer?.classe ?? null,
+        isMine: !!viewerProfileId && viewerProfileId === reservation.buyerProfileId,
+    };
+}
 
 /**
  * S2.8/S2.9 — Recalcule les stats **côté serveur** : la plage native provient
@@ -227,8 +326,14 @@ async function resolveServerStats(
         const naturalMax = range ? range.to : null;
         const origin = range ? stat.origin : "EXO";
         const label =
-            (stat.characteristic != null && referential.labels[stat.characteristic]) ||
-            referential.effectLabels[stat.effectId] ||
+            (stat.characteristic != null &&
+            !isPlaceholderStatLabel(referential.labels[stat.characteristic])
+                ? referential.labels[stat.characteristic]
+                : null) ||
+            (!isPlaceholderStatLabel(stat.label) ? stat.label : null) ||
+            (!isPlaceholderStatLabel(referential.effectLabels[stat.effectId])
+                ? referential.effectLabels[stat.effectId]
+                : null) ||
             stat.label;
         return {
             effectId: stat.effectId,
@@ -313,7 +418,7 @@ export async function getMarketListings(
             take: MARKET_LIMITS.CATALOG_PAGE_SIZE,
         });
 
-        return { success: true, data: listings };
+        return { success: true, data: listings.map(withDisplayReadyStats) };
     } catch (error) {
         logger.error("[getMarketListings] failed", { err: error });
         return { success: false, error: "Erreur interne" };
@@ -324,7 +429,7 @@ export async function getMarketListings(
 export async function getMarketListing(
     guildId: string,
     listingId: string
-): Promise<ActionResponse<MarketListingRecord>> {
+): Promise<ActionResponse<MarketListingDetail>> {
     try {
         const ctx = await resolveMarketContext(guildId);
         if ("error" in ctx) return { success: false, error: ctx.error };
@@ -345,14 +450,99 @@ export async function getMarketListing(
             return { success: false, error: "Annonce introuvable" };
         }
 
-        return { success: true, data: listing };
+        // S7.8 — la réservation active est lue **seulement pour la fiche** (une
+        // requête indexée) et uniquement sur une annonce réservée : le catalogue
+        // n'a pas besoin du pseudo du réservataire, seulement de l'échéance
+        // (`MarketListing.reservedUntil`, déjà porté par la ligne).
+        const reservationRow =
+            listing.status === "RESERVED"
+                ? await db.marketReservation.findFirst({
+                      where: { listingId: listing.id, status: "ACTIVE" },
+                      orderBy: { createdAt: "desc" },
+                      select: { id: true, status: true, expiresAt: true, buyerProfileId: true },
+                  })
+                : null;
+
+        return {
+            success: true,
+            data: {
+                ...withDisplayReadyStats(listing),
+                reservation: reservationRow
+                    ? await buildReservationView(reservationRow, user.profileId ?? null, guildConfig.id)
+                    : null,
+            },
+        };
     } catch (error) {
         logger.error("[getMarketListing] failed", { err: error });
         return { success: false, error: "Erreur interne" };
     }
 }
 
-/** « Mes espaces » : mes annonces actives + mes archives. */
+/** Sélection commune aux offres du centre de négociation (S4.10). */
+const NEGOTIATION_OFFER_SELECT = {
+    id: true,
+    listingId: true,
+    status: true,
+    counterOfId: true,
+    buyerProfileId: true,
+    offeredKamas: true,
+    tradeDescription: true,
+    note: true,
+    createdAt: true,
+    expiresAt: true,
+    listing: { select: { id: true, title: true } },
+} as const;
+
+/** Ligne brute renvoyée par `NEGOTIATION_OFFER_SELECT`. */
+type NegotiationOfferRow = {
+    id: string;
+    listingId: string;
+    status: MarketOfferStatus;
+    counterOfId: string | null;
+    buyerProfileId: string;
+    offeredKamas: number | null;
+    tradeDescription: string | null;
+    note: string | null;
+    createdAt: Date;
+    expiresAt: Date | null;
+    listing: { id: string; title: string };
+};
+
+/** Nombre d'offres conservées dans l'historique « mes offres » (S4.10). */
+const MARKET_NEGOTIATION_HISTORY_LIMIT = 20;
+
+/**
+ * Met une ligne `MarketOffer` en forme pour le centre de négociation (§14.1).
+ *
+ * Les capacités (`canRespond` / `canCancel`) sont calculées **serveur** : une
+ * offre `PENDING` mais déjà **périmée** n'est plus actionnable (l'expiration est
+ * écrite par le cron, §15.1 point 5 — le moteur la refuserait de toute façon).
+ */
+function toNegotiationOffer(
+    row: NegotiationOfferRow,
+    params: { role: "AUTHOR" | "COUNTERPART"; counterpartLabel: string | null; now: number }
+): MarketNegotiationOffer {
+    const live = row.status === "PENDING" && !(row.expiresAt && row.expiresAt.getTime() <= params.now);
+    return {
+        id: row.id,
+        listingId: row.listing.id,
+        listingTitle: row.listing.title,
+        status: row.status,
+        isCounter: row.counterOfId !== null,
+        role: params.role,
+        offeredKamas: row.offeredKamas,
+        tradeDescription: row.tradeDescription,
+        note: row.note,
+        createdAt: row.createdAt.toISOString(),
+        expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
+        counterpartLabel: params.counterpartLabel,
+        // Répondre = être **la contrepartie** (§11.4) ; retirer = être l'**auteur**.
+        canRespond: live && params.role === "COUNTERPART",
+        canCancel: live && params.role === "AUTHOR",
+    };
+}
+
+/** « Mes espaces » (S1.23 / S1.31) : mes annonces actives, mes archives et, depuis S4.10, mon centre de négociation. */
 export async function getMyMarketData(guildId: string): Promise<ActionResponse<MyMarketData>> {
     try {
         const ctx = await resolveMarketContext(guildId);
@@ -369,13 +559,486 @@ export async function getMyMarketData(guildId: string): Promise<ActionResponse<M
         const active = rows.filter((row) => !MARKET_TERMINAL_STATUSES.includes(row.status));
         const archived = rows.filter((row) => MARKET_TERMINAL_STATUSES.includes(row.status));
 
-        return { success: true, data: { active, archived } };
+        // S4.10 — centre de négociation. Une seule règle de lecture, deux listes :
+        //  • « reçues » : offres `PENDING` déposées par d'autres sur mes annonces ;
+        //  • « mes offres » : celles dont je suis l'auteur (en cours **et**
+        //    tranchées), **plus** les contre-offres qui me répondent — une
+        //    contre-offre est écrite au nom de son auteur, pas du destinataire,
+        //    donc c'est `counterOfId` qui dit « c'est à moi de répondre » (§11.4).
+        const receivedRows = rows.length
+            ? await db.marketOffer.findMany({
+                  where: {
+                      listingId: { in: rows.map((row) => row.id) },
+                      status: "PENDING",
+                      buyerProfileId: { not: user.profileId },
+                  },
+                  select: NEGOTIATION_OFFER_SELECT,
+                  orderBy: [{ createdAt: "desc" }],
+              })
+            : [];
+
+        const myOfferRows = await db.marketOffer.findMany({
+            where: {
+                buyerProfileId: user.profileId,
+                listing: { guildId: guildConfig.id, deletedAt: null },
+            },
+            select: NEGOTIATION_OFFER_SELECT,
+            orderBy: [{ createdAt: "desc" }],
+            take: MARKET_NEGOTIATION_HISTORY_LIMIT,
+        });
+
+        const incomingRows = myOfferRows.length
+            ? await db.marketOffer.findMany({
+                  where: { counterOfId: { in: myOfferRows.map((offer) => offer.id) }, status: "PENDING" },
+                  select: NEGOTIATION_OFFER_SELECT,
+                  orderBy: [{ createdAt: "desc" }],
+              })
+            : [];
+
+        // Pseudos des contreparties : `MarketOffer.buyerProfileId` n'a pas de
+        // relation Prisma, une requête dédiée évite une jointure implicite (§13.7).
+        const counterpartIds = Array.from(
+            new Set(
+                [...receivedRows, ...incomingRows]
+                    .map((offer) => offer.buyerProfileId)
+                    .filter((profileId) => profileId !== user.profileId)
+            )
+        );
+        const counterpartProfiles = counterpartIds.length
+            ? await db.userProfile.findMany({
+                  where: { id: { in: counterpartIds } },
+                  select: { id: true, pseudoDofus: true, discordNickname: true },
+              })
+            : [];
+        const labelByProfileId = new Map(
+            counterpartProfiles.map((profile) => [
+                profile.id,
+                profile.pseudoDofus?.trim() || profile.discordNickname?.trim() || null,
+            ])
+        );
+
+        const now = Date.now();
+        const receivedOffers = receivedRows.map((row) =>
+            toNegotiationOffer(row, {
+                role: "COUNTERPART",
+                counterpartLabel: labelByProfileId.get(row.buyerProfileId) ?? null,
+                now,
+            })
+        );
+        const sentOffers = [
+            ...myOfferRows.map((row) =>
+                toNegotiationOffer(row, { role: "AUTHOR", counterpartLabel: null, now })
+            ),
+            ...incomingRows.map((row) =>
+                toNegotiationOffer(row, {
+                    role: "COUNTERPART",
+                    counterpartLabel: labelByProfileId.get(row.buyerProfileId) ?? null,
+                    now,
+                })
+            ),
+        ];
+
+        return { success: true, data: { active, archived, receivedOffers, sentOffers } };
     } catch (error) {
         logger.error("[getMyMarketData] failed", { err: error });
         return { success: false, error: "Erreur interne" };
     }
 }
 
+
+// ---------------------------------------------------------------------------
+// RÉSERVATIONS (S4.2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Réserve une annonce `ACTIVE` « au prix » (l'acheteur ne peut pas être le
+ * vendeur). Le verrou transactionnel de §11.3 et l'unicité de la réservation
+ * active vivent dans `reserveMarketListingCore()`, **partagé** avec les
+ * interactions Discord : une seule implémentation, deux points d'entrée.
+ */
+export async function reserveMarketListing(
+    guildId: string,
+    listingId: string
+): Promise<ActionResponse<{ reservationId: string }>> {
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+        const { user, guildConfig } = ctx;
+        if (!user.profileId) return { success: false, error: "Profil introuvable" };
+
+        const parsed = z.string().min(1).max(64).safeParse(listingId);
+        if (!parsed.success) return { success: false, error: "Annonce introuvable" };
+
+        const session = await auth();
+        const outcome = await reserveMarketListingCore({
+            guildConfigId: guildConfig.id,
+            listingId: parsed.data,
+            buyerProfileId: user.profileId,
+            buyerUserId: session?.user?.id ?? user.id ?? "",
+            reservationHours: guildConfig.marketReservationHours,
+        });
+        if (!outcome.ok) return { success: false, error: outcome.error };
+
+        revalidatePath(`/dashboard/${guildId}/marche`);
+        return { success: true, data: { reservationId: outcome.reservationId } };
+    } catch (error) {
+        logger.error("[reserveMarketListing] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+/**
+ * Annule une réservation `ACTIVE` — **acheteur ou vendeur** (§11.2).
+ *
+ * Le rôle n'est **jamais** transmis par le client : il est déduit des identités
+ * résolues par le contexte serveur (§16.2). La garde de statut, la remise en
+ * vente de l'annonce et les deux notifications §11.9 vivent dans
+ * `cancelMarketReservationCore()`, partagé avec les interactions Discord (§13.4).
+ */
+export async function cancelMarketReservation(
+    guildId: string,
+    reservationId: string,
+    reason?: string | null
+): Promise<ActionResponse<{ cancelledBy: "BUYER" | "SELLER" }>> {
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+        const { user, guildConfig } = ctx;
+        if (!user.profileId) return { success: false, error: "Profil introuvable" };
+
+        const parsed = z.string().min(1).max(64).safeParse(reservationId);
+        if (!parsed.success) return { success: false, error: "Réservation introuvable" };
+
+        const session = await auth();
+        const outcome = await cancelMarketReservationCore({
+            guildConfigId: guildConfig.id,
+            reservationId: parsed.data,
+            actorProfileId: user.profileId,
+            actorUserId: session?.user?.id ?? user.id ?? "",
+            reason: sanitizeMarketText(reason),
+        });
+        if (!outcome.ok) return { success: false, error: outcome.error };
+
+        revalidatePath(`/dashboard/${guildId}/marche`);
+        return { success: true, data: { cancelledBy: outcome.cancelledBy } };
+    } catch (error) {
+        logger.error("[cancelMarketReservation] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+
+// ---------------------------------------------------------------------------
+// OFFRES (S4.4 — §11.4 / §13.5)
+// ---------------------------------------------------------------------------
+
+/** Saisie d'offre du dashboard : kamas tolérants (`"12 500 k"`), 2 textes facultatifs. */
+export type MarketOfferInput = {
+    /** Montant saisi en texte (`KAMAS_MAX` §11.4) ; vide ⇒ aucun montant offert. */
+    offeredKamas?: string | number | null;
+    /** Troc proposé (facultatif). */
+    tradeDescription?: string | null;
+    /** Message au vendeur (facultatif). */
+    note?: string | null;
+};
+
+/**
+ * Crée une offre `PENDING` sur une annonce négociable (§11.4).
+ *
+ * La **règle métier** (« kamas > 0 **ou** troc non vide », plafond Int32, refus
+ * de sa propre annonce, isolation de guilde, statut `ACTIVE`) vit **une seule
+ * fois** dans `createMarketOfferCore()` — **partagé** avec la soumission de la
+ * modale Discord (S4.4, §13.4). Cette action ne fait donc que : résoudre le
+ * contexte serveur (§16.2), **normaliser** la saisie avec la même fonction pure
+ * que Discord (`normalizeMarketOfferDraft`) et déléguer.
+ */
+export async function createMarketOffer(
+    guildId: string,
+    listingId: string,
+    input: MarketOfferInput = {}
+): Promise<ActionResponse<{ offerId: string }>> {
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+        const { user, guildConfig } = ctx;
+        if (!user.profileId) return { success: false, error: "Profil introuvable" };
+
+        const parsed = z.string().min(1).max(64).safeParse(listingId);
+        if (!parsed.success) return { success: false, error: "Annonce introuvable" };
+
+        const draft = normalizeMarketOfferDraft({
+            kamas:
+                input.offeredKamas === null || input.offeredKamas === undefined
+                    ? ""
+                    : String(input.offeredKamas),
+            trade: input.tradeDescription ?? "",
+            note: input.note ?? "",
+        });
+
+        const session = await auth();
+        const outcome = await createMarketOfferCore({
+            guildConfigId: guildConfig.id,
+            listingId: parsed.data,
+            buyerProfileId: user.profileId,
+            buyerUserId: session?.user?.id ?? user.id ?? "",
+            negotiationsEnabled: guildConfig.marketNegotiationsEnabled,
+            offerHours: guildConfig.marketOfferHours,
+            offeredKamas: draft.offeredKamas,
+            tradeDescription: draft.tradeDescription,
+            note: draft.note,
+            invalid: draft.invalid,
+        });
+        if (!outcome.ok) return { success: false, error: outcome.error };
+
+        revalidatePath(`/dashboard/${guildId}/marche`);
+        return { success: true, data: { offerId: outcome.offerId } };
+    } catch (error) {
+        logger.error("[createMarketOffer] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+
+// ---------------------------------------------------------------------------
+// RÉPONSE DU VENDEUR (S4.9 — §11.4 / §14.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * Répond à une offre reçue : `ACCEPT` (l'annonce passe `RESERVED` au prix de
+ * l'offre, une réservation est créée, les autres offres expirent) ou `DECLINE`.
+ *
+ * Toute la règle — qui a le droit de répondre (le **vendeur** sur une offre
+ * d'origine, l'auteur de l'offre référencée sur une contre-offre), offre encore
+ * `PENDING`, offre non périmée, conflit de réservation/vente simultanée, journal,
+ * embed et notifications (§11.9) — vit **une seule fois** dans
+ * `respondToMarketOfferCore()`, partagé avec les interactions Discord (§13.4).
+ *
+ * S4.10 — `COUNTER` refuse l'offre courante et dépose une **contre-offre**
+ * `PENDING` rattachée par `counterOfId` (§11.4). La saisie passe par la **même**
+ * normalisation pure que la modale Discord (`normalizeMarketOfferDraft`).
+ */
+export async function respondToMarketOffer(
+    guildId: string,
+    offerId: string,
+    decision: MarketOfferDecisionInput,
+    counter: MarketOfferInput = {}
+): Promise<
+    ActionResponse<{
+        status: "ACCEPTED" | "DECLINED" | "COUNTERED";
+        reservationId?: string;
+        expiresAt?: string;
+        counterOfferId?: string;
+    }>
+> {
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+        const { user, guildConfig } = ctx;
+        if (!user.profileId) return { success: false, error: "Profil introuvable" };
+
+        const parsed = z.string().min(1).max(64).safeParse(offerId);
+        if (!parsed.success) return { success: false, error: "Offre introuvable" };
+        const parsedDecision = z.enum(["ACCEPT", "DECLINE", "COUNTER"]).safeParse(decision);
+        if (!parsedDecision.success) return { success: false, error: "Décision invalide" };
+
+        // Le nettoyage de la contre-offre est fait **ici** (kamas tolérants
+        // « 12 500 k », textes bornés) puis vérifié par le moteur : une saisie
+        // illisible est refusée en clair, jamais ramenée en silence (§0.1).
+        let counterDraft: MarketOfferCounterDraft | undefined;
+        if (parsedDecision.data === "COUNTER") {
+            const draft = normalizeMarketOfferDraft({
+                kamas:
+                    counter.offeredKamas === null || counter.offeredKamas === undefined
+                        ? ""
+                        : String(counter.offeredKamas),
+                trade: counter.tradeDescription ?? "",
+                note: counter.note ?? "",
+            });
+            counterDraft = {
+                offeredKamas: draft.offeredKamas,
+                tradeDescription: draft.tradeDescription,
+                note: draft.note,
+                invalid: draft.invalid,
+            };
+        }
+
+        const session = await auth();
+        const outcome = await respondToMarketOfferCore({
+            guildConfigId: guildConfig.id,
+            offerId: parsed.data,
+            responderUserId: session?.user?.id ?? user.id ?? "",
+            responderProfileId: user.profileId,
+            decision: parsedDecision.data,
+            reservationHours: guildConfig.marketReservationHours,
+            offerHours: guildConfig.marketOfferHours,
+            counter: counterDraft,
+        });
+        if (!outcome.ok) return { success: false, error: outcome.error };
+
+        revalidatePath(`/dashboard/${guildId}/marche`);
+        return {
+            success: true,
+            data: {
+                status: outcome.status,
+                reservationId: outcome.reservationId,
+                expiresAt: outcome.expiresAt?.toISOString(),
+                counterOfferId: outcome.counterOfferId,
+            },
+        };
+    } catch (error) {
+        logger.error("[respondToMarketOffer] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+/**
+ * Retire une offre que **j'ai déposée** (S4.10, §14.1) tant qu'elle est `PENDING`.
+ *
+ * Aucune notification n'est émise : §11.9 ne prévoit rien pour un retrait
+ * volontaire et D30 interdit tout message privé. Le compteur public « N offre(s)
+ * en cours » (S4.7) est réécrit après coup, sans jamais bloquer le membre.
+ */
+export async function cancelMarketOffer(
+    guildId: string,
+    offerId: string
+): Promise<ActionResponse<{ offerId: string }>> {
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+        const { user, guildConfig } = ctx;
+        if (!user.profileId) return { success: false, error: "Profil introuvable" };
+
+        const parsed = z.string().min(1).max(64).safeParse(offerId);
+        if (!parsed.success) return { success: false, error: "Offre introuvable" };
+
+        const session = await auth();
+        const outcome = await cancelMarketOfferCore({
+            guildConfigId: guildConfig.id,
+            offerId: parsed.data,
+            actorUserId: session?.user?.id ?? user.id ?? "",
+        });
+        if (!outcome.ok) return { success: false, error: outcome.error };
+
+        revalidatePath(`/dashboard/${guildId}/marche`);
+        return { success: true, data: { offerId: outcome.offerId } };
+    } catch (error) {
+        logger.error("[cancelMarketOffer] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+// ---------------------------------------------------------------------------
+// SIGNALEMENT (S4.11 — §6.9)
+// ---------------------------------------------------------------------------
+
+/** Motif de signalement validé (liste unique `MARKET_REPORT_REASONS`). */
+export type MarketReportReasonInput = (typeof MARKET_REPORT_REASONS)[number];
+
+/**
+ * Signale une annonce (§6.9) : ouvre un **dossier de modération** avec l'état
+ * de l'annonce **figé** (`snapshot`) et journalise `LISTING_REPORTED`.
+ *
+ * Un signalement ne sanctionne **jamais** automatiquement : il donne au
+ * modérateur le contexte et l'accès au journal d'audit de l'annonce. Un membre
+ * signale une seule fois par annonce, et **jamais la sienne** (§8.2).
+ */
+export async function reportMarketListing(
+    guildId: string,
+    listingId: string,
+    reason: MarketReportReasonInput,
+    details?: string | null
+): Promise<ActionResponse<{ reportId: string }>> {
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+        const { user, guildConfig } = ctx;
+        if (!user.profileId) return { success: false, error: "Profil introuvable" };
+
+        const parsed = z.string().min(1).max(64).safeParse(listingId);
+        if (!parsed.success) return { success: false, error: "Annonce introuvable" };
+        const parsedReason = z.enum(MARKET_REPORT_REASONS).safeParse(reason);
+        if (!parsedReason.success) return { success: false, error: "Motif invalide" };
+
+        const listing = await db.marketListing.findFirst({
+            where: { id: parsed.data, guildId: guildConfig.id, deletedAt: null },
+            select: {
+                id: true,
+                profileId: true,
+                status: true,
+                type: true,
+                title: true,
+                priceKamas: true,
+                negotiable: true,
+                renewCount: true,
+                publishedAt: true,
+                expiresAt: true,
+            },
+        });
+        if (!listing) return { success: false, error: "Annonce introuvable" };
+        if (listing.profileId === user.profileId) {
+            return { success: false, error: "Tu ne peux pas signaler ta propre annonce." };
+        }
+        // Un brouillon n'est pas public : rien à signaler (§11.1).
+        if (listing.status === "DRAFT") {
+            return { success: false, error: "Cette annonce n'est pas encore publiée." };
+        }
+
+        const existing = await db.marketReport.findFirst({
+            where: { listingId: listing.id, reporterProfileId: user.profileId },
+            select: { status: true },
+        });
+        if (existing) {
+            return {
+                success: false,
+                error:
+                    existing.status === "CLOSED"
+                        ? "Tu as déjà signalé cette annonce : le dossier est clos."
+                        : "Tu as déjà signalé cette annonce — le dossier est ouvert.",
+            };
+        }
+
+        const session = await auth();
+        const actorUserId = session?.user?.id ?? user.id ?? "";
+        const report = await db.marketReport.create({
+            data: {
+                listingId: listing.id,
+                reporterUserId: actorUserId,
+                reporterProfileId: user.profileId,
+                reason: parsedReason.data,
+                details: sanitizeMarketText(details),
+                // Contexte **figé** : le modérateur juge l'état au moment des faits,
+                // même si le vendeur modifie l'annonce entre-temps (§6.9).
+                snapshot: {
+                    title: listing.title,
+                    type: listing.type,
+                    status: listing.status,
+                    priceKamas: listing.priceKamas,
+                    negotiable: listing.negotiable,
+                    renewCount: listing.renewCount,
+                    publishedAt: listing.publishedAt,
+                    expiresAt: listing.expiresAt,
+                    sellerProfileId: listing.profileId,
+                    capturedAt: new Date().toISOString(),
+                },
+            },
+            select: { id: true },
+        });
+
+        await writeMarketAuditLog({
+            guildId: guildConfig.id,
+            listingId: listing.id,
+            actorUserId,
+            action: MARKET_AUDIT_ACTIONS.LISTING_REPORTED,
+            nextData: { reportId: report.id, reason: parsedReason.data },
+        });
+
+        revalidatePath(`/dashboard/${guildId}/marche`);
+        return { success: true, data: { reportId: report.id } };
+    } catch (error) {
+        logger.error("[reportMarketListing] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
 
 // ---------------------------------------------------------------------------
 // CRÉATION & MISE À JOUR (S1.14, S1.32)
@@ -591,7 +1254,20 @@ export async function updateMarketListing(
             nextData: { title: data.title, priceKamas: data.priceKamas ?? null },
         });
 
+        // S7.12 — l'annonce peut **déjà être publiée** : l'embed Discord doit
+        // refléter le nouveau titre / prix / jet. Même invariant qu'en S3 :
+        // la resynchronisation n'est **jamais bloquante**.
+        if (existing.status === "ACTIVE" || existing.status === "RESERVED") {
+            void syncListingMessage(existing.id).catch((err) => {
+                logger.warn("[market] resynchro Discord différée après édition", {
+                    listingId: existing.id,
+                    err: String(err),
+                });
+            });
+        }
+
         revalidatePath(`/dashboard/${guildId}/marche`);
+        revalidatePath(`/dashboard/${guildId}/marche/${existing.id}`);
         return { success: true };
     } catch (error) {
         logger.error("[updateMarketListing] failed", { err: error });
@@ -736,6 +1412,50 @@ export async function withdrawMarketListing(
         return { success: true };
     } catch (error) {
         logger.error("[withdrawMarketListing] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+
+// ---------------------------------------------------------------------------
+// CLÔTURE DE VENTE (S4.9 — §11.5)
+// ---------------------------------------------------------------------------
+
+/**
+ * Confirme la vente d'une annonce `RESERVED` (§11.5) : **le vendeur seul**,
+ * après confirmation explicite que l'échange a eu lieu en jeu.
+ *
+ * Effets (une transaction, gardes de statut dans le `WHERE` §11.3) : annonce
+ * `SOLD`, réservation `COMPLETED`, offres restantes `EXPIRED`, journal
+ * `LISTING_SOLD`, embed réécrit, acheteur notifié `MARKET_SOLD` (§11.9). Toute
+ * la règle vit dans `completeMarketSaleCore()` (§13.4).
+ */
+export async function markMarketListingSold(
+    guildId: string,
+    listingId: string,
+    confirmed: boolean
+): Promise<ActionResponse<{ expiredOffers: number }>> {
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+        const { user, guildConfig } = ctx;
+
+        const parsed = z.string().min(1).max(64).safeParse(listingId);
+        if (!parsed.success) return { success: false, error: "Annonce introuvable" };
+
+        const session = await auth();
+        const outcome = await completeMarketSaleCore({
+            guildConfigId: guildConfig.id,
+            listingId: parsed.data,
+            sellerUserId: session?.user?.id ?? user.id ?? "",
+            confirmed,
+        });
+        if (!outcome.ok) return { success: false, error: outcome.error };
+
+        revalidatePath(`/dashboard/${guildId}/marche`);
+        return { success: true, data: { expiredOffers: outcome.expiredOffers } };
+    } catch (error) {
+        logger.error("[markMarketListingSold] failed", { err: error });
         return { success: false, error: "Erreur interne" };
     }
 }

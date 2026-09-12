@@ -138,6 +138,15 @@ sylvestre_results.txt
 *.bak-*
 *.vps-local-backup
 
+# Dumps SQL posés à la racine (pg_dump / export BDD) — jamais commités.
+# Cf. `guide_backup.sql` : dump de 17,7 Mo (contenu guides Dofus uniquement)
+# committé par erreur le 26/07/2026 (b4eef64ba) puis sorti du dépôt le 13/09/2026
+# → conservé dans `backups/guide_backup.sql` (ignoré, cf. règle `/backups/`).
+# Règle volontairement scopée à la RACINE : les migrations `prisma/migrations/**`
+# et les seeds `prisma/**.sql` restent suivis.
+/*.sql
+/*_backup.sql
+
 # ML/OCR trained data (heavy binary files)
 *.traineddata
 
@@ -167,6 +176,18 @@ utf8_map.tsx
 
 # Dossier mémo/plan de session — ne JAMAIS pousser (voir PROMPT_START.md)
 /src/temp/
+
+# Scratch de session à la racine (logs, sondes, scripts one-shot) — jamais commités.
+# Sans cette règle, chaque capture de checkpoint Cline embarque ces fichiers
+# (cf. incident/ménage 13/09/2026 : ~30 Mo par checkpoint).
+/_*.mjs
+/_*.ps1
+/_*.txt
+
+# Dossiers de ménage / restauration d'incident (kit local, jamais commités)
+/_menage-*/
+/_restauration-backup/
+/_plan-recovery/
 
 # Scratch and old map files
 old_map*.tsx

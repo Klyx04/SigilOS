@@ -12,6 +12,13 @@ node_modules
 public/game-data/tiles/
 public/game-data/hd_maps/
 
+# Dumps SQL locaux (jamais nécessaires au build ni au runtime).
+# Scopé racine + `backups/` uniquement : les migrations et seeds Prisma
+# (`prisma/migrations/**/migration.sql`, `prisma/seed-data/**`) DOIVENT rester
+# dans le contexte de build (utilisés par `prisma migrate deploy` au démarrage).
+/*.sql
+backups/*.sql
+
 # Logs and temp files
 *.log
 *.debug.json

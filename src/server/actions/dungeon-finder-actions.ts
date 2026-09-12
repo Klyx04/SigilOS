@@ -288,21 +288,62 @@ async function sendDiscordNotification(
         let discordChannelId: string | null = null;
 
         if (isForumChannel) {
-            const isDungeon = embed.title?.includes("⚔️");
-            // #167 — nom du thread Forum depuis les DONNÉES RÉELLES du post
-            // (fini le « Donjon - Groupe » figé quand l'embed ne matche pas le regex).
-            const dungeonName = post?.dungeon?.name || post?.dungeonsJson?.[0]?.name;
-            const questName = post?.questName;
-            // Fallback : extraire le nom depuis la description "**Donjon :** Nom" / "**Quete :** Nom"
-            const nameMatch = embed.description?.match(/[*][*](?:Donjon|Qu.te)\s*:[*][*]\s*(.+?)(?:\n|$)/i);
-            const contentName = String(
-                (isDungeon ? dungeonName : questName) || (nameMatch && nameMatch[1]) || (isDungeon ? "Donjon" : "Quête")
-            ).trim().substring(0, 65);
-            const typeLabel = isDungeon ? "Donjon" : "Quête";
-            const emojiChar = embed.title ? embed.title.slice(0, 2) : "";
-            const placesField = embed.fields && embed.fields.find((f: { name: string; value: string }) => f.name.includes("Places"));
-            const placesTag = placesField ? " [" + placesField.value + "]" : "";
-            const threadTitle = (emojiChar + " " + typeLabel + " - " + contentName + placesTag).trim().substring(0, 100);
+            // #167 + #Titan — nom du thread Forum depuis les DONNÉES RÉELLES du post
+            const postMode = post?.mode || (embed.title?.includes("⚔️") ? "DONJON" : embed.title?.includes("👑") ? "TITAN" : embed.title?.includes("⚡") ? "DEFI" : "QUETE");
+            let typeLabel = "Quête";
+            let defaultEmoji = "📜";
+            let contentName = "";
+
+            if (postMode === "TITAN") {
+                typeLabel = "Titan";
+                defaultEmoji = "👑";
+                contentName = post?.titanName || post?.titan?.name || "";
+            } else if (postMode === "DEFI") {
+                typeLabel = "Défi";
+                defaultEmoji = "⚡";
+                contentName = post?.defiName || post?.defi?.name || "";
+            } else if (postMode === "DONJON") {
+                typeLabel = "Donjon";
+                defaultEmoji = "⚔️";
+                contentName = post?.dungeon?.name || post?.dungeonsJson?.[0]?.name || "";
+            } else {
+                typeLabel = "Quête";
+                defaultEmoji = "📜";
+                contentName = post?.questName || "";
+            }
+
+            // Fallback 1 : extraire le nom depuis la description "**Titan :** Nom", "**Défi :** Nom", etc.
+            if (!contentName && embed.description) {
+                const nameMatch = embed.description.match(/[*][*](?:Donjon|Qu.te|D.fi|Titan)\s*:[*][*]\s*(.+?)(?:\n|$)/i);
+                if (nameMatch) contentName = nameMatch[1];
+            }
+
+            // Fallback 2 : chercher dans les fields de l'embed (ex: field "👑 Titan" avec valeur "**Gargandyas**")
+            if (!contentName && embed.fields && Array.isArray(embed.fields)) {
+                const relevantField = embed.fields.find((f: { name?: string; value?: string }) => 
+                    f.name && (
+                        f.name.includes("Titan") || f.name.includes("Défi") || 
+                        f.name.includes("Donjon") || f.name.includes("Quête") ||
+                        f.name.includes("👑") || f.name.includes("⚡") || f.name.includes("⚔️") || f.name.includes("📜")
+                    )
+                );
+                if (relevantField?.value) {
+                    contentName = relevantField.value.replace(/[*_`[\]()]/g, "").split("\n")[0].trim();
+                }
+            }
+
+            if (!contentName) {
+                contentName = typeLabel;
+            }
+
+            contentName = String(contentName).trim().substring(0, 65);
+            const emojiChar = embed.title ? embed.title.slice(0, 2) : defaultEmoji;
+            const placesField = embed.fields && embed.fields.find((f: { name: string; value: string }) => f.name.includes("Places") || f.name.includes("Membres"));
+            // Ex: "👥 Membres (1/4)" -> match (1/4), ou fallback sur placesField.value
+            const membersCountMatch = placesField?.name?.match(/\(([^)]+)\)/);
+            const placesValue = membersCountMatch ? membersCountMatch[1] : placesField?.value;
+            const placesTag = placesValue ? ` [${placesValue}]` : "";
+            const threadTitle = `${emojiChar} ${typeLabel} - ${contentName}${placesTag}`.trim().substring(0, 100);
 
             // Extraire les tags disponibles depuis channelData (déjà fetchée)
             const availableTags: { id: string; name: string; moderated?: boolean }[] = channelData.available_tags || [];
@@ -534,9 +575,11 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
             where: { id: postId },
             include: {
                 dungeon: { include: { achievements: { include: { challenge: { select: { id: true, name: true, iconUrl: true } } } } } },
+                defi: { select: { id: true, name: true, imageUrl: true, zone: true } },
+                titan: { select: { id: true, name: true, imageUrl: true, zone: true, level: true, maxMembers: true } },
                 profile: { select: { discordNickname: true, pseudoDofus: true, dofusPseudo: true, user: { select: { name: true } } } },
                 participants: {
-                    where: { status: "ACCEPTED" },
+                    where: { status: { in: ["ACCEPTED", "PENDING"] } },
                     include: { profile: { select: { discordNickname: true, pseudoDofus: true, dofusPseudo: true, user: { select: { name: true } } } } },
                     orderBy: { createdAt: "asc" },
                 },
@@ -556,8 +599,11 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
             patchBody = { embeds, components };
         } else {
             const embed = await buildPostEmbed(post, authorName, guildId, post.participants);
+            const isFull = post.status === "FULL";
+            const inscribeLabel = isFull ? "⏳ File d'attente" : "S'inscrire";
             const buttonComponents: any[] = isOpen ? [
-                { type: 2, style: 1, label: "S'inscrire", emoji: { name: "⚔️" }, custom_id: `dj:join:${postId}` },
+                // #169 — passe par dj:apply (modal classe) même pour les posts simples
+                { type: 2, style: isFull ? 3 : 1, label: inscribeLabel, emoji: { name: "⚔️" }, custom_id: `dj:apply:${postId}` },
                 { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `dj:leave:${postId}` },
                 { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
             ] : [
@@ -634,6 +680,8 @@ export async function sendDjReminder(guildId: string, postId: string) {
                         },
                     },
                 },
+                defi: { select: { id: true, name: true, imageUrl: true, zone: true } },
+                titan: { select: { id: true, name: true, imageUrl: true, zone: true, level: true, maxMembers: true } },
                 profile: {
                     select: {
                         discordNickname: true,
@@ -692,7 +740,8 @@ export async function sendDjReminder(guildId: string, postId: string) {
             const { sendDiscordRawEmbed } = await import("@/server/discord");
             const authorName = post.profile?.discordNickname || post.profile?.user?.name || "Leader";
             const embed = await buildPostEmbed(post, authorName, guildId);
-            embed.title = `🔔 RAPPEL : ${post.mode === "DONJON" ? "DONJON" : "QUÊTE"}`;
+            const modeLabel = post.mode === "TITAN" ? "TITAN" : post.mode === "DEFI" ? "DÉFI" : post.mode === "DONJON" ? "DONJON" : "QUÊTE";
+            embed.title = `🔔 RAPPEL : ${modeLabel}`;
             embed.description = `⚠️ **Le leader demande votre attention pour le départ !**\n\n${embed.description}`;
             embed.color = 0x9333ea; // Purple for reminders
             await sendDiscordRawEmbed(guildId, targetChannelId, mentions.join(" "), embed);
@@ -733,6 +782,8 @@ export async function sendDjCustomReminder(guildId: string, postId: string, cust
                         },
                     },
                 },
+                defi: { select: { id: true, name: true, imageUrl: true, zone: true } },
+                titan: { select: { id: true, name: true, imageUrl: true, zone: true, level: true, maxMembers: true } },
                 profile: {
                     select: {
                         discordNickname: true,
@@ -780,10 +831,18 @@ export async function sendDjCustomReminder(guildId: string, postId: string, cust
         const { sendDiscordRawEmbed } = await import("@/server/discord");
 
         const authorName = post.profile?.discordNickname || post.profile?.user?.name || "Leader";
-        const postTitle = post.mode === "DONJON" ? (post.dungeon?.name || "Donjon") : (post.questName || "Quête");
+        const postTitle = post.mode === "TITAN" 
+            ? (post.titanName || post.titan?.name || "Titan")
+            : post.mode === "DEFI"
+            ? (post.defiName || post.defi?.name || "Défi")
+            : post.mode === "DONJON"
+            ? (post.dungeon?.name || "Donjon")
+            : (post.questName || "Quête");
+
+        const modeLabel = post.mode === "TITAN" ? "TITAN" : post.mode === "DEFI" ? "DÉFI" : post.mode === "DONJON" ? "DONJON" : "QUÊTE";
 
         const embed = {
-            title: `📣 RELANCE DU LEADER — ${post.mode === "DONJON" ? "DONJON" : "QUÊTE"}`,
+            title: `📣 RELANCE DU LEADER — ${modeLabel}`,
             description: `**${postTitle}**\n\n💬 **Message du leader (${authorName}) :**\n> ${customMessage.trim()}`,
             color: 0xf59e0b, // Amber for custom reminders
             footer: { text: "SigilOS • Donjon-Finder — Relance personnalisée" },
@@ -892,8 +951,9 @@ async function buildPostEmbed(post: any, authorName: string, guildId: string, ac
         });
     }
 
-    // Live participants list
+    // Live participants list — ACCEPTED uniquement dans le compteur, PENDING en file d'attente
     const acceptedParts = (post.participants ?? []).filter((p: any) => p.status === "ACCEPTED");
+    const pendingParts = (post.participants ?? []).filter((p: any) => p.status === "PENDING");
     const totalCount = acceptedParts.length + 1; // +1 for creator
     
     const leadName = authorName;
@@ -902,11 +962,28 @@ async function buildPostEmbed(post: any, authorName: string, guildId: string, ac
         return `• ${n}${p.classe ? ` *(${p.classe})*` : ""}`;
     });
 
+    const memberFieldLabel = totalCount >= post.maxMembers
+        ? `👥 Membres (${totalCount}/${post.maxMembers}) — COMPLET`
+        : `👥 Membres (${totalCount}/${post.maxMembers})`;
+
     fields.push({ 
-        name: `👥 Membres (${totalCount}/${post.maxMembers})`, 
+        name: memberFieldLabel, 
         value: `**${leadName}**\n${participantLines.length > 0 ? participantLines.join("\n") : "*En attente de joueurs...*"}` ,
         inline: false
     });
+
+    // File d'attente — affichée uniquement si des joueurs attendent
+    if (pendingParts.length > 0) {
+        const waitlistLines = pendingParts.map((p: any) => {
+            const n = p.profile?.discordNickname || p.profile?.pseudoDofus || p.profile?.dofusPseudo || "Membre";
+            return `• ${n}${p.classe ? ` *(${p.classe})*` : ""}`;
+        });
+        fields.push({
+            name: `⏳ File d'attente (${pendingParts.length})`,
+            value: waitlistLines.join("\n"),
+            inline: false,
+        });
+    }
 
     return {
         title,
@@ -1862,13 +1939,13 @@ export async function internalJoinDjPost(
         if (multiEntries.length > 0 && joinedDungeonIndex != null) {
             entryMax = multiEntries[joinedDungeonIndex]?.maxMembers ?? post.maxMembers;
         }
-        const joinedForThisDungeon = multiEntries.length > 0 && joinedDungeonIndex != null
-            ? post.participants.filter((p: any) => p.dungeonIndex === joinedDungeonIndex || p.dungeonIndex == null).length + 1 // +1 créateur
-            : post.participants.length;
+        // Seuls les ACCEPTED comptent dans la capacité (le créateur + inscrits validés)
+        const acceptedForThisDungeon = multiEntries.length > 0 && joinedDungeonIndex != null
+            ? post.participants.filter((p: any) => p.status === "ACCEPTED" && (p.dungeonIndex === joinedDungeonIndex || p.dungeonIndex == null)).length + 1 // +1 créateur
+            : post.participants.filter((p: any) => p.status === "ACCEPTED").length + 1; // +1 créateur
 
-        if (joinedForThisDungeon >= entryMax) {
-            return { success: false, error: "Ce groupe est complet" };
-        }
+        // Si complet → file d'attente PENDING (ne jamais bloquer, file d'attente au lieu de refus)
+        const newStatus: "ACCEPTED" | "PENDING" = acceptedForThisDungeon >= entryMax ? "PENDING" : "ACCEPTED";
 
         // #169 — classe/message transmis par la modal Discord (bornés, jamais de null → "")
         const cleanClasse = classe ? classe.trim().slice(0, 30) : "";
@@ -1879,36 +1956,59 @@ export async function internalJoinDjPost(
                 postId,
                 profileId,
                 userId,
-                status: "ACCEPTED",
+                status: newStatus,
                 dungeonIndex: joinedDungeonIndex,
                 ...(cleanClasse ? { classe: cleanClasse } : {}),
                 ...(cleanMessage ? { message: cleanMessage } : {}),
             },
         });
 
-        const newCount = post.participants.length + 1;
         // Un post multi ne passe PAS FULL globalement : chaque donjon a sa propre capacité (#203).
-        if (multiEntries.length === 0 && newCount >= post.maxMembers) {
-            await (db as any).djSearchPost.update({
-                where: { id: postId },
-                data: { status: "FULL" },
-            });
+        // Pour les posts simples : marquer FULL si les ACCEPTED atteignent maxMembers
+        if (multiEntries.length === 0 && newStatus === "ACCEPTED") {
+            const newAcceptedCount = post.participants.filter((p: any) => p.status === "ACCEPTED").length + 1 + 1; // +1 nouveau +1 créateur
+            if (newAcceptedCount >= post.maxMembers) {
+                await (db as any).djSearchPost.update({
+                    where: { id: postId },
+                    data: { status: "FULL" },
+                });
+            }
         }
 
-        // Fire-and-forget: update Discord embed with new participant list
+        // Notifier le créateur du post de la nouvelle inscription ou de la demande en file
         const joinPostForEmbed = await (db as any).djSearchPost.findUnique({
             where: { id: postId },
-            include: { guild: { select: { discordGuildId: true } } },
+            include: {
+                guild: { select: { discordGuildId: true } },
+                profile: { select: { userId: true } },
+            },
         });
         const joinGuildId = joinPostForEmbed?.guild?.discordGuildId;
+
+        // Notification in-app au créateur
+        if (joinPostForEmbed?.profile?.userId && joinPostForEmbed.profile.userId !== userId) {
+            const { createNotification } = await import("@/server/actions/notification-actions");
+            const postTitle = (joinPostForEmbed as any).questName || (joinPostForEmbed as any).dungeon?.name || "Groupe";
+            const notifMsg = newStatus === "PENDING"
+                ? `Un joueur a rejoint la file d'attente de ton groupe « ${postTitle} »`
+                : `Un joueur a rejoint ton groupe « ${postTitle} »`;
+            await createNotification(
+                joinPostForEmbed.profile.userId,
+                "SYSTEM_INFO",
+                newStatus === "PENDING" ? "Nouvelle demande en file d'attente" : "Nouvelle inscription DJ",
+                notifMsg,
+                `/dashboard/${joinGuildId}/donjons-et-quetes`,
+                joinGuildId || ""
+            );
+        }
+
         if (joinGuildId) {
             updateDjDiscordEmbed(joinGuildId, postId).catch(() => { });
             await notifyDjUpdate(joinGuildId);
             revalidatePath(`/dashboard/${joinGuildId}/donjons-et-quetes`);
         }
 
-
-        return { success: true };
+        return { success: true, data: { waitlisted: newStatus === "PENDING" } as any };
     } catch (error) {
         logger.error("[internalJoinDjPost]", error);
         return { success: false, error: "Erreur lors de l'inscription" };

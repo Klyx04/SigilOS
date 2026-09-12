@@ -65,3 +65,32 @@ export const AVAILABLE_ACTIVITIES = [
     { id: "percepteur", label: "Percepteur", subtitle: "" },
     { id: "raids", label: "Raids de Guilde", subtitle: "Dungeons, Gigalodon, Sanctuaire" },
 ] as const;
+
+/**
+ * Construit un slug d'URL propre pour une guilde.
+ * - Normalise les accents via NFD (é→e, ô→o, ç→c…)
+ * - Remplace les espaces/caractères spéciaux par des tirets
+ * - Repli automatique sur discordGuildId si le nom est indisponible
+ * Exemples : "Étoile du Nord" → "etoile-du-nord", "Stellium" → "stellium"
+ */
+export function getGuildSlug(guild: { name?: string | null; discordGuildId?: string | null }): string {
+    if (guild.name && guild.name.trim().length > 0) {
+        const slug = guild.name
+            .trim()
+            .toLowerCase()
+            // Normalise les caractères accentués (NFD décompose, puis on retire les diacritiques)
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            // Remplace les espaces et underscores par des tirets
+            .replace(/[\s_]+/g, '-')
+            // Supprime les caractères non alphanumériques sauf tirets
+            .replace(/[^a-z0-9-]/g, '')
+            // Évite les tirets multiples consécutifs
+            .replace(/-{2,}/g, '-')
+            // Supprime les tirets en début/fin
+            .replace(/^-+|-+$/g, '');
+        // Si le slug est vide après nettoyage (ex: nom tout en caractères asiatiques), repli sur l'ID
+        return slug.length > 0 ? slug : (guild.discordGuildId || '');
+    }
+    return guild.discordGuildId || '';
+}

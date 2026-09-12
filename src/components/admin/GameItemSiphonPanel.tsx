@@ -102,15 +102,34 @@ export function GameItemSiphonPanel() {
             let totalUpdated = 0;
             let hasMore = true;
             const BATCH_SIZE = 50;
+            // Backoff exponentiel sur 429 : 2s → 4s → 8s → abandon après 3 tentatives
+            const MAX_RETRIES = 3;
+            let consecutiveFailures = 0;
 
             try {
                 while (hasMore) {
                     const res = await siphonGameItemsBatch(currentSkip, BATCH_SIZE);
+
                     if (!res.success || !res.data) {
-                        setLogs((prev) => [`❌ Erreur lot skip=${currentSkip}: ${res.error || 'Inconnue'}`, ...prev]);
+                        consecutiveFailures++;
+                        const is429 = res.error?.includes('429');
+                        const waitMs = Math.min(2000 * Math.pow(2, consecutiveFailures - 1), 16_000);
+
+                        if (consecutiveFailures <= MAX_RETRIES) {
+                            setLogs((prev) => [
+                                `⏳ ${is429 ? 'Rate-limit 429' : 'Erreur'} lot skip=${currentSkip} — attente ${waitMs / 1000}s avant retry ${consecutiveFailures}/${MAX_RETRIES}…`,
+                                ...prev,
+                            ]);
+                            await new Promise((r) => setTimeout(r, waitMs));
+                            continue; // rejoue le même skip
+                        }
+
+                        setLogs((prev) => [`❌ Erreur lot skip=${currentSkip} (${MAX_RETRIES} tentatives): ${res.error || 'Inconnue'}`, ...prev]);
                         break;
                     }
 
+                    // Lot réussi → réinitialiser le compteur d'échecs
+                    consecutiveFailures = 0;
                     totalInserted += res.data.inserted;
                     totalUpdated += res.data.updated;
                     hasMore = res.data.hasMore;
@@ -128,8 +147,8 @@ export function GameItemSiphonPanel() {
                         ]);
                     }
 
-                    // Petite pause de politesse
-                    await new Promise((r) => setTimeout(r, 100));
+                    // Pause de politesse entre lots (350ms au lieu de 100ms)
+                    await new Promise((r) => setTimeout(r, 350));
                 }
 
                 setLogs((prev) => [
@@ -218,11 +237,13 @@ export function GameItemSiphonPanel() {
                     // Lot sans rien à réparer → inutile d'insister (lignes sans effet).
                     if (res.data.repaired === 0 || remaining === 0) break;
                 }
-                const suffix = remaining > 0
-                    ? `, ${remaining} sans effet exploitable`
+                // Les items sans effet exploitable (ressources, consommables, cosmétiques)
+                // n'ont pas de plages min/max → c'est normal, pas un échec.
+                const suffixNormal = remaining > 0
+                    ? ` — ${remaining} items sans jets (ressources/consommables/cosmétiques, normal \u2705)`
                     : '';
                 setLogs((prev) => [
-                    `✅ Effets natifs : ${totalRepaired} fiche(s) réparée(s)${suffix}.`,
+                    `\u2705 Effets natifs : ${totalRepaired} fiche(s) d'\u00e9quipement r\u00e9par\u00e9e(s)${suffixNormal}.`,
                     ...prev,
                 ]);
             } catch (err: any) {

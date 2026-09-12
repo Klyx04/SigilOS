@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Swords, ShieldAlert, CheckCircle2, XCircle, ChevronDown, Loader2, MapPin, Ghost, Sparkles, Info, ChevronUp, Coins, ExternalLink } from 'lucide-react';
+import { X, Swords, ShieldAlert, ChevronDown, Loader2, MapPin, Ghost, Sparkles, Info, ChevronUp, Coins, ExternalLink, Map, Layers, Search, Users } from 'lucide-react';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { DocContent } from '../doc/doc-content';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -16,12 +16,19 @@ interface ZoneDetailModalProps {
     isOpen: boolean;
     onClose: () => void;
     zoneName: string;
-    position: { x: number; y: number; displayX: number; displayY: number };
-    guildId: string;
+    position: { x: number; y: number; displayX: number; displayY: number; mapId?: number };
+    guildId?: string;
     worldId?: number;
+    subAreaId?: number;
+    mapId?: number;
+    /** Mode public : masque les données de guilde (archimonstres, échanges Ocre). */
+    isPublic?: boolean;
 }
 
-export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, worldId }: ZoneDetailModalProps) {
+export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, worldId, subAreaId, mapId: mapIdProp, isPublic = false }: ZoneDetailModalProps) {
+    const isGuildMode = !isPublic && !!guildId;
+    const resolvedMapId = mapIdProp ?? position?.mapId;
+    const [activeTab, setActiveTab] = useState<string>("tuile");
     const [loading, setLoading] = useState(false);
     const [monsters, setMonsters] = useState<any>(null);
     const [archis, setArchis] = useState<any[]>([]);
@@ -35,14 +42,20 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
 
     useEffect(() => {
         if (isOpen && zoneName) {
+            setActiveTab("tuile");
             setLoading(true);
             setTradesLoading(true);
+            // En mode public ou sans guilde, on charge les archis publics de la DB
+            const archisPromise = getZoneArchmonsters(isGuildMode ? guildId : null, zoneName, subAreaId);
+            const tradesPromise = isGuildMode
+                ? getGuildOcreTrades(guildId!, { subAreaName: zoneName })
+                : Promise.resolve({ success: false, data: [] } as any);
             Promise.all([
-                getZoneMonsters(zoneName),
-                (worldId === undefined || worldId === 1) ? getZoneArchmonsters(guildId, zoneName) : getZoneArchmonsters(guildId, zoneName),
+                getZoneMonsters(zoneName, subAreaId),
+                archisPromise,
                 getBountiesForZone(zoneName),
                 searchDungeonsAdvanced({ query: zoneName }),
-                getGuildOcreTrades(guildId, { subAreaName: zoneName }),
+                tradesPromise,
             ]).then(([mRes, aRes, bRes, dRes, tRes]) => {
                 const localAvis = (mRes.success && mRes.data) ? mRes.data.avisDeRecherche : [];
                 const dbAvis = bRes.success ? bRes.data || [] : [];
@@ -85,7 +98,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                 setTradesLoading(false);
             });
         }
-    }, [isOpen, zoneName, guildId]);
+    }, [isOpen, zoneName, guildId, isGuildMode]);
 
 
     return (
@@ -133,59 +146,192 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                         </div>
                     ) : (
                         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10 pt-6">
-                            <Tabs defaultValue="archis" className="w-full flex flex-col gap-8">
+                            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col gap-8">
                                 <div className="flex items-center justify-between border-b border-border pb-4 sticky top-0 bg-[#080a10] z-20 pt-4">
                                     <TabsList className="bg-surface p-1.5 rounded-2xl gap-1">
-                                        <TabsTrigger value="archis" className="rounded-xl px-6 py-3 font-black uppercase italic text-label tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-warning-foreground transition-all">
-                                                ✦ Archimonstres
-                                            </TabsTrigger>
-                                        <TabsTrigger value="bounties" className="rounded-xl px-6 py-3 font-black uppercase italic text-label tracking-widest data-[state=active]:bg-rose-500 data-[state=active]:text-foreground transition-all">
-                                            ⚔ Avis de Recherche
+                                        <TabsTrigger value="tuile" className="rounded-xl px-5 py-2.5 font-black uppercase italic text-label tracking-widest data-[state=active]:bg-[#1a2744] data-[state=active]:text-sky-300 data-[state=active]:border data-[state=active]:border-sky-500/40 transition-all flex items-center gap-2">
+                                            <img src="/assets/dofus/map-layers/icon-zones-on.png" alt="" className="w-3.5 h-3.5 object-contain" /> Tuile HD
                                         </TabsTrigger>
-                                        <TabsTrigger value="families" className="rounded-xl px-6 py-3 font-black uppercase italic text-label tracking-widest data-[state=active]:bg-purple-500 data-[state=active]:text-foreground transition-all">
-                                            🦇 Familles
+                                        <TabsTrigger value="archis" className="rounded-xl px-5 py-2.5 font-black uppercase italic text-label tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-black transition-all flex items-center gap-2">
+                                            <img src="/assets/icons/ocre.png" alt="" className="w-3.5 h-3.5 object-contain" /> Archimonstres
                                         </TabsTrigger>
-
+                                        <TabsTrigger value="bounties" className="rounded-xl px-5 py-2.5 font-black uppercase italic text-label tracking-widest data-[state=active]:bg-rose-500 data-[state=active]:text-foreground transition-all flex items-center gap-2">
+                                            <img src="/assets/avis/avitons.png" alt="" className="w-3.5 h-3.5 object-contain" /> Avis de Recherche
+                                        </TabsTrigger>
+                                        <TabsTrigger value="families" className="rounded-xl px-5 py-2.5 font-black uppercase italic text-label tracking-widest data-[state=active]:bg-purple-500 data-[state=active]:text-foreground transition-all flex items-center gap-2">
+                                            <img src="/assets/dofus/game-icons/crossed-swords.png" alt="" className="w-3.5 h-3.5 object-contain" /> Familles
+                                        </TabsTrigger>
                                     </TabsList>
 
-                                    {/* Capture Stats (Only relevant for Archis, but can show generally) */}
+                                    {/* Capture Stats */}
                                     <div className="flex items-center gap-3">
-                                            <span className="text-caption font-black text-foreground/20 uppercase tracking-[0.2em]">Archis Capturés :</span>
+                                        <span className="text-caption font-black text-foreground/20 uppercase tracking-[0.2em]">Archis :</span>
+                                        {isGuildMode ? (
                                             <span className="text-caption font-black text-amber-500/80 uppercase tracking-widest bg-amber-500/5 px-3 py-1 rounded-full border border-amber-500/10 italic">
                                                 {archis.filter(a => a.state !== 'MANQUANT').length} / {archis.length}
                                             </span>
-                                        </div>
+                                        ) : (
+                                            <span className="text-caption font-black text-amber-400 uppercase tracking-widest bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20 italic">
+                                                {archis.length} {archis.length > 1 ? "Archis" : "Archi"}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
+
+                                {/* TAB: TUILE HD */}
+                                <TabsContent value="tuile" className="m-0">
+                                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                                        {/* Tuile HD grande */}
+                                        <div className="lg:col-span-3 relative rounded-2xl overflow-hidden bg-black/60 border border-white/10 shadow-2xl" style={{ minHeight: '280px' }}>
+                                            {resolvedMapId ? (
+                                                <>
+                                                    <img
+                                                        src={`/game-data/hd_maps/${resolvedMapId}.webp`}
+                                                        alt={zoneName}
+                                                        className="w-full h-full object-cover"
+                                                        style={{ minHeight: '280px' }}
+                                                        onError={(e) => {
+                                                            (e.target as HTMLImageElement).style.opacity = '0.2';
+                                                        }}
+                                                    />
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent pointer-events-none" />
+                                                    <div className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-black/80 backdrop-blur border border-white/20 text-[10px] font-black uppercase text-sky-400 tracking-widest">
+                                                        HD MAP
+                                                    </div>
+                                                    <div className="absolute bottom-3 left-3 flex items-center gap-2">
+                                                        <span className="px-3 py-1.5 rounded-xl bg-black/80 backdrop-blur border border-white/15 text-white/80 font-mono font-bold text-xs">
+                                                            [{position.displayX}, {position.displayY}]
+                                                        </span>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <div className="flex flex-col items-center justify-center h-full gap-4 text-foreground/20 p-8" style={{ minHeight: '280px' }}>
+                                                    <Map size={48} />
+                                                    <p className="text-caption font-bold uppercase tracking-widest">Aucune tuile disponible</p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Infos rapides */}
+                                        <div className="lg:col-span-2 flex flex-col gap-4">
+                                            {/* Stats Zone */}
+                                            <div className="p-5 rounded-2xl bg-surface/60 border border-border/80 space-y-4">
+                                                <p className="text-caption font-black text-foreground/40 uppercase tracking-widest">Infos de la zone</p>
+                                                <div className="space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-caption text-foreground/70 flex items-center gap-2">
+                                                            <img src="/assets/icons/ocre.png" alt="" className="w-4 h-4 object-contain" /> Archimonstres
+                                                        </span>
+                                                        <span className="text-sm font-black text-amber-400">{archis.length}</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-caption text-foreground/70 flex items-center gap-2">
+                                                            <img src="/assets/avis/avitons.png" alt="" className="w-4 h-4 object-contain" /> Avis de Recherche
+                                                        </span>
+                                                        <span className="text-sm font-black text-rose-400">{bounties.length}</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-caption text-foreground/70 flex items-center gap-2">
+                                                            <img src="/assets/dofus/game-icons/crossed-swords.png" alt="" className="w-4 h-4 object-contain" /> Familles
+                                                        </span>
+                                                        <span className="text-sm font-black text-purple-400">{monsters?.families?.length ?? 0}</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-caption text-foreground/70 flex items-center gap-2">
+                                                            <img src="/assets/dofus/map-layers/icon-dungeon-color.png" alt="" className="w-4 h-4 object-contain" /> Donjons
+                                                        </span>
+                                                        <span className="text-sm font-black text-foreground/80">{dungeons.length}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Donjons de la zone */}
+                                            {dungeons.length > 0 && (
+                                                <div className="p-4 rounded-2xl bg-surface/60 border border-border/80 space-y-3">
+                                                    <p className="text-caption font-black text-amber-500/80 uppercase tracking-widest flex items-center gap-1.5">
+                                                        <img src="/assets/dofus/map-layers/icon-dungeon-color.png" alt="" className="w-3.5 h-3.5 object-contain" /> Donjons
+                                                    </p>
+                                                    <div className="space-y-2">
+                                                        {dungeons.map((dj: any) => (
+                                                            <div key={dj.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-background/50 border border-border/40 hover:border-amber-500/30 transition-all">
+                                                                <div className="w-8 h-8 rounded-lg bg-black/40 border border-border/60 flex items-center justify-center shrink-0 overflow-hidden">
+                                                                    {dj.imageUrl ? (
+                                                                        <img src={dj.imageUrl} alt="" className="w-6 h-6 object-contain" />
+                                                                    ) : (
+                                                                        <img src="/assets/dofus/map-layers/icon-dungeon-color.png" alt="" className="w-4 h-4 object-contain opacity-40" />
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="text-xs font-bold text-foreground truncate leading-none">{dj.name}</p>
+                                                                    <p className="text-[11px] text-amber-400/60">Niv. {dj.level}</p>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Accès rapide autres onglets */}
+                                            <div className="grid grid-cols-3 gap-2">
+                                                <button
+                                                    onClick={() => setActiveTab("archis")}
+                                                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-surface/50 border border-amber-500/20 hover:border-amber-500/50 hover:bg-amber-500/10 transition-all text-amber-400 cursor-pointer group"
+                                                >
+                                                    <img src="/assets/icons/ocre.png" alt="" className="w-5 h-5 object-contain group-hover:scale-110 transition-transform" />
+                                                    <span className="text-[10px] font-black uppercase tracking-widest">Archis</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => setActiveTab("bounties")}
+                                                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-surface/50 border border-rose-500/20 hover:border-rose-500/50 hover:bg-rose-500/10 transition-all text-rose-400 cursor-pointer group"
+                                                >
+                                                    <img src="/assets/avis/avitons.png" alt="" className="w-5 h-5 object-contain group-hover:scale-110 transition-transform" />
+                                                    <span className="text-[10px] font-black uppercase tracking-widest">Avis</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => setActiveTab("families")}
+                                                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-surface/50 border border-purple-500/20 hover:border-purple-500/50 hover:bg-purple-500/10 transition-all text-purple-400 cursor-pointer group"
+                                                >
+                                                    <img src="/assets/dofus/game-icons/crossed-swords.png" alt="" className="w-5 h-5 object-contain group-hover:scale-110 transition-transform" />
+                                                    <span className="text-[10px] font-black uppercase tracking-widest">Familles</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </TabsContent>
 
                                 {/* TAB: ARCHIMONSTRES */}
                                 <TabsContent value="archis" className="m-0 space-y-6">
-                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                        {/* Colonne Gauche (2/3) : Liste des Archimonstres de la zone */}
-                                        <div className="lg:col-span-2 space-y-3">
+                                    <div className={`grid grid-cols-1 ${(!isGuildMode && dungeons.length === 0) ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-6`}>
+                                        {/* Colonne Gauche : Liste des Archimonstres de la zone */}
+                                        <div className={`${(!isGuildMode && dungeons.length === 0) ? 'lg:col-span-1' : 'lg:col-span-2'} space-y-3`}>
                                             <div className="flex items-center justify-between pb-2 border-b border-border/40">
-                                                <span className="text-caption font-bold text-foreground/60 uppercase tracking-wider">
+                                                <span className="text-caption font-bold text-foreground/60 uppercase tracking-wider flex items-center gap-2">
+                                                    <img src="/assets/icons/ocre.png" alt="" className="w-4 h-4 object-contain" />
                                                     Archimonstres du secteur ({archis.length})
                                                 </span>
                                             </div>
 
                                             {archis.length > 0 ? (
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <div className={`grid grid-cols-1 ${(!isGuildMode && dungeons.length === 0) ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-3`}>
                                                     {archis.map((archi) => {
                                                         const isMissing = archi.state === 'MANQUANT';
+                                                        const showGuildStatus = isGuildMode && archi.state !== 'INCONNU';
                                                         return (
                                                             <div 
                                                                 key={archi.id} 
                                                                 className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${
-                                                                    isMissing 
-                                                                        ? 'bg-rose-500/5 border-rose-500/15 hover:border-rose-500/30' 
-                                                                        : 'bg-emerald-500/5 border-emerald-500/15 hover:border-emerald-500/30'
+                                                                    showGuildStatus 
+                                                                        ? isMissing 
+                                                                            ? 'bg-rose-500/5 border-rose-500/15 hover:border-rose-500/30' 
+                                                                            : 'bg-emerald-500/5 border-emerald-500/15 hover:border-emerald-500/30'
+                                                                        : 'bg-surface/50 border-border/60 hover:border-amber-500/30'
                                                                 }`}
                                                             >
                                                                 <div className="w-10 h-10 rounded-xl bg-black/40 border border-border/60 overflow-hidden flex items-center justify-center shrink-0">
                                                                     <img src={archi.image} alt="" className="w-8 h-8 object-contain" />
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
-                                                                    <p className={`text-xs font-bold truncate leading-tight ${isMissing ? 'text-rose-400' : 'text-emerald-400'}`}>
+                                                                    <p className={`text-xs font-bold truncate leading-tight ${showGuildStatus ? (isMissing ? 'text-rose-400' : 'text-emerald-400') : 'text-foreground'}`}>
                                                                         {archi.name}
                                                                     </p>
                                                                     <p className="text-[11px] text-foreground/40 truncate">
@@ -193,13 +339,19 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                                     </p>
                                                                 </div>
                                                                 <div className="shrink-0">
-                                                                    {isMissing ? (
-                                                                        <span className="px-2 py-0.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-bold">
-                                                                            Manquant
-                                                                        </span>
+                                                                    {showGuildStatus ? (
+                                                                        isMissing ? (
+                                                                            <span className="px-2 py-0.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-bold">
+                                                                                Manquant
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold">
+                                                                                {archi.owned > 1 ? `x${archi.owned}` : 'Capturé'}
+                                                                            </span>
+                                                                        )
                                                                     ) : (
-                                                                        <span className="px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold">
-                                                                            {archi.owned > 1 ? `x${archi.owned}` : 'Capturé'}
+                                                                        <span className="px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold">
+                                                                            Étape {archi.step ?? 1}
                                                                         </span>
                                                                     )}
                                                                 </div>
@@ -209,13 +361,13 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                 </div>
                                             ) : (
                                                 <div className="py-16 flex flex-col items-center justify-center gap-3 bg-surface/30 border border-dashed border-border rounded-2xl p-6 text-center">
-                                                    <Ghost className="text-foreground/20" size={32} />
+                                                    <img src="/assets/icons/ocre.png" alt="" className="w-10 h-10 object-contain opacity-30" />
                                                     <p className="text-caption text-foreground/40 font-medium">
-                                                        {error === "Compte non lié" 
+                                                        {isGuildMode && error === "Compte non lié" 
                                                             ? "Liez votre compte Metamob pour voir vos archimonstres"
                                                             : "Aucun archimonstre détecté dans ce secteur"}
                                                     </p>
-                                                    {error === "Compte non lié" && (
+                                                    {isGuildMode && error === "Compte non lié" && (
                                                         <a 
                                                             href={`/dashboard/${guildId}/profile`}
                                                             className="mt-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-caption font-bold transition-all flex items-center gap-2"
@@ -227,78 +379,82 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                             )}
                                         </div>
 
-                                        {/* Colonne Droite (1/3) : Échanges Ocre Actifs & Donjons */}
-                                        <div className="space-y-6">
-                                            {/* Section Échanges de Guilde pour cette zone */}
-                                            <section className="space-y-3">
-                                                <div className="flex items-center justify-between pb-2 border-b border-border/40">
-                                                    <span className="text-caption font-bold text-amber-400 flex items-center gap-1.5 uppercase tracking-wider">
-                                                        <Coins size={13} /> Échanges disponibles ({trades.length})
-                                                    </span>
-                                                </div>
+                                        {/* Colonne Droite (1/3) : Échanges Ocre Actifs (GUILDE UNIQUEMENT) & Donjons */}
+                                        {(isGuildMode || dungeons.length > 0) && (
+                                            <div className="space-y-6">
+                                                {/* Section Échanges de Guilde pour cette zone — strictement masquée en mode public */}
+                                                {isGuildMode && (
+                                                    <section className="space-y-3">
+                                                        <div className="flex items-center justify-between pb-2 border-b border-border/40">
+                                                            <span className="text-caption font-bold text-amber-400 flex items-center gap-1.5 uppercase tracking-wider">
+                                                                <img src="/assets/icons/kama.png" alt="" className="w-3.5 h-3.5 object-contain" /> Échanges disponibles ({trades.length})
+                                                            </span>
+                                                        </div>
 
-                                                {tradesLoading ? (
-                                                    <div className="p-4 rounded-xl bg-surface/20 text-caption text-foreground/40 italic flex items-center gap-2">
-                                                        <Loader2 size={13} className="animate-spin" /> Recherche d'échanges de guilde...
-                                                    </div>
-                                                ) : trades.length > 0 ? (
-                                                    <div className="space-y-2">
-                                                        {trades.map((t) => (
-                                                            <div key={t.id} className="p-3 rounded-xl bg-surface/50 border border-border/60 hover:border-amber-500/30 transition-all space-y-1.5">
-                                                                <div className="flex items-center gap-2">
-                                                                    {t.monsterImageUrl && (
-                                                                        <img src={t.monsterImageUrl} alt="" className="w-6 h-6 object-contain rounded bg-black/40 shrink-0" />
-                                                                    )}
-                                                                    <span className="text-xs font-bold text-foreground truncate flex-1">{t.monsterName}</span>
-                                                                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                                                                        Dispo
-                                                                    </span>
-                                                                </div>
-                                                                <div className="text-[11px] text-foreground/50 flex items-center justify-between">
-                                                                    <span>Proposé par : <strong className="text-foreground/80">{t.requesterName}</strong></span>
-                                                                    {t.targetName && <span className="text-foreground/40">→ {t.targetName}</span>}
-                                                                </div>
+                                                        {tradesLoading ? (
+                                                            <div className="p-4 rounded-xl bg-surface/20 text-caption text-foreground/40 italic flex items-center gap-2">
+                                                                <Loader2 size={13} className="animate-spin" /> Recherche d'échanges de guilde...
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <div className="p-4 rounded-xl bg-surface/20 border border-dashed border-border/50 text-caption text-foreground/40 text-center">
-                                                        Aucun membre de la guilde ne propose d'échange actif sur cette zone pour le moment.
-                                                    </div>
+                                                        ) : trades.length > 0 ? (
+                                                            <div className="space-y-2">
+                                                                {trades.map((t) => (
+                                                                    <div key={t.id} className="p-3 rounded-xl bg-surface/50 border border-border/60 hover:border-amber-500/30 transition-all space-y-1.5">
+                                                                        <div className="flex items-center gap-2">
+                                                                            {t.monsterImageUrl && (
+                                                                                <img src={t.monsterImageUrl} alt="" className="w-6 h-6 object-contain rounded bg-black/40 shrink-0" />
+                                                                            )}
+                                                                            <span className="text-xs font-bold text-foreground truncate flex-1">{t.monsterName}</span>
+                                                                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                                                                Dispo
+                                                                            </span>
+                                                                        </div>
+                                                                        <div className="text-[11px] text-foreground/50 flex items-center justify-between">
+                                                                            <span>Proposé par : <strong className="text-foreground/80">{t.requesterName}</strong></span>
+                                                                            {t.targetName && <span className="text-foreground/40">→ {t.targetName}</span>}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="p-4 rounded-xl bg-surface/20 border border-dashed border-border/50 text-caption text-foreground/40 text-center">
+                                                                Aucun membre de la guilde ne propose d'échange actif sur cette zone pour le moment.
+                                                            </div>
+                                                        )}
+                                                    </section>
                                                 )}
-                                            </section>
 
-                                            {/* Donjons de la Zone */}
-                                            {dungeons.length > 0 && (
-                                                <section className="space-y-3">
-                                                    <div className="flex items-center justify-between pb-2 border-b border-border/40">
-                                                        <span className="text-caption font-bold text-amber-500 flex items-center gap-1.5 uppercase tracking-wider">
-                                                            <Swords size={13} /> Donjons ({dungeons.length})
-                                                        </span>
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        {dungeons.map((dj) => (
-                                                            <div 
-                                                                key={dj.id} 
-                                                                className="flex items-center gap-3 p-3 rounded-xl bg-surface/50 border border-border/60 hover:border-amber-500/30 transition-all"
-                                                            >
-                                                                <div className="w-9 h-9 rounded-lg bg-black/40 border border-border/60 overflow-hidden flex items-center justify-center shrink-0">
-                                                                    {dj.imageUrl ? (
-                                                                        <img src={dj.imageUrl} alt="" className="w-7 h-7 object-contain" />
-                                                                    ) : (
-                                                                        <Swords size={16} className="text-amber-500/40" />
-                                                                    )}
+                                                {/* Donjons de la Zone */}
+                                                {dungeons.length > 0 && (
+                                                    <section className="space-y-3">
+                                                        <div className="flex items-center justify-between pb-2 border-b border-border/40">
+                                                            <span className="text-caption font-bold text-amber-500 flex items-center gap-1.5 uppercase tracking-wider">
+                                                                <img src="/assets/dofus/map-layers/icon-dungeon-color.png" alt="" className="w-3.5 h-3.5 object-contain" /> Donjons ({dungeons.length})
+                                                            </span>
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            {dungeons.map((dj) => (
+                                                                <div 
+                                                                    key={dj.id} 
+                                                                    className="flex items-center gap-3 p-3 rounded-xl bg-surface/50 border border-border/60 hover:border-amber-500/30 transition-all"
+                                                                >
+                                                                    <div className="w-9 h-9 rounded-lg bg-black/40 border border-border/60 overflow-hidden flex items-center justify-center shrink-0">
+                                                                        {dj.imageUrl ? (
+                                                                            <img src={dj.imageUrl} alt="" className="w-7 h-7 object-contain" />
+                                                                        ) : (
+                                                                            <img src="/assets/dofus/map-layers/icon-dungeon-color.png" alt="" className="w-5 h-5 object-contain opacity-40" />
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <p className="text-xs font-bold text-foreground truncate leading-none mb-0.5">{dj.name}</p>
+                                                                        <p className="text-[11px] text-amber-400/70">Niveau {dj.level} · {dj.bossName}</p>
+                                                                    </div>
                                                                 </div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <p className="text-xs font-bold text-foreground truncate leading-none mb-0.5">{dj.name}</p>
-                                                                    <p className="text-[11px] text-amber-400/70">Niveau {dj.level} · {dj.bossName}</p>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </section>
-                                            )}
-                                        </div>
+                                                            ))}
+                                                        </div>
+                                                    </section>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </TabsContent>
 
@@ -562,59 +718,18 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 bg-black/40 border-t border-border flex items-center justify-between shrink-0 px-10 gap-6">
-                    {/* Trades Ocre */}
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1.5">
-                            <span className="text-caption font-black text-amber-400/80 uppercase tracking-widest italic flex items-center gap-1.5">
-                                <Coins size={12} />
-                                Échanges Ocre {zoneName ? `— ${zoneName}` : ''}
-                            </span>
-                            {tradesLoading && <Loader2 size={11} className="animate-spin text-amber-400/50" />}
-                        </div>
-                        {tradesLoading ? (
-                            <p className="text-caption text-foreground/40 italic">Chargement des échanges…</p>
-                        ) : trades.length > 0 ? (
-                            <div className="flex flex-wrap gap-2">
-                                {trades.slice(0, 4).map((t) => (
-                                    <div key={t.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-surface border border-border">
-                                        {t.monsterImageUrl && (
-                                            <img src={t.monsterImageUrl} alt="" className="w-5 h-5 object-contain rounded bg-black/40 shrink-0" />
-                                        )}
-                                        <span className="text-caption font-bold text-foreground truncate max-w-[140px]">{t.monsterName}</span>
-                                        <span className="text-caption font-black uppercase tracking-widest italic">
-                                            {t.status === "ACCEPTED" ? (
-                                                <span className="text-emerald-400">Accepté</span>
-                                            ) : (
-                                                <span className="text-amber-400">En attente</span>
-                                            )}
-                                        </span>
-                                    </div>
-                                ))}
-                                {trades.length > 4 && (
-                                    <span className="text-caption font-black text-foreground/30 uppercase tracking-widest italic self-center">+{trades.length - 4}</span>
-                                )}
-                            </div>
-                        ) : (
-                            <p className="text-caption text-foreground/25 italic">Aucun échange actif sur cette zone.</p>
-                        )}
+                <div className="p-4 md:p-5 bg-black/40 border-t border-border flex items-center justify-between shrink-0 px-6 md:px-10 gap-6">
+                    <div className="flex items-center gap-3">
+                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-caption font-bold text-foreground/50 uppercase tracking-wider">
+                            {zoneName} · [{position.displayX}, {position.displayY}]
+                        </span>
                     </div>
 
-                    {/* Bouton Metamob + filigrane */}
                     <div className="flex items-center gap-4 shrink-0">
-                        <a
-                            href={`https://www.metamob.fr`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-5 py-2.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500 hover:text-foreground border border-emerald-500/30 text-emerald-400 text-caption font-black uppercase tracking-widest italic transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/5"
-                        >
-                            <Sparkles size={14} />
-                            Metamob
-                        </a>
-                        <div className="flex items-center gap-4">
-                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500  animate-pulse" />
-                            <span className="text-caption font-black text-foreground/30 uppercase tracking-widest italic">Analyseur de Zone v4.2 - SigilOS</span>
-                        </div>
+                        <span className="text-caption font-black text-foreground/30 uppercase tracking-widest italic">
+                            Carte du Monde — SigilOS
+                        </span>
                     </div>
                 </div>
             </DialogContent>

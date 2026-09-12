@@ -238,39 +238,52 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         </div>
                     )}
 
-                    {/* Participants Bubbles */}
-                    <div className="flex -space-x-2 overflow-hidden py-1">
-                        {/* Leader */}
-                        <div key={post.profileId} className="relative group/avatar animate-in fade-in-0 zoom-in-95 duration-200 motion-reduce:animate-none" title={`${post.profile.pseudoDofus || post.profile.discordNickname} (LEAD)`}>
-                            <Avatar className="h-9 w-9 ring-2 ring-ring hover:ring-ring transition-all border-2 border-border shadow-lg">
-                                <DiscordAvatarImage src={post.profile.user.image || undefined} />
-                                <AvatarFallback className="bg-info text-info text-caption font-black">
-                                    {(post.profile.pseudoDofus || post.profile.discordNickname || "??").slice(0, 2).toUpperCase()}
-                                </AvatarFallback>
-                            </Avatar>
-                            <div className="absolute -bottom-1 -right-1 bg-info rounded-full p-1 border-2 border-border">
-                                <Crown className="w-2.5 h-2.5 text-foreground" />
-                            </div>
-                        </div>
-
-                        {/* Others */}
-                        {post.participants.map((p) => (
-                            <div key={p.id} className="relative group/avatar animate-in fade-in-0 zoom-in-95 duration-200 motion-reduce:animate-none" title={p.profile.pseudoDofus || p.profile.discordNickname || "Membre"}>
-                                <Avatar className="h-9 w-9 ring-2 ring-border hover:ring-ring/50 transition-all border-2 border-border shadow-lg">
-                                    <DiscordAvatarImage src={p.profile.user.image || undefined} />
-                                    <AvatarFallback className="bg-elevated text-muted-foreground text-caption font-bold">
-                                        {(p.profile.pseudoDofus || p.profile.discordNickname || "??").slice(0, 2).toUpperCase()}
+                    {/* Participants Bubbles & Waitlist */}
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex -space-x-2 overflow-hidden py-1">
+                            {/* Leader */}
+                            <div key={post.profileId} className="relative group/avatar animate-in fade-in-0 zoom-in-95 duration-200 motion-reduce:animate-none" title={`${post.profile.pseudoDofus || post.profile.discordNickname} (LEAD)`}>
+                                <Avatar className="h-9 w-9 ring-2 ring-ring hover:ring-ring transition-all border-2 border-border shadow-lg">
+                                    <DiscordAvatarImage src={post.profile.user.image || undefined} />
+                                    <AvatarFallback className="bg-info text-info text-caption font-black">
+                                        {(post.profile.pseudoDofus || post.profile.discordNickname || "??").slice(0, 2).toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
+                                <div className="absolute -bottom-1 -right-1 bg-info rounded-full p-1 border-2 border-border">
+                                    <Crown className="w-2.5 h-2.5 text-foreground" />
+                                </div>
                             </div>
-                        ))}
 
-                        {/* Empty Spots */}
-                        {Array.from({ length: Math.min(spotsLeft, 10) }).map((_, i) => (
-                            <div key={`empty-${i}`} className="w-9 h-9 rounded-full border-2 border-dashed border-border bg-surface flex items-center justify-center transition-colors hover:border-border">
-                                <Users className="w-3.5 h-3.5 text-foreground/[0.03]" />
+                            {/* Others ACCEPTED only */}
+                            {post.participants.filter((p) => p.status === "ACCEPTED").map((p) => (
+                                <div key={p.id} className="relative group/avatar animate-in fade-in-0 zoom-in-95 duration-200 motion-reduce:animate-none" title={p.profile.pseudoDofus || p.profile.discordNickname || "Membre"}>
+                                    <Avatar className="h-9 w-9 ring-2 ring-border hover:ring-ring/50 transition-all border-2 border-border shadow-lg">
+                                        <DiscordAvatarImage src={p.profile.user.image || undefined} />
+                                        <AvatarFallback className="bg-elevated text-muted-foreground text-caption font-bold">
+                                            {(p.profile.pseudoDofus || p.profile.discordNickname || "??").slice(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                </div>
+                            ))}
+
+                            {/* Empty Spots */}
+                            {Array.from({ length: Math.max(0, Math.min(spotsLeft, 10)) }).map((_, i) => (
+                                <div key={`empty-${i}`} className="w-9 h-9 rounded-full border-2 border-dashed border-border bg-surface flex items-center justify-center transition-colors hover:border-border">
+                                    <Users className="w-3.5 h-3.5 text-foreground/[0.03]" />
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Waitlist pill if any pending */}
+                        {post.participants.filter((p) => p.status === "PENDING").length > 0 && (
+                            <div
+                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-warning/10 border border-warning/25 text-warning text-caption font-black uppercase tracking-wider"
+                                title="Joueurs en file d'attente"
+                            >
+                                <Clock className="w-3 h-3" />
+                                <span>{post.participants.filter((p) => p.status === "PENDING").length} en attente</span>
                             </div>
-                        ))}
+                        )}
                     </div>
 
                     {/* Wanted achievements */}

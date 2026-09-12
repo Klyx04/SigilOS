@@ -325,7 +325,7 @@ export async function createWeekMissions(
         return { success: true };
     } catch (error) {
         logger.error("Create Missions Error", { error, guildId: data.guildId, weekNumber: data.weekNumber, year: data.year });
-        return { success: false, error: "Database transaction failed: " + (error instanceof Error ? error.message : "Unknown") };
+        return { success: false, error: "Une erreur est survenue lors de la création des missions. Réessaie." };
     }
 }
 
@@ -647,7 +647,7 @@ export async function getWeekMissions(
         return { success: true, data: safeData };
     } catch (error) {
         logger.error("Fetch Missions Error", { error, guildId, weekNumber, year });
-        return { success: false, error: "Failed to fetch missions: " + (error instanceof Error ? error.message : String(error)) };
+        return { success: false, error: "Impossible de récupérer les missions. Réessaie." };
     }
 }
 

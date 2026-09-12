@@ -208,7 +208,7 @@ export function TicketDashboard({ initialTickets, initialTotal, initialStats }: 
     async function handleClose(ticketId: string) {
         startTransition(async () => {
             const { closeSupportTicket } = await import("@/server/actions/ticket-actions");
-            const res = await closeSupportTicket(ticketId, "DASHBOARD", "Admin SigilOS", "Fermé via le GOD Dashboard");
+            const res = await closeSupportTicket(ticketId, "DASHBOARD", "Admin SigilOS", "Fermé par l'équipe SigilOS");
             if (res.success) {
                 toast.success("Ticket fermé et fil Discord archivé");
                 await refreshTickets();

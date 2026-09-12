@@ -6,9 +6,10 @@ import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import {
     Search, Map as MapIcon, Loader2, Target, Eye, EyeOff, Trophy,
-    Clock, ZoomIn, Compass, ChevronDown, ChevronRight, Plus, Minus, Users, Trash2, X, CheckCircle2, Copy,
+    Clock, ZoomIn, Compass, ChevronDown, ChevronLeft, ChevronRight, Plus, Minus, Users, Trash2, X, CheckCircle2, Copy,
     Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag, Rocket, Bomb, Lock, Shield, Mic, Zap, MapPin
 } from 'lucide-react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { WorldData, MapNode, SubArea, Dungeon } from '@/types/worldmap';
 import { submitGeoguesserScore, getGeoguesserLadder } from '@/server/actions/geoguesser-actions';
@@ -46,7 +47,6 @@ const LeafletMapCore = dynamic<any>(() => import('./leaflet-map-core'), {
 });
 
 const GeoguesserHUD = dynamic<any>(() => import('./GeoguesserHUD'), { ssr: false });
-const MapDetailsPanel = dynamic<any>(() => import('./MapDetailsPanel'), { ssr: false });
 const DungeonDetailModal = dynamic<any>(() => import('./DungeonDetailModal').then(mod => mod.DungeonDetailModal), { ssr: false });
 const ZoneDetailModal = dynamic<any>(() => import('./ZoneDetailModal').then(mod => mod.ZoneDetailModal), { ssr: false });
 const MapHelpCard = dynamic<any>(() => import('./MapHelpCard').then(mod => mod.MapHelpCard), { ssr: false });
@@ -71,6 +71,10 @@ interface InteractiveMapProps {
     showGameEntry?: boolean;
     /** Active le plein écran à l'arrivée (module carte ouvert via le bouton "Ouvrir en plein écran"). */
     startFullscreen?: boolean;
+    /** Mode overlay autonome (tailles réduites des panneaux et barres d'outils). */
+    isOverlay?: boolean;
+    /** Mode public : désactive toutes les interactions de guilde (succès, dungeon finder, mini-jeux). */
+    isPublic?: boolean;
 }
 
 // Retourne l'élément plein écran actif (worldmap, mini-jeux ou bomb)
@@ -78,6 +82,19 @@ function getFullscreenEl(): HTMLElement | null {
     return document.getElementById('worldmap-page')
         || document.getElementById('mini-games-page')
         || document.getElementById('sigil-bomb-page');
+}
+
+// Icônes des métiers de récolte
+function getHarvestJobIcon(name: string): string | null {
+    if (!name) return null;
+    const n = name.toLowerCase();
+    if (n.includes('bûch') || n.includes('buch')) return '/assets/dofus/jobs/bucheron.png';
+    if (n.includes('min')) return '/assets/dofus/jobs/mineur.png';
+    if (n.includes('alch')) return '/assets/dofus/jobs/alchimiste.png';
+    if (n.includes('pays')) return '/assets/dofus/jobs/paysan.png';
+    if (n.includes('pêch') || n.includes('pech')) return '/assets/dofus/jobs/pecheur.png';
+    if (n.includes('chass')) return '/assets/dofus/jobs/chasseur.png';
+    return null;
 }
 
 // Force le plein écran du guesser quand une partie est active (monté directement dans le rendu du jeu)
@@ -116,7 +133,9 @@ export default function InteractiveMapV2({
     isAdmin,
     interactive,
     showGameEntry = false,
-    startFullscreen = false
+    startFullscreen = false,
+    isOverlay = false,
+    isPublic = false
 }: InteractiveMapProps) {
     const { data: sessionData } = useSession();
     const router = useRouter();
@@ -148,6 +167,7 @@ export default function InteractiveMapV2({
     const [activePanelTab, setActivePanelTab] = useState<'map' | 'scores'>('map');
     // Dropdown cliquable du sélecteur de monde (évite le débordement hover + UX claire)
     const [worldDropdownOpen, setWorldDropdownOpen] = useState(false);
+    const [overlayWorldDropdownOpen, setOverlayWorldDropdownOpen] = useState(false);
     const worldDropdownBtnRef = useRef<HTMLButtonElement>(null);
     const [worldDropdownPos, setWorldDropdownPos] = useState<{ top: number; left: number } | null>(null);
 
@@ -183,10 +203,31 @@ export default function InteractiveMapV2({
     const [harvestJobs, setHarvestJobs] = useState<any[]>([]);
     const [zaaps, setZaaps] = useState<any[]>([]);
     const [showHarvestPanel, setShowHarvestPanel] = useState(false);
-    const [showZaaps, setShowZaaps] = useState(true);
+    const [showZaaps, setShowZaaps] = useState(false);
+    const [showPassages, setShowPassages] = useState(false);
+    const [showDungeons, setShowDungeons] = useState(false);
     const [selectedHarvestJobId, setSelectedHarvestJobId] = useState<number>(2); // Bûcheron
     const [selectedHarvestResourceIds, setSelectedHarvestResourceIds] = useState<Set<number>>(new Set());
     const [activeCircuit, setActiveCircuit] = useState<any | null>(null);
+
+    // Overlay harvest bar — refs pour scroll automatique vers la pill active
+    const overlayJobsScrollRef = useRef<HTMLDivElement>(null);
+    const overlayResScrollRef = useRef<HTMLDivElement>(null);
+
+    // Scroll to active job pill when job changes
+    useEffect(() => {
+        if (!isOverlay || !overlayJobsScrollRef.current) return;
+        const active = overlayJobsScrollRef.current.querySelector('[data-active-job="true"]') as HTMLElement | null;
+        active?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }, [selectedHarvestJobId, isOverlay]);
+
+    // Scroll to active resource pill when selection changes
+    useEffect(() => {
+        if (!isOverlay || !overlayResScrollRef.current) return;
+        const active = overlayResScrollRef.current.querySelector('[data-active-res="true"]') as HTMLElement | null;
+        active?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }, [selectedHarvestResourceIds, isOverlay]);
+
 
     // Load Ocre dungeon mapIds once
     useEffect(() => {
@@ -1182,8 +1223,18 @@ export default function InteractiveMapV2({
             // SECURITY: Prevent moving the marker if already guessed
             if (me?.hasGuessed) return;
             setSelectedPosition(pos);
-        } else if (activeTab === 'map' && !hideUI) {
-            setSelectedPosition(pos);
+            return;
+        }
+
+        // Mode Exploration normale de la WorldMap : sélectionne ou déverrouille la case
+        if (activeTab === 'map') {
+            setSelectedPosition((prev: any) => {
+                if (!pos) return null;
+                if (prev && prev.x === pos.x && prev.y === pos.y) {
+                    return null; // Déverrouille si reclic sur la même case
+                }
+                return pos;
+            });
         }
     };
 
@@ -1277,8 +1328,8 @@ export default function InteractiveMapV2({
                 </>,
                 document.body
             )}
-            {/* Header & Controls (Hidden in focused games mode) */}
-            {!hideUI && (activeTab === 'map' || !initialTab) && (
+            {/* Header & Controls (Hidden in focused games mode and overlay mode) */}
+            {!hideUI && !isOverlay && (activeTab === 'map' || !initialTab) && (
                 <div className="flex-shrink-0 bg-background/90 backdrop-blur-md border-b border-border px-8 flex items-center justify-between h-[64px] z-[600]">
                     {/* Left: Navigation Tabs (Only if not in focused mode) */}
                     {!initialTab ? (
@@ -1329,81 +1380,22 @@ export default function InteractiveMapV2({
                             >
                                 {/* Essential Tools (Visible everywhere) */}
                                 <div className="flex items-center gap-2 sm:gap-3">
-                                    {/* World Selection (bouton déclencheur ; le panel est porté via portal au-dessus de la navbar) */}
-                                    <div className="relative">
-                                        <button
-                                            ref={worldDropdownBtnRef}
-                                            onClick={() => { setWorldDropdownPos(null); setWorldDropdownOpen(o => !o); }}
-                                            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface/90 hover:bg-elevated border border-border text-foreground font-bold text-caption uppercase tracking-wider transition-all shadow-sm backdrop-blur-md"
-                                            title="Changer de Monde ou de Carte"
-                                        >
-                                            <MapIcon size={13} className="text-success shrink-0" />
-                                            <span className="truncate max-w-[90px] sm:max-w-[150px]">{activeWorld.name.fr}</span>
-                                            <ChevronDown size={12} className={`text-muted-foreground transition-transform ${worldDropdownOpen ? 'rotate-180' : ''}`} />
-                                        </button>
-                                    </div>
+                                    {/* World Selection (bouton déclencheur ; masqué en mode overlay car déplacé dans la barre latérale) */}
+                                    {!isOverlay && (
+                                        <div className="relative">
+                                            <button
+                                                ref={worldDropdownBtnRef}
+                                                onClick={() => { setWorldDropdownPos(null); setWorldDropdownOpen(o => !o); }}
+                                                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface/90 hover:bg-elevated border border-border text-foreground font-bold text-caption uppercase tracking-wider transition-all shadow-sm backdrop-blur-md"
+                                                title="Changer de Monde ou de Carte"
+                                            >
+                                                <MapIcon size={13} className="text-success shrink-0" />
+                                                <span className="truncate max-w-[90px] sm:max-w-[150px]">{activeWorld.name.fr}</span>
+                                                <ChevronDown size={12} className={`text-muted-foreground transition-transform ${worldDropdownOpen ? 'rotate-180' : ''}`} />
+                                            </button>
+                                        </div>
+                                    )}
 
-                                    {/* Unified Map View Controls Toolbar */}
-                                    <div className="hidden lg:flex items-center rounded-xl bg-surface/60 border border-border p-0.5 gap-0.5 backdrop-blur-md">
-                                        {/* Grid Toggle */}
-                                        <button
-                                            onClick={() => setShowDebugGrid(!showDebugGrid)}
-                                            className={cn(
-                                                "px-2.5 py-1.5 rounded-lg text-caption font-bold uppercase transition-all flex items-center gap-1.5",
-                                                showDebugGrid 
-                                                    ? "bg-success/20 text-success border border-success/30" 
-                                                    : "text-muted-foreground hover:text-foreground hover:bg-elevated border border-transparent"
-                                            )}
-                                            title={showDebugGrid ? "Masquer la grille" : "Afficher la grille"}
-                                        >
-                                            {showDebugGrid ? <Eye size={12} className="text-success" /> : <EyeOff size={12} />}
-                                            <span className="hidden xl:inline">Grille</span>
-                                        </button>
-
-                                        {/* Zone Highlight Toggle */}
-                                        <button
-                                            onClick={() => setZoneHighlight(!zoneHighlight)}
-                                            className={cn(
-                                                "px-2.5 py-1.5 rounded-lg text-caption font-bold uppercase transition-all flex items-center gap-1.5",
-                                                zoneHighlight 
-                                                    ? "bg-info/20 text-info border border-info/30" 
-                                                    : "text-muted-foreground hover:text-foreground hover:bg-elevated border border-transparent"
-                                            )}
-                                            title={zoneHighlight ? "Masquer le surlignage de zone" : "Afficher le surlignage de zone"}
-                                        >
-                                            <MapPin size={12} className={zoneHighlight ? "text-info" : ""} />
-                                            <span className="hidden xl:inline">Zones</span>
-                                        </button>
-
-                                        {/* Zaaps Toggle */}
-                                        <button
-                                            onClick={() => setShowZaaps(!showZaaps)}
-                                            className={cn(
-                                                "px-2.5 py-1.5 rounded-lg text-caption font-bold uppercase transition-all flex items-center gap-1.5",
-                                                showZaaps
-                                                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                                                    : "text-muted-foreground hover:text-foreground hover:bg-elevated border border-transparent"
-                                            )}
-                                            title={showZaaps ? "Masquer les zaaps" : "Afficher les zaaps"}
-                                        >
-                                            <img src="/assets/dofus/zaap.png" alt="" className="w-3 h-3 object-contain" />
-                                            <span className="hidden xl:inline">Zaaps</span>
-                                        </button>
-
-                                        {/* Help Toggle */}
-                                        <button
-                                            onClick={() => setShowMapHelp(true)}
-                                            className={cn(
-                                                "p-1.5 rounded-lg transition-all",
-                                                showMapHelp 
-                                                    ? "bg-warning/20 text-warning border border-warning/30" 
-                                                    : "text-muted-foreground hover:text-foreground hover:bg-elevated border border-transparent"
-                                            )}
-                                            title="Aide & Raccourcis"
-                                        >
-                                            <HelpCircle size={13} />
-                                        </button>
-                                    </div>
                                 </div>
 
 
@@ -1635,10 +1627,6 @@ export default function InteractiveMapV2({
                                                 <Zap size={14} className={autoCopyTravel ? "text-warning fill-warning" : ""} />
                                                 Copie Auto
                                             </button>
-                                            <button onClick={() => setShowMapHelp(true)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-caption font-bold uppercase text-muted-foreground hover:bg-elevated">
-                                                <HelpCircle size={14} />
-                                                Aide
-                                            </button>
                                             <div className="md:hidden pt-2 border-t border-border">
                                                 <div className="relative">
                                                     <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" size={10} />
@@ -1655,25 +1643,6 @@ export default function InteractiveMapV2({
                                     </div>
                                 </div>
 
-                                {/* 🪓 Bouton GPS Opti-Farm & Récolte */}
-                                <button
-                                    onClick={() => setShowHarvestPanel(!showHarvestPanel)}
-                                    className={cn(
-                                        "hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-caption font-bold uppercase tracking-wider transition-all border shadow-sm backdrop-blur-md",
-                                        showHarvestPanel || selectedHarvestResourceIds.size > 0
-                                            ? "bg-success/25 text-success border-success/50 shadow-success/20"
-                                            : "bg-surface/90 hover:bg-elevated border-border text-muted-foreground hover:text-foreground"
-                                    )}
-                                    title="GPS Opti-Farm, Récolte & Zaaps"
-                                >
-                                    <Compass size={13} className={cn("text-success", showHarvestPanel && "animate-spin-slow")} />
-                                    <span>Opti-Farm</span>
-                                    {selectedHarvestResourceIds.size > 0 && (
-                                        <span className="w-4 h-4 rounded-full bg-success text-success-foreground text-[10px] font-black flex items-center justify-center">
-                                            {selectedHarvestResourceIds.size}
-                                        </span>
-                                    )}
-                                </button>
 
                                 {/* 🏷️ DofusDB Attribution — tout à droite */}
                                 {!hideUI && (
@@ -1989,29 +1958,171 @@ export default function InteractiveMapV2({
                 {/* 🗺️ MODE NAVIGATION CARTE CLASSIQUE */}
                 {activeTab === 'map' && (
                     <div className="relative w-full h-full">
-                        {/* Croix propre : quitter le plein écran et revenir à l'accueil de la carte */}
-                        {!hideUI && guildId && (
+                        {/* Croix propre : quitter le plein écran et revenir à la page explicative du module — masquée en overlay */}
+                        {!hideUI && !isOverlay && (guildId || isPublic) && (
                             <button
                                 onClick={() => {
                                     applyFullscreen(false);
-                                    router.push(`/dashboard/${guildId}/worldmap`);
+                                    if (isPublic) {
+                                        window.location.href = '/carte-du-monde';
+                                    } else {
+                                        window.location.href = `/dashboard/${guildId}/worldmap`;
+                                    }
                                 }}
                                 className="absolute top-3 right-3 z-[1200] w-9 h-9 rounded-full bg-surface/90 border border-border hover:bg-danger/20 hover:text-danger hover:border-danger/50 text-foreground backdrop-blur-md shadow-lg flex items-center justify-center transition-all active:scale-90 cursor-pointer"
-                                title="Quitter le plein écran et revenir à l'accueil de la carte"
-                                aria-label="Quitter le plein écran et revenir à l'accueil de la carte"
+                                title="Quitter la carte et revenir à la présentation"
+                                aria-label="Quitter la carte et revenir à la présentation"
                             >
                                 <X size={16} />
                             </button>
                         )}
-                        <AnimatePresence>
-                            {(showMapHelp && !hideUI) && (
-                                <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-4xl px-4 pointer-events-none">
-                                    <div className="pointer-events-auto">
-                                        <MapHelpCard onClose={() => setShowMapHelp(false)} />
-                                    </div>
+
+                        {/* 🎛️ Panel de Calques Flottant — Style DofusDB */}
+                        {!hideUI && (
+                            <div className={cn(
+                                "absolute z-[1100] flex flex-col pointer-events-auto transition-all",
+                                isOverlay ? "right-1.5 top-1/2 -translate-y-1/2 scale-[0.72] origin-right" : "right-4 top-1/2 -translate-y-1/2 gap-1.5"
+                            )}>
+                                <div className={cn(
+                                    "flex flex-col bg-[#030712]/90 backdrop-blur-xl border border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.85)]",
+                                    isOverlay ? "gap-1 p-1 rounded-2xl" : "gap-1.5 p-2 rounded-2xl"
+                                )}>
+                                    {/* Sélecteur de Monde (Mode Overlay uniquement) */}
+                                    {isOverlay && (
+                                        <div className="relative">
+                                            <button
+                                                onClick={() => setOverlayWorldDropdownOpen(o => !o)}
+                                                title={`Monde actuel : ${activeWorld.name.fr}`}
+                                                className={cn(
+                                                    "w-10 h-10 rounded-xl flex items-center justify-center transition-all border relative group",
+                                                    overlayWorldDropdownOpen
+                                                        ? "bg-emerald-500/30 border-emerald-400/80 shadow-[0_0_16px_rgba(16,185,129,0.5)] scale-105"
+                                                        : "bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-500/60 shadow-sm"
+                                                )}
+                                            >
+                                                <MapIcon size={18} className="text-emerald-400 drop-shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
+                                                <span className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-black/95 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10 shadow-xl">
+                                                    Monde ({activeWorld.name.fr})
+                                                </span>
+                                            </button>
+
+                                            {/* Menu flyout des mondes à gauche de la toolbar */}
+                                            {overlayWorldDropdownOpen && (
+                                                <>
+                                                    <div className="fixed inset-0 z-[1200]" onClick={() => setOverlayWorldDropdownOpen(false)} />
+                                                    <div className="absolute right-full mr-2 top-0 z-[1250] w-56 bg-[#030712]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.9)] p-1.5 max-h-[60vh] overflow-y-auto no-scrollbar">
+                                                        <div className="text-[10px] font-black uppercase tracking-wider text-emerald-300/70 px-2 py-1 border-b border-white/10 mb-1">
+                                                            Changer de monde
+                                                        </div>
+                                                        {visibleWorlds.map(w => (
+                                                            <button
+                                                                key={w.id}
+                                                                onClick={() => {
+                                                                    setSelectedWorldId(w.id);
+                                                                    setOverlayWorldDropdownOpen(false);
+                                                                }}
+                                                                className={cn(
+                                                                    "w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all truncate block",
+                                                                    selectedWorldId === w.id
+                                                                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                                                                        : "text-white/70 hover:bg-white/10 hover:text-white"
+                                                                )}
+                                                            >
+                                                                {w.name.fr}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Grille */}
+                                    <button
+                                        onClick={() => setShowDebugGrid(!showDebugGrid)}
+                                        title={showDebugGrid ? "Masquer la grille" : "Afficher la grille"}
+                                        className={cn(
+                                            "w-10 h-10 rounded-xl flex items-center justify-center transition-all border relative group",
+                                            showDebugGrid
+                                                ? "bg-emerald-500/30 border-emerald-400/80 shadow-[0_0_16px_rgba(16,185,129,0.5)] scale-105"
+                                                : "bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-500/60 shadow-sm"
+                                        )}
+                                    >
+                                        <img src="/assets/dofus/map-layers/icon-grid.png" alt="Grille" className="w-5 h-5 object-contain brightness-125 drop-shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
+                                        <span className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-black/95 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10 shadow-xl">Grille</span>
+                                    </button>
+
+                                    {/* Zones */}
+                                    <button
+                                        onClick={() => setZoneHighlight(!zoneHighlight)}
+                                        title={zoneHighlight ? "Masquer les zones" : "Afficher les zones"}
+                                        className={cn(
+                                            "w-10 h-10 rounded-xl flex items-center justify-center transition-all border relative group",
+                                            zoneHighlight
+                                                ? "bg-sky-500/30 border-sky-400/80 shadow-[0_0_16px_rgba(56,189,248,0.5)] scale-105"
+                                                : "bg-sky-500/10 border-sky-500/30 hover:bg-sky-500/20 hover:border-sky-500/60 shadow-sm"
+                                        )}
+                                    >
+                                        <img src={zoneHighlight ? "/assets/dofus/map-layers/icon-zones-on.png" : "/assets/dofus/map-layers/icon-zones.png"} alt="Zones" className="w-5 h-5 object-contain drop-shadow-[0_0_6px_rgba(56,189,248,0.6)]" />
+                                        <span className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-black/95 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10 shadow-xl">Zones</span>
+                                    </button>
+
+
+                                    {/* Donjons */}
+                                    <button
+                                        onClick={() => setShowDungeons(!showDungeons)}
+                                        title={showDungeons ? "Masquer les donjons" : "Afficher les donjons"}
+                                        className={cn(
+                                            "w-10 h-10 rounded-xl flex items-center justify-center transition-all border relative group",
+                                            showDungeons
+                                                ? "bg-red-500/30 border-red-400/80 shadow-[0_0_16px_rgba(239,68,68,0.5)] scale-105"
+                                                : "bg-red-500/10 border-red-500/30 hover:bg-red-500/20 hover:border-red-500/60 shadow-sm"
+                                        )}
+                                    >
+                                        <img src="/assets/dofus/map-layers/icon-dungeon-bright.png" alt="Donjons" className="w-6 h-6 object-contain drop-shadow-[0_0_6px_rgba(239,68,68,0.6)]" />
+                                        <span className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-black/95 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10 shadow-xl">Donjons</span>
+                                    </button>
+
+                                    {/* Séparateur */}
+                                    <div className="w-full h-px bg-white/10 my-0.5" />
+
+                                    {/* Moyens de transport */}
+                                    <button
+                                        onClick={() => { setShowPassages(!showPassages); setShowZaaps(!showPassages); }}
+                                        title={showPassages ? "Masquer les moyens de transport" : "Moyens de transport (Zaaps, bateaux, foreuses, diligences...)"}
+                                        className={cn(
+                                            "w-10 h-10 rounded-xl flex items-center justify-center transition-all border relative group",
+                                            showPassages
+                                                ? "bg-amber-500/30 border-amber-400/80 shadow-[0_0_16px_rgba(245,158,11,0.5)] scale-105"
+                                                : "bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20 hover:border-amber-500/60 shadow-sm"
+                                        )}
+                                    >
+                                        <img src="/assets/dofus/map-layers/icon-zaap-bright.png" alt="Moyens de transport" className="w-6 h-6 object-contain drop-shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
+                                        <span className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-black/95 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10 shadow-xl">Moyens de transport</span>
+                                    </button>
+
+                                    {/* Récolte & Métiers */}
+                                    <button
+                                        onClick={() => setShowHarvestPanel(!showHarvestPanel)}
+                                        title={showHarvestPanel ? "Fermer le panneau Récolte" : "Métiers & Ressources récoltables"}
+                                        className={cn(
+                                            "w-10 h-10 rounded-xl flex items-center justify-center transition-all border relative group",
+                                            showHarvestPanel || selectedHarvestResourceIds.size > 0
+                                                ? "bg-emerald-500/30 border-emerald-400/80 shadow-[0_0_16px_rgba(16,185,129,0.5)] scale-105"
+                                                : "bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-500/60 shadow-sm"
+                                        )}
+                                    >
+                                        <img src="/assets/dofus/map-layers/icon-harvest-bright.png" alt="Récolte" className="w-6 h-6 object-contain drop-shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
+                                        {selectedHarvestResourceIds.size > 0 && (
+                                            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 text-black text-[9px] font-black flex items-center justify-center">
+                                                {selectedHarvestResourceIds.size}
+                                            </span>
+                                        )}
+                                        <span className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-black/95 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10 shadow-xl">Récolte</span>
+                                    </button>
                                 </div>
-                            )}
-                        </AnimatePresence>
+                            </div>
+                        )}
                         <LeafletMapCore
                             activeWorld={activeWorld}
                             selectedWorldId={selectedWorldId}
@@ -2019,12 +2130,12 @@ export default function InteractiveMapV2({
                             mapsByCoords={allWorldMapsByCoords}
                             subAreasById={subAreasById}
                             dungeonsByMapId={dungeonsByMapId}
-                            groupedDungeons={groupedDungeons}
+                            groupedDungeons={showDungeons ? groupedDungeons : []}
                             showDebugGrid={showDebugGrid}
                             zoneHighlight={zoneHighlight}
                             selectedPosition={selectedPosition}
                             setSelectedPosition={handleMapClick}
-                            setSelectedDungeon={setSelectedDungeon}
+                            setSelectedDungeon={isOverlay ? () => {} : setSelectedDungeon}
                             triggerCenterPosition={triggerCenterPosition}
                             triggerWorldId={initialWorldId}
                             mapsBySubAreaId={mapsBySubAreaId}
@@ -2039,49 +2150,252 @@ export default function InteractiveMapV2({
                             minZoom={Math.max(selectedWorldId !== 1 ? -3 : -4, -(activeWorld.zoom?.length || 1) - 1)}
                             highlightSubareaIds={highlightSubareaIds}
                             interactive={interactive}
+                            isOverlay={isOverlay}
+                            autoCopyTravel={isOverlay || autoCopyTravel}
                             zaaps={zaaps}
                             showZaaps={showZaaps}
                             selectedHarvestResources={selectedHarvestResources}
-                            activeCircuit={activeCircuit}
+                            activeCircuit={null}
                             completedHarvestSteps={completedHarvestSteps}
                             onToggleHarvestStep={handleToggleHarvestStep}
-                        />
-
-                        {/* 🪓 Panneau Latéral Récolte, Métiers & GPS Opti-Farm */}
-                        <AnimatePresence>
-                            {showHarvestPanel && (
-                                <HarvestOptiFarmPanel
-                                    jobsData={harvestJobs}
-                                    selectedJobId={selectedHarvestJobId}
-                                    onSelectJobId={setSelectedHarvestJobId}
-                                    selectedResourceIds={selectedHarvestResourceIds}
-                                    onToggleResource={handleToggleHarvestResource}
-                                    onSelectAllUpToLevel={handleSelectAllHarvestUpToLevel}
-                                    onClearResources={handleClearHarvestResources}
-                                    activeCircuit={activeCircuit}
-                                    onSelectCircuit={handleSelectCircuit}
-                                    showZaaps={showZaaps}
-                                    onToggleShowZaaps={() => setShowZaaps(prev => !prev)}
-                                    isOpen={showHarvestPanel}
-                                    onClose={() => setShowHarvestPanel(false)}
-                                    activeWorldId={selectedWorldId}
-                                    onSelectWorld={setSelectedWorldId}
-                                    worlds={visibleWorlds}
-                                />
-                            )}
-                        </AnimatePresence>
-
-                        {/* 🧭 Télécommande Flottante Guidage GPS Opti-Farm */}
-                        <HarvestGpsController
-                            circuit={activeCircuit}
-                            onClose={() => setActiveCircuit(null)}
-                            onGoToCoord={(x: number, y: number) => {
-                                setTriggerCenterPosition({ x, y });
-                                setMinimapRecenterTrigger(prev => prev + 1);
+                            showPassages={showPassages}
+                            onOpenZoneDetails={(pos?: any) => {
+                                if (pos) {
+                                    setSelectedPosition({
+                                        x: pos.x,
+                                        y: pos.y,
+                                        displayX: pos.x,
+                                        displayY: pos.y,
+                                        mapId: pos.mapId,
+                                        subAreaId: pos.subAreaId
+                                    });
+                                }
+                                setShowZoneDetail(true);
                             }}
-                            completedStepIndices={completedHarvestSteps}
-                            onToggleStepCompleted={handleToggleHarvestStep}
                         />
+
+                        {/* 🪓 Panneau Récolte — plein en mode normal, barre compacte en overlay */}
+                        {isOverlay ? (
+                            // ── Barre compacte overlay avec navigation explicite (flèches) ──
+                            <AnimatePresence>
+                                {showHarvestPanel && (() => {
+                                    const jobIndex = harvestJobs.findIndex((j: any) => j.id === selectedHarvestJobId);
+                                    const prevJob = jobIndex > 0 ? harvestJobs[jobIndex - 1] : null;
+                                    const nextJob = jobIndex < harvestJobs.length - 1 ? harvestJobs[jobIndex + 1] : null;
+                                    const currentJob = harvestJobs[jobIndex];
+
+                                    const availableResources = currentJob
+                                        ? (currentJob.resources as any[]).filter((r: any) =>
+                                            r.spots.some((sp: any) => (sp.worldId || 1) === (selectedWorldId || 1))
+                                          )
+                                        : [];
+
+                                    // Index de la ressource active (si exactement 1 sélectionnée)
+                                    const activeResIds = [...selectedHarvestResourceIds];
+                                    const singleActiveId = activeResIds.length === 1 ? activeResIds[0] : null;
+                                    const resIndex = singleActiveId !== null
+                                        ? availableResources.findIndex((r: any) => r.id === singleActiveId)
+                                        : -1;
+
+                                    return (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -10 }}
+                                            transition={{ duration: 0.15 }}
+                                            className="absolute top-0 left-0 right-0 z-[1100] bg-[#030712]/97 backdrop-blur-xl border-b border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.9)] pointer-events-auto"
+                                        >
+                                            {/* ── Ligne 1 : Sélection du Métier ── */}
+                                            <div className="flex items-center gap-1 px-2 pt-1.5 pb-1 border-b border-white/[0.06]">
+                                                {/* Flèche précédent métier */}
+                                                <button
+                                                    onClick={() => prevJob && setSelectedHarvestJobId(prevJob.id)}
+                                                    disabled={!prevJob}
+                                                    className="w-5 h-5 flex items-center justify-center rounded-md bg-white/5 border border-white/10 text-white/40 hover:bg-white/15 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all shrink-0"
+                                                    title={prevJob ? `← ${prevJob.name}` : undefined}
+                                                >
+                                                    <ChevronLeft size={12} />
+                                                </button>
+
+                                                {/* Métiers pills */}
+                                                <div
+                                                    ref={overlayJobsScrollRef}
+                                                    onWheel={(e) => { if (e.deltaY !== 0) e.currentTarget.scrollLeft += e.deltaY; }}
+                                                    className="flex items-center gap-1 overflow-x-auto no-scrollbar flex-1 min-w-0 overscroll-x-contain touch-pan-x"
+                                                >
+                                                    {harvestJobs.map((job: any) => {
+                                                        const isSelected = selectedHarvestJobId === job.id;
+                                                        const jobCount = job.resources?.filter((r: any) => r.spots.some((sp: any) => (sp.worldId || 1) === (selectedWorldId || 1))).length || 0;
+                                                        const iconSrc = getHarvestJobIcon(job.name);
+                                                        return (
+                                                            <button
+                                                                key={job.id}
+                                                                data-active-job={isSelected ? 'true' : undefined}
+                                                                onClick={() => setSelectedHarvestJobId(job.id)}
+                                                                className={cn(
+                                                                    "flex items-center gap-1.5 px-2 py-0.5 rounded-lg transition-all border shrink-0 text-[11px] font-bold",
+                                                                    isSelected
+                                                                        ? "bg-emerald-500/25 border-emerald-400 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.35)]"
+                                                                        : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white"
+                                                                )}
+                                                                title={`${job.name} (${jobCount} ressources)`}
+                                                            >
+                                                                {iconSrc ? (
+                                                                    <img
+                                                                        src={iconSrc}
+                                                                        alt={job.name}
+                                                                        className="w-3.5 h-3.5 object-contain shrink-0"
+                                                                        onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                                                                    />
+                                                                ) : (
+                                                                    <span className="text-xs">{job.icon || "⛏️"}</span>
+                                                                )}
+                                                                <span className="whitespace-nowrap">{job.name}</span>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {/* Flèche suivant métier */}
+                                                <button
+                                                    onClick={() => nextJob && setSelectedHarvestJobId(nextJob.id)}
+                                                    disabled={!nextJob}
+                                                    className="w-5 h-5 flex items-center justify-center rounded-md bg-white/5 border border-white/10 text-white/40 hover:bg-white/15 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all shrink-0"
+                                                    title={nextJob ? `${nextJob.name} →` : undefined}
+                                                >
+                                                    <ChevronRight size={12} />
+                                                </button>
+
+                                                {/* Divider + Effacer + Fermer */}
+                                                <div className="flex items-center gap-1 shrink-0 pl-1 border-l border-white/10">
+                                                    {selectedHarvestResourceIds.size > 0 && (
+                                                        <button
+                                                            onClick={handleClearHarvestResources}
+                                                            className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-500/20 border border-red-500/40 text-red-400 text-[9px] font-black uppercase hover:bg-red-500/30 transition-all shrink-0"
+                                                            title="Tout désélectionner"
+                                                        >
+                                                            <X size={9} />
+                                                            <span>{selectedHarvestResourceIds.size}</span>
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => setShowHarvestPanel(false)}
+                                                        className="w-5 h-5 rounded-md bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all shrink-0"
+                                                        title="Fermer"
+                                                    >
+                                                        <X size={10} />
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* ── Ligne 2 : Sélection de la Ressource ── */}
+                                            <div className="flex items-center gap-1 px-2 py-1">
+                                                {/* Flèche précédent ressource */}
+                                                <button
+                                                    onClick={() => {
+                                                        if (availableResources.length === 0) return;
+                                                        const newIdx = resIndex > 0 ? resIndex - 1 : availableResources.length - 1;
+                                                        handleClearHarvestResources();
+                                                        handleToggleHarvestResource(availableResources[newIdx].id);
+                                                    }}
+                                                    disabled={availableResources.length === 0}
+                                                    className="w-5 h-5 flex items-center justify-center rounded-md bg-white/5 border border-white/10 text-white/40 hover:bg-white/15 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all shrink-0"
+                                                    title="Ressource précédente"
+                                                >
+                                                    <ChevronLeft size={12} />
+                                                </button>
+
+                                                {/* Ressources pills */}
+                                                <div
+                                                    ref={overlayResScrollRef}
+                                                    onWheel={(e) => { if (e.deltaY !== 0) e.currentTarget.scrollLeft += e.deltaY; }}
+                                                    className="flex items-center gap-1 overflow-x-auto no-scrollbar flex-1 min-w-0 py-0.5 overscroll-x-contain touch-pan-x"
+                                                >
+                                                    {availableResources.length === 0 ? (
+                                                        <span className="text-[10px] text-white/30 italic px-1">Aucune ressource disponible ici</span>
+                                                    ) : (
+                                                        availableResources.map((res: any) => {
+                                                            const active = selectedHarvestResourceIds.has(res.id);
+                                                            const spotsCount = res.spots
+                                                                .filter((sp: any) => (sp.worldId || 1) === (selectedWorldId || 1))
+                                                                .reduce((acc: number, s: any) => acc + s.count, 0);
+                                                            return (
+                                                                <button
+                                                                    key={res.id}
+                                                                    data-active-res={active ? 'true' : undefined}
+                                                                    onClick={() => handleToggleHarvestResource(res.id)}
+                                                                    className={cn(
+                                                                        "flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-bold transition-all shrink-0 whitespace-nowrap",
+                                                                        active
+                                                                            ? "bg-emerald-500/30 border-emerald-400 text-emerald-200 shadow-[0_0_8px_rgba(16,185,129,0.4)] ring-1 ring-emerald-400/50"
+                                                                            : "bg-white/5 border-white/10 text-white/55 hover:bg-white/10 hover:text-white"
+                                                                    )}
+                                                                    title={`${res.name} (Niv. ${res.level}) — ${spotsCount} spots`}
+                                                                >
+                                                                    {res.img && (
+                                                                        <img
+                                                                            src={res.img}
+                                                                            alt={res.name}
+                                                                            className="w-3 h-3 object-contain shrink-0"
+                                                                            onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                                                                        />
+                                                                    )}
+                                                                    <span>{res.name}</span>
+                                                                    <span className={cn(
+                                                                        "text-[9px] px-1 rounded-full font-mono",
+                                                                        active ? "bg-emerald-400/20 text-emerald-300" : "bg-white/10 text-white/35"
+                                                                    )}>
+                                                                        {spotsCount}
+                                                                    </span>
+                                                                </button>
+                                                            );
+                                                        })
+                                                    )}
+                                                </div>
+
+                                                {/* Flèche suivant ressource */}
+                                                <button
+                                                    onClick={() => {
+                                                        if (availableResources.length === 0) return;
+                                                        const newIdx = resIndex < availableResources.length - 1 ? resIndex + 1 : 0;
+                                                        handleClearHarvestResources();
+                                                        handleToggleHarvestResource(availableResources[newIdx].id);
+                                                    }}
+                                                    disabled={availableResources.length === 0}
+                                                    className="w-5 h-5 flex items-center justify-center rounded-md bg-white/5 border border-white/10 text-white/40 hover:bg-white/15 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all shrink-0"
+                                                    title="Ressource suivante"
+                                                >
+                                                    <ChevronRight size={12} />
+                                                </button>
+                                            </div>
+                                        </motion.div>
+                                    );
+                                })()}
+                            </AnimatePresence>
+                        ) : (
+                            <AnimatePresence>
+                                {showHarvestPanel && (
+                                    <HarvestOptiFarmPanel
+                                        jobsData={harvestJobs}
+                                        selectedJobId={selectedHarvestJobId}
+                                        onSelectJobId={setSelectedHarvestJobId}
+                                        selectedResourceIds={selectedHarvestResourceIds}
+                                        onToggleResource={handleToggleHarvestResource}
+                                        onSelectAllUpToLevel={handleSelectAllHarvestUpToLevel}
+                                        onClearResources={handleClearHarvestResources}
+                                        activeCircuit={null}
+                                        onSelectCircuit={() => {}}
+                                        showZaaps={showZaaps}
+                                        onToggleShowZaaps={() => setShowZaaps(prev => !prev)}
+                                        isOpen={showHarvestPanel}
+                                        onClose={() => setShowHarvestPanel(false)}
+                                        activeWorldId={selectedWorldId}
+                                        onSelectWorld={setSelectedWorldId}
+                                        worlds={visibleWorlds}
+                                    />
+                                )}
+                            </AnimatePresence>
+                        )}
 
                         {/* 🏷️ DofusDB Attribution Badge — déplacé dans le bandeau du haut */}
 
@@ -2612,31 +2926,82 @@ export default function InteractiveMapV2({
 
                 {/* Global Modals */}
                 <AnimatePresence>
-                    {showZoneDetail && selectedPosition && (
-                        <ZoneDetailModal
-                            isOpen={showZoneDetail}
-                            onClose={() => setShowZoneDetail(false)}
-                            guildId={guildId}
-                            position={selectedPosition}
-                            zoneName={
-                                (subAreasById.get(
-                                    (selectedPosition.mapId ? mapsById.get(selectedPosition.mapId) : mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`))?.subAreaId
-                                )?.name?.fr) ||
-                                (typeof subAreasById.get(
-                                    (selectedPosition.mapId ? mapsById.get(selectedPosition.mapId) : mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`))?.subAreaId)?.name === 'string'
-                                    ? subAreasById.get((selectedPosition.mapId ? mapsById.get(selectedPosition.mapId) : mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`))?.subAreaId)?.name
-                                    : "Zone Inconnue")
-                            }
-                            worldId={selectedWorldId}
-                        />
-                    )}
+                    {showZoneDetail && selectedPosition && (() => {
+                        const currentSubAreaId = (selectedPosition.mapId 
+                            ? mapsById.get(selectedPosition.mapId) 
+                            : mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`))?.subAreaId;
+                        const subAreaObj = currentSubAreaId ? subAreasById.get(currentSubAreaId) : null;
+                        const resolvedZoneName = subAreaObj?.name?.fr || (typeof subAreaObj?.name === 'string' ? subAreaObj.name : "Zone Inconnue");
+                        const exactMapId = selectedPosition.mapId || mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`)?.id;
 
-                    {selectedDungeon && (
+                        // En mode overlay : modale sombre responsive affichant UNIQUEMENT la tuile HD
+                        if (isOverlay) {
+                            return (
+                                <Dialog open={showZoneDetail} onOpenChange={(open) => !open && setShowZoneDetail(false)}>
+                                    <DialogContent className="max-w-[92vw] sm:max-w-2xl bg-[#030712]/95 backdrop-blur-2xl border border-white/10 p-4 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.9)] text-white overflow-hidden">
+                                        <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-mono font-black text-xs text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-md border border-emerald-500/30">
+                                                    [{selectedPosition.x}, {selectedPosition.y}]
+                                                </span>
+                                                <span className="text-sm font-bold text-white/90 truncate">
+                                                    {resolvedZoneName}
+                                                </span>
+                                            </div>
+                                            <button
+                                                onClick={() => setShowZoneDetail(false)}
+                                                className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/15 text-white/60 hover:text-white flex items-center justify-center transition-all"
+                                                title="Fermer"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+
+                                        <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-white/10 bg-black/60 shadow-inner flex items-center justify-center">
+                                            {exactMapId ? (
+                                                <img
+                                                    src={`/game-data/hd_maps/${exactMapId}.webp`}
+                                                    alt={`Tuile HD [${selectedPosition.x}, ${selectedPosition.y}]`}
+                                                    className="w-full h-full object-cover select-none"
+                                                    onError={(e) => {
+                                                        const el = e.currentTarget;
+                                                        el.style.display = 'none';
+                                                        const fallback = el.parentElement?.querySelector('.hd-fallback') as HTMLElement | null;
+                                                        if (fallback) fallback.style.display = 'flex';
+                                                    }}
+                                                />
+                                            ) : null}
+                                            <div className="hd-fallback hidden flex-col items-center justify-center gap-2 text-white/40 text-xs font-semibold p-6 text-center">
+                                                <span>Aperçu HD non disponible pour cette carte</span>
+                                            </div>
+                                        </div>
+                                    </DialogContent>
+                                </Dialog>
+                            );
+                        }
+
+                        // Mode normal : grand analyseur complet de zone
+                        return (
+                            <ZoneDetailModal
+                                isOpen={showZoneDetail}
+                                onClose={() => setShowZoneDetail(false)}
+                                guildId={guildId}
+                                isPublic={isPublic}
+                                position={selectedPosition}
+                                zoneName={resolvedZoneName}
+                                subAreaId={currentSubAreaId}
+                                worldId={selectedWorldId}
+                            />
+                        );
+                    })()}
+
+                    {!isOverlay && selectedDungeon && (
                         <DungeonDetailModal
                             isOpen={!!selectedDungeon}
                             onClose={() => setSelectedDungeon(null)}
                             dungeons={selectedDungeon}
                             guildId={guildId}
+                            isPublic={isPublic || !guildId}
                         />
                     )}
                 </AnimatePresence>
@@ -3366,44 +3731,7 @@ export default function InteractiveMapV2({
                     )}
                 </AnimatePresence>
 
-                {/* Map Detail Panel - Classic Exploration */}
-                {selectedPosition && activeTab === 'map' && (
-                    <MapDetailsPanel
-                        position={(() => {
-                            // If we already have a specialized mapId (e.g. from layer switcher), use it
-                            if (selectedPosition.mapId) return selectedPosition;
-                            // Otherwise find the best map for these coords
-                            const bestMap = allWorldMapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`);
-                            return {
-                                ...selectedPosition,
-                                mapId: bestMap?.id,
-                                subAreaId: bestMap?.subAreaId
-                            };
-                        })()}
-                        allLayers={allLayersByCoords.get(`${selectedPosition.x},${selectedPosition.y}`) || []}
-                        subAreaName={(() => {
-                            // Determine which subAreaId to use
-                            const currentMap = selectedPosition.mapId 
-                                ? allMapsById.get(selectedPosition.mapId) 
-                                : allWorldMapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`);
-                            
-                            const saId = currentMap?.subAreaId || selectedPosition.subAreaId || 0;
-                            const sa = subAreasById.get(saId);
-                            if (!sa) return undefined;
-                            return typeof sa.name === 'string' ? sa.name : sa.name?.fr;
-                        })()}
-                        guildId={guildId}
-                        onClose={() => setSelectedPosition(null)}
-                        onOpenZoneDetails={() => setShowZoneDetail(true)}
-                        onSelectMap={(map: MapNode) => {
-                            setSelectedPosition({
-                                ...selectedPosition,
-                                mapId: map.id,
-                                subAreaId: map.subAreaId
-                            });
-                        }}
-                    />
-                )}
+
                 {/* Perfect Guess Celebration Overlay */}
                 <AnimatePresence>
                     {showPerfectCelebration && (

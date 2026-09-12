@@ -17,6 +17,7 @@ import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 type HubCard = {
     href: string;
     icon: any;
+    imgSrc?: string;
     title: string;
     description: string;
     accent: "emerald" | "amber" | "indigo" | "violet" | "rose" | "cyan" | "slate";
@@ -65,6 +66,7 @@ export default async function StuffHubPage({
         {
             href: `/dashboard/${guildId}/worldmap`,
             icon: Compass,
+            imgSrc: "/assets/dofus/modules/map.png",
             title: "Carte du Monde",
             description: "Visualisez les zones importantes et les ressources stratégiques sur la carte.",
             accent: "emerald",
@@ -102,7 +104,11 @@ export default async function StuffHubPage({
                                             a.bg,
                                             a.border.replace("hover:", "")
                                         )}>
-                                            <Icon className={cn("w-7 h-7", a.text)} strokeWidth={1.5} />
+                                            {(card as any).imgSrc ? (
+                                                <img src={(card as any).imgSrc} alt="" className="w-8 h-8 object-contain" />
+                                            ) : (
+                                                <Icon className={cn("w-7 h-7", a.text)} strokeWidth={1.5} />
+                                            )}
                                         </div>
                                     </div>
 

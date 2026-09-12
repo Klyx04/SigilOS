@@ -406,6 +406,7 @@ export async function searchDungeonsAdvanced(filters: {
     isExpedition?: boolean;
     isEventDungeon?: boolean;
     zoneId?: string;
+    subAreaId?: number; // Réservé pour usage futur (mapId lookup)
 }): Promise<ActionResponse<any[]>> {
     try {
         const where: any = {};
@@ -431,6 +432,7 @@ export async function searchDungeonsAdvanced(filters: {
         return { success: false, error: 'Erreur lors de la recherche' };
     }
 }
+
 
 // ─── Event Zone Management (super-admin only) ────────────────
 
@@ -738,7 +740,7 @@ export async function deleteGameDataMonster(monsterId: string): Promise<ActionRe
 }
 
 /** Get monsters and bounties for a specific zone */
-export async function getZoneMonsters(zoneName: string): Promise<ActionResponse<{
+export async function getZoneMonsters(zoneName: string, subAreaId?: number): Promise<ActionResponse<{
     zoneName: string;
     normalMonsters: any[];
     avisDeRecherche: any[];
@@ -747,10 +749,16 @@ export async function getZoneMonsters(zoneName: string): Promise<ActionResponse<
     try {
         const norm = (s: string | null | undefined) =>
             (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-        const zNorm = norm(zoneName);
+        const cleanArticle = (s: string) =>
+            norm(s).replace(/^(le|la|les|l')\s+/, '').trim();
 
-        const zone = await db.zone.findFirst({
-            where: { name: { contains: zoneName, mode: 'insensitive' } },
+        const zNorm = norm(zoneName);
+        const zClean = cleanArticle(zoneName);
+
+        // 1. Recherche par match EXACT de la zone (insensible casse et accents)
+        // Évite le piège du 'contains' aveugle (ex: "Cimetière" qui résolvait "Cimetière des Torturés" !)
+        let zone = await db.zone.findFirst({
+            where: { name: { equals: zoneName, mode: 'insensitive' } },
             include: {
                 families: {
                     include: {
@@ -760,10 +768,45 @@ export async function getZoneMonsters(zoneName: string): Promise<ActionResponse<
             }
         });
 
+        // 2. Si pas trouvé par equals strict SQL, recherche parmi toutes les zones par équivalence normalisée ou sans article
+        if (!zone) {
+            const allZones = await db.zone.findMany({
+                include: {
+                    families: {
+                        include: {
+                            monsters: true
+                        }
+                    }
+                }
+            });
+
+            // A. Match strict normalisé
+            zone = allZones.find(z => norm(z.name) === zNorm) ?? null;
+
+            // B. Match sans article (ex: "La Bourgade" <-> "Bourgade", "Le Cimetière" <-> "Cimetière")
+            if (!zone) {
+                zone = allZones.find(z => cleanArticle(z.name) === zClean) ?? null;
+            }
+
+            // C. Match de sous-zone explicite avec le meilleur recouvrement (plus petite différence de longueur)
+            if (!zone) {
+                const candidates = allZones.filter(z => {
+                    const zNameNorm = norm(z.name);
+                    return zNameNorm.includes(zNorm) || zNorm.includes(zNameNorm);
+                });
+                if (candidates.length > 0) {
+                    // Trier par proximité de longueur pour éviter les faux positifs lointains
+                    candidates.sort((a, b) => Math.abs(a.name.length - zoneName.length) - Math.abs(b.name.length - zoneName.length));
+                    zone = candidates[0] ?? null;
+                }
+            }
+        }
+
         const normalMonsters: any[] = [];
         const avisDeRecherche: any[] = [];
         const families: any[] = [];
         const seenFamilies = new Set<string>();
+        const seenMonsters = new Set<string>();
 
         if (zone && zone.families.length > 0) {
             zone.families.forEach(family => {
@@ -781,20 +824,27 @@ export async function getZoneMonsters(zoneName: string): Promise<ActionResponse<
                 }
                 family.monsters.forEach(monster => {
                     if (isAvis) {
-                        avisDeRecherche.push(monster);
+                        if (!seenMonsters.has(monster.name)) {
+                            seenMonsters.add(monster.name);
+                            avisDeRecherche.push(monster);
+                        }
                     } else {
-                        normalMonsters.push({
-                            ...monster,
-                            familyName: family.name
-                        });
+                        if (!seenMonsters.has(monster.name)) {
+                            seenMonsters.add(monster.name);
+                            normalMonsters.push({
+                                ...monster,
+                                familyName: family.name
+                            });
+                        }
                     }
                 });
             });
         }
 
         // Si la zone n'a pas de familles liées (ou zone non déclarée dans Zone), auto-détection dynamique stricte
+        // ATTENTION : Aucun faux positif ! Ne matcher que les familles dont le nom correspond
+        // fidèlement à la zone (nom exact ou terminaison géographique spécifique)
         if (families.length === 0) {
-            // 1. Chercher les familles dont le nom match strictement ou est préfixe/suffixe évident de la zone
             const candidateFamilies = await db.monsterFamily.findMany({
                 include: { monsters: true }
             });
@@ -802,13 +852,15 @@ export async function getZoneMonsters(zoneName: string): Promise<ActionResponse<
             for (const f of candidateFamilies) {
                 if (isIgnoredFamily(f.name)) continue;
                 const fNorm = norm(f.name);
-                const isExact = fNorm === zNorm;
-                const isDirectSub = fNorm.length >= 6 && zNorm.length >= 6 && (
-                    zNorm.startsWith(fNorm + ' ') || zNorm.endsWith(' ' + fNorm) ||
-                    fNorm.startsWith(zNorm + ' ') || fNorm.endsWith(' ' + zNorm)
-                );
+                const isExact = fNorm === zNorm || cleanArticle(f.name) === zClean;
 
-                if (isExact || isDirectSub) {
+                // Match strict de sous-partie : le nom de zone mentionne explicitement la famille entière
+                // ex: Zone "Plaine des Scarafeuilles" -> Famille "Scarafeuilles"
+                // ex: Zone "Péninsule des gelées" -> Famille "Gelées"
+                // On interdit le match si fNorm est trop court (< 5 lettres) pour éviter les faux positifs.
+                const isGeographicSub = fNorm.length >= 5 && zNorm.endsWith(' ' + fNorm);
+
+                if (isExact || isGeographicSub) {
                     if (!seenFamilies.has(f.name)) {
                         seenFamilies.add(f.name);
                         families.push({
@@ -819,7 +871,10 @@ export async function getZoneMonsters(zoneName: string): Promise<ActionResponse<
                             monstersCount: f.monsters.length
                         });
                         f.monsters.forEach(m => {
-                            normalMonsters.push({ ...m, familyName: f.name });
+                            if (!seenMonsters.has(m.name)) {
+                                seenMonsters.add(m.name);
+                                normalMonsters.push({ ...m, familyName: f.name });
+                            }
                         });
                     }
                 }

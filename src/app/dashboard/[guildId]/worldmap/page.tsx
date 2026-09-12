@@ -48,8 +48,9 @@ export default async function WorldMapPage({ params, searchParams }: Props) {
                     <UnifiedModuleHeader
                         title="Carte du Monde"
                         description="Explorez le monde des Douze"
-                        imageSrc="/assets/nav/world.png"
-                        backHref={`/dashboard/${guildId}`}
+                        imageSrc="/assets/dofus/modules/map.png"
+                        backHref={`/dashboard/${guildId}/worldmap`}
+                        backLabel="Présentation"
                         compact={true}
                         className="mb-0"
                         actions={<ModuleHelpActions docSlug="worldmap" docTitle="Carte Interactive Dofus HD" />}

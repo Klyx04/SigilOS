@@ -30,6 +30,7 @@ interface HarvestRouteOverlayProps {
     completedStepIndices?: Set<number>;
     onToggleStepCompleted?: (stepIdx: number) => void;
     mapsByCoords?: Map<string, any>;
+    isOverlay?: boolean;
 }
 
 // ── Cache de pathfinding mémoire pour garantir 120 FPS ──
@@ -130,20 +131,11 @@ function findOrthogonalPath(
         }
     }
 
-    // Si aucun chemin terrestre continu direct (ex: île séparée), chemin orthogonal direct
-    const fallback: [number, number][] = [start];
-    let cx = start[0], cy = start[1];
-    while (cx !== goal[0]) {
-        cx += (goal[0] > cx ? 1 : -1);
-        fallback.push([cx, cy]);
-    }
-    while (cy !== goal[1]) {
-        cy += (goal[1] > cy ? 1 : -1);
-        fallback.push([cx, cy]);
-    }
-
-    pathCache.set(cacheKey, fallback);
-    return fallback;
+    // Aucun chemin terrestre trouvé — les spots insulaires ne doivent jamais
+    // arriver ici grâce au clustering par composante connexe.
+    // On retourne un chemin vide pour éviter tout tracé fantôme.
+    pathCache.set(cacheKey, []);
+    return [];
 }
 
 export function HarvestRouteOverlay({
@@ -154,10 +146,10 @@ export function HarvestRouteOverlay({
     activeCircuit = null,
     completedStepIndices = new Set(),
     onToggleStepCompleted,
-    mapsByCoords
+    mapsByCoords,
+    isOverlay = false
 }: HarvestRouteOverlayProps) {
     const map = useMap();
-    const zaapLayerRef = useRef<L.LayerGroup | null>(null);
     const spotsLayerRef = useRef<L.LayerGroup | null>(null);
     const circuitLayerRef = useRef<L.LayerGroup | null>(null);
 
@@ -165,12 +157,10 @@ export function HarvestRouteOverlay({
     useEffect(() => {
         if (!map) return;
 
-        zaapLayerRef.current = L.layerGroup().addTo(map);
         spotsLayerRef.current = L.layerGroup().addTo(map);
         circuitLayerRef.current = L.layerGroup().addTo(map);
 
         return () => {
-            zaapLayerRef.current?.remove();
             spotsLayerRef.current?.remove();
             circuitLayerRef.current?.remove();
         };
@@ -184,53 +174,22 @@ export function HarvestRouteOverlay({
         return L.latLng(lat, lng);
     };
 
-    // 1. Mise à jour des Zaaps et des Spots d'exploration (quand aucun circuit n'est actif)
+    // 1. Mise à jour des Spots d'exploration (quand aucun circuit n'est actif)
+    // Note : les Zaaps sont désormais gérés par SecretPassagesOverlay (clustering unifié).
     useEffect(() => {
-        if (!map || !zaapLayerRef.current || !spotsLayerRef.current || !activeWorld) return;
+        if (!map || !spotsLayerRef.current || !activeWorld) return;
 
-        zaapLayerRef.current.clearLayers();
         spotsLayerRef.current.clearLayers();
 
-        // A. ZAAPS
-        if (showZaaps) {
-            const currentWorldZaaps = zaaps.filter(z => (z.worldId || 1) === activeWorld.id);
-
-            currentWorldZaaps.forEach(zaap => {
-                const latLng = coordToLatLng(zaap.x, zaap.y);
-                if (!latLng) return;
-
-                const iconHtml = `
-                    <div class="zaap-badge flex flex-col items-center justify-center cursor-pointer group hover:scale-110 transition-transform">
-                        <div class="w-7 h-7 rounded-full bg-sky-950/90 border border-sky-400/80 flex items-center justify-center shadow-lg shadow-sky-500/20 p-0.5 backdrop-blur-sm group-hover:border-sky-300 transition-colors">
-                            <img src="/assets/dofus/zaap.png" class="w-5 h-5 object-contain drop-shadow-[0_0_4px_rgba(56,189,248,0.8)]" alt="Zaap" />
-                        </div>
-                        <div class="mt-0.5 bg-black/90 text-sky-200 text-[9px] font-bold px-1.5 py-0.2 rounded whitespace-nowrap pointer-events-none border border-sky-400/30 shadow">
-                            ${zaap.name}
-                        </div>
-                    </div>
-                `;
-
-                const icon = L.divIcon({
-                    html: iconHtml,
-                    className: "zaap-marker-clean",
-                    iconSize: [30, 40],
-                    iconAnchor: [15, 15]
-                });
-
-                const marker = L.marker(latLng, { icon, zIndexOffset: 700 });
-                marker.on("click", () => {
-                    const cmd = `/travel ${zaap.x} ${zaap.y}`;
-                    navigator.clipboard.writeText(cmd);
-                    toast.success(`Zaap ${zaap.name} : ${cmd} copié !`, { duration: 1500 });
-                });
-
-                marker.addTo(zaapLayerRef.current!);
-            });
-        }
-
-        // B. SPOTS DE RÉCOLTE (en mode exploration)
-        if (!activeCircuit && selectedResources.length > 0) {
+        // B. SPOTS DE RÉCOLTE (visibles en exploration, et en arrière-plan estompé en mode circuit)
+        if (selectedResources.length > 0) {
             const spotsMap = new Map<string, { x: number; y: number; total: number; worldId: number; resources: { name: string; img: string; count: number }[] }>();
+
+            // Ensemble des coordonnées faisant déjà partie du circuit actif (pour ne pas doubler l'affichage)
+            const circuitCoordsSet = new Set<string>();
+            if (activeCircuit && activeCircuit.path) {
+                activeCircuit.path.forEach((p: any) => circuitCoordsSet.add(`${p.x},${p.y}`));
+            }
 
             selectedResources.forEach(res => {
                 res.spots.forEach(sp => {
@@ -247,24 +206,28 @@ export function HarvestRouteOverlay({
                 });
             });
 
-            let count = 0;
-            const maxRender = 100;
-
             for (const cell of spotsMap.values()) {
-                if (count++ >= maxRender) break;
+                const isPartOfActiveCircuit = circuitCoordsSet.has(`${cell.x},${cell.y}`);
+                // Si la case est déjà mise en avant dans le circuit actif, on n'affiche pas le spot standard par-dessus
+                if (activeCircuit && isPartOfActiveCircuit) continue;
 
                 const latLng = coordToLatLng(cell.x, cell.y);
                 if (!latLng) continue;
 
                 const mainRes = cell.resources[0];
+                const isDimmed = !!activeCircuit;
+
                 const iconHtml = `
-                    <div class="relative flex items-center justify-center cursor-pointer group hover:scale-115 transition-transform" title="${cell.resources.map(r => `${r.count}x ${r.name}`).join(', ')} [${cell.x}, ${cell.y}]">
-                        <div class="w-6 h-6 rounded-full bg-black/85 border border-white/50 shadow flex items-center justify-center p-0.5">
-                            <img src="${mainRes.img}" class="w-4 h-4 object-contain" alt="" />
+                    <div class="relative flex items-center justify-center cursor-pointer group hover:scale-115 transition-all ${
+                        isDimmed ? 'opacity-40 hover:opacity-90' : 'opacity-100'
+                    }" title="${cell.resources.map(r => `${r.count}x ${r.name}`).join(', ')} [${cell.x}, ${cell.y}]">
+                        <div class="${isDimmed ? 'w-5 h-5' : 'w-6 h-6'} rounded-full bg-black/85 border ${isDimmed ? 'border-white/30' : 'border-white/60'} shadow flex items-center justify-center p-0.5">
+                            <img src="${mainRes.img}" class="${isDimmed ? 'w-3 h-3' : 'w-4 h-4'} object-contain" alt="" />
                         </div>
+                        ${!isDimmed ? `
                         <span class="absolute -bottom-1 -right-1 min-w-[14px] h-3.5 px-0.5 rounded-full bg-amber-500 text-black text-[8px] font-black flex items-center justify-center shadow border border-white leading-none">
                             ${cell.total}
-                        </span>
+                        </span>` : ''}
                     </div>
                 `;
 
@@ -275,210 +238,183 @@ export function HarvestRouteOverlay({
                     iconAnchor: [13, 13]
                 });
 
-                const marker = L.marker(latLng, { icon, zIndexOffset: 650 });
+                const marker = L.marker(latLng, { icon, zIndexOffset: isDimmed ? 500 : 650 });
                 marker.on("click", () => {
                     const cmd = `/travel ${cell.x} ${cell.y}`;
                     navigator.clipboard.writeText(cmd);
-                    toast.success(`[${cell.x}, ${cell.y}] : ${cmd} copié !`, { duration: 1200 });
+                    if (isOverlay) {
+                        toast.success(`${cmd}`, {
+                            icon: '📍',
+                            duration: 1200,
+                            position: 'bottom-right',
+                            className: 'text-xs !py-2 !px-3 !min-h-0'
+                        });
+                    } else {
+                        toast.success(`[${cell.x}, ${cell.y}] : ${cmd} copié !`, { duration: 1200 });
+                    }
                 });
 
                 marker.addTo(spotsLayerRef.current!);
             }
         }
-    }, [map, activeWorld, zaaps, showZaaps, selectedResources, activeCircuit]);
+    }, [map, activeWorld, selectedResources, activeCircuit, isOverlay]);
 
-    const lastCircuitKeyRef = useRef<string | null>(null);
-
-    // 2. Rendu du Tracé Opti-Farm & des Étapes
+    // 2. Recentrage caméra automatique au lancement d'un circuit
+    const prevCircuitRef = useRef<any>(null);
     useEffect(() => {
-        if (!map || !circuitLayerRef.current || !activeWorld) return;
+        if (!map || !activeCircuit || !activeWorld) return;
+        if (prevCircuitRef.current === activeCircuit) return;
+        prevCircuitRef.current = activeCircuit;
+
+        const [zx, zy] = activeCircuit.zaapCoord || [activeCircuit.path?.[0]?.x, activeCircuit.path?.[0]?.y];
+        if (zx !== undefined && zy !== undefined) {
+            const target = coordToLatLng(zx, zy);
+            if (target) {
+                map.flyTo(target, Math.max(map.getZoom(), 0), {
+                    duration: 1.0,
+                    easeLinearity: 0.25
+                });
+                toast.success(`Cap sur le départ : ${activeCircuit.zaapName}`, {
+                    description: `${activeCircuit.mapCount} maps · ${activeCircuit.totalResources} ressources`,
+                    duration: 2500
+                });
+            }
+        }
+    }, [activeCircuit, map, activeWorld]);
+
+    // 3. Rendu du circuit actif (route de farm)
+    useEffect(() => {
+        if (!circuitLayerRef.current || !activeWorld) return;
         circuitLayerRef.current.clearLayers();
+        if (!activeCircuit) return;
 
-        if (!activeCircuit || !activeCircuit.path || activeCircuit.path.length < 2 || (activeCircuit.worldId || 1) !== activeWorld.id) {
-            lastCircuitKeyRef.current = null;
-            return;
-        }
+        const path = activeCircuit.path;
+        if (!path || path.length < 2) return;
 
-        const currentCircuitKey = `${activeCircuit.zaapId}-${activeCircuit.totalResources}-${activeCircuit.worldId}`;
-        const isNewCircuit = lastCircuitKeyRef.current !== currentCircuitKey;
-        lastCircuitKeyRef.current = currentCircuitKey;
+        // ── A. Tracer la polyligne de la route ──────────────────────
+        const routePoints: L.LatLng[] = [];
 
-        // Points bruts du circuit
-        const rawPoints = [...activeCircuit.path];
-        const startPoint = rawPoints[0];
+        for (let i = 0; i < path.length - 1; i++) {
+            const from = path[i];
+            const to = path[i + 1];
 
-        // Étapes de récolte ordonnées (en excluant le Zaap initial et tout retour inutile)
-        let harvestSteps = rawPoints.slice(1);
-        if (harvestSteps.length > 1) {
-            const last = harvestSteps[harvestSteps.length - 1];
-            if (last.x === startPoint.x && last.y === startPoint.y) {
-                harvestSteps.pop();
-            }
-        }
-
-        // Si le Zaap est en [10, 22] (Rivage sufokien) et que le circuit cible le Cimetière d'Amakna,
-        // faire entrer la boucle par la porte [12, 17]
-        const hasCemeterySpots = harvestSteps.some(s => s.x >= 7 && s.x <= 12 && s.y >= 14 && s.y <= 17);
-        if (startPoint.x === 10 && startPoint.y === 22 && hasCemeterySpots) {
-            // Trouver le point le plus proche de la porte [12, 17]
-            const gateIdx = harvestSteps.findIndex(s => s.x === 12 && s.y === 17);
-            if (gateIdx > 0) {
-                // Réordonner la boucle pour commencer par la porte du cimetière
-                const reordered = [...harvestSteps.slice(gateIdx), ...harvestSteps.slice(0, gateIdx)];
-                harvestSteps = reordered;
-            }
-        }
-
-        // Séquence des points clés : Zaap -> Étape 1 -> ... -> Étape N
-        const keyWaypoints: { x: number; y: number; count?: number }[] = [startPoint, ...harvestSteps];
-
-        // Génération du tracé orthogonal continu case par case
-        const fullTilePath: [number, number][] = [];
-        for (let i = 0; i < keyWaypoints.length - 1; i++) {
-            const p1 = keyWaypoints[i];
-            const p2 = keyWaypoints[i + 1];
-            const segment = findOrthogonalPath([p1.x, p1.y], [p2.x, p2.y], mapsByCoords);
-
-            if (fullTilePath.length === 0) {
-                fullTilePath.push(...segment);
-            } else {
-                // Éviter de dupliquer la case de jonction
-                fullTilePath.push(...segment.slice(1));
-            }
-        }
-
-        // Conversion en coordonnées LatLng pour Leaflet
-        const polylineLatLngs: L.LatLng[] = [];
-        fullTilePath.forEach(([x, y]) => {
-            const ll = coordToLatLng(x, y);
-            if (ll) polylineLatLngs.push(ll);
-        });
-
-        if (polylineLatLngs.length < 2) return;
-
-        // A. TRACÉ DOUBLE COUCHE (Contraste maximal & lisibilité garantie)
-        // 1. Halo d'ombre sombre (détache le tracé sur Cania / désert / neige)
-        const shadowPolyline = L.polyline(polylineLatLngs, {
-            color: "#020617",
-            weight: 6,
-            opacity: 0.75,
-            lineCap: "round",
-            lineJoin: "round"
-        });
-        shadowPolyline.addTo(circuitLayerRef.current);
-
-        // 2. Ligne lumineuse principale (ambre / émeraude vif)
-        const mainPolyline = L.polyline(polylineLatLngs, {
-            color: "#f59e0b",
-            weight: 3.5,
-            opacity: 0.95,
-            lineCap: "round",
-            lineJoin: "round"
-        });
-        mainPolyline.addTo(circuitLayerRef.current);
-
-        // B. MARQUEUR DÉPART (Zaap) — Compact & élégant
-        const startLatLng = coordToLatLng(startPoint.x, startPoint.y);
-        if (startLatLng) {
-            const startIcon = L.divIcon({
-                html: `
-                    <div class="flex items-center justify-center cursor-pointer group" title="Départ Zaap : [${startPoint.x}, ${startPoint.y}]">
-                        <div class="h-6 px-2.5 rounded-full bg-emerald-500 text-slate-950 font-black text-[10px] tracking-wide border border-white shadow-xl flex items-center gap-1.5 whitespace-nowrap group-hover:scale-105 transition-transform">
-                            <img src="/assets/dofus/zaap.png" class="w-3.5 h-3.5 object-contain" alt="" />
-                            <span>Départ [${startPoint.x}, ${startPoint.y}]</span>
-                        </div>
-                    </div>
-                `,
-                className: "circuit-start-marker",
-                iconSize: [110, 24],
-                iconAnchor: [55, 12]
-            });
-
-            const startMarker = L.marker(startLatLng, { icon: startIcon, zIndexOffset: 950 });
-            startMarker.on("click", () => {
-                const cmd = `/travel ${startPoint.x} ${startPoint.y}`;
-                navigator.clipboard.writeText(cmd);
-                toast.success(`Zaap départ : ${cmd} copié !`, { duration: 1500 });
-            });
-            startMarker.addTo(circuitLayerRef.current);
-        }
-
-        // C. MARQUEUR FIN (Dernière étape) — Compact & élégant
-        const endPoint = keyWaypoints[keyWaypoints.length - 1];
-        if (keyWaypoints.length > 1) {
-            const endLatLng = coordToLatLng(endPoint.x, endPoint.y);
-            if (endLatLng) {
-                const endIcon = L.divIcon({
-                    html: `
-                        <div class="flex items-center justify-center cursor-pointer group" title="Fin de tournée : [${endPoint.x}, ${endPoint.y}]">
-                            <div class="h-6 px-2 rounded-full bg-rose-600 text-white font-black text-[10px] tracking-wide border border-white shadow-xl flex items-center gap-1 whitespace-nowrap group-hover:scale-105 transition-transform">
-                                <span>🏁</span>
-                                <span>Fin [${endPoint.x}, ${endPoint.y}]</span>
-                            </div>
-                        </div>
-                    `,
-                    className: "circuit-end-marker",
-                    iconSize: [85, 24],
-                    iconAnchor: [42, 12]
-                });
-
-                const endMarker = L.marker(endLatLng, { icon: endIcon, zIndexOffset: 940 });
-                endMarker.on("click", () => {
-                    const cmd = `/travel ${endPoint.x} ${endPoint.y}`;
-                    navigator.clipboard.writeText(cmd);
-                    toast.success(`Arrivée : ${cmd} copié !`, { duration: 1500 });
-                });
-                endMarker.addTo(circuitLayerRef.current);
-            }
-        }
-
-        // D. PASTILLES D'ÉTAPES COMPACTES (22px au lieu de 32px pour une aération parfaite)
-        keyWaypoints.forEach((pt, idx) => {
-            if (idx === 0) return; // Départ déjà géré
-
-            const ptLatLng = coordToLatLng(pt.x, pt.y);
-            if (!ptLatLng) return;
-
-            const isHarvested = completedStepIndices.has(idx);
-            const count = pt.count || 1;
-
-            const stepIcon = L.divIcon({
-                html: `
-                    <div class="relative flex items-center justify-center cursor-pointer group hover:scale-125 transition-transform ${isHarvested ? 'opacity-40' : ''}" title="Étape ${idx} : [${pt.x}, ${pt.y}] (${count} spot${count > 1 ? 's' : ''})${isHarvested ? ' - Récolté ✅' : ''}">
-                        <div class="w-[22px] h-[22px] rounded-full ${isHarvested ? 'bg-emerald-600 border-white' : 'bg-slate-950 border-amber-400'} border-2 shadow-lg flex items-center justify-center">
-                            <span class="text-[10px] font-black leading-none text-white">${isHarvested ? '✓' : idx}</span>
-                        </div>
-                        ${count > 1 ? `
-                            <span class="absolute -bottom-1 -right-1 min-w-[13px] h-3 px-0.5 rounded-full ${isHarvested ? 'bg-emerald-500 text-white' : 'bg-amber-400 text-slate-950'} text-[8px] font-black flex items-center justify-center border border-black leading-none shadow">
-                                +${count}
-                            </span>
-                        ` : ''}
-                    </div>
-                `,
-                className: "circuit-step-marker",
-                iconSize: [22, 22],
-                iconAnchor: [11, 11]
-            });
-
-            const stepMarker = L.marker(ptLatLng, { icon: stepIcon, zIndexOffset: isHarvested ? 800 : 880 });
-            stepMarker.on("click", () => {
-                if (onToggleStepCompleted) {
-                    onToggleStepCompleted(idx);
+            // Si les maps sont déjà immédiatement adjacentes, tracé direct sans calcul
+            if (Math.abs(from.x - to.x) + Math.abs(from.y - to.y) <= 1) {
+                const llFrom = coordToLatLng(from.x, from.y);
+                if (llFrom && (routePoints.length === 0 || !routePoints[routePoints.length - 1].equals(llFrom))) {
+                    routePoints.push(llFrom);
                 }
-                const cmd = `/travel ${pt.x} ${pt.y}`;
-                navigator.clipboard.writeText(cmd);
-                toast.success(`Étape ${idx} [${pt.x}, ${pt.y}] ${isHarvested ? '(Décochée)' : '(Récoltée ✅)'} - ${cmd} copié !`, { duration: 1200 });
-            });
-            stepMarker.addTo(circuitLayerRef.current!);
-        });
+                const llTo = coordToLatLng(to.x, to.y);
+                if (llTo) routePoints.push(llTo);
+            } else {
+                // A* sur la grille terrestre pour contourner les obstacles
+                const segment = findOrthogonalPath(
+                    [from.x, from.y],
+                    [to.x, to.y],
+                    mapsByCoords
+                );
 
-        // E. Ajustement de la vue Leaflet UNIQUEMENT lors de la sélection initiale du circuit
-        if (isNewCircuit) {
-            const bounds = L.latLngBounds(polylineLatLngs);
-            map.flyToBounds(bounds, { padding: [80, 80], duration: 0.8, maxZoom: 1 });
+                segment.forEach(([sx, sy]) => {
+                    const ll = coordToLatLng(sx, sy);
+                    if (ll) routePoints.push(ll);
+                });
+            }
         }
 
-    }, [map, activeWorld, activeCircuit, completedStepIndices, onToggleStepCompleted, mapsByCoords]);
+        // Polyligne principale (vert émeraude)
+        if (routePoints.length > 1) {
+            L.polyline(routePoints, {
+                color: "#10b981",
+                weight: 3.5,
+                opacity: 0.85,
+                dashArray: "6 4",
+                lineJoin: "round"
+            }).addTo(circuitLayerRef.current!);
+
+            // Halo lumineux derrière la ligne
+            L.polyline(routePoints, {
+                color: "#34d399",
+                weight: 8,
+                opacity: 0.2,
+                lineJoin: "round"
+            }).addTo(circuitLayerRef.current!);
+        }
+
+        // ── B. Marqueur ZAAP de départ ───────────────────────────────
+        const zaapLatLng = coordToLatLng(activeCircuit.zaapCoord[0], activeCircuit.zaapCoord[1]);
+        if (zaapLatLng) {
+            const zaapIcon = L.divIcon({
+                html: `
+                    <div class="flex flex-col items-center">
+                        <div class="w-9 h-9 rounded-full bg-emerald-950/95 border-2 border-emerald-400 flex items-center justify-center shadow-lg shadow-emerald-500/50">
+                            <img src="/assets/dofus/zaap.png" class="w-5 h-5 object-contain drop-shadow-[0_0_6px_rgba(52,211,153,0.9)]" alt="Start" />
+                        </div>
+                        <div class="mt-0.5 bg-black/90 text-emerald-300 text-[9px] font-black px-1.5 py-0.5 rounded border border-emerald-500/50 whitespace-nowrap shadow">
+                            DÉPART
+                        </div>
+                    </div>`,
+                className: "circuit-zaap-marker",
+                iconSize: [36, 50],
+                iconAnchor: [18, 18]
+            });
+            L.marker(zaapLatLng, { icon: zaapIcon, zIndexOffset: 1000 })
+                .addTo(circuitLayerRef.current!);
+        }
+
+        // ── C. Marqueurs numérotés pour chaque étape de récolte ──────
+        // On ne numérote QUE les maps ayant des ressources à récolter (count > 0)
+        let harvestIndex = 0;
+        for (let i = 1; i < path.length - 1; i++) {
+            const step = path[i];
+            if (!step.count && step.count !== undefined) continue;
+
+            const ll = coordToLatLng(step.x, step.y);
+            if (!ll) continue;
+
+            harvestIndex++;
+            const stepNum = harvestIndex;
+            const isDone = completedStepIndices.has(i - 1);
+
+            const iconHtml = `
+                <div class="flex flex-col items-center cursor-pointer group">
+                    <div class="w-6 h-6 rounded-full flex items-center justify-center shadow-md border-2 transition-all ${
+                        isDone
+                            ? "bg-emerald-600 border-emerald-300 text-white"
+                            : "bg-black/90 border-emerald-500 text-emerald-300 group-hover:border-emerald-300 group-hover:scale-110"
+                    }">
+                        <span class="text-[9px] font-black leading-none">${isDone ? "✓" : stepNum}</span>
+                    </div>
+                    ${step.count ? `<span class="mt-0.5 text-[8px] font-bold text-emerald-400 bg-black/80 px-1 rounded leading-none">${step.count}</span>` : ""}
+                </div>`;
+
+            const icon = L.divIcon({
+                html: iconHtml,
+                className: "circuit-step-marker",
+                iconSize: [24, 30],
+                iconAnchor: [12, 12]
+            });
+
+            const marker = L.marker(ll, { icon, zIndexOffset: 900 + stepNum });
+            marker.on("click", () => {
+                if (onToggleStepCompleted) onToggleStepCompleted(i - 1);
+                const cmd = `/travel ${step.x} ${step.y}`;
+                navigator.clipboard.writeText(cmd);
+                if (isOverlay) {
+                    toast.success(`${cmd}`, {
+                        icon: '📍',
+                        duration: 1200,
+                        position: 'bottom-right',
+                        className: 'text-xs !py-2 !px-3 !min-h-0'
+                    });
+                } else {
+                    toast.success(`Étape ${stepNum} [${step.x}, ${step.y}] copié !`, { duration: 1000 });
+                }
+            });
+            marker.addTo(circuitLayerRef.current!);
+        }
+
+    }, [activeCircuit, activeWorld, completedStepIndices, mapsByCoords, onToggleStepCompleted, isOverlay]);
 
     return null;
 }
+

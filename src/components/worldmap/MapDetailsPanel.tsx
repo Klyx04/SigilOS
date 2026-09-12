@@ -1,18 +1,18 @@
 'use client';
 // dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
-import { X, Maximize2, Minimize2, MapPin, RefreshCw, Swords, Plus, Minus, Layers } from 'lucide-react';
+import { X, Maximize2, Minimize2, MapPin, RefreshCw, Swords, Plus, Minus, Layers, Compass, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-
+import { toast } from 'sonner';
 
 interface MapDetailsPanelProps {
     position: { x: number; y: number; displayX: number; displayY: number; mapId?: number };
     allLayers?: any[];
     subAreaName?: string;
     guildId: string;
+    zaaps?: any[];
     onClose: () => void;
     onOpenZoneDetails?: () => void;
     onSelectMap?: (map: any) => void;
@@ -23,6 +23,7 @@ export default function MapDetailsPanel({
     allLayers = [], 
     subAreaName, 
     guildId, 
+    zaaps = [],
     onClose, 
     onOpenZoneDetails,
     onSelectMap
@@ -32,6 +33,21 @@ export default function MapDetailsPanel({
     const [pan, setPan] = useState({ x: 0, y: 0 });
     const containerRef = useRef<HTMLDivElement>(null);
     const dragControls = useDragControls();
+
+    // ── Smart GPS Zaap : calcul du Zaap le plus proche ──
+    const nearestZaap = useMemo(() => {
+        if (!zaaps || zaaps.length === 0 || !position) return null;
+        let closest: any = null;
+        let minDist = Infinity;
+        for (const z of zaaps) {
+            const dist = Math.abs(z.x - position.x) + Math.abs(z.y - position.y);
+            if (dist < minDist) {
+                minDist = dist;
+                closest = { ...z, dist };
+            }
+        }
+        return closest;
+    }, [zaaps, position]);
 
 
 
@@ -290,10 +306,48 @@ export default function MapDetailsPanel({
                 
 
 
+                {/* ─── Smart GPS Zaap Banner ─── */}
+                {nearestZaap && (
+                    <div className={cn(
+                        "absolute left-8 right-8 z-[2000] pointer-events-auto flex items-center justify-between gap-2 p-2.5 rounded-2xl bg-[#020408]/90 border border-border backdrop-blur-xl shadow-2xl transition-all",
+                        isMaximized ? "bottom-28" : "bottom-28"
+                    )}>
+                        <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-7 h-7 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                                <Compass size={14} />
+                            </div>
+                            <div className="min-w-0">
+                                <div className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Zaap le plus proche</div>
+                                <div className="text-xs font-bold text-foreground truncate">
+                                    {nearestZaap.name} <span className="text-primary font-mono font-bold">[{nearestZaap.x}, {nearestZaap.y}]</span>
+                                    <span className="text-muted-foreground ml-1 font-normal text-[10px]">({nearestZaap.dist} {nearestZaap.dist <= 1 ? 'map' : 'maps'})</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const cmd = `/travel ${nearestZaap.x} ${nearestZaap.y}`;
+                                    navigator.clipboard.writeText(cmd);
+                                    toast.success(`${cmd} copié !`, { icon: '📍' });
+                                }}
+                                title="Copier la commande /travel vers ce Zaap"
+                                className="px-2.5 py-1.5 rounded-xl bg-surface hover:bg-primary/20 border border-border text-foreground text-[11px] font-bold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                            >
+                                <Copy size={12} className="text-primary" />
+                                <span>/travel Zaap</span>
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Bottom Action Area (Always visible, highest Z) */}
                 <div className={cn(
                     "absolute left-8 right-8 flex items-center justify-between pointer-events-none z-[2000] transition-all",
-                    isMaximized ? "bottom-12" : "bottom-14"
+                    isMaximized ? "bottom-12" : "bottom-12"
                 )}>
                     <div className="flex items-center gap-3 pointer-events-auto">
                         <div className="px-5 py-3 rounded-2xl bg-black border border-border-strong text-success font-mono text-sm font-black shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center gap-3">

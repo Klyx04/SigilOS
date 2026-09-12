@@ -65,3 +65,14 @@ export const AVAILABLE_ACTIVITIES = [
     { id: "percepteur", label: "Percepteur", subtitle: "" },
     { id: "raids", label: "Raids de Guilde", subtitle: "Dungeons, Gigalodon, Sanctuaire" },
 ] as const;
+
+/**
+ * Construit un slug d'URL propre pour une guilde (ex: "Stellium" -> "stellium").
+ * Repli automatique sur discordGuildId si le nom est indisponible.
+ */
+export function getGuildSlug(guild: { name?: string | null; discordGuildId?: string | null }): string {
+    if (guild.name && guild.name.trim().length > 0) {
+        return encodeURIComponent(guild.name.trim().toLowerCase().replace(/\s+/g, '-'));
+    }
+    return guild.discordGuildId || '';
+}

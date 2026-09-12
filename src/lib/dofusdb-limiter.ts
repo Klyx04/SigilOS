@@ -9,8 +9,9 @@
 
 const DEFAULT_LIMIT = 30; // requêtes / minute / hôte
 const DEFAULT_WINDOW_MS = 60_000;
-const MAX_WAIT_MS = 30_000;
+const MAX_WAIT_MS = 60_000; // Retry-After jusqu'à 60s (DofusDB peut demander 30-60s)
 const RETRY_AFTER_CAP_MS = 120_000;
+const COURTESY_WAIT_MS = process.env.NODE_ENV === "test" ? 0 : 5_000; // pause minimale si 429 sans Retry-After
 const ALERT_THRESHOLD = 10; // 429/jour avant alerte God (une seule fois)
 
 /** Parse `Retry-After` (secondes ou date HTTP) → ms, null si absent/invalide. */
@@ -145,6 +146,7 @@ export async function dofusDbFetch(input: string, init?: RequestInit): Promise<R
     if (res.status === 429) {
         void recordRateLimitHit(host);
         const waitMs = parseRetryAfterMs(res.headers.get("retry-after"));
+        // Si Retry-After présent et dans notre fenêtre : attendre + réessayer
         if (waitMs !== null && waitMs <= MAX_WAIT_MS) {
             await sleep(waitMs);
             try {
@@ -155,6 +157,10 @@ export async function dofusDbFetch(input: string, init?: RequestInit): Promise<R
                 throw e;
             }
         }
+        // Pas de Retry-After (ou trop long) : pause de courtoisie minimale
+        // avant de remonter le 429 — laisse les boucles de siphon faire leur
+        // propre backoff exponentiel sans bombarder l'API.
+        await sleep(COURTESY_WAIT_MS);
     }
     return res;
 }

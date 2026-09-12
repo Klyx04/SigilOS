@@ -10,10 +10,15 @@
  */
 
 import Image from "next/image";
-import { Package, Scale } from "lucide-react";
+import { Package, Scale, Sparkles, Sword, Target } from "lucide-react";
 import { StatIcon } from "@/components/market/stat-icon";
 import { formatKamas } from "@/lib/market/kamas";
 import { isPercentStat, normalizeNativeRange } from "@/lib/market/effects";
+import {
+    describeSmithmagicStatus,
+    type SmithmagicStatusKind,
+    type SmithmagicStatusLine,
+} from "@/lib/market/smithmagic";
 import { cn } from "@/lib/utils";
 
 export type MarketItemCardStat = {
@@ -47,6 +52,19 @@ export type MarketItemCardData = {
     averagePrice?: number | null;
     priceKamas?: number | null;
     unitLabel?: string | null;
+    /**
+     * S8.4 (D40) — **forge réelle**. Ces informations sont **déclarées** par le
+     * vendeur (jamais déduites du jet) et alimentent le **bloc STATUT** :
+     * - `transcended` : l'objet porte une rune de Transcendance ;
+     * - `transcendenceLabel` : libellé affiché (repli :
+     *   « Empêche les futures forgemagies ») ;
+     * - `strikeElement` : élément de frappe fixé par une potion de forgemagie ;
+     * - `huntingWeapon` : libellé de l'arme de chasse.
+     */
+    transcended?: boolean;
+    transcendenceLabel?: string | null;
+    strikeElement?: string | null;
+    huntingWeapon?: string | null;
     stats?: MarketItemCardStat[];
     components?: MarketItemCardComponent[];
 };
@@ -88,9 +106,26 @@ function formatRange(stat: MarketItemCardStat): string {
     return from === to ? `[${from}]` : `[${from} à ${to}]`;
 }
 
+/**
+ * S8.4 — icône d'une ligne du bloc STATUT (`lucide-react`, charte §12.4).
+ */
+function StatusLineIcon({ kind }: { kind: SmithmagicStatusKind }) {
+    if (kind === "TRANSCENDED") return <Sparkles className="h-3.5 w-3.5 shrink-0 text-gold" />;
+    if (kind === "STRIKE_ELEMENT") return <Sword className="h-3.5 w-3.5 shrink-0 text-info" />;
+    return <Target className="h-3.5 w-3.5 shrink-0 text-success" />;
+}
+
 export function MarketItemCard({ data, className }: { data: MarketItemCardData; className?: string }) {
     const stats = data.stats ?? [];
     const components = data.components ?? [];
+    // S8.4 — bloc STATUT : le mapping carte → lignes est **pur et testé**
+    // (`describeSmithmagicStatus`) ; ce composant ne fait que le rendre.
+    const statusLines: SmithmagicStatusLine[] = describeSmithmagicStatus({
+        transcended: data.transcended,
+        transcendenceLabel: data.transcendenceLabel,
+        strikeElement: data.strikeElement,
+        huntingWeapon: data.huntingWeapon,
+    });
 
     return (
         <div
@@ -132,6 +167,30 @@ export function MarketItemCard({ data, className }: { data: MarketItemCardData; 
             {data.isLegendary && (
                 <div className="mt-3 rounded-xl border border-gold/30 bg-gold/10 px-3 py-1.5 text-label font-bold text-gold">
                     Statut légendaire
+                </div>
+            )}
+
+            {/* 9bis — S8.4 : bloc STATUT de forge réelle (D40), juste avant EFFETS */}
+            {statusLines.length > 0 && (
+                <div className="mt-3 rounded-xl border border-border-strong bg-elevated/60 px-3 py-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">
+                        Statut
+                    </p>
+                    <ul className="mt-1 space-y-1">
+                        {statusLines.map((line) => (
+                            <li key={line.kind} className="flex items-center gap-2 text-label">
+                                <StatusLineIcon kind={line.kind} />
+                                <span className="min-w-0 flex-1 truncate text-foreground/90">
+                                    {line.label}
+                                </span>
+                                {line.value && (
+                                    <span className="shrink-0 font-bold tabular-nums text-gold">
+                                        {line.value}
+                                    </span>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
                 </div>
             )}
 

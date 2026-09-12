@@ -11,8 +11,8 @@ import { usePathname } from "next/navigation";
  */
 export function SupportOrb() {
     const pathname = usePathname();
-    // Masqué sur les routes overlay (popup juxtaposé en jeu)
-    if (pathname?.startsWith("/overlay")) return null;
+    // Masqué sur les routes overlay et worldmap/mini-jeux pour ne pas couvrir les contrôles de jeu
+    if (pathname?.startsWith("/overlay") || pathname?.includes("/worldmap") || pathname?.includes("/mini-jeux")) return null;
 
     const stripeLink = "https://ko-fi.com/wylan";
 

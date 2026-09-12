@@ -51,6 +51,42 @@ type ModuleDef = {
     bgColor: string;
     borderColor: string;
     comingSoon?: boolean;
+    /** Official Dofus 2x UI asset filename (in /assets/dofus/modules/) */
+    dofusAsset?: string;
+};
+
+/**
+ * Mapping ModuleKey → official Dofus 2x UI asset filename.
+ * Files live in public/assets/dofus/modules/.
+ */
+const MODULE_DOFUS_ASSETS: Partial<Record<ModuleKey, string>> = {
+    presentation: "guild.png",
+    roster: "social.png",
+    stats: "guildActivity.png",
+    calendar: "calendar.png",
+    availability: "calendar.png",
+    commandes: "quest.png",
+    missions: "quest.png",
+    songes: "breach.png",
+    ocre: "bestiary.png",
+    ladder: "ladder.png",
+    succes: "success.png",
+    gallery: "cosmetics.png",
+    ladderSync: "ladder.png",
+    manualLadderSync: "ladder.png",
+    services: "key.png",
+    marche: "auctionHouseEquipments.png",
+    donjons: "dofus.png",
+    docs: "guide.png",
+    polls: "bannerBlason.png",
+    minigames: "kolizeum.png",
+    quests: "quest.png",
+    worldmap: "map.png",
+    resources: "resources.png",
+    profile: "character.png",
+    reactionRoles: "ornamentCard.png",
+    tickets: "party.png",
+    logs: "bank.png",
 };
 
 /**
@@ -497,10 +533,22 @@ export function ModulesClient({ guildId, initialModules, lockedModules = [] }: P
                                                             ? "bg-success/[0.06] border-success/30"
                                                             : "bg-surface border-border"
                                                     )}>
-                                                        <Icon className={cn(
-                                                            "w-7 h-7 transition-colors duration-200",
-                                                            isEnabled ? "text-success" : "text-muted-foreground"
-                                                        )} strokeWidth={1.5} />
+                                                        {MODULE_DOFUS_ASSETS[mod.key] ? (
+                                                            // eslint-disable-next-line @next/next/no-img-element
+                                                            <img
+                                                                src={`/assets/dofus/modules/${MODULE_DOFUS_ASSETS[mod.key]}`}
+                                                                alt={mod.label}
+                                                                className={cn(
+                                                                    "w-8 h-8 object-contain transition-all duration-200",
+                                                                    !isEnabled && "opacity-50 grayscale"
+                                                                )}
+                                                            />
+                                                        ) : (
+                                                            <Icon className={cn(
+                                                                "w-7 h-7 transition-colors duration-200",
+                                                                isEnabled ? "text-success" : "text-muted-foreground"
+                                                            )} strokeWidth={1.5} />
+                                                        )}
                                                     </div>
 
                                                     <div className="flex flex-col">

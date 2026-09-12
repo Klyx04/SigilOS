@@ -40,33 +40,46 @@ export type DofusItemEffectLike = {
     elementId?: number | null;
 };
 
-/** Libellés FR par `characteristicId` DofusDB (repli hors base). */
+/** Libellés FR par `characteristicId` ou `effectId` DofusDB (repli hors base). */
 export const CHAR_NAMES: Record<number, string> = {
+    // Caractéristiques primaires
+    10: "Force",
+    16: "Force",
     11: "Vitalité",
+    125: "Vitalité",
     12: "Sagesse",
     13: "Chance",
     14: "Agilité",
     15: "Intelligence",
-    16: "Force",
     18: "Critique",
     19: "Portée",
+    182: "Portée",
     1: "PA",
     23: "PM",
     25: "Puissance",
     26: "Soins",
     27: "Dommages",
     28: "Invocations",
+    // Résistances % (plusieurs conventions DofusDB selon les versions)
+    33: "Résistance Neutre (%)",
+    34: "Résistance Terre (%)",
+    35: "Résistance Feu (%)",
+    36: "Résistance Air (%)",
+    37: "Résistance Eau (%)",
     48: "Résistance Feu (%)",
     49: "Résistance Eau (%)",
     50: "Résistance Air (%)",
     51: "Résistance Terre (%)",
     52: "Résistance Neutre (%)",
+    // Dommages élémentaires
+    88: "Dommages Neutre",
     89: "Dommages Feu",
     90: "Dommages Eau",
     91: "Dommages Air",
     92: "Dommages Terre",
     93: "Dommages Neutre",
     141: "Dommages Neutre",
+    // Fuite, Tacle, Retraits
     78: "Fuite",
     79: "Tacle",
     80: "Retrait PA",
@@ -75,10 +88,34 @@ export const CHAR_NAMES: Record<number, string> = {
     84: "Esquive PM",
     412: "Retrait PM",
     87: "Résistance Critiques",
-    88: "Résistance Poussée",
     112: "Dommages Critiques",
     114: "Dommages Poussée",
-    125: "Vitalité",
+    // effectIds DofusDB directs
+    111: "PA",
+    117: "Portée",
+    118: "Force",
+    119: "Agilité",
+    123: "Chance",
+    124: "Sagesse",
+    126: "Intelligence",
+    128: "PM",
+    162: "Dommages Critiques",
+    163: "Résistance Critiques",
+    164: "Dommages Poussée",
+    165: "Résistance Poussée",
+    178: "Soins",
+    210: "Résistance Terre (%)",
+    211: "Résistance Eau (%)",
+    212: "Résistance Air (%)",
+    213: "Résistance Feu (%)",
+    214: "Résistance Neutre (%)",
+    422: "Dommages Neutre",
+    424: "Dommages Feu",
+    428: "Dommages Air",
+    430: "Dommages Terre",
+    432: "Dommages Eau",
+    752: "Fuite",
+    753: "Tacle",
 };
 
 /**
@@ -260,11 +297,13 @@ export function getStatLabel(
     fx: Pick<DofusItemEffectLike, "int_name" | "characteristic" | "effectId" | "int_id">,
     referential?: Record<number, string>
 ): string {
-    const cid = fx.characteristic ?? fx.effectId ?? fx.int_id ?? null;
-    if (cid != null && referential && referential[cid]) return referential[cid];
+    if (fx.characteristic != null && referential && referential[fx.characteristic]) return referential[fx.characteristic];
+    if (fx.effectId != null && referential && referential[fx.effectId]) return referential[fx.effectId];
     if (fx.int_name && BOOK_STAT_NAMES[fx.int_name]) return BOOK_STAT_NAMES[fx.int_name];
     if (fx.int_name) return fx.int_name;
-    if (cid != null && CHAR_NAMES[cid]) return CHAR_NAMES[cid];
+    if (fx.characteristic != null && CHAR_NAMES[fx.characteristic]) return CHAR_NAMES[fx.characteristic];
+    if (fx.effectId != null && CHAR_NAMES[fx.effectId]) return CHAR_NAMES[fx.effectId];
+    if (fx.int_id != null && CHAR_NAMES[fx.int_id]) return CHAR_NAMES[fx.int_id];
     return "Effet";
 }
 

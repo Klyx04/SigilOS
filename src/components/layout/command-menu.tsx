@@ -127,7 +127,7 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
         
         { title: "Galerie de Stuff", href: `/dashboard/${guildId}/stuff-hub`, icon: Sparkles, category: "Outils", color: "text-success", bg: "bg-success/10", border: "border-success/20" },
         { title: "Services & Artisans", href: `/dashboard/${guildId}/services`, icon: Sparkles, category: "Outils", color: "text-success", bg: "bg-success/10", border: "border-success/20" },
-        { title: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, category: "Outils", color: "text-success", bg: "bg-success/10", border: "border-success/20" },
+        { title: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, imgSrc: "/assets/dofus/modules/map.png", category: "Outils", color: "text-success", bg: "bg-success/10", border: "border-success/20" },
         { title: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Sparkles, category: "Outils", color: "text-success", bg: "bg-success/10", border: "border-success/20" },
         
         { title: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: CheckSquare, category: "Supervision", color: "text-danger", bg: "bg-danger/10", border: "border-danger/20", visible: user?.canValidateMissions },
@@ -378,7 +378,11 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                                     className="flex items-center gap-3 px-3 py-2.5 cursor-pointer rounded-xl data-[selected=true]:bg-surface transition-all mb-1 group"
                                 >
                                     <div className={`flex h-8 w-8 items-center justify-center rounded-lg border ${item.bg} ${item.border}`}>
-                                        <item.icon className={`h-4 w-4 ${item.color}`} />
+                                        {(item as any).imgSrc ? (
+                                            <img src={(item as any).imgSrc} alt="" className="w-5 h-5 object-contain" />
+                                        ) : (
+                                            <item.icon className={`h-4 w-4 ${item.color}`} />
+                                        )}
                                     </div>
                                     <div className="flex flex-col min-w-0">
                                         <span className="text-sm font-bold text-foreground group-hover:text-foreground transition-colors">{item.title}</span>

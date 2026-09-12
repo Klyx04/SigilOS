@@ -91,7 +91,7 @@ export function DjPostDetailModal({
             if (res.success) {
                 const wasWaitlisted = (res as any).data?.waitlisted;
                 toast.success(wasWaitlisted
-                    ? "Tu es en file d'attente ! Le créateur sera notifié."
+                    ? "Tu as été placé en file d'attente !"
                     : "Candidature envoyée !"
                 );
                 onRefresh();

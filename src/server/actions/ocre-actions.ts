@@ -2418,49 +2418,84 @@ export async function getPendingTradeRequests(guildId: string): Promise<ActionRe
     }
 }
 
-/** Get archmonsters for a specific zone from the user's Metamob progress */
-export async function getZoneArchmonsters(guildId: string, zoneName: string): Promise<ActionResponse<OcreMonster[]>> {
+/** Get archmonsters for a specific zone from SigilOS database, enriched with Metamob progress if linked */
+export async function getZoneArchmonsters(guildId?: string | null, zoneName?: string, subAreaId?: number): Promise<ActionResponse<OcreMonster[]>> {
     try {
-        const res = await getMyOcreProgress(guildId);
-        if (!res.success || !res.data) {
-            // Forward "Compte non lié" specific message so the frontend can catch it
-            return { success: false, error: res.error === "Compte non lié" ? "Compte non lié" : res.error || "Impossible de récupérer la progression Ocre" };
-        }
+        if (!zoneName) return { success: true, data: [] };
+        const norm = (s: string | null | undefined) =>
+            (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
-        // Normalise en enlevant les accents et en minuscules → fiabilise le matching
-        // entre les noms de la carte (worldmap.json) et ceux retournés par Metamob.
-        const norm = (s: string) =>
-            s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        const zNorm = norm(zoneName);
 
-        const normalizedZone = norm(zoneName);
-        const zoneArchis = res.data.monsters.filter(m => {
-            if (m.type !== "archimonstre") return false;
-
-            // Zone parente (ex: "Forêt des Abraknydes") — noms tels que retournés par Metamob
-            const mZone = norm(m.zone || "");
-            const monsterZones = mZone.split(",").map(z => norm(z)).filter(Boolean);
-
-            // Sous-zone (ex: "Plaine des Abraknydes") — noms tels que retournés par Metamob
-            const mSubzone = norm(m.subzone || "");
-            const monsterSubzones = mSubzone.split(",").map(z => norm(z)).filter(Boolean);
-
-            // Matching strict : Égalité exacte ou correspondance délimitée pour éviter que "Cimetière" matche "Cimetière primitif", "Cimetière de Grobe", etc.
-            const match = (parts: string[]) => parts.some(p => {
-                if (!p) return false;
-                // Égalité exacte après normalisation
-                if (p === normalizedZone) return true;
-                // Si la sous-zone Metamob est "Cimetière d'Amakna" et la carte "Cimetière", ou inversement, autoriser uniquement si c'est un préfixe/suffixe complet avec connecteur
-                return (
-                    p.startsWith(normalizedZone + ' ') || p.endsWith(' ' + normalizedZone) ||
-                    normalizedZone.startsWith(p + ' ') || normalizedZone.endsWith(' ' + p)
-                );
-            });
-
-            return match(monsterSubzones) || (monsterSubzones.length === 0 && match(monsterZones));
+        // 1. Récupérer tous les archimonstres de la table locale db.archimonstre
+        const dbArchis = await db.archimonstre.findMany({
+            where: { type: "archimonstre" }
         });
 
-        // Sort: Missing first, then by name
-        const sorted = zoneArchis.sort((a, b) => {
+        // 2. Filtrer les archimonstres de la zone
+        //
+        // RÈGLE DE PRIORITÉ :
+        //   A) Si subAreaId fourni → filtre STRICT sur subareaIds[] uniquement.
+        //      Un archi avec subareaIds vide est ignoré (pas de données de zone précises).
+        //   B) Si pas de subAreaId → fallback texte EXACT sur zone/subzone.
+        //      On n'utilise PAS de matching partiel pour éviter "Cimetière" → "Cimetière de Grobe".
+        const matchedDbArchis = dbArchis.filter(a => {
+            const hasSubareaData = Array.isArray(a.subareaIds) && (a.subareaIds as number[]).length > 0;
+
+            if (subAreaId) {
+                // Cas A : subAreaId disponible → matching strict uniquement
+                if (!hasSubareaData) return false; // Pas de données de zone précises pour cet archi
+                return (a.subareaIds as number[]).includes(subAreaId);
+            }
+
+            // Cas B : pas de subAreaId → fallback texte EXACT (pas de contains partiel)
+            const aZone = norm(a.zone);
+            const aSubzone = norm(a.subzone);
+            return aZone === zNorm || aSubzone === zNorm;
+        });
+
+
+        // 3. Tenter d'enrichir avec la progression Metamob si le membre a lié son compte
+        const metamobProgressMap = new Map<string, OcreMonster>();
+        if (guildId) {
+            try {
+                const progressRes = await getMyOcreProgress(guildId);
+                if (progressRes.success && progressRes.data?.monsters) {
+                    progressRes.data.monsters.forEach(m => {
+                        metamobProgressMap.set(norm(m.name), m);
+                    });
+                }
+            } catch {
+                // Non bloquant : si Metamob est non lié ou en panne, on continue avec les archis du jeu
+            }
+        }
+
+        // 4. Construire la liste enrichie
+        const result: OcreMonster[] = matchedDbArchis.map(a => {
+            const metamobData = metamobProgressMap.get(norm(a.name));
+            return {
+                id: a.dofusdbId || (metamobData ? metamobData.id : 0),
+                name: a.name,
+                nameFr: a.name,
+                nameEn: a.name,
+                image: a.imageUrl || (metamobData ? metamobData.image : ""),
+                levelMin: a.level || (metamobData ? metamobData.levelMin : 0),
+                levelMax: a.level || (metamobData ? metamobData.levelMax : 0),
+                type: "archimonstre",
+                typeId: 0,
+                step: metamobData ? metamobData.step : 1,
+                owned: metamobData ? metamobData.owned : 0,
+                status: metamobData ? metamobData.status : 0,
+                state: metamobData ? metamobData.state : "MANQUANT",
+                zone: a.zone || undefined,
+                subzone: a.subzone || undefined,
+                trade_offer: metamobData ? metamobData.trade_offer : null,
+                trade_want: metamobData ? metamobData.trade_want : null,
+            };
+        });
+
+        // 5. Tri : Manquants en premier, puis alphabétique
+        const sorted = result.sort((a, b) => {
             if (a.state === "MANQUANT" && b.state !== "MANQUANT") return -1;
             if (a.state !== "MANQUANT" && b.state === "MANQUANT") return 1;
             return a.name.localeCompare(b.name);

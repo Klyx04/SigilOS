@@ -1,6 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
-import { Maximize2 } from "lucide-react";
+import { Maximize2, ExternalLink } from "lucide-react";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
@@ -10,18 +12,29 @@ const FEATURES = [
     { icon: "/assets/dofus/icons/zaap.png", title: "Zaaps", text: "Chaque zaap positionné, avec ses destinations." },
     { icon: "/assets/dofus/icons/boss.png", title: "Donjons", text: "Chaque donjon et son boss, Quête Ocre incluse." },
     { icon: "/assets/dofus/icons/archimonster.png", title: "Archimonstres", text: "Leur position exacte, map par map." },
-    { icon: "/assets/dofus/icons/pickaxe.png", title: "Farm & GPS", text: "Itinéraires de récolte et guidage /travel." },
+    { icon: "/assets/dofus/icons/pickaxe.png", title: "Ressources", text: "Localisation des spots de récolte par métier." },
     { icon: "/assets/dofus/icons/magnifier.png", title: "Recherche", text: "Une recherche, la carte se centre sur la map." }
 ];
 
 export function WorldmapLanding({ guildId }: { guildId: string }) {
+    const handleOpenOverlay = () => {
+        const width = 560;
+        const height = 720;
+        const left = Math.max(0, (typeof window !== 'undefined' ? window.screen.width : 1920) - width - 40);
+        const top = 60;
+        window.open(
+            `/overlay/worldmap/${guildId}`,
+            'sigil-worldmap-overlay',
+            `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=no,toolbar=no,menubar=no,location=no,status=no`
+        );
+    };
     return (
         <div className="fixed top-[64px] md:top-[88px] bottom-[76px] left-0 md:left-[280px] right-0 z-[40] bg-background flex flex-col overflow-hidden rounded-b-3xl border-b border-border mx-2">
             <div className="worldmap-header flex-shrink-0 px-3 md:px-5 py-2 border-b border-border bg-surface/60 backdrop-blur-md">
                 <UnifiedModuleHeader
                     title="Carte du Monde"
                     description="Explorez le monde des Douze"
-                    imageSrc="/assets/nav/world.png"
+                    imageSrc="/assets/dofus/modules/map.png"
                     backHref={`/dashboard/${guildId}`}
                     compact={true}
                     className="mb-0"
@@ -43,7 +56,7 @@ export function WorldmapLanding({ guildId }: { guildId: string }) {
                             </h1>
                             <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">
                                 Retrouvez d&apos;un seul coup d&apos;œil toutes les cartes du jeu, les zaaps, les donjons, les
-                                archimonstres et les itinéraires de farm. Ouvrez la carte en plein écran pour une navigation
+                                archimonstres et les ressources récoltables. Ouvrez la carte en plein écran pour une navigation
                                 fluide sur tous les mondes disponibles.
                             </p>
                         </div>
@@ -68,13 +81,24 @@ export function WorldmapLanding({ guildId }: { guildId: string }) {
                                 <h2 className="text-base font-bold text-foreground">Prêt à explorer ?</h2>
                                 <p className="text-xs text-muted-foreground">La croix vous ramène à cet accueil.</p>
                             </div>
-                            <Link
-                                href={`/dashboard/${guildId}/worldmap?play=1`}
-                                className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold px-5 py-2.5 hover:bg-primary/90 transition-colors cursor-pointer"
-                            >
-                                <Maximize2 className="h-4 w-4" />
-                                Ouvrir la carte en plein écran
-                            </Link>
+                            <div className="flex flex-wrap items-center gap-2.5">
+                                <button
+                                    onClick={handleOpenOverlay}
+                                    type="button"
+                                    className="inline-flex items-center gap-2 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-400 hover:text-sky-300 border border-sky-500/30 hover:border-sky-400/60 text-sm font-semibold px-4 py-2.5 transition-all cursor-pointer shadow-sm active:scale-95"
+                                    title="Ouvrir la carte dans une fenêtre overlay autonome"
+                                >
+                                    <ExternalLink className="h-4 w-4" />
+                                    Ouvrir l&apos;overlay
+                                </button>
+                                <Link
+                                    href={`/dashboard/${guildId}/worldmap?play=1`}
+                                    className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold px-5 py-2.5 hover:bg-primary/90 transition-colors cursor-pointer shadow-sm"
+                                >
+                                    <Maximize2 className="h-4 w-4" />
+                                    Ouvrir la carte en plein écran
+                                </Link>
+                            </div>
                         </div>
                     </div>
 

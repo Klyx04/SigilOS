@@ -197,8 +197,13 @@ export function EventTicker({ events, guildId, canViewCalendar = true }: EventTi
                                 {typeConfig.shortLabel}
                             </div>
 
-                            {/* Status Dot */}
-                            <div className={cn("h-1.5 w-1.5 rounded-full", typeConfig.color.replace("text-", "bg-"))} />
+                            {/* Status Dot / Krala thumbnail */}
+                            {event.type === "KRALAMOURE" ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src="/assets/calendar/kralamoure-head.png" alt="Kralamoure" className="h-4 w-4 object-contain shrink-0" />
+                            ) : (
+                                <div className={cn("h-1.5 w-1.5 rounded-full", typeConfig.color.replace("text-", "bg-"))} />
+                            )}
 
                             {/* Title */}
                             <span className="text-caption font-black text-foreground uppercase tracking-tight truncate max-w-[120px] lg:max-w-[180px] group-hover:text-primary transition-colors italic">
@@ -244,8 +249,13 @@ export function EventTicker({ events, guildId, canViewCalendar = true }: EventTi
                                 {typeConfig.shortLabel}
                             </div>
 
-                            {/* Status Dot */}
-                            <div className={cn("h-1.5 w-1.5 rounded-full", typeConfig.color.replace("text-", "bg-"))} />
+                            {/* Status Dot / Krala thumbnail */}
+                            {event.type === "KRALAMOURE" ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src="/assets/calendar/kralamoure-head.png" alt="Kralamoure" className="h-4 w-4 object-contain shrink-0" />
+                            ) : (
+                                <div className={cn("h-1.5 w-1.5 rounded-full", typeConfig.color.replace("text-", "bg-"))} />
+                            )}
 
                             {/* Title */}
                             <span className="text-sm font-bold text-foreground truncate max-w-[120px] lg:max-w-[200px]">

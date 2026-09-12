@@ -5,11 +5,13 @@ import React, { useEffect, useMemo, useRef, useCallback } from 'react';
 import { MapContainer, Rectangle, Marker, Tooltip, useMap, useMapEvents, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Plus, Minus, Copy, Flag, CornerUpRight, Rocket, Smartphone } from 'lucide-react';
+import { Plus, Minus, Copy, Flag, CornerUpRight, Rocket, Smartphone, Layers, Compass, Pin, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { mergeCellEdges } from '@/lib/map-utils';
 import { resolveTileBank, findNearestMap, MAP_OCEAN_TONE } from '@/lib/worldmap-tiles';
 import { HarvestRouteOverlay } from './harvest-route-overlay';
+import { SecretPassagesOverlay } from './secret-passages-overlay';
+import { cn } from '@/lib/utils';
 
 // -------------------------------------------------------------------------------------
 // CRS sur mesure : mappe les zooms Leaflet sur les échelles Dofus (1, 0.8, 0.6...)
@@ -146,7 +148,7 @@ function SigilTilesLayer({ activeWorld, selectedWorldId }: any) {
 // -------------------------------------------------------------------------------------
 const TOOLTIP_THROTTLE_MS = 100;
 
-function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds, zoneHighlight }: any) {
+function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds, zoneHighlight, zaaps, onOpenZoneDetails, setSelectedPosition, isOverHudRef, mouseoutTimerRef }: any) {
     const map = useMap();
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const hoveredCellRef = useRef<string | null>(null);
@@ -228,18 +230,19 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
 
         if (zoneHighlight && subAreaId !== null && mapsBySubAreaId && subAreasById) {
             const subArea = subAreasById.get(subAreaId);
+            const mapsInZone = mapsBySubAreaId.get(subAreaId);
             
             ctx.save();
-            ctx.fillStyle = 'rgba(99, 102, 241, 0.65)';
-            ctx.strokeStyle = 'rgba(99, 102, 241, 0.8)';
-            ctx.lineWidth = 1;
+            // Rendu clean style Dofus / Duffus : voile sombre transparent + contour noir franc
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.32)';
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.95)';
+            ctx.lineWidth = 2;
             ctx.lineJoin = 'round';
             ctx.shadowBlur = 0;
             ctx.shadowColor = 'transparent';
 
             if (!forceCellFallback && subArea && subArea.shape && subArea.shape.length > 2) {
                 // Rendu Doflex Pixel-Perfect via Shape officielle
-                // La shape de DofusDB encode parfois plusieurs polygones avec des headers (ex: 10924).
                 const shape = subArea.shape;
                 let isFirstPoint = true;
                 
@@ -248,7 +251,7 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
                     const gx = shape[i];
                     const gy = shape[i+1];
                     
-                    // Si on tombe sur un ID massif, c'est une délimitation de nouveau polygone
+                    // Délimitation de nouveau polygone si header massif
                     if (Math.abs(gx) > 1000 || Math.abs(gy) > 1000) {
                         if (!isFirstPoint) {
                             ctx.closePath();
@@ -274,8 +277,7 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
                     ctx.stroke();
                 }
             } else {
-                // Fallback (anciennes données ou zones partielles non offi)
-                const mapsInZone = mapsBySubAreaId.get(subAreaId);
+                // Fallback polygons
                 if (mapsInZone) {
                     const polygons = mergeCellEdges(mapsInZone);
                     polygons.forEach(poly => {
@@ -291,6 +293,18 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
                         ctx.fill();
                         ctx.stroke();
                     });
+                }
+            }
+
+            // Quadrillage fin interne à la zone (exactement comme le concurrent Duffus)
+            if (mapsInZone && mapsInZone.length > 0) {
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(15, 23, 42, 0.25)';
+                ctx.lineWidth = 1;
+                for (const m of mapsInZone) {
+                    const ctl = toCP(m.x, m.y);
+                    const cbr = toCP(m.x + 1, m.y + 1);
+                    ctx.strokeRect(Math.round(ctl.x), Math.round(ctl.y), Math.round(cbr.x - ctl.x), Math.round(cbr.y - ctl.y));
                 }
             }
             ctx.restore();
@@ -350,15 +364,15 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
             ctx.restore();
         }
 
-        // ── 1c. Hover cellule individuelle (toujours visible qd en survol) ──
+        // ── 1c. Hover cellule individuelle (crochets + badge coordonnées style Duffus) ──
         if (cellKey) {
             const [hx, hy] = cellKey.split(',').map(Number);
             const tl = toCP(hx, hy);
             const br = toCP(hx + 1, hy + 1);
             
             // Dessin des crochets (brackets) aux 4 coins
-            const len = 5; // longueur du crochet
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+            const len = 6;
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.95)';
             ctx.lineWidth = 3;
             ctx.beginPath();
             
@@ -374,8 +388,31 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
             ctx.stroke();
             
             // Légère surbrillance intérieure
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
             ctx.fillRect(Math.round(tl.x), Math.round(tl.y), Math.round(br.x - tl.x), Math.round(br.y - tl.y));
+
+            // Badge de coordonnées noir flottant style Duffus
+            const coordLabel = `[${hx}, ${hy}]`;
+            ctx.font = 'bold 11px Inter, sans-serif';
+            const tw = ctx.measureText(coordLabel).width;
+            const badgeW = tw + 12;
+            const badgeH = 20;
+            const badgeX = Math.round(tl.x + (br.x - tl.x) / 2 - badgeW / 2);
+            const badgeY = Math.round(tl.y - badgeH - 6);
+
+            ctx.save();
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+            ctx.beginPath();
+            ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 5);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(coordLabel, badgeX + badgeW / 2, badgeY + badgeH / 2 + 1);
+            ctx.restore();
         }
 
         // ── 2. Selection Highlight ──
@@ -629,29 +666,192 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
         zoomend: () => drawGrid(),
     });
 
-    // Survol (HUD DOM direct, zéro setState React) — snap court, pas de redraw plein.
+    // Helper Zaap le plus proche
+    const getClosestZaap = useCallback((gx: number, gy: number) => {
+        if (!zaaps || zaaps.length === 0) return null;
+        let closest = null;
+        let minDist = Infinity;
+        for (const z of zaaps) {
+            const d = Math.abs(z.x - gx) + Math.abs(z.y - gy);
+            if (d < minDist) {
+                minDist = d;
+                closest = { ...z, dist: d };
+            }
+        }
+        return closest;
+    }, [zaaps]);
+
+    // Mise à jour directe du HUD DOM (zéro re-render React pour les perfs)
+    const updateHudDOM = useCallback((mapData: any, subArea: any, gx: number, gy: number, isPinned: boolean) => {
+        const zoneName = subArea ? (subArea.name?.fr || subArea.name || 'Zone Inconnue') : 'Zone Inconnue';
+
+        // ── Support Overlay HUD (composant discret centré en bas) ──
+        const overlayHud = document.getElementById('sigil-overlay-hover-hud');
+        if (overlayHud) {
+            const overlayZone = document.getElementById('sigil-overlay-hover-zone');
+            const overlayCoords = document.getElementById('sigil-overlay-hover-coords');
+            const overlayPin = document.getElementById('sigil-overlay-hover-pin');
+            if (overlayZone) overlayZone.innerText = zoneName;
+            if (overlayCoords) overlayCoords.innerText = `[${gx}, ${gy}]`;
+            if (overlayPin) overlayPin.style.display = isPinned ? 'inline' : 'none';
+            overlayHud.style.display = 'flex';
+        }
+
+        // ── Support Mode Normal : Grand bandeau HD centré en bas ──
+        const hud = document.getElementById('sigil-map-hover-hud');
+        if (!hud) return;
+
+        const zoneSpan = document.getElementById('sigil-map-hover-zone');
+        const coordsSpan = document.getElementById('sigil-map-hover-coords');
+        const worldSpan = document.getElementById('sigil-map-hover-world');
+        const imgEl = document.getElementById('sigil-map-hover-img') as HTMLImageElement | null;
+        const zaapContainer = document.getElementById('sigil-map-hover-zaap-container');
+        const zaapNameEl = document.getElementById('sigil-map-hover-zaap-name');
+        const zaapDistEl = document.getElementById('sigil-map-hover-zaap-dist');
+        const zaapBtn = document.getElementById('sigil-map-hover-zaap-btn') as HTMLButtonElement | null;
+        const analyzeBtn = document.getElementById('sigil-map-hover-analyze-btn') as HTMLButtonElement | null;
+        const pinnedBadge = document.getElementById('sigil-map-hover-pinned-badge');
+        const closeBtn = document.getElementById('sigil-map-hover-close-btn');
+
+        // 1. Textes de zone et coordonnées
+        if (zoneSpan) zoneSpan.innerText = zoneName;
+        if (worldSpan) worldSpan.innerText = activeWorld?.name?.fr || activeWorld?.name || 'Monde des Douze';
+        if (coordsSpan) coordsSpan.innerText = `[${gx}, ${gy}]`;
+
+        // 2. Miniature HD
+        if (imgEl && mapData?.id) {
+            imgEl.src = `/game-data/hd_maps/${mapData.id}.webp`;
+        }
+
+        // 3. Zaap le plus proche
+        const closestZaap = getClosestZaap(gx, gy);
+        if (closestZaap && zaapContainer && zaapNameEl && zaapDistEl && zaapBtn) {
+            zaapContainer.style.display = 'flex';
+            zaapNameEl.innerText = `${closestZaap.name} [${closestZaap.x}, ${closestZaap.y}]`;
+            zaapDistEl.innerText = `(${closestZaap.dist} ${closestZaap.dist <= 1 ? 'map' : 'maps'})`;
+            zaapBtn.dataset.zaapX = String(closestZaap.x);
+            zaapBtn.dataset.zaapY = String(closestZaap.y);
+        } else if (zaapContainer) {
+            zaapContainer.style.display = 'none';
+        }
+
+        // 4. Bouton Analyser (stockage des coordonnées pour le clic)
+        if (analyzeBtn) {
+            analyzeBtn.dataset.x = String(gx);
+            analyzeBtn.dataset.y = String(gy);
+            analyzeBtn.dataset.mapId = String(mapData?.id || '');
+            analyzeBtn.dataset.subAreaId = String(mapData?.subAreaId || '');
+        }
+
+        // 5. Badge "Case fixée" & Bouton Détacher (✕)
+        if (pinnedBadge) {
+            pinnedBadge.style.display = isPinned ? 'inline-flex' : 'none';
+        }
+        if (closeBtn) {
+            closeBtn.style.display = isPinned ? 'flex' : 'none';
+        }
+
+        hud.style.display = 'flex';
+    }, [activeWorld, getClosestZaap]);
+
+    // Ref pour éviter les re-renders pendant le survol
+    const selectedPositionRef = useRef(selectedPosition);
+    useEffect(() => {
+        selectedPositionRef.current = selectedPosition;
+        if (selectedPosition && !isMiniMap) {
+            const exactMap = selectedPosition.mapId
+                ? (mapsByCoords?.get(`${selectedPosition.x},${selectedPosition.y}`) || { id: selectedPosition.mapId, subAreaId: selectedPosition.subAreaId })
+                : mapsByCoords?.get(`${selectedPosition.x},${selectedPosition.y}`);
+            const subArea = exactMap?.subAreaId ? subAreasById?.get(exactMap.subAreaId) : null;
+            updateHudDOM(exactMap, subArea, selectedPosition.x, selectedPosition.y, true);
+        } else {
+            const pinnedBadge = document.getElementById('sigil-map-hover-pinned-badge');
+            const closeBtn = document.getElementById('sigil-map-hover-close-btn');
+            if (pinnedBadge) pinnedBadge.style.display = 'none';
+            if (closeBtn) closeBtn.style.display = 'none';
+            const overlayPin = document.getElementById('sigil-overlay-hover-pin');
+            if (overlayPin) overlayPin.style.display = 'none';
+            if (!hoveredCellRef.current && (!isOverHudRef || !isOverHudRef.current)) {
+                const hud = document.getElementById('sigil-map-hover-hud');
+                if (hud) hud.style.display = 'none';
+                const overlayHud = document.getElementById('sigil-overlay-hover-hud');
+                if (overlayHud) overlayHud.style.display = 'none';
+            }
+        }
+        drawGrid();
+    }, [selectedPosition, isMiniMap, mapsByCoords, subAreasById, updateHudDOM, isOverHudRef, drawGrid]);
+
+    // Raccourci Échap pour déverrouiller la case sélectionnée
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && selectedPositionRef.current) {
+                if (setSelectedPosition) setSelectedPosition(null);
+                const hud = document.getElementById('sigil-map-hover-hud');
+                if (hud && (!isOverHudRef || !isOverHudRef.current)) hud.style.display = 'none';
+                const overlayHud = document.getElementById('sigil-overlay-hover-hud');
+                if (overlayHud && (!isOverHudRef || !isOverHudRef.current)) overlayHud.style.display = 'none';
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [setSelectedPosition, isOverHudRef]);
+
+    // Survol (HUD DOM direct, zéro setState React)
     useMapEvents({
         mousemove: (e) => {
+            // Si un timer de masquage était en cours suite à une sortie de map, on l'annule immédiatement
+            if (mouseoutTimerRef.current) {
+                clearTimeout(mouseoutTimerRef.current);
+                mouseoutTimerRef.current = null;
+            }
+
+            // Si la souris est au-dessus du bandeau HUD lui-même : NE RIEN ÉCRASER
+            if (isOverHudRef && isOverHudRef.current) return;
+
             const world = activeWorld;
             if (!world) return;
             const gx0 = Math.floor((e.latlng.lng - world.origineX) / world.mapWidth);
             const gy0 = Math.floor((-e.latlng.lat - world.origineY) / world.mapHeight);
 
-            // ── Snap vers la map valide la plus proche (rayon court : 10 Hz) ──
-            const { foundMap: mapData, gx, gy } = findNearestMap(mapsByCoords, gx0, gy0, 5);
-            const key = `${gx},${gy}`;
-            
-            // ── HOVER SECU: No highlight in void if playing in Mini-Jeux ──
-            if (isMiniMap && !mapData) {
+            // Sur la carte normale (exploration), aucun snap dans le vide ! On teste la case exacte.
+            // En minimap (Geoguesser), tolérance courte (maxR = 2).
+            const mapData = isMiniMap
+                ? findNearestMap(mapsByCoords, gx0, gy0, 2).foundMap
+                : mapsByCoords?.get(`${gx0},${gy0}`);
+
+            const subArea = mapData?.subAreaId ? subAreasById?.get(mapData.subAreaId) : null;
+            const isValidZone = !!mapData && !!subArea;
+
+            const mapContainer = map.getContainer();
+
+            // Si hors zone identifiée (océan, vide, hors map)
+            if (!isValidZone) {
                 if (hoveredCellRef.current !== null) {
                     hoveredCellRef.current = null;
                     hoveredSubAreaIdRef.current = null;
                     drawGrid();
                 }
+                // Si aucune case n'est fixée et qu'on n'est pas sur le HUD, on masque
+                if (!selectedPositionRef.current && (!isOverHudRef || !isOverHudRef.current)) {
+                    const hud = document.getElementById('sigil-map-hover-hud');
+                    if (hud) hud.style.display = 'none';
+                    const overlayHud = document.getElementById('sigil-overlay-hover-hud');
+                    if (overlayHud) overlayHud.style.display = 'none';
+                }
+                if (mapContainer && !isMiniMap) {
+                    mapContainer.style.cursor = '';
+                }
                 return;
             }
 
-            const subAreaId = mapData ? mapData.subAreaId : null;
+            if (mapContainer && !isMiniMap) {
+                mapContainer.style.cursor = 'pointer';
+            }
+
+            const gx = gx0;
+            const gy = gy0;
+            const key = `${gx},${gy}`;
+            const subAreaId = mapData.subAreaId;
 
             if (key !== hoveredCellRef.current || subAreaId !== hoveredSubAreaIdRef.current) {
                 hoveredCellRef.current = key;
@@ -659,33 +859,39 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
                 if (rafRef.current) cancelAnimationFrame(rafRef.current);
                 rafRef.current = requestAnimationFrame(drawGrid);
                 
-                // Update DOM HUD without React renders
-                const hud = document.getElementById('sigil-map-hover-hud');
-                if (hud) {
-                    const zoneSpan = document.getElementById('sigil-map-hover-zone');
-                    const coordsSpan = document.getElementById('sigil-map-hover-coords');
-                    const worldSpan = document.getElementById('sigil-map-hover-world');
-                    const img = document.getElementById('sigil-map-hover-img') as HTMLImageElement;
-                    
-                    if (zoneSpan && coordsSpan && worldSpan) {
-                        if (subAreaId && subAreasById) {
-                            const subArea = subAreasById.get(subAreaId);
-                            zoneSpan.innerText = subArea ? (subArea.name?.fr || subArea.name || 'Zone Inconnue') : 'Zone Inconnue';
-                        } else {
-                            zoneSpan.innerText = 'Position';
-                        }
-                        
-                        worldSpan.innerText = activeWorld?.name?.fr || activeWorld?.name || 'Monde des Douze';
-                        coordsSpan.innerText = `[${gx}, ${gy}]`;
-                        
-                        hud.style.display = 'flex';
-                    }
-                }
+                // IMPORTANT : Si une case est verrouillée / sélectionnée, le HUD reste fixé dessus
+                // pour permettre à l'utilisateur de déplacer sa souris tranquillement jusqu'au bouton Analyser !
+                if (selectedPositionRef.current) return;
+
+                // Mode survol libre
+                updateHudDOM(mapData, subArea, gx, gy, false);
             }
         },
         mouseout: () => {
-            // On ne cache plus le HUD au mouseout pour qu'il reste disponible 
-            // avec la dernière position connue.
+            // Débounce de 180ms pour éviter le clignotement / disparition quand le curseur
+            // transite de la carte vers le bandeau HUD ou franchit les bordures
+            if (mouseoutTimerRef.current) clearTimeout(mouseoutTimerRef.current);
+            mouseoutTimerRef.current = setTimeout(() => {
+                mouseoutTimerRef.current = null;
+                // Ne pas masquer si la souris est en train de survoler le bandeau HUD !
+                if (isOverHudRef && isOverHudRef.current) return;
+                // Ne pas masquer si une case est fixée !
+                if (selectedPositionRef.current) return;
+
+                if (hoveredCellRef.current !== null) {
+                    hoveredCellRef.current = null;
+                    hoveredSubAreaIdRef.current = null;
+                    drawGrid();
+                }
+                const hud = document.getElementById('sigil-map-hover-hud');
+                if (hud) hud.style.display = 'none';
+                const overlayHud = document.getElementById('sigil-overlay-hover-hud');
+                if (overlayHud) overlayHud.style.display = 'none';
+                const mapContainer = map.getContainer();
+                if (mapContainer && !isMiniMap) {
+                    mapContainer.style.cursor = '';
+                }
+            }, 180);
         }
     });
 
@@ -887,11 +1093,31 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
 
 // Tooltip + click interactions (throttled)
 // -------------------------------------------------------------------------------------
-function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeonsByMapId, setSelectedPosition, isMiniMap, isSpectator, hideUI, interactive = true, autoCopyTravel = false, onHoverMap, activeCircuit }: any) {
+function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeonsByMapId, setSelectedPosition, isMiniMap, isSpectator, hideUI, interactive = true, autoCopyTravel = false, isOverlay = false, onHoverMap, activeCircuit, onOpenZoneDetails }: any) {
     const map = useMap();
     const lastTooltipTime = useRef(0);
 
     useMapEvents(!interactive ? {} : {
+        dblclick: (e) => {
+            if (isSpectator || hideUI) return; 
+            const world = activeWorld;
+            if (!world) return;
+            const mapX = e.latlng.lng;
+            const mapY = -e.latlng.lat;
+            const gameX0 = Math.floor((mapX - world.origineX) / world.mapWidth);
+            const gameY0 = Math.floor((mapY - world.origineY) / world.mapHeight);
+
+            const exactMap = mapsByCoords?.get(`${gameX0},${gameY0}`);
+            const subArea = exactMap?.subAreaId ? subAreasById?.get(exactMap.subAreaId) : null;
+            if (exactMap && subArea && onOpenZoneDetails) {
+                onOpenZoneDetails({
+                    x: gameX0,
+                    y: gameY0,
+                    mapId: exactMap.id,
+                    subAreaId: exactMap.subAreaId
+                });
+            }
+        },
         mousemove: (e) => {
             if (!activeWorld) return; 
 
@@ -907,26 +1133,21 @@ function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeo
             const gameX0 = Math.floor((mapX - world.origineX) / world.mapWidth);
             const gameY0 = Math.floor((mapY - world.origineY) / world.mapHeight);
 
-            // ── Snap court pour le survol (le clic garde le rayon large) ──
-            const { foundMap, gx: gameX, gy: gameY } = findNearestMap(mapsByCoords, gameX0, gameY0, 5);
-            
+            const mapData = isMiniMap
+                ? findNearestMap(mapsByCoords, gameX0, gameY0, 2).foundMap
+                : mapsByCoords?.get(`${gameX0},${gameY0}`);
+            const subArea = mapData?.subAreaId ? subAreasById?.get(mapData.subAreaId) : null;
+            const isValid = !!mapData && !!subArea;
+
             // Dispatch specifically for HUD if callback exists
             if (onHoverMap) {
-                onHoverMap({ x: gameX, y: gameY, found: !!foundMap });
+                onHoverMap(isValid ? { x: gameX0, y: gameY0, found: true } : null);
             }
 
-            // In minimap (Geoguesser), block visually invalid areas
-            if (isMiniMap && !foundMap) {
-                return;
-            }
-            
-            // L'HUD Top-Right dynamique est géré via SigilTilesLayer ou le composant wrapper
-            // Note: le wrapper DOM `sigil-map-hover-hud` est mis à jour par le useRef côté DrawGrid
-            // ou directement ici:
+            if (!isValid) return;
         },
         mouseout: () => {
             if (onHoverMap) onHoverMap(null);
-            // On ne cache plus le HUD ici non plus.
         },
         click: (e) => {
             if (isSpectator || hideUI) return; 
@@ -938,33 +1159,67 @@ function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeo
             const gameX0 = Math.floor((mapX - world.origineX) / world.mapWidth);
             const gameY0 = Math.floor((mapY - world.origineY) / world.mapHeight);
 
-            // Snap large au clic (action rare : précision > vitesse)
-            const { foundMap, gx: gameX, gy: gameY } = findNearestMap(mapsByCoords, gameX0, gameY0, 15);
-            
-            // ── SECU: Block click if "Hors Map" in Mini-Jeux Mode ──
-            if (isMiniMap && !foundMap) {
-                toast.error("Position hors carte — Veuillez viser une zone valide du monde !", {
-                    id: "geoguesser-void-click",
-                    duration: 2000,
-                    icon: <Flag className="w-4 h-4 text-rose-500" />
-                });
+            // ── En mode MiniMap (Geoguesser) : snap court (rayon 3) ──
+            if (isMiniMap) {
+                const { foundMap, gx: gameX, gy: gameY } = findNearestMap(mapsByCoords, gameX0, gameY0, 3);
+                if (!foundMap) {
+                    toast.error("Position hors carte — Veuillez viser une zone valide du monde !", {
+                        id: "geoguesser-void-click",
+                        duration: 2000,
+                        icon: <Flag className="w-4 h-4 text-rose-500" />
+                    });
+                    return;
+                }
+                if (setSelectedPosition) {
+                    setSelectedPosition({ x: gameX, y: gameY, displayX: gameX, displayY: gameY, mapId: foundMap.id });
+                }
                 return;
             }
 
-            // ── Ouvrir l'analyse HD de la carte / Poser son marqueur de Guess ──
-            if (setSelectedPosition) {
-                setSelectedPosition({ x: gameX, y: gameY, displayX: gameX, displayY: gameY, mapId: foundMap?.id });
+            // ── En mode Exploration normale : AUCUN clic hors zone identifiée ! ──
+            const exactMap = mapsByCoords?.get(`${gameX0},${gameY0}`);
+            const subArea = exactMap?.subAreaId ? subAreasById?.get(exactMap.subAreaId) : null;
+            const isIdentifiedZone = !!exactMap && !!subArea;
+
+            if (!isIdentifiedZone) {
+                // Clic sur l'océan ou zone vide non identifiée : on ferme la sélection si ouverte
+                if (setSelectedPosition) {
+                    setSelectedPosition(null);
+                }
+                return;
             }
 
-            // ── Copie de la commande /travel ──
-            if (activeCircuit || (!isMiniMap && autoCopyTravel)) {
-                const command = `/travel ${gameX} ${gameY}`;
+            // ── Fixer la case pour analyse HD et Zaap dans le bandeau ──
+            if (setSelectedPosition) {
+                setSelectedPosition({
+                    x: gameX0,
+                    y: gameY0,
+                    displayX: gameX0,
+                    displayY: gameY0,
+                    mapId: exactMap.id,
+                    subAreaId: exactMap.subAreaId
+                });
+            }
+
+            // ── Copie de la commande /travel si activée ──
+            if (activeCircuit || autoCopyTravel) {
+                const command = `/travel ${gameX0} ${gameY0}`;
                 navigator.clipboard.writeText(command)
                     .then(() => {
-                        toast.success(`${command} copié !`, {
-                            icon: <Rocket className="w-4 h-4 text-emerald-400" />,
-                            duration: 1500
-                        });
+                        if (isOverlay) {
+                            toast.success(`${command}`, {
+                                icon: '📍',
+                                duration: 1200,
+                                position: 'bottom-right',
+                                className: 'text-xs !py-2 !px-3 !min-h-0',
+                                description: undefined,
+                            });
+                        } else {
+                            toast.success(`${command} copié !`, {
+                                icon: <Rocket className="w-4 h-4 text-emerald-400" />,
+                                duration: 1500
+                            });
+                        }
                     })
                     .catch(() => {
                         toast.error("Échec de la copie au presse-papier.");
@@ -1095,6 +1350,9 @@ interface LeafletMapCoreProps {
     activeCircuit?: any;
     completedHarvestSteps?: Set<number>;
     onToggleHarvestStep?: (stepIdx: number) => void;
+    showPassages?: boolean;
+    onOpenZoneDetails?: (pos?: { x: number; y: number; mapId?: number; subAreaId?: number }) => void;
+    isOverlay?: boolean;
 }
 export default function LeafletMapCore(props: LeafletMapCoreProps) {
     // Note : le survol met à jour le HUD via DOM direct (pas de setState ici —
@@ -1107,7 +1365,8 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
         triggerWorldId, isMiniMap, guessResult, minimapZoomLevel, minimapRecenterTrigger,
          participants, currentUserId, isSpectator, hideUI, interactive = true, 
         autoCopyTravel = false, highlightSubareaIds, initialZoom: initialZoomProp, zoneHighlight,
-        zaaps, showZaaps, selectedHarvestResources, activeCircuit, completedHarvestSteps, onToggleHarvestStep
+        zaaps, showZaaps, selectedHarvestResources, activeCircuit, completedHarvestSteps, onToggleHarvestStep,
+        showPassages = false, onOpenZoneDetails, isOverlay = false
     } = props;
 
     const correctedActiveWorld = useMemo(() => {
@@ -1156,54 +1415,196 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
         return isMiniMap ? -3 : 0;
     }, [triggerCenterPosition, isMiniMap, initialZoomProp]);
 
+    const isOverHudRef = useRef(false);
+    const mouseoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     return (
-        <div className="w-full h-full cursor-crosshair relative map-core-wrapper">
-            {/* L'UI de la zone survolée est mise à jour manuellement pour des raisons de perfs absolues sans re-render */}
-            {!isMiniMap && !hideUI && (
+        <div className={cn("w-full h-full relative map-core-wrapper", isMiniMap && "cursor-crosshair")}>
+            {/* L'UI de la zone survolée / fixée est mise à jour manuellement pour des raisons de perfs absolues sans re-render */}
+            {/* Grand bandeau HD centré en bas : aperçu tuile HD + Zaap proche + infos + Analyser */}
+            {!isMiniMap && !hideUI && !isOverlay && (
                 <div 
                     id="sigil-map-hover-hud"
                     style={{ display: 'none' }}
-                    className="absolute bottom-6 left-6 z-[1000] bg-surface/90 backdrop-blur-xl border border-border/80 rounded-2xl p-2.5 px-4 shadow-2xl pointer-events-auto transition-all duration-200 flex items-center gap-3.5 group"
+                    onMouseEnter={(e) => {
+                        e.stopPropagation();
+                        isOverHudRef.current = true;
+                        if (mouseoutTimerRef.current) {
+                            clearTimeout(mouseoutTimerRef.current);
+                            mouseoutTimerRef.current = null;
+                        }
+                    }}
+                    onMouseMove={(e) => {
+                        e.stopPropagation();
+                        isOverHudRef.current = true;
+                        if (mouseoutTimerRef.current) {
+                            clearTimeout(mouseoutTimerRef.current);
+                            mouseoutTimerRef.current = null;
+                        }
+                    }}
+                    onMouseLeave={() => {
+                        isOverHudRef.current = false;
+                        if (!selectedPosition) {
+                            const hud = document.getElementById('sigil-map-hover-hud');
+                            if (hud) hud.style.display = 'none';
+                        }
+                    }}
+                    className={cn(
+                        "absolute bottom-5 left-1/2 -translate-x-1/2 z-[1000] bg-[#020510]/95 backdrop-blur-2xl border-2 border-white/15 hover:border-white/25 rounded-2xl shadow-[0_24px_60px_rgba(0,0,0,0.95)] pointer-events-auto transition-all duration-200 flex items-center max-w-[96vw]",
+                        isOverlay
+                            ? "p-1.5 px-2 gap-2 scale-[0.82] origin-bottom"
+                            : "p-3 px-4 sm:px-5 gap-4"
+                    )}
                 >
-                    {/* Tooltip visible on group hover */}
-                    <div className="absolute bottom-full left-0 mb-2 bg-popover/95 text-foreground text-caption font-bold px-3 py-1.5 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-border pointer-events-none backdrop-blur-md">
-                        Copier la commande d'auto-pilotage
-                        <div className="absolute top-full left-4 border-4 border-transparent border-t-popover"></div>
-                    </div>
-
-                    <div className="flex flex-col justify-center min-w-[140px] max-w-[240px]">
-                        <span id="sigil-map-hover-zone" className="text-foreground font-black text-sm uppercase tracking-tight leading-none group-hover:text-emerald-400 transition-colors truncate"></span>
-                        <div className="flex items-center gap-2 mt-1.5">
-                            <span id="sigil-map-hover-world" className="text-muted-foreground font-bold text-[10px] uppercase tracking-wider truncate max-w-[90px]"></span>
-                            <span className="w-1 h-1 rounded-full bg-border" />
-                            <div className="flex items-center gap-1 bg-black/30 px-1.5 py-0.5 rounded border border-border/60">
-                                <Rocket size={10} className="text-emerald-400 shrink-0" />
-                                <span id="sigil-map-hover-coords" className="text-emerald-400 font-mono font-bold text-xs tracking-tight"></span>
-                            </div>
+                    {/* 1. Miniature HD de la tuile survolée (agrandie pour bien voir les détails) */}
+                    <div 
+                        className={cn(
+                            "relative rounded-xl overflow-hidden border border-white/20 bg-black/80 shrink-0 shadow-lg group",
+                            isOverlay
+                                ? "w-28 h-20 cursor-default"
+                                : "w-36 h-24 sm:w-48 sm:h-32 cursor-pointer"
+                        )}
+                        title={isOverlay ? "Aperçu HD" : "Cliquer pour analyser cette tuile"}
+                        onClick={isOverlay ? undefined : () => {
+                            const btn = document.getElementById('sigil-map-hover-analyze-btn') as HTMLButtonElement | null;
+                            if (btn) btn.click();
+                        }}
+                    >
+                        <img 
+                            id="sigil-map-hover-img" 
+                            alt="Aperçu HD"
+                            className={cn(
+                                "w-full h-full object-cover transition-transform duration-300",
+                                !isOverlay && "group-hover:scale-105"
+                            )}
+                            onError={(e) => {
+                                (e.target as HTMLImageElement).src = '/assets/dofus/map-layers/icon-dungeon-bright.png';
+                            }}
+                        />
+                        <div className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-sm border border-white/20 text-[9px] font-black uppercase text-amber-400 tracking-wider shadow">
+                            HD MAP
                         </div>
                     </div>
 
-                    {/* Quick Copy Button */}
-                    <button 
-                        className="w-8 h-8 rounded-xl bg-emerald-500/15 hover:bg-emerald-500 text-emerald-400 hover:text-black border border-emerald-500/30 flex items-center justify-center transition-all cursor-pointer shrink-0 active:scale-90" 
-                        title="Copier /travel"
-                        onClick={() => {
-                            const coords = document.getElementById('sigil-map-hover-coords')?.innerText;
-                            if (coords) {
-                                const match = coords.match(/\[(.*),(.*)\]/);
-                                if (match) {
-                                    const cmd = `/travel ${match[1].trim()} ${match[2].trim()}`;
+                    {/* 2. Zone & Coordonnées (affichage complet sans troncature agressive) */}
+                    <div className="flex flex-col justify-center min-w-[150px] max-w-[320px] shrink-0">
+                        <span id="sigil-map-hover-zone" className="text-white font-black text-sm sm:text-base uppercase tracking-tight leading-snug whitespace-nowrap overflow-hidden text-ellipsis"></span>
+                        <div className="flex items-center gap-2 mt-1 whitespace-nowrap">
+                            <span id="sigil-map-hover-world" className="text-white/50 font-bold text-[10px] uppercase tracking-wider shrink-0"></span>
+                            <span className="w-1 h-1 rounded-full bg-white/20 shrink-0" />
+                            <div className="inline-flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/30 shadow-sm shrink-0 whitespace-nowrap">
+                                <Rocket size={10} className="text-emerald-400 shrink-0" />
+                                <span id="sigil-map-hover-coords" className="text-emerald-400 font-mono font-black text-xs tracking-tight whitespace-nowrap"></span>
+                            </div>
+                        </div>
+                        {/* Badge Case fixée au clic */}
+                        <div id="sigil-map-hover-pinned-badge" style={{ display: 'none' }} className="items-center gap-1 mt-1.5 px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[10px] font-black uppercase tracking-wider w-fit">
+                            <Pin size={10} />
+                            <span>Case fixée</span>
+                        </div>
+                    </div>
+
+                    {/* Séparateur discret */}
+                    <div className="w-px h-14 bg-white/10 shrink-0" />
+
+                    {/* 3. Zaap le plus proche */}
+                    <div id="sigil-map-hover-zaap-container" className="flex items-center gap-2.5 shrink-0">
+                        <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center shrink-0 shadow-inner">
+                            <img src="/assets/dofus/map-layers/icon-zaap-bright.png" alt="Zaap" className="w-5 h-5 object-contain drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]" />
+                        </div>
+                        <div className="flex flex-col min-w-0 max-w-[220px]">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-white/40 leading-none">Zaap proche</span>
+                            <div className="flex items-center gap-1.5 mt-1 whitespace-nowrap">
+                                <span id="sigil-map-hover-zaap-name" className="text-white font-bold text-xs truncate max-w-[170px]"></span>
+                                <span id="sigil-map-hover-zaap-dist" className="text-emerald-400/80 font-bold text-[10px] shrink-0"></span>
+                            </div>
+                        </div>
+                        <button
+                            id="sigil-map-hover-zaap-btn"
+                            type="button"
+                            className="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-black border border-emerald-500/40 text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shrink-0 shadow-sm"
+                            title="Copier la commande /travel vers ce Zaap"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                const btn = e.currentTarget as HTMLButtonElement;
+                                const zx = btn.dataset.zaapX;
+                                const zy = btn.dataset.zaapY;
+                                if (zx && zy) {
+                                    const cmd = `/travel ${zx} ${zy}`;
                                     navigator.clipboard.writeText(cmd);
-                                    toast.success("Commande copiée !", {
-                                        description: cmd,
-                                        icon: <Rocket className="w-4 h-4 text-emerald-400" />
-                                    });
+                                    toast.success(`${cmd} copié !`, { icon: '📍' });
                                 }
+                            }}
+                        >
+                            <Copy size={12} />
+                            <span>/travel</span>
+                        </button>
+                    </div>
+
+                    {/* Séparateur discret */}
+                    <div className="w-px h-14 bg-white/10 shrink-0" />
+
+                    {/* 4. Bouton Analyser (grand, visible, attractif) — caché en overlay */}
+                    <button
+                        id="sigil-map-hover-analyze-btn"
+                        type="button"
+                        className={cn(
+                            "px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-black font-black text-xs sm:text-sm uppercase italic tracking-wider flex items-center gap-2 shadow-[0_4px_20px_rgba(245,158,11,0.45)] hover:shadow-[0_6px_28px_rgba(245,158,11,0.65)] active:scale-95 transition-all cursor-pointer shrink-0",
+                            isOverlay && "hidden"
+                        )}
+                        title="Analyser les détails de la zone"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            const btn = e.currentTarget as HTMLButtonElement;
+                            const x = Number(btn.dataset.x);
+                            const y = Number(btn.dataset.y);
+                            const mapId = Number(btn.dataset.mapId);
+                            const subAreaId = Number(btn.dataset.subAreaId);
+                            if (onOpenZoneDetails) {
+                                onOpenZoneDetails({ x, y, mapId, subAreaId });
                             }
                         }}
                     >
-                        <Rocket size={14} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                        <Layers size={15} />
+                        <span>Analyser</span>
                     </button>
+
+                    {/* 5. Bouton Fermer / Détacher (croix pour déverrouiller) — masqué en overlay */}
+                    <button
+                        id="sigil-map-hover-close-btn"
+                        type="button"
+                        style={{ display: 'none' }}
+                        title="Déverrouiller la case (ou appuyer sur Échap)"
+                        className={cn("w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white/50 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0 ml-1", isOverlay && "!hidden")}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (setSelectedPosition) setSelectedPosition(null);
+                            const hud = document.getElementById('sigil-map-hover-hud');
+                            if (hud) hud.style.display = 'none';
+                        }}
+                    >
+                        <X size={14} />
+                    </button>
+                </div>
+            )}
+
+            {/* 🌟 Composant discret en mode Overlay : position en temps réel + nom de zone */}
+            {!isMiniMap && !hideUI && isOverlay && (
+                <div
+                    id="sigil-overlay-hover-hud"
+                    style={{ display: 'none' }}
+                    className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none flex items-center gap-2 px-3 py-1 rounded-full bg-[#030712]/85 backdrop-blur-md border border-white/15 shadow-[0_4px_20px_rgba(0,0,0,0.8)] select-none transition-all duration-150 animate-in fade-in zoom-in-95"
+                >
+                    <span id="sigil-overlay-hover-pin" style={{ display: 'none' }} className="text-amber-400 text-xs">
+                        📌
+                    </span>
+                    <span id="sigil-overlay-hover-coords" className="font-mono font-black text-xs text-emerald-400 tracking-tight">
+                        [0, 0]
+                    </span>
+                    <span className="text-white/30 text-[10px]">•</span>
+                    <span id="sigil-overlay-hover-zone" className="text-xs font-semibold text-white/90 truncate max-w-[240px]">
+                        Zone
+                    </span>
                 </div>
             )}
             <style>{`
@@ -1290,7 +1691,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 preferCanvas={true}
                 dragging={interactive}
                 touchZoom={interactive}
-                doubleClickZoom={interactive}
+                doubleClickZoom={false}
                 scrollWheelZoom={interactive}
                 boxZoom={interactive}
                 keyboard={interactive}
@@ -1317,9 +1718,14 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     isMiniMap={isMiniMap}
                     guessResult={guessResult}
                     selectedPosition={selectedPosition}
+                    setSelectedPosition={setSelectedPosition}
                     participants={participants}
                     currentUserId={currentUserId}
                     highlightSubareaIds={highlightSubareaIds}
+                    zaaps={zaaps}
+                    onOpenZoneDetails={onOpenZoneDetails}
+                    isOverHudRef={isOverHudRef}
+                    mouseoutTimerRef={mouseoutTimerRef}
                 />
 
                 {/* 4. Interactions */}
@@ -1335,7 +1741,9 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     hideUI={hideUI}
                     interactive={interactive}
                     autoCopyTravel={autoCopyTravel}
+                    isOverlay={isOverlay}
                     activeCircuit={activeCircuit}
+                    onOpenZoneDetails={onOpenZoneDetails}
                 />
 
                 {/* 5. GPS Narrative Pulse (Highlight for quests) */}
@@ -1357,6 +1765,18 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                         completedStepIndices={completedHarvestSteps}
                         onToggleStepCompleted={onToggleHarvestStep}
                         mapsByCoords={mapsByCoords}
+                        isOverlay={isOverlay}
+                    />
+                )}
+
+                {/* 5ter. Passages Secrets, Souterrains & Raccourcis */}
+                {!isMiniMap && (
+                    <SecretPassagesOverlay
+                        activeWorld={correctedActiveWorld}
+                        showPassages={showPassages}
+                        zaaps={zaaps}
+                        showZaaps={showZaaps}
+                        isOverlay={isOverlay}
                     />
                 )}
 
@@ -1401,8 +1821,8 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     initialZoom={initialZoom}
                 />
                 
-                {/* 7. Contrôles de zoom premium */}
-                {interactive && !isMiniMap && <ZoomControls />}
+                {/* 7. Contrôles de zoom premium — masqués en overlay */}
+                {interactive && !isMiniMap && !isOverlay && <ZoomControls />}
             </MapContainer>
         </div>
     );

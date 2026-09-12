@@ -13,6 +13,7 @@
 
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { isPlaceholderStatLabel } from "./effects";
 
 export type MarketReferential = {
     /** `characteristicId` → libellé FR officiel (« Vitalité », « Dommages Feu »). */
@@ -65,10 +66,16 @@ export async function loadMarketReferential(): Promise<MarketReferential> {
         const effectLabels: Record<number, string> = {};
         const percentEffectIds: number[] = [];
         for (const effect of effects) {
-            if (effect.name) effectLabels[effect.id] = effect.name;
             if (effect.isInPercent) percentEffectIds.push(effect.id);
+            // S8.5 — on ne publie **jamais** un gabarit DofusDB (« Effet 63 »,
+            // « }{ soins »). En base : **231** gabarits sur 871 effets, dont **47**
+            // réellement référencés par des items. Les publier écrasait un libellé
+            // correct par du bruit (ex. `labels[0] = "Effet 11"`), ce qui obligeait
+            // chaque consommateur à re-tester `isPlaceholderStatLabel`.
+            if (isPlaceholderStatLabel(effect.name)) continue;
+            effectLabels[effect.id] = effect.name;
             // Une caractéristique sans libellé explicite hérite du libellé d'effet.
-            if (effect.characteristic != null && !labels[effect.characteristic] && effect.name) {
+            if (effect.characteristic != null && !labels[effect.characteristic]) {
                 labels[effect.characteristic] = effect.name;
             }
         }

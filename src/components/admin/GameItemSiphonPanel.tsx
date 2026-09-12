@@ -22,6 +22,7 @@ import {
     siphonGameItemsBatch,
     siphonMarketReferentials,
     backfillNativeEffects,
+    purgePlaceholderEffectLabels,
     searchLocalGameItems,
     type GameItemSearchResult,
 } from '@/server/actions/game-item-actions';
@@ -44,6 +45,8 @@ export function GameItemSiphonPanel() {
     const [isSiphoningRefs, setIsSiphoningRefs] = useState(false);
     // S2.12 — rattrapage local des plages natives (`nativeEffects`) manquantes.
     const [isBackfilling, setIsBackfilling] = useState(false);
+    // S8.5 — purge des libellés d'effets gabarits (« Effet 63 ») du référentiel.
+    const [isPurgingLabels, setIsPurgingLabels] = useState(false);
     const [progressValue, setProgressValue] = useState(0);
     const [siphonStatus, setSiphonStatus] = useState<string | null>(null);
     const [logs, setLogs] = useState<string[]>([]);
@@ -231,6 +234,36 @@ export function GameItemSiphonPanel() {
         });
     };
 
+    /**
+     * 🧹 S8.5 — purge les libellés-gabarits `GameEffect.name` (« Effet 63 »,
+     * « }{ soins ») que le siphon `/effects` a ramenés. Idempotent, **aucune
+     * suppression** : les lignes sans source fiable restent comptées « sans source ».
+     */
+    const handlePurgeEffectLabels = async () => {
+        setIsPurgingLabels(true);
+        setLogs((prev) => ['🧹 Purge des libellés d\'effets gabarits...', ...prev]);
+        startTransition(async () => {
+            try {
+                const res = await purgePlaceholderEffectLabels();
+                if (!res.success || !res.data) {
+                    setLogs((prev) => [`❌ Purge: ${res.error || 'Inconnue'}`, ...prev]);
+                    return;
+                }
+                const { scanned, repaired, unresolved } = res.data;
+                setSiphonStatus(`Libellés d'effets : ${repaired}/${scanned} réparés`);
+                setLogs((prev) => [
+                    `✅ Libellés d'effets : ${repaired} réparé(s) sur ${scanned} gabarit(s)` +
+                        (unresolved > 0 ? `, ${unresolved} sans source locale (ignorés à l'affichage).` : '.'),
+                    ...prev,
+                ]);
+            } catch (err: any) {
+                setLogs((prev) => [`❌ Exception purge: ${err?.message}`, ...prev]);
+            } finally {
+                setIsPurgingLabels(false);
+            }
+        });
+    };
+
     return (
         <div className="space-y-6">
             {/* Header Cards */}
@@ -341,6 +374,30 @@ export function GameItemSiphonPanel() {
                             Calcule les plages natives manquantes (colonne ajoutée après le premier
                             siphon) — local et instantané, sans réseau. Requis pour que
                             l&apos;éditeur de jet affiche les jets de base de l&apos;objet.
+                        </p>
+                        <Button
+                            onClick={handlePurgeEffectLabels}
+                            disabled={isPurgingLabels || isPending}
+                            variant="outline"
+                            className="w-full mt-2 rounded-xl gap-2"
+                        >
+                            {isPurgingLabels ? (
+                                <>
+                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                    Purge...
+                                </>
+                            ) : (
+                                <>
+                                    <Flame className="w-4 h-4" />
+                                    Purger les libellés d&apos;effets gabarits
+                                </>
+                            )}
+                        </Button>
+                        <p className="text-caption text-muted-foreground mt-2">
+                            Réécrit les noms « Effet 63 » et les gabarits à accolades ramenés par le
+                            siphon /effects à partir de la caractéristique jointe. Idempotent,
+                            aucune suppression : les lignes sans source locale restent inchangées et
+                            sont ignorées à l&apos;affichage (repli sur la table codée).
                         </p>
                     </div>
                 </div>

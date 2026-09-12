@@ -11,6 +11,7 @@ import { getDisplayName } from "@/lib/display-name";
 import { resolveDjContributionPoints } from "@/lib/points-config";
 import { createAuditLog } from "./audit-actions";
 import { sanitizeName } from "@/lib/security";
+import { getMultiDungeons } from "@/lib/dungeon-finder-utils";
 
 // ---------------------------------------------------------------------------
 // UTILS
@@ -305,7 +306,7 @@ async function sendDiscordNotification(
             } else if (postMode === "DONJON") {
                 typeLabel = "Donjon";
                 defaultEmoji = "⚔️";
-                contentName = post?.dungeon?.name || post?.dungeonsJson?.[0]?.name || "";
+                contentName = post?.dungeon?.name || getMultiDungeons(post?.dungeonsJson)?.[0]?.name || "";
             } else {
                 typeLabel = "Quête";
                 defaultEmoji = "📜";
@@ -408,7 +409,7 @@ async function sendDiscordNotification(
  *  libellé avec le nom du donjon + index (dj:join:{postId}:{idx}). */
 function buildMultiButtonRows(post: any, guildId: string) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
-    const entries: any[] = post.dungeonsJson ?? [];
+    const entries: any[] = getMultiDungeons(post.dungeonsJson);
     return entries.map((entry: any, idx: number) => ({
         type: 1,
         components: [
@@ -458,12 +459,13 @@ async function sendMultiDiscordNotification(
         let discordChannelId: string | null = null;
         let discordMessageId: string | null = null;
 
-        const entryCount = (post.dungeonsJson ?? []).length;
+        const entries = getMultiDungeons(post.dungeonsJson);
+        const entryCount = entries.length;
 
         if (isForumChannel) {
             // #167 — nom du thread multi-donjon avec le nom réel du 1er donjon
             // (fini le libellé générique « Multi-donjon - N donjons »).
-            const firstName = post?.dungeonsJson?.[0]?.name || "Multi-donjon";
+            const firstName = entries?.[0]?.name || "Multi-donjon";
             const extra = entryCount > 1 ? ` +${entryCount - 1}` : "";
             const threadTitle = `⚔️ ${firstName}${extra}`.substring(0, 100);
             const availableTags: { id: string; name: string; moderated?: boolean }[] = channelData.available_tags || [];
@@ -508,7 +510,7 @@ async function sendMultiDiscordNotification(
  * date prévue, note, classes recherchées + membres (partagés sur la session).
  */
 async function buildMultiPostEmbeds(post: any, authorName: string): Promise<any[]> {
-    const entries: any[] = post.dungeonsJson ?? [];
+    const entries: any[] = getMultiDungeons(post.dungeonsJson);
     const acceptedParts = (post.participants ?? []).filter((p: any) => p.status === "ACCEPTED");
     const isMulti = entries.length > 0;
 
@@ -588,7 +590,7 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
         if (!post?.discordMessageId || !post?.discordChannelId) return;
         const authorName = post.profile?.discordNickname || post.profile?.pseudoDofus || post.profile?.dofusPseudo || post.profile?.user?.name || "Membre";
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
-        const isMulti = (post.dungeonsJson ?? []).length > 0;
+        const isMulti = getMultiDungeons(post.dungeonsJson).length > 0;
         const isOpen = post.status === "OPEN" || post.status === "FULL";
 
         let patchBody: Record<string, unknown>;
@@ -1367,8 +1369,9 @@ async function applySuccessValidations(opts: {
     // 1. Donjons autorisés = ceux portés par CE post.
     const allowedDungeonIds = new Set<string>();
     if (post.dungeonId) allowedDungeonIds.add(post.dungeonId);
-    if (Array.isArray(post.dungeonsJson)) {
-        (post.dungeonsJson as any[]).forEach((d) => {
+    const multiList = getMultiDungeons(post.dungeonsJson);
+    if (multiList.length > 0) {
+        multiList.forEach((d) => {
             if (d?.dungeonId) allowedDungeonIds.add(String(d.dungeonId));
         });
     }
@@ -1914,7 +1917,7 @@ export async function internalJoinDjPost(
         if (post.profileId === profileId) return { success: false, error: "Tu es le créateur de ce post" };
 
         // #26 multi-donjons : borne l'index du donjon rejoint (0-based, < nb de donjons)
-        const multiEntries: any[] = post.dungeonsJson ?? [];
+        const multiEntries: any[] = getMultiDungeons(post.dungeonsJson);
         const joinedDungeonIndex =
             multiEntries.length > 0
                 ? (Number.isFinite(dungeonIndex) ? Math.max(0, Math.min(dungeonIndex as number, multiEntries.length - 1)) : undefined)
@@ -2219,8 +2222,10 @@ export async function getDjPosts(
                 const { getVerifiedDPLNUrl } = await import("@/lib/dofus-noobs-helper");
                 questUrl = await getVerifiedDPLNUrl(p.questName);
             }
+            const dungeonsJson = getMultiDungeons(p.dungeonsJson);
             return {
                 ...p,
+                dungeonsJson: dungeonsJson.length > 0 ? dungeonsJson : p.dungeonsJson,
                 questUrl,
                 _acceptedCount: p.participants.filter((part: any) => part.status === "ACCEPTED").length,
             };

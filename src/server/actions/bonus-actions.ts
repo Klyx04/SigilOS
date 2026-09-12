@@ -145,7 +145,8 @@ export async function getGuildRoles(guildId: string): Promise<ActionResponse<Arr
 
         return { success: true, data: filteredRoles };
     } catch (error) {
-        return { success: false, error: (error as Error).message, data: [] };
+        logger.error("[BonusAction] getGuildRoles failed:", error);
+        return { success: false, error: "Impossible de récupérer les rôles du serveur. Réessaie.", data: [] };
     }
 }
 
@@ -171,7 +172,8 @@ export async function getGuildBonuses(
 
         return { success: true, data: enriched };
     } catch (error) {
-        return { success: false, error: (error as Error).message };
+        logger.error("[BonusAction] getGuildBonuses failed:", error);
+        return { success: false, error: "Impossible de récupérer les bonus de la guilde. Réessaie." };
     }
 }
 
@@ -260,7 +262,8 @@ export async function getActiveBonuses(
 
         return { success: true, data: results };
     } catch (error) {
-        return { success: false, error: (error as Error).message };
+        logger.error("[BonusAction] getActiveBonuses failed:", error);
+        return { success: false, error: "Impossible de récupérer les bonus actifs. Réessaie." };
     }
 }
 
@@ -428,7 +431,8 @@ export async function purchaseBonus(
             const firstError = (error as any).errors?.[0]?.message || "Données invalides";
             return { success: false, error: firstError };
         }
-        return { success: false, error: (error as Error).message };
+        logger.error("[BonusAction] purchaseBonus failed:", error);
+        return { success: false, error: "Impossible d'acheter ce bonus. Réessaie." };
     }
 }
 
@@ -498,7 +502,8 @@ export async function cancelBonus(
             const firstError = (error as any).errors?.[0]?.message || "Données invalides";
             return { success: false, error: firstError };
         }
-        return { success: false, error: (error as Error).message };
+        logger.error("[BonusAction] cancelBonus failed:", error);
+        return { success: false, error: "Impossible d'annuler ce bonus. Réessaie." };
     }
 }
 
@@ -539,7 +544,8 @@ export async function expireBonus(bonusId: string): Promise<ActionResponse> {
 
         return { success: true };
     } catch (error) {
-        return { success: false, error: (error as Error).message };
+        logger.error("[BonusAction] expireBonus failed:", error);
+        return { success: false, error: "Impossible de clôturer ce bonus. Réessaie." };
     }
 }
 
@@ -612,7 +618,8 @@ export async function getBonusConfig(
 
         return { success: true, data: { bonusNotifyChannelId: config.bonusNotifyChannelId, channelName } };
     } catch (error) {
-        return { success: false, error: (error as Error).message };
+        logger.error("[BonusAction] getBonusConfig failed:", error);
+        return { success: false, error: "Impossible de récupérer la configuration des bonus. Réessaie." };
     }
 }
 
@@ -661,7 +668,8 @@ export async function updateBonusChannel(
         if ((error as any).name === "ZodError") {
             return { success: false, error: "ID de salon Discord invalide" };
         }
-        return { success: false, error: (error as Error).message };
+        logger.error("[BonusAction] updateBonusChannel failed:", error);
+        return { success: false, error: "Impossible d'enregistrer le salon de notification. Réessaie." };
     }
 }
 

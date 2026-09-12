@@ -159,6 +159,7 @@ services/discord-bot/node_modules/
 # "Monstres" du Bestiaire (overlay + landing) est vide sur beta/prod car l'image
 # Docker ne contient pas les fichiers ignorés (recréés à chaque déploiement).
 !/public/game-data/dungeon-monsters.json
+!/public/game-data/secret-passages.json
 
 # Temporary files
 temp_map.jpg

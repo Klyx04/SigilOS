@@ -1,9 +1,10 @@
 import { getGuildPresentation, getPublicGuildBasicInfo } from "@/server/actions/presentation-actions";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { GuildPublicView } from "./_components/guild-public-view";
 import { PrivateGuildView } from "./_components/private-guild-view";
 import { getAppBaseUrl } from "@/lib/utils";
+import { getGuildSlug } from "@/lib/presentation-constants";
 import { headers } from "next/headers";
 
 type Props = {
@@ -16,11 +17,12 @@ export async function generateMetadata({ params }: Props) {
 
     if (guild) {
         const baseUrl = getAppBaseUrl();
+        const slug = getGuildSlug(guild);
         return {
             title: `${guild.name} — Guilde Dofus ${guild.server || ''} | SigilOS`,
             description: `Profil de la guilde ${guild.name} sur le serveur ${guild.server || 'Dofus'}. ${guild.isRecruiting ? 'Recrutement ouvert ! ' : ''}Missions, membres, progression et événements. Plateforme SigilOS 2026.`,
             alternates: {
-                canonical: `${baseUrl}/guilds/${guildId}`,
+                canonical: `${baseUrl}/guilds/${slug || guildId}`,
             },
             openGraph: {
                 title: `${guild.name} — Guilde Dofus ${guild.server || ''}`,
@@ -75,17 +77,23 @@ export default async function GuildPresentationPage({ params }: Props) {
         notFound();
     }
 
+    const slug = getGuildSlug(guild);
+    if (slug && guildId !== slug && (guildId === guild.discordGuildId || guildId === guild.id)) {
+        redirect(`/guilds/${slug}`);
+    }
+
     const foundedYear = guild.foundedDate
         ? new Date(guild.foundedDate).getFullYear()
         : new Date(guild.createdAt).getFullYear();
 
     const baseUrl = getAppBaseUrl();
+    const publicUrl = `${baseUrl}/guilds/${slug || guildId}`;
     const jsonLd: any[] = [
         {
             "@context": "https://schema.org",
             "@type": "Organization",
             "name": guild.name,
-            "url": `${baseUrl}/guilds/${guildId}`,
+            "url": publicUrl,
             "description": guild.history?.slice(0, 200) || `Guilde Dofus ${guild.server}`,
             ...(guild.iconUrl ? { "logo": guild.iconUrl } : {}),
             "sameAs": guild.discord ? [guild.discord] : [],
@@ -99,7 +107,7 @@ export default async function GuildPresentationPage({ params }: Props) {
             "itemListElement": [
                 { "@type": "ListItem", "position": 1, "name": "Accueil", "item": baseUrl },
                 { "@type": "ListItem", "position": 2, "name": "Annuaire", "item": `${baseUrl}/guilds` },
-                { "@type": "ListItem", "position": 3, "name": guild.name, "item": `${baseUrl}/guilds/${guildId}` },
+                { "@type": "ListItem", "position": 3, "name": guild.name, "item": publicUrl },
             ],
         },
     ].filter((obj: any) => {

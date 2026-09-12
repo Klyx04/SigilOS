@@ -97,7 +97,12 @@ export function SecretPassagesOverlay({
     useEffect(() => {
         let isMounted = true;
         fetch('/game-data/secret-passages.json')
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status} - ${res.statusText}`);
+                }
+                return res.json();
+            })
             .then((data: SecretPassageItem[]) => {
                 if (isMounted) setPassages(data);
             })

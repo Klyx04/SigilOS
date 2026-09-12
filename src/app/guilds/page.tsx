@@ -1,4 +1,5 @@
 import { getPublicGuilds } from "@/server/actions/presentation-actions";
+import { getGuildSlug } from "@/lib/presentation-constants";
 import Link from "next/link";
 import Image from "next/image";
 import { Gamepad2, Compass, ArrowRight, ShieldCheck } from "lucide-react";
@@ -71,7 +72,7 @@ export default async function GuildsDirectoryPage() {
                             {guilds.map((guild) => (
                                 <Link
                                     key={guild.id}
-                                    href={myGuildIds.has(guild.discordGuildId) ? `/dashboard/${guild.discordGuildId}` : `/guilds/${guild.discordGuildId}`}
+                                    href={myGuildIds.has(guild.discordGuildId) ? `/dashboard/${guild.discordGuildId}` : `/guilds/${getGuildSlug(guild)}`}
                                     className="group block"
                                 >
                                     <article className="h-full rounded-2xl border border-border bg-surface/40 hover:bg-surface/60 hover:border-success/30 transition-all duration-300 overflow-hidden flex flex-col">

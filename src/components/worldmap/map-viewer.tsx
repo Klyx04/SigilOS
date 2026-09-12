@@ -29,7 +29,9 @@ export function MapViewer({
     userAvatar,
     isAdmin,
     interactive,
-    startFullscreen
+    startFullscreen,
+    isOverlay,
+    isPublic
 }: { 
     initialLadder?: any[], 
     initialTab?: 'map' | 'games', 
@@ -43,7 +45,10 @@ export function MapViewer({
     userAvatar?: string,
     isAdmin?: boolean,
     interactive?: boolean,
-    startFullscreen?: boolean
+    startFullscreen?: boolean,
+    isOverlay?: boolean,
+    /** Mode public : désactive toutes les interactions de guilde. */
+    isPublic?: boolean
 }) {
     const [data, setData] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
@@ -113,6 +118,8 @@ export function MapViewer({
             isAdmin={isAdmin}
             interactive={interactive}
             startFullscreen={startFullscreen}
+            isOverlay={isOverlay}
+            isPublic={isPublic}
         />
     );
 }

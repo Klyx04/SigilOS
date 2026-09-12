@@ -33,13 +33,31 @@ const CATEGORY_CONFIG: Record<string, {
     AUTRE: { label: "Autres", emoji: "📋", color: "text-info", gradient: "from-info to-info", glowColor: "rgba(99,102,241,0.4)", barColor: "bg-info" },
 };
 
+const AVATAR_PALETTES = [
+    "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30",
+    "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30",
+    "bg-amber-500/20 text-amber-400 border border-amber-500/30",
+    "bg-rose-500/20 text-rose-400 border border-rose-500/30",
+    "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30",
+    "bg-purple-500/20 text-purple-400 border border-purple-500/30",
+    "bg-teal-500/20 text-teal-400 border border-teal-500/30",
+];
+
+function getAvatarColor(name: string) {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return AVATAR_PALETTES[Math.abs(hash) % AVATAR_PALETTES.length];
+}
+
 interface PollOption {
     id: string;
     label: string;
     emoji: string | null;
     order: number;
     voteCount: number;
-    votes: { id: string; voterId: string; voterName: string; createdAt: string }[];
+    votes: { id: string; voterId: string; voterName: string; voterImage?: string | null; createdAt: string }[];
 }
 
 interface PollDetailProps {
@@ -264,7 +282,7 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                 {poll.title}
                             </h1>
                             {poll.description && (
-                                <p className="text-muted-foreground text-base md:text-lg leading-relaxed max-w-3xl font-medium">
+                                <p className="text-muted-foreground text-base md:text-lg leading-relaxed max-w-3xl font-medium whitespace-pre-wrap">
                                     {poll.description}
                                 </p>
                             )}
@@ -354,12 +372,12 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
 
             {/* Voting Section */}
             <div className="grid grid-cols-1 gap-4">
-                <div className="flex items-center justify-between mb-4 px-4">
-                    <h2 className="text-caption font-black uppercase tracking-widest text-muted-foreground">Propositions et resultats</h2>
+                <div className="flex items-center justify-between mb-2 px-2">
+                    <h2 className="text-caption font-black uppercase tracking-widest text-muted-foreground">Propositions et résultats</h2>
                     {isActive && (
                         <span className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-info animate-pulse" />
-                            <span className="text-caption font-bold text-info uppercase tracking-widest">En direct</span>
+                            <span className="w-2 h-2 rounded-full bg-info animate-pulse" />
+                            <span className="text-caption font-bold text-info uppercase tracking-widest">Votes ouverts</span>
                         </span>
                     )}
                 </div>
@@ -371,167 +389,221 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                         const isWinning = option.voteCount === maxVotes && localTotalVotes > 0;
 
                         return (
-                            <motion.button
+                            <motion.div
                                 key={option.id}
-                                onClick={() => handleVote(option.id)}
-                                disabled={!isActive || isPending}
-                                initial={{ opacity: 0, y: 15 }}
+                                initial={{ opacity: 0, y: 12 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: i * 0.05 }}
                                 className={cn(
-                                    "w-full group relative overflow-hidden rounded-3xl border transition-all duration-300 text-left",
-                                    "bg-surface/40 backdrop-blur-sm",
-                                    isActive
-                                        ? "hover:bg-surface/80 cursor-pointer"
-                                        : "cursor-default opacity-80",
+                                    "w-full rounded-2xl border transition-all duration-300 overflow-hidden",
+                                    "bg-surface/50 backdrop-blur-sm p-5 md:p-6 space-y-4",
                                     isVoted
-                                        ? "border-info/30 shadow-lg shadow-cyan-900/10"
-                                        : "border-border"
+                                        ? "border-info/40 shadow-lg shadow-cyan-900/10 bg-info/[0.03]"
+                                        : "border-border hover:border-border-strong"
                                 )}
                             >
-                                {/* Results fill */}
-                                <div className="absolute inset-0">
-                                    <motion.div
-                                        className={cn(
-                                            "h-full transition-colors",
-                                            isVoted ? "bg-info/10" : "bg-surface"
-                                        )}
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${percent}%` }}
-                                        transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: i * 0.05 + 0.2 }}
-                                    />
-                                    {isWinning && localTotalVotes > 0 && (
-                                        <div className="absolute inset-0 border-2 border-warning/10 rounded-3xl pointer-events-none" />
-                                    )}
-                                </div>
-
-                                <div className="relative z-10 flex items-center justify-between p-6">
-                                    <div className="flex items-center gap-6 flex-1 min-w-0">
-                                        {/* Status Icon / Index */}
+                                {/* En-tête de l'option : emoji + titre + badge en tête + % + bouton voter */}
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div className="flex items-center gap-3.5 flex-1 min-w-0">
+                                        {/* Emoji ou numéro */}
                                         <div className={cn(
-                                            "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 shrink-0",
+                                            "w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border transition-transform",
                                             isVoted
-                                                ? "bg-info text-info-foreground shadow-lg shadow-cyan-500/20 scale-110"
-                                                : "bg-surface text-muted-foreground group-hover:bg-surface"
+                                                ? "bg-info text-info-foreground border-info shadow-md shadow-cyan-500/20"
+                                                : "bg-surface border-border text-foreground"
                                         )}>
-                                            {isVoted ? <CheckCircle2 className="w-6 h-6" /> : <div className="text-xl font-black">{option.emoji || (i + 1)}</div>}
+                                            {option.emoji ? (
+                                                <span className="text-xl">{option.emoji}</span>
+                                            ) : (
+                                                <span className="text-base font-black">{i + 1}</span>
+                                            )}
                                         </div>
 
-                                        <div className="min-w-0">
-                                            <p className={cn(
-                                                "text-lg font-black transition-colors break-words whitespace-normal",
-                                                isVoted ? "text-foreground" : "text-foreground group-hover:text-foreground"
-                                            )}>
-                                                {option.label}
-                                            </p>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <h3 className="text-base md:text-lg font-black text-foreground break-words leading-snug">
+                                                    {option.label}
+                                                </h3>
+                                                {isWinning && localTotalVotes > 0 && (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-warning/15 text-warning border border-warning/30 shadow-sm">
+                                                        <Crown className="w-3 h-3 text-warning" />
+                                                        En tête
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                            {/* Voters preview */}
-                                            {!poll.isAnonymous && option.votes.length > 0 && (
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <div className="flex items-center gap-2.5 mt-2.5 cursor-pointer group/voters">
-                                                                <div className="flex -space-x-2">
-                                                                    {option.votes.slice(0, 5).map((v) => {
-                                                                        // Couleur déterministe basée sur le nom
-                                                                        const colors = [
-                                                                            "bg-info/20 text-info border-info/30",
-                                                                            "bg-warning/20 text-warning border-warning/30",
-                                                                            "bg-success/20 text-success border-success/30",
-                                                                            "bg-danger/20 text-danger border-danger/30",
-                                                                            "bg-info/20 text-info border-info/30",
-                                                                            "bg-violet-500/20 text-violet-300 border-violet-500/30",
-                                                                        ];
-                                                                        const colorClass = colors[v.voterName.charCodeAt(0) % colors.length];
-                                                                        return (
-                                                                            <div
-                                                                                key={v.id}
-                                                                                className={cn(
-                                                                                    "w-7 h-7 rounded-full border-2 flex items-center justify-center text-caption font-black uppercase transition-transform  hover:z-10 relative",
-                                                                                    colorClass
-                                                                                )}
-                                                                                title={v.voterName}
-                                                                            >
-                                                                                {v.voterName.charAt(0)}
-                                                                            </div>
-                                                                        );
-                                                                    })}
-                                                                </div>
-                                                                {option.votes.length > 5 && (
-                                                                    <span className="text-caption text-muted-foreground font-black group-hover/voters:text-foreground transition-colors">
-                                                                        +{option.votes.length - 5} autres
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent
-                                                            className="bg-background border border-border p-0 rounded-2xl max-w-xs shadow-2xl overflow-hidden"
-                                                            side="bottom"
-                                                            align="start"
-                                                        >
-                                                            <div className="px-4 py-3 border-b border-border">
-                                                                <p className="text-caption font-black text-muted-foreground uppercase tracking-widest">
-                                                                    {option.votes.length} votant{option.votes.length > 1 ? "s" : ""}
-                                                                </p>
-                                                            </div>
-                                                            <div className="max-h-48 overflow-y-auto">
-                                                                {option.votes.map((v, idx) => {
-                                                                    const colors = [
-                                                                        "bg-info/20 text-info",
-                                                                        "bg-warning/20 text-warning",
-                                                                        "bg-success/20 text-success",
-                                                                        "bg-danger/20 text-danger",
-                                                                        "bg-info/20 text-info",
-                                                                        "bg-violet-500/20 text-violet-300",
-                                                                    ];
-                                                                    const colorClass = colors[v.voterName.charCodeAt(0) % colors.length];
-                                                                    return (
-                                                                        <div
-                                                                            key={v.id}
-                                                                            className={cn(
-                                                                                "flex items-center gap-3 px-4 py-2.5 transition-colors",
-                                                                                idx % 2 === 0 ? "bg-surface" : "bg-transparent"
-                                                                            )}
-                                                                        >
-                                                                            <div className={cn(
-                                                                                "w-6 h-6 rounded-full flex items-center justify-center text-caption font-black uppercase shrink-0",
-                                                                                colorClass
-                                                                            )}>
-                                                                                {v.voterName.charAt(0)}
-                                                                            </div>
-                                                                            <span className="text-label text-foreground font-medium truncate">{v.voterName}</span>
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
+                                    {/* Côté droit : % + nb votes + Bouton de vote dédié */}
+                                    <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
+                                        <div className="text-left sm:text-right">
+                                            <div className="flex items-baseline sm:justify-end gap-1.5">
+                                                <span className={cn(
+                                                    "text-2xl font-black tabular-nums leading-none tracking-tight",
+                                                    isWinning && localTotalVotes > 0 ? "text-warning" : "text-foreground"
+                                                )}>
+                                                    {Math.round(percent)}%
+                                                </span>
+                                                <span className="text-xs font-bold text-muted-foreground tabular-nums">
+                                                    ({option.voteCount} vote{option.voteCount > 1 ? "s" : ""})
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Bouton de vote dédié à côté du choix */}
+                                        <div>
+                                            {isActive ? (
+                                                <Button
+                                                    onClick={() => handleVote(option.id)}
+                                                    disabled={isPending}
+                                                    className={cn(
+                                                        "h-10 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition-all duration-200 shadow-sm",
+                                                        isVoted
+                                                            ? "bg-success/15 hover:bg-danger/15 text-success hover:text-danger border border-success/30 hover:border-danger/30 group/votedbtn"
+                                                            : "bg-info hover:bg-info/85 text-info-foreground shadow-cyan-900/10 hover:shadow-cyan-900/20 active:scale-95"
+                                                    )}
+                                                >
+                                                    {isVoted ? (
+                                                        <>
+                                                            <CheckCircle2 className="w-4 h-4 mr-1.5 group-hover/votedbtn:hidden text-success" />
+                                                            <XCircle className="w-4 h-4 mr-1.5 hidden group-hover/votedbtn:inline text-danger" />
+                                                            <span className="group-hover/votedbtn:hidden">Voté</span>
+                                                            <span className="hidden group-hover/votedbtn:inline">Retirer</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <CheckCircle2 className="w-4 h-4 mr-1.5 opacity-70" />
+                                                            <span>Voter</span>
+                                                        </>
+                                                    )}
+                                                </Button>
+                                            ) : (
+                                                <span className="text-[11px] font-bold text-muted-foreground uppercase px-3 py-1.5 rounded-xl bg-surface border border-border">
+                                                    {isVoted ? "✓ Votre vote" : "Fermé"}
+                                                </span>
                                             )}
                                         </div>
                                     </div>
+                                </div>
 
-                                    {/* Stats block */}
-                                    <div className="flex items-center gap-6 shrink-0 md:pl-8 border-l border-border">
-                                        <div className="text-right">
-                                            <div className={cn(
-                                                "text-2xl font-black tabular-nums leading-none tracking-tighter",
-                                                isWinning ? (isVoted ? "text-info" : "text-warning") : "text-muted-foreground"
-                                            )}>
-                                                {Math.round(percent)}%
-                                            </div>
-                                            <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest mt-1">
-                                                {option.voteCount} vote{option.voteCount !== 1 ? "s" : ""}
-                                            </p>
-                                        </div>
-                                        {isWinning && localTotalVotes > 0 && (
-                                            <div className="p-2 rounded-xl bg-warning/10 border border-warning/20">
-                                                <Crown className="w-5 h-5 text-warning/60" />
-                                            </div>
-                                        )}
+                                {/* Barre de progression bien visible avec couleur de thématique */}
+                                <div className="w-full space-y-1">
+                                    <div className="w-full h-3 rounded-full bg-surface border border-border/60 overflow-hidden relative p-[2px]">
+                                        <motion.div
+                                            className={cn(
+                                                "h-full rounded-full transition-all relative overflow-hidden",
+                                                cat.barColor,
+                                                isWinning && localTotalVotes > 0 && "ring-1 ring-warning/50"
+                                            )}
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${percent}%` }}
+                                            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: i * 0.05 }}
+                                        >
+                                            {/* Reflet brillant doux */}
+                                            <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
+                                        </motion.div>
                                     </div>
                                 </div>
-                            </motion.button>
+
+                                {/* Liste des votants : propre, avec bulle profil Discord + pseudo */}
+                                <div className="pt-2 border-t border-border/40">
+                                    {poll.isAnonymous ? (
+                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium italic">
+                                            <Lock className="w-3.5 h-3.5" />
+                                            <span>Votes anonymes — les identités des votants sont masquées</span>
+                                        </div>
+                                    ) : option.votes.length === 0 ? (
+                                        <span className="text-xs text-muted-foreground/60 italic font-medium">
+                                            Aucun vote pour cette proposition pour l'instant
+                                        </span>
+                                    ) : (
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="text-caption font-bold uppercase tracking-wider text-muted-foreground mr-1">
+                                                Votants ({option.votes.length}) :
+                                            </span>
+                                            {option.votes.slice(0, 8).map((v) => (
+                                                <div
+                                                    key={v.id}
+                                                    className="inline-flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full bg-surface border border-border hover:border-info/30 transition-all shadow-sm group/voter"
+                                                    title={`${v.voterName} (a voté le ${new Date(v.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })})`}
+                                                >
+                                                    {v.voterImage ? (
+                                                        <img
+                                                            src={v.voterImage}
+                                                            alt={v.voterName}
+                                                            className="w-5 h-5 rounded-full object-cover border border-border/50 shrink-0"
+                                                            onError={(e) => {
+                                                                (e.target as HTMLElement).style.display = "none";
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <div className={cn(
+                                                            "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black uppercase shrink-0",
+                                                            getAvatarColor(v.voterName)
+                                                        )}>
+                                                            {v.voterName.charAt(0)}
+                                                        </div>
+                                                    )}
+                                                    <span className="text-xs font-bold text-foreground group-hover/voter:text-info transition-colors truncate max-w-[130px]">
+                                                        {v.voterName}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                            {option.votes.length > 8 && (
+                                                <Dialog>
+                                                    <DialogTrigger asChild>
+                                                        <button
+                                                            type="button"
+                                                            className="text-xs font-black text-info hover:text-info hover:underline px-2.5 py-1 rounded-full bg-info/10 border border-info/25 cursor-pointer transition-all hover:bg-info/15"
+                                                        >
+                                                            +{option.votes.length - 8} autres...
+                                                        </button>
+                                                    </DialogTrigger>
+                                                    <DialogContent className="max-w-md bg-background border border-border rounded-2xl p-6">
+                                                        <DialogHeader>
+                                                            <DialogTitle className="text-base font-black flex items-center gap-2">
+                                                                <span>Votants pour "{option.label}"</span>
+                                                                <span className="text-xs font-bold text-muted-foreground px-2.5 py-0.5 rounded-full bg-surface border border-border">
+                                                                    {option.votes.length}
+                                                                </span>
+                                                            </DialogTitle>
+                                                        </DialogHeader>
+                                                        <div className="max-h-80 overflow-y-auto space-y-2 mt-4 pr-1 premium-scrollbar">
+                                                            {option.votes.map((v) => (
+                                                                <div
+                                                                    key={v.id}
+                                                                    className="flex items-center justify-between p-2.5 rounded-xl bg-surface/50 border border-border hover:bg-surface transition-colors"
+                                                                >
+                                                                    <div className="flex items-center gap-3">
+                                                                        {v.voterImage ? (
+                                                                            <img
+                                                                                src={v.voterImage}
+                                                                                alt={v.voterName}
+                                                                                className="w-8 h-8 rounded-full object-cover border border-border shrink-0"
+                                                                            />
+                                                                        ) : (
+                                                                            <div className={cn(
+                                                                                "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black uppercase shrink-0",
+                                                                                getAvatarColor(v.voterName)
+                                                                            )}>
+                                                                                {v.voterName.charAt(0)}
+                                                                            </div>
+                                                                        )}
+                                                                        <span className="text-sm font-bold text-foreground">{v.voterName}</span>
+                                                                    </div>
+                                                                    <span className="text-[11px] text-muted-foreground font-medium">
+                                                                        {new Date(v.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                                                                    </span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </DialogContent>
+                                                </Dialog>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </motion.div>
                         );
                     })}
                 </div>

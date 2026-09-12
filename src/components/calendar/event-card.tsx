@@ -129,7 +129,12 @@ export function EventCard({
                 <div className="mr-auto min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-2">
                         <Badge variant="outline" className={cn("h-5 px-1.5 text-caption font-medium border-0", theme.bg, theme.color)}>
-                            <Icon className="mr-1 h-3 w-3" />
+                            {isKralamoure ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src="/assets/calendar/kralamoure-head.png" alt="Kralamoure" className="mr-1 h-3.5 w-3.5 object-contain inline-block" />
+                            ) : (
+                                <Icon className="mr-1 h-3 w-3" />
+                            )}
                             {theme.label}
                         </Badge>
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -231,6 +236,9 @@ export function EventCard({
                         <Badge variant="outline" className={cn("rounded-md px-2.5 py-1 text-sm font-semibold border-opacity-50 transition-colors", theme.bg, theme.color, theme.border)}>
                             {isCompleted ? (
                                 <CheckCircle2 className="w-4 h-4 mr-2 text-success" />
+                            ) : isKralamoure ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src="/assets/calendar/kralamoure-head.png" alt="Kralamoure" className="w-4 h-4 mr-2 object-contain inline-block" />
                             ) : (
                                 <Icon className="w-4 h-4 mr-2" />
                             )}

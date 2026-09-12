@@ -456,7 +456,12 @@ export function EventDetailModal({
                                     "p-3 rounded-2xl shadow-inner shrink-0",
                                     "bg-muted/20 text-foreground backdrop-blur-sm border border-border"
                                 )}>
-                                    <TypeIcon className="w-6 h-6" />
+                                    {event.type === "KRALAMOURE" ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src="/assets/calendar/kralamoure-head.png" alt="Kralamoure" className="w-6 h-6 object-contain" />
+                                    ) : (
+                                        <TypeIcon className="w-6 h-6" />
+                                    )}
                                 </div>
 
                                 <div className="space-y-2">

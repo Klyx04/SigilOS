@@ -228,7 +228,7 @@ export async function POST(request: NextRequest) {
                         });
                     }
 
-                    result = await processPollVote(guild_id, profile.id, entityId);
+                    result = await processPollVote(guild_id, profile.id, entityId, account!.userId);
 
                     if (result.success) {
                         const actionLabel = result.data?.action === "voted" ? "enregistré" : "retiré";
@@ -326,28 +326,60 @@ export async function POST(request: NextRequest) {
                         });
                     }
 
-                    if (action === "join") {
-                        const { internalJoinDjPost } = await import("@/server/actions/dungeon-finder-actions");
-                        result = await internalJoinDjPost(entityId, profile.id, account!.userId, dungeonIndex);
+                if (action === "join") {
+                    // Rétro-compatibilité: les anciens embeds avaient dj:join direct.
+                    // On ouvre maintenant la modal (comme dj:apply) pour recueillir la classe.
+                    const modalCustomId = `dj:join:${entityId}${dungeonIndex !== undefined ? `:${dungeonIndex}` : ""}`;
+                    return NextResponse.json({
+                        type: 9, // MODAL
+                        data: {
+                            custom_id: modalCustomId,
+                            title: "⚔️ Inscription au groupe",
+                            components: [
+                                {
+                                    type: 1,
+                                    components: [
+                                        {
+                                            type: 4,
+                                            custom_id: "classe",
+                                            label: "Ta classe Dofus",
+                                            style: 1,
+                                            placeholder: "Ex: Cra, Iop, Eniripsa...",
+                                            required: true,
+                                            min_length: 2,
+                                            max_length: 30,
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: 1,
+                                    components: [
+                                        {
+                                            type: 4,
+                                            custom_id: "message",
+                                            label: "Message (optionnel)",
+                                            style: 2,
+                                            placeholder: "Ex: Cra opti dispo ce soir",
+                                            required: false,
+                                            max_length: 200,
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    });
+                } else if (action === "leave") {
+                    const { internalLeaveDjPost } = await import("@/server/actions/dungeon-finder-actions");
+                    result = await internalLeaveDjPost(entityId, profile.id);
 
-                        if (result?.success) {
-                            return NextResponse.json({
-                                type: 4,
-                                data: { content: "✅ Tu as rejoint le groupe ! Retrouve les détails sur le site.", flags: 64 },
-                            });
-                        }
-                    } else if (action === "leave") {
-                        const { internalLeaveDjPost } = await import("@/server/actions/dungeon-finder-actions");
-                        result = await internalLeaveDjPost(entityId, profile.id);
-
-                        if (result?.success) {
-                            return NextResponse.json({
-                                type: 4,
-                                data: { content: "👋 Tu as quitté le groupe.", flags: 64 },
-                            });
-                        }
+                    if (result?.success) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "👋 Tu as quitté le groupe.", flags: 64 },
+                        });
                     }
                 }
+            }
             } else if (prefix === "svc") {
                 if (action === "contact") {
                     const { internalContactService } = await import("@/server/actions/service-actions");
@@ -1300,9 +1332,13 @@ export async function POST(request: NextRequest) {
                 const res = await internalJoinDjPost(entityId, profile.id, account.userId, dungeonIndex, matchedClass, message);
 
                 if (res.success) {
+                    const wasWaitlisted = (res as any).data?.waitlisted;
+                    const replyContent = wasWaitlisted
+                        ? `⏳ Tu es en **file d'attente** ! Le créateur sera notifié et pourra t'accepter si une place se libère.${matchedClass ? `\nClasse: **${matchedClass}**` : ""}${message ? `\nMessage: *${message}*` : ""}`
+                        : `✅ Tu as rejoint le groupe ! Classe: **${matchedClass}**${message ? `\nMessage: *${message}*` : ""}\nRetrouve les détails sur le site.`;
                     return NextResponse.json({
                         type: 4,
-                        data: { content: `✅ Tu as rejoint le groupe ! Classe: **${matchedClass}**${message ? `\nMessage: *${message}*` : ""}`, flags: 64 },
+                        data: { content: replyContent, flags: 64 },
                     });
                 }
                 return NextResponse.json({ type: 4, data: { content: `❌ ${res.error || "Impossible de rejoindre le groupe."}`, flags: 64 } });

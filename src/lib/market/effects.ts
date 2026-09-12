@@ -40,83 +40,109 @@ export type DofusItemEffectLike = {
     elementId?: number | null;
 };
 
-/** Libellés FR par `characteristicId` ou `effectId` DofusDB (repli hors base). */
+/**
+ * Libellés FR par `characteristicId` **ou** `effectId` DofusDB (repli hors base).
+ *
+ * ⚠️ **Valeurs de caractéristiques alignées sur le référentiel siphonné**
+ * (`GameCharacteristic`, vérifié en base le 11/09/2026) : `10` = Force, `16` =
+ * **Dommages**, `26` = **Invocation**, `27`/`28` = **Esquive PA/PM**, `33`→`37` =
+ * résistances élémentaires (%), `40` = Pods, `44` = Initiative, `48` = Prospection,
+ * `49` = Soins, `50` = Renvoi.
+ * Les ancres historiques étaient **fausses** sur plusieurs de ces ids
+ * (`16`/`26`/`27`/`28`/`48`/`49`/`50`) : c'était **la** cause des libellés
+ * « Effet » et des mauvaises icônes (§S7.1).
+ *
+ * Les clés `111`/`117`/`118`/`119`/`123`/`124`/`126`/`128` (PA, PM, Portée,
+ * Force, Agilité, Chance, Sagesse, Intelligence), `162`→`165`, `178`,
+ * `210`→`214`, `422`→`432`, `752`/`753` sont des **`effectId`** : l'objet ne
+ * porte alors pas toujours de `characteristic`. Elles sont alignées sur
+ * `EXO_EFFECT_PRESETS`.
+ */
 export const CHAR_NAMES: Record<number, string> = {
-    // Caractéristiques primaires
+    // PA / PM / Portée
+    1: "PA",
+    111: "PA",
+    23: "PM",
+    128: "PM",
+    19: "Portée",
+    117: "Portée",
+    // Caractéristiques primaires (ids officiels)
     10: "Force",
-    16: "Force",
+    118: "Force",
     11: "Vitalité",
     125: "Vitalité",
     12: "Sagesse",
+    124: "Sagesse",
     13: "Chance",
+    123: "Chance",
     14: "Agilité",
+    119: "Agilité",
     15: "Intelligence",
+    126: "Intelligence",
+    // Combat
+    16: "Dommages",
     18: "Critique",
-    19: "Portée",
-    182: "Portée",
-    1: "PA",
-    23: "PM",
     25: "Puissance",
-    26: "Soins",
-    27: "Dommages",
-    28: "Invocations",
-    // Résistances % (plusieurs conventions DofusDB selon les versions)
-    33: "Résistance Neutre (%)",
-    34: "Résistance Terre (%)",
-    35: "Résistance Feu (%)",
+    26: "Invocation",
+    182: "Invocations",
+    27: "Esquive PA",
+    82: "Esquive PA",
+    28: "Esquive PM",
+    84: "Esquive PM",
+    80: "Retrait PA",
+    83: "Retrait PM",
+    412: "Retrait PM",
+    31: "Maitrise d'arme",
+    40: "Pods",
+    44: "Initiative",
+    48: "Prospection",
+    49: "Soins",
+    178: "Soins",
+    50: "Renvoi",
+    54: "Terre (fixe)",
+    // Résistances élémentaires (%) — caractéristiques officielles 33→37,
+    // relayées par les `effectId` 210→214.
+    33: "Résistance Terre (%)",
+    213: "Résistance Terre (%)",
+    34: "Résistance Feu (%)",
+    210: "Résistance Feu (%)",
+    35: "Résistance Eau (%)",
+    211: "Résistance Eau (%)",
     36: "Résistance Air (%)",
-    37: "Résistance Eau (%)",
-    48: "Résistance Feu (%)",
-    49: "Résistance Eau (%)",
-    50: "Résistance Air (%)",
-    51: "Résistance Terre (%)",
-    52: "Résistance Neutre (%)",
+    212: "Résistance Air (%)",
+    37: "Résistance Neutre (%)",
+    214: "Résistance Neutre (%)",
+    // Réductions
+    20: "Réduction des dégâts magiques",
+    21: "Réduction des dégâts physiques",
     // Dommages élémentaires
-    88: "Dommages Neutre",
     89: "Dommages Feu",
+    424: "Dommages Feu",
     90: "Dommages Eau",
+    432: "Dommages Eau",
     91: "Dommages Air",
+    428: "Dommages Air",
     92: "Dommages Terre",
+    430: "Dommages Terre",
     93: "Dommages Neutre",
     141: "Dommages Neutre",
-    // Fuite, Tacle, Retraits
-    78: "Fuite",
-    79: "Tacle",
-    80: "Retrait PA",
-    82: "Esquive PA",
-    83: "Retrait PM",
-    84: "Esquive PM",
-    412: "Retrait PM",
-    87: "Résistance Critiques",
-    112: "Dommages Critiques",
-    114: "Dommages Poussée",
-    // effectIds DofusDB directs
-    111: "PA",
-    117: "Portée",
-    118: "Force",
-    119: "Agilité",
-    123: "Chance",
-    124: "Sagesse",
-    126: "Intelligence",
-    128: "PM",
-    162: "Dommages Critiques",
-    163: "Résistance Critiques",
-    164: "Dommages Poussée",
-    165: "Résistance Poussée",
-    178: "Soins",
-    210: "Résistance Terre (%)",
-    211: "Résistance Eau (%)",
-    212: "Résistance Air (%)",
-    213: "Résistance Feu (%)",
-    214: "Résistance Neutre (%)",
     422: "Dommages Neutre",
-    424: "Dommages Feu",
-    428: "Dommages Air",
-    430: "Dommages Terre",
-    432: "Dommages Eau",
+    // Critique & poussée
+    112: "Dommages Critiques",
+    162: "Dommages Critiques",
+    87: "Résistance Critiques",
+    163: "Résistance Critiques",
+    114: "Dommages Poussée",
+    164: "Dommages Poussée",
+    88: "Résistance Poussée",
+    165: "Résistance Poussée",
+    // Fuite / tacle
+    78: "Fuite",
     752: "Fuite",
+    79: "Tacle",
     753: "Tacle",
 };
+
 
 /**
  * Libellés FR par code court historique (`int_name` DofusBook/Solomonk).
@@ -243,6 +269,31 @@ export const STAT_ICON_SPECS: Record<string, { icon: StatIconName; color: string
 };
 
 /**
+ * S7.4 — **Normalise une plage native**.
+ *
+ * ⚠️ DofusDB : quand le **second dé est absent**, l'effet est une **valeur
+ * fixe** et `diceSide` vaut `0`. Une lecture naïve produit alors `[10 à 0]`
+ * (plage décroissante) et fait passer la valeur déclarée pour « sous la plage »
+ * alors que l'objet est parfait. Toute plage se terminant à `0` ou décroissante
+ * est donc ramenée à la **valeur fixe du premier dé** : on n'invente jamais de
+ * plage, et on ne rend jamais une plage décroissante.
+ *
+ * Appliqué **à l'écriture** (`toNativeEffects`) **et à la lecture**
+ * (`findNativeRange`) → les lignes **déjà en base** sont soignées sans
+ * migration.
+ */
+export function normalizeNativeRange(from: number, to: number): { from: number; to: number } {
+    const min = Number.isFinite(from) ? from : 0;
+    const max = Number.isFinite(to) ? to : min;
+    // Second dé **absent** (DofusDB renvoie alors `diceSide = 0`) ⇒ valeur FIXE,
+    // y compris pour un malus (`diceNum = -30, diceSide = 0` = « -30 »).
+    if (max === 0 && min !== 0) return { from: min, to: min };
+    // Plage décroissante (donnée impossible) ⇒ même conclusion : valeur fixe.
+    if (max < min) return { from: min, to: min };
+    return { from: min, to: max };
+}
+
+/**
  * ⚙️ S2.2 — Convertit les effets DofusDB en version **LÉGÈRE** (`nativeEffects`)
  * stockée sur `GameItem` : ce sont les **plages natives** (source serveur) que
  * l'éditeur de jet pré-remplit et que la carte d'item affiche.
@@ -250,20 +301,28 @@ export const STAT_ICON_SPECS: Record<string, { icon: StatIconName; color: string
  * ⚠️ S2.12 — tolère la forme **BRUTE** DofusDB (`diceNum`/`diceSide`) : les
  * lignes siphonnées avant l'existence de `nativeEffects` restent exploitables
  * (filet de sécurité, le backfill les répare définitivement côté God).
+ * ⚠️ S7.4 — les plages sont **normalisées** (`normalizeNativeRange`) : jamais de
+ * `[10 à 0]`.
  */
 export function toNativeEffects(
     raw: { effects?: DofusItemEffectLike[] | null } | null | undefined
 ): MarketNativeEffect[] | null {
     const source = Array.isArray(raw?.effects) ? raw!.effects! : [];
     const mapped = source
-        .map((fx) => ({
-            effectId: Number(fx.effectId ?? fx.int_id ?? 0),
-            characteristic: fx.characteristic != null ? Number(fx.characteristic) : null,
-            from: Number(fx.from ?? fx.diceNum ?? 0),
-            to: Number(fx.to ?? fx.diceSide ?? 0),
-            category: fx.category != null ? Number(fx.category) : null,
-            elementId: fx.elementId != null ? Number(fx.elementId) : null,
-        }))
+        .map((fx) => {
+            const range = normalizeNativeRange(
+                Number(fx.from ?? fx.diceNum ?? 0),
+                Number(fx.to ?? fx.diceSide ?? 0)
+            );
+            return {
+                effectId: Number(fx.effectId ?? fx.int_id ?? 0),
+                characteristic: fx.characteristic != null ? Number(fx.characteristic) : null,
+                from: range.from,
+                to: range.to,
+                category: fx.category != null ? Number(fx.category) : null,
+                elementId: fx.elementId != null ? Number(fx.elementId) : null,
+            };
+        })
         .filter((fx) => Number.isFinite(fx.effectId) && fx.effectId > 0);
 
     return mapped.length > 0 ? mapped : null;
@@ -291,20 +350,75 @@ export function resolveNativeEffects(
 
 /**
  * Libellé FR d'un effet.
- * Priorité : **référentiel data-driven** (base, S2.5bis) → `int_name` → `CHAR_NAMES`.
+ *
+ * S7.3 — résolution **en cascade**, jamais un libellé muet :
+ *   1. **référentiel data-driven** (base, S2.5bis) sur la `characteristic` puis
+ *      l'`effectId` (`GameCharacteristic` est la source officielle) ;
+ *   2. `int_name` historique (codes DofusBook / Solomonk) ;
+ *   3. `CHAR_NAMES` (repli codé, aligné sur le référentiel siphonné) ;
+ *   4. `« Effet »` en dernier recours seulement.
+ *
+ * ⚠️ Avant S7.3, la cascade prenait `characteristic ?? effectId` **en un seul
+ * essai** : une `characteristic` présente mais non cartographiée masquait un
+ * `effectId` pourtant connu → libellé « Effet », ligne FM en « lecture seule ».
  */
 export function getStatLabel(
     fx: Pick<DofusItemEffectLike, "int_name" | "characteristic" | "effectId" | "int_id">,
     referential?: Record<number, string>
 ): string {
-    if (fx.characteristic != null && referential && referential[fx.characteristic]) return referential[fx.characteristic];
-    if (fx.effectId != null && referential && referential[fx.effectId]) return referential[fx.effectId];
+    const ids = [fx.characteristic, fx.effectId, fx.int_id].filter(
+        (value): value is number => typeof value === "number" && Number.isFinite(value)
+    );
+
+    if (referential) {
+        for (const id of ids) {
+            const label = referential[id];
+            if (label && !isPlaceholderStatLabel(label)) return label;
+        }
+    }
     if (fx.int_name && BOOK_STAT_NAMES[fx.int_name]) return BOOK_STAT_NAMES[fx.int_name];
     if (fx.int_name) return fx.int_name;
-    if (fx.characteristic != null && CHAR_NAMES[fx.characteristic]) return CHAR_NAMES[fx.characteristic];
-    if (fx.effectId != null && CHAR_NAMES[fx.effectId]) return CHAR_NAMES[fx.effectId];
-    if (fx.int_id != null && CHAR_NAMES[fx.int_id]) return CHAR_NAMES[fx.int_id];
+    for (const id of ids) {
+        if (CHAR_NAMES[id]) return CHAR_NAMES[id];
+    }
     return "Effet";
+}
+
+/**
+ * S7.3 — `true` si un libellé du référentiel est un **placeholder** DofusDB.
+ *
+ * Le siphon `/effects` renvoie le catalogue des **effets de sorts** : beaucoup
+ * de libellés y sont des gabarits (`« Effet 63 »`, `« }{ soins »`). Les prendre
+ * pour un libellé d'objet écraserait un nom correct par du bruit ⇒ on les
+ * ignore et on retombe sur la table codée (`CHAR_NAMES`).
+ */
+export function isPlaceholderStatLabel(label: string | null | undefined): boolean {
+    if (!label) return true;
+    const trimmed = label.trim();
+    if (!trimmed) return true;
+    if (/^effet\s+\d+$/i.test(trimmed)) return true;
+    return trimmed.includes("{") || trimmed.includes("}");
+}
+
+/**
+ * S7.3 — libellé **sûr** d'une ligne de jet **déjà persistée**.
+ *
+ * Les tables de libellés ont été corrigées (S7.1/S7.3) alors que la base
+ * conserve le libellé **figé à la déclaration** (« Effet » pour les annonces
+ * créées avant le correctif). On re-résout donc depuis les identifiants — sans
+ * jamais remplacer un libellé existant par le repli « Effet ».
+ */
+export function resolveStoredStatLabel(stat: {
+    characteristic?: number | null;
+    effectId?: number | null;
+    label?: string | null;
+}): string {
+    const resolved = getStatLabel({
+        characteristic: stat.characteristic ?? null,
+        effectId: stat.effectId ?? null,
+    });
+    if (resolved !== "Effet") return resolved;
+    return stat.label && stat.label.trim() ? stat.label : "Effet";
 }
 
 /** Spécification visuelle (icône + couleur) d'une stat — `null` si inconnue. */
@@ -349,7 +463,9 @@ export function findNativeRange(
         ?? (match.characteristic != null
             ? nativeEffects.find((fx) => fx.characteristic === match.characteristic)
             : undefined);
-    return found ? { from: found.from, to: found.to } : null;
+    // S7.4 — la normalisation s'applique aussi **à la lecture** : une plage
+    // inversée déjà persistée (`[10 à 0]`) est ramenée à la valeur fixe.
+    return found ? normalizeNativeRange(found.from, found.to) : null;
 }
 
 /** `true` si l'effet est natif de l'objet (sinon → EXO). */
@@ -409,7 +525,9 @@ export const EXO_EFFECT_PRESETS = [
     { key: "pa", effectId: 111, characteristic: 1, label: "PA", code: "pa" },
     { key: "pm", effectId: 128, characteristic: 23, label: "PM", code: "pm" },
     { key: "po", effectId: 117, characteristic: 19, label: "Portée", code: "po" },
-    { key: "invocation", effectId: 182, characteristic: 28, label: "Invocations", code: "ic" },
+    // S7.3 — la caractéristique « Invocation » est officiellement **26**
+    // (`GameCharacteristic`) : l'ancienne valeur `28` désignait « Esquive PM ».
+    { key: "invocation", effectId: 182, characteristic: 26, label: "Invocations", code: "ic" },
 ] as const;
 
 export type ExoEffectPreset = (typeof EXO_EFFECT_PRESETS)[number];

@@ -1,12 +1,44 @@
 /**
- * Référentiel des assets visuels officiels Dofus et des couleurs DofusBook pour les caractéristiques / stats.
+ * SigilOS — **thème graphique des caractéristiques Dofus** (vrais assets).
+ *
+ * ⚠️ Fichier **PUR** (aucune dépendance React / Prisma / Node) → importable
+ * côté client comme côté serveur.
+ *
+ * 🎯 Rôle : résoudre un effet déclaré (jet FM, carte d'item, fiche d'annonce)
+ * vers **l'icône officielle** de Dofus (`public/assets/dofus/stats/*.png`), son
+ * **libellé** et sa **couleur** — exactement comme la galerie de stuff
+ * (`dofusbook-preview.tsx`) et l'overlay boss, qui utilisaient déjà ces PNG.
+ *
+ * Résolution en **cascade** (jamais d'exception, jamais d'icône cassée) :
+ *   1. `characteristicId` DofusDB (ids de caractéristique **et** d'effet) ;
+ *   2. `effectId` DofusDB (repli : certaines fiches n'ont que l'un des deux) ;
+ *   3. code court historique (`vi`, `fo`, `dmg`… DofusBook / Solomonk) ;
+ *   4. **mots-clés du libellé** (« Dommages Eau », « Résistance Feu (%) »…) —
+ *      dernier filet quand l'id n'est pas encore cartographié.
+ *
+ * `null` ⇒ l'appelant garde son repli (icônes lucide de `stat-icon.tsx`) : on
+ * ne remplace jamais une icône inconnue par une icône fausse.
+ *
+ * 📌 Les assets sont **statiques** (`public/`) : aucun siphon réseau n'est
+ * nécessaire, et les 31 fichiers existent déjà (dont `sagesse.png` et
+ * `invocation.png`, ajoutés en S2.5).
  */
 
-export interface DofusStatTheme {
-    asset: string; // Nom du fichier dans /assets/dofus/stats/
-    color: string; // Couleur HEX DofusBook
-    label?: string;
-}
+/** Base publique des icônes de caractéristiques officielles. */
+export const DOFUS_STAT_ASSET_BASE = "/assets/dofus/stats";
+
+/** Thème d'une caractéristique : asset officiel + libellé + couleur (token). */
+export type DofusStatAsset = {
+    /** Nom du fichier dans `public/assets/dofus/stats/` (jamais un chemin). */
+    asset: string;
+    /** Libellé d'affichage (« Vitalité », « Dommages Feu », « Esquive PA »). */
+    label: string;
+    /** Classe de couleur du design system (jamais une couleur en dur). */
+    color: string;
+};
+
+/** Alias rétro-compatible */
+export type DofusStatTheme = DofusStatAsset;
 
 /**
  * Palette de couleurs authentiques DofusBook.
@@ -41,172 +73,263 @@ export const DOFUSBOOK_COLORS = {
 } as const;
 
 /**
- * Mapping clé (characteristicId ou code court) -> { asset, color }
+ * Thèmes officiels, indexés par clé interne stable.
+ * ⚠️ Seuls des fichiers **réellement présents** dans `public/assets/dofus/stats/`
+ * sont référencés ici (vérifié : 31 PNG).
  */
-const STAT_THEMES: Record<string, DofusStatTheme> = {
-    // Vitalité
-    "11": { asset: "pv.png", color: DOFUSBOOK_COLORS.vitalite, label: "Vitalité" },
-    "125": { asset: "pv.png", color: DOFUSBOOK_COLORS.vitalite, label: "Vitalité" },
-    vi: { asset: "pv.png", color: DOFUSBOOK_COLORS.vitalite, label: "Vitalité" },
+const STAT_THEMES = {
+    vitality: { asset: "pv.png", label: "Vitalité", color: "text-danger" },
+    strength: { asset: "terre.png", label: "Force", color: "text-warning" },
+    intelligence: { asset: "feu.png", label: "Intelligence", color: "text-danger" },
+    chance: { asset: "eau.png", label: "Chance", color: "text-info" },
+    agility: { asset: "air.png", label: "Agilité", color: "text-success" },
+    wisdom: { asset: "sagesse.png", label: "Sagesse", color: "text-violet-400" },
+    power: { asset: "puissance.png", label: "Puissance", color: "text-fuchsia-400" },
+    actionPoints: { asset: "pa.png", label: "PA", color: "text-warning" },
+    movementPoints: { asset: "pm.png", label: "PM", color: "text-success" },
+    range: { asset: "po.png", label: "Portée", color: "text-info" },
+    summons: { asset: "invocation.png", label: "Invocations", color: "text-warning" },
+    criticalHits: { asset: "critique.png", label: "Coup critique", color: "text-info" },
+    heals: { asset: "soin.png", label: "Soins", color: "text-success" },
+    damage: { asset: "dommages.png", label: "Dommages", color: "text-danger" },
+    criticalDamage: { asset: "dommages.png", label: "Dommages Critiques", color: "text-danger" },
+    pushDamage: { asset: "dommages.png", label: "Dommages Poussée", color: "text-danger" },
+    neutralDamage: { asset: "neutre.png", label: "Dommages Neutre", color: "text-foreground" },
+    earthDamage: { asset: "terre.png", label: "Dommages Terre", color: "text-warning" },
+    fireDamage: { asset: "feu.png", label: "Dommages Feu", color: "text-danger" },
+    waterDamage: { asset: "eau.png", label: "Dommages Eau", color: "text-info" },
+    airDamage: { asset: "air.png", label: "Dommages Air", color: "text-success" },
+    criticalResistance: { asset: "bouclier.png", label: "Résistance Critiques", color: "text-danger" },
+    pushResistance: { asset: "bouclier.png", label: "Résistance Poussée", color: "text-warning" },
+    neutralResistance: { asset: "resNeutre.png", label: "Résistance Neutre", color: "text-foreground" },
+    earthResistance: { asset: "resTerre.png", label: "Résistance Terre", color: "text-warning" },
+    fireResistance: { asset: "resFeu.png", label: "Résistance Feu", color: "text-danger" },
+    waterResistance: { asset: "resEau.png", label: "Résistance Eau", color: "text-info" },
+    airResistance: { asset: "resAir.png", label: "Résistance Air", color: "text-success" },
+    initiative: { asset: "initiative.png", label: "Initiative", color: "text-foreground" },
+    prospecting: { asset: "pp.png", label: "Prospection", color: "text-info" },
+    pods: { asset: "pod.png", label: "Pods", color: "text-warning" },
+    dodge: { asset: "fuite.png", label: "Fuite", color: "text-info" },
+    tackle: { asset: "tacle.png", label: "Tacle", color: "text-success" },
+    apReduction: { asset: "retraitPA.png", label: "Retrait PA", color: "text-muted-foreground" },
+    mpReduction: { asset: "retraitPM.png", label: "Retrait PM", color: "text-muted-foreground" },
+    apDodge: { asset: "esquivePA.png", label: "Esquive PA", color: "text-info" },
+    mpDodge: { asset: "esquivePM.png", label: "Esquive PM", color: "text-success" },
+    erosion: { asset: "erosion.png", label: "Érosion", color: "text-warning" },
+    shield: { asset: "bouclier.png", label: "Bouclier", color: "text-info" },
+} as const satisfies Record<string, DofusStatAsset>;
 
-    // Sagesse
-    "12": { asset: "sagesse.png", color: DOFUSBOOK_COLORS.sagesse, label: "Sagesse" },
-    "124": { asset: "sagesse.png", color: DOFUSBOOK_COLORS.sagesse, label: "Sagesse" },
-    sa: { asset: "sagesse.png", color: DOFUSBOOK_COLORS.sagesse, label: "Sagesse" },
+type StatThemeKey = keyof typeof STAT_THEMES;
 
-    // Force / Terre
-    "10": { asset: "terre.png", color: DOFUSBOOK_COLORS.force, label: "Force" },
-    "16": { asset: "terre.png", color: DOFUSBOOK_COLORS.force, label: "Force" },
-    "118": { asset: "terre.png", color: DOFUSBOOK_COLORS.force, label: "Force" },
-    fo: { asset: "terre.png", color: DOFUSBOOK_COLORS.force, label: "Force" },
-    "92": { asset: "terre.png", color: DOFUSBOOK_COLORS.force, label: "Dommages Terre" },
-    "430": { asset: "terre.png", color: DOFUSBOOK_COLORS.force, label: "Dommages Terre" },
-    dtf: { asset: "terre.png", color: DOFUSBOOK_COLORS.force, label: "Dommages Terre" },
+/**
+ * `characteristicId` **et** `effectId` DofusDB → thème.
+ *
+ * ⚠️ Les valeurs de **caractéristique** sont alignées sur le référentiel
+ * siphonné (`GameCharacteristic`, vérifié en base le 11/09/2026) : `10` = Force,
+ * `16` = **Dommages**, `26` = **Invocation**, `27`/`28` = **Esquive PA/PM**,
+ * `33`→`37` = résistances élémentaires (%), `40` = Pods, `44` = Initiative,
+ * `48` = Prospection, `49` = Soins, `50` = Renvoi.
+ * Les identifiants d'**effet** connus (`111` PA, `117` Portée, `128` PM,
+ * `182` Invocations, `162`→`165`, `178`, `210`→`214`, `422`→`432`, `752`/`753`)
+ * sont ajoutés dans le même espace, comme `CHAR_NAMES` — la résolution essaie
+ * toujours la caractéristique **puis** l'`effectId`.
+ */
+const THEME_BY_ID: Record<number, StatThemeKey> = {
+    // Points d'action / mouvement / portée / invocations
+    1: "actionPoints",
+    111: "actionPoints",
+    23: "movementPoints",
+    128: "movementPoints",
+    19: "range",
+    117: "range",
+    26: "summons",
+    182: "summons",
+    // Caractéristiques primaires
+    10: "strength",
+    118: "strength",
+    11: "vitality",
+    125: "vitality",
+    12: "wisdom",
+    124: "wisdom",
+    13: "chance",
+    123: "chance",
+    14: "agility",
+    119: "agility",
+    15: "intelligence",
+    126: "intelligence",
+    25: "power",
+    // Combat & utilitaires
+    16: "damage",
+    18: "criticalHits",
+    27: "apDodge",
+    82: "apDodge",
+    28: "mpDodge",
+    84: "mpDodge",
+    80: "apReduction",
+    83: "mpReduction",
+    412: "mpReduction",
+    31: "damage",
+    40: "pods",
+    44: "initiative",
+    48: "prospecting",
+    49: "heals",
+    178: "heals",
+    50: "shield",
+    // Résistances élémentaires (%) — caractéristiques 33→37 et effects 210→214
+    33: "earthResistance",
+    213: "earthResistance",
+    34: "fireResistance",
+    210: "fireResistance",
+    35: "waterResistance",
+    211: "waterResistance",
+    36: "airResistance",
+    212: "airResistance",
+    37: "neutralResistance",
+    214: "neutralResistance",
+    // Dommages élémentaires
+    89: "fireDamage",
+    424: "fireDamage",
+    90: "waterDamage",
+    432: "waterDamage",
+    91: "airDamage",
+    428: "airDamage",
+    92: "earthDamage",
+    430: "earthDamage",
+    93: "neutralDamage",
+    141: "neutralDamage",
+    422: "neutralDamage",
+    // Critique & poussée
+    112: "criticalDamage",
+    162: "criticalDamage",
+    87: "criticalResistance",
+    163: "criticalResistance",
+    114: "pushDamage",
+    164: "pushDamage",
+    88: "pushResistance",
+    165: "pushResistance",
+    // Fuite / tacle
+    78: "dodge",
+    752: "dodge",
+    79: "tackle",
+    753: "tackle",
+};
 
-    // Intelligence / Feu
-    "15": { asset: "feu.png", color: DOFUSBOOK_COLORS.intelligence, label: "Intelligence" },
-    "126": { asset: "feu.png", color: DOFUSBOOK_COLORS.intelligence, label: "Intelligence" },
-    in: { asset: "feu.png", color: DOFUSBOOK_COLORS.intelligence, label: "Intelligence" },
-    "89": { asset: "feu.png", color: DOFUSBOOK_COLORS.intelligence, label: "Dommages Feu" },
-    "424": { asset: "feu.png", color: DOFUSBOOK_COLORS.intelligence, label: "Dommages Feu" },
-    dff: { asset: "feu.png", color: DOFUSBOOK_COLORS.intelligence, label: "Dommages Feu" },
-
-    // Chance / Eau
-    "13": { asset: "eau.png", color: DOFUSBOOK_COLORS.chance, label: "Chance" },
-    "123": { asset: "eau.png", color: DOFUSBOOK_COLORS.chance, label: "Chance" },
-    ch: { asset: "eau.png", color: DOFUSBOOK_COLORS.chance, label: "Chance" },
-    "90": { asset: "eau.png", color: DOFUSBOOK_COLORS.chance, label: "Dommages Eau" },
-    "432": { asset: "eau.png", color: DOFUSBOOK_COLORS.chance, label: "Dommages Eau" },
-    def: { asset: "eau.png", color: DOFUSBOOK_COLORS.chance, label: "Dommages Eau" },
-
-    // Agilité / Air
-    "14": { asset: "air.png", color: DOFUSBOOK_COLORS.agilite, label: "Agilité" },
-    "119": { asset: "air.png", color: DOFUSBOOK_COLORS.agilite, label: "Agilité" },
-    ag: { asset: "air.png", color: DOFUSBOOK_COLORS.agilite, label: "Agilité" },
-    "91": { asset: "air.png", color: DOFUSBOOK_COLORS.agilite, label: "Dommages Air" },
-    "428": { asset: "air.png", color: DOFUSBOOK_COLORS.agilite, label: "Dommages Air" },
-    daf: { asset: "air.png", color: DOFUSBOOK_COLORS.agilite, label: "Dommages Air" },
-
-    // PA & PM & PO
-    "1": { asset: "pa.png", color: DOFUSBOOK_COLORS.pa, label: "PA" },
-    "111": { asset: "pa.png", color: DOFUSBOOK_COLORS.pa, label: "PA" },
-    pa: { asset: "pa.png", color: DOFUSBOOK_COLORS.pa, label: "PA" },
-    "23": { asset: "pm.png", color: DOFUSBOOK_COLORS.pm, label: "PM" },
-    "128": { asset: "pm.png", color: DOFUSBOOK_COLORS.pm, label: "PM" },
-    pm: { asset: "pm.png", color: DOFUSBOOK_COLORS.pm, label: "PM" },
-    "19": { asset: "po.png", color: DOFUSBOOK_COLORS.po, label: "Portée" },
-    "117": { asset: "po.png", color: DOFUSBOOK_COLORS.po, label: "Portée" },
-    "182": { asset: "po.png", color: DOFUSBOOK_COLORS.po, label: "Portée" },
-    po: { asset: "po.png", color: DOFUSBOOK_COLORS.po, label: "Portée" },
-
-    // Coup Critique & Puissance & Dommages
-    "18": { asset: "critique.png", color: DOFUSBOOK_COLORS.critique, label: "Critique" },
-    cc: { asset: "critique.png", color: DOFUSBOOK_COLORS.critique, label: "Critique" },
-    "25": { asset: "puissance.png", color: DOFUSBOOK_COLORS.puissance, label: "Puissance" },
-    pu: { asset: "puissance.png", color: DOFUSBOOK_COLORS.puissance, label: "Puissance" },
-    "27": { asset: "dommages.png", color: DOFUSBOOK_COLORS.dommages, label: "Dommages" },
-    dmg: { asset: "dommages.png", color: DOFUSBOOK_COLORS.dommages, label: "Dommages" },
-    "112": { asset: "critique.png", color: DOFUSBOOK_COLORS.critique, label: "Dommages Critiques" },
-    "162": { asset: "critique.png", color: DOFUSBOOK_COLORS.critique, label: "Dommages Critiques" },
-    dc: { asset: "critique.png", color: DOFUSBOOK_COLORS.critique, label: "Dommages Critiques" },
-    "114": { asset: "dommages.png", color: DOFUSBOOK_COLORS.dommages, label: "Dommages Poussée" },
-    "164": { asset: "dommages.png", color: DOFUSBOOK_COLORS.dommages, label: "Dommages Poussée" },
-
-    // Neutre
-    "93": { asset: "neutre.png", color: DOFUSBOOK_COLORS.neutre, label: "Dommages Neutre" },
-    "141": { asset: "neutre.png", color: DOFUSBOOK_COLORS.neutre, label: "Dommages Neutre" },
-    "422": { asset: "neutre.png", color: DOFUSBOOK_COLORS.neutre, label: "Dommages Neutre" },
-    dnf: { asset: "neutre.png", color: DOFUSBOOK_COLORS.neutre, label: "Dommages Neutre" },
-
-    // Soins & Invocations
-    "26": { asset: "soin.png", color: DOFUSBOOK_COLORS.soin, label: "Soins" },
-    "178": { asset: "soin.png", color: DOFUSBOOK_COLORS.soin, label: "Soins" },
-    so: { asset: "soin.png", color: DOFUSBOOK_COLORS.soin, label: "Soins" },
-    "28": { asset: "invocation.png", color: DOFUSBOOK_COLORS.invocation, label: "Invocations" },
-    ic: { asset: "invocation.png", color: DOFUSBOOK_COLORS.invocation, label: "Invocations" },
-
-    // Initiative, Prospection, Pods
-    "98": { asset: "initiative.png", color: DOFUSBOOK_COLORS.initiative, label: "Initiative" },
-    ii: { asset: "initiative.png", color: DOFUSBOOK_COLORS.initiative, label: "Initiative" },
-    "100": { asset: "pp.png", color: DOFUSBOOK_COLORS.prospection, label: "Prospection" },
-    pp: { asset: "pp.png", color: DOFUSBOOK_COLORS.prospection, label: "Prospection" },
-    "102": { asset: "pod.png", color: DOFUSBOOK_COLORS.pods, label: "Pods" },
-    pod: { asset: "pod.png", color: DOFUSBOOK_COLORS.pods, label: "Pods" },
-
-    // Fuite, Tacle
-    "78": { asset: "fuite.png", color: DOFUSBOOK_COLORS.fuite, label: "Fuite" },
-    "752": { asset: "fuite.png", color: DOFUSBOOK_COLORS.fuite, label: "Fuite" },
-    fu: { asset: "fuite.png", color: DOFUSBOOK_COLORS.fuite, label: "Fuite" },
-    "79": { asset: "tacle.png", color: DOFUSBOOK_COLORS.tacle, label: "Tacle" },
-    "753": { asset: "tacle.png", color: DOFUSBOOK_COLORS.tacle, label: "Tacle" },
-    ta: { asset: "tacle.png", color: DOFUSBOOK_COLORS.tacle, label: "Tacle" },
-
-    // Retrait & Esquive PA / PM
-    "80": { asset: "retraitPA.png", color: DOFUSBOOK_COLORS.retraitPA, label: "Retrait PA" },
-    rpa: { asset: "retraitPA.png", color: DOFUSBOOK_COLORS.retraitPA, label: "Retrait PA" },
-    "82": { asset: "esquivePA.png", color: DOFUSBOOK_COLORS.esquivePA, label: "Esquive PA" },
-    epa: { asset: "esquivePA.png", color: DOFUSBOOK_COLORS.esquivePA, label: "Esquive PA" },
-    "83": { asset: "retraitPM.png", color: DOFUSBOOK_COLORS.retraitPM, label: "Retrait PM" },
-    "412": { asset: "retraitPM.png", color: DOFUSBOOK_COLORS.retraitPM, label: "Retrait PM" },
-    rpm: { asset: "retraitPM.png", color: DOFUSBOOK_COLORS.retraitPM, label: "Retrait PM" },
-    "84": { asset: "esquivePM.png", color: DOFUSBOOK_COLORS.esquivePM, label: "Esquive PM" },
-    epm: { asset: "esquivePM.png", color: DOFUSBOOK_COLORS.esquivePM, label: "Esquive PM" },
-
-    // Résistances %
-    "33": { asset: "resNeutre.png", color: DOFUSBOOK_COLORS.neutre, label: "Résistance Neutre (%)" },
-    "34": { asset: "resTerre.png", color: DOFUSBOOK_COLORS.force, label: "Résistance Terre (%)" },
-    "35": { asset: "resFeu.png", color: DOFUSBOOK_COLORS.intelligence, label: "Résistance Feu (%)" },
-    "36": { asset: "resAir.png", color: DOFUSBOOK_COLORS.agilite, label: "Résistance Air (%)" },
-    "37": { asset: "resEau.png", color: DOFUSBOOK_COLORS.chance, label: "Résistance Eau (%)" },
-    "48": { asset: "resFeu.png", color: DOFUSBOOK_COLORS.intelligence, label: "Résistance Feu (%)" },
-    "213": { asset: "resFeu.png", color: DOFUSBOOK_COLORS.intelligence, label: "Résistance Feu (%)" },
-    rfp: { asset: "resFeu.png", color: DOFUSBOOK_COLORS.intelligence, label: "Résistance Feu (%)" },
-    "49": { asset: "resEau.png", color: DOFUSBOOK_COLORS.chance, label: "Résistance Eau (%)" },
-    "211": { asset: "resEau.png", color: DOFUSBOOK_COLORS.chance, label: "Résistance Eau (%)" },
-    rep: { asset: "resEau.png", color: DOFUSBOOK_COLORS.chance, label: "Résistance Eau (%)" },
-    "50": { asset: "resAir.png", color: DOFUSBOOK_COLORS.agilite, label: "Résistance Air (%)" },
-    "212": { asset: "resAir.png", color: DOFUSBOOK_COLORS.agilite, label: "Résistance Air (%)" },
-    rap: { asset: "resAir.png", color: DOFUSBOOK_COLORS.agilite, label: "Résistance Air (%)" },
-    "51": { asset: "resTerre.png", color: DOFUSBOOK_COLORS.force, label: "Résistance Terre (%)" },
-    "210": { asset: "resTerre.png", color: DOFUSBOOK_COLORS.force, label: "Résistance Terre (%)" },
-    rtp: { asset: "resTerre.png", color: DOFUSBOOK_COLORS.force, label: "Résistance Terre (%)" },
-    "52": { asset: "resNeutre.png", color: DOFUSBOOK_COLORS.neutre, label: "Résistance Neutre (%)" },
-    "214": { asset: "resNeutre.png", color: DOFUSBOOK_COLORS.neutre, label: "Résistance Neutre (%)" },
-    rnp: { asset: "resNeutre.png", color: DOFUSBOOK_COLORS.neutre, label: "Résistance Neutre (%)" },
-
-    // Résistances fixes
-    rn: { asset: "resNeutre.png", color: DOFUSBOOK_COLORS.neutre, label: "Résistance Neutre" },
-    rt: { asset: "resTerre.png", color: DOFUSBOOK_COLORS.force, label: "Résistance Terre" },
-    rf: { asset: "resFeu.png", color: DOFUSBOOK_COLORS.intelligence, label: "Résistance Feu" },
-    re: { asset: "resEau.png", color: DOFUSBOOK_COLORS.chance, label: "Résistance Eau" },
-    ra: { asset: "resAir.png", color: DOFUSBOOK_COLORS.agilite, label: "Résistance Air" },
-    "87": { asset: "bouclier.png", color: DOFUSBOOK_COLORS.resistance, label: "Résistance Critiques" },
-    "163": { asset: "bouclier.png", color: DOFUSBOOK_COLORS.resistance, label: "Résistance Critiques" },
-    rfc: { asset: "bouclier.png", color: DOFUSBOOK_COLORS.resistance, label: "Résistance Critiques" },
-    "88": { asset: "bouclier.png", color: DOFUSBOOK_COLORS.resistance, label: "Résistance Poussée" },
-    "165": { asset: "bouclier.png", color: DOFUSBOOK_COLORS.resistance, label: "Résistance Poussée" },
-    rp: { asset: "bouclier.png", color: DOFUSBOOK_COLORS.resistance, label: "Résistance Poussée" },
-    dp: { asset: "bouclier.png", color: DOFUSBOOK_COLORS.resistance, label: "Résistance Poussée" },
+/** Code court historique (DofusBook / Solomonk) → thème. */
+const THEME_BY_CODE: Record<string, StatThemeKey> = {
+    vi: "vitality",
+    fo: "strength",
+    sa: "wisdom",
+    ag: "agility",
+    in: "intelligence",
+    ch: "chance",
+    pu: "power",
+    cc: "criticalHits",
+    dmg: "damage",
+    ii: "initiative",
+    pp: "prospecting",
+    po: "range",
+    pod: "pods",
+    ic: "summons",
+    pa: "actionPoints",
+    pm: "movementPoints",
+    ta: "tackle",
+    fu: "dodge",
+    so: "heals",
+    rpa: "apReduction",
+    epa: "apDodge",
+    rpm: "mpReduction",
+    epm: "mpDodge",
+    dnf: "neutralDamage",
+    dtf: "earthDamage",
+    dff: "fireDamage",
+    def: "waterDamage",
+    daf: "airDamage",
+    rn: "neutralResistance",
+    rnp: "neutralResistance",
+    rt: "earthResistance",
+    rtp: "earthResistance",
+    rf: "fireResistance",
+    rfp: "fireResistance",
+    re: "waterResistance",
+    rep: "waterResistance",
+    ra: "airResistance",
+    rap: "airResistance",
+    rfc: "criticalResistance",
+    rp: "pushResistance",
 };
 
 /**
- * Résout l'asset officiel et la couleur DofusBook pour une caractéristique ou un effet donné.
+ * Filet par **mots-clés du libellé** — l'ordre est **significatif** (du plus
+ * spécifique au plus général : « Résistance Feu » avant « Feu »).
+ */
+const LABEL_THEME_PATTERNS: { pattern: RegExp; theme: StatThemeKey }[] = [
+    // S7.16 — libellés courts du référentiel FM (« PA », « PM », « PO »).
+    { pattern: /^\s*pa\s*$/i, theme: "actionPoints" },
+    { pattern: /^\s*pm\s*$/i, theme: "movementPoints" },
+    { pattern: /^\s*po\s*$/i, theme: "range" },
+    { pattern: /retrait\s+pa/i, theme: "apReduction" },
+    { pattern: /retrait\s+pm/i, theme: "mpReduction" },
+    { pattern: /esquive\s+pa/i, theme: "apDodge" },
+    { pattern: /esquive\s+pm/i, theme: "mpDodge" },
+    { pattern: /r[eé]sistance[^a-z]*critique/i, theme: "criticalResistance" },
+    { pattern: /r[eé]sistance[^a-z]*pouss/i, theme: "pushResistance" },
+    { pattern: /r[eé]sistance[^a-z]*neutre/i, theme: "neutralResistance" },
+    { pattern: /r[eé]sistance[^a-z]*terre/i, theme: "earthResistance" },
+    { pattern: /r[eé]sistance[^a-z]*feu/i, theme: "fireResistance" },
+    { pattern: /r[eé]sistance[^a-z]*eau/i, theme: "waterResistance" },
+    { pattern: /r[eé]sistance[^a-z]*air/i, theme: "airResistance" },
+    { pattern: /dommages?[^a-z]*critique/i, theme: "criticalDamage" },
+    { pattern: /dommages?[^a-z]*pouss/i, theme: "pushDamage" },
+    { pattern: /dommages?[^a-z]*neutre/i, theme: "neutralDamage" },
+    { pattern: /dommages?[^a-z]*terre/i, theme: "earthDamage" },
+    { pattern: /dommages?[^a-z]*feu/i, theme: "fireDamage" },
+    { pattern: /dommages?[^a-z]*eau/i, theme: "waterDamage" },
+    { pattern: /dommages?[^a-z]*air/i, theme: "airDamage" },
+    { pattern: /dommages?/i, theme: "damage" },
+    { pattern: /vitalit/i, theme: "vitality" },
+    { pattern: /force/i, theme: "strength" },
+    { pattern: /intelligence/i, theme: "intelligence" },
+    { pattern: /chance/i, theme: "chance" },
+    { pattern: /agilit/i, theme: "agility" },
+    { pattern: /sagesse/i, theme: "wisdom" },
+    { pattern: /puissance/i, theme: "power" },
+    { pattern: /invocation/i, theme: "summons" },
+    { pattern: /critique/i, theme: "criticalHits" },
+    { pattern: /soin/i, theme: "heals" },
+    { pattern: /prospection/i, theme: "prospecting" },
+    { pattern: /initiative/i, theme: "initiative" },
+    { pattern: /pod/i, theme: "pods" },
+    { pattern: /fuite/i, theme: "dodge" },
+    { pattern: /tacle/i, theme: "tackle" },
+    { pattern: /port[eé]e/i, theme: "range" },
+    { pattern: /[eé]rosion/i, theme: "erosion" },
+    { pattern: /renvoi/i, theme: "shield" },
+    { pattern: /bouclier/i, theme: "shield" },
+];
+
+/** URL publique de l'icône officielle d'un thème. */
+export function dofusStatAssetUrl(asset: string): string {
+    return `${DOFUS_STAT_ASSET_BASE}/${asset}`;
+}
+
+/**
+ * Thème d'une stat, ou `null` si elle n'est pas identifiable (⇒ repli lucide).
+ *
+ * Cascade : `characteristicId` → `effectId` → code court → mots-clés du libellé.
  */
 export function resolveDofusStatTheme(
     characteristicId?: number | null,
     effectId?: number | null,
-    charCode?: string | null
-): DofusStatTheme | null {
-    if (characteristicId != null && STAT_THEMES[String(characteristicId)]) {
-        return STAT_THEMES[String(characteristicId)];
-    }
-    if (effectId != null && STAT_THEMES[String(effectId)]) {
-        return STAT_THEMES[String(effectId)];
-    }
-    if (charCode && STAT_THEMES[charCode.toLowerCase()]) {
-        return STAT_THEMES[charCode.toLowerCase()];
-    }
-    return null;
+    charCode?: string | null,
+    label?: string | null
+): DofusStatAsset | null {
+    const key =
+        (characteristicId != null ? THEME_BY_ID[characteristicId] : undefined) ??
+        (effectId != null ? THEME_BY_ID[effectId] : undefined) ??
+        (charCode ? THEME_BY_CODE[charCode.toLowerCase()] : undefined) ??
+        (label ? LABEL_THEME_PATTERNS.find((entry) => entry.pattern.test(label))?.theme : undefined);
+
+    return key ? STAT_THEMES[key] : null;
 }
 
 /**
@@ -217,7 +340,8 @@ export function getDofusStatNumberColor(
     value: number | { from?: number; to?: number },
     characteristicId?: number | null,
     effectId?: number | null,
-    charCode?: string | null
+    charCode?: string | null,
+    label?: string | null
 ): string {
     const isNegative = typeof value === "number"
         ? value < 0
@@ -227,6 +351,42 @@ export function getDofusStatNumberColor(
         return DOFUSBOOK_COLORS.malus;
     }
 
-    const theme = resolveDofusStatTheme(characteristicId, effectId, charCode);
-    return theme?.color ?? "#a855f7"; // Repli élégant violet
+    const theme = resolveDofusStatTheme(characteristicId, effectId, charCode, label);
+    if (!theme) return "#a855f7";
+
+    switch (theme.asset) {
+        case "pv.png": return DOFUSBOOK_COLORS.vitalite;
+        case "terre.png": return DOFUSBOOK_COLORS.force;
+        case "feu.png": return DOFUSBOOK_COLORS.intelligence;
+        case "eau.png": return DOFUSBOOK_COLORS.chance;
+        case "air.png": return DOFUSBOOK_COLORS.agilite;
+        case "sagesse.png": return DOFUSBOOK_COLORS.sagesse;
+        case "puissance.png": return DOFUSBOOK_COLORS.puissance;
+        case "pa.png": return DOFUSBOOK_COLORS.pa;
+        case "pm.png": return DOFUSBOOK_COLORS.pm;
+        case "po.png": return DOFUSBOOK_COLORS.po;
+        case "critique.png": return DOFUSBOOK_COLORS.critique;
+        case "soin.png": return DOFUSBOOK_COLORS.soin;
+        case "dommages.png": return DOFUSBOOK_COLORS.dommages;
+        case "neutre.png": return DOFUSBOOK_COLORS.neutre;
+        case "invocation.png": return DOFUSBOOK_COLORS.invocation;
+        case "initiative.png": return DOFUSBOOK_COLORS.initiative;
+        case "pp.png": return DOFUSBOOK_COLORS.prospection;
+        case "pod.png": return DOFUSBOOK_COLORS.pods;
+        case "fuite.png": return DOFUSBOOK_COLORS.fuite;
+        case "tacle.png": return DOFUSBOOK_COLORS.tacle;
+        case "retraitPA.png": return DOFUSBOOK_COLORS.retraitPA;
+        case "retraitPM.png": return DOFUSBOOK_COLORS.retraitPM;
+        case "esquivePA.png": return DOFUSBOOK_COLORS.esquivePA;
+        case "esquivePM.png": return DOFUSBOOK_COLORS.esquivePM;
+        case "bouclier.png":
+        case "resNeutre.png":
+        case "resTerre.png":
+        case "resFeu.png":
+        case "resEau.png":
+        case "resAir.png":
+            return DOFUSBOOK_COLORS.resistance;
+        default:
+            return "#a855f7";
+    }
 }

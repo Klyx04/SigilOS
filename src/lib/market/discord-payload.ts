@@ -8,9 +8,19 @@
  * Contrat (spec §13.2/§13.3, D35) : **aucun montant d'offre ni pseudo d'acheteur
  * n'est jamais public** — seul un **compteur** d'offres l'est. Les boutons
  * Rèserver/Offre sont **désactivés** (jamais retirés) en `RESERVED`.
+ *
+ * S4.6 — le 4ᵉ bouton est toujours le **lien** « Voir sur SigilOS » vers la fiche
+ * dashboard : sa forme (`style: 5`, URL, libellé) vient de
+ * `buildMarketDashboardLinkButton()` (`discord-interactions.ts`), partagée avec
+ * les réponses éphémères de S4.5 ⇒ une seule définition du bouton dans le module.
  */
 
 import { formatKamas } from "@/lib/market/kamas";
+import {
+    MARKET_DASHBOARD_LINK_LABEL,
+    buildMarketDashboardLinkButton,
+    type MarketComponentRow,
+} from "@/lib/market/discord-interactions";
 
 export type MarketDiscordStatus = "DRAFT" | "ACTIVE" | "RESERVED" | "SOLD" | "EXPIRED" | "WITHDRAWN";
 
@@ -73,7 +83,7 @@ export type MarketDiscordPayload = {
     embedThumbnail?: string;
     fields: MarketDiscordField[];
     /** Boutons (max 4 — contrainte Discord). */
-    components: Array<{ type: 1; components: Array<Record<string, unknown>> }>;
+    components: MarketComponentRow[];
 };
 
 /** Id court lisible d'une annonce (footer, nom de post forum). */
@@ -157,7 +167,8 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
             style: 1,
             label: "Faire une offre",
             custom_id: `mkt:offer:${listingId}`,
-            disabled: actionsDisabled,
+            // §13.5 : l'offre exige une annonce `ACTIVE` ET négociable.
+            disabled: actionsDisabled || !negotiable,
         },
         {
             type: 2,
@@ -166,7 +177,10 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
             custom_id: `mkt:contact:${listingId}`,
             disabled: status === "SOLD",
         },
-        { type: 2, style: 5, label: "Voir sur SigilOS", url: dashboardUrl },
+        // S4.6 — bouton **lien** vers la fiche SigilOS (jamais de `custom_id` :
+        // Discord l'interdit sur un lien), forme partagée avec les réponses
+        // éphémères de S4.5.
+        buildMarketDashboardLinkButton(dashboardUrl, MARKET_DASHBOARD_LINK_LABEL),
     ];
 
     const author = serverName ? `Vendeur : ${sellerName} • ${serverName}` : `Vendeur : ${sellerName}`;

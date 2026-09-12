@@ -133,6 +133,10 @@ export const FM_EFFECTS: FmEffectDefinition[] = [
         canOver: false,
     },
     {
+        // D38 — la Portée n'est **jamais** sur-forgeable : 2 PO = 2 × 51 = 102 > 101,
+        // donc un over de +1 PO au-dessus d'un jet natif de 1 PO est illégal.
+        // Elle reste **ajoutable en exo** (51 ≤ 101). Confirmé par la source
+        // communautaire de référence (§12.8.4).
         key: "range",
         label: "Portée",
         shortLabel: "PO",
@@ -140,7 +144,7 @@ export const FM_EFFECTS: FmEffectDefinition[] = [
         unitWeight: 51,
         maxOverStandalone: 1,
         canExo: true,
-        canOver: true,
+        canOver: false,
     },
     {
         key: "summons",
@@ -237,6 +241,10 @@ export const FM_EFFECTS: FmEffectDefinition[] = [
         label: "Pods",
         shortLabel: "Pod",
         rune: "Pod",
+        // ⚠️ S4.0c / Q15 — densité **non tranchée** : 0,1 (code historique) vs 0,25
+        // (sources communautaires) vs 0,025 (guide SEO à corriger). Le plan impose de
+        // **ne rien changer sans la capture de la rune** fournie par le user ⇒ valeur
+        // gelée volontairement (test dédié) + signalée au rapport.
         unitWeight: 0.1,
         maxOverStandalone: 1010,
         canExo: true,
@@ -702,46 +710,113 @@ export function getFmStatus(input: {
 // ---------------------------------------------------------------------------
 
 /**
+ * Libellés FR **vérifiés** des caractéristiques DofusDB utilisées par la FM
+ * (recoupés le 11/09/2026 : `GET /characteristics/{id}` → `name.fr` **et** table
+ * locale `GameCharacteristic` siphonnée). C'est la **source de vérité** du
+ * mapping ci-dessous : `FM_CHARACTERISTIC_KEYS` doit être exactement la
+ * traduction de cette table (test d'intégrité D39).
+ *
+ * ❌ Volontairement **absents** (hors jet FM) : `51` Perte d'énergie,
+ * `52` Points d'honneur, `80` Rayon d'auto-agression JcJ, `93` Nombre max
+ * d'invocations de bombes, `141` Sorts (%) (résistance aux sorts : aucun rune).
+ */
+export const FM_CHARACTERISTIC_LABELS: Record<number, string> = {
+    1: "PA",
+    10: "Force",
+    11: "Vitalité",
+    12: "Sagesse",
+    13: "Chance",
+    14: "Agilité",
+    15: "Intelligence",
+    16: "Dommages",
+    18: "Critique",
+    19: "Portée",
+    23: "PM",
+    25: "Puissance",
+    26: "Invocation",
+    27: "Esquive PA",
+    28: "Esquive PM",
+    33: "Terre (%)",
+    34: "Feu (%)",
+    35: "Eau (%)",
+    36: "Air (%)",
+    37: "Neutre (%)",
+    40: "Pods",
+    44: "Initiative",
+    48: "Prospection",
+    49: "Soins",
+    50: "Renvoi",
+    78: "Fuite",
+    79: "Tacle",
+    82: "Retrait PA",
+    83: "Retrait PM",
+    84: "Poussée",
+    85: "Poussée (fixe)",
+    86: "Critiques",
+    87: "Critiques (fixe)",
+    88: "Terre",
+    89: "Feu",
+    90: "Eau",
+    91: "Air",
+    92: "Neutre",
+    121: "Distance (%)",
+    125: "Mêlée (%)",
+};
+
+/**
  * `characteristicId` DofusDB → clé FM. **Uniquement des ids vérifiés**
- * (recoupés avec `CHAR_NAMES`) : aucun id n'est deviné ici.
+ * (D39 : recoupés avec `FM_CHARACTERISTIC_LABELS`, `/characteristics/{id}` et le
+ * référentiel siphonné `GameCharacteristic`) : aucun id n'est deviné ici.
+ *
+ * ⚠️ Réécrit en S4.0b (audit §12.8.4) : l'ancienne table était **fausse sur 20
+ * ids** (16, 26, 27, 28, 48-52, 80, 82-84, 88, 92, 93, 112, 114, 125, 141) et il
+ * lui manquait Force (10), % Rés. (33-37), Pods (40), Initiative (44) et les
+ * dommages élémentaires par élément. Le bug était **masqué** parce que les
+ * `effects` siphonnés n'embarquent pas de champ `characteristic` (repli libellé).
+ * ⚠️ `112`/`114` ne sont **pas** des caractéristiques (`112` est un `effectId`,
+ * `114` renvoie 404) ⇒ retirés.
  */
 export const FM_CHARACTERISTIC_KEYS: Record<number, FmEffectKey> = {
     1: "actionPoints",
+    10: "strength",
     11: "vitality",
     12: "wisdom",
     13: "chance",
     14: "agility",
     15: "intelligence",
-    16: "strength",
+    16: "damage",
     18: "criticalHits",
     19: "range",
     23: "movementPoints",
     25: "power",
-    26: "heals",
-    27: "damage",
-    28: "summons",
-    48: "fireResistancePercent",
-    49: "waterResistancePercent",
-    50: "airResistancePercent",
-    51: "earthResistancePercent",
-    52: "neutralResistancePercent",
+    26: "summons",
+    27: "apDodge",
+    28: "mpDodge",
+    33: "earthResistancePercent",
+    34: "fireResistancePercent",
+    35: "waterResistancePercent",
+    36: "airResistancePercent",
+    37: "neutralResistancePercent",
+    40: "pods",
+    44: "initiative",
+    48: "prospecting",
+    49: "heals",
+    50: "reflectDamage",
     78: "dodge",
     79: "tackle",
-    80: "apReduction",
-    82: "apDodge",
+    82: "apReduction",
     83: "mpReduction",
-    84: "mpDodge",
+    84: "pushbackDamage",
+    85: "pushbackResistance",
+    86: "criticalDamage",
     87: "criticalResistance",
-    88: "pushbackResistance",
+    88: "earthDamage",
     89: "fireDamage",
     90: "waterDamage",
     91: "airDamage",
-    92: "earthDamage",
-    93: "neutralDamage",
-    112: "criticalDamage",
-    114: "pushbackDamage",
-    125: "vitality",
-    141: "neutralDamage",
+    92: "neutralDamage",
+    121: "rangedResistancePercent",
+    125: "meleeDamagePercent",
 };
 
 /**
@@ -925,6 +1000,28 @@ export const FM_LABEL_ALIASES: Record<string, FmEffectKey> = {
     "re per di": "rangedResistancePercent",
     "% re dist": "rangedResistancePercent",
     "% resistance distance": "rangedResistancePercent",
+    // ── Libellés du référentiel DofusDB `/characteristics` (vérifiés S4.0b / D39) ──
+    // DofusDB nomme « Terre (%) », « Poussée (fixe) », « Mêlée (%) », « Retrait PA »…
+    // là où la communauté écrit « % Résistance Terre », « Do Pou », « Do Mêlée ».
+    // Les deux formes doivent résoudre la **même** ligne FM : ce libellé est le
+    // repli réel, car les `effects` siphonnés n'embarquent pas de `characteristic`
+    // (cf. test d'intégrité sur `FM_CHARACTERISTIC_LABELS`).
+    terre: "earthDamage",
+    feu: "fireDamage",
+    eau: "waterDamage",
+    air: "airDamage",
+    neutre: "neutralDamage",
+    poussee: "pushbackDamage",
+    critiques: "criticalDamage",
+    "poussee fixe": "pushbackResistance",
+    "critiques fixe": "criticalResistance",
+    "% terre": "earthResistancePercent",
+    "% feu": "fireResistancePercent",
+    "% eau": "waterResistancePercent",
+    "% air": "airResistancePercent",
+    "% neutre": "neutralResistancePercent",
+    "% distance": "rangedResistancePercent",
+    "% melee": "meleeDamagePercent",
     chasse: "huntingWeapon",
     "arme de chasse": "huntingWeapon",
 };
@@ -1038,5 +1135,32 @@ export function maxOverFromRemaining(
 ): number {
     if (definition.unitWeight <= 0 || remainingDensity <= 0) return 0;
     return Math.max(0, Math.floor(remainingDensity / definition.unitWeight));
+}
+
+/** Ligne pesée par `computeItemWeight()` (jet **natif absolu**, pas l'over). */
+export type FmItemWeightLine = {
+    /** Densité par point de la ligne (référentiel FM). */
+    unitWeight: number;
+    /** Valeur du jet : positive = bonus, **négative = malus qui allège** l'objet. */
+    value: number;
+};
+
+/**
+ * 🧮 S4.0d — **poids FM total** d'un objet = **Σ (valeur × densité/pt)** sur
+ * l'ensemble de ses lignes (jets natifs **absolus**).
+ *
+ * ⚠️ Ne **remplace pas** `computeFmBudget()` (surplus face au plafond 101) : il le
+ * **complète** — ne pas confondre avec les **pods** d'inventaire (`GameItem.realWeight`,
+ * pied de carte). Le signe est conservé : un malus **allège** l'objet.
+ *
+ * Référence vérifiée (§12.8.4) : `Anneau du Cycloïde` (id 14092) → **482** au jet
+ * parfait, **355,3** au jet minimum, plafond FM **583** (= 482 + 101).
+ */
+export function computeItemWeight(lines: FmItemWeightLine[]): number {
+    const total = lines.reduce((sum, line) => {
+        if (!Number.isFinite(line.unitWeight) || !Number.isFinite(line.value)) return sum;
+        return sum + line.unitWeight * line.value;
+    }, 0);
+    return Math.round(total * 1000) / 1000;
 }
 

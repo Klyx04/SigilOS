@@ -5,7 +5,7 @@ import { isSuperAdmin, canAccessBrick } from '@/server/actions/super-admin-actio
 import { logger } from '@/lib/logger';
 import { siphonAndCompressImage } from '@/lib/dofus-asset-siphon';
 import { dofusDbFetch } from '@/lib/dofusdb-limiter';
-import { resolveNativeEffects, toNativeEffects } from '@/lib/market/effects';
+import { resolveNativeEffects, toNativeEffects, isPlaceholderStatLabel } from '@/lib/market/effects';
 import { FM_CHARACTERISTIC_KEYS } from '@/lib/market/fm-effects';
 import { collectDofusDbPages } from '@/lib/market/referential-pagination';
 import { Prisma } from '@prisma/client';
@@ -294,6 +294,76 @@ export async function backfillNativeEffects(limit = 500): Promise<
     } catch (error: any) {
         logger.error('[backfillNativeEffects] Error:', { error: error?.message });
         return { success: false, error: 'Backfill impossible' };
+    }
+}
+
+/**
+ * 🧹 S8.5 — **purge des gabarits `GameEffect.name`** (« Effet 63 », « }{ soins »).
+ *
+ * Contexte vérifié en base : **231** gabarits sur **871** effets, dont **47**
+ * réellement référencés par des items. Le siphon `/effects` ramène le catalogue
+ * des **effets de sorts** : beaucoup d'entrées n'ont pas de nom exploitable.
+ *
+ * Règles :
+ * - **idempotent** : une ligne réparée ne redevient jamais un gabarit, donc elle
+ *   n'est plus sélectionnée à la passe suivante ;
+ * - **aucune suppression** : on ne fait que réécrire un libellé-gabarit ;
+ * - **aucune invention** : la seule source fiable de réparation est la
+ *   caractéristique jointe (`GameEffect.characteristic` → `GameCharacteristic.name`).
+ *   Si elle est absente — cas actuel : `characteristic = 0` sur les 231 gabarits —
+ *   la ligne est comptée en `unresolved` et **laissée telle quelle** ; les
+ *   consommateurs l'ignorent déjà (`isPlaceholderStatLabel`) et retombent sur la
+ *   table codée.
+ */
+export async function purgePlaceholderEffectLabels(): Promise<
+    ActionResponse<{ scanned: number; repaired: number; unresolved: number }>
+> {
+    try {
+        if (!(await canManageGameItems())) return { success: false, error: 'Non autorisé' };
+
+        const placeholders = await db.gameEffect.findMany({
+            where: {
+                OR: [
+                    { name: { startsWith: 'Effet ' } },
+                    { name: { contains: '{' } },
+                    { name: { contains: '}' } },
+                ],
+            },
+            select: { id: true, name: true, characteristic: true },
+            orderBy: { id: 'asc' },
+        });
+
+        const scanned = placeholders.length;
+        if (scanned === 0) {
+            return { success: true, data: { scanned: 0, repaired: 0, unresolved: 0 } };
+        }
+
+        // Seule source **fiable** : le libellé de la caractéristique jointe.
+        const characteristics = await db.gameCharacteristic.findMany({
+            select: { id: true, name: true },
+        });
+        const characteristicNames = new Map(characteristics.map((row) => [row.id, row.name]));
+
+        let repaired = 0;
+        let unresolved = 0;
+        for (const effect of placeholders) {
+            const candidate =
+                effect.characteristic != null
+                    ? characteristicNames.get(effect.characteristic)
+                    : undefined;
+            if (!candidate || isPlaceholderStatLabel(candidate)) {
+                unresolved++;
+                continue;
+            }
+            await db.gameEffect.update({ where: { id: effect.id }, data: { name: candidate } });
+            repaired++;
+        }
+
+        logger.info('[purgePlaceholderEffectLabels] terminé', { scanned, repaired, unresolved });
+        return { success: true, data: { scanned, repaired, unresolved } };
+    } catch (error: any) {
+        logger.error('[purgePlaceholderEffectLabels] Error:', { error: error?.message });
+        return { success: false, error: 'Purge impossible' };
     }
 }
 

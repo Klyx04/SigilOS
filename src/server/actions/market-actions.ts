@@ -11,6 +11,15 @@ import { KAMAS_MAX } from "@/lib/market/kamas";
 import { computeStatQuality, computeStatsHash } from "@/lib/market/stat-quality";
 import { findNativeRange, isPlaceholderStatLabel, normalizeNativeRange, resolveStoredStatLabel, toNativeEffects, type DofusItemEffectLike, type MarketNativeEffect } from "@/lib/market/effects";
 import { loadMarketReferential } from "@/lib/market/referential";
+import {
+    SMITHMAGIC_ELEMENT_POTION_TYPE_ID,
+    SMITHMAGIC_TRANSCENDENCE_TYPE_ID,
+    parseTranscendenceRunes,
+    resolveElementPotions,
+    type ElementPotion,
+    type SmithmagicPalier,
+    type TranscendenceRune,
+} from "@/lib/market/smithmagic";
 import { publishListingToDiscord, syncListingMessage } from "@/server/market/discord";
 import { writeMarketAuditLog } from "@/server/market/audit";
 import { reserveMarketListingCore, cancelMarketReservationCore } from "@/server/market/reservations";
@@ -1696,6 +1705,101 @@ export async function getMarketPublishContext(
     } catch (error) {
         logger.error("[getMarketPublishContext] failed", { err: error });
         return { success: false, error: "Erreur interne" };
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S8.3 — Référentiel de FORGE RÉELLE (D40/D41) : lecture data-driven
+// ---------------------------------------------------------------------------
+
+/** Réponse de `getSmithmagicReferential()` — sérialisable vers le client. */
+export type SmithmagicReferential = {
+    /** Runes de Transcendance résolues (`typeId 211`), triées palier puis libellé. */
+    runes: TranscendenceRune[];
+    /** Les **12** potions de forgemagie (`typeId 26`), siphonnées ou non. */
+    potions: ElementPotion[];
+    /** Compteur de runes par palier (bandeau de l'éditeur de jet). */
+    runeCounts: Record<SmithmagicPalier, number>;
+    /** `true` si la base n'a pas répondu : la forge est simplement masquée. */
+    degraded: boolean;
+};
+
+/** Durée du cache mémoire court du référentiel (donnée de jeu quasi figée). */
+const SMITHMAGIC_REFERENTIAL_TTL_MS = 5 * 60 * 1000;
+
+/** Cache mémoire — **non** par guilde : le référentiel de jeu est global. */
+let smithmagicReferentialCache: { at: number; data: SmithmagicReferential } | null = null;
+
+/**
+ * S8.3 (D41) — **référentiel de forge réelle** : runes de Transcendance
+ * (`typeId 211`) + potions de forgemagie (`typeId 26`) lus dans `GameItem`,
+ * donc `GameItem` issu du siphon DofusDB déjà en place (**aucun nouvel appel
+ * réseau**, D41).
+ *
+ * 🔐 Gating **fail-closed** : `resolveMarketContext()` exige session + membre +
+ * `canViewMarket` (et l'appartenance à la guilde) ; sans ça → `success: false`.
+ * 🗃️ Cache mémoire **court** (5 min), volontairement **global** (le référentiel
+ * ne dépend pas de la guilde) : le **contrôle d'accès est refait à chaque appel**,
+ * seul le résultat de la requête est mutualisé.
+ * 🪶 **Fail-soft** : une erreur de lecture journalise un `warn` et renvoie un
+ * référentiel **vide** (`degraded: true`) au lieu de casser la page Marché.
+ */
+export async function getSmithmagicReferential(
+    guildId: string
+): Promise<ActionResponse<SmithmagicReferential>> {
+    const empty: SmithmagicReferential = {
+        runes: [],
+        potions: [],
+        runeCounts: { Ta: 0, PaTa: 0, RaTa: 0 },
+        degraded: true,
+    };
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+
+        const cached = smithmagicReferentialCache;
+        if (cached && Date.now() - cached.at < SMITHMAGIC_REFERENTIAL_TTL_MS) {
+            return { success: true, data: cached.data };
+        }
+
+        const rows = await db.gameItem.findMany({
+            where: {
+                typeId: {
+                    in: [SMITHMAGIC_TRANSCENDENCE_TYPE_ID, SMITHMAGIC_ELEMENT_POTION_TYPE_ID],
+                },
+            },
+            select: {
+                ankamaId: true,
+                name: true,
+                level: true,
+                typeId: true,
+                nativeEffects: true,
+                effects: true,
+            },
+        });
+
+        const runeRows = rows.filter((row) => row.typeId === SMITHMAGIC_TRANSCENDENCE_TYPE_ID);
+        const potionRows = rows.filter((row) => row.typeId === SMITHMAGIC_ELEMENT_POTION_TYPE_ID);
+
+        const runes = parseTranscendenceRunes(runeRows);
+        const runeCounts: Record<SmithmagicPalier, number> = { Ta: 0, PaTa: 0, RaTa: 0 };
+        for (const rune of runes) runeCounts[rune.palier] += 1;
+
+        const data: SmithmagicReferential = {
+            runes,
+            potions: resolveElementPotions(potionRows),
+            runeCounts,
+            degraded: false,
+        };
+        smithmagicReferentialCache = { at: Date.now(), data };
+        return { success: true, data };
+    } catch (error) {
+        // Fail-soft : la forge est un bonus d'affichage, jamais un point de rupture.
+        logger.warn("[getSmithmagicReferential] référentiel indisponible (fail-soft)", {
+            err: error,
+        });
+        smithmagicReferentialCache = null;
+        return { success: true, data: empty };
     }
 }
 

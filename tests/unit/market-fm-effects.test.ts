@@ -6,10 +6,16 @@ import {
     FM_EFFECTS,
     FM_EFFECTS_BY_KEY,
     FM_EFFECT_ID_KEYS,
+    FM_READONLY_EXCEPTIONS,
+    FM_TRANSCENDENCE_LABEL,
+    FM_TRANSCENDENCE_PALIERS,
+    FM_TRANSCENDENCE_SEUILS,
     computeFmBudget,
     computeItemWeight,
     describeFmReadonly,
     fmDensity,
+    fmTranscendenceFamily,
+    fmTranscendencePalierFor,
     getFmEffect,
     getFmStatus,
     maxOverFromRemaining,
@@ -113,6 +119,96 @@ describe("fm-effects — résolution vers une ligne FM", () => {
         expect(describeFmReadonly("Bonus de panoplie")).toMatch(/panoplie/);
         expect(describeFmReadonly("Vitalité")).toBeNull();
         expect(describeFmReadonly(null)).toBeNull();
+    });
+});
+
+/**
+ * S8.2 (D40) — Transcendance : libellé d'effet, seuils de pose, et exception
+ * « arme de chasse » au filet de lecture seule.
+ */
+describe("fm-effects — transcendance (S8.2)", () => {
+    it("expose le libellé d'effet officiel et les 3 paliers", () => {
+        expect(FM_TRANSCENDENCE_LABEL).toBe("Empêche les futures forgemagies");
+        expect([...FM_TRANSCENDENCE_PALIERS]).toEqual(["Ta", "PaTa", "RaTa"]);
+    });
+
+    it("décline des seuils décroissants Ta ≥ PaTa ≥ RaTa pour chaque famille", () => {
+        for (const [family, seuils] of Object.entries(FM_TRANSCENDENCE_SEUILS)) {
+            expect(seuils.Ta).toBeGreaterThan(seuils.PaTa);
+            expect(seuils.PaTa).toBeGreaterThan(seuils.RaTa);
+            expect(seuils.RaTa).toBeGreaterThan(0);
+            expect(family.length).toBeGreaterThan(0);
+        }
+    });
+
+    it("range un libellé d'effet dans la bonne famille de seuils", () => {
+        expect(fmTranscendenceFamily("Agilité")).toBe("simple");
+        expect(fmTranscendenceFamily("Vitalité")).toBe("simple");
+        expect(fmTranscendenceFamily("Pods")).toBe("extended");
+        expect(fmTranscendenceFamily("Initiative")).toBe("extended");
+        expect(fmTranscendenceFamily("Dommages Feu")).toBe("elementalDamage");
+        expect(fmTranscendenceFamily("Dommages Neutre")).toBe("elementalDamage");
+        expect(fmTranscendenceFamily("Dommages Mêlée (%)")).toBe("percent");
+        expect(fmTranscendenceFamily("Résistance % Terre")).toBe("percent");
+        expect(fmTranscendenceFamily("Retrait PA")).toBe("retAndDodge");
+        expect(fmTranscendenceFamily("Esquive PM")).toBe("retAndDodge");
+        // Inconnu → null (jamais de famille inventée).
+        expect(fmTranscendenceFamily("Nawak")).toBeNull();
+        expect(fmTranscendenceFamily(null)).toBeNull();
+    });
+
+    it("déduit le palier posable le plus fort pour un jet donné", () => {
+        // Agilité (simple) : 61 / 41 / 21.
+        expect(fmTranscendencePalierFor("Agilité", 10)).toBe("RaTa");
+        expect(fmTranscendencePalierFor("Agilité", 30)).toBe("PaTa");
+        expect(fmTranscendencePalierFor("Agilité", 50)).toBe("Ta");
+        // Au-delà du seuil le plus permissif : aucune rune de Transcendance.
+        expect(fmTranscendencePalierFor("Agilité", 62)).toBeNull();
+        // Pods (étendues) : 301 / 204 / 105.
+        expect(fmTranscendencePalierFor("Pods", 120)).toBe("PaTa");
+        // Dommages élémentaires : 8 / 5 / 3.
+        expect(fmTranscendencePalierFor("Dommages Feu", 4)).toBe("PaTa");
+        // Un libellé hors référentiel ou un jet non fini → null.
+        expect(fmTranscendencePalierFor("Nawak", 1)).toBeNull();
+        expect(fmTranscendencePalierFor("Agilité", Number.NaN)).toBeNull();
+    });
+
+    it("marque la ligne de Transcendance comme lecture seule", () => {
+        expect(describeFmReadonly(FM_TRANSCENDENCE_LABEL)).toMatch(/transcend/i);
+        expect(describeFmReadonly("Empêche les futures forgemagies")).toMatch(/transcend/i);
+    });
+
+    it("exempte l'arme de chasse du filet de lecture seule", () => {
+        expect(FM_READONLY_EXCEPTIONS.length).toBeGreaterThan(0);
+        // « Arme de chasse » est forgeable : contient « arme » mais ne doit pas être
+        // capturée par le motif « Dégâts de l'arme ».
+        expect(describeFmReadonly("Arme de chasse")).toBeNull();
+        expect(describeFmReadonly("Chasse")).toBeNull();
+        // Le motif générique reste actif pour les vrais dégâts d'arme.
+        expect(describeFmReadonly("Dégâts de l'arme")).toMatch(/arme/);
+    });
+});
+
+/**
+ * S8.5 — les libellés **gabarits** du siphon `/effects` (« Effet 63 », « }{ soins »)
+ * ne doivent jamais être interprétés comme une ligne FM : mieux vaut `null`
+ * (ligne hors référentiel) qu'une clé inventée.
+ */
+describe("fm-effects — gabarits ignorés (S8.5)", () => {
+    it("refuse un libellé-gabarit même si la caractéristique est connue", () => {
+        // « Vitalité » via la caractéristique 11 … mais le libellé est un gabarit :
+        // on refuse quand même (le libellé ment sur ce qu'il désigne).
+        expect(resolveFmEffectKey({ characteristic: 11, label: "Effet 63" })).toBeNull();
+        expect(resolveFmEffectKey({ effectId: 125, label: "}{ soins" })).toBeNull();
+        expect(resolveFmEffectKey({ label: "  " })).toBeNull();
+    });
+
+    it("résout normalement un libellé valide (non-régression)", () => {
+        expect(resolveFmEffectKey({ characteristic: 11 })).toBe("vitality");
+        expect(resolveFmEffectKey({ label: "Vitalité" })).toBe("vitality");
+        expect(resolveFmEffectKey({ label: "Vi" })).toBe("vitality");
+        // Sans libellé du tout, la résolution par ids reste active.
+        expect(resolveFmEffectKey({ characteristic: 10 })).toBe("strength");
     });
 });
 

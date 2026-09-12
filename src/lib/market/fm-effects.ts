@@ -20,6 +20,8 @@
  * la seule source de vérité du calcul `maxOver` (jamais dérivé de DofusDB).
  */
 
+import { isPlaceholderStatLabel } from "./effects";
+
 /** Plafond de densité **supplémentaire** ajoutable à un objet (règle FM). */
 export const FM_DENSITY_CAP = 101;
 
@@ -1036,6 +1038,10 @@ export function resolveFmEffectKey(input: {
     characteristic?: number | null;
     label?: string | null;
 }): FmEffectKey | null {
+    // S8.5 — un libellé **gabarit** DofusDB (« Effet 63 », « }{ soins ») ne doit
+    // jamais être interprété comme une ligne FM : mieux vaut `null` (ligne hors
+    // référentiel, affichée en lecture seule) qu'une clé inventée.
+    if (input.label && isPlaceholderStatLabel(input.label)) return null;
     if (input.characteristic != null && FM_CHARACTERISTIC_KEYS[input.characteristic]) {
         return FM_CHARACTERISTIC_KEYS[input.characteristic];
     }
@@ -1073,13 +1079,127 @@ export const FM_READONLY_PATTERNS: { pattern: RegExp; reason: string }[] = [
         pattern: /(?:sort|sortil[èe]ge|d[ée]clenchement|apparence|titre|apparat|avatar|montilier)/i,
         reason: "Effet hors jet FM",
     },
+    {
+        // S8.2 (D40) — ligne apposée par une **rune de Transcendance** : l'objet
+        // devient définitif, plus aucune forgemagie n'est possible dessus.
+        pattern: /emp[êe]che\s+les\s+futures\s+forgemagies/i,
+        reason: "Objet transcendé — les futures forgemagies sont bloquées (D40)",
+    },
+];
+
+/**
+ * S8.2 — **exceptions** au filet de lecture seule : des lignes bel et bien
+ * **forgeables** dont le libellé contient malencontreusement un mot-clé d'un
+ * motif ci-dessus (« **Arme de chasse** » contient « arme »). Elles sont donc
+ * exemptées et restent éditables.
+ */
+export const FM_READONLY_EXCEPTIONS: RegExp[] = [
+    /arme\s+de\s+chasse/i,
+    /^\s*chasse\s*$/i,
 ];
 
 /** Raison de lecture seule d'un libellé, ou `null` s'il est forgeable. */
 export function describeFmReadonly(label: string | null | undefined): string | null {
     if (!label) return null;
+    // Une exception (arme de chasse) prime sur les motifs génériques.
+    if (FM_READONLY_EXCEPTIONS.some((pattern) => pattern.test(label))) return null;
     const hit = FM_READONLY_PATTERNS.find((entry) => entry.pattern.test(label));
     return hit ? hit.reason : null;
+}
+
+// ---------------------------------------------------------------------------
+// S8.2 — TRANSCENDANCE (D40) : libellé d'effet + seuils de pose
+// ---------------------------------------------------------------------------
+
+/**
+ * S8.2 (D40) — libellé d'effet **officiel** apposé sur un objet transcendé.
+ * Source unique : `src/lib/market/smithmagic.ts` le ré-exporte sous le nom
+ * `TRANSCENDENCE_LABEL` (jamais dupliqué).
+ */
+export const FM_TRANSCENDENCE_LABEL = "Empêche les futures forgemagies";
+
+/** Paliers de Transcendance, du plus faible au plus fort. */
+export const FM_TRANSCENDENCE_PALIERS = ["Ta", "PaTa", "RaTa"] as const;
+export type FmTranscendencePalier = (typeof FM_TRANSCENDENCE_PALIERS)[number];
+
+/** Familles de caractéristiques partageant les mêmes seuils de pose. */
+export type FmTranscendenceFamily =
+    | "simple"
+    | "extended"
+    | "elementalDamage"
+    | "percent"
+    | "retAndDodge";
+
+/** Seuils de pose d'une famille : jet natif **maximal** accepté par palier. */
+export type FmTranscendenceSeuils = Record<FmTranscendencePalier, number>;
+
+/**
+ * S8.2 (D40) — **seuils de pose** des runes de Transcendance.
+ *
+ * Une rune de palier `P` n'est posable que si le **jet natif** de la
+ * caractéristique correspondante est **≤ seuil[P]** (Ta est le plus permissif,
+ * RaTa le plus exigeant). Au-delà, la Transcendance de ce palier est refusée par
+ * le jeu — la rune du palier inférieur peut encore passer.
+ *
+ * ⚠️ Donnée **communautaire** (au même titre que les densités `FM_EFFECTS`) :
+ * elle est **purement indicative** et **ne bloque jamais** une saisie
+ * (D34/D35). Elle sert à afficher « palier posable » dans l'éditeur de jet.
+ */
+export const FM_TRANSCENDENCE_SEUILS: Record<FmTranscendenceFamily, FmTranscendenceSeuils> = {
+    /** Caractéristiques de base (Agilité, Chance, Force, Intelligence, Vitalité…). */
+    simple: { Ta: 61, PaTa: 41, RaTa: 21 },
+    /** Caractéristiques « étendues » (Pods, Initiative). */
+    extended: { Ta: 301, PaTa: 204, RaTa: 105 },
+    /** Dommages élémentaires bruts (Do Terre / Eau / Feu / Air / Neutre). */
+    elementalDamage: { Ta: 8, PaTa: 5, RaTa: 3 },
+    /** % dommages et % résistances (« … (%) »). */
+    percent: { Ta: 12, PaTa: 8, RaTa: 4 },
+    /** Retraits et esquives PA / PM. */
+    retAndDodge: { Ta: 6, PaTa: 4, RaTa: 2 },
+};
+
+/**
+ * Range un libellé d'effet (tel que produit par `smithmagic.ts`) dans sa famille
+ * de seuils. Renvoie `null` si le libellé n'est pas une caractéristique connue.
+ */
+export function fmTranscendenceFamily(label: string | null | undefined): FmTranscendenceFamily | null {
+    if (!label) return null;
+    const normalized = normalizeFmLabel(label);
+    if (!normalized) return null;
+    if (normalized.includes("%") || normalized.includes("pourcent")) return "percent";
+    if (/^(?:pods?|initiative)$/.test(normalized)) return "extended";
+    if (/(?:retrait|esquive)\s*(?:pa|pm|pme)$/.test(normalized)) return "retAndDodge";
+    if (/^dommages? (?:terre|eau|feu|air|neutre)$/.test(normalized)) return "elementalDamage";
+    if (
+        /^(?:agilit|chance|force|intelligence|vitalit|puissance|soins|critique|fuite|tacle|sagesse|prospection)/.test(
+            normalized
+        )
+    ) {
+        return "simple";
+    }
+    // Dommages / Résistance Poussée & Critiques : même barème que les stats de base.
+    if (/^(?:dommages?|resistance) (?:poussee|critiques?)$/.test(normalized)) return "simple";
+    return null;
+}
+
+/**
+ * Palier de Transcendance **posable** pour un jet donné, ou `null` si le jet
+ * dépasse déjà tous les seuils (aucune rune de ce type n'est acceptée).
+ * Renvoie le palier **le plus fort** dont le seuil couvre le jet.
+ */
+export function fmTranscendencePalierFor(
+    label: string | null | undefined,
+    jet: number
+): FmTranscendencePalier | null {
+    const family = fmTranscendenceFamily(label);
+    if (!family || !Number.isFinite(jet)) return null;
+    const seuils = FM_TRANSCENDENCE_SEUILS[family];
+    // Du plus fort au plus faible : Ta est le plus permissif.
+    const ordered: FmTranscendencePalier[] = ["RaTa", "PaTa", "Ta"];
+    for (const palier of ordered) {
+        if (jet <= seuils[palier]) return palier;
+    }
+    return null;
 }
 
 // ---------------------------------------------------------------------------

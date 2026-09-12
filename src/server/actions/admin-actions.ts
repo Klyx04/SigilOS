@@ -186,7 +186,7 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
         return { success: true };
     } catch (error) {
         logger.error("Failed to onboard guild:", error);
-        return { success: false, error: error instanceof Error ? error.message : "Database error" };
+        return { success: false, error: "Une erreur est survenue lors de l'onboarding. Réessaie." };
     }
 }
 
@@ -1459,7 +1459,7 @@ export async function updateMissionNotifySettings(
         return { success: true };
     } catch (error: any) {
         logger.error("[AdminAction] updateMissionNotifySettings failed:", error);
-        return { success: false, error: error.message || "Erreur lors de la mise à jour" };
+        return { success: false, error: "Erreur lors de la mise à jour des paramètres. Réessaie." };
     }
 }
 

@@ -2545,7 +2545,7 @@ export async function updateOcreSettingsAction(
         return { success: true, data: result };
     } catch (error: any) {
         logger.error("[updateOcreSettingsAction] Error:", error);
-        return { success: false, error: error.message || "Erreur lors de la mise à jour des paramètres" };
+        return { success: false, error: "Erreur lors de la mise à jour des paramètres. Réessaie." };
     }
 }
 
@@ -2581,7 +2581,7 @@ export async function updateMonsterTradeParamsAction(
         return { success: true };
     } catch (error: any) {
         logger.error("[updateMonsterTradeParamsAction] Error:", error);
-        return { success: false, error: error.message || "Erreur lors de la mise à jour du trade" };
+        return { success: false, error: "Erreur lors de la mise à jour du trade. Réessaie." };
     }
 }
 
@@ -2618,7 +2618,7 @@ export async function bulkUpdateMonsterQuantitiesAction(
         return { success: true };
     } catch (error: any) {
         logger.error("[bulkUpdateMonsterQuantitiesAction] Error:", error);
-        return { success: false, error: error.message || "Erreur lors de la mise à jour groupée" };
+        return { success: false, error: "Erreur lors de la mise à jour groupée. Réessaie." };
     }
 }
 
@@ -2728,7 +2728,7 @@ export async function getGuildMetamobDirectory(
         return { success: true, data: directory };
     } catch (error: any) {
         logger.error("[getGuildMetamobDirectory] Error:", error);
-        return { success: false, error: error.message || "Erreur lors de la récupération de l'annuaire Metamob" };
+        return { success: false, error: "Impossible de récupérer l'annuaire Metamob. Réessaie." };
     }
 }
 

@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { getUserContext } from "./user-actions";
 import { uploadGuildImage, deleteGuildImage } from "./upload-actions";
 import { logAdminAccessDenied } from "./audit-actions";
-import { ALL_DOFUS_SERVERS, AVAILABLE_ACTIVITIES } from "@/lib/presentation-constants";
+import { ALL_DOFUS_SERVERS, AVAILABLE_ACTIVITIES, getGuildSlug } from "@/lib/presentation-constants";
 
 // ============================================================================
 // SANITIZATION UTILITIES
@@ -279,7 +279,7 @@ export async function getGuildPresentation(
         whereClause.presentationEnabled = true;
     }
 
-    const guild = await db.guildConfig.findFirst({
+    let guild = await db.guildConfig.findFirst({
         where: whereClause,
         select: {
             id: true,
@@ -306,6 +306,42 @@ export async function getGuildPresentation(
             presentationMemberCount: true,
         },
     });
+
+    // Fallback : Si non trouvé par égalité stricte/insensible (ex: accents ou caractères spéciaux nettoyés dans le slug)
+    if (!guild) {
+        const candidates = await db.guildConfig.findMany({
+            where: {
+                isActive: true,
+                ...(checkEnabled ? { presentationEnabled: true } : {}),
+            },
+            select: {
+                id: true,
+                discordGuildId: true,
+                name: true,
+                iconUrl: true,
+                createdAt: true,
+                presentationHistory: true,
+                presentationActivities: true,
+                presentationFounder: true,
+                presentationCoLeaders: true,
+                presentationTeam: true,
+                presentationDiscord: true,
+                presentationRecruiting: true,
+                presentationRecruitReq: true,
+                presentationServer: true,
+                presentationBannerType: true,
+                presentationBannerUrl: true,
+                presentationPhotoUrl: true,
+                presentationDiscordReq: true,
+                presentationMinLevel: true,
+                presentationMinSuccesses: true,
+                presentationFoundedDate: true,
+                presentationMemberCount: true,
+            },
+        });
+        const decoded = decodeURIComponent(guildId).trim().toLowerCase();
+        guild = candidates.find(g => getGuildSlug(g).toLowerCase() === decoded) || null;
+    }
 
     if (!guild) return null;
 
@@ -349,18 +385,34 @@ export async function getGuildPresentation(
 export async function getPublicGuildBasicInfo(
     guildId: string
 ): Promise<{ id: string; name: string; iconUrl: string | null; presentationEnabled: boolean } | null> {
-    const guild = await db.guildConfig.findFirst({
+    let guild = await db.guildConfig.findFirst({
         where: {
             OR: buildGuildLookupConditions(guildId),
             isActive: true, // Only if guild is active in system
         },
         select: {
             id: true,
+            discordGuildId: true,
             name: true,
             iconUrl: true,
             presentationEnabled: true,
         },
     });
+
+    if (!guild) {
+        const candidates = await db.guildConfig.findMany({
+            where: { isActive: true },
+            select: {
+                id: true,
+                discordGuildId: true,
+                name: true,
+                iconUrl: true,
+                presentationEnabled: true,
+            },
+        });
+        const decoded = decodeURIComponent(guildId).trim().toLowerCase();
+        guild = candidates.find(g => getGuildSlug(g).toLowerCase() === decoded) || null;
+    }
 
     if (!guild) return null;
 

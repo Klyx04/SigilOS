@@ -37,6 +37,41 @@ export type DofusStatAsset = {
     color: string;
 };
 
+/** Alias rétro-compatible */
+export type DofusStatTheme = DofusStatAsset;
+
+/**
+ * Palette de couleurs authentiques DofusBook.
+ */
+export const DOFUSBOOK_COLORS = {
+    vitalite: "#22c55e",
+    sagesse: "#a855f7",
+    force: "#d97706",
+    intelligence: "#ef4444",
+    chance: "#0ea5e9",
+    agilite: "#10b981",
+    pa: "#f59e0b",
+    pm: "#22c55e",
+    po: "#06b6d4",
+    critique: "#eab308",
+    puissance: "#f87171",
+    soin: "#f97316",
+    dommages: "#ef4444",
+    neutre: "#94a3b8",
+    invocation: "#38bdf8",
+    initiative: "#f43f5e",
+    prospection: "#14b8a6",
+    pods: "#a16207",
+    fuite: "#34d399",
+    tacle: "#6366f1",
+    retraitPA: "#f59e0b",
+    esquivePA: "#38bdf8",
+    retraitPM: "#10b981",
+    esquivePM: "#34d399",
+    resistance: "#94a3b8",
+    malus: "#ef4444",
+} as const;
+
 /**
  * Thèmes officiels, indexés par clé interne stable.
  * ⚠️ Seuls des fichiers **réellement présents** dans `public/assets/dofus/stats/`
@@ -295,4 +330,63 @@ export function resolveDofusStatTheme(
         (label ? LABEL_THEME_PATTERNS.find((entry) => entry.pattern.test(label))?.theme : undefined);
 
     return key ? STAT_THEMES[key] : null;
+}
+
+/**
+ * Retourne la couleur de texte pour afficher une valeur de stat DofusBook.
+ * Si la valeur est négative (malus), renvoie le rouge malus.
+ */
+export function getDofusStatNumberColor(
+    value: number | { from?: number; to?: number },
+    characteristicId?: number | null,
+    effectId?: number | null,
+    charCode?: string | null,
+    label?: string | null
+): string {
+    const isNegative = typeof value === "number"
+        ? value < 0
+        : (value.from != null && value.from < 0) || (value.to != null && value.to < 0);
+
+    if (isNegative) {
+        return DOFUSBOOK_COLORS.malus;
+    }
+
+    const theme = resolveDofusStatTheme(characteristicId, effectId, charCode, label);
+    if (!theme) return "#a855f7";
+
+    switch (theme.asset) {
+        case "pv.png": return DOFUSBOOK_COLORS.vitalite;
+        case "terre.png": return DOFUSBOOK_COLORS.force;
+        case "feu.png": return DOFUSBOOK_COLORS.intelligence;
+        case "eau.png": return DOFUSBOOK_COLORS.chance;
+        case "air.png": return DOFUSBOOK_COLORS.agilite;
+        case "sagesse.png": return DOFUSBOOK_COLORS.sagesse;
+        case "puissance.png": return DOFUSBOOK_COLORS.puissance;
+        case "pa.png": return DOFUSBOOK_COLORS.pa;
+        case "pm.png": return DOFUSBOOK_COLORS.pm;
+        case "po.png": return DOFUSBOOK_COLORS.po;
+        case "critique.png": return DOFUSBOOK_COLORS.critique;
+        case "soin.png": return DOFUSBOOK_COLORS.soin;
+        case "dommages.png": return DOFUSBOOK_COLORS.dommages;
+        case "neutre.png": return DOFUSBOOK_COLORS.neutre;
+        case "invocation.png": return DOFUSBOOK_COLORS.invocation;
+        case "initiative.png": return DOFUSBOOK_COLORS.initiative;
+        case "pp.png": return DOFUSBOOK_COLORS.prospection;
+        case "pod.png": return DOFUSBOOK_COLORS.pods;
+        case "fuite.png": return DOFUSBOOK_COLORS.fuite;
+        case "tacle.png": return DOFUSBOOK_COLORS.tacle;
+        case "retraitPA.png": return DOFUSBOOK_COLORS.retraitPA;
+        case "retraitPM.png": return DOFUSBOOK_COLORS.retraitPM;
+        case "esquivePA.png": return DOFUSBOOK_COLORS.esquivePA;
+        case "esquivePM.png": return DOFUSBOOK_COLORS.esquivePM;
+        case "bouclier.png":
+        case "resNeutre.png":
+        case "resTerre.png":
+        case "resFeu.png":
+        case "resEau.png":
+        case "resAir.png":
+            return DOFUSBOOK_COLORS.resistance;
+        default:
+            return "#a855f7";
+    }
 }

@@ -5,6 +5,14 @@ import sharp from 'sharp';
 import { ASSET_DIRS, ensureAssetDirsExist } from '@/lib/dofus-asset-siphon';
 import { assertSafeUrl } from '@/lib/image-downloader';
 
+// 🛡️ Garde-fou mémoire : limite Sharp pour éviter tout crash V8 OOM lors de rafales
+if (typeof (sharp as any)?.cache === 'function') {
+    (sharp as any).cache({ memory: 40, files: 20, items: 50 });
+}
+if (typeof (sharp as any)?.concurrency === 'function') {
+    (sharp as any).concurrency(1);
+}
+
 export const dynamic = 'force-dynamic';
 
 const REMOTE_BASE_URLS = {
@@ -93,7 +101,7 @@ export async function GET(
                     try {
                         const rawBuffer = fs.readFileSync(desktopFile);
                         const webpBuffer = await sharp(rawBuffer)
-                            .webp({ quality: 85, effort: 4 })
+                            .webp({ quality: 80, effort: 2 })
                             .toBuffer();
                         fs.writeFileSync(localFilePath, webpBuffer);
                         return new NextResponse(webpBuffer, {
@@ -121,7 +129,7 @@ export async function GET(
                     try {
                         const rawBuffer = fs.readFileSync(altDesktopFile);
                         const webpBuffer = await sharp(rawBuffer)
-                            .webp({ quality: 85, effort: 4 })
+                            .webp({ quality: 80, effort: 2 })
                             .toBuffer();
                         fs.writeFileSync(localFilePath, webpBuffer);
                         return new NextResponse(webpBuffer, {
@@ -244,9 +252,9 @@ export async function GET(
 
         if (downloaded && inputBuffer) {
             try {
-                // Compression WebP via Sharp
+                // Compression WebP via Sharp (quality 80, effort 2 pour vitesse et basse conso RAM)
                 const webpBuffer = await sharp(inputBuffer)
-                    .webp({ quality: 85, effort: 4 })
+                    .webp({ quality: 80, effort: 2 })
                     .toBuffer();
 
                 // Sauvegarde asynchrone sur disque pour les prochaines requêtes

@@ -32,6 +32,7 @@ const NAV_ITEMS: NavItem[] = [
     { label: "Produit", href: "/#produit", id: "produit" },
     { label: "Rush Sylvestre", href: "/guides/rush-sylvestre", id: "rush" },
     { label: "Fiches Boss", href: "/boss", id: "boss" },
+    { label: "Carte du Monde", href: "/carte-du-monde", id: "carte-du-monde" },
     { label: "Almanax", href: "/almanax", id: "almanax" },
     { label: "Guides", href: "/guides", id: "guides" },
     { label: "Annuaire", href: "/guilds", id: "annuaire" },

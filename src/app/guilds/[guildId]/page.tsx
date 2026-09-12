@@ -56,17 +56,18 @@ export default async function GuildPresentationPage({ params }: Props) {
     const { guildId } = await params;
     const guild = await getGuildPresentation(guildId);
 
+    // Si non trouvé public, vérifier si la guilde existe en mode privé
+    const basicInfo = !guild ? await getPublicGuildBasicInfo(guildId) : null;
+    const targetGuildId = guild?.discordGuildId || basicInfo?.id || guildId;
+
     // Auth check for header — #59 : membership scoped à CETTE guilde (pas la guilde par défaut).
     const { getUserContext } = await import("@/server/actions/user-actions");
-    const userContext = await getUserContext(guildId);
+    const userContext = await getUserContext(targetGuildId);
 
     // #142 — session pour le header public : masque le bouton « Connexion » si déjà connecté au Dashboard.
     const session = await auth();
 
     if (!guild) {
-        // Check if it exists but is private
-        const basicInfo = await getPublicGuildBasicInfo(guildId);
-
         if (basicInfo && !basicInfo.presentationEnabled) {
             return <PrivateGuildView guild={basicInfo} isMember={userContext.isMember} user={session?.user} />;
         }

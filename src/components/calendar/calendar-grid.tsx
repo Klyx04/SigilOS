@@ -336,6 +336,9 @@ export function CalendarGrid({
                                                                 )}>
                                                                     {isCompleted ? (
                                                                         <CheckCircle2 className="h-3.5 w-3.5 text-success/80" />
+                                                                    ) : event.type === "KRALAMOURE" ? (
+                                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                                        <img src="/assets/calendar/kralamoure-head.png" alt="Kralamoure" className="w-5 h-5 object-contain" />
                                                                     ) : (
                                                                         <Icon className={cn("h-3.5 w-3.5", config.color)} />
                                                                     )}

@@ -7,6 +7,7 @@ import { expireMarketListingsCore, expireMarketOffersCore, remindMarketListingsC
 import { expireMarketReservationsCore, remindMarketReservationsEndingCore } from "@/server/market/reservations";
 import { claimMarketDailyMaintenance, reconcileMarketDiscordMessagesCore } from "@/server/market/maintenance";
 import { purgeMarketListingMediaCore } from "@/server/market/retention";
+import { notifyMarketIncidentsCore } from "@/server/market/incidents";
 
 /**
  * 🔒 CRON « Marché » — fin de vie automatique et rappels (§15.1, S5.2).
@@ -28,7 +29,11 @@ import { purgeMarketListingMediaCore } from "@/server/market/retention";
  *   7. **purge des médias** (S5.5) des annonces terminées depuis plus de
  *      `marketMediaRetentionDays` : fichiers du disque puis lignes, chaque
  *      annonce purgée étant auditée (`MEDIA_PURGED`). La purge des logs du
- *      marché (S5.6) restera branchée sur le cron `cleanup-logs`.
+ *      marché (S5.6) restera branchée sur le cron `cleanup-logs` ;
+ *   8. **incidents** (S5.10 / S8.19) — échecs de synchronisation Discord
+ *      persistants, volume de médias anormal, signalements `OPEN` anciens :
+ *      alerte God **throttlée en Redis** et **strictement non bloquante**
+ *      (`notifyMarketIncidentsCore`, appelée après la télémétrie).
  *
  * L'**ordre est imposé** : le retrait J+20 ne vise que les annonces sans
  * activité (§11.6) ; archiver les annonces avant d'avoir libéré celles dont la
@@ -131,6 +136,19 @@ async function handleMarketExpire(req: Request) {
             ].join(", "),
             details: summary,
         });
+
+        // S8.19 — incidents marché (échecs de sync persistants, volume média
+        // anormal, signalements `OPEN` anciens) → alerte God **non bloquante**,
+        // throttlée en Redis (1 alerte / type / fenêtre). Encapsulé localement :
+        // ni la passe déjà commitée, ni sa télémétrie ne dépendent de l'alerte.
+        try {
+            const incidents = await notifyMarketIncidentsCore({ now });
+            if (incidents.alerted.length > 0) {
+                logger.warn("[MarketExpireCron] incidents marché signalés", { alerted: incidents.alerted });
+            }
+        } catch (error) {
+            logger.warn("[MarketExpireCron] alerte d'incident différée", { err: String(error) });
+        }
 
         return NextResponse.json({ success: true, summary });
     } catch (error) {

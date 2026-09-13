@@ -65,6 +65,17 @@ type SerializedListing = {
     quantity: number | null;
     unitLabel: string | null;
     minQuantity: number | null;
+    /**
+     * S8.10 — **forge réelle déclarée** (D40/D41). La présence de
+     * `transcendenceRuneId` vaut « Transcendé » (aucun booléen redondant) ;
+     * `transcendenceLabel` est le libellé d'effet dénormalisé.
+     */
+    transcendenceRuneId: number | null;
+    transcendenceLabel: string | null;
+    strikeElement: string | null;
+    elementPotionId: number | null;
+    elementPotionTier: number | null;
+    huntingWeapon: string | null;
     publishedAt: string | null;
     expiresAt: string | null;
     renewCount: number;
@@ -217,6 +228,11 @@ export function MarketListingClient({
                         averagePrice,
                         priceKamas: listing.priceKamas,
                         unitLabel: listing.unitLabel,
+                        // S8.10 — forge réelle déclarée → bloc STATUT (S8.4).
+                        transcended: listing.transcendenceRuneId !== null,
+                        transcendenceLabel: listing.transcendenceLabel,
+                        strikeElement: listing.strikeElement,
+                        huntingWeapon: listing.huntingWeapon,
                         stats: listing.stats,
                         components: listing.components,
                     }}

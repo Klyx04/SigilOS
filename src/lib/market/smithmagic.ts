@@ -75,6 +75,11 @@ export type TranscendenceRune = {
     statLabel: string;
     /** Valeur du bonus accordé (issue de `effects[].from`). */
     bonus: number;
+    /**
+     * S8.9 — **icône officielle** de la rune (proxy `/api/assets-dofus/items`).
+     * Dérivée de l'`ankamaId` : jamais une image cassée (le proxy a un repli).
+     */
+    iconUrl: string | null;
 };
 
 /** Potion de forgemagie résolue (élément de frappe). */
@@ -87,6 +92,12 @@ export type ElementPotion = {
     element: SmithmagicElement;
     /** Palier de conservation des dégâts (50 / 65 / 80 %). */
     tier: SmithmagicPotionTier;
+    /**
+     * S8.9 — icône officielle de la potion siphonnée, `null` quand la ligne
+     * n'est **pas** en base (palier 65 %) : l'UI retombe alors sur l'icône de
+     * l'**élément** (`StatIcon`), jamais sur une image cassée.
+     */
+    iconUrl: string | null;
 };
 
 /** Forme minimale d'une ligne `GameItem` exploitée par les parseurs (pure). */
@@ -129,6 +140,55 @@ export const ELEMENT_POTION_DEFINITIONS: ReadonlyArray<{
     { name: "Potion de Séisme", aliases: ["seisme"], element: "Terre", tier: 80, ankamaId: 1348 },
     { name: "Potion d'Ouragan", aliases: ["ouragan"], element: "Air", tier: 80, ankamaId: 1347 },
 ];
+
+// ---------------------------------------------------------------------------
+// ICÔNES OFFICIELLES (S8.9) — exigence user : des assets dans les listes
+// ---------------------------------------------------------------------------
+
+/**
+ * Base du proxy d'assets DofusDB (route `src/app/api/assets-dofus/[type]/[id]`).
+ * Elle siphonne l'image au premier appel et **ne renvoie jamais 404** (repli
+ * SVG intégré) ⇒ l'UI peut toujours afficher l'icône d'un item siphonné.
+ */
+export const DOFUSDB_ITEM_ASSET_BASE = "/api/assets-dofus/items";
+
+/**
+ * URL de l'icône officielle d'un item DofusDB, `null` si l'`ankamaId` est
+ * inconnu (`null`, non entier ou ≤ 0). Fonction **pure** : le repli
+ * d'affichage appartient à l'appelant.
+ */
+export function smithmagicItemIconUrl(ankamaId: number | null | undefined): string | null {
+    return typeof ankamaId === "number" && Number.isInteger(ankamaId) && ankamaId > 0
+        ? `${DOFUSDB_ITEM_ASSET_BASE}/${ankamaId}`
+        : null;
+}
+
+/**
+ * S8.9 — asset DofusBook (`/assets/dofus/stats/<asset>`, cf.
+ * `dofusStatAssetUrl`) de l'icône d'un **élément de frappe**. C'est le repli
+ * d'affichage d'une potion non siphonnée (palier 65 %) : jamais d'image cassée.
+ */
+export const STRIKE_ELEMENT_ASSET: Record<SmithmagicElement, string> = {
+    Feu: "feu.png",
+    Eau: "eau.png",
+    Terre: "terre.png",
+    Air: "air.png",
+    Neutre: "neutre.png",
+};
+
+/**
+ * Icône d'une **potion de forgemagie** : l'asset siphoné quand il existe, sinon
+ * `null` (les 4 potions du palier 65 % ne sont pas encore dans `GameItem`) ⇒
+ * l'UI affiche l'icône de l'**élément** à la place.
+ */
+export function elementPotionIconUrl(potion: { ankamaId: number | null }): string | null {
+    return smithmagicItemIconUrl(potion.ankamaId);
+}
+
+/** Nom d'asset DofusBook d'un élément de frappe (jamais `null`). */
+export function strikeElementAsset(element: SmithmagicElement): string {
+    return STRIKE_ELEMENT_ASSET[element] ?? STRIKE_ELEMENT_ASSET.Neutre;
+}
 
 /** Normalise un libellé pour comparaison (accents/apostrophes/espaces). */
 export function normalizeSmithmagicKey(value: string): string {
@@ -173,6 +233,7 @@ export function parseElementPotion(row: SmithmagicItemRow): ElementPotion | null
         name: definition.name,
         element: definition.element,
         tier: definition.tier,
+        iconUrl: smithmagicItemIconUrl(row.ankamaId),
     };
 }
 
@@ -199,13 +260,74 @@ export function resolveElementPotions(rows: SmithmagicItemRow[]): ElementPotion[
     }
     return ELEMENT_POTION_DEFINITIONS.map((definition) => {
         const dbId = idsByName.get(normalizeSmithmagicKey(definition.name));
+        const ankamaId = typeof dbId === "number" ? dbId : definition.ankamaId;
         return {
-            ankamaId: typeof dbId === "number" ? dbId : definition.ankamaId,
+            ankamaId,
             name: definition.name,
             element: definition.element,
             tier: definition.tier,
+            iconUrl: smithmagicItemIconUrl(ankamaId),
         };
     });
+}
+
+/** Éléments **obtenables** par une potion de forgemagie (Feu / Eau / Terre / Air). */
+export const ELEMENT_POTION_ELEMENTS: readonly SmithmagicElement[] = Array.from(
+    new Set(ELEMENT_POTION_DEFINITIONS.map((definition) => definition.element))
+);
+
+/** Construit la potion canonique d'une définition (jamais de donnée inventée). */
+function toElementPotion(definition: (typeof ELEMENT_POTION_DEFINITIONS)[number]): ElementPotion {
+    return {
+        ankamaId: definition.ankamaId,
+        name: definition.name,
+        element: definition.element,
+        tier: definition.tier,
+        iconUrl: smithmagicItemIconUrl(definition.ankamaId),
+    };
+}
+
+/**
+ * S8.9/S8.11 — potion du référentiel par `ankamaId`, `null` si l'identifiant
+ * n'est pas celui d'une potion de forgemagie connue (jamais d'invention).
+ */
+export function findElementPotionByAnkamaId(
+    ankamaId: number | null | undefined
+): ElementPotion | null {
+    if (typeof ankamaId !== "number" || !Number.isInteger(ankamaId)) return null;
+    const definition = ELEMENT_POTION_DEFINITIONS.find((candidate) => candidate.ankamaId === ankamaId);
+    if (!definition) return null;
+    return { ...toElementPotion(definition), ankamaId };
+}
+
+/** Potion du référentiel par nom exact ou alias (« Potion de Secousse »). */
+export function findElementPotionByName(name: string | null | undefined): ElementPotion | null {
+    if (!name) return null;
+    const key = normalizeSmithmagicKey(name);
+    const definition = ELEMENT_POTION_DEFINITIONS.find(
+        (candidate) =>
+            normalizeSmithmagicKey(candidate.name) === key ||
+            candidate.aliases.some((alias) => normalizeSmithmagicKey(alias) === key)
+    );
+    return definition ? toElementPotion(definition) : null;
+}
+
+/**
+ * Potion d'une combinaison **élément × palier** (les 12 combinaisons existent en
+ * jeu) — c'est la garde de cohérence de S8.11 : un élément sans potion pour le
+ * palier déclaré est refusé.
+ */
+export function findElementPotionByElementTier(
+    element: string | null | undefined,
+    tier: number | null | undefined
+): ElementPotion | null {
+    if (!element || typeof tier !== "number") return null;
+    const resolved = resolveStrikeElement(element);
+    if (!resolved) return null;
+    const definition = ELEMENT_POTION_DEFINITIONS.find(
+        (candidate) => candidate.element === resolved && candidate.tier === tier
+    );
+    return definition ? toElementPotion(definition) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -365,6 +487,7 @@ export function parseTranscendenceRune(row: SmithmagicItemRow): TranscendenceRun
         effectId: effectId ?? -1,
         statLabel,
         bonus,
+        iconUrl: smithmagicItemIconUrl(row.ankamaId),
     };
 }
 

@@ -23,6 +23,7 @@ import {
     MARKET_SETTINGS_BOUNDS,
     MARKET_SETTINGS_DEFAULTS,
     marketAuditActionLabel,
+    type MarketStatLineView,
 } from "./market-constants";
 
 // ---------------------------------------------------------------------------
@@ -628,6 +629,11 @@ export type MarketReportRecord = {
     resolution: string | null;
     /** Pseudo du membre qui a signalé (`UserProfile` — écran privé). */
     reporterLabel: string | null;
+    /**
+     * S8.15 — **jet déclaré** de l'annonce signalée (icônes officielles) : le
+     * modérateur juge un litige de jet sans quitter son dossier.
+     */
+    listingStats: MarketStatLineView[];
     createdAt: string;
     reviewedAt: string | null;
 };
@@ -814,7 +820,15 @@ export async function listMarketReports(
                 createdAt: true,
                 reviewedAt: true,
                 reporterProfileId: true,
-                listing: { select: { id: true, title: true, status: true } },
+                listing: {
+                    select: {
+                        id: true,
+                        title: true,
+                        status: true,
+                        // S8.15 — jet déclaré du dossier signalé (lecture seule).
+                        stats: true,
+                    },
+                },
             },
             orderBy: [{ createdAt: "desc" }],
             take: MARKET_REPORT_PAGE_SIZE,
@@ -847,6 +861,17 @@ export async function listMarketReports(
                 status: report.status,
                 resolution: report.resolution,
                 reporterLabel: labelById.get(report.reporterProfileId) ?? null,
+                // S8.15 — copie explicite (jamais un spread de colonnes futures).
+                listingStats: report.listing.stats.map((stat) => ({
+                    id: stat.id,
+                    effectId: stat.effectId,
+                    characteristic: stat.characteristic,
+                    label: stat.label,
+                    actualValue: stat.actualValue,
+                    origin: stat.origin,
+                    naturalMin: stat.naturalMin,
+                    naturalMax: stat.naturalMax,
+                })),
                 createdAt: report.createdAt.toISOString(),
                 reviewedAt: report.reviewedAt ? report.reviewedAt.toISOString() : null,
             })),
@@ -954,6 +979,11 @@ export type MarketWithdrawnListingRecord = {
     withdrawnSource: MarketWithdrawnSource;
     /** Pseudo joint **côté modération uniquement** (écran privé, §13.7). */
     sellerLabel: string | null;
+    /**
+     * S8.15 — **jet déclaré** de l'annonce retirée (icônes officielles) : la
+     * modération retrouve le contexte du retrait sans ouvrir la fiche.
+     */
+    stats: MarketStatLineView[];
     /** Signalements encore ouverts sur cette annonce (contexte du retrait). */
     openReports: number;
 };
@@ -1001,6 +1031,8 @@ export async function listWithdrawnMarketListings(
                 updatedAt: true,
                 expiresAt: true,
                 profileId: true,
+                // S8.15 — jet déclaré (projection lecture seule pour le panneau).
+                stats: true,
                 reports: { where: { status: "OPEN" }, select: { id: true } },
             },
             // `updatedAt` est retouché à chaque transition : tri stable même si
@@ -1065,6 +1097,17 @@ export async function listWithdrawnMarketListings(
                 restoreBlocked: Boolean(listing.expiresAt && listing.expiresAt.getTime() <= now),
                 withdrawnSource: sourceByListing.get(listing.id) ?? "UNKNOWN",
                 sellerLabel: labelById.get(listing.profileId) ?? null,
+                // S8.15 — copie explicite du jet déclaré (icônes officielles).
+                stats: listing.stats.map((stat) => ({
+                    id: stat.id,
+                    effectId: stat.effectId,
+                    characteristic: stat.characteristic,
+                    label: stat.label,
+                    actualValue: stat.actualValue,
+                    origin: stat.origin,
+                    naturalMin: stat.naturalMin,
+                    naturalMax: stat.naturalMax,
+                })),
                 openReports: listing.reports.length,
             })),
         };

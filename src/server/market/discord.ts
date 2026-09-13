@@ -153,6 +153,17 @@ function buildPayload(
             naturalMax: stat.naturalMax,
             origin: stat.origin,
         })),
+        // S8.17 — **statut de forge déclaré** (D40/D41) : Transcendé, élément de
+        // frappe (+ palier de potion), arme de chasse. La **présence** de la rune
+        // vaut « Transcendé » (aucun booléen redondant en base).
+        transcended: listing.transcendenceRuneId !== null,
+        transcendenceLabel: listing.transcendenceLabel,
+        strikeElement: listing.strikeElement,
+        elementPotionTier: listing.elementPotionTier,
+        huntingWeapon: listing.huntingWeapon,
+        // D43 — « Troc accepté » / « Kamas uniquement » : l'acheteur Discord doit
+        // savoir **avant** d'ouvrir la modale d'offre.
+        acceptsTrade: listing.acceptsTrade,
         imageUrl,
         // Correction 13/09 — Discord exige une URL **absolue** (400 sinon).
         itemIconUrl: absoluteItemIconUrl(listing.itemIconUrl),

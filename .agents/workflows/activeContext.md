@@ -1,11 +1,13 @@
 # Active Context — SigilOS
 
-## ✅ DERNIÈRE PR MERGÉE — **#627** `feat/marche-b1` (Module « Marché » · B1 = S1) → **suite : B2**
+## ✅ DERNIÈRE PR MERGÉE — **#641** (`fix/marche-fidelite-lignes` = S8 lot 2bis) → **branche courante : `feat/marche-s8-lot3`**
 
-> **PR :** https://github.com/Klyx04/SigilOS/pull/627 · base `dev` · **MERGÉE** le 10/09/2026 21:50Z (merge `62e53aae4`) · CI **Verify & Build** ✅ + CD **Build & Push Images** ✅ · branche supprimée.
-> **Prochaine étape :** **B2 = S2 + S3** — branche `feat/marche-b2` **depuis `dev`** (plan §0.1.bis bloc B + bloc « 🔁 REPRISE B2 »).
+> **Merges récents :** **#640** (lot 2bis « fidélité des lignes de jet », `577863e80`) · **#641** (référence des règles projet) → `dev` = **`79e1c1547`**.
+> **Session en cours :** **Module « Marché » · S8 LOT 3 « Discord & UX » (`S8.13` → `S8.17`)** — branche **`feat/marche-s8-lot3`** créée depuis `dev` = `79e1c1547` · plan §21 **S8 lot 3** · mémo `src/temp/memo-2026-09-13-marche-s8-lot3.md`.
+> **Livré (vérifié) :** `acceptsTrade` **effectif** (`TRADE_NOT_ACCEPTED`, création **et** contre-offre, gardes **avant** écriture) · embed Discord **STATUT** (Transcendé · élément de frappe + palier · arme de chasse · `Troc accepté`/`Kamas uniquement`) · **bulles profil** mutualisées (`discord-profile-bubble.tsx`) · **`StatIcon`** partout où le jet était du texte nu (`market-stat-lines.tsx`) · libellé **« Mon espace »** · `tsc` **0** · `eslint` **0 erreur** · suite **1072/1072** ✅ · `build` **exit 0** · **0 migration**.
+> **Prochaine étape :** **Lot 4** (`S8.18`→`S8.22` : onglet **God « Marché »** avec `isSuperAdmin()` **fail-closed** sur la page **et** chaque action · `notifyGod` **non bloquant** · cascade **`WITHDRAWN`** · tests `market-expire`/concurrence · tour + doc) — **à ne pas entamer** avant merge de la PR du lot 3.
 > **Règle de session (ratifiée 10/09) :** tant qu'une PR est **ouverte**, on la **surveille jusqu'au merge** (`gh pr checks <n>` · `gh run view <id> --log-failed`) ; **si une étape CI/CD échoue → on fixe, on relance** (`gh run rerun <id> --failed`) **et on recommence jusqu'au vert, puis merge**. Jamais de merge sur rouge · jamais de test désactivé pour verdir · jamais `main` · jamais de push direct sur `dev`.
-> **Contexte de reprise :** plan `src/temp/refonte-marche/PLAN-MAITRE-MODULE-MARCHE.md` · mémo `src/temp/memo-2026-09-10-marche.md` · amorce `src/temp/refonte-marche/AMORCES-A-COPIER.md`.
+> **Contexte de reprise :** plan `src/temp/refonte-marche/PLAN-MAITRE-MODULE-MARCHE.md` · état + **§0 sécurité bloquante** `src/temp/refonte-marche/REPRISE-S8-LOT3-ETAT.md` · amorce `src/temp/refonte-marche/AMORCES-A-COPIER.md`.
 
 ### Fichiers à surveiller sur cette PR (les toucher ⇒ relire les règles ci-dessous)
 - **CI/CD** : `.github/workflows/verify.yml` (Lint → tsc → bot tsc → tests → build) · `.github/workflows/deploy.yml` (image construite sur runner GitHub via buildx) · `Dockerfile` (stage `builder` = `npm run build`).

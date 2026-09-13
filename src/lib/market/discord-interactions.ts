@@ -168,8 +168,17 @@ export const MARKET_OFFER_MODAL = {
  * Le `custom_id` de la modale reprend **exactement** la forme des boutons
  * (`mkt:offer:<listingId>`) : la soumission (type 5) est donc reparsée par
  * `parseMarketCustomId()`, sans second format à maintenir.
+ *
+ * D43 — `options.acceptsTrade === false` (« **kamas uniquement** ») adapte les
+ * **libellés** pour que le membre sache avant de saisir : le serveur reste
+ * **seul juge** (un troc seul est refusé par `createMarketOfferCore`, §11.4).
+ * `undefined`/`true` reproduit **à l'identique** la sortie historique.
  */
-export function buildMarketOfferModal(listingId: string): MarketModalPayload {
+export function buildMarketOfferModal(
+    listingId: string,
+    options?: { acceptsTrade?: boolean }
+): MarketModalPayload {
+    const tradeAccepted = options?.acceptsTrade !== false;
     const field = (
         customId: string,
         label: string,
@@ -195,8 +204,8 @@ export function buildMarketOfferModal(listingId: string): MarketModalPayload {
         custom_id: `${MARKET_INTERACTION_PREFIX}:offer:${listingId}`,
         title: MARKET_OFFER_MODAL.TITLE,
         components: [
-            field(MARKET_OFFER_MODAL.FIELDS.KAMAS, "Montant en kamas (facultatif)", "Ex : 45000000", 1, MARKET_OFFER_MODAL.KAMAS_MAX_LENGTH),
-            field(MARKET_OFFER_MODAL.FIELDS.TRADE, "Troc proposé (facultatif)", "Objet ou lot proposé en échange", 2, MARKET_OFFER_MODAL.TRADE_MAX_LENGTH),
+            field(MARKET_OFFER_MODAL.FIELDS.KAMAS, tradeAccepted ? "Montant en kamas (facultatif)" : "Montant en kamas (obligatoire ici)", "Ex : 45000000", 1, MARKET_OFFER_MODAL.KAMAS_MAX_LENGTH),
+            field(MARKET_OFFER_MODAL.FIELDS.TRADE, tradeAccepted ? "Troc proposé (facultatif)" : "Troc proposé (refusé sur cette annonce)", tradeAccepted ? "Objet ou lot proposé en échange" : "Cette annonce n'accepte que les kamas", 2, MARKET_OFFER_MODAL.TRADE_MAX_LENGTH),
             field(MARKET_OFFER_MODAL.FIELDS.NOTE, "Message au vendeur (facultatif)", "Un mot pour le vendeur (dispo, négociation…)", 2, MARKET_OFFER_MODAL.NOTE_MAX_LENGTH),
         ],
     };
@@ -375,6 +384,12 @@ export const MARKET_EPHEMERAL = {
     OFFER_EMPTY: "❌ Renseigne un montant en kamas **ou** un troc : une offre vide ne peut pas être envoyée.",
     /** S4.4 — kamas illisible / hors plafond, ou texte hors bornes (200 / 500). */
     OFFER_INVALID: "❌ Offre invalide : vérifie le montant en kamas et la longueur des textes.",
+    /**
+     * D43 — « **kamas uniquement** » (`acceptsTrade = false`) : une offre **sans
+     * kamas** (troc seul) est refusée **serveur**. Aucun montant ni pseudo n'est
+     * exposé (§13.7).
+     */
+    OFFER_TRADE_NOT_ACCEPTED: "❌ Cette annonce n'accepte que les kamas : indique un montant pour la réserver ou négocier.",
     /** S4.5 — un vendeur ne se contacte pas lui-même. */
     CONTACT_OWN_LISTING: "ℹ️ Tu es le vendeur de cette annonce : il n'y a personne à contacter.",
     /** S4.5 — annonce vendue : le bouton Discord est désactivé, on explique pourquoi. */

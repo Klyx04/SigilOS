@@ -521,7 +521,7 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
             }
 
             if (!publishNow) {
-                toast.success("Brouillon enregistré. Publie-le depuis « Mes espaces ».");
+                toast.success("Brouillon enregistré. Publie-le depuis « Mon espace ».");
                 router.push(`/dashboard/${guildId}/marche/mes-espaces`);
                 return;
             }
@@ -668,6 +668,14 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
                         priceKamas={parsedPrice}
                         unitLabel={kind === "RESOURCE" && components.length === 1 ? components[0].unitLabel : null}
                         negotiable={negotiable}
+                        // S8.17 — l'aperçu doit montrer EXACTEMENT ce que l'embed
+                        // publie : statut de forge déclaré + condition de troc (D43).
+                        acceptsTrade={acceptsTrade}
+                        transcended={isTranscended}
+                        transcendenceLabel={forge.transcendenceLabel}
+                        strikeElement={forge.strikeElement}
+                        elementPotionTier={forge.elementPotionTier}
+                        huntingWeapon={forge.huntingWeapon.trim() || null}
                         forgedBy={forgedBy.trim() || null}
                         exoLabels={stats.filter((stat) => stat.origin === "EXO").map((stat) => stat.label)}
                         // Correction 13/09 — le jet déclaré part dans l'embed.

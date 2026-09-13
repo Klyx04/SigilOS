@@ -25,10 +25,17 @@ vi.mock("@/lib/prisma", () => ({
     },
 }));
 
-import { EMPTY_MARKET_REFERENTIAL, loadMarketReferential } from "@/lib/market/referential";
+import {
+    EMPTY_MARKET_REFERENTIAL,
+    loadMarketReferential,
+    resetMarketReferentialCache,
+} from "@/lib/market/referential";
 
 beforeEach(() => {
     vi.clearAllMocks();
+    // Correction 13/09 — le référentiel est désormais **mis en cache 5 min** :
+    // sans purge, un cas de test héritait du résultat du précédent.
+    resetMarketReferentialCache();
     mockCharacteristicFindMany.mockResolvedValue([]);
     mockEffectFindMany.mockResolvedValue([]);
 });

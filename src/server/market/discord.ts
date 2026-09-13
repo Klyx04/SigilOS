@@ -22,6 +22,7 @@ import {
     updateChannelMessage,
 } from "@/server/discord";
 import {
+    absoluteDiscordAssetUrl,
     buildForumPostName,
     buildMarketDiscordPayload,
     type MarketDiscordPayloadInput,
@@ -102,6 +103,21 @@ async function loadListingForDiscord(listingId: string) {
     return { listing, offersCount };
 }
 
+/**
+ * Correction 13/09 — **URL absolue obligatoire** pour Discord.
+ *
+ * Constat user : la publication en salon **forum** échouait avec
+ * `400 Invalid Form Body / thumbnail.url : Not a well formed URL` (code 50035)
+ * parce que `listing.itemIconUrl` est un chemin **local**
+ * (`/api/assets-dofus/items/14091`). Discord n'accepte que `http(s)://`.
+ * Le helper **pur** `absoluteDiscordAssetUrl()` (testé) fait le travail ; une
+ * icône inexploitable est **omise** (mieux vaut un post sans vignette qu'un
+ * échec de publication — la resynchro n'est jamais bloquante, §S3).
+ */
+function absoluteItemIconUrl(url: string | null | undefined): string | null {
+    return absoluteDiscordAssetUrl(url, getAppBaseUrl());
+}
+
 /** Construit le payload pur à partir de l'annonce chargée. */
 function buildPayload(
     loaded: NonNullable<Awaited<ReturnType<typeof loadListingForDiscord>>>,
@@ -129,8 +145,17 @@ function buildPayload(
         offersCount,
         exoLabels,
         components: listing.components.map((c) => ({ name: c.name, quantity: c.quantity })),
+        // Correction 13/09 — le jet est publiable (l'annonce était muette).
+        stats: listing.stats.map((stat) => ({
+            label: stat.label,
+            actualValue: stat.actualValue,
+            naturalMin: stat.naturalMin,
+            naturalMax: stat.naturalMax,
+            origin: stat.origin,
+        })),
         imageUrl,
-        itemIconUrl: listing.itemIconUrl,
+        // Correction 13/09 — Discord exige une URL **absolue** (400 sinon).
+        itemIconUrl: absoluteItemIconUrl(listing.itemIconUrl),
         dashboardUrl: buildMarketDashboardUrl(getAppBaseUrl(), listing.guild.discordGuildId, listing.id),
         forumMode,
     };

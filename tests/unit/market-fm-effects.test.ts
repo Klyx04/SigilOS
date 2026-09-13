@@ -212,6 +212,33 @@ describe("fm-effects — gabarits ignorés (S8.5)", () => {
     });
 });
 
+/**
+ * Correction 13/09 (2ᵉ passe, constat user) — **les libellés de la table
+ * d'infobulle** (`CHAR_NAMES`, cf. `market-effects.test.ts`) doivent tous
+ * résoudre leur ligne FM. Sans cela `analyzeLine()` renvoie `null` et la ligne
+ * est **retirée** de l'éditeur de jet : c'est exactement ce qui manquait sur la
+ * Cape de Glourdorak (`115`, `176`, `418`, `421`).
+ */
+describe("fm-effects — libellés d'infobulle résolus (13/09)", () => {
+    it("résout les 4 lignes natives disparues de l'éditeur", () => {
+        expect(resolveFmEffectKey({ effectId: 115, label: "Critique (%)" })).toBe("criticalHits");
+        expect(resolveFmEffectKey({ effectId: 176, label: "Prospection" })).toBe("prospecting");
+        expect(resolveFmEffectKey({ effectId: 418, label: "Dommages Critiques" })).toBe("criticalDamage");
+        expect(resolveFmEffectKey({ effectId: 421, label: "Résistance Critiques" })).toBe("criticalResistance");
+    });
+
+    it("résout aussi la série de pénalités (même libellé, signe à part)", () => {
+        expect(resolveFmEffectKey({ effectId: 419, label: "Dommages Critiques" })).toBe("criticalDamage");
+        expect(resolveFmEffectKey({ effectId: 423, label: "Dommages Terre" })).toBe("earthDamage");
+        expect(resolveFmEffectKey({ effectId: 410, label: "Retrait PA" })).toBe("apReduction");
+        expect(resolveFmEffectKey({ effectId: 413, label: "Retrait PM" })).toBe("mpReduction");
+        expect(resolveFmEffectKey({ effectId: 414, label: "Dommages Poussée" })).toBe("pushbackDamage");
+        expect(resolveFmEffectKey({ effectId: 416, label: "Résistance Poussée" })).toBe("pushbackResistance");
+        expect(resolveFmEffectKey({ effectId: 174, label: "Initiative" })).toBe("initiative");
+        expect(resolveFmEffectKey({ effectId: 138, label: "Puissance" })).toBe("power");
+    });
+});
+
 describe("fm-effects — budget de densité (101)", () => {
     it("un exo PM consomme 90 et laisse 11 de densité", () => {
         const pm = getFmEffect("movementPoints")!;

@@ -13,7 +13,7 @@
 
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { isPlaceholderStatLabel } from "./effects";
+import { isPlaceholderStatLabel, type MarketStatReferentialInput } from "./effects";
 
 export type MarketReferential = {
     /** `characteristicId` → libellé FR officiel (« Vitalité », « Dommages Feu »). */
@@ -22,6 +22,14 @@ export type MarketReferential = {
     effectLabels: Record<number, string>;
     /** `effectId` → l'effet s'exprime en pourcentage. */
     percentEffectIds: number[];
+    /**
+     * Correction 13/09 — `effectId` dont la ligne s'**affiche négative**
+     * (`Esquive PA`, `Fuite`…). Les dés bruts d'un item sont **toujours
+     * positifs** (`possibleEffects`) : c'est ce drapeau DofusDB
+     * (`isNegativeValue`, dérivé du gabarit de description `-#1…`) qui rétablit
+     * le malus (« -6 à -8 » et non « +6 à +8 »). `[]` = référentiel non siphonné.
+     */
+    negativeEffectIds: number[];
     /** `characteristicId` → slug d'icône locale (asset DofusDB). */
     icons: Record<number, string>;
     /** `true` dès qu'au moins une ligne a été lue (sinon = repli codé en dur). */
@@ -32,22 +40,63 @@ export const EMPTY_MARKET_REFERENTIAL: MarketReferential = {
     labels: {},
     effectLabels: {},
     percentEffectIds: [],
+    negativeEffectIds: [],
     icons: {},
     loaded: false,
 };
 
+/** Cache mémoire **court** : le référentiel est une donnée de jeu quasi figée. */
+const REFERENTIAL_TTL_MS = 5 * 60 * 1000;
+let referentialCache: { at: number; data: MarketReferential } | null = null;
+
+/** Vide le cache mémoire court (utilisé par le siphon God et par les tests). */
+export function resetMarketReferentialCache(): void {
+    referentialCache = null;
+}
+
+/**
+ * Correction 13/09 (2ᵉ passe) — convertit le référentiel en **entrées de
+ * résolution** prêtes pour `enrichNativeEffects` / `buildNativeStatDrafts`
+ * (libellés **effectId** prioritaires, puis caractéristiques ; malus).
+ *
+ * Pourquoi une fonction : les mêmes deux maps sont fusionnées à la main dans
+ * `market-create-client.tsx` (`{...labels, ...effectLabels}`) — la règle est
+ * désormais écrite **une seule fois**, côté serveur, et le client la reçoit
+ * déjà appliquée avec l'item.
+ */
+export function toMarketStatReferentialInput(
+    referential: Pick<MarketReferential, "labels" | "effectLabels" | "negativeEffectIds">
+): MarketStatReferentialInput {
+    return {
+        labels: { ...referential.labels, ...referential.effectLabels },
+        negativeEffectIds: referential.negativeEffectIds,
+    };
+}
+
 /**
  * Charge les référentiels d'effets & de caractéristiques depuis la base.
  * Ne lève jamais : en cas d'échec, renvoie le référentiel vide (repli codé).
+ *
+ * Correction 13/09 — cache **5 min** : le référentiel sert désormais aussi à
+ * l'**affichage** (libellés exacts + signe des malus), donc à chaque catalogue
+ * ou fiche d'annonce ; sans cache c'était 2 requêtes par affichage.
  */
 export async function loadMarketReferential(): Promise<MarketReferential> {
+    const cached = referentialCache;
+    if (cached && Date.now() - cached.at < REFERENTIAL_TTL_MS) return cached.data;
     try {
         const [characteristics, effects] = await Promise.all([
             db.gameCharacteristic.findMany({
                 select: { id: true, name: true, keyword: true, iconKey: true },
             }),
             db.gameEffect.findMany({
-                select: { id: true, name: true, characteristic: true, isInPercent: true },
+                select: {
+                    id: true,
+                    name: true,
+                    characteristic: true,
+                    isInPercent: true,
+                    isNegativeValue: true,
+                },
             }),
         ]);
 
@@ -65,8 +114,12 @@ export async function loadMarketReferential(): Promise<MarketReferential> {
 
         const effectLabels: Record<number, string> = {};
         const percentEffectIds: number[] = [];
+        const negativeEffectIds: number[] = [];
         for (const effect of effects) {
             if (effect.isInPercent) percentEffectIds.push(effect.id);
+            // Correction 13/09 — le SIGNE d'affichage vient du référentiel :
+            // les dés d'un item sont toujours positifs, le malus se rétablit ici.
+            if (effect.isNegativeValue) negativeEffectIds.push(effect.id);
             // S8.5 — on ne publie **jamais** un gabarit DofusDB (« Effet 63 »,
             // « }{ soins »). En base : **231** gabarits sur 871 effets, dont **47**
             // réellement référencés par des items. Les publier écrasait un libellé
@@ -80,7 +133,16 @@ export async function loadMarketReferential(): Promise<MarketReferential> {
             }
         }
 
-        return { labels, effectLabels, percentEffectIds, icons, loaded: true };
+        const data: MarketReferential = {
+            labels,
+            effectLabels,
+            percentEffectIds,
+            negativeEffectIds,
+            icons,
+            loaded: true,
+        };
+        referentialCache = { at: Date.now(), data };
+        return data;
     } catch (error) {
         logger.warn("[market] loadMarketReferential failed — repli codé en dur", {
             err: error instanceof Error ? error.message : String(error),

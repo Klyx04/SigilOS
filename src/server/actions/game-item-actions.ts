@@ -5,7 +5,14 @@ import { isSuperAdmin, canAccessBrick } from '@/server/actions/super-admin-actio
 import { logger } from '@/lib/logger';
 import { siphonAndCompressImage } from '@/lib/dofus-asset-siphon';
 import { dofusDbFetch } from '@/lib/dofusdb-limiter';
-import { resolveNativeEffects, toNativeEffects, isPlaceholderStatLabel } from '@/lib/market/effects';
+import { resolveNativeEffects, toNativeEffects, enrichNativeEffects, isPlaceholderStatLabel, type MarketNativeEffect } from '@/lib/market/effects';
+import {
+    loadMarketReferential,
+    resetMarketReferentialCache,
+    toMarketStatReferentialInput,
+} from '@/lib/market/referential';
+// Correction 13/09 — le référentiel de marché est mis en cache 5 min : le siphon
+// God doit le purger pour que les libellés/signes fraîchement lus soient visibles.
 import { FM_CHARACTERISTIC_KEYS } from '@/lib/market/fm-effects';
 import { collectDofusDbPages } from '@/lib/market/referential-pagination';
 import { Prisma } from '@prisma/client';
@@ -76,38 +83,49 @@ export async function searchLocalGameItems(
             where.category = category;
         }
 
-        const items = await db.gameItem.findMany({
-            where,
-            take: safeLimit,
-            orderBy: [{ level: 'desc' }, { name: 'asc' }],
-            select: {
-                id: true,
-                ankamaId: true,
-                name: true,
-                level: true,
-                typeName: true,
-                category: true,
-                description: true,
-                effects: true,
-                recipe: true,
-                hasRecipe: true,
-                iconUrl: true,
-                superTypeId: true,
-                superTypeName: true,
-                realWeight: true,
-                priceNpc: true,
-                itemSetId: true,
-                itemSetName: true,
-                isLegendary: true,
-                nativeEffects: true,
-            },
-        });
+        // Correction 13/09 (2ᵉ passe) — le référentiel est chargé **ici** (cache
+        // 5 min) pour que chaque item parte avec ses lignes déjà **résolues**
+        // (libellé d'infobulle + drapeau de malus) : l'écran de déclaration ne
+        // dépend plus d'un second aller-retour qui pouvait échouer en silence.
+        const [items, referential] = await Promise.all([
+            db.gameItem.findMany({
+                where,
+                take: safeLimit,
+                orderBy: [{ level: 'desc' }, { name: 'asc' }],
+                select: {
+                    id: true,
+                    ankamaId: true,
+                    name: true,
+                    level: true,
+                    typeName: true,
+                    category: true,
+                    description: true,
+                    effects: true,
+                    recipe: true,
+                    hasRecipe: true,
+                    iconUrl: true,
+                    superTypeId: true,
+                    superTypeName: true,
+                    realWeight: true,
+                    priceNpc: true,
+                    itemSetId: true,
+                    itemSetName: true,
+                    isLegendary: true,
+                    nativeEffects: true,
+                },
+            }),
+            loadMarketReferential(),
+        ]);
+        const statReferential = toMarketStatReferentialInput(referential);
 
         return {
             success: true,
             data: items.map((item) => ({
                 ...item,
-                nativeEffects: resolveNativeEffects(item),
+                nativeEffects: enrichNativeEffects(
+                    resolveNativeEffects(item),
+                    statReferential
+                ),
             })),
         };
     } catch (error: any) {
@@ -125,35 +143,47 @@ export async function getLocalGameItemDetails(ankamaId: number): Promise<ActionR
             return { success: false, error: 'ID invalide' };
         }
 
-        const item = await db.gameItem.findUnique({
-            where: { ankamaId },
-            select: {
-                id: true,
-                ankamaId: true,
-                name: true,
-                level: true,
-                typeName: true,
-                category: true,
-                description: true,
-                effects: true,
-                recipe: true,
-                hasRecipe: true,
-                iconUrl: true,
-                superTypeId: true,
-                superTypeName: true,
-                realWeight: true,
-                priceNpc: true,
-                itemSetId: true,
-                itemSetName: true,
-                isLegendary: true,
-                nativeEffects: true,
-            },
-        });
+        const [item, referential] = await Promise.all([
+            db.gameItem.findUnique({
+                where: { ankamaId },
+                select: {
+                    id: true,
+                    ankamaId: true,
+                    name: true,
+                    level: true,
+                    typeName: true,
+                    category: true,
+                    description: true,
+                    effects: true,
+                    recipe: true,
+                    hasRecipe: true,
+                    iconUrl: true,
+                    superTypeId: true,
+                    superTypeName: true,
+                    realWeight: true,
+                    priceNpc: true,
+                    itemSetId: true,
+                    itemSetName: true,
+                    isLegendary: true,
+                    nativeEffects: true,
+                },
+            }),
+            // Correction 13/09 (2ᵉ passe) — mêmes lignes résolues serveur que la
+            // recherche locale (`searchLocalGameItems`) : une fiche ouverte en
+            // édition affiche exactement le même libellé et le même signe.
+            loadMarketReferential(),
+        ]);
 
         return {
             success: true,
             data: item
-                ? { ...item, nativeEffects: resolveNativeEffects(item) }
+                ? {
+                      ...item,
+                      nativeEffects: enrichNativeEffects(
+                          resolveNativeEffects(item),
+                          toMarketStatReferentialInput(referential)
+                      ),
+                  }
                 : null,
         };
     } catch (error: any) {
@@ -273,12 +303,18 @@ export async function backfillNativeEffects(limit = 500): Promise<
         });
 
         let repaired = 0;
+        // Correction 13/09 (2ᵉ passe) — on persiste désormais les lignes
+        // **résolues** (libellé d'infobulle + drapeau de malus du référentiel) :
+        // une fiche réparée une fois n'a plus besoin du référentiel pour
+        // s'afficher juste (« -30 Résistance Critiques » et non « +30 Effet »).
+        const statReferential = toMarketStatReferentialInput(await loadMarketReferential());
         for (const row of pending) {
             const natives = resolveNativeEffects(row);
-            if (!natives) continue; // aucun effet exploitable → ligne laissée telle quelle
+            const enriched = natives ? enrichNativeEffects(natives, statReferential) : null;
+            if (!enriched) continue; // aucun effet exploitable → ligne laissée telle quelle
             await db.gameItem.update({
                 where: { id: row.id },
-                data: { nativeEffects: natives as unknown as Prisma.InputJsonValue },
+                data: { nativeEffects: enriched as unknown as Prisma.InputJsonValue },
             });
             repaired++;
         }
@@ -648,10 +684,36 @@ async function siphonAllEffects(
         const isInPercent = Boolean(raw?.isInPercent);
         const category = raw?.category != null ? Number(raw.category) : null;
         const iconKey = raw?.iconId != null ? String(raw.iconId) : null;
+        // Correction 13/09 — fidélité du SIGNE. DofusDB porte le sens de la
+        // ligne dans deux champs : `characteristicOperator` (« + » / « - ») et
+        // surtout le **gabarit de description**, qui préfixe le signe
+        // (« -#1{{~1~2 à -}}#2 Esquive PA »). Les dés bruts d'un objet
+        // (`possibleEffects`) étant toujours positifs, c'est le SEUL moyen de
+        // restituer « -6 à -8 » au lieu de « +6 à +8 ».
+        const characteristicOperator =
+            typeof raw?.characteristicOperator === 'string' ? raw.characteristicOperator : null;
+        const isNegativeValue = rawDescription ? rawDescription.trim().startsWith('-') : false;
         await db.gameEffect.upsert({
             where: { id },
-            create: { id, name, characteristic, isInPercent, category, iconKey },
-            update: { name, characteristic, isInPercent, category, iconKey },
+            create: {
+                id,
+                name,
+                characteristic,
+                isInPercent,
+                category,
+                iconKey,
+                characteristicOperator,
+                isNegativeValue,
+            },
+            update: {
+                name,
+                characteristic,
+                isInPercent,
+                category,
+                iconKey,
+                characteristicOperator,
+                isNegativeValue,
+            },
         });
         count++;
     }
@@ -695,6 +757,10 @@ export async function siphonMarketReferentials(): Promise<
         // l'ancienne boucle s'arrêtait dès qu'une page revenait plus courte que `$limit`.
         const chars = await siphonAllCharacteristics();
         const effs = await siphonAllEffects(chars.names);
+        // Correction 13/09 — purge le cache court du référentiel de marché : les
+        // libellés exacts et les drapeaux de malus (`isNegativeValue`) sont
+        // immédiatement visibles dans l'écran de déclaration.
+        resetMarketReferentialCache();
         const names = chars.names;
         const truncated = chars.truncated || effs.truncated;
         const failedPages = [...chars.failedPages, ...effs.failedPages];

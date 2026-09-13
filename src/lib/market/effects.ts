@@ -11,7 +11,18 @@
  * base n'est pas encore alimentée (fail-soft).
  */
 
-/** Effet natif d'un item (plage min–max issue du CATALOGUE, jamais du client). */
+/**
+ * Effet natif d'un item (plage min–max issue du CATALOGUE, jamais du client).
+ *
+ * Correction 13/09 — deux champs **optionnels** peuvent être **résolus côté
+ * serveur** au moment où l'item part vers l'écran de déclaration
+ * (`enrichNativeEffects`) :
+ *   - `label` : libellé d'infobulle (`resolveStatLabel`) ;
+ *   - `isNegative` : la ligne est un **malus** (`GameEffect.isNegativeValue`).
+ * Ils ne sont **jamais** obligatoires : une donnée historique (JSONB écrit avant
+ * le correctif) retombe sur la résolution runtime — c'est ce qui garantit qu'un
+ * référentiel indisponible côté client ne réintroduit ni « Effet » ni « +30 ».
+ */
 export type MarketNativeEffect = {
     effectId: number;
     characteristic: number | null;
@@ -19,6 +30,10 @@ export type MarketNativeEffect = {
     to: number;
     category: number | null;
     elementId: number | null;
+    /** Libellé d'infobulle résolu serveur (facultatif : données historiques). */
+    label?: string | null;
+    /** `true` si l'effet s'affiche « négatif » (malus) — signe à rétablir. */
+    isNegative?: boolean | null;
 };
 
 /** Effet DofusDB tolérant (formes `int_id` / `effectId` / `characteristic`). */
@@ -57,6 +72,22 @@ export type DofusItemEffectLike = {
  * `210`→`214`, `422`→`432`, `752`/`753` sont des **`effectId`** : l'objet ne
  * porte alors pas toujours de `characteristic`. Elles sont alignées sur
  * `EXO_EFFECT_PRESETS`.
+ *
+ * ⚠️ **Correction 13/09 (2ᵉ passe, constat user sur la Cape de Glourdorak)** —
+ * cette table porte désormais le **libellé de l'infobulle du jeu**, vérifié
+ * `effectId` par `effectId` contre les **gabarits de description FR** de DofusDB
+ * (`/effects/{id}?lang=fr` → « #2 Dommage(s) Critiques », « -#2 Résistance(s)
+ * Critiques ») et contre `GameCharacteristic` (121 lignes) :
+ *   - la table **prime** désormais sur le référentiel siphonné
+ *     (`resolveStatLabel`) : `GameEffect.name` est le nom **court de la
+ *     caractéristique** jointe (« Critiques (fixe) », « Terre (%) »), moins
+ *     précis que l'infobulle (« Résistance Critiques », « Résistance Terre (%) ») ;
+ *   - les **séries de pénalités** (`101/105/116/127/133…431/754/755`) sont
+ *     cartographiées au même libellé que leur bonus — le **signe** ne vient
+ *     jamais de la table mais de `GameEffect.isNegativeValue` ;
+ *   - `112` = **Dommages** (et non « Dommages Critiques » : l'ancienne ancre
+ *     désignait la pénalité `105`/`265`), `93`/`141` ne sont **pas** des
+ *     « Dommages Neutre » (`141` = **Sorts (%)**).
  */
 export const CHAR_NAMES: Record<number, string> = {
     // PA / PM / Portée
@@ -82,65 +113,203 @@ export const CHAR_NAMES: Record<number, string> = {
     // Combat
     16: "Dommages",
     18: "Critique",
+    115: "Critique (%)",
     25: "Puissance",
+    138: "Puissance",
     26: "Invocation",
     182: "Invocations",
     27: "Esquive PA",
-    82: "Esquive PA",
+    160: "Esquive PA",
+    162: "Esquive PA",
     28: "Esquive PM",
-    84: "Esquive PM",
+    161: "Esquive PM",
+    163: "Esquive PM",
     80: "Retrait PA",
+    82: "Retrait PA",
+    410: "Retrait PA",
     83: "Retrait PM",
     412: "Retrait PM",
     31: "Maitrise d'arme",
+    29: "Points d'énergie",
+    139: "Points d'énergie",
     40: "Pods",
+    158: "Pods",
     44: "Initiative",
+    174: "Initiative",
     48: "Prospection",
+    176: "Prospection",
     49: "Soins",
     178: "Soins",
     50: "Renvoi",
     54: "Terre (fixe)",
     // Résistances élémentaires (%) — caractéristiques officielles 33→37,
-    // relayées par les `effectId` 210→214.
+    // relayées par les `effectId` 210→214 (corrigé le 13/09 : `210` = **Terre**,
+    // `213` = **Feu** — les deux entrées étaient inversées).
     33: "Résistance Terre (%)",
-    213: "Résistance Terre (%)",
+    210: "Résistance Terre (%)",
+    215: "Résistance Terre (%)",
     34: "Résistance Feu (%)",
-    210: "Résistance Feu (%)",
+    213: "Résistance Feu (%)",
+    218: "Résistance Feu (%)",
     35: "Résistance Eau (%)",
     211: "Résistance Eau (%)",
+    216: "Résistance Eau (%)",
     36: "Résistance Air (%)",
     212: "Résistance Air (%)",
+    217: "Résistance Air (%)",
     37: "Résistance Neutre (%)",
     214: "Résistance Neutre (%)",
+    219: "Résistance Neutre (%)",
     // Réductions
     20: "Réduction des dégâts magiques",
     21: "Réduction des dégâts physiques",
-    // Dommages élémentaires
+    /**
+     * ⚠️ Correction 13/09 (2ᵉ passe, constat user) — **série de pénalités**.
+     *
+     * DofusDB porte chaque stat d'objet en **deux** `effectId` : le bonus
+     * (`418` = « 21 à 30 Dommages Critiques ») **et** la pénalité
+     * (`419` = « -30 Dommages Critiques »). Le libellé est identique ; c'est le
+     * référentiel (`GameEffect.isNegativeValue`) qui rétablit le signe. Les deux
+     * séries sont donc cartographiées ici : sans cela, un item à malus
+     * (« Cape de Glourdorak », `421`) affichait « Effet » puis « +30 ».
+     */
+    // Dommages élémentaires : bonus 422/424/426/428/430, pénalités 423/425/427/429/431
+    // (`432` n'est pas une stat d'objet). Corrigé le 13/09 : `422` = **Terre**,
+    // `430` = **Neutre**, `426` = **Eau**, `424` = **Feu**, `428` = **Air**.
+    //
+    // ⚠️ `91`/`92` sont **ambigus** : comme `effectId` ce sont les lignes « vol
+    // de vie » (`91` = 73 items, `92` = 30 items), comme `characteristic` les
+    // dommages air/neutre **fixes**. La table retient le sens **`effectId`**
+    // (c'est lui qui porte les lignes natives des cartes) ; les caractéristiques
+    // 91/92 restent servies par le référentiel siphonné (`GameCharacteristic`).
+    88: "Dommages Terre",
+    422: "Dommages Terre",
+    423: "Dommages Terre",
     89: "Dommages Feu",
     424: "Dommages Feu",
+    425: "Dommages Feu",
     90: "Dommages Eau",
-    432: "Dommages Eau",
-    91: "Dommages Air",
+    426: "Dommages Eau",
+    427: "Dommages Eau",
+    91: "Vol de vie Air",
+    92: "Vol de vie Terre",
+    141: "Sorts (%)",
     428: "Dommages Air",
-    92: "Dommages Terre",
-    430: "Dommages Terre",
-    93: "Dommages Neutre",
-    141: "Dommages Neutre",
-    422: "Dommages Neutre",
-    // Critique & poussée
-    112: "Dommages Critiques",
-    162: "Dommages Critiques",
+    429: "Dommages Air",
+    430: "Dommages Neutre",
+    431: "Dommages Neutre",
+    // Dommages fixes (112 = « Dommages », et non « Dommages Critiques » : c'était
+    // la pénalité `105`/`265` qui était mal ancrée), critiques et poussée.
+    105: "Dommages",
+    112: "Dommages",
+    265: "Dommages",
+    414: "Dommages Poussée",
+    415: "Dommages Poussée",
+    416: "Résistance Poussée",
+    417: "Résistance Poussée",
+    84: "Dommages Poussée",
+    85: "Résistance Poussée",
+    86: "Dommages Critiques",
+    418: "Dommages Critiques",
+    419: "Dommages Critiques",
     87: "Résistance Critiques",
-    163: "Résistance Critiques",
+    420: "Résistance Critiques",
+    421: "Résistance Critiques",
     114: "Dommages Poussée",
     164: "Dommages Poussée",
-    88: "Résistance Poussée",
-    165: "Résistance Poussée",
-    // Fuite / tacle
+    165: "Dommages (%)",
+    // Réductions fixes par élément (240→244) et leurs pénalités (245→249).
+    240: "Terre (fixe)",
+    245: "Terre (fixe)",
+    241: "Eau (fixe)",
+    246: "Eau (fixe)",
+    242: "Air (fixe)",
+    247: "Air (fixe)",
+    243: "Feu (fixe)",
+    248: "Feu (fixe)",
+    244: "Neutre (fixe)",
+    249: "Neutre (fixe)",
+    // Ancêtres des caractéristiques primaires (`effectId` historiques encore
+    // portés par des items : 607/609/610, et les pénalités 152→157, 101/127,
+    // 133/134, 168/169, 171).
+    607: "Force",
+    609: "Agilité",
+    610: "Vitalité",
+    152: "Chance",
+    153: "Vitalité",
+    154: "Agilité",
+    155: "Intelligence",
+    156: "Sagesse",
+    157: "Force",
+    101: "PA",
+    133: "PA",
+    168: "PA",
+    127: "PM",
+    134: "PM",
+    169: "PM",
+    171: "Critique (%)",
+    175: "Initiative",
+    177: "Prospection",
+    179: "Soins",
+    186: "Puissance",
+    // Fuite / tacle (bonus 752/753, pénalités 754/755)
     78: "Fuite",
     752: "Fuite",
+    754: "Fuite",
     79: "Tacle",
     753: "Tacle",
+    755: "Tacle",
+    // Vol de vie / soins élémentaires : les noms siphonnés sont des gabarits
+    // (« } vol Eau », « } soins Feu ») ⇒ ignorés, donc on les nomme ici
+    // (`91`/`92` sont déclarés avec la famille des dommages élémentaires).
+    93: "Vol de vie Air",
+    94: "Vol de vie Feu",
+    95: "Vol de vie Neutre",
+    108: "Soins Feu",
+    // Dommages de BASE d'une arme (`effectId` 96→100, gabarit « X dommages Y »).
+    // La mention « (arme) » est volontaire : la ligne n'est pas forgeable
+    // (section « Dommages » de DofusDB) et ne doit pas être confondue avec un
+    // bonus « Dommages X » (422/424/426/428/430).
+    96: "Dommages Eau (arme)",
+    97: "Dommages Terre (arme)",
+    98: "Dommages Air (arme)",
+    99: "Dommages Feu (arme)",
+    100: "Dommages Neutre (arme)",
+    // Pénalités des primaires / secondaires (série négative du référentiel).
+    116: "Portée",
+    145: "Dommages",
+    172: "Réduction des dégâts magiques",
+    173: "Réduction des dégâts physiques",
+    1033: "Vitalité (%)",
+    1077: "Résistance (%)",
+    1079: "PA",
+    1080: "PM",
+    1172: "Dommages finaux (%)",
+    2415: "Dommages Poussée (%)",
+    // « % » mêlée / distance / armes / sorts (2801→2814 : pénalités DofusDB).
+    2801: "Dommages mêlée (%)",
+    2802: "Résistance mêlée (%)",
+    2805: "Dommages distance (%)",
+    2806: "Résistance distance (%)",
+    2809: "Dommages d'armes (%)",
+    2810: "Résistance aux armes (%)",
+    2813: "Dommages aux sorts (%)",
+    2814: "Résistance aux sorts (%)",
+    // « % » des caractéristiques (2835→2861 : toutes des pénalités DofusDB).
+    2835: "Force (%)",
+    2837: "Agilité (%)",
+    2839: "Intelligence (%)",
+    2841: "Chance (%)",
+    2843: "Sagesse (%)",
+    2845: "Vitalité (%)",
+    2847: "PA (%)",
+    2849: "PM (%)",
+    2851: "Tacle (%)",
+    2853: "Fuite (%)",
+    2855: "Esquive PA (%)",
+    2857: "Esquive PM (%)",
+    2859: "Retrait PA (%)",
+    2861: "Retrait PM (%)",
 };
 
 
@@ -288,8 +457,13 @@ export function normalizeNativeRange(from: number, to: number): { from: number; 
     // Second dé **absent** (DofusDB renvoie alors `diceSide = 0`) ⇒ valeur FIXE,
     // y compris pour un malus (`diceNum = -30, diceSide = 0` = « -30 »).
     if (max === 0 && min !== 0) return { from: min, to: min };
-    // Plage décroissante (donnée impossible) ⇒ même conclusion : valeur fixe.
-    if (max < min) return { from: min, to: min };
+    // Plage décroissante **positive** (`10 → 5`, donnée impossible côté DofusDB)
+    // ⇒ même conclusion : valeur fixe, jamais « [10 à 5] ».
+    if (min > 0 && max < min) return { from: min, to: min };
+    // Correction 13/09 (constat user) — une plage **négative décroissante** est
+    // LÉGITIME : DofusDB écrit un malus en plage (`from: -6, to: -8` ⇒
+    // « **-6 à -8** Esquive PA »). L'ancien test `max < min` l'effondrait en
+    // valeur fixe (`-6`), ce qui masquait la borne basse du malus.
     return { from: min, to: max };
 }
 
@@ -344,8 +518,12 @@ export function resolveNativeEffects(
     item: { nativeEffects?: unknown; effects?: unknown } | null | undefined
 ): MarketNativeEffect[] | null {
     const stored = item?.nativeEffects as MarketNativeEffect[] | null;
-    if (Array.isArray(stored) && stored.length > 0) return stored;
-    return toNativeEffects({ effects: (item?.effects ?? null) as DofusItemEffectLike[] | null });
+    // 3ᵉ passe — dédoublonnage à la **lecture** (source unique) : DofusDB
+    // duplique la ligne de dommages de base d'une arme (`effectId` 96→100).
+    if (Array.isArray(stored) && stored.length > 0) return dedupeNativeEffects(stored);
+    return dedupeNativeEffects(
+        toNativeEffects({ effects: (item?.effects ?? null) as DofusItemEffectLike[] | null })
+    );
 }
 
 /**
@@ -385,6 +563,89 @@ export function getStatLabel(
 }
 
 /**
+ * ⚠️ Correction 13/09 (3ᵉ passe, constat user « tu n'y arrives pas avec les
+ * malus ») — **repli déterministe du SIGNE**.
+ *
+ * DofusDB porte chaque stat en **deux `effectId`** : le bonus et la
+ * **pénalité** (mêmes dés, tous positifs) — `418` = « +21 à 30 Dommages
+ * Critiques » / `419` = « -11 à -15 Dommages Critiques », `160` = « +4 à 6
+ * Esquive PA » / `162` = « -6 à -8 Esquive PA »… Le signe d'affichage vient du
+ * drapeau `GameEffect.isNegativeValue` (gabarit FR `-#1{{~1~2 à -}}#2`).
+ *
+ * Cette liste est la **copie mesurée en base le 13/09/2026** de ces 86
+ * `effectId` négatifs (requête `SELECT id FROM "GameEffect" WHERE
+ * "isNegativeValue"`). Elle sert de **repli** : sans elle, une lecture du
+ * référentiel en échec (cache vide, `prisma generate` oublié après migration,
+ * `statReferential === null` côté client) réaffichait « +100 Force » sur un objet
+ * qui porte « -71 à -100 Force » (Rouleau à Pâtisserie d'Aermyne, `13649`).
+ *
+ * Ordre de confiance : `fx.isNegative` (résolu serveur) → `referential
+ * .negativeEffectIds` → **cette liste**. Une mise à jour de jeu se reflète au
+ * prochain siphon **et** à la prochaine mise à jour de cette copie.
+ */
+export const NEGATIVE_EFFECT_IDS: readonly number[] = [
+    101, 105, 116, 127, 133, 134, 145,
+    152, 153, 154, 155, 156, 157, 159,
+    162, 163, 168, 169, 171, 172, 173, 175, 177, 179, 186, 195,
+    215, 216, 217, 218, 219,
+    245, 246, 247, 248, 249,
+    265, 411, 413, 415, 417, 419, 421, 423, 425, 427, 429, 431, 754, 755,
+    1033, 1047, 1048, 1077, 1079, 1080, 1172, 2415,
+    2801, 2802, 2805, 2806, 2809, 2810, 2813, 2814,
+    2835, 2837, 2839, 2841, 2843, 2845, 2847, 2849, 2851, 2853, 2855, 2857, 2859, 2861,
+    2972, 2990, 3409, 3804, 3807, 3808,
+];
+
+/** Index du repli (recherche O(1) sur chaque ligne d'item). */
+const NEGATIVE_EFFECT_ID_SET = new Set<number>(NEGATIVE_EFFECT_IDS);
+
+/**
+ * Correction 13/09 (3ᵉ passe) — la ligne est-elle un **malus** (à afficher
+ * négative) ?
+ *
+ * Le signe n'est **jamais** lu dans les dés d'un item (toujours positifs côté
+ * DofusDB) : il vient du drapeau référentiel, puis du repli curated ci-dessus.
+ * `false` explicite (référentiel lu et disant « non négatif ») n'empêche pas le
+ * repli : la copie curated est la même donnée, mesurée — elle évite justement
+ * de propager un **référentiel vide** (cas mesuré : libellés justes mais signes
+ * perdus, capture user du 13/09).
+ */
+export function isNegativeNativeEffect(
+    effectId: number,
+    options?: { isNegative?: boolean | null; negativeEffectIds?: readonly number[] | null }
+): boolean {
+    if (options?.isNegative === true) return true;
+    if (options?.negativeEffectIds?.includes(effectId)) return true;
+    return NEGATIVE_EFFECT_ID_SET.has(effectId);
+}
+
+/**
+ * ⚠️ Correction 13/09 (3ᵉ passe) — **anti-doublon** des lignes natives.
+ *
+ * DofusDB duplique la ligne de **dommages de base d'une arme** dans `effects`
+ * (mesuré sur le Rouleau à Pâtisserie d'Aermyne `13649` : deux entrées
+ * `{ effectId: 100, 9 → 14 }` strictement identiques, y compris dans la réponse
+ * API `/items/13649`). La carte affichait donc deux fois « +14 … [9 à 14] ».
+ * Deux lignes **rigoureusement identiques** (même `effectId`, même
+ * caractéristique, même plage) sont ramenées à une seule ; des plages
+ * différentes ne sont **jamais** fusionnées.
+ */
+export function dedupeNativeEffects(
+    nativeEffects: MarketNativeEffect[] | null | undefined
+): MarketNativeEffect[] | null {
+    if (!Array.isArray(nativeEffects) || nativeEffects.length === 0) return null;
+    const seen = new Set<string>();
+    const unique: MarketNativeEffect[] = [];
+    for (const fx of nativeEffects) {
+        const key = `${fx.effectId}|${fx.characteristic ?? ""}|${fx.from}|${fx.to}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        unique.push(fx);
+    }
+    return unique;
+}
+
+/**
  * S7.3 — `true` si un libellé du référentiel est un **placeholder** DofusDB.
  *
  * Le siphon `/effects` renvoie le catalogue des **effets de sorts** : beaucoup
@@ -399,6 +660,55 @@ export function isPlaceholderStatLabel(label: string | null | undefined): boolea
     if (/^effet\s+\d+$/i.test(trimmed)) return true;
     return trimmed.includes("{") || trimmed.includes("}");
 }
+/**
+ * Correction 13/09 (2ᵉ passe) — libellé **curated** d'une ligne, ou `null`.
+ *
+ * ⚠️ La table `CHAR_NAMES` mélange **deux espaces de clés** (`characteristicId`
+ * **et** `effectId`). On essaie donc la **caractéristique d'abord**, puis
+ * l'`effectId` — exactement la cascade historique de `getStatLabel`, sans quoi
+ * une ligne brute DofusDB (`{ characteristic: 11, effectId: 10 }`) serait
+ * étiquetée « Force » (id 10) au lieu de « Vitalité » (id 11).
+ * Les lignes **natives** du marché n'ont pas de `characteristic` : c'est
+ * l'`effectId` qui décide, et il est spécifique à la ligne (421 → « Résistance
+ * Critiques » là où la caractéristique 87 est partagée).
+ */
+export function curatedStatLabel(match: {
+    effectId?: number | null;
+    characteristic?: number | null;
+}): string | null {
+    if (match.characteristic != null && CHAR_NAMES[match.characteristic]) {
+        return CHAR_NAMES[match.characteristic];
+    }
+    if (match.effectId != null && CHAR_NAMES[match.effectId]) return CHAR_NAMES[match.effectId];
+    return null;
+}
+
+/**
+ * Correction 13/09 (2ᵉ passe) — **ordre de résolution de référence** :
+ *
+ *   1. **table codée** (`curatedStatLabel`) : libellé d'**infobulle** vérifié
+ *      (« Résistance Critiques », « Dommages Terre », « Résistance Terre (%) ») ;
+ *   2. **référentiel siphonné** (`GameEffect.name`, gabarits exclus) : complète
+ *      les `effectId` que la table ne couvre pas (effets de jeu exotiques) ;
+ *   3. `null` ⇒ l'appelant décide du repli (jamais un libellé muet en silence).
+ *
+ * ⚠️ Avant le 13/09 l'ordre était **inversé** : le nom siphonné — qui est le nom
+ * **court de la caractéristique** jointe (« Critiques (fixe) », « Terre (%) ») —
+ * écrasait le libellé d'infobulle ; et la moindre panne du référentiel (cache,
+ * `prisma generate` oublié après migration) faisait réapparaître les libellés
+ * « Effet » signalés par le user.
+ */
+export function resolveStatLabel(
+    match: { effectId?: number | null; characteristic?: number | null },
+    referentialLabel?: string | null
+): string | null {
+    const curated = curatedStatLabel(match);
+    if (curated) return curated;
+    if (referentialLabel && !isPlaceholderStatLabel(referentialLabel)) return referentialLabel;
+    return null;
+}
+
+
 
 /**
  * S7.3 — libellé **sûr** d'une ligne de jet **déjà persistée**.
@@ -493,23 +803,145 @@ export type MarketStatDraft = {
  * natif** (un vendeur annonce rarement un jet bas) et l'état est recalculé
  * côté serveur à l'enregistrement.
  */
+/** Entrées de résolution d'une ligne native (toutes optionnelles). */
+export type MarketStatReferentialInput = {
+    /** `id` (**effectId** ou `characteristicId`) → libellé FR officiel. */
+    labels?: Record<number, string> | null;
+    /**
+     * Correction 13/09 — `effectId` dont la ligne s'**affiche négative**
+     * (`GameEffect.isNegativeValue`, dérivé du gabarit DofusDB `-#1…`).
+     * Les dés d'un objet sont **toujours positifs** : c'est ce drapeau qui
+     * rétablit le malus (« **-6 à -8** » au lieu de « +6 à +8 »).
+     */
+    negativeEffectIds?: readonly number[] | null;
+};
+
+/**
+ * Correction 13/09 — rétablit le **signe** d'une plage d'effet.
+ * **Idempotent** (`-Math.abs`) : une donnée déjà négative (malus à dés signés)
+ * reste juste, une donnée positive devient le malus affiché par DofusDB.
+ */
+export function applyEffectSign(
+    range: { from: number; to: number },
+    isNegative: boolean
+): { from: number; to: number } {
+    return isNegative
+        ? { from: -Math.abs(range.from), to: -Math.abs(range.to) }
+        : range;
+}
+
+/**
+ * Libellé d'une ligne **native** : l'`effectId` est **spécifique** à la ligne
+ * (il porte le libellé exact), alors que la `characteristic` est **partagée**
+ * entre plusieurs effets et ne sert que de repli.
+ *
+ * Correction 13/09 (2ᵉ passe) — l'ordre est désormais **table d'infobulle →
+ * référentiel siphonné** (`resolveStatLabel`) : le nom publié par `GameEffect`
+ * est celui de la **caractéristique jointe** (« Critiques (fixe) », « Terre (%) »),
+ * moins précis que l'infobulle du jeu. Le libellé **déjà résolu serveur**
+ * (`fx.label`) prime sur tout : il a été calculé avec le référentiel chargé.
+ */
+export function resolveNativeStatLabel(
+    fx: Pick<MarketNativeEffect, "effectId" | "characteristic" | "label">,
+    referential?: MarketStatReferentialInput | null
+): string {
+    if (fx.label && !isPlaceholderStatLabel(fx.label)) return fx.label;
+    const labels = referential?.labels ?? null;
+    const byEffect = labels && fx.effectId != null ? labels[fx.effectId] : undefined;
+    const byChar = labels && fx.characteristic != null ? labels[fx.characteristic] : undefined;
+    return (
+        resolveStatLabel(
+            { effectId: fx.effectId, characteristic: fx.characteristic },
+            byEffect ?? byChar
+        ) ?? getStatLabel({ characteristic: fx.characteristic, effectId: fx.effectId })
+    );
+}
+
+/**
+ * Correction 13/09 (2ᵉ passe) — **résout les lignes natives côté SERVEUR** :
+ * chaque entrée repart avec son libellé d'infobulle (`label`) et son drapeau de
+ * malus (`isNegative`).
+ *
+ * Pourquoi ici plutôt que dans le client : la carte du catalogue et l'éditeur de
+ * jet consommaient le référentiel via un **second aller-retour** (server action
+ * `getMarketStatReferential`). Si cet appel échouait ou arrivait après le choix
+ * de l'objet (cas mesuré : `prisma generate` oublié après migration ⇒ lecture
+ * `GameEffect` en échec ⇒ référentiel vide), les lignes s'affichaient
+ * « +30 Effet » au lieu de « -30 Résistance Critiques ». Le libellé et le signe
+ * voyagent maintenant **avec l'item** : plus de course, plus de dépendance.
+ *
+ * ⚠️ **Pure** : aucune I/O, le référentiel est injecté (testable sans base).
+ * Les lignes rigoureusement identiques sont dédoublonnées (`dedupeNativeEffects`).
+ */
+export function enrichNativeEffects(
+    nativeEffects: MarketNativeEffect[] | null | undefined,
+    referential?: MarketStatReferentialInput | null
+): MarketNativeEffect[] | null {
+    // Anti-doublon **ici aussi** : l'enrichissement est le point par lequel
+    // passent les lignes envoyées au client (recherche, fiche, rattrapage God).
+    const unique = dedupeNativeEffects(nativeEffects);
+    if (!unique) return null;
+    const labels = referential?.labels ?? null;
+    return unique.map((fx) => {
+        const referentialLabel = labels
+            ? labels[fx.effectId] ??
+              (fx.characteristic != null ? labels[fx.characteristic] : null)
+            : null;
+        const label =
+            fx.label ??
+            resolveStatLabel(
+                { effectId: fx.effectId, characteristic: fx.characteristic },
+                referentialLabel
+            );
+        return {
+            ...fx,
+            // Jamais de libellé muet persisté : on n'écrit `label` que lorsqu'il
+            // est réellement résolu (sinon le consommateur peut encore le tenter).
+            ...(label ? { label } : {}),
+            // Signe : drapeau déjà résolu → référentiel → repli curated (3ᵉ passe).
+            isNegative: isNegativeNativeEffect(fx.effectId, {
+                isNegative: fx.isNegative,
+                negativeEffectIds: referential?.negativeEffectIds,
+            }),
+        };
+    });
+}
+
+/**
+ * S2.8/S2.10 — Construit les lignes natives pré-remplies de l'éditeur FM à
+ * partir des `nativeEffects` du catalogue.
+ *
+ * Correction 13/09 (constat user) :
+ *   - la plage est **normalisée** ici aussi (fin du « 1 à 0 » : un PA natif
+ *     s'affiche « 1 », pas « 1 à 0 ») ;
+ *   - le **signe** est rétabli pour les lignes malus (« -6 à -8 Esquive PA ») —
+ *     il vient du champ `isNegative` résolu serveur, sinon de
+ *     `referential.negativeEffectIds` ;
+ *   - la valeur par défaut est le **max natif** — jamais `0` sur une ligne qui
+ *     existe (c'est ce `0` qui apparaissait sur PA / Invocations).
+ */
 export function buildNativeStatDrafts(
     nativeEffects: MarketNativeEffect[] | null | undefined,
-    referential?: Record<number, string> | null
+    referential?: MarketStatReferentialInput | null
 ): MarketStatDraft[] {
     if (!Array.isArray(nativeEffects)) return [];
     return nativeEffects.map((fx) => {
-        const label = getStatLabel(
-            { characteristic: fx.characteristic, effectId: fx.effectId },
-            referential ?? undefined
+        const range = applyEffectSign(
+            normalizeNativeRange(fx.from, fx.to),
+            // 3ᵉ passe — le signe ne dépend plus d'un référentiel disponible :
+            // `fx.isNegative` (résolu serveur) → référentiel → repli curated.
+            isNegativeNativeEffect(fx.effectId, {
+                isNegative: fx.isNegative,
+                negativeEffectIds: referential?.negativeEffectIds,
+            })
         );
         return {
             effectId: fx.effectId,
             characteristic: fx.characteristic,
-            label,
-            naturalMin: fx.from,
-            naturalMax: fx.to,
-            actualValue: fx.to,
+            label: resolveNativeStatLabel(fx, referential),
+            naturalMin: range.from,
+            naturalMax: range.to,
+            actualValue: range.to,
             origin: "NATIVE" as const,
         };
     });

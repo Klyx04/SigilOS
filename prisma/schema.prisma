@@ -1881,6 +1881,13 @@ model GameEffect {
   isInPercent    Boolean  @default(false)      // l'effet s'exprime en % (résistances…)
   category       Int?                          // catégorie DofusDB (utile au tri d'affichage)
   iconKey        String?                       // slug d'icône locale (`vi`, `fo`, `dmg`, `po`…)
+  // ── Fidélité DofusDB (correction 13/09) — sens de la ligne ───────────────
+  // DofusDB expose `characteristicOperator` (« + » / « - ») et un gabarit de
+  // description qui **porte le signe** (« -#1{{~1~2 à -}}#2 Esquive PA »).
+  // Les dés bruts d'un item (`possibleEffects`) sont TOUJOURS positifs : sans
+  // ces drapeaux, un malus s'affiche « +6 à +8 » (constat user du 13/09).
+  characteristicOperator String?               // « + » | « - » (source DofusDB)
+  isNegativeValue        Boolean @default(false) // la ligne s'AFFICHE négative (ex. Esquive PA)
   updatedAt      DateTime @updatedAt
 
   @@index([characteristic])

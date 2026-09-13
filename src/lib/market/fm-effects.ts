@@ -899,6 +899,13 @@ export const FM_LABEL_ALIASES: Record<string, FmEffectKey> = {
     cc: "criticalHits",
     cri: "criticalHits",
     critique: "criticalHits",
+    // Correction 13/09 (2ᵉ passe) — la table d'infobulle écrit « Critique (%) »
+    // (`effectId` 115/171, stat exprimée en %) : la clé normalisée est
+    // « % critique ». Sans ces alias, la ligne « Coups critiques » disparaissait
+    // de l'éditeur de jet (libellé non résolu ⇒ hors référentiel ⇒ retirée).
+    "% critique": "criticalHits",
+    "% coup critique": "criticalHits",
+    "% coups critiques": "criticalHits",
     "coup critique": "criticalHits",
     "coups critiques": "criticalHits",
     so: "heals",

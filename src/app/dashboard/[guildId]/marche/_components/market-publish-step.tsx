@@ -10,8 +10,8 @@
  * personne ». Le ping est revalidé côté serveur (S3.15).
  */
 
-import { DiscordEmbedPreview } from "@/components/discord/DiscordEmbedPreview";
-import { buildMarketDiscordPayload } from "@/lib/market/discord-payload";
+import { DiscordEmbedPreview, type DiscordPreviewComponentRow } from "@/components/discord/DiscordEmbedPreview";
+import { buildMarketDiscordPayload, type MarketDiscordStatLine } from "@/lib/market/discord-payload";
 import { cn } from "@/lib/utils";
 import { Hash, Hammer, MessageSquare, Users } from "lucide-react";
 
@@ -33,6 +33,22 @@ export interface MarketPublishStepProps {
     negotiable: boolean;
     forgedBy?: string | null;
     exoLabels: string[];
+    /**
+     * Correction 13/09 — **jet déclaré** publié dans l'embed (valeur + libellé +
+     * plage native, exo marqué « ✦ Exo »). L'annonce publiée ne portait aucune
+     * ligne de stats : le vendeur ne pouvait pas relire ce qu'il publiait.
+     */
+    stats?: MarketDiscordStatLine[];
+    /**
+     * Correction 13/09 — **icône réelle de l'objet** : sans elle, l'aperçu
+     * n'affichait aucune image alors que le post publié en porte une (mode
+     * forum → `thumbnail`). Le chemin relatif du catalogue (`/api/assets-dofus/…`)
+     * s'affiche très bien dans l'aperçu navigateur ; la publication, elle,
+     * l'**absolutise** (`src/server/market/discord.ts`).
+     */
+    itemIconUrl?: string | null;
+    /** Mode **forum** : l'icône part en `thumbnail` (pas de carte PNG). */
+    forumMode?: boolean;
     /**
      * S8.9 — **forge réelle déclarée** (rune de Transcendance nommée, potion +
      * palier, arme de chasse), alimentée par le référentiel côté appelant.
@@ -58,7 +74,10 @@ export function MarketPublishStep({
     unitLabel,
     negotiable,
     exoLabels,
+    stats = [],
     forgeRecap = [],
+    itemIconUrl,
+    forumMode = false,
     components,
     context,
     roles,
@@ -80,6 +99,7 @@ export function MarketPublishStep({
         unitLabel,
         negotiable,
         exoLabels,
+        stats,
         components,
         dashboardUrl: "#",
     });
@@ -194,16 +214,26 @@ export function MarketPublishStep({
                 </div>
             )}
 
-            {/* Aperçu fidèle */}
+            {/* Aperçu fidèle (correction 13/09 : boutons réels + icône objet) */}
             <DiscordEmbedPreview
                 title={payload.embedTitle}
                 description={payload.embedDescription}
                 color={payload.embedColor}
                 fields={payload.fields}
                 footer={payload.embedFooter}
+                // Les **vrais** composants du payload (le post publié porte ces boutons).
+                components={payload.components as unknown as DiscordPreviewComponentRow[]}
+                // Mode forum : l'icône objet est envoyée en `thumbnail` par Discord.
+                thumbnail={itemIconUrl ?? undefined}
                 mentionContent={selectedPingIds.map(() => "@role").join(" ")}
                 channelName={channelName || "marche"}
             />
+            {!forumMode && (
+                <p className="text-caption italic text-muted-foreground">
+                    En salon texte, Discord affiche à la place l&apos;image de la carte de
+                    l&apos;annonce, générée <strong>au moment de la publication</strong>.
+                </p>
+            )}
         </div>
     );
 }

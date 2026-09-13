@@ -218,6 +218,13 @@ describe("god marché — lecture bornée, agrégats et masquage", () => {
                 name: "Guilde A",
                 marketMediaRetentionDays: 30,
                 marketLogRetentionDays: 365,
+                marketMaxActivePerMember: 5,
+                marketDefaultDurationDays: 7,
+                marketMaxLifetimeDays: 20,
+                marketReminderDays: [7, 15],
+                marketReservationHours: 12,
+                marketOfferHours: 48,
+                marketNegotiationsEnabled: true,
                 modules: { marche: true, disabledByGod: [] },
             },
             {
@@ -225,6 +232,15 @@ describe("god marché — lecture bornée, agrégats et masquage", () => {
                 name: "Guilde B",
                 marketMediaRetentionDays: 60,
                 marketLogRetentionDays: 730,
+                marketMaxActivePerMember: 10,
+                marketDefaultDurationDays: 7,
+                marketMaxLifetimeDays: 40,
+                // Volontairement « sale » : une valeur hors bornes ne doit jamais
+                // remonter telle quelle dans l'affichage God.
+                marketReminderDays: [15, 999],
+                marketReservationHours: 24,
+                marketOfferHours: 72,
+                marketNegotiationsEnabled: false,
                 modules: { marche: true, disabledByGod: ["marche"] },
             },
         ]);
@@ -259,6 +275,15 @@ describe("god marché — lecture bornée, agrégats et masquage", () => {
             enabledCount: 1,
             mediaRetentionDaysInUse: [30, 60],
             logRetentionDaysInUse: [365, 730],
+            // T4 (D-B) — « valeurs en base » des défauts globaux (dédupliquées,
+            // triées, et **bornées** : le 999 de la guilde B est ignoré).
+            marketMaxActivePerMemberInUse: [5, 10],
+            marketDefaultDurationDaysInUse: [7],
+            marketMaxLifetimeDaysInUse: [20, 40],
+            marketReminderDaysInUse: [7, 15],
+            marketReservationHoursInUse: [12, 24],
+            marketOfferHoursInUse: [48, 72],
+            negotiationsEnabledInUse: [true, false],
         });
 
         // Lecture bornée : jamais la totalité des guildes.
@@ -288,6 +313,99 @@ describe("god marché — lecture bornée, agrégats et masquage", () => {
         expect(row.lastError).toContain("<masqué>");
         expect((row.lastError ?? "").length).toBeLessThanOrEqual(160);
         expect(row.imageUrl).toBe(`/api/og/market/${LISTING_ID}?v=hash-1`);
+    });
+});
+
+
+describe("god marché — T4 (D-B) : défauts globaux « Durées, plafonds & rappels »", () => {
+    it("refuse chaque champ hors bornes, sans écriture ni audit", async () => {
+        const outOfBounds: { name: string; run: () => Promise<unknown> }[] = [
+            { name: "marketMaxActivePerMember (trop grand)", run: () => saveGodMarketSettings({ marketMaxActivePerMember: 99 }) },
+            { name: "marketMaxActivePerMember (trop petit)", run: () => saveGodMarketSettings({ marketMaxActivePerMember: 0 }) },
+            { name: "marketDefaultDurationDays", run: () => saveGodMarketSettings({ marketDefaultDurationDays: 31 }) },
+            { name: "marketMaxLifetimeDays", run: () => saveGodMarketSettings({ marketMaxLifetimeDays: 4 }) },
+            { name: "marketReservationHours", run: () => saveGodMarketSettings({ marketReservationHours: 100 }) },
+            { name: "marketOfferHours", run: () => saveGodMarketSettings({ marketOfferHours: 5 }) },
+        ];
+
+        for (const entry of outOfBounds) {
+            const result = (await entry.run()) as { success: boolean; error?: string };
+            expect(result.success, entry.name).toBe(false);
+            expect(result.error, entry.name).toBe("Paramètres invalides");
+        }
+
+        expect(db.guildConfig.updateMany).not.toHaveBeenCalled();
+        expect(createGodAuditLog).not.toHaveBeenCalled();
+    });
+
+    it("refuse une liste de rappels vide, hors bornes ou trop longue", async () => {
+        const empty = await saveGodMarketSettings({ marketReminderDays: [] });
+        expect(empty).toEqual({ success: false, error: "Paramètres invalides" });
+
+        const outOfRange = await saveGodMarketSettings({ marketReminderDays: [0, 7] });
+        expect(outOfRange).toEqual({ success: false, error: "Paramètres invalides" });
+
+        const tooMany = await saveGodMarketSettings({ marketReminderDays: [1, 2, 3, 4] });
+        expect(tooMany).toEqual({ success: false, error: "Paramètres invalides" });
+
+        expect(db.guildConfig.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("pousse les 7 valeurs sur TOUTES les guildes en une passe, puis les audite", async () => {
+        const result = await saveGodMarketSettings({
+            marketMaxActivePerMember: 8,
+            marketDefaultDurationDays: 10,
+            marketMaxLifetimeDays: 30,
+            marketReminderDays: [7, 15],
+            marketReservationHours: 24,
+            marketOfferHours: 72,
+            marketNegotiationsEnabled: false,
+        });
+
+        expect(result).toEqual({
+            success: true,
+            data: { lockedGuilds: 0, retentionUpdated: false, settingsUpdated: true },
+        });
+
+        expect(db.guildConfig.updateMany).toHaveBeenCalledTimes(1);
+        expect((db.guildConfig.updateMany as ReturnType<typeof vi.fn>).mock.calls[0][0]).toEqual({
+            data: {
+                marketMaxActivePerMember: 8,
+                marketDefaultDurationDays: 10,
+                marketMaxLifetimeDays: 30,
+                marketReminderDays: [7, 15],
+                marketReservationHours: 24,
+                marketOfferHours: 72,
+                marketNegotiationsEnabled: false,
+            },
+        });
+
+        expect(createGodAuditLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                action: "GOD_MARKET_SETTINGS",
+                newValue: expect.objectContaining({
+                    marketMaxActivePerMember: 8,
+                    marketDefaultDurationDays: 10,
+                    marketMaxLifetimeDays: 30,
+                    marketReminderDays: [7, 15],
+                    marketReservationHours: 24,
+                    marketOfferHours: 72,
+                    marketNegotiationsEnabled: false,
+                }),
+            })
+        );
+    });
+
+    it("n'écrit rien de plus que les champs fournis (jamais de reset implicite)", async () => {
+        const result = await saveGodMarketSettings({ marketNegotiationsEnabled: true });
+
+        expect(result).toEqual({
+            success: true,
+            data: { lockedGuilds: 0, retentionUpdated: false, settingsUpdated: true },
+        });
+        expect((db.guildConfig.updateMany as ReturnType<typeof vi.fn>).mock.calls[0][0]).toEqual({
+            data: { marketNegotiationsEnabled: true },
+        });
     });
 });
 

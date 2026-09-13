@@ -14,12 +14,16 @@ import { loadMarketReferential } from "@/lib/market/referential";
 import {
     SMITHMAGIC_ELEMENT_POTION_TYPE_ID,
     SMITHMAGIC_TRANSCENDENCE_TYPE_ID,
+    TRANSCENDENCE_LABEL,
     parseTranscendenceRunes,
     resolveElementPotions,
     type ElementPotion,
     type SmithmagicPalier,
     type TranscendenceRune,
 } from "@/lib/market/smithmagic";
+// S8.10/S8.11 — gardes **pures** de forge réelle : les mêmes règles servent
+// l'UI (S8.7/S8.9) et ce serveur, qui reste **seul juge** (D40/D41).
+import { marketForgeFieldsSchema, validateForgeDeclaration } from "@/lib/market/forge-guards";
 import { publishListingToDiscord, syncListingMessage } from "@/server/market/discord";
 import { writeMarketAuditLog } from "@/server/market/audit";
 import { reserveMarketListingCore, cancelMarketReservationCore } from "@/server/market/reservations";
@@ -176,6 +180,8 @@ const marketListingBaseSchema = z.object({
     minQuantity: z.number().int().positive().max(1_000_000_000).nullable().optional(),
     components: z.array(marketComponentSchema).max(MARKET_LIMITS.MAX_COMPONENTS).default([]),
     stats: z.array(marketStatSchema).max(MARKET_LIMITS.MAX_STATS).default([]),
+    // S8.10 — forge réelle déclarée (source unique : `forge-guards.ts`).
+    ...marketForgeFieldsSchema.shape,
 });
 
 export type MarketListingInput = z.input<typeof marketListingBaseSchema>;
@@ -1053,6 +1059,68 @@ export async function reportMarketListing(
 // CRÉATION & MISE À JOUR (S1.14, S1.32)
 // ---------------------------------------------------------------------------
 
+/**
+ * S8.10 — champs de forge **persistés** (toujours définis, jamais `undefined`).
+ * Le libellé de Transcendance est **dénormalisé** (robustesse d'affichage) avec
+ * repli sur le libellé officiel ; il est vidé dès qu'aucune rune n'est déclarée.
+ */
+function toForgeData(data: z.infer<typeof marketListingBaseSchema>) {
+    const transcendent = data.transcendenceRuneId != null;
+    return {
+        transcendenceRuneId: data.transcendenceRuneId ?? null,
+        transcendenceLabel: transcendent
+            ? sanitizeMarketText(data.transcendenceLabel) ?? TRANSCENDENCE_LABEL
+            : null,
+        strikeElement: data.strikeElement ?? null,
+        elementPotionId: data.elementPotionId ?? null,
+        elementPotionTier: data.elementPotionTier ?? null,
+        huntingWeapon: sanitizeMarketText(data.huntingWeapon),
+    };
+}
+
+/**
+ * S8.11 — applique les gardes de forge au moment de l'**écriture**.
+ *
+ * 🛡️ La famille de l'objet est relue au **catalogue** (`GameItem`) : un libellé
+ * envoyé par le client n'est **jamais** cru. Objet absent du catalogue ⇒
+ * `isWeaponItem()` faux ⇒ l'élément de frappe est refusé (fail-closed).
+ * ⚡ Une annonce **sans** forge ne paie aucune requête supplémentaire.
+ */
+async function guardForgeDeclaration(
+    data: z.infer<typeof marketListingBaseSchema>,
+    stats: readonly { label: string; origin?: string | null; quality?: string | null }[]
+): Promise<string | null> {
+    const hasForge =
+        data.transcendenceRuneId != null ||
+        data.strikeElement != null ||
+        data.elementPotionId != null ||
+        data.elementPotionTier != null ||
+        Boolean(data.huntingWeapon);
+
+    const item =
+        hasForge && data.dofusDbItemId
+            ? await db.gameItem.findUnique({
+                  where: { ankamaId: data.dofusDbItemId },
+                  select: { typeName: true, superTypeName: true },
+              })
+            : null;
+
+    return validateForgeDeclaration({
+        itemSuperTypeName: item?.superTypeName ?? null,
+        itemTypeName: item?.typeName ?? null,
+        transcendent: data.transcendenceRuneId != null,
+        strikeElement: data.strikeElement ?? null,
+        elementPotionId: data.elementPotionId ?? null,
+        elementPotionTier: data.elementPotionTier ?? null,
+        huntingWeapon: data.huntingWeapon ?? null,
+        stats: stats.map((stat) => ({
+            label: stat.label,
+            origin: stat.origin ?? "NATIVE",
+            quality: stat.quality ?? null,
+        })),
+    });
+}
+
 /** Valide la cohérence métier d'une annonce (item catalogue / contenu du lot). */
 function validateListingCoherence(input: z.infer<typeof marketListingBaseSchema>): string | null {
     if (input.type === "EQUIPMENT" && !input.dofusDbItemId) {
@@ -1104,6 +1172,10 @@ export async function createMarketListing(
         }
 
         const resolvedStats = await resolveServerStats(data.dofusDbItemId, data.stats);
+        // S8.11 — gardes de forge (transcende ⇒ aucun over/exo, armes seules…).
+        const forgeError = await guardForgeDeclaration(data, resolvedStats.rows);
+        if (forgeError) return { success: false, error: forgeError };
+
         const session = await auth();
         const listing = await db.marketListing.create({
             data: {
@@ -1128,6 +1200,8 @@ export async function createMarketListing(
                 minQuantity: data.minQuantity ?? null,
                 statsHash: resolvedStats.hash,
                 lastActivityAt: new Date(),
+                // S8.10 — forge réelle déclarée (6 colonnes nullables).
+                ...toForgeData(data),
                 stats:
                     resolvedStats.rows.length > 0
                         ? { create: resolvedStats.rows }
@@ -1203,6 +1277,10 @@ export async function updateMarketListing(
         if (coherenceError) return { success: false, error: coherenceError };
 
         const resolvedStats = await resolveServerStats(data.dofusDbItemId, data.stats);
+        // S8.11 — mêmes gardes de forge qu'en création (le serveur reste seul juge).
+        const forgeError = await guardForgeDeclaration(data, resolvedStats.rows);
+        if (forgeError) return { success: false, error: forgeError };
+
         await db.$transaction(async (tx) => {
             await tx.marketListing.update({
                 where: { id: existing.id },
@@ -1224,6 +1302,8 @@ export async function updateMarketListing(
                     minQuantity: data.minQuantity ?? null,
                     statsHash: resolvedStats.hash,
                     lastActivityAt: new Date(),
+                    // S8.10 — forge réelle déclarée (6 colonnes nullables).
+                    ...toForgeData(data),
                 },
             });
 

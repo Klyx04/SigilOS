@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect, useRef } from "react";
+import { useState, useTransition, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -11,11 +11,37 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { formatKamas, parseKamas } from "@/lib/market/kamas";
+import { computeStatQuality } from "@/lib/market/stat-quality";
+import { dofusStatAssetUrl } from "@/lib/dofus-stats-theme";
+import {
+    ELEMENT_POTION_ELEMENTS,
+    SMITHMAGIC_PALIERS,
+    TRANSCENDENCE_LABEL,
+    strikeElementAsset,
+    type ElementPotion,
+    type SmithmagicElement,
+    type SmithmagicPalier,
+    type TranscendenceRune,
+} from "@/lib/market/smithmagic";
+// S8.9/S8.11 — gardes **pures** partagées avec le serveur (une seule règle).
+import {
+    MARKET_FORGE_LIMITS,
+    describeTranscendenceConflicts,
+    isWeaponItem,
+} from "@/lib/market/forge-guards";
 import { MARKET_LIMITS } from "@/server/actions/market-constants";
-import { createMarketListing, publishMarketListing, updateMarketListing, getMarketPublishContext } from "@/server/actions/market-actions";
+import {
+    createMarketListing,
+    getSmithmagicReferential,
+    publishMarketListing,
+    updateMarketListing,
+    getMarketPublishContext,
+    type SmithmagicReferential,
+} from "@/server/actions/market-actions";
 import { getGuildRoles } from "@/server/actions/bonus-actions";
 import { searchLocalGameItems, type GameItemSearchResult } from "@/server/actions/game-item-actions";
 import { buildNativeStatDrafts, type MarketStatDraft, type MarketNativeEffect } from "@/lib/market/effects";
+import { MarketItemCard } from "@/components/market/market-item-card";
 import { MarketJetEditor } from "./market-jet-editor";
 import { MarketPublishStep, type MarketPublishContext } from "./market-publish-step";
 import { toast } from "sonner";
@@ -31,6 +57,33 @@ export type ComponentDraft = {
     quantity: number;
     unitLabel: string | null;
 };
+
+/**
+ * S8.9 — état de la **forge réelle déclarée** (D40/D41) porté par l'assistant.
+ *
+ * `transcendenceRuneId` **porte à lui seul** l'état « Transcendé » (aucun
+ * booléen redondant) ; `elementPotionTier` porte la donnée de jeu quand la
+ * potion n'est pas siphonnée (`elementPotionId: null`, palier 65 %).
+ */
+export type MarketForgeState = {
+    transcendenceRuneId: number | null;
+    transcendenceLabel: string | null;
+    strikeElement: SmithmagicElement | null;
+    elementPotionId: number | null;
+    elementPotionTier: number | null;
+    huntingWeapon: string;
+};
+
+/** Forge vide (annonce sans déclaration de forge). */
+export const EMPTY_MARKET_FORGE: MarketForgeState = {
+    transcendenceRuneId: null,
+    transcendenceLabel: null,
+    strikeElement: null,
+    elementPotionId: null,
+    elementPotionTier: null,
+    huntingWeapon: "",
+};
+
 
 /**
  * S7.11/S7.12 — **état initial** d'une annonce à modifier (mode `edit`).
@@ -55,6 +108,8 @@ export type MarketListingEditInitial = {
     item: GameItemSearchResult | null;
     stats: MarketStatDraft[];
     components: ComponentDraft[];
+    /** S8.9 — forge réelle déjà déclarée (rejouée telle quelle en édition). */
+    forge: MarketForgeState;
 };
 
 interface MarketCreateClientProps {
@@ -78,6 +133,12 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
 
     // S2.10 — lignes de jet, pré-remplies depuis les plages natives du catalogue.
     const [stats, setStats] = useState<MarketStatDraft[]>(initial?.stats ?? []);
+
+    // S8.9 — forge réelle déclarée (rune de Transcendance, élément, arme de chasse).
+    const [forge, setForge] = useState<MarketForgeState>(initial?.forge ?? EMPTY_MARKET_FORGE);
+
+    // S8.9 — référentiel de forge (runes `typeId 211` + potions `typeId 26`).
+    const [referential, setReferential] = useState<SmithmagicReferential | null>(null);
 
     // S3.14 — contexte de publication Discord (salon, rôles pinguables).
     const [publishContext, setPublishContext] = useState<MarketPublishContext | null>(null);
@@ -121,11 +182,125 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
     const parsedPrice = parseKamas(priceInput);
     const priceInvalid = priceInput.trim().length > 0 && parsedPrice === null;
 
+    // S8.9 — le référentiel de forge est chargé **à la demande** (dès qu'un objet
+    // du catalogue est choisi) et **masqué** s'il est dégradé (fail-soft S8.3).
+    useEffect(() => {
+        if (kind !== "EQUIPMENT" || !item) return;
+        let cancelled = false;
+        getSmithmagicReferential(guildId).then((res) => {
+            if (!cancelled && res.success && res.data) setReferential(res.data);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [guildId, kind, item]);
+
+    /** S8.9 (D40) — « Transcendé » est **déclaratif** : la rune ou rien. */
+    const isTranscended = forge.transcendenceRuneId != null;
+
+    /**
+     * S8.11 — lignes incompatibles avec la Transcendance, calculées **côté
+     * client** avec la même règle pure que le serveur : bandeau + bouton
+     * « Continuer » bloqué, jamais un refus surprise à l'enregistrement.
+     */
+    const transcendenceConflicts = useMemo(
+        () =>
+            isTranscended
+                ? describeTranscendenceConflicts(
+                      stats.map((stat) => ({
+                          label: stat.label,
+                          origin: stat.origin,
+                          naturalMax: stat.naturalMax,
+                          actualValue: stat.actualValue,
+                      }))
+                  )
+                : [],
+        [isTranscended, stats]
+    );
+
+    /**
+     * S8.9 — récapitulatif lisible de la forge (rune nommée, potion + palier),
+     * alimenté par le référentiel : aucune donnée inventée côté client.
+     */
+    const forgeRecap = useMemo(() => {
+        const lines: { label: string; value: string }[] = [];
+        if (isTranscended) {
+            const rune = referential?.runes.find(
+                (candidate) => candidate.ankamaId === forge.transcendenceRuneId
+            );
+            lines.push({
+                label: "Transcendance",
+                value: rune
+                    ? `${rune.name} (${rune.statLabel} +${rune.bonus})`
+                    : TRANSCENDENCE_LABEL,
+            });
+        }
+        if (forge.strikeElement) {
+            const potion = referential?.potions.find(
+                (candidate) =>
+                    candidate.element === forge.strikeElement &&
+                    candidate.tier === forge.elementPotionTier
+            );
+            lines.push({
+                label: "Élément de frappe",
+                value: potion
+                    ? `${forge.strikeElement} — ${potion.name} (${potion.tier} % des dégâts)`
+                    : forge.strikeElement,
+            });
+        }
+        if (forge.huntingWeapon.trim()) {
+            lines.push({ label: "Arme de chasse", value: forge.huntingWeapon.trim() });
+        }
+        return lines;
+    }, [isTranscended, referential, forge]);
+
+    /**
+     * S8.7 — carte **du catalogue** affichée au-dessus de l'éditeur : elle montre
+     * les **jets maximum** de l'objet (+ EFFETS + STATUT déclaré), jamais le
+     * brouillon du vendeur (c'est le rôle de l'éditeur juste en dessous).
+     */
+    const catalogueCard = useMemo(() => {
+        if (!item) return null;
+        const drafts = buildNativeStatDrafts(
+            (item.nativeEffects as MarketNativeEffect[] | null) ?? null
+        );
+        return {
+            name: item.name,
+            level: item.level,
+            typeName: item.typeName,
+            itemSetName: item.itemSetName ?? null,
+            iconUrl: item.iconUrl,
+            isLegendary: item.isLegendary ?? false,
+            description: item.description ?? null,
+            realWeight: item.realWeight ?? null,
+            transcended: isTranscended,
+            transcendenceLabel: forge.transcendenceLabel,
+            strikeElement: forge.strikeElement,
+            huntingWeapon: forge.huntingWeapon.trim() || null,
+            stats: drafts.map((draft) => ({
+                effectId: draft.effectId,
+                characteristic: draft.characteristic,
+                label: draft.label,
+                naturalMin: draft.naturalMin,
+                naturalMax: draft.naturalMax,
+                // Jet MAX du catalogue : la carte annonce la fourchette, pas le déclaré.
+                actualValue: draft.naturalMax ?? draft.naturalMin ?? 0,
+                origin: "NATIVE",
+                quality: computeStatQuality({
+                    naturalMin: draft.naturalMin,
+                    naturalMax: draft.naturalMax,
+                    actualValue: draft.naturalMax ?? draft.naturalMin ?? 0,
+                    origin: "NATIVE",
+                }),
+            })),
+        };
+    }, [item, isTranscended, forge]);
+
     const canGoNext = step === 1
         ? true
         : step === 2
             ? kind === "EQUIPMENT"
-                ? !!item
+                ? !!item && transcendenceConflicts.length === 0
                 : components.length > 0
             : step === 3
                 ? title.trim().length >= 3 && !priceInvalid
@@ -142,6 +317,25 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
      * ⚠️ Aucun champ `quality` ni plage native calculée côté client : le serveur
      * **recalcule** tout (§12.8, D17).
      */
+    /**
+     * S8.10 — champs de forge envoyés au serveur. Une annonce **sans** forge
+     * envoie `null` partout (aucune valeur inventée) ; le libellé de
+     * Transcendance retombe sur le libellé officiel (D40).
+     */
+    function toForgePayload() {
+        const transcendent = forge.transcendenceRuneId != null;
+        return {
+            transcendenceRuneId: transcendent ? forge.transcendenceRuneId : null,
+            transcendenceLabel: transcendent
+                ? forge.transcendenceLabel?.trim() || TRANSCENDENCE_LABEL
+                : null,
+            strikeElement: forge.strikeElement,
+            elementPotionId: forge.elementPotionId,
+            elementPotionTier: forge.elementPotionTier,
+            huntingWeapon: forge.huntingWeapon.trim() || null,
+        };
+    }
+
     function buildPayload() {
         return {
             type: kind,
@@ -151,6 +345,8 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
             priceKamas: parsedPrice,
             negotiable,
             acceptsTrade,
+            // S8.9/S8.10 — forge réelle déclarée (6 champs, additifs).
+            ...toForgePayload(),
             dofusDbItemId: kind === "EQUIPMENT" ? item?.ankamaId ?? null : null,
             itemName: kind === "EQUIPMENT" ? item?.name ?? null : null,
             itemIconUrl: kind === "EQUIPMENT" ? item?.iconUrl ?? null : null,
@@ -276,18 +472,40 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
                         }}
                     />
                     {item && (
-                        <Card className="bg-surface/60 border-border">
-                            <CardHeader>
-                                <CardTitle className="text-base">Déclare ton jet</CardTitle>
-                                <CardDescription>
-                                    Les lignes natives sont pré-remplies depuis le catalogue. Ajuste la valeur
-                                    réelle, ajoute un exo, ou clique « ✦ Jet parfait ».
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <MarketJetEditor stats={stats} onChange={setStats} />
-                            </CardContent>
-                        </Card>
+                        <>
+                            {/* S8.7 — carte du CATALOGUE (jets max + EFFETS + STATUT)
+                                **au-dessus** de l'éditeur : le vendeur voit d'abord
+                                l'objet réel, puis déclare son jet. */}
+                            {catalogueCard && <MarketItemCard data={catalogueCard} />}
+
+                            <Card className="bg-surface/60 border-border">
+                                <CardHeader>
+                                    <CardTitle className="text-base">Déclare ton jet</CardTitle>
+                                    <CardDescription>
+                                        Les lignes natives sont pré-remplies depuis le catalogue. Ajuste la valeur
+                                        réelle, ajoute un exo, ou clique « ✦ Jet parfait ». Les lignes non
+                                        forgeables de l&apos;objet restent affichées sur la carte ci-dessus.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <MarketJetEditor
+                                        stats={stats}
+                                        onChange={setStats}
+                                        transcendenceActive={isTranscended}
+                                    />
+                                </CardContent>
+                            </Card>
+
+                            {/* S8.9 — bloc « Forge » (D40/D41) : transcende, élément
+                                de frappe (armes), arme de chasse (armes). */}
+                            <ForgeBlock
+                                item={item}
+                                referential={referential}
+                                forge={forge}
+                                onChange={setForge}
+                                conflicts={transcendenceConflicts}
+                            />
+                        </>
                     )}
                 </>
             )}
@@ -338,6 +556,7 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
                     negotiable={negotiable}
                     forgedBy={forgedBy.trim() || null}
                     exoLabels={stats.filter((stat) => stat.origin === "EXO").map((stat) => stat.label)}
+                    forgeRecap={forgeRecap}
                     components={components.map((component) => ({ name: component.name, quantity: component.quantity }))}
                     context={publishContext}
                     roles={roles}
@@ -693,6 +912,350 @@ function SelectedItem({ item, onClear }: { item: GameItemSearchResult; onClear: 
     );
 }
 
+
+/**
+ * S8.9 — bloc « **Forge** » de l'écran de déclaration (D40/D41).
+ *
+ *   1. **Rune de Transcendance** (référentiel `typeId 211`, paliers Ta/PaTa/RaTa) :
+ *      bonus définitif qui **empêche les futures forgemagies** ⇒ over/exo
+ *      désactivés dans l'éditeur (et garde serveur S8.11) ;
+ *   2. **Élément de frappe** (ARMES) + **potion** de forgemagie (`typeId 26`,
+ *      paliers 50 / 65 / 80 %) ;
+ *   3. **Arme de chasse** (ARMES, exception FM du référentiel).
+ *
+ * 🔌 Data-driven (D41) : les listes viennent de `getSmithmagicReferential`
+ * (table `GameItem`, **aucun nouvel appel réseau**).
+ * 🪶 **Fail-soft** : référentiel absent ou `degraded: true` ⇒ le bloc se masque,
+ * l'écran de création n'est jamais cassé.
+ * 🖼️ Chaque entrée porte son **icône officielle** ; les potions du palier 65 %
+ * (non siphonnées) retombent sur l'icône de l'**élément** — jamais d'image cassée.
+ */
+function ForgeBlock({
+    item,
+    referential,
+    forge,
+    onChange,
+    conflicts,
+}: {
+    item: GameItemSearchResult;
+    referential: SmithmagicReferential | null;
+    forge: MarketForgeState;
+    onChange: (next: MarketForgeState) => void;
+    /** Lignes over/exo incompatibles avec la Transcendance (garde pure S8.11). */
+    conflicts: string[];
+}) {
+    const [palier, setPalier] = useState<SmithmagicPalier>("Ta");
+    const [runeQuery, setRuneQuery] = useState("");
+
+    // 🪶 Fail-soft : pas de référentiel (ou référentiel dégradé) ⇒ bloc masqué.
+    if (!referential || referential.degraded) return null;
+
+    const isWeapon = isWeaponItem({
+        itemSuperTypeName: item.superTypeName ?? null,
+        itemTypeName: item.typeName ?? null,
+    });
+    const selectedRune =
+        referential.runes.find((rune) => rune.ankamaId === forge.transcendenceRuneId) ?? null;
+    const term = runeQuery.trim().toLowerCase();
+    const runes = referential.runes.filter(
+        (rune) =>
+            rune.palier === palier &&
+            (term.length === 0 || `${rune.name} ${rune.statLabel}`.toLowerCase().includes(term))
+    );
+    const potions = forge.strikeElement
+        ? referential.potions.filter((potion) => potion.element === forge.strikeElement)
+        : [];
+
+    /** Rune de Transcendance : présence = objet « transcendé » (D40). */
+    function pickRune(rune: TranscendenceRune | null) {
+        onChange({
+            ...forge,
+            transcendenceRuneId: rune ? rune.ankamaId : null,
+            transcendenceLabel: rune ? TRANSCENDENCE_LABEL : null,
+        });
+    }
+
+    /** Élément de frappe : changer d'élément remet la potion à zéro. */
+    function pickElement(element: SmithmagicElement | null) {
+        onChange({
+            ...forge,
+            strikeElement: element,
+            elementPotionId: null,
+            elementPotionTier: null,
+        });
+    }
+
+    /** Potion : fixe l'élément **et** le palier (id `null` si non siphonnée). */
+    function pickPotion(potion: ElementPotion) {
+        onChange({
+            ...forge,
+            strikeElement: potion.element,
+            elementPotionId: potion.ankamaId,
+            elementPotionTier: potion.tier,
+        });
+    }
+
+    return (
+        <Card className="bg-surface/60 border-border" data-tour="marche-forge">
+            <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                    <Hammer className="w-4 h-4 text-gold" />
+                    Forge réelle
+                </CardTitle>
+                <CardDescription>
+                    Au-delà du jet : la <strong>Transcendance</strong>, l&apos;
+                    <strong>élément de frappe</strong> et l&apos;<strong>arme de chasse</strong>{" "}
+                    changent la valeur réelle de l&apos;objet. SigilOS ne lit jamais ton
+                    inventaire : tout est <strong>déclaratif</strong>.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+                {/* 1 — Rune de Transcendance (typeId 211) */}
+                <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Label className="text-xs">Rune de Transcendance (facultatif)</Label>
+                        <span className="flex items-center gap-2 text-[10px] font-bold uppercase text-muted-foreground">
+                            {SMITHMAGIC_PALIERS.map((value) => (
+                                <span key={value} className="tabular-nums">
+                                    {value} {referential.runeCounts[value]}
+                                </span>
+                            ))}
+                        </span>
+                    </div>
+
+                    {selectedRune ? (
+                        <div className="flex items-center gap-3 rounded-xl border border-gold/40 bg-gold/10 px-3 py-2">
+                            <ForgeEntryIcon
+                                src={selectedRune.iconUrl}
+                                fallbackAsset={strikeElementAsset("Neutre")}
+                                alt={selectedRune.name}
+                            />
+                            <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-bold text-gold">
+                                    {selectedRune.name}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground">
+                                    {selectedRune.statLabel} +{selectedRune.bonus} · palier{" "}
+                                    {selectedRune.palier} · {TRANSCENDENCE_LABEL}
+                                </p>
+                            </div>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => pickRune(null)}>
+                                Retirer
+                            </Button>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="flex flex-wrap items-center gap-2">
+                                {SMITHMAGIC_PALIERS.map((value) => (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => setPalier(value)}
+                                        className={cn(
+                                            "rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors",
+                                            palier === value
+                                                ? "border-gold/40 bg-gold/10 text-gold"
+                                                : "border-border text-muted-foreground hover:border-border-strong"
+                                        )}
+                                    >
+                                        {value}
+                                    </button>
+                                ))}
+                                <div className="relative ml-auto w-full max-w-xs">
+                                    <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                                    <Input
+                                        value={runeQuery}
+                                        onChange={(event) => setRuneQuery(event.target.value)}
+                                        placeholder="Rechercher une rune (ex. Agilité)"
+                                        className="h-9 pl-9 text-xs"
+                                    />
+                                </div>
+                            </div>
+
+                            <ul className="max-h-[220px] space-y-1 overflow-y-auto custom-scrollbar pr-1">
+                                {runes.length === 0 && (
+                                    <li className="px-3 py-4 text-center text-xs text-muted-foreground">
+                                        Aucune rune {palier} ne correspond à « {runeQuery} ».
+                                    </li>
+                                )}
+                                {runes.map((rune) => (
+                                    <li key={rune.ankamaId}>
+                                        <button
+                                            type="button"
+                                            onClick={() => pickRune(rune)}
+                                            className="flex w-full items-center gap-3 rounded-xl border border-border bg-surface/60 px-3 py-2 text-left transition-colors hover:border-border-strong"
+                                        >
+                                            <ForgeEntryIcon
+                                                src={rune.iconUrl}
+                                                fallbackAsset={strikeElementAsset("Neutre")}
+                                                alt={rune.name}
+                                            />
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block truncate text-sm font-semibold text-foreground">
+                                                    {rune.name}
+                                                </span>
+                                                <span className="block text-[11px] text-muted-foreground">
+                                                    {rune.statLabel} +{rune.bonus} · niveau {rune.level}
+                                                </span>
+                                            </span>
+                                            <span className="shrink-0 text-[10px] font-black uppercase text-muted-foreground">
+                                                {rune.palier}
+                                            </span>
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        </>
+                    )}
+                    {conflicts.length > 0 && (
+                        <p className="rounded-xl border border-danger/40 bg-danger/10 px-3 py-2 text-[11px] font-semibold text-danger">
+                            Objet transcendé : retire d&apos;abord {conflicts.join(", ")} — une rune
+                            de Transcendance n&apos;accepte ni over ni exo. Remets ces lignes au jet
+                            max (ou supprime-les) dans l&apos;éditeur ci-dessus.
+                        </p>
+                    )}
+
+                    {/* 2 — Élément de frappe + potion (ARMES uniquement) */}
+                    <div className="space-y-2 pt-2">
+                        <Label className="text-xs">Élément de frappe (armes)</Label>
+                        {!isWeapon ? (
+                            <p className="text-[11px] text-muted-foreground">
+                                {item.typeName} n&apos;est pas une arme : l&apos;élément de frappe
+                                (potion de forgemagie) et l&apos;arme de chasse ne s&apos;appliquent
+                                qu&apos;aux armes.
+                            </p>
+                        ) : (
+                            <>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => pickElement(null)}
+                                        className={cn(
+                                            "rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors",
+                                            forge.strikeElement === null
+                                                ? "border-gold/40 bg-gold/10 text-gold"
+                                                : "border-border text-muted-foreground hover:border-border-strong"
+                                        )}
+                                    >
+                                        Aucun
+                                    </button>
+                                    {ELEMENT_POTION_ELEMENTS.map((element) => (
+                                        <button
+                                            key={element}
+                                            type="button"
+                                            onClick={() => pickElement(element)}
+                                            className={cn(
+                                                "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors",
+                                                forge.strikeElement === element
+                                                    ? "border-gold/40 bg-gold/10 text-gold"
+                                                    : "border-border text-muted-foreground hover:border-border-strong"
+                                            )}
+                                        >
+                                            <Image
+                                                src={dofusStatAssetUrl(strikeElementAsset(element))}
+                                                alt={element}
+                                                width={14}
+                                                height={14}
+                                                unoptimized
+                                            />
+                                            {element}
+                                        </button>
+                                    ))}
+                                </div>
+                                {forge.strikeElement && (
+                                    <ul className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                        {potions.map((potion) => {
+                                            const selected = forge.elementPotionTier === potion.tier;
+                                            return (
+                                                <li key={potion.name}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => pickPotion(potion)}
+                                                        className={cn(
+                                                            "flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors",
+                                                            selected
+                                                                ? "border-gold/40 bg-gold/10"
+                                                                : "border-border bg-surface/60 hover:border-border-strong"
+                                                        )}
+                                                    >
+                                                        <ForgeEntryIcon
+                                                            src={potion.iconUrl}
+                                                            fallbackAsset={strikeElementAsset(potion.element)}
+                                                            alt={potion.name}
+                                                        />
+                                                        <span className="min-w-0 flex-1">
+                                                            <span className="block truncate text-xs font-semibold text-foreground">
+                                                                {potion.name}
+                                                            </span>
+                                                            <span className="block text-[10px] uppercase text-muted-foreground">
+                                                                {potion.tier} % des dégâts
+                                                            </span>
+                                                        </span>
+                                                    </button>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                )}
+                                {forge.strikeElement && forge.elementPotionTier == null && (
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Choisis la potion réellement utilisée : son palier fixe les
+                                        dégâts conservés (50 / 65 / 80 %).
+                                    </p>
+                                )}
+                            </>
+                        )}
+                    </div>
+                    {isWeapon && (
+                        <div className="space-y-1.5 pt-2">
+                            <Label className="text-xs">Arme de chasse (facultatif, armes)</Label>
+                            <Input
+                                value={forge.huntingWeapon}
+                                onChange={(event) =>
+                                    onChange({ ...forge, huntingWeapon: event.target.value })
+                                }
+                                maxLength={MARKET_FORGE_LIMITS.WEAPON_MAX}
+                                placeholder="Ex. Arc de Chasse"
+                                className="max-w-sm"
+                            />
+                            <p className="text-[11px] text-muted-foreground">
+                                Exception du référentiel FM : elle s&apos;applique{" "}
+                                <strong>avant</strong> la rune de Transcendance.
+                            </p>
+                        </div>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+/**
+ * Icône d'une entrée du bloc Forge : asset officiel siphonné, sinon repli sur
+ * l'icône de l'**élément** (potions du palier 65 % non encore en base).
+ */
+function ForgeEntryIcon({
+    src,
+    fallbackAsset,
+    alt,
+}: {
+    src: string | null;
+    fallbackAsset: string;
+    alt: string;
+}) {
+    return (
+        <span className="relative h-8 w-8 shrink-0 rounded-lg border border-border bg-background/60">
+            <Image
+                src={src ?? dofusStatAssetUrl(fallbackAsset)}
+                alt={alt}
+                fill
+                sizes="32px"
+                className="object-contain p-0.5"
+                unoptimized
+            />
+        </span>
+    );
+}
 
 /** Recherche dans le catalogue local (consomme `searchLocalGameItems`, D29). */
 function CataloguePicker({

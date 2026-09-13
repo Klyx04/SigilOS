@@ -70,6 +70,11 @@ export type MarketDiscordPayloadInput = {
     forumMode?: boolean;
     /** URL absolue de l'icône objet (mode forum → thumbnail). */
     itemIconUrl?: string | null;
+    /**
+     * Correction 13/09 — **lignes de jet** publiées dans l'embed (tous modes) :
+     * l'objet se lisait sans ses stats, ce qui rendait l'annonce inutile.
+     */
+    stats?: MarketDiscordStatLine[];
 };
 
 export type MarketDiscordField = { name: string; value: string; inline?: boolean };
@@ -86,9 +91,66 @@ export type MarketDiscordPayload = {
     components: MarketComponentRow[];
 };
 
+/** Ligne de jet telle que publiée dans l'embed (S3.1 + correction 13/09). */
+export type MarketDiscordStatLine = {
+    label: string;
+    actualValue: number;
+    naturalMin?: number | null;
+    naturalMax?: number | null;
+    /** `NATIVE` | `EXO` — un exo est **marqué** dans l'embed (Discord n'a pas de couleur de texte). */
+    origin?: string | null;
+};
+
+/**
+ * Correction 13/09 — **le jet est publié** dans l'embed.
+ *
+ * Constat user : l'annonce Discord n'affichait aucune ligne de stats (seul le
+ * badge d'exo), alors que l'objet en porte (et que la carte PNG, elle, les
+ * montre). Discord n'acceptant ni couleur de texte ni icône d'asset dans un
+ * embed, la ligne reprend la forme de la carte :
+ *   `✦ Exo **1** PM [1]` · `**348** Vitalité [301 à 350]` · `**-8** Esquive PA [-6 à -8]`.
+ */
+export function formatMarketStatLine(stat: MarketDiscordStatLine): string {
+    const sign = stat.actualValue >= 0 ? "+" : "";
+    const range = formatNativeRangeText(stat.naturalMin, stat.naturalMax);
+    const exoPrefix = stat.origin === "EXO" ? "✦ Exo " : "";
+    return `${exoPrefix}**${sign}${stat.actualValue}** ${stat.label}${range ? ` ${range}` : ""}`;
+}
+
+/** Plage native lisible (« [301 à 350] », « [1] ») — même règle que la carte. */
+function formatNativeRangeText(min: number | null | undefined, max: number | null | undefined): string {
+    if (min == null && max == null) return "";
+    const from = min ?? (max as number);
+    const to = max ?? (min as number);
+    return from === to ? `[${from}]` : `[${from} à ${to}]`;
+}
+
 /** Id court lisible d'une annonce (footer, nom de post forum). */
 export function shortListingId(listingId: string): string {
     return listingId.slice(-6).toUpperCase();
+}
+
+/**
+ * Correction 13/09 — **URL absolue obligatoire** pour Discord.
+ *
+ * Constat user : la publication en salon **forum** échouait avec
+ * `400 Invalid Form Body / thumbnail.url : Not a well formed URL` (code 50035),
+ * car `MarketListing.itemIconUrl` est un chemin **local**
+ * (`/api/assets-dofus/items/14091`) et Discord n'accepte que `http(s)://`.
+ * Une icône inexploitable est **omise** : mieux vaut un post sans vignette
+ * qu'un échec de publication (la resynchro n'est jamais bloquante, S3).
+ *
+ * ⚠️ Fonction **pure** (testée) : la base d'URL est injectée par l'appelant.
+ */
+export function absoluteDiscordAssetUrl(
+    url: string | null | undefined,
+    baseUrl: string
+): string | null {
+    if (!url) return null;
+    if (/^https?:\/\//i.test(url)) return url;
+    const base = baseUrl.replace(/\/+$/, "");
+    if (!/^https?:\/\//i.test(base)) return null;
+    return url.startsWith("/") ? `${base}${url}` : `${base}/${url}`;
 }
 
 /** Phrase de jet dérivée des exos éventuels (jamais de jugement de faisabilité). */
@@ -121,6 +183,7 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
         dashboardUrl,
         forumMode,
         itemIconUrl,
+        stats = [],
     } = input;
 
     const priceLabel = formatKamas(priceKamas ?? null);
@@ -128,7 +191,9 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
 
     // ── Titre & description ──────────────────────────────────────────────────
     const headName = itemName || title;
-    const embedTitle = `${headName} — ${priceLabel}`;
+    // Correction 13/09 — sans prix, le titre ne doit PAS finir par « — — »
+    // (constat user) : `formatKamas(null)` renvoie un tiret de remplacement.
+    const embedTitle = priceKamas != null ? `${headName} — ${priceLabel}` : headName;
 
     const descriptionLines: string[] = [];
     if (itemLevel) {
@@ -138,6 +203,17 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
     }
     if (unitLabel) descriptionLines.push(`Lot : ${unitLabel}`);
     if (exoBadge) descriptionLines.push(exoBadge);
+
+    // Correction 13/09 — **EFFETS** : le jet déclaré, tel qu'il apparaît sur la
+    // carte (valeur + libellé + plage native), exo marqué « ✦ Exo », malus en
+    // négatif. Discord limite un embed à **4096** caractères : on publie les
+    // **20** premières lignes et on résume le reste (jamais de description muette).
+    if (stats.length > 0) {
+        const visible = stats.slice(0, 20).map(formatMarketStatLine);
+        const extra =
+            stats.length > 20 ? `\n*+ ${stats.length - 20} autre(s) ligne(s) de jet*` : "";
+        descriptionLines.push(`**EFFETS**\n${visible.join("\n")}${extra}`);
+    }
 
     if (lotComponents && lotComponents.length > 0) {
         const visible = lotComponents.slice(0, 5).map((c) => `• ${c.quantity.toLocaleString("fr-FR")} × ${c.name}`);
@@ -190,9 +266,11 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
         embedDescription: `${author}\n${descriptionLines.join("\n")}`.trim(),
         embedColor: MARKET_DISCORD_COLORS[status],
         embedFooter: `SigilOS Market • Annonce #${shortListingId(listingId)}`,
-        // Mode forum : icône objet en thumbnail, pas de carte générée.
+        // Mode forum : l'icône objet part en **thumbnail** ET la carte PNG en
+        // **image** (correction 13/09) — sans elle, le post ne montrait ni les
+        // icônes officielles ni les couleurs (exo, malus) du jet.
         embedThumbnail: forumMode ? (itemIconUrl ?? undefined) : undefined,
-        embedImage: forumMode ? undefined : (imageUrl ?? undefined),
+        embedImage: imageUrl ?? undefined,
         fields,
         components: [{ type: 1, components: buttons }],
     };

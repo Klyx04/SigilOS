@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
@@ -9,8 +9,8 @@ import { Prisma, type MarketOfferStatus, type MarketReservationStatus } from "@p
 import { getUserContext, type ActionResponse } from "./user-actions";
 import { KAMAS_MAX } from "@/lib/market/kamas";
 import { computeStatQuality, computeStatsHash } from "@/lib/market/stat-quality";
-import { findNativeRange, isPlaceholderStatLabel, normalizeNativeRange, resolveStoredStatLabel, toNativeEffects, type DofusItemEffectLike, type MarketNativeEffect } from "@/lib/market/effects";
-import { loadMarketReferential } from "@/lib/market/referential";
+import { applyEffectSign, findNativeRange, isNegativeNativeEffect, isPlaceholderStatLabel, normalizeNativeRange, resolveStatLabel, resolveStoredStatLabel, toNativeEffects, type DofusItemEffectLike, type MarketNativeEffect } from "@/lib/market/effects";
+import { loadMarketReferential, type MarketReferential } from "@/lib/market/referential";
 import {
     SMITHMAGIC_ELEMENT_POTION_TYPE_ID,
     SMITHMAGIC_TRANSCENDENCE_TYPE_ID,
@@ -252,15 +252,40 @@ function withDisplayReadyStats<
             naturalMax: number | null;
         }[];
     }
->(listing: T): T {
+>(listing: T, referential?: MarketReferential | null): T {
     if (listing.stats.length === 0) return listing;
+    // Correction 13/09 — le **signe** des malus est rétabli ici pour les
+    // annonces **déjà publiées** (avant le correctif, leurs bornes étaient
+    // positives) : les nouvelles le sont dès l'écriture (`resolveServerStats`).
+    // Correction 13/09 (3ᵉ passe) — même règle de signe que la carte : le
+    // référentiel **puis** le repli curated (`isNegativeNativeEffect`), pour
+    // qu'une annonce déjà publiée affiche « -100 Force » même si le référentiel
+    // est momentanément indisponible.
     return {
         ...listing,
         stats: listing.stats.map((stat) => {
-            const range = normalizeNativeRange(stat.naturalMin ?? stat.naturalMax ?? 0, stat.naturalMax ?? stat.naturalMin ?? 0);
+            const range = applyEffectSign(
+                normalizeNativeRange(
+                    stat.naturalMin ?? stat.naturalMax ?? 0,
+                    stat.naturalMax ?? stat.naturalMin ?? 0
+                ),
+                isNegativeNativeEffect(stat.effectId, {
+                    negativeEffectIds: referential?.negativeEffectIds,
+                })
+            );
+            // Libellé : table d'infobulle → référentiel d'effets siphonné →
+            // re-résolution historique (S7.3, qui n'écrase jamais l'inconnu).
+            const label =
+                resolveStatLabel(
+                    { effectId: stat.effectId, characteristic: stat.characteristic },
+                    referential?.effectLabels?.[stat.effectId] ??
+                        (stat.characteristic != null
+                            ? referential?.labels?.[stat.characteristic]
+                            : null)
+                ) ?? resolveStoredStatLabel(stat);
             return {
                 ...stat,
-                label: resolveStoredStatLabel(stat),
+                label,
                 naturalMin: stat.naturalMin == null ? null : range.from,
                 naturalMax: stat.naturalMax == null ? null : range.to,
             };
@@ -331,24 +356,45 @@ async function resolveServerStats(
         (item?.nativeEffects as MarketNativeEffect[] | null) ??
         toNativeEffects({ effects: item?.effects as DofusItemEffectLike[] | null });
 
+    // Correction 13/09 — effets dont la ligne est un **malus** (référentiel
+    // `GameEffect.isNegativeValue`, avec repli curated mesuré) : les dés d'un
+    // objet étant toujours positifs, c'est ici que le signe est rétabli (source
+    // serveur, jamais le client).
+
     const rows = stats.map((stat) => {
-        const range = findNativeRange(natives, {
+        const native = findNativeRange(natives, {
             effectId: stat.effectId,
             characteristic: stat.characteristic ?? null,
         });
+        // Correction 13/09 — le SIGNE d'affichage est rétabli AVANT
+        // persistance : DofusDB stocke les dés d'un objet toujours positifs,
+        // le malus (« -6 à -8 Esquive PA ») vient du référentiel d'effets
+        // (`isNegativeValue`). Les bornes sont donc **signées en base**.
+        const signed = native
+            ? applyEffectSign(
+                  native,
+                  isNegativeNativeEffect(stat.effectId, {
+                      negativeEffectIds: referential.negativeEffectIds,
+                  })
+              )
+            : null;
         // La plage native est une SOURCE SERVEUR : le client ne la fixe jamais.
-        const naturalMin = range ? range.from : null;
-        const naturalMax = range ? range.to : null;
-        const origin = range ? stat.origin : "EXO";
+        const naturalMin = signed ? signed.from : null;
+        const naturalMax = signed ? signed.to : null;
+        const origin = signed ? stat.origin : "EXO";
+        // Correction 13/09 (2ᵉ passe) — libellé : **table d'infobulle**
+        // (`resolveStatLabel`, vérifiée contre les gabarits FR de DofusDB) →
+        // référentiel siphonné → libellé déclaré. L'ordre est porté **une seule
+        // fois** par `resolveStatLabel` (fin des cascades recopiées).
         const label =
-            (stat.characteristic != null &&
-            !isPlaceholderStatLabel(referential.labels[stat.characteristic])
-                ? referential.labels[stat.characteristic]
-                : null) ||
-            (!isPlaceholderStatLabel(stat.label) ? stat.label : null) ||
-            (!isPlaceholderStatLabel(referential.effectLabels[stat.effectId])
-                ? referential.effectLabels[stat.effectId]
-                : null) ||
+            resolveStatLabel(
+                { effectId: stat.effectId, characteristic: stat.characteristic ?? null },
+                referential.effectLabels[stat.effectId] ??
+                    (stat.characteristic != null
+                        ? referential.labels[stat.characteristic]
+                        : null)
+            ) ??
+            (!isPlaceholderStatLabel(stat.label) ? stat.label : null) ??
             stat.label;
         return {
             effectId: stat.effectId,
@@ -433,7 +479,11 @@ export async function getMarketListings(
             take: MARKET_LIMITS.CATALOG_PAGE_SIZE,
         });
 
-        return { success: true, data: listings.map(withDisplayReadyStats) };
+        // Correction 13/09 — référentiel (cache 5 min) pour rétablir les libellés
+        // exacts et le **signe** des malus à l'affichage.
+        const referential = await loadMarketReferential();
+
+        return { success: true, data: listings.map((listing) => withDisplayReadyStats(listing, referential)) };
     } catch (error) {
         logger.error("[getMarketListings] failed", { err: error });
         return { success: false, error: "Erreur interne" };
@@ -478,10 +528,14 @@ export async function getMarketListing(
                   })
                 : null;
 
+        // Correction 13/09 — même référentiel que le catalogue (cache 5 min) :
+        // libellés exacts + signe des malus sur la fiche.
+        const referential = await loadMarketReferential();
+
         return {
             success: true,
             data: {
-                ...withDisplayReadyStats(listing),
+                ...withDisplayReadyStats(listing, referential),
                 reservation: reservationRow
                     ? await buildReservationView(reservationRow, user.profileId ?? null, guildConfig.id)
                     : null,
@@ -1803,6 +1857,66 @@ export type SmithmagicReferential = {
     /** `true` si la base n'a pas répondu : la forge est simplement masquée. */
     degraded: boolean;
 };
+
+/**
+ * Correction 13/09 — **référentiel d'effets** exposé à l'écran de déclaration.
+ *
+ * Pourquoi une action dédiée : la carte et l'éditeur doivent afficher les
+ * lignes d'un objet **fidèlement** (libellé exact de l'`effectId`, et **signe**
+ * des malus). Les tables codées en dur (`CHAR_NAMES`) se sont révélées fausses
+ * sur 35 entrées (mesuré : `162` = « Esquive PA » et non « Dommages Critiques »,
+ * `210`↔`213`, `422`↔`430`) ⇒ la **source de vérité** est la table siphonnée
+ * `GameEffect`, servie par ce référentiel compact.
+ *
+ * 🔐 Gating identique au reste du module (`resolveMarketContext` : session +
+ * membre + `canViewMarket`) · 🪶 **fail-soft** : référentiel vide (`loaded:
+ * false`) ⇒ le client retombe sur la table codée, sans jamais casser l'écran.
+ */
+export type MarketStatReferential = {
+    /** `effectId` ou `characteristicId` → libellé FR officiel (siphonné). */
+    labels: Record<number, string>;
+    /** `effectId` → libellé FR (table `GameEffect`, gabarits exclus). */
+    effectLabels: Record<number, string>;
+    /** `effectId` dont la ligne s'AFFICHE négative (malus : Esquive PA, Fuite…). */
+    negativeEffectIds: number[];
+    /** `effectId` exprimé en pourcentage (résistances…). */
+    percentEffectIds: number[];
+    /** `true` si la base a répondu (sinon repli codé en dur). */
+    loaded: boolean;
+};
+
+export async function getMarketStatReferential(
+    guildId: string
+): Promise<ActionResponse<MarketStatReferential>> {
+    const empty: MarketStatReferential = {
+        labels: {},
+        effectLabels: {},
+        negativeEffectIds: [],
+        percentEffectIds: [],
+        loaded: false,
+    };
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+
+        const referential = await loadMarketReferential();
+        return {
+            success: true,
+            data: {
+                labels: referential.labels,
+                effectLabels: referential.effectLabels,
+                negativeEffectIds: referential.negativeEffectIds,
+                percentEffectIds: referential.percentEffectIds,
+                loaded: referential.loaded,
+            },
+        };
+    } catch (error) {
+        logger.warn("[getMarketStatReferential] référentiel indisponible (fail-soft)", {
+            err: error,
+        });
+        return { success: true, data: empty };
+    }
+}
 
 /** Durée du cache mémoire court du référentiel (donnée de jeu quasi figée). */
 const SMITHMAGIC_REFERENTIAL_TTL_MS = 5 * 60 * 1000;

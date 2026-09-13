@@ -40,7 +40,6 @@ import {
 import {
     FM_EFFECTS,
     computeFmBudget,
-    describeFmReadonly,
     fmDensity,
     getFmEffect,
     getFmStatus,
@@ -89,10 +88,14 @@ function analyzeLine(stat: MarketStatDraft): FmLineInfo | null {
             label: stat.label,
         })
     );
-    // Deux verrous : le référentiel FM doit savoir nommer la ligne, et elle ne
-    // doit pas porter une exception explicite de lecture seule (arme de chasse,
-    // dégâts d'arme, vol de vie…).
-    if (!definition || describeFmReadonly(stat.label) !== null) return null;
+    // Correction 13/09 (constat user) — le **référentiel FM fait foi** : une
+    // ligne qu'il sait nommer est **forgeable**, y compris une ligne ajoutée à la
+    // main (« % Dommages aux sorts ») que les motifs de lecture seule
+    // capturaient à tort (« sorts ») ⇒ elle disparaissait juste après son ajout.
+    // Les motifs ne servent donc plus qu'aux lignes **inconnues** du référentiel
+    // (vol de vie, dégâts de base de l'arme, bonus de panoplie, conditions…),
+    // qui sont **retirées** de l'éditeur (D42) et restent sur la carte.
+    if (!definition) return null;
 
     return {
         definition,
@@ -208,7 +211,10 @@ export function MarketJetEditor({
                 label: definition.label,
                 naturalMin: null,
                 naturalMax: null,
-                actualValue: 0,
+                // Correction 13/09 — une ligne ajoutée à la main n'a pas de plage
+                // native : partir de `1` (jamais `0`, constat user) ; le vendeur
+                // saisit ensuite la valeur exacte (ex. 3 % de Dommages aux sorts).
+                actualValue: 1,
                 origin: "EXO",
             },
         ]);
@@ -456,11 +462,33 @@ export function MarketJetEditor({
                                     {MARKET_FM_STATUS_LABELS[line.status]}
                                 </span>
 
-                                <span className="w-32 text-right text-[11px] tabular-nums text-muted-foreground">
-                                    {transcendenceActive
-                                        ? "transcendance"
-                                        : line.extraValue > 0
-                                          ? `${fmDensity(definition.unitWeight, line.extraValue)} densité`
+                                {/*
+                                 * Correction 13/09 (2ᵉ passe, constat user) —
+                                 * cette colonne affichait « transcendance » sur
+                                 * **toutes** les lignes dès qu'une rune était
+                                 * déclarée : le vendeur ne comprenait plus ce
+                                 * qu'elle mesurait. Elle n'affiche plus que la
+                                 * **densité réellement consommée** par la ligne
+                                 * (over/exo) ; un tiret signifie « rien à
+                                 * consommer » (ligne native, ou objet transcendé
+                                 * où over/exo sont exclus par D40).
+                                 */}
+                                <span
+                                    className="w-32 text-right text-[11px] tabular-nums text-muted-foreground"
+                                    title={
+                                        line.extraValue > 0
+                                            ? `Densité consommée au-dessus du jet natif (rune ${definition.rune}, ${definition.unitWeight} par point)`
+                                            : transcendenceActive
+                                              ? "Objet transcendé : aucun over n'est accepté sur cette ligne"
+                                              : !definition.canOver
+                                                ? "Cette ligne n'est pas sur-forgeable (le référentiel FM l'interdit)"
+                                                : `Over maximal théorique sur cette ligne : +${maxOver}`
+                                    }
+                                >
+                                    {line.extraValue > 0
+                                        ? `${fmDensity(definition.unitWeight, line.extraValue)} densité`
+                                        : transcendenceActive || !definition.canOver
+                                          ? "—"
                                           : `over max +${maxOver}`}
                                 </span>
 

@@ -58,27 +58,30 @@ interface MarketJetEditorProps {
     onChange: (stats: MarketStatDraft[]) => void;
 }
 
-/** Analyse FM d'une ligne déclarée (pure, jamais persistée). */
+/**
+ * Analyse FM d'une ligne déclarée (pure, jamais persistée).
+ * Une ligne retenue est **toujours** forgeable (S8.8, D42).
+ */
 type FmLineInfo = {
-    /** Définition du référentiel FM, `null` si la ligne n'est pas une ligne FM. */
-    definition: FmEffectDefinition | null;
+    /** Définition du référentiel FM (jamais `null` : une ligne retenue est forgeable). */
+    definition: FmEffectDefinition;
     /** Étiquette affichée (malus / exo / over / parfait / bon / faible / à vérifier). */
     status: FmStatus;
     /** Densité consommée **au-dessus du jet natif** (0 pour une ligne native pure). */
     extraValue: number;
-    /** Raison de lecture seule (dégâts d'arme, vol de vie…), sinon `null`. */
-    readonlyReason: string | null;
 };
 
-/** Analyse une ligne : étiquette FM + densité + éventuelle lecture seule. */
-function analyzeLine(stat: MarketStatDraft): FmLineInfo {
+/**
+ * Analyse une ligne et décide si elle est **forgeable**.
+ *
+ * S8.8 (D42) — renvoie `null` pour une ligne **hors jet FM** (vol de vie, dégâts
+ * de l'arme, sorts, bonus de panoplie, conditions, apparence…) : elle n'est plus
+ * rendue dans l'éditeur sous forme d'`<Input disabled>` + badge « LECTURE
+ * SEULE » (cause du « bizarre nul partout »), elle est **retirée** — les lignes
+ * concernées restent, elles, **affichées sur la carte d'item** (S8.7).
+ */
+function analyzeLine(stat: MarketStatDraft): FmLineInfo | null {
     const isNative = stat.origin === "NATIVE" && stat.naturalMax != null;
-    const status = getFmStatus({
-        currentValue: stat.actualValue,
-        nativeMin: stat.naturalMin,
-        nativeMax: stat.naturalMax,
-        isNativeEffect: isNative,
-    });
     const definition = getFmEffect(
         resolveFmEffectKey({
             effectId: stat.effectId,
@@ -86,25 +89,42 @@ function analyzeLine(stat: MarketStatDraft): FmLineInfo {
             label: stat.label,
         })
     );
-    // Ce qui consomme de la densité = ce qui dépasse le jet natif maximum.
-    const extraValue = isNative
-        ? Math.max(0, stat.actualValue - (stat.naturalMax as number))
-        : Math.max(0, stat.actualValue);
+    // Deux verrous : le référentiel FM doit savoir nommer la ligne, et elle ne
+    // doit pas porter une exception explicite de lecture seule (arme de chasse,
+    // dégâts d'arme, vol de vie…).
+    if (!definition || describeFmReadonly(stat.label) !== null) return null;
 
     return {
         definition,
-        status,
-        extraValue: definition ? extraValue : 0,
-        // Une ligne que le référentiel FM ne sait pas nommer n'est jamais
-        // proposée comme forgeable : elle reste affichée en **lecture seule**
-        // (dégâts d'arme, vol de vie, bonus de panoplie, conditions…).
-        readonlyReason:
-            describeFmReadonly(stat.label) ??
-            (definition ? null : "Ligne hors jet FM — non forgeable"),
+        status: getFmStatus({
+            currentValue: stat.actualValue,
+            nativeMin: stat.naturalMin,
+            nativeMax: stat.naturalMax,
+            isNativeEffect: isNative,
+        }),
+        // Ce qui consomme de la densité = ce qui dépasse le jet natif maximum.
+        extraValue: isNative
+            ? Math.max(0, stat.actualValue - (stat.naturalMax as number))
+            : Math.max(0, stat.actualValue),
     };
 }
 
-export function MarketJetEditor({ stats, onChange }: MarketJetEditorProps) {
+interface MarketJetEditorProps {
+    stats: MarketStatDraft[];
+    onChange: (stats: MarketStatDraft[]) => void;
+    /**
+     * S8.9 (D40) — une rune de **Transcendance** est déclarée : l'objet
+     * « empêche les futures forgemagies » ⇒ exo et lignes libres sont
+     * **désactivés** (jamais ajoutés en silence, jamais refusés à l'aveugle).
+     */
+    transcendenceActive?: boolean;
+}
+
+export function MarketJetEditor({
+    stats,
+    onChange,
+    transcendenceActive = false,
+}: MarketJetEditorProps) {
     // S7.16 — « Ligne libre FM » : modale du référentiel (52 lignes forgeables),
     // avec recherche, icône officielle, rune et densité.
     const [fmOpen, setFmOpen] = useState(false);
@@ -119,21 +139,36 @@ export function MarketJetEditor({ stats, onChange }: MarketJetEditorProps) {
         );
     }, [fmQuery]);
 
-    /** Analyse FM de chaque ligne (étiquette + densité + lecture seule). */
+    /** Analyse FM de chaque ligne — indexée comme `stats` (`null` = non forgeable). */
     const analysis = useMemo(() => stats.map(analyzeLine), [stats]);
+
+    /** S8.8 (D42) — seules les lignes **forgeables** sont éditées ici. */
+    const editableRows = useMemo(
+        () =>
+            stats
+                .map((stat, index) => ({ stat, index, line: analysis[index] }))
+                .filter(
+                    (
+                        row
+                    ): row is {
+                        stat: MarketStatDraft;
+                        index: number;
+                        line: FmLineInfo;
+                    } => row.line !== null
+                ),
+        [stats, analysis]
+    );
 
     /** Budget de densité : 101 points partagés entre overs et exos (§12.8). */
     const budget = useMemo(
         () =>
             computeFmBudget(
-                analysis
-                    .filter((line) => line.definition !== null)
-                    .map((line) => ({
-                        unitWeight: (line.definition as FmEffectDefinition).unitWeight,
-                        extraValue: line.extraValue,
-                    }))
+                editableRows.map((row) => ({
+                    unitWeight: row.line.definition.unitWeight,
+                    extraValue: row.line.extraValue,
+                }))
             ),
-        [analysis]
+        [editableRows]
     );
 
     function patch(index: number, partial: Partial<MarketStatDraft>) {
@@ -145,6 +180,8 @@ export function MarketJetEditor({ stats, onChange }: MarketJetEditorProps) {
     }
 
     function addExo(preset: ExoEffectPreset) {
+        // S8.9 (D40) — objet transcendé : plus aucune forgemagie possible.
+        if (transcendenceActive) return;
         if (stats.some((stat) => stat.effectId === preset.effectId && stat.origin === "EXO")) return;
         if (stats.length >= MARKET_LIMITS.MAX_STATS) return;
         onChange([...stats, buildExoStatDraft(preset, 1)]);
@@ -156,6 +193,8 @@ export function MarketJetEditor({ stats, onChange }: MarketJetEditorProps) {
      * sauvage : la liste des lignes proposées est celle du référentiel versionné.
      */
     function addFmLine(key: string) {
+        // S8.9 (D40) — objet transcendé : la ligne libre est une ligne FM de plus.
+        if (transcendenceActive) return;
         if (stats.length >= MARKET_LIMITS.MAX_STATS) return;
         const definition = getFmEffect(key);
         if (!definition) return;
@@ -185,6 +224,15 @@ export function MarketJetEditor({ stats, onChange }: MarketJetEditorProps) {
 
     return (
         <div className="space-y-4" data-tour="marche-jet">
+            {transcendenceActive && (
+                <p className="rounded-xl border border-gold/30 bg-gold/10 px-3 py-2 text-[11px] font-semibold text-gold">
+                    Objet déclaré <strong>transcendé</strong> : une rune de Transcendance
+                    « empêche les futures forgemagies » ⇒ les <strong>exo</strong> et les
+                    <strong> lignes libres FM</strong> sont désactivés, et aucun <strong>over</strong>
+                    n&apos;est accepté. Retire la rune (bloc Forge) pour les réactiver.
+                </p>
+            )}
+
             <div className="flex flex-wrap items-center gap-2">
                 <Button type="button" variant="outline" size="sm" className="gap-2" onClick={setPerfect}>
                     <Sparkles className="h-3.5 w-3.5 text-gold" />
@@ -196,6 +244,12 @@ export function MarketJetEditor({ stats, onChange }: MarketJetEditorProps) {
                         type="button"
                         variant="outline"
                         size="sm"
+                        disabled={transcendenceActive}
+                        title={
+                            transcendenceActive
+                                ? "Objet transcendé : aucune forgemagie n'est possible."
+                                : undefined
+                        }
                         onClick={() => addExo(preset)}
                     >
                         Exo {preset.label}
@@ -216,7 +270,18 @@ export function MarketJetEditor({ stats, onChange }: MarketJetEditorProps) {
                     }}
                 >
                     <DialogTrigger asChild>
-                        <Button type="button" variant="outline" size="sm" className="gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="gap-2"
+                            disabled={transcendenceActive}
+                            title={
+                                transcendenceActive
+                                    ? "Objet transcendé : aucune forgemagie n'est possible."
+                                    : undefined
+                            }
+                        >
                             <Plus className="h-3.5 w-3.5" />
                             Choisir dans le référentiel ({FM_EFFECTS.length} lignes)
                         </Button>
@@ -324,19 +389,23 @@ export function MarketJetEditor({ stats, onChange }: MarketJetEditorProps) {
                     effets natifs » (God → Items &amp; Ressources), puis ajoute un exo ou une ligne
                     libre FM.
                 </p>
+            ) : editableRows.length === 0 ? (
+                /* S8.8 (D42) — plus aucun champ « Lecture seule » : les lignes non
+                   forgeables sont retirées ici et restent visibles sur la carte. */
+                <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+                    Aucune ligne <strong>forgeable</strong> sur cet objet : ses effets (vol de vie,
+                    dégâts de l&apos;arme, sorts, bonus de panoplie, conditions…) restent affichés
+                    sur la carte de l&apos;objet, mais ne se forgent pas.
+                </p>
             ) : (
                 <ul className="space-y-2">
-                    {stats.map((stat, index) => {
-                        const line = analysis[index];
+                    {editableRows.map(({ stat, index, line }) => {
                         const definition = line.definition;
-                        const readonly = line.readonlyReason !== null;
                         // Over maximal théorique : plafond du référentiel ET densité restante.
-                        const maxOver = definition
-                            ? Math.min(
-                                  definition.maxOverStandalone,
-                                  maxOverFromRemaining(definition, budget.remaining)
-                              )
-                            : 0;
+                        const maxOver = Math.min(
+                            definition.maxOverStandalone,
+                            maxOverFromRemaining(definition, budget.remaining)
+                        );
                         return (
                             <li
                                 key={`${stat.effectId}-${stat.origin}-${index}`}
@@ -349,24 +418,14 @@ export function MarketJetEditor({ stats, onChange }: MarketJetEditorProps) {
                                         label={stat.label}
                                     />
                                     <span className="truncate font-semibold text-foreground">
-                                        {definition ? definition.label : stat.label}
+                                        {definition.label}
                                     </span>
-                                    {definition && (
-                                        <span className="rounded-md border border-border bg-muted/30 px-1.5 text-[10px] font-bold uppercase text-muted-foreground">
-                                            {definition.rune}
-                                        </span>
-                                    )}
+                                    <span className="rounded-md border border-border bg-muted/30 px-1.5 text-[10px] font-bold uppercase text-muted-foreground">
+                                        {definition.rune}
+                                    </span>
                                     {stat.origin === "EXO" && (
                                         <span className="rounded-md border border-info/30 bg-info/10 px-1.5 text-[10px] font-black uppercase text-info">
                                             Exo
-                                        </span>
-                                    )}
-                                    {readonly && (
-                                        <span
-                                            className="rounded-md border border-warning/30 bg-warning/10 px-1.5 text-[10px] font-bold uppercase text-warning"
-                                            title={line.readonlyReason ?? undefined}
-                                        >
-                                            Lecture seule
                                         </span>
                                     )}
                                 </span>
@@ -382,7 +441,6 @@ export function MarketJetEditor({ stats, onChange }: MarketJetEditorProps) {
                                     value={Number.isFinite(stat.actualValue) ? stat.actualValue : 0}
                                     min={MARKET_LIMITS.STAT_VALUE_MIN}
                                     max={MARKET_LIMITS.STAT_VALUE_MAX}
-                                    disabled={readonly}
                                     onChange={(event) => patch(index, { actualValue: Number(event.target.value) })}
                                     className="h-9 w-24"
                                     aria-label={`Valeur réelle — ${stat.label}`}
@@ -393,21 +451,17 @@ export function MarketJetEditor({ stats, onChange }: MarketJetEditorProps) {
                                         "w-20 text-center text-[11px] font-black uppercase",
                                         MARKET_FM_STATUS_CLASSES[line.status]
                                     )}
-                                    title={
-                                        definition
-                                            ? `Rune ${definition.rune} — ${definition.unitWeight} densité par point`
-                                            : line.readonlyReason ?? undefined
-                                    }
+                                    title={`Rune ${definition.rune} — ${definition.unitWeight} densité par point`}
                                 >
                                     {MARKET_FM_STATUS_LABELS[line.status]}
                                 </span>
 
                                 <span className="w-32 text-right text-[11px] tabular-nums text-muted-foreground">
-                                    {definition
-                                        ? line.extraValue > 0
-                                            ? `${fmDensity(definition.unitWeight, line.extraValue)} densité`
-                                            : `over max +${maxOver}`
-                                        : "hors jet FM"}
+                                    {transcendenceActive
+                                        ? "transcendance"
+                                        : line.extraValue > 0
+                                          ? `${fmDensity(definition.unitWeight, line.extraValue)} densité`
+                                          : `over max +${maxOver}`}
                                 </span>
 
                                 <Button
@@ -426,10 +480,16 @@ export function MarketJetEditor({ stats, onChange }: MarketJetEditorProps) {
             )}
 
             <p className="text-[11px] text-muted-foreground">
-                Un over, un exo ou un malus n&apos;est <strong>jamais</strong> refusé : SigilOS ne juge
-                pas la légitimité du jet, il l&apos;étiquette (malus / exo / à vérifier / over /
-                parfait / bon / faible) et affiche la <strong>densité FM</strong> consommée par les
-                overs et exos déclarés.
+                Seules les lignes <strong>forgeables</strong> sont éditées ici : les autres (vol de
+                vie, dégâts de l&apos;arme, sorts, panoplie, conditions…) restent affichées sur la
+                carte de l&apos;objet. Un over, un exo ou un malus n&apos;est{" "}
+                <strong>jamais</strong> refusé : SigilOS ne juge pas la légitimité du jet, il
+                l&apos;étiquette (malus / exo / à vérifier / over / parfait / bon / faible) et
+                affiche la <strong>densité FM</strong> consommée par les overs et exos déclarés.
+                {transcendenceActive && (
+                    <> Exception unique (D40) : un objet <strong>transcendé</strong> n&apos;accepte
+                    ni over ni exo.</>
+                )}
             </p>
         </div>
     );

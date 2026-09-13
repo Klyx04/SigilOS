@@ -13,9 +13,12 @@
  *   4. **contexte membre** (guilde interne + profil SigilOS) résolu **serveur** ;
  *   5. **action métier** : déléguée aux **moteurs partagés** avec le dashboard
  *      (`reserveMarketListingCore` pour `mkt:reserve`, `createMarketOfferCore`
- *      pour la modale `mkt:offer`) — aucune règle n'est dupliquée ici.
- *      `mkt:contact` (S4.5) est la seule action 100 % Discord : la commande `/w`
- *      du vendeur, recopiée telle quelle, aucun moteur métier n'étant en jeu.
+ *      pour la modale `mkt:offer`, `cancelMarketReservationCore` pour
+ *      `mkt:cancel`) — aucune règle n'est dupliquée ici. Le bouton « Contacter »
+ *      a été **supprimé** (BUG-7) : il ne reste que les 3 actions ci-dessus.
+ *
+ * BUG-8 — **tout clic est throttlé côté serveur** (`rateLimit`, fail-closed)
+ * avant d'atteindre la base : un spam de boutons ne peut pas marteler la DB.
  *
  * Deux formes de réponse (§13.5) : `ephemeral` (message du seul membre, type 4)
  * ou `modal` (modale d'offre, type 9 — S4.3). Aucune réponse ne contient un
@@ -24,12 +27,12 @@
 
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { rateLimit } from "@/lib/ratelimit";
 import { getAppBaseUrl } from "@/lib/utils";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import {
     MARKET_EPHEMERAL,
     MARKET_EPHEMERAL_LINK_LABEL,
-    buildMarketContactContent,
     buildMarketDashboardLinkRow,
     buildMarketDashboardUrl,
     buildMarketOfferModal,
@@ -39,7 +42,11 @@ import {
     type MarketModalPayload,
     type MarketModalSubmitRow,
 } from "@/lib/market/discord-interactions";
-import { reserveMarketListingCore, type MarketReservationFailure } from "@/server/market/reservations";
+import {
+    cancelMarketReservationCore,
+    reserveMarketListingCore,
+    type MarketReservationFailure,
+} from "@/server/market/reservations";
 import { createMarketOfferCore, type MarketOfferFailure } from "@/server/market/offers";
 
 /** Message éphémère renvoyé au membre (jamais vide, §13.5). */
@@ -104,6 +111,17 @@ const OFFER_FAILURE_MESSAGES: Record<MarketOfferFailure, string> = {
 };
 
 /**
+ * BUG-8 — **anti-spam des interactions Discord** (RULES.md § Rate Limiting).
+ *
+ * Fenêtre volontairement courte et borne basse : un membre qui clique
+ * légitimement (réserver puis se désister) reste sous la limite, tandis qu'un
+ * spam de clics — ou un bot qui rejoue le même `custom_id` — est coupé
+ * **côté serveur**. Les deux formes (clic de bouton et soumission de modale)
+ * partagent la même politique.
+ */
+const MARKET_INTERACTION_RATE_LIMIT = { max: 6, windowMs: 10_000 } as const;
+
+/**
  * Contexte **côté serveur uniquement** (§16.2) : la guilde interne vient du
  * `guild_id` de l'interaction, le profil de la guilde vient de l'`User.id`
  * SigilOS résolu par la route. Aucun identifiant n'est accepté du client.
@@ -143,12 +161,23 @@ async function resolveMemberContext(
         where: { userId_guildId: { userId, guildId: guildConfig.id } },
         select: { id: true, status: true },
     });
-    if (!profile || profile.status !== "ACTIVE") {
-        logger.info("[market] interaction refusée — profil SigilOS absent ou inactif", {
+    if (!profile) {
+        // BUG-6 — profil **absent** : le membre a une action à faire (le créer).
+        logger.info("[market] interaction refusée — profil SigilOS absent", {
             discordGuildId,
             userId,
         });
-        return { ok: false, outcome: ephemeral(MARKET_EPHEMERAL.PROFILE_REQUIRED) };
+        return { ok: false, outcome: ephemeral(MARKET_EPHEMERAL.PROFILE_MISSING) };
+    }
+    if (profile.status !== "ACTIVE") {
+        // BUG-6 — profil **inactif** : la cause n'est pas la même, le message non
+        // plus (l'ancien texte unique faisait croire à un profil inexistant).
+        logger.info("[market] interaction refusée — profil SigilOS inactif", {
+            discordGuildId,
+            userId,
+            status: profile.status,
+        });
+        return { ok: false, outcome: ephemeral(MARKET_EPHEMERAL.PROFILE_INACTIVE) };
     }
 
     return {
@@ -171,6 +200,20 @@ async function handleReserve(
 ): Promise<MarketInteractionOutcome> {
     const member = await resolveMemberContext(discordGuildId, userId);
     if (!member.ok) return member.outcome;
+
+    // BUG-8 — re-clic sur « Réserver au prix » alors que c'est **sa** réservation :
+    // sans ce garde-fou, le membre recevrait « annonce déjà réservée par quelqu'un
+    // d'autre », ce qui l'empêcherait de comprendre qu'il peut se désister.
+    const ownReservation = await db.marketReservation.findFirst({
+        where: {
+            listingId,
+            buyerProfileId: member.profileId,
+            status: "ACTIVE",
+            listing: { guildId: member.guildConfigId },
+        },
+        select: { id: true },
+    });
+    if (ownReservation) return ephemeral(MARKET_EPHEMERAL.RESERVE_ALREADY_YOURS);
 
     const outcome = await reserveMarketListingCore({
         guildConfigId: member.guildConfigId,
@@ -231,15 +274,22 @@ async function handleOffer(
 }
 
 /**
- * S4.5 — `mkt:contact:<listingId>` : met le membre en relation avec le vendeur.
+ * BUG-8 — `mkt:cancel:<listingId>` : l'acheteur **se désiste**.
  *
- * Discord ne permet **pas** d'ouvrir un message privé : la réponse éphémère
- * porte donc la commande `/w` **prête à copier** plus le bouton lien vers la
- * fiche SigilOS (§13.5). Seul le pseudo **du vendeur** est affiché — il est déjà
- * public dans l'embed (§13.2) — et jamais un montant d'offre ni un pseudo
- * d'acheteur (§13.7).
+ * Réutilise le moteur partagé `cancelMarketReservationCore()` (§13.4 : aucune
+ * règle dupliquée) — garde de statut **dans le `WHERE`**, remise en vente de
+ * l'annonce et **notification au vendeur** y vivent déjà.
+ *
+ * Ici on ne fait que :
+ *   1. résoudre le **contexte serveur** (guilde interne + profil SigilOS) ;
+ *   2. retrouver **la réservation active de CE membre** — l'annonce est cherchée
+ *      par `id` **et** `guildId` (isolation §16.2), le rôle n'est **jamais**
+ *      transmis par le client ;
+ *   3. appeler le core avec l'identité **serveur** (`actorProfileId`) ;
+ *   4. resynchroniser le message Discord (**non bloquant**) pour que le bouton
+ *      « Me désister » disparaisse immédiatement.
  */
-async function handleContact(
+async function handleCancel(
     discordGuildId: string,
     listingId: string,
     userId: string
@@ -249,37 +299,58 @@ async function handleContact(
 
     const listing = await db.marketListing.findFirst({
         where: { id: listingId, guildId: member.guildConfigId, deletedAt: null },
-        select: {
-            id: true,
-            profileId: true,
-            status: true,
-            profile: { select: { pseudoDofus: true } },
-        },
+        select: { id: true, profileId: true, status: true },
     });
     if (!listing) return ephemeral(MARKET_EPHEMERAL.LISTING_NOT_FOUND);
-    if (listing.profileId === member.profileId) return ephemeral(MARKET_EPHEMERAL.CONTACT_OWN_LISTING);
+    if (listing.profileId === member.profileId) return ephemeral(MARKET_EPHEMERAL.CANCEL_OWN_LISTING);
+    if (listing.status !== "RESERVED") return ephemeral(MARKET_EPHEMERAL.CANCEL_UNAVAILABLE);
 
-    const dashboardUrl = buildMarketDashboardUrl(getAppBaseUrl(), discordGuildId, listingId);
-    const linkRow = [buildMarketDashboardLinkRow(dashboardUrl, MARKET_EPHEMERAL_LINK_LABEL)];
+    const reservation = await db.marketReservation.findFirst({
+        where: {
+            listingId: listing.id,
+            buyerProfileId: member.profileId,
+            status: "ACTIVE",
+            listing: { guildId: member.guildConfigId },
+        },
+        select: { id: true },
+    });
+    if (!reservation) return ephemeral(MARKET_EPHEMERAL.CANCEL_NOT_YOURS);
 
-    // Miroir exact de l'état du bouton (§13.3 : désactivé uniquement en `SOLD`) :
-    // une annonce vendue reste consultable via la fiche, pas négociable en jeu.
-    if (listing.status === "SOLD") {
-        return ephemeral(MARKET_EPHEMERAL.CONTACT_UNAVAILABLE, false, linkRow);
-    }
-
-    const sellerPseudo = listing.profile.pseudoDofus?.trim();
-    if (!sellerPseudo) {
-        // Jamais de commande `/w undefined` : on explique et on renvoie la fiche.
-        logger.info("[market] contact refusé — pseudo Dofus du vendeur absent", {
+    const outcome = await cancelMarketReservationCore({
+        guildConfigId: member.guildConfigId,
+        reservationId: reservation.id,
+        actorProfileId: member.profileId,
+        actorUserId: userId,
+    });
+    if (!outcome.ok) {
+        logger.info("[market] désistement refusé", {
             discordGuildId,
             listingId,
+            reason: outcome.error,
         });
-        return ephemeral(MARKET_EPHEMERAL.CONTACT_NO_PSEUDO, false, linkRow);
+        return ephemeral(MARKET_EPHEMERAL.CANCEL_UNAVAILABLE);
     }
 
-    logger.info("[market] commande de contact transmise", { discordGuildId, listingId, userId });
-    return ephemeral(buildMarketContactContent(sellerPseudo), true, linkRow);
+    // Resynchronisation **non bloquante** : le message Discord doit refléter
+    // l'état réel (annonce de nouveau `ACTIVE`, bouton « Me désister » retiré).
+    try {
+        // Import **paresseux** : la chaîne Discord complète n'est chargée que sur
+        // un désistement réel (aucun coût pour les autres interactions ni tests).
+        const { syncListingMessage } = await import("@/server/market/discord");
+        await syncListingMessage(listingId);
+    } catch (error) {
+        logger.warn("[market] resynchronisation Discord après désistement échouée", {
+            discordGuildId,
+            listingId,
+            err: error instanceof Error ? error.message : String(error),
+        });
+    }
+
+    logger.info("[market] désistement depuis Discord", { discordGuildId, listingId });
+    const dashboardUrl = buildMarketDashboardUrl(getAppBaseUrl(), discordGuildId, listingId);
+    return ephemeral(MARKET_EPHEMERAL.CANCEL_SUCCESS, true, [
+        buildMarketDashboardLinkRow(dashboardUrl, MARKET_EPHEMERAL_LINK_LABEL),
+    ]);
 }
 
 /**
@@ -320,6 +391,23 @@ export async function handleMarketComponentInteraction(params: {
         return ephemeral(MARKET_EPHEMERAL.MODULE_DISABLED);
     }
 
+    // BUG-8 — **anti-spam des boutons** (RULES.md § Rate Limiting : toute action
+    // déclenchée depuis Discord est throttlée **côté serveur**, pas seulement
+    // côté bot). `rateLimit()` est **fail-closed** : si Redis est indisponible,
+    // le clic est refusé plutôt que laissé passer.
+    const limited = await rateLimit(
+        `market:discord:${params.userId}:${parsed.action}`,
+        MARKET_INTERACTION_RATE_LIMIT.max,
+        MARKET_INTERACTION_RATE_LIMIT.windowMs
+    );
+    if (!limited.success) {
+        logger.info("[market] interaction Discord refusée — rate limit", {
+            action: parsed.action,
+            discordGuildId: params.discordGuildId,
+        });
+        return ephemeral(MARKET_EPHEMERAL.RATE_LIMITED);
+    }
+
     // S4.2 — réservation : délègue au moteur partagé avec le dashboard (verrou
     // §11.3, refus de sa propre annonce, embed réécrit).
     if (parsed.action === "reserve") {
@@ -332,9 +420,9 @@ export async function handleMarketComponentInteraction(params: {
         return handleOffer(params.discordGuildId, parsed.listingId, params.userId);
     }
 
-    // S4.5 — contact : commande `/w` du vendeur + bouton lien vers la fiche.
-    if (parsed.action === "contact") {
-        return handleContact(params.discordGuildId, parsed.listingId, params.userId);
+    // BUG-8 — désistement de l'acheteur (moteur partagé `cancelMarketReservationCore`).
+    if (parsed.action === "cancel") {
+        return handleCancel(params.discordGuildId, parsed.listingId, params.userId);
     }
 
     // Défensif : `parseMarketCustomId()` n'accepte que les 3 actions ci-dessus,
@@ -397,6 +485,19 @@ export async function handleMarketModalSubmit(params: {
 
     const member = await resolveMemberContext(params.discordGuildId, params.userId);
     if (!member.ok) return member.outcome;
+
+    // BUG-8 — même anti-spam que les clics (chemin de la modale d'offre).
+    const limited = await rateLimit(
+        `market:discord:${params.userId}:offer-submit`,
+        MARKET_INTERACTION_RATE_LIMIT.max,
+        MARKET_INTERACTION_RATE_LIMIT.windowMs
+    );
+    if (!limited.success) {
+        logger.info("[market] soumission de modale refusée — rate limit", {
+            discordGuildId: params.discordGuildId,
+        });
+        return ephemeral(MARKET_EPHEMERAL.RATE_LIMITED);
+    }
 
     const outcome = await createMarketOfferCore({
         guildConfigId: member.guildConfigId,

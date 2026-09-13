@@ -111,10 +111,15 @@ export function MarketSettingsClient({ guildId }: { guildId: string }) {
             // pastilles de couleur (0 = couleur par défaut Discord ⇒ `#000000`, affiché en gris).
             if (rolesRes.success && rolesRes.roles) {
                 setRoles(
-                    rolesRes.roles.map((role) => ({
-                        ...role,
-                        color: `#${role.color.toString(16).padStart(6, "0")}`,
-                    }))
+                    rolesRes.roles
+                        // T6/D-E (ratifié) — `@everyone` n'est **jamais** proposé comme rôle
+                        // pinguable (même filtre que calendar/songes/dj/mission/poll) ;
+                        // le serveur revalide de son côté.
+                        .filter((role) => role.name !== "@everyone")
+                        .map((role) => ({
+                            ...role,
+                            color: `#${role.color.toString(16).padStart(6, "0")}`,
+                        }))
                 );
             }
             setIsLoading(false);
@@ -394,13 +399,9 @@ export function MarketSettingsClient({ guildId }: { guildId: string }) {
                                 />
                                 Négociation autorisée
                             </label>
-                            <label className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                                <Switch
-                                    checked={config.marketProofsEnabled}
-                                    onCheckedChange={(value) => setConfig((prev) => ({ ...prev, marketProofsEnabled: value }))}
-                                />
-                                Preuves (captures) autorisées
-                            </label>
+                            {/* D-A (ratifié) — l'interrupteur « Preuves (captures) autorisées » a été
+                                RETIRÉ : il était sans effet (aucun upload n'existe). `marketProofsEnabled`
+                                reste en base (aucune migration), simplement plus exposé. */}
                         </div>
                     </CardContent>
                 </Card>

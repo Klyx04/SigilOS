@@ -26,8 +26,8 @@ import { sanitizeMarketText } from "@/lib/market/text";
 /** Préfixe de toutes les interactions du marché (cf. `DISCORD_PERM_MAP.mkt`). */
 export const MARKET_INTERACTION_PREFIX = "mkt";
 
-/** Actions portées par les boutons de l'annonce (§13.3). */
-export type MarketInteractionAction = "reserve" | "offer" | "contact";
+/** Actions portées par les boutons de l'annonce (§13.3 + BUG-8). */
+export type MarketInteractionAction = "reserve" | "offer" | "cancel";
 
 /** `custom_id` du marché une fois validé. */
 export type MarketCustomId = {
@@ -61,7 +61,7 @@ export type MarketModalPayload = {
     components: MarketModalComponent[];
 };
 
-const MARKET_INTERACTION_ACTIONS: readonly MarketInteractionAction[] = ["reserve", "offer", "contact"];
+const MARKET_INTERACTION_ACTIONS: readonly MarketInteractionAction[] = ["reserve", "offer", "cancel"];
 
 /** Bornes d'un `cuid()` : tout `listingId` hors de ces bornes est refusé. */
 const LISTING_ID_MIN_LENGTH = 6;
@@ -334,22 +334,11 @@ export function parseMarketOfferSubmission(params: {
 }
 
 /**
- * S4.5 — contenu éphémère du bouton **« Contacter »** : la commande `/w` prête à
- * copier, plus rien à deviner.
- *
- * Le pseudo Dofus du vendeur est **public** (§13.2 : il figure déjà dans la
- * ligne « Vendeur » de l'embed), tandis qu'**aucun** montant d'offre ni pseudo
- * d'acheteur n'apparaît ici (§13.7). L'échange se conclut **en jeu** : SigilOS
- * ne transmet ni contact Discord ni inventaire (§11.2).
+ * BUG-7 — **le bouton « Contacter » a été supprimé** : la fonction qui
+ * construisait sa réponse éphémère (`/w <pseudo>`) a été retirée du module, avec
+ * son `custom_id` (`mkt:contact`), ses libellés et sa documentation. Le bouton
+ * **lien** « Voir sur SigilOS » reste la seule passerelle vers la fiche.
  */
-export function buildMarketContactContent(sellerPseudo: string): string {
-    return [
-        "📩 **Contacter le vendeur**",
-        "L'échange se conclut **en jeu**. Ouvre un message privé avec cette commande :",
-        `\`/w ${sellerPseudo} Bonjour, je te contacte pour ton annonce SigilOS.\``,
-        "Copie-la, remplace le message par le tien, puis valide dans Dofus.",
-    ].join("\n");
-}
 
 /**
  * Messages éphémères (§13.5) — **toutes** les issues d'un clic sont couvertes.
@@ -390,16 +379,30 @@ export const MARKET_EPHEMERAL = {
      * exposé (§13.7).
      */
     OFFER_TRADE_NOT_ACCEPTED: "❌ Cette annonce n'accepte que les kamas : indique un montant pour la réserver ou négocier.",
-    /** S4.5 — un vendeur ne se contacte pas lui-même. */
-    CONTACT_OWN_LISTING: "ℹ️ Tu es le vendeur de cette annonce : il n'y a personne à contacter.",
-    /** S4.5 — annonce vendue : le bouton Discord est désactivé, on explique pourquoi. */
-    CONTACT_UNAVAILABLE: "❌ Cette annonce est vendue ou retirée : elle n'est plus négociable.",
-    /** S4.5 — pseudo Dofus absent : la commande `/w` serait inutilisable, on le dit. */
-    CONTACT_NO_PSEUDO: "❌ Le vendeur n'a pas renseigné son pseudo Dofus : ouvre la fiche SigilOS pour le joindre autrement.",
+    /** BUG-8 — un acheteur ne peut pas se désister d'une annonce qu'il n'a pas réservée. */
+    CANCEL_NOT_YOURS: "❌ Tu n'as pas de réservation active sur cette annonce.",
+    /** BUG-8 — un vendeur ne se « désiste » pas : il retire son annonce. */
+    CANCEL_OWN_LISTING: "ℹ️ Tu es le vendeur : pour libérer ton annonce, retire-la depuis SigilOS.",
+    /** BUG-8 — le désistement a abouti : l'annonce repart, le vendeur est prévenu. */
+    CANCEL_SUCCESS: "✅ Réservation annulée : l'annonce est de nouveau disponible et le vendeur est prévenu.",
+    /** BUG-8 — annonce plus `RESERVED` (vendue / expirée / retirée entre-temps). */
+    CANCEL_UNAVAILABLE: "❌ Cette annonce n'est plus réservée : il n'y a rien à annuler.",
+    /** BUG-8 — le clic arrive trop vite (anti-spam des boutons, fail-closed). */
+    RATE_LIMITED: "⏳ Doucement ! Réessaie dans quelques secondes.",
+    /** BUG-8 — l'acheteur reclique « Réserver » sur **sa** réservation. */
+    RESERVE_ALREADY_YOURS: "ℹ️ Tu as déjà réservé cette annonce : utilise « Me désister » pour revenir en arrière.",
     /** Annonce absente ou appartenant à une autre guilde (§16.2). */
     LISTING_NOT_FOUND: "❌ Cette annonce est introuvable.",
-    /** Membre sans profil SigilOS actif dans la guilde : refus explicite. */
-    PROFILE_REQUIRED: "❌ Termine d'abord ton profil SigilOS dans cette guilde pour utiliser le Marché.",
+    /**
+     * BUG-6 — **deux cas distincts**, deux messages distincts : un membre
+     * **sans** profil SigilOS dans la guilde et un membre dont le profil est
+     * **inactif** (en attente / archivé) n'ont pas la même action à faire.
+     * L'ancien message unique (« Termine d'abord ton profil… ») s'affichait à
+     * tort pour un membre dont le profil existait déjà.
+     */
+    PROFILE_MISSING: "❌ Aucun profil SigilOS dans cette guilde : crée ton profil (ou demande à un admin) pour utiliser le Marché.",
+    /** Profil présent mais **inactif** : ce n'est pas au membre de le « terminer ». */
+    PROFILE_INACTIVE: "❌ Ton profil SigilOS est inactif dans cette guilde : contacte un administrateur pour l'activer, puis réessaie.",
     /** Échec technique inattendu : jamais de silence (§13.5). */
     GENERIC_ERROR: "❌ L'action a échoué, réessaie dans un instant.",
 } as const;

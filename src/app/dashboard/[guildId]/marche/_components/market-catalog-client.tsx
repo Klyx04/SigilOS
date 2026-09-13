@@ -21,7 +21,8 @@ import {
     MARKET_STATUS_LABELS,
     MARKET_TYPE_LABELS,
 } from "@/server/actions/market-constants";
-import { formatKamas } from "@/lib/market/kamas";
+import { formatGroupedInteger, formatKamas } from "@/lib/market/kamas";
+import { formatMarketDateTime } from "@/lib/market/format-date";
 import { cn } from "@/lib/utils";
 import {
     AlertTriangle,
@@ -73,12 +74,9 @@ interface MarketCatalogClientProps {
     channelConfigured: boolean;
 }
 
-/** S7.9 — échéance lisible (« jusqu'au 12 septembre 2026 à 20:30 »). */
+/** S7.9 — échéance lisible (« 12/09/2026 20:30 »), **déterministe** (BUG-9). */
 function formatDeadline(iso: string | null): string {
-    if (!iso) return "—";
-    const date = new Date(iso);
-    if (Number.isNaN(date.getTime())) return "—";
-    return date.toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" });
+    return formatMarketDateTime(iso);
 }
 
 export function MarketCatalogClient({
@@ -330,7 +328,7 @@ function MarketListingCard({ guildId, listing }: { guildId: string; listing: Ser
                     <div className="text-[11px] text-muted-foreground border-t border-border pt-2 space-y-0.5">
                         {listing.components.slice(0, 2).map((component) => (
                             <p key={component.id} className="truncate">
-                                {component.quantity.toLocaleString("fr-FR")} × {component.name}
+                                {formatGroupedInteger(component.quantity)} × {component.name}
                             </p>
                         ))}
                         {listing.components.length > 2 && <p>+ {listing.components.length - 2} autre(s)</p>}
@@ -380,9 +378,9 @@ function MarketTable({ guildId, listings }: { guildId: string; listings: Seriali
                                 <td className="px-4 py-3 text-muted-foreground">
                                     {listing.type === "RESOURCE"
                                         ? listing.components.length > 0
-                                            ? `${listing.components[0].quantity.toLocaleString("fr-FR")} × ${listing.components[0].name}${listing.components.length > 1 ? ` (+${listing.components.length - 1})` : ""}`
+                                            ? `${formatGroupedInteger(listing.components[0].quantity)} × ${listing.components[0].name}${listing.components.length > 1 ? ` (+${listing.components.length - 1})` : ""}`
                                             : listing.quantity
-                                                ? `${listing.quantity.toLocaleString("fr-FR")} ${listing.unitLabel ?? "unités"}`
+                                                ? `${formatGroupedInteger(listing.quantity)} ${listing.unitLabel ?? "unités"}`
                                                 : "—"
                                         : listing.stats.length > 0
                                             ? `${listing.stats.length} stat(s) déclarée(s)`

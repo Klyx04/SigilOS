@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { MARKET_OFFER_STATUS_CLASSES, MARKET_OFFER_STATUS_LABELS } from "@/server/actions/market-constants";
 import { formatKamas } from "@/lib/market/kamas";
+import { formatMarketDate } from "@/lib/market/format-date";
 import { cn } from "@/lib/utils";
 import { cancelMarketOffer, respondToMarketOffer, type MarketCounterpartProfile } from "@/server/actions/market-actions";
 import { MarketStatLines, type MarketStatLine } from "@/components/market/market-stat-lines";
@@ -133,9 +134,9 @@ function OfferRow({ guildId, offer, isPending, onRespond, onCounter, onCancel }:
                     />
                 ) : null}
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                    {new Date(offer.createdAt).toLocaleDateString("fr-FR")}
+                    {formatMarketDate(offer.createdAt)}
                     {offer.status === "PENDING" && offer.expiresAt
-                        ? ` · expire le ${new Date(offer.expiresAt).toLocaleDateString("fr-FR")}`
+                        ? ` · expire le ${formatMarketDate(offer.expiresAt)}`
                         : ""}
                 </p>
             </div>

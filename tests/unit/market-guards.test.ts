@@ -325,6 +325,12 @@ describe("market guards — édition d'annonce (S7)", () => {
         });
         // Plage native issue du CATALOGUE (jamais du client).
         (db.gameItem.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
+            // BUG-11/T10 — la **famille** est désormais relue au catalogue pour
+            // décider de la nature d'annonce / forge / jet : une amulette
+            // (`superTypeId 1`) est un équipement modifiable.
+            typeId: 1,
+            superTypeId: 1,
+            typeName: "Amulette",
             nativeEffects: [
                 { effectId: 10, characteristic: 11, from: 251, to: 300, category: null, elementId: null },
             ],

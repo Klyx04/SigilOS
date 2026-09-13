@@ -24,6 +24,13 @@ import {
 // S8.10/S8.11 — gardes **pures** de forge réelle : les mêmes règles servent
 // l'UI (S8.7/S8.9) et ce serveur, qui reste **seul juge** (D40/D41).
 import { marketForgeFieldsSchema, validateForgeDeclaration } from "@/lib/market/forge-guards";
+// BUG-11/T10 — familles d'objets : la **famille** est relue au catalogue et
+// décide de la nature d'annonce, de la forge et du jet (règle partagée avec l'UI).
+import {
+    MARKET_ITEM_FAMILY_LABELS,
+    marketListingKindForFamily,
+    resolveMarketItemPolicy,
+} from "@/lib/market/item-families";
 import { publishListingToDiscord, syncListingMessage } from "@/server/market/discord";
 import { writeMarketAuditLog } from "@/server/market/audit";
 import { reserveMarketListingCore, cancelMarketReservationCore } from "@/server/market/reservations";
@@ -1236,6 +1243,63 @@ async function guardForgeDeclaration(
     });
 }
 
+/**
+ * BUG-11 / T10 — **garde de famille** appliquée à l'écriture.
+ *
+ * 🛡️ La famille de l'objet est relue **au catalogue** (`GameItem.typeId` /
+ * `superTypeId`) : jamais depuis le client. Elle décide de trois choses :
+ *   1. la **nature d'annonce** attendue (`RESOURCES_OTHER` ⇒ lot `RESOURCE`,
+ *      `EQUIPMENT` / `COSMETIC` ⇒ annonce d'objet `EQUIPMENT`) ;
+ *   2. la **forge** : un objet brut (compagnon, Dofus, Trophée, Prysmaradite,
+ *      équipement de percepteur, apparat, familier) n'accepte aucune rune ni
+ *      potion ;
+ *   3. le **jet** : seul un objet modifiable peut déclarer des statistiques
+ *      (les Ressources / Autres et le Cosmétique se vendent tels quels).
+ *
+ * Un objet absent du catalogue est **refusé** (fail-closed) : on n'invente
+ * jamais une famille pour laisser passer une déclaration.
+ */
+async function guardItemFamilyPolicy(
+    data: z.infer<typeof marketListingBaseSchema>,
+    statsCount: number
+): Promise<string | null> {
+    if (!data.dofusDbItemId) return null; // lots composites saisis à la main
+
+    const item = await db.gameItem.findUnique({
+        where: { ankamaId: data.dofusDbItemId },
+        select: { typeId: true, superTypeId: true, typeName: true, category: true },
+    });
+    if (!item) return "Objet inconnu du catalogue : choisis un objet existant.";
+
+    const policy = resolveMarketItemPolicy({
+        typeId: item.typeId,
+        superTypeId: item.superTypeId,
+        typeName: item.typeName,
+        category: item.category,
+    });
+    const expectedType = marketListingKindForFamily(policy.family);
+    const label = MARKET_ITEM_FAMILY_LABELS[policy.family];
+
+    if (data.type !== expectedType) {
+        return `Nature d'annonce incohérente pour « ${item.typeName} » (${label}).`;
+    }
+
+    const declaresForge =
+        data.transcendenceRuneId != null ||
+        data.strikeElement != null ||
+        data.elementPotionId != null ||
+        data.elementPotionTier != null ||
+        Boolean(data.huntingWeapon);
+
+    if (declaresForge && !policy.forgeAllowed) {
+        return `« ${item.typeName} » (${label}) ne peut pas être forgemagé : vente brute uniquement.`;
+    }
+    if (statsCount > 0 && !policy.statEditorAllowed) {
+        return `« ${item.typeName} » (${label}) se vend tel quel : aucune statistique ne peut être déclarée.`;
+    }
+    return null;
+}
+
 /** Valide la cohérence métier d'une annonce (item catalogue / contenu du lot). */
 function validateListingCoherence(input: z.infer<typeof marketListingBaseSchema>): string | null {
     if (input.type === "EQUIPMENT" && !input.dofusDbItemId) {
@@ -1290,6 +1354,9 @@ export async function createMarketListing(
         // S8.11 — gardes de forge (transcende ⇒ aucun over/exo, armes seules…).
         const forgeError = await guardForgeDeclaration(data, resolvedStats.rows);
         if (forgeError) return { success: false, error: forgeError };
+        // BUG-11/T10 — garde de **famille** (nature d'annonce, forge, jet).
+        const familyError = await guardItemFamilyPolicy(data, resolvedStats.rows.length);
+        if (familyError) return { success: false, error: familyError };
 
         const session = await auth();
         const listing = await db.marketListing.create({
@@ -1395,6 +1462,9 @@ export async function updateMarketListing(
         // S8.11 — mêmes gardes de forge qu'en création (le serveur reste seul juge).
         const forgeError = await guardForgeDeclaration(data, resolvedStats.rows);
         if (forgeError) return { success: false, error: forgeError };
+        // BUG-11/T10 — même garde de famille qu'en création.
+        const familyError = await guardItemFamilyPolicy(data, resolvedStats.rows.length);
+        if (familyError) return { success: false, error: familyError };
 
         await db.$transaction(async (tx) => {
             await tx.marketListing.update({
@@ -1885,7 +1955,11 @@ export async function getMarketPublishContext(
         const { guildConfig } = ctx;
 
         const allowedPingRoleIds = Array.isArray(guildConfig.marketAllowedPingRoleIds)
-            ? (guildConfig.marketAllowedPingRoleIds as string[])
+            ? (guildConfig.marketAllowedPingRoleIds as string[]).filter(
+                  // T6 / D-E — id `@everyone` (= id de guilde) ignoré au ping,
+                  // même s'il a été enregistré avant le correctif (fail-closed).
+                  (roleId) => roleId !== guildId
+              )
             : [];
 
         return {

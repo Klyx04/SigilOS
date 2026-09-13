@@ -294,12 +294,25 @@ export async function updateMarketSettings(
             logger.warn("[updateMarketSettings] tags de forum non revérifiés : mapping vidé", { guildId });
         }
 
+        // T6 / D-E (ratifié) — `@everyone` **jamais** conservé dans les rôles
+        // pinguables : côté Discord, le rôle `@everyone` porte l'id de la guilde.
+        // On revalide ici (défense en profondeur : un id écrit à la main dans une
+        // requête est écarté même si l'UI l'a déjà filtré).
+        const allowedPingRoleIds = data.marketAllowedPingRoleIds.filter(
+            (roleId) => roleId !== guildId
+        );
+        if (allowedPingRoleIds.length !== data.marketAllowedPingRoleIds.length) {
+            logger.warn("[updateMarketSettings] rôle @everyone écarté des rôles pinguables", {
+                guildId,
+            });
+        }
+
         await db.guildConfig.update({
             where: { id: guildConfig.id },
             data: {
                 marketNotifyChannelId: data.marketNotifyChannelId,
                 marketNotifyRoleId: data.marketNotifyRoleId,
-                marketAllowedPingRoleIds: data.marketAllowedPingRoleIds,
+                marketAllowedPingRoleIds: allowedPingRoleIds,
                 marketModeratorRoleId: data.marketModeratorRoleId,
                 marketMinRoleId: data.marketMinRoleId,
                 marketMaxActivePerMember: data.marketMaxActivePerMember,

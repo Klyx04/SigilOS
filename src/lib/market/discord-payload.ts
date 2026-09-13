@@ -72,10 +72,13 @@ export type MarketDiscordPayloadInput = {
     /** URL absolue de l'icône objet (mode forum → thumbnail). */
     itemIconUrl?: string | null;
     /**
-     * Correction 13/09 — **lignes de jet** publiées dans l'embed (tous modes) :
-     * l'objet se lisait sans ses stats, ce qui rendait l'annonce inutile.
+     * BUG-5 (spec §2.4) — **le jet n'est plus listé en texte** : il vit
+     * entièrement dans la **carte image** (`/api/og/market/[id]`) avec les
+     * icônes officielles et les couleurs over / exo / malus / max.
+     * Le champ est conservé **à `undefined`** pour ne jamais casser un appelant
+     * historique : la description ne contient plus aucune ligne de statistique.
      */
-    stats?: MarketDiscordStatLine[];
+    stats?: never;
     /**
      * S8.17 (D40/D41) — **forge réelle déclarée** : Transcendé, élément de frappe
      * (+ palier de potion) et arme de chasse. Ce sont des données **déclarées**
@@ -120,13 +123,10 @@ export type MarketDiscordStatLine = {
 };
 
 /**
- * Correction 13/09 — **le jet est publié** dans l'embed.
- *
- * Constat user : l'annonce Discord n'affichait aucune ligne de stats (seul le
- * badge d'exo), alors que l'objet en porte (et que la carte PNG, elle, les
- * montre). Discord n'acceptant ni couleur de texte ni icône d'asset dans un
- * embed, la ligne reprend la forme de la carte :
- *   `✦ Exo **1** PM [1]` · `**348** Vitalité [301 à 350]` · `**-8** Esquive PA [-6 à -8]`.
+ * BUG-5 (spec §2.4) — **plus aucune statistique en texte dans l'embed** : tout
+ * est embarqué dans l'image de la carte (`/api/og/market/[id]`), rendue le jour
+ * de la publication. Discord n'affiche ni icône d'asset ni couleur de texte :
+ * un embed « texte » ne pouvait donc jamais ressembler à la tooltip Dofus.
  */
 export function formatMarketStatLine(stat: MarketDiscordStatLine): string {
     const sign = stat.actualValue >= 0 ? "+" : "";
@@ -249,7 +249,6 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
         dashboardUrl,
         forumMode,
         itemIconUrl,
-        stats = [],
         transcended,
         transcendenceLabel,
         strikeElement,
@@ -292,16 +291,10 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
         descriptionLines.push(`**STATUT**\n${statusLines.join("\n")}`);
     }
 
-    // Correction 13/09 — **EFFETS** : le jet déclaré, tel qu'il apparaît sur la
-    // carte (valeur + libellé + plage native), exo marqué « ✦ Exo », malus en
-    // négatif. Discord limite un embed à **4096** caractères : on publie les
-    // **20** premières lignes et on résume le reste (jamais de description muette).
-    if (stats.length > 0) {
-        const visible = stats.slice(0, 20).map(formatMarketStatLine);
-        const extra =
-            stats.length > 20 ? `\n*+ ${stats.length - 20} autre(s) ligne(s) de jet*` : "";
-        descriptionLines.push(`**EFFETS**\n${visible.join("\n")}${extra}`);
-    }
+    // BUG-5 (spec §2.4) — **aucune ligne de statistique ici** : le jet complet
+    // (icônes officielles, couleurs over / exo / malus / max, plage native,
+    // badges) est embarqué dans la **carte image**, posée dès la publication.
+    // L'embed ne porte que ce qu'une image ne peut pas dire utilement.
 
     if (lotComponents && lotComponents.length > 0) {
         const visible = lotComponents.slice(0, 5).map((c) => `• ${c.quantity.toLocaleString("fr-FR")} × ${c.name}`);
@@ -334,13 +327,20 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
             // §13.5 : l'offre exige une annonce `ACTIVE` ET négociable.
             disabled: actionsDisabled || !negotiable,
         },
-        {
-            type: 2,
-            style: 2,
-            label: "Contacter",
-            custom_id: `mkt:contact:${listingId}`,
-            disabled: status === "SOLD",
-        },
+        // BUG-8 — l'acheteur qui a réservé au prix doit pouvoir **revenir en
+        // arrière** : le bouton « Me désister » n'existe QUE sur une annonce
+        // `RESERVED` (jamais un bouton mort dans les autres états).
+        ...(status === "RESERVED"
+            ? [
+                  {
+                      type: 2,
+                      style: 4,
+                      label: "Me désister",
+                      custom_id: `mkt:cancel:${listingId}`,
+                      disabled: false,
+                  },
+              ]
+            : []),
         // S4.6 — bouton **lien** vers la fiche SigilOS (jamais de `custom_id` :
         // Discord l'interdit sur un lien), forme partagée avec les réponses
         // éphémères de S4.5.

@@ -15,6 +15,17 @@ import {
 // God doit le purger pour que les libellés/signes fraîchement lus soient visibles.
 import { FM_CHARACTERISTIC_KEYS } from '@/lib/market/fm-effects';
 import { collectDofusDbPages } from '@/lib/market/referential-pagination';
+import { normalizeItemIconUrl } from '@/lib/market/item-image';
+import {
+    MARKET_COSMETIC_SUPERTYPE_IDS,
+    MARKET_COSMETIC_TYPE_IDS,
+    MARKET_COSMETIC_TYPE_NAMES,
+    MARKET_EQUIPMENT_SUPERTYPE_IDS,
+    MARKET_EQUIPMENT_TYPE_IDS,
+    MARKET_EQUIPMENT_TYPE_NAMES,
+    resolveMarketItemFamily,
+} from '@/lib/market/item-families';
+import { buildMarketFamilyWhere } from '@/lib/market/family-where';
 import { Prisma } from '@prisma/client';
 import crypto from 'crypto';
 
@@ -43,6 +54,8 @@ export interface GameItemSearchResult {
     hasRecipe: boolean;
     iconUrl: string | null;
     // ── S2 (chantier Marché) — métadonnées utiles à l'éditeur de jet FM ──────
+    /** `GameItem.typeId` DofusDB — résolution de **famille** d'objet (BUG-11/T10). */
+    typeId?: number | null;
     superTypeId?: number | null;
     superTypeName?: string | null;
     realWeight?: number | null;
@@ -61,7 +74,13 @@ export interface GameItemSearchResult {
 export async function searchLocalGameItems(
     query: string,
     category: 'all' | 'equipment' | 'resources' | 'consumables' | 'cosmetics' = 'all',
-    limit = 20
+    limit = 20,
+    /**
+     * BUG-11/T10 — filtre par **famille produit** (Équipements / Cosmétique /
+     * Ressources-Autres) résolu sur le `superTypeId` DofusDB : le catalogue
+     * n'expose que les objets réellement vendables dans la nature choisie.
+     */
+    family?: 'EQUIPMENT' | 'COSMETIC' | 'RESOURCES_OTHER' | null
 ): Promise<ActionResponse<GameItemSearchResult[]>> {
     try {
         const cleanQuery = (query || '').trim();
@@ -81,6 +100,11 @@ export async function searchLocalGameItems(
 
         if (category !== 'all') {
             where.category = category;
+        }
+
+        if (family) {
+            // ⚠️ Filtre NULL-safe (BUG-11/T10) : voir `buildMarketFamilyWhere`.
+            Object.assign(where, buildMarketFamilyWhere(family));
         }
 
         // Correction 13/09 (2ᵉ passe) — le référentiel est chargé **ici** (cache
@@ -112,6 +136,7 @@ export async function searchLocalGameItems(
                     itemSetName: true,
                     isLegendary: true,
                     nativeEffects: true,
+                    typeId: true,
                 },
             }),
             loadMarketReferential(),
@@ -122,6 +147,8 @@ export async function searchLocalGameItems(
             success: true,
             data: items.map((item) => ({
                 ...item,
+                // BUG-3 — une seule forme d'URL d'icône pour tout le module.
+                iconUrl: normalizeItemIconUrl(item.iconUrl, item.ankamaId),
                 nativeEffects: enrichNativeEffects(
                     resolveNativeEffects(item),
                     statReferential
@@ -166,6 +193,7 @@ export async function getLocalGameItemDetails(ankamaId: number): Promise<ActionR
                     itemSetName: true,
                     isLegendary: true,
                     nativeEffects: true,
+                    typeId: true,
                 },
             }),
             // Correction 13/09 (2ᵉ passe) — mêmes lignes résolues serveur que la
@@ -179,6 +207,8 @@ export async function getLocalGameItemDetails(ankamaId: number): Promise<ActionR
             data: item
                 ? {
                       ...item,
+                      // BUG-3 — même normalisation que la recherche locale.
+                      iconUrl: normalizeItemIconUrl(item.iconUrl, item.ankamaId),
                       nativeEffects: enrichNativeEffects(
                           resolveNativeEffects(item),
                           toMarketStatReferentialInput(referential)
@@ -455,7 +485,12 @@ export async function siphonGameItemsBatch(skip = 0, limit = 50): Promise<
 
             const name = typeof raw.name?.fr === 'string' ? raw.name.fr : String(raw.name || 'Objet');
             const level = Number(raw.level || 1);
-            const typeId = raw.typeId ? Number(raw.typeId) : null;
+            const typeId =
+                raw.typeId != null
+                    ? Number(raw.typeId)
+                    : raw.type?.id != null
+                    ? Number(raw.type.id)
+                    : null;
             const typeName = typeof raw.type?.name?.fr === 'string' ? raw.type.name.fr : 'Équipement';
             const description = typeof raw.description?.fr === 'string' ? raw.description.fr : null;
             const effects = Array.isArray(raw.possibleEffects)
@@ -477,22 +512,50 @@ export async function siphonGameItemsBatch(skip = 0, limit = 50): Promise<
             const itemSetName = typeof raw.itemSet?.name?.fr === 'string' ? raw.itemSet.name.fr : null;
             const isLegendary = Boolean(raw.isLegendary);
             const isSaleable = raw.isSaleable === undefined ? true : Boolean(raw.isSaleable);
-            const superTypeId = raw.superTypeId != null ? Number(raw.superTypeId) : null;
-            const superTypeName = typeof raw.superType?.name?.fr === 'string' ? raw.superType.name.fr : null;
+            // BUG-11 — DofusDB expose la famille dans `type.superTypeId` (et non
+            // à la racine) : sans ce repli, `superTypeId` restait **NULL** en base
+            // et la résolution de famille retombait sur le seul `typeName`.
+            const superTypeId =
+                raw.superTypeId != null
+                    ? Number(raw.superTypeId)
+                    : raw.type?.superTypeId != null
+                    ? Number(raw.type.superTypeId)
+                    : null;
+            const superTypeName =
+                typeof raw.superType?.name?.fr === 'string'
+                    ? raw.superType.name.fr
+                    : typeof raw.type?.superTypeName?.fr === 'string'
+                    ? raw.type.superTypeName.fr
+                    : null;
             // Version LÉGÈRE des effets natifs (plages min–max) : source serveur de l'éditeur FM
             // et de la carte d'item. `effects` (lourd, possibleEffects) est CONSERVÉ tel quel.
             const nativeEffects = toNativeEffects(raw);
 
-            // Déterminer la catégorie principale
-            let category = 'equipment';
+            // Déterminer la catégorie principale.
+            // ⚠️ Constat beta du 13/09 : l'ancien heuristique sur le libellé de
+            // type classait « Bois », « Minerai », « Clef »… en `equipment` ⇒ la
+            // recherche « Ressources » ne renvoyait rien. On dérive désormais la
+            // catégorie de la **famille** (typeId / superTypeId / typeName), avec
+            // le seau `consumables` conservé pour les consommables.
             const typeLower = typeName.toLowerCase();
-            if (typeLower.includes('ressource') || typeLower.includes('matière') || typeLower.includes('alliage')) {
-                category = 'resources';
-            } else if (typeLower.includes('consommable') || typeLower.includes('potion') || typeLower.includes('pain') || typeLower.includes('viande')) {
-                category = 'consumables';
-            } else if (typeLower.includes('apparat') || typeLower.includes('cosmétique') || typeLower.includes('montilier') || typeLower.includes('costume')) {
-                category = 'cosmetics';
-            }
+            const isConsumable =
+                typeLower.includes('consommable') ||
+                typeLower.includes('potion') ||
+                typeLower.includes('pain') ||
+                typeLower.includes('viande') ||
+                typeLower.includes('bière') ||
+                typeLower.includes('boisson') ||
+                typeLower.includes('friandise') ||
+                typeLower.includes('nourriture');
+            const family = resolveMarketItemFamily({ typeId, superTypeId, typeName });
+            let category =
+                family === 'EQUIPMENT'
+                    ? 'equipment'
+                    : family === 'COSMETIC'
+                    ? 'cosmetics'
+                    : isConsumable
+                    ? 'consumables'
+                    : 'resources';
 
             // Calcul du Hash MD5 pour détecter les modifications réelles
             // (inclut les champs S2 : les items existants se COMPLÈTENT au prochain passage)

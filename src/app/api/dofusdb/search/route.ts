@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import { normalizeItemIconUrl } from "@/lib/market/item-image";
 
 /**
  * GET /api/dofusdb/search?q=...&limit=8
@@ -70,10 +71,14 @@ function normalizeEffects(effects: any[]) {
 function normalizeItem(item: any) {
     if (!item) return item;
     const fx = normalizeEffects(item.effects || item.possibleEffects || []);
+    const ankamaId = Number(item.id);
     return {
         ...item,
         effects: fx,
         possibleEffects: fx,
+        // BUG-3 — toute icône repart sur le proxy auto-siphon : plus jamais de nom
+        // nu (`25757.webp`) ni de chemin statique non siphonné (`/uploads/...`) ⇒ 404.
+        img: normalizeItemIconUrl(item.img, Number.isInteger(ankamaId) ? ankamaId : null) ?? item.img,
     };
 }
 

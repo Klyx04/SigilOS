@@ -12,7 +12,8 @@
 import Image from "next/image";
 import { Package, Scale, Sparkles, Sword, Target } from "lucide-react";
 import { StatIcon } from "@/components/market/stat-icon";
-import { formatKamas } from "@/lib/market/kamas";
+import { formatKamas, formatGroupedInteger } from "@/lib/market/kamas";
+import { normalizeItemIconUrl } from "@/lib/market/item-image";
 import { isPercentStat, normalizeNativeRange } from "@/lib/market/effects";
 import {
     describeSmithmagicStatus,
@@ -118,6 +119,14 @@ function StatusLineIcon({ kind }: { kind: SmithmagicStatusKind }) {
 export function MarketItemCard({ data, className }: { data: MarketItemCardData; className?: string }) {
     const stats = data.stats ?? [];
     const components = data.components ?? [];
+    /**
+     * 📐 BUG-3 + constat beta : une annonce de **lot** n'a pas d'`itemIconUrl`,
+     * la carte restait donc sur un cube gris. Repli : l'icône du **premier
+     * composant** du lot, normalisée vers le proxy auto-siphon (jamais 404).
+     */
+    const itemIconUrl =
+        normalizeItemIconUrl(data.iconUrl ?? null, null) ??
+        normalizeItemIconUrl(components[0]?.iconUrl ?? null, null);
     // S8.4 — bloc STATUT : le mapping carte → lignes est **pur et testé**
     // (`describeSmithmagicStatus`) ; ce composant ne fait que le rendre.
     const statusLines: SmithmagicStatusLine[] = describeSmithmagicStatus({
@@ -147,18 +156,21 @@ export function MarketItemCard({ data, className }: { data: MarketItemCardData; 
                         <p className="text-label font-bold text-gold mt-1">{data.itemSetName}</p>
                     )}
                 </div>
-                <div className="relative h-16 w-16 shrink-0 rounded-xl border border-border bg-background/60">
-                    {data.iconUrl ? (
+                {/* 📐 Constat beta du 13/09 : l'objet était trop petit — il passe en
+                    112 px et sert de repère visuel principal de la carte. Repli :
+                    l'icône du premier composant du lot (annonce sans objet). */}
+                <div className="relative h-28 w-28 shrink-0 rounded-2xl border border-border-strong bg-background/60">
+                    {itemIconUrl ? (
                         <Image
-                            src={data.iconUrl}
+                            src={itemIconUrl}
                             alt={data.name}
                             fill
-                            sizes="64px"
-                            className="object-contain p-1"
+                            sizes="112px"
+                            className="object-contain p-2"
                             unoptimized
                         />
                     ) : (
-                        <Package className="absolute inset-0 m-auto h-7 w-7 text-muted-foreground/40" />
+                        <Package className="absolute inset-0 m-auto h-12 w-12 text-muted-foreground/40" />
                     )}
                 </div>
             </div>
@@ -242,7 +254,9 @@ export function MarketItemCard({ data, className }: { data: MarketItemCardData; 
                         {components.map((component, index) => (
                             <li key={index} className="flex items-center gap-2 text-label text-foreground/90">
                                 <span className="font-black tabular-nums text-gold">
-                                    ×{component.quantity.toLocaleString("fr-FR")}
+                                    {/* BUG-9 — formatage déterministe (pas de `toLocaleString`) :
+                                        le rendu serveur et l'hydratation produisent la même chaîne. */}
+                                    ×{formatGroupedInteger(component.quantity)}
                                 </span>
                                 <span className="min-w-0 flex-1 truncate">{component.name}</span>
                                 {component.unitLabel && (

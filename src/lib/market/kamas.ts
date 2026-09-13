@@ -46,6 +46,25 @@ export function formatKamas(value: number | null | undefined): string {
 }
 
 /**
+ * BUG-9 — formate un **entier** avec un séparateur de milliers **déterministe**.
+ *
+ * `Number#toLocaleString("fr-FR")` dépend de l'ICU : selon la version de Node
+ * (rendu serveur) et du navigateur (hydratation), le séparateur peut différer
+ * (U+202F vs U+00A0) ⇒ React lève `error #418` (« text didn't match »).
+ * Ce helper produit **toujours** la même chaîne des deux côtés.
+ */
+export function formatGroupedInteger(value: number): string {
+    if (value === null || value === undefined || !Number.isFinite(value)) {
+        return KAMAS_EMPTY_LABEL;
+    }
+    const rounded = Math.trunc(value);
+    const sign = rounded < 0 ? "-" : "";
+    return `${sign}${Math.abs(rounded)
+        .toString()
+        .replace(/\B(?=(\d{3})+(?!\d))/g, GROUP_SEPARATOR)}`;
+}
+
+/**
  * Parse une saisie utilisateur de kamas (`"12 500 k"`, `"12.500"`, `"12500"`).
  * Tolérant sur les séparateurs (espaces, points, virgules, suffixe `k`/`K`),
  * strict sur le résultat : entier `0 ≤ v ≤ KAMAS_MAX`, sinon `null`.

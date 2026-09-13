@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MARKET_STATUS_CLASSES, MARKET_STATUS_LABELS } from "@/server/actions/market-constants";
 import { formatKamas } from "@/lib/market/kamas";
+import { formatMarketDate } from "@/lib/market/format-date";
 import { cn } from "@/lib/utils";
 import {
     deleteMarketListing,
@@ -131,7 +132,7 @@ export function MarketMySpaceClient({ guildId, viewer, active, archived, receive
                                     <p className="text-xs text-muted-foreground mt-1">
                                         {listing.itemName ? `${listing.itemName} · ` : ""}
                                         {formatKamas(listing.priceKamas)}
-                                        {listing.expiresAt ? ` · expire le ${new Date(listing.expiresAt).toLocaleDateString("fr-FR")}` : ""}
+                                        {listing.expiresAt ? ` · expire le ${formatMarketDate(listing.expiresAt)}` : ""}
                                     </p>
                                     {/* S8.15 — jet déclaré avec les icônes officielles
                                         (avant : aucune ligne de stats sur cet écran). */}

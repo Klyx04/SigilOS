@@ -21,6 +21,7 @@ import {
     type MarketForumTagOption,
 } from "@/server/actions/market-admin-actions";
 import { MARKET_SETTINGS_BOUNDS, MARKET_SETTINGS_DEFAULTS } from "@/server/actions/market-constants";
+import { formatReminderDays, parseReminderDays } from "@/lib/market/reminder-days";
 import {
     MARKET_FORUM_TAG_KEYS,
     MARKET_FORUM_TAG_LABELS,
@@ -339,14 +340,24 @@ export function MarketSettingsClient({ guildId }: { guildId: string }) {
                     </Card>
                 )}
 
-                {/* Durées, plafonds & rappels */}
+                {/* Durées, plafonds & rappels — T4 (D-B) : écran FACULTATIF */}
                 <Card className="bg-surface/60 border-border rounded-2xl overflow-hidden">
                     <CardHeader className="border-b border-border bg-surface/30 p-6">
-                        <CardTitle className="text-base font-black uppercase tracking-wider text-foreground">
-                            Durées, plafonds & rappels
-                        </CardTitle>
+                        <div className="flex flex-wrap items-center gap-3">
+                            <CardTitle className="text-base font-black uppercase tracking-wider text-foreground">
+                                Durées, plafonds &amp; rappels
+                            </CardTitle>
+                            {/* D-B (ratifié) — les valeurs sont poussées par SigilOS pour TOUTES
+                                les guildes (panneau God) : ce bloc ne sert plus que d'exception locale. */}
+                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider">
+                                Facultatif — exception locale
+                            </Badge>
+                        </div>
                         <CardDescription>
-                            Le marché applique un cycle de vie à paliers : rappels puis expiration automatique.
+                            Ces valeurs sont <strong>globales</strong> : SigilOS les applique déjà à toutes les
+                            guildes. Ne modifie ce bloc que pour une <strong>exception locale</strong> — enregistrer
+                            ici ne changera <strong>que cette guilde</strong>. Le marché applique ensuite un cycle de
+                            vie à paliers : rappels puis expiration automatique.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="p-6 space-y-5">
@@ -375,14 +386,15 @@ export function MarketSettingsClient({ guildId }: { guildId: string }) {
                         <div className="space-y-1.5">
                             <Label className="text-xs">Paliers de rappel (jours, séparés par des virgules)</Label>
                             <Input
-                                value={config.marketReminderDays.join(", ")}
+                                value={formatReminderDays(config.marketReminderDays)}
                                 onChange={(event) => {
-                                    const days = event.target.value
-                                        .split(",")
-                                        .map((part) => Number.parseInt(part.trim(), 10))
-                                        .filter((value) => Number.isInteger(value) && value >= 1 && value <= 59)
-                                        .slice(0, 3);
-                                    setConfig((prev) => ({ ...prev, marketReminderDays: days }));
+                                    // Bornes + dédoublonnage + max 3 valeurs : une seule règle,
+                                    // partagée avec le panneau God (`lib/market/reminder-days`).
+                                    const parsed = parseReminderDays(event.target.value);
+                                    // Saisie en cours (« 7, ») ou inexploitable : on n'écrit RIEN
+                                    // en base plutôt qu'une valeur inventée (fail-closed).
+                                    if (!parsed) return;
+                                    setConfig((prev) => ({ ...prev, marketReminderDays: parsed }));
                                 }}
                                 placeholder="Ex. 7, 15"
                             />

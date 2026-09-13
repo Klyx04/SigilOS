@@ -16,6 +16,7 @@
  */
 
 import { formatKamas } from "@/lib/market/kamas";
+import { SMITHMAGIC_POTION_TIERS, describeSmithmagicStatus } from "@/lib/market/smithmagic";
 import {
     MARKET_DASHBOARD_LINK_LABEL,
     buildMarketDashboardLinkButton,
@@ -75,6 +76,23 @@ export type MarketDiscordPayloadInput = {
      * l'objet se lisait sans ses stats, ce qui rendait l'annonce inutile.
      */
     stats?: MarketDiscordStatLine[];
+    /**
+     * S8.17 (D40/D41) — **forge réelle déclarée** : Transcendé, élément de frappe
+     * (+ palier de potion) et arme de chasse. Ce sont des données **déclarées**
+     * par le vendeur (jamais déduites du jet) et **jamais identifiantes**
+     * (§13.7 : aucune donnée personnelle dans un contenu public).
+     */
+    transcended?: boolean;
+    transcendenceLabel?: string | null;
+    strikeElement?: string | null;
+    elementPotionTier?: number | null;
+    huntingWeapon?: string | null;
+    /**
+     * D43 — `acceptsTrade` lu sur l'annonce : `true` ⇒ « Troc accepté »,
+     * `false` ⇒ « Kamas uniquement ». Absent ⇒ aucune ligne (annonces
+     * historiques / aperçus sans contexte).
+     */
+    acceptsTrade?: boolean;
 };
 
 export type MarketDiscordField = { name: string; value: string; inline?: boolean };
@@ -160,6 +178,54 @@ function buildExoBadge(exoLabels: string[] | undefined): string | null {
 }
 
 /**
+ * S8.17 — palier de potion **borné** aux 3 paliers de jeu (50 / 65 / 80 %).
+ * Une valeur hors référentiel est **ignorée** : jamais un « potion 0 % » publié
+ * (RULES.md § *Bornes validation* — toute donnée issue d'une API externe / d'une
+ * saisie est bornée avant affichage).
+ */
+export function resolvePotionTierLabel(tier: number | null | undefined): string | null {
+    if (typeof tier !== "number") return null;
+    return (SMITHMAGIC_POTION_TIERS as readonly number[]).includes(tier) ? `potion ${tier} %` : null;
+}
+
+/**
+ * S8.17 — lignes du bloc **STATUT** de l'embed : Transcendé, élément de frappe
+ * (+ palier de potion), arme de chasse, puis « Troc accepté » / « Kamas
+ * uniquement » (D43).
+ *
+ * 📌 Source **unique** du mapping : `describeSmithmagicStatus()` (pur, testé,
+ * déjà consommé par la carte d'item S8.4) ⇒ carte et embed ne peuvent pas
+ * diverger. Retourne `[]` quand rien n'est déclaré.
+ */
+export function buildMarketStatusLines(input: {
+    transcended?: boolean;
+    transcendenceLabel?: string | null;
+    strikeElement?: string | null;
+    elementPotionTier?: number | null;
+    huntingWeapon?: string | null;
+    acceptsTrade?: boolean;
+}): string[] {
+    const lines = describeSmithmagicStatus({
+        transcended: input.transcended,
+        transcendenceLabel: input.transcendenceLabel,
+        strikeElement: input.strikeElement,
+        huntingWeapon: input.huntingWeapon,
+    }).map((line) => {
+        // `TRANSCENDED` porte son libellé d'effet (repli « Empêche les futures
+        // forgemagies ») : il s'affiche tel quel, comme sur la carte.
+        if (!line.value) return line.label;
+        if (line.kind !== "STRIKE_ELEMENT") return `${line.label} : ${line.value}`;
+        const tier = resolvePotionTierLabel(input.elementPotionTier);
+        return `${line.label} : ${line.value}${tier ? ` — ${tier}` : ""}`;
+    });
+
+    if (input.acceptsTrade !== undefined) {
+        lines.push(input.acceptsTrade ? "Troc accepté" : "Kamas uniquement");
+    }
+    return lines;
+}
+
+/**
  * Construit le payload complet (embed + boutons) pour un état donné.
  * Toujours appelé côté serveur ; **jamais** de donnée privée dans l'embed.
  */
@@ -184,6 +250,12 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
         forumMode,
         itemIconUrl,
         stats = [],
+        transcended,
+        transcendenceLabel,
+        strikeElement,
+        elementPotionTier,
+        huntingWeapon,
+        acceptsTrade,
     } = input;
 
     const priceLabel = formatKamas(priceKamas ?? null);
@@ -203,6 +275,22 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
     }
     if (unitLabel) descriptionLines.push(`Lot : ${unitLabel}`);
     if (exoBadge) descriptionLines.push(exoBadge);
+
+    // S8.17 — **STATUT** de forge (Transcendé / élément de frappe + palier /
+    // arme de chasse) puis « Troc accepté » ou « Kamas uniquement » (D43).
+    // Mêmes libellés que la carte d'item : une seule source (S8.4). Borné à
+    // 4 lignes ⇒ l'embed reste très en deçà des 4096 caractères de Discord.
+    const statusLines = buildMarketStatusLines({
+        transcended,
+        transcendenceLabel,
+        strikeElement,
+        elementPotionTier,
+        huntingWeapon,
+        acceptsTrade,
+    });
+    if (statusLines.length > 0) {
+        descriptionLines.push(`**STATUT**\n${statusLines.join("\n")}`);
+    }
 
     // Correction 13/09 — **EFFETS** : le jet déclaré, tel qu'il apparaît sur la
     // carte (valeur + libellé + plage native), exo marqué « ✦ Exo », malus en

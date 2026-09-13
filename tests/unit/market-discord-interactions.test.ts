@@ -158,6 +158,32 @@ describe("market discord interactions — modale d'offre (S4.3)", () => {
         // §13.7 : aucun montant d'offre ni pseudo d'acheteur dans la modale.
         expect(JSON.stringify(modal)).not.toMatch(/buyer|profile-|offeredKamas/i);
     });
+
+    /**
+     * D43 — une annonce « **kamas uniquement** » (`acceptsTrade = false`) doit le
+     * dire **avant** la saisie. Les champs restent `required: false` : Discord ne
+     * sait pas exprimer « kamas OU troc », la garde vit dans le moteur serveur.
+     */
+    it("D43 — annonce « kamas uniquement » : libellés adaptés, sortie historique inchangée sinon", () => {
+        const modal = buildMarketOfferModal(LISTING_ID, { acceptsTrade: false });
+        const [kamas, trade, note] = modal.components.map((row) => row.components[0]);
+
+        expect(kamas.label).toContain("obligatoire");
+        expect(trade.label).toContain("refusé");
+        expect(trade.placeholder).toContain("kamas");
+        expect(note.label).toBe("Message au vendeur (facultatif)");
+        expect(modal.components.every((row) => row.components[0].required === false)).toBe(true);
+        // Le `custom_id` reste reparsable à l'identique (aucun second format).
+        expect(parseMarketCustomId(modal.custom_id)).toEqual({ action: "offer", listingId: LISTING_ID });
+
+        // Non-régression : sans option (appelants historiques) = `acceptsTrade: true`.
+        expect(buildMarketOfferModal(LISTING_ID)).toEqual(
+            buildMarketOfferModal(LISTING_ID, { acceptsTrade: true })
+        );
+        expect(buildMarketOfferModal(LISTING_ID).components[1].components[0].label).toBe(
+            "Troc proposé (facultatif)"
+        );
+    });
 });
 
 describe("market discord interactions — gardes serveur (S4.1)", () => {
@@ -436,6 +462,7 @@ describe("market discord interactions — offre mkt:offer (S4.3)", () => {
             profileId: "profile-seller",
             status: "ACTIVE",
             negotiable: true,
+            acceptsTrade: true,
         });
     });
 
@@ -456,6 +483,26 @@ describe("market discord interactions — offre mkt:offer (S4.3)", () => {
         expect(where.id).toBe(LISTING_ID);
         expect(where.guildId).toBe("guild-internal-1");
         expect(where.deletedAt).toBeNull();
+    });
+
+    it("D43 — annonce « kamas uniquement » : la modale ouverte porte les libellés adaptés", async () => {
+        mockListingFindFirst.mockResolvedValue({
+            id: LISTING_ID,
+            profileId: "profile-seller",
+            status: "ACTIVE",
+            negotiable: true,
+            acceptsTrade: false,
+        });
+
+        const res = await handleMarketComponentInteraction({
+            customId: `mkt:offer:${LISTING_ID}`,
+            discordGuildId: GUILD_ID,
+            userId: "user-buyer",
+        });
+
+        expect(res.kind).toBe("modal");
+        if (res.kind !== "modal") throw new Error("attendu : réponse modale");
+        expect(res.modal).toEqual(buildMarketOfferModal(LISTING_ID, { acceptsTrade: false }));
     });
 
     it("refuse l'offre sur sa propre annonce (§11.2)", async () => {
@@ -569,6 +616,7 @@ describe("market discord interactions — soumission modale mkt:offer (S4.4)", (
             profileId: "profile-seller",
             status: "ACTIVE",
             negotiable: true,
+            acceptsTrade: true,
         });
         mockAuditCreate.mockResolvedValue({});
         (db.$transaction as ReturnType<typeof vi.fn>).mockImplementation(
@@ -823,6 +871,39 @@ describe("market discord interactions — gardes métier modale mkt:offer (S4.4)
             userId: "user-buyer",
         });
         expect(notNegotiable).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.OFFER_DISABLED });
+    });
+
+    /**
+     * D43 — troc seul sur une annonce « **kamas uniquement** » : le refus vient du
+     * **moteur partagé** `createMarketOfferCore()` (§11.4), pas de la route. Un
+     * message dédié est renvoyé (jamais muet, §13.5), et **rien** n'est écrit.
+     */
+    it("D43 — troc seul refusé sur une annonce « kamas uniquement » (message dédié, aucune écriture)", async () => {
+        mockListingFindFirst.mockResolvedValue({
+            id: LISTING_ID,
+            userId: "user-seller",
+            profileId: "profile-seller",
+            title: "Dofus Turquoise",
+            status: "ACTIVE",
+            negotiable: true,
+            acceptsTrade: false,
+            guild: { discordGuildId: GUILD_ID },
+        });
+
+        const res = await handleMarketModalSubmit({
+            customId: `mkt:offer:${LISTING_ID}`,
+            components: marketModalValues({ trade: "3 runes PA" }),
+            discordGuildId: GUILD_ID,
+            userId: "user-buyer",
+        });
+
+        expect(res).toEqual({
+            kind: "ephemeral",
+            ok: false,
+            content: MARKET_EPHEMERAL.OFFER_TRADE_NOT_ACCEPTED,
+        });
+        expect(db.$transaction).not.toHaveBeenCalled();
+        expect(mockAuditCreate).not.toHaveBeenCalled();
     });
 
     it("refuse quand les négociations sont coupées par la guilde (§13.5)", async () => {

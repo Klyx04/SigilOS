@@ -23,6 +23,7 @@ import { normalizeNativeRange } from "@/lib/market/effects";
 import { cn } from "@/lib/utils";
 import { MarketItemCard } from "@/components/market/market-item-card";
 import { StatIcon } from "@/components/market/stat-icon";
+import { DiscordProfileBubble, type DiscordProfileDTO } from "@/components/shared/discord-profile-bubble";
 import {
     deleteMarketListing,
     publishMarketListing,
@@ -181,6 +182,18 @@ export function MarketListingClient({
     }
 
     const sellerName = listing.profile?.pseudoDofus || listing.profile?.user?.name || "Membre";
+    /**
+     * S8.14 — DTO **minimal** de la bulle profil du vendeur (`id` interne, nom,
+     * avatar, classe). Aucun email, aucun token, aucun identifiant Discord.
+     */
+    const sellerProfile: DiscordProfileDTO | null = listing.profile
+        ? {
+              id: listing.profile.id,
+              name: sellerName,
+              image: listing.profile.user?.image ?? null,
+              classe: listing.profile.classe,
+          }
+        : null;
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -366,8 +379,15 @@ export function MarketListingClient({
                             </p>
                         </div>
 
-                        <div className="border-t border-border pt-3 space-y-1 text-xs text-muted-foreground">
-                            <p>Vendeur : <span className="text-foreground font-semibold">{sellerName}</span></p>
+                        <div className="border-t border-border pt-3 space-y-2 text-xs text-muted-foreground">
+                            {/* S8.14 — bulle profil du vendeur (avatar + pseudo + classe) */}
+                            {sellerProfile ? (
+                                <DiscordProfileBubble profile={sellerProfile} label="Vendeur" size="sm" />
+                            ) : (
+                                <p>
+                                    Vendeur : <span className="text-foreground font-semibold">{sellerName}</span>
+                                </p>
+                            )}
                             {listing.publishedAt && <p>Publiée le {new Date(listing.publishedAt).toLocaleDateString("fr-FR")}</p>}
                             {listing.expiresAt && <p>Expire le {new Date(listing.expiresAt).toLocaleDateString("fr-FR")}</p>}
                             {listing.renewCount > 0 && <p>Renouvelée {listing.renewCount} fois</p>}

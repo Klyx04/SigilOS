@@ -346,7 +346,7 @@ Le bouton « Masquer vendues / expirées » garde le catalogue lisible : décoch
     <li><strong>Prix & conditions</strong> : titre, description, prix en kamas, prix négociable, troc accepté, « Modifié par ».</li>
     <li><strong>Publication Discord</strong> : aperçu fidèle de l'annonce, choix des rôles à mentionner (parmi ceux autorisés par l'admin), puis publication.</li>
 </ol>
-<p>Tu peux enregistrer en <strong>brouillon</strong> (rien n'est publié) puis publier plus tard depuis <em>Mes espaces</em>.</p>
+<p>Tu peux enregistrer en <strong>brouillon</strong> (rien n'est publié) puis publier plus tard depuis <em>Mon espace</em>.</p>
 
 <h3>L'éditeur de jet</h3>
 <p>Sur un équipement, chaque ligne native est pré-remplie avec sa <strong>plage</strong> (ex. <code>251 à 300</code>). Tu saisis la valeur réelle et l'état se met à jour en direct : <strong>✦ Jet parfait</strong> remplit toutes les lignes au maximum, les boutons <strong>Exo PA / PM / PO / Invocation</strong> ajoutent un effet exotique en un clic, et une <strong>ligne libre</strong> couvre le mode avancé. Les plages natives viennent <strong>toujours du catalogue</strong> : c'est le serveur qui les recalcule, jamais le navigateur.</p>
@@ -376,8 +376,8 @@ Le bouton « Masquer vendues / expirées » garde le catalogue lisible : décoch
 <p>Un cycle de rappels est appliqué automatiquement (par défaut à <strong>J+7</strong> et <strong>J+15</strong>) et l'annonce cesse d'être active à l'échéance maximale (par défaut <strong>J+20</strong>). Une annonce expirée peut être <strong>renouvelée une seule fois</strong>.</p>
 
 <div class="callout callout-info">
-<strong>Mes espaces</strong>
-L'onglet <em>Mes espaces</em> regroupe tes annonces <strong>en cours</strong> et tes <strong>archives</strong>, avec les actions : publier, retirer, renouveler, supprimer.
+<strong>Mon espace</strong>
+L'onglet <em>Mon espace</em> regroupe tes annonces <strong>en cours</strong> et tes <strong>archives</strong>, avec les actions : publier, retirer, renouveler, supprimer.
 </div>
 
 <h2>4. Comprendre un jet forgemagie</h2>
@@ -425,7 +425,7 @@ C'est la valeur du marché FM. SigilOS ne peut pas lire ton inventaire : il éti
 <h3>Le prix est-il garanti ?</h3>
 <p>Non : SigilOS n'est pas un hôtel de vente. Le prix est celui déclaré par le vendeur ; l'échange se conclut en jeu.</p>
 <h3>Pourquoi mon annonce a-t-elle disparu du catalogue ?</h3>
-<p>Elle est probablement <strong>expirée</strong> ou <strong>vendue</strong>. Décoche « Masquer vendues / expirées » ou ouvre <em>Mes espaces</em>.</p>
+<p>Elle est probablement <strong>expirée</strong> ou <strong>vendue</strong>. Décoche « Masquer vendues / expirées » ou ouvre <em>Mon espace</em>.</p>
 <h3>Puis-je vendre plusieurs objets d'un coup ?</h3>
 <p>Oui, sous forme de <strong>lot composite</strong> (jusqu'à 20 ressources).</p>
 <h3>Les liens dans ma description s'affichent-ils ?</h3>

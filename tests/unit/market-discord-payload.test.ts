@@ -2,8 +2,10 @@ import { describe, it, expect } from "vitest";
 import {
     absoluteDiscordAssetUrl,
     buildMarketDiscordPayload,
+    buildMarketStatusLines,
     buildForumPostName,
     formatMarketStatLine,
+    resolvePotionTierLabel,
     shortListingId,
     MARKET_DISCORD_COLORS,
     type MarketDiscordPayloadInput,
@@ -258,5 +260,84 @@ describe("helpers payload Discord", () => {
         expect(absoluteDiscordAssetUrl("", "https://sigilos.fr")).toBeNull();
         // Base inexploitable : on préfère omettre la vignette.
         expect(absoluteDiscordAssetUrl("/a.png", "sigilos.fr")).toBeNull();
+    });
+});
+
+/**
+ * S8.17 — **forge réelle déclarée** dans l'embed (D40/D41) et condition de troc
+ * (D43). Le mapping vient de `describeSmithmagicStatus()` (S8.4) : carte et embed
+ * ne peuvent pas diverger. Aucune donnée personnelle n'y entre (§13.7).
+ */
+describe("S8.17 — bloc STATUT de forge dans l'embed", () => {
+    it("publie Transcendé, élément de frappe (+ palier de potion), arme de chasse et le troc", () => {
+        const payload = buildMarketDiscordPayload({
+            ...base,
+            transcended: true,
+            transcendenceLabel: "Empêche les futures forgemagies",
+            strikeElement: "Feu",
+            elementPotionTier: 65,
+            huntingWeapon: "Arc de Chasse",
+            acceptsTrade: true,
+        });
+
+        const description = payload.embedDescription;
+        expect(description).toContain("**STATUT**");
+        expect(description).toContain("Empêche les futures forgemagies");
+        expect(description).toContain("Élément de frappe : Feu — potion 65 %");
+        expect(description).toContain("Arme de chasse : Arc de Chasse");
+        expect(description).toContain("Troc accepté");
+        expect(description).not.toContain("Kamas uniquement");
+        // Bornes Discord : la description reste très loin du plafond de 4096.
+        expect(description.length).toBeLessThanOrEqual(4096);
+    });
+
+    it("affiche « Kamas uniquement » quand l'annonce refuse le troc (D43)", () => {
+        const payload = buildMarketDiscordPayload({ ...base, acceptsTrade: false });
+
+        expect(payload.embedDescription).toContain("Kamas uniquement");
+        expect(payload.embedDescription).not.toContain("Troc accepté");
+    });
+
+    it("n'ajoute AUCUNE ligne STATUT sans déclaration (embed historique inchangé)", () => {
+        const payload = buildMarketDiscordPayload(base);
+
+        expect(payload.embedDescription).not.toContain("**STATUT**");
+        expect(buildMarketStatusLines({})).toEqual([]);
+        // `acceptsTrade` absent = aucune ligne non plus (aperçus sans contexte).
+        expect(buildMarketStatusLines({ acceptsTrade: undefined })).toEqual([]);
+    });
+
+    it("borne le palier de potion aux 3 paliers de jeu (50 / 65 / 80 %) : jamais « potion 0 % »", () => {
+        expect(resolvePotionTierLabel(50)).toBe("potion 50 %");
+        expect(resolvePotionTierLabel(65)).toBe("potion 65 %");
+        expect(resolvePotionTierLabel(80)).toBe("potion 80 %");
+        expect(resolvePotionTierLabel(0)).toBeNull();
+        expect(resolvePotionTierLabel(99)).toBeNull();
+        expect(resolvePotionTierLabel(null)).toBeNull();
+        expect(resolvePotionTierLabel(undefined)).toBeNull();
+
+        const payload = buildMarketDiscordPayload({
+            ...base,
+            strikeElement: "Eau",
+            elementPotionTier: 99,
+        });
+        expect(payload.embedDescription).toContain("Élément de frappe : Eau");
+        expect(payload.embedDescription).not.toContain("potion 99");
+        expect(payload.embedDescription).not.toContain("potion 0");
+    });
+
+    it("le bloc STATUT ne porte ni montant d'offre ni identité d'acheteur (§13.7)", () => {
+        const payload = buildMarketDiscordPayload({
+            ...base,
+            status: "RESERVED",
+            offersCount: 3,
+            transcended: true,
+            strikeElement: "Terre",
+            elementPotionTier: 80,
+            acceptsTrade: false,
+        });
+
+        const serialized = JSON.stringify(payload);
+        expect(serialized).not.toMatch(/acheteur|buyer|buyerProfileId|offeredKamas|discord/i);
     });
 });

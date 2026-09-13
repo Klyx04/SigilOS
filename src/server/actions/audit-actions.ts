@@ -68,7 +68,12 @@ export type AuditAction =
     | "MISSION_XP_OVERRIDE"
     | "GUILDATON_UPDATE"
     | "GUILDATON_CSV_IMPORT"
-    | "GUILDATON_SETTINGS_UPDATE";
+    | "GUILDATON_SETTINGS_UPDATE"
+    // S8.18 — supervision du Marché (God « Marché », `isGodLog: true`)
+    | "GOD_MARKET_RESYNC"        // Resynchronisation Discord d'une annonce (ou lot)
+    | "GOD_MARKET_IMAGE_REGEN"   // Régénération de la carte PNG + embed
+    | "GOD_MARKET_MEDIA_PURGE"   // Purge cross-guild des médias expirés
+    | "GOD_MARKET_SETTINGS";     // Réglages globaux (verrou plateforme + rétention)
 
 export type AuditTargetType =
     | "PERMISSION"

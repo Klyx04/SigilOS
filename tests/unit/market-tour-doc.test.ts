@@ -113,3 +113,77 @@ describe("market tour — ancres réellement présentes (S8.22)", () => {
         }
     });
 });
+
+/**
+ * BUG-6 (constat beta) — « le texte est mangé à droite dans la bulle » et
+ * « l'étape de l'éditeur de jet coupe le tutoriel, idem pour la suite ».
+ *
+ * Deux causes, deux verrous :
+ *   1. la bulle était positionnée avec une taille **codée en dur** (320 × 180)
+ *      alors qu'elle est `max-w-[320px] sm:max-w-[340px]` ⇒ on mesure sa taille
+ *      réelle et on la recadre dans la fenêtre ;
+ *   2. les étapes `marche-jet` / `marche-forge` / `marche-publish` /
+ *      `marche-negotiation` / `marche-my-listings` pointent des ancres qui vivent
+ *      sur **d'autres pages** : l'overlay sautait l'étape (tutoriel « coupé ») ⇒
+ *      l'étape déclare un `href` **relatif** et le provider navigue, avec une
+ *      allowlist stricte (jamais de redirection ouverte).
+ */
+describe("BUG-6 — tutoriel lisible et continu", () => {
+    const TOUR_OVERLAY = "src/components/tour/tour-overlay.tsx";
+
+    function overlaySource(): string {
+        return readFileSync(TOUR_OVERLAY, "utf8");
+    }
+
+    it("mesure la bulle au lieu d'une taille codée en dur", () => {
+        const overlay = overlaySource();
+        expect(overlay).toMatch(/tooltipSize/);
+        expect(overlay).toMatch(/new ResizeObserver/);
+        expect(overlay).not.toMatch(/const tooltipWidth = 320/);
+        expect(overlay).not.toMatch(/const tooltipHeight = 180/);
+        // Recadrage : largeur maximale bornée par la fenêtre + texte qui respire.
+        expect(overlay).toMatch(/const maxWidth = Math\.max\(240, windowSize\.width - margin \* 2\)/);
+        expect(overlay).toMatch(/maxWidth,/);
+        expect(overlay).toMatch(/break-words/);
+    });
+
+    it("navigue vers la page de l'étape au lieu de la sauter (une seule fois par destination)", () => {
+        const overlay = overlaySource();
+        expect(overlay).toMatch(/requestStepNavigation\(activeStepData\.href\)/);
+        expect(overlay).toMatch(/navigatedHrefRef/);
+        // Le saut anti-centrage reste, mais **après** la tentative de navigation.
+        const navigateIndex = overlay.indexOf("requestStepNavigation(activeStepData.href)");
+        const skipIndex = overlay.indexOf("attempts > 120 && !settled");
+        expect(navigateIndex).toBeGreaterThan(-1);
+        expect(skipIndex).toBeGreaterThan(navigateIndex);
+    });
+
+    it("les étapes hors page déclarent un `href` relatif, jamais une URL", () => {
+        const source = marcheStepsSource();
+        const hrefs = [...source.matchAll(/href: "([^"]+)"/g)].map((m) => m[1]);
+
+        expect(hrefs.length).toBeGreaterThanOrEqual(5);
+        for (const href of hrefs) {
+            expect(href.startsWith("/"), href).toBe(true);
+            expect(href).not.toContain("http");
+            expect(href).not.toContain("//");
+            expect(href).not.toContain("..");
+        }
+        expect(hrefs).toContain("/marche/nouveau");
+        expect(hrefs).toContain("/marche/mes-espaces");
+    });
+
+    it("le provider valide le préfixe avant de naviguer (allowlist)", () => {
+        const provider = readTourProvider();
+        const start = provider.indexOf("const requestStepNavigation = useCallback(");
+        expect(start).toBeGreaterThan(-1);
+        const body = provider.slice(start, provider.indexOf(");", start));
+
+        expect(body).toMatch(/startsWith\("\/"\)/);
+        expect(body).toMatch(/startsWith\("\/\/"\)/);
+        expect(body).toMatch(/includes\("\.\."\)/);
+        expect(body).toMatch(/includes\(":"\)/);
+        expect(body).toMatch(/\^\\\/\[A-Za-z0-9\/_-\]\*\$|\^\/\[A-Za-z0-9\/_-\]\*\$/);
+        expect(body).toContain("`/dashboard/${guildId}${relativeHref}`");
+    });
+});

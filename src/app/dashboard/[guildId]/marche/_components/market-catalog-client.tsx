@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,6 +22,7 @@ import {
 } from "@/server/actions/market-constants";
 import { formatGroupedInteger, formatKamas } from "@/lib/market/kamas";
 import { formatMarketDateTime } from "@/lib/market/format-date";
+import { MarketItemIcon } from "@/components/market/market-item-icon";
 import { cn } from "@/lib/utils";
 import {
     AlertTriangle,
@@ -43,6 +43,8 @@ type SerializedListing = {
     title: string;
     itemName: string | null;
     itemIconUrl: string | null;
+    /** Identifiant Ankama du catalogue : repli sûr du proxy d'icône (BUG-1). */
+    dofusDbItemId: number | null;
     itemLevel: number | null;
     itemTypeName: string | null;
     priceKamas: number | null;
@@ -179,18 +181,18 @@ export function MarketCatalogClient({
             {/* Filtres */}
             <Card className="bg-surface/60 border-border" data-tour="marche-filters">
                 <CardContent className="p-4 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 items-center">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <Input
                                 value={search}
                                 onChange={(event) => setSearch(event.target.value)}
                                 placeholder="Rechercher un objet, un vendeur…"
-                                className="pl-9"
+                                className="h-10 pl-9"
                             />
                         </div>
                         <Select value={type} onValueChange={setType}>
-                            <SelectTrigger>
+                            <SelectTrigger className="h-10">
                                 <SelectValue placeholder="Type" />
                             </SelectTrigger>
                             <SelectContent>
@@ -200,7 +202,7 @@ export function MarketCatalogClient({
                             </SelectContent>
                         </Select>
                         <Select value={status} onValueChange={setStatus}>
-                            <SelectTrigger>
+                            <SelectTrigger className="h-10">
                                 <SelectValue placeholder="Statut" />
                             </SelectTrigger>
                             <SelectContent>
@@ -212,7 +214,7 @@ export function MarketCatalogClient({
                             </SelectContent>
                         </Select>
                         <Select value={sort} onValueChange={setSort}>
-                            <SelectTrigger>
+                            <SelectTrigger className="h-10">
                                 <SelectValue placeholder="Trier" />
                             </SelectTrigger>
                             <SelectContent>
@@ -262,7 +264,7 @@ export function MarketCatalogClient({
                     description="Aucune annonce ne correspond à ces filtres. Publie la première annonce du marché !"
                 />
             ) : view === "cards" ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {filtered.map((listing) => (
                         <MarketListingCard key={listing.id} guildId={guildId} listing={listing} />
                     ))}
@@ -291,12 +293,15 @@ function MarketListingCard({ guildId, listing }: { guildId: string; listing: Ser
         <Card className="bg-surface/60 border-border hover:border-border-strong transition-colors overflow-hidden">
             <CardContent className="p-4 space-y-3">
                 <div className="flex items-start gap-3">
-                    <div className="relative h-12 w-12 shrink-0 rounded-xl border border-border bg-background/60 flex items-center justify-center overflow-hidden">
-                        {listing.itemIconUrl ? (
-                            <Image src={listing.itemIconUrl} alt={listing.itemName ?? listing.title} fill sizes="48px" className="object-contain p-1" unoptimized />
-                        ) : (
-                            <Store className="w-5 h-5 text-muted-foreground" />
-                        )}
+                    <div className="h-12 w-12 shrink-0 rounded-xl border border-border bg-background/60 flex items-center justify-center overflow-hidden">
+                        <MarketItemIcon
+                            src={listing.itemIconUrl}
+                            ankamaId={listing.dofusDbItemId}
+                            alt={listing.itemName ?? listing.title}
+                            size={44}
+                            className="p-1"
+                            fallback={<Store className="w-5 h-5 text-muted-foreground" />}
+                        />
                     </div>
                     <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-foreground truncate">{listing.title}</p>

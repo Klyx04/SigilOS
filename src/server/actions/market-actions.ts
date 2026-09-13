@@ -32,6 +32,9 @@ import {
     resolveMarketItemPolicy,
 } from "@/lib/market/item-families";
 import { publishListingToDiscord, syncListingMessage } from "@/server/market/discord";
+// BUG-1 — une seule forme d'URL d'icône d'objet (proxy auto-siphon, jamais 404) :
+// normalisée **à l'écriture** et **à la lecture** (annonces déjà en base).
+import { normalizeItemIconUrl } from "@/lib/market/item-image";
 import { writeMarketAuditLog } from "@/server/market/audit";
 import { reserveMarketListingCore, cancelMarketReservationCore } from "@/server/market/reservations";
 import {
@@ -99,6 +102,8 @@ export type MarketReservationView = {
     /** Pseudo Dofus du réservataire (repli : nom d'utilisateur SigilOS). */
     buyerLabel: string;
     buyerClasse: string | null;
+    /** Avatar Discord du réservataire (`User.image`) — même niveau que la bulle vendeur. */
+    buyerImage: string | null;
     /** `true` si c'est **le membre courant** qui a posé la réservation. */
     isMine: boolean;
 };
@@ -324,6 +329,31 @@ function withDisplayReadyStats<
 }
 
 /**
+ * BUG-1 — **une seule forme d'URL d'image** pour tout le module : le **proxy
+ * auto-siphon** (`/api/assets-dofus/items/{ankamaId}`, jamais de 404) — y compris
+ * pour les annonces **déjà en base** qui portent encore un chemin statique
+ * (`/uploads/assets-dofus/items/32239.webp`) ou un nom nu (`25757.webp`).
+ *
+ * Fonction **pure, dérivée à la lecture** : aucune écriture, aucune migration.
+ */
+function withDisplayReadyIcons<
+    T extends {
+        dofusDbItemId: number | null;
+        itemIconUrl: string | null;
+        components: { dofusDbItemId: number | null; iconUrl: string | null }[];
+    }
+>(listing: T): T {
+    return {
+        ...listing,
+        itemIconUrl: normalizeItemIconUrl(listing.itemIconUrl, listing.dofusDbItemId),
+        components: listing.components.map((component) => ({
+            ...component,
+            iconUrl: normalizeItemIconUrl(component.iconUrl, component.dofusDbItemId),
+        })),
+    };
+}
+
+/**
  * S7.8 — Construit la vue **réservation** d'une annonce (pseudo, échéance, « c'est
  * moi »). Le profil du réservataire est lu **dans la guilde du contexte**
  * (défense en profondeur : un id de profil ne suffit jamais, cf. RULES.md).
@@ -340,7 +370,7 @@ async function buildReservationView(
 ): Promise<MarketReservationView> {
     const buyer = await db.userProfile.findFirst({
         where: { id: reservation.buyerProfileId, guildId: guildConfigId },
-        select: { pseudoDofus: true, classe: true, user: { select: { name: true } } },
+        select: { pseudoDofus: true, classe: true, user: { select: { name: true, image: true } } },
     });
     return {
         id: reservation.id,
@@ -349,6 +379,11 @@ async function buildReservationView(
         buyerProfileId: reservation.buyerProfileId,
         buyerLabel: buyer?.pseudoDofus || buyer?.user?.name || "Un membre de la guilde",
         buyerClasse: buyer?.classe ?? null,
+        // Constat beta — le bloc « annonce réservée » doit montrer **qui** a
+        // réservé : avatar Discord + lien vers son profil **lecture seule**.
+        // On n'expose que l'id **interne** du profil et son avatar (même niveau
+        // d'information que la bulle vendeur) : jamais d'id Discord.
+        buyerImage: buyer?.user?.image ?? null,
         isMine: !!viewerProfileId && viewerProfileId === reservation.buyerProfileId,
     };
 }
@@ -513,7 +548,7 @@ export async function getMarketListings(
         // exacts et le **signe** des malus à l'affichage.
         const referential = await loadMarketReferential();
 
-        return { success: true, data: listings.map((listing) => withDisplayReadyStats(listing, referential)) };
+        return { success: true, data: listings.map((listing) => withDisplayReadyIcons(withDisplayReadyStats(listing, referential))) };
     } catch (error) {
         logger.error("[getMarketListings] failed", { err: error });
         return { success: false, error: "Erreur interne" };
@@ -565,7 +600,7 @@ export async function getMarketListing(
         return {
             success: true,
             data: {
-                ...withDisplayReadyStats(listing, referential),
+                ...withDisplayReadyIcons(withDisplayReadyStats(listing, referential)),
                 reservation: reservationRow
                     ? await buildReservationView(reservationRow, user.profileId ?? null, guildConfig.id)
                     : null,
@@ -678,8 +713,11 @@ export async function getMyMarketData(guildId: string): Promise<ActionResponse<M
             orderBy: [{ updatedAt: "desc" }],
         });
 
-        const active = rows.filter((row) => !MARKET_TERMINAL_STATUSES.includes(row.status));
-        const archived = rows.filter((row) => MARKET_TERMINAL_STATUSES.includes(row.status));
+        // BUG-1 — icônes **normalisées** (proxy auto-siphon) y compris pour les
+        // annonces déjà en base : la vignette de « Mon espace » ne peut pas 404.
+        const displayRows = rows.map((row) => withDisplayReadyIcons(row));
+        const active = displayRows.filter((row) => !MARKET_TERMINAL_STATUSES.includes(row.status));
+        const archived = displayRows.filter((row) => MARKET_TERMINAL_STATUSES.includes(row.status));
 
         // S4.10 — centre de négociation. Une seule règle de lecture, deux listes :
         //  • « reçues » : offres `PENDING` déposées par d'autres sur mes annonces ;
@@ -860,6 +898,59 @@ export async function cancelMarketReservation(
         return { success: true, data: { cancelledBy: outcome.cancelledBy } };
     } catch (error) {
         logger.error("[cancelMarketReservation] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+/**
+ * R3 (ratifié) — **le vendeur lève la réservation en cours** (« Lever la
+ * réservation ») : l'annonce repasse `ACTIVE`, l'acheteur est prévenu, et les
+ * offres reçues redeviennent **acceptables** (le serveur refuse l'acceptation
+ * tant qu'une réservation est active, cf. `respondToMarketOfferCore`).
+ *
+ * 🛡️ Sécurité : garde **propriétaire** explicite, lue en base et scopée par la
+ * guilde du contexte (fail-closed) — `cancelMarketReservationCore()` n'autorise
+ * que l'acheteur ou le vendeur, et cette action refuse **avant** d'y entrer si
+ * le lecteur n'est pas le vendeur ; garde de statut **dans le `WHERE`** du core ;
+ * aucun identifiant Discord en entrée (ids internes uniquement).
+ */
+export async function releaseMarketReservation(
+    guildId: string,
+    reservationId: string
+): Promise<ActionResponse<{ listingId: string }>> {
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+        const { user, guildConfig } = ctx;
+        if (!user.profileId) return { success: false, error: "Profil introuvable" };
+
+        const parsed = z.string().min(1).max(64).safeParse(reservationId);
+        if (!parsed.success) return { success: false, error: "Réservation introuvable" };
+
+        // Garde **propriétaire** (isolation par la guilde du contexte).
+        const reservation = await db.marketReservation.findFirst({
+            where: { id: parsed.data, listing: { guildId: guildConfig.id, deletedAt: null } },
+            select: { listing: { select: { id: true, profileId: true } } },
+        });
+        if (!reservation) return { success: false, error: "Réservation introuvable" };
+        if (reservation.listing.profileId !== user.profileId) {
+            return { success: false, error: "Seul le vendeur peut lever la réservation." };
+        }
+
+        const session = await auth();
+        const outcome = await cancelMarketReservationCore({
+            guildConfigId: guildConfig.id,
+            reservationId: parsed.data,
+            actorProfileId: user.profileId,
+            actorUserId: session?.user?.id ?? user.id ?? "",
+        });
+        if (!outcome.ok) return { success: false, error: outcome.error };
+
+        revalidatePath(`/dashboard/${guildId}/marche/${reservation.listing.id}`);
+        revalidatePath(`/dashboard/${guildId}/marche`);
+        return { success: true, data: { listingId: reservation.listing.id } };
+    } catch (error) {
+        logger.error("[releaseMarketReservation] failed", { err: error });
         return { success: false, error: "Erreur interne" };
     }
 }
@@ -1263,6 +1354,14 @@ async function guardItemFamilyPolicy(
     data: z.infer<typeof marketListingBaseSchema>,
     statsCount: number
 ): Promise<string | null> {
+    // Constat beta — un **lot** ne porte jamais de jet, **même sans objet du
+    // catalogue** (`dofusDbItemId` null) : la règle ne dépend donc pas du
+    // catalogue. Avant, un lot composite pouvait transporter des stats
+    // siphonnées (« Échangeable », « Compatible avec »…) affichées comme un jet.
+    if (data.type === "RESOURCE" && statsCount > 0) {
+        return "Une annonce de ressources se vend telle quelle : aucune statistique ne peut être déclarée.";
+    }
+
     if (!data.dofusDbItemId) return null; // lots composites saisis à la main
 
     const item = await db.gameItem.findUnique({
@@ -1374,7 +1473,9 @@ export async function createMarketListing(
                 acceptsTrade: data.acceptsTrade,
                 dofusDbItemId: data.dofusDbItemId ?? null,
                 itemName: data.itemName ?? null,
-                itemIconUrl: data.itemIconUrl ?? null,
+                // BUG-1 — jamais le chemin statique `/uploads/...` en base : le
+                // proxy auto-siphon est la seule forme stockée.
+                itemIconUrl: normalizeItemIconUrl(data.itemIconUrl ?? null, data.dofusDbItemId ?? null),
                 itemLevel: data.itemLevel ?? null,
                 itemTypeName: data.itemTypeName ?? null,
                 quantity: data.quantity ?? null,
@@ -1395,7 +1496,11 @@ export async function createMarketListing(
                                 position: index,
                                 dofusDbItemId: component.dofusDbItemId ?? null,
                                 name: component.name,
-                                iconUrl: component.iconUrl ?? null,
+                                // BUG-1 — même normalisation que l'objet (proxy auto-siphon).
+                                iconUrl: normalizeItemIconUrl(
+                                    component.iconUrl ?? null,
+                                    component.dofusDbItemId ?? null
+                                ),
                                 quantity: component.quantity,
                                 unitLabel: component.unitLabel ?? null,
                             })),
@@ -1479,7 +1584,7 @@ export async function updateMarketListing(
                     acceptsTrade: data.acceptsTrade,
                     dofusDbItemId: data.dofusDbItemId ?? null,
                     itemName: data.itemName ?? null,
-                    itemIconUrl: data.itemIconUrl ?? null,
+                    itemIconUrl: normalizeItemIconUrl(data.itemIconUrl ?? null, data.dofusDbItemId ?? null),
                     itemLevel: data.itemLevel ?? null,
                     itemTypeName: data.itemTypeName ?? null,
                     quantity: data.quantity ?? null,
@@ -1510,7 +1615,7 @@ export async function updateMarketListing(
                         position: index,
                         dofusDbItemId: component.dofusDbItemId ?? null,
                         name: component.name,
-                        iconUrl: component.iconUrl ?? null,
+                        iconUrl: normalizeItemIconUrl(component.iconUrl ?? null, component.dofusDbItemId ?? null),
                         quantity: component.quantity,
                         unitLabel: component.unitLabel ?? null,
                     })),

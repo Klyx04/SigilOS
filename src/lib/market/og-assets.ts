@@ -26,7 +26,7 @@
 import fs from "fs";
 import path from "path";
 import sharp from "sharp";
-import { ASSET_DIRS } from "@/lib/dofus-asset-siphon";
+import { ASSET_DIRS, siphonAndCompressImage } from "@/lib/dofus-asset-siphon";
 
 /** Cache process : une carte = au plus quelques kilo-octets, jamais de relecture. */
 const dataUrlCache = new Map<string, string | null>();
@@ -93,22 +93,29 @@ const MAX_ITEM_IMAGE_BYTES = 3 * 1024 * 1024;
  *
  * 1. WebP siphonné en local (`ASSET_DIRS.items/{id}.webp`) ;
  * 2. sinon, téléchargement officiel DofusDB (hôte autorisé, taille bornée) ;
- * 3. sinon `null` (la carte affiche son repli, jamais un 404 rouge).
+ * 3. sinon, **siphon à la volée** (`siphonAndCompressImage` : mêmes gardes que
+ *    `/api/assets-dofus`, l'hôte est validé par `getValidatedAssetUrl` et le
+ *    fichier est mis en cache local) puis relecture — c'est ce qui supprime le
+ *    « ? » constaté en beta sur les objets jamais siphonnés ;
+ * 4. sinon `null` (la carte affiche son repli neutre, jamais un 404 rouge).
  */
 export async function loadItemImageDataUrl(ankamaId: number | null | undefined): Promise<string | null> {
     if (typeof ankamaId !== "number" || !Number.isInteger(ankamaId) || ankamaId <= 0) return null;
 
     let input: Buffer | null = null;
 
-    try {
-        const localFile = path.join(ASSET_DIRS.items, `${ankamaId}.webp`);
-        if (fs.existsSync(localFile)) {
+    const readLocal = (): Buffer | null => {
+        try {
+            const localFile = path.join(ASSET_DIRS.items, `${ankamaId}.webp`);
+            if (!fs.existsSync(localFile)) return null;
             const buffer = fs.readFileSync(localFile);
-            if (buffer.length > 50) input = buffer;
+            return buffer.length > 50 ? buffer : null;
+        } catch {
+            return null;
         }
-    } catch {
-        input = null;
-    }
+    };
+
+    input = readLocal();
 
     if (!input) {
         try {
@@ -124,6 +131,18 @@ export async function loadItemImageDataUrl(ankamaId: number | null | undefined):
                     }
                 }
             }
+        } catch {
+            input = null;
+        }
+    }
+
+    if (!input) {
+        // BUG-4 — siphon **à la volée** : mêmes gardes que le proxy d'assets
+        // (hôte validé, fichier écrit localement, donc les rendus suivants sont
+        // instantanés), puis relecture du WebP tout juste créé.
+        try {
+            const siphoned = await siphonAndCompressImage(null, "items", ankamaId);
+            if (siphoned.success) input = readLocal();
         } catch {
             input = null;
         }

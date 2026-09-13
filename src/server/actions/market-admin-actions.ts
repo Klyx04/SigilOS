@@ -15,6 +15,11 @@ import { getUserContext, type ActionResponse } from "./user-actions";
 import { fetchChannel, validateChannelBelongsToGuild } from "@/server/discord";
 import { writeMarketAuditLog } from "@/server/market/audit";
 import { sanitizeMarketText } from "@/lib/market/text";
+import {
+    normalizeMarketForumTags,
+    restrictMarketForumTags,
+    type MarketForumTagMap,
+} from "@/lib/market/forum-tags";
 import type { MarketDiscordReconcileOutcome } from "@/server/market/maintenance";
 import type { MarketMediaPurgeOutcome } from "@/server/market/retention";
 import {
@@ -47,6 +52,20 @@ export type MarketSettings = {
     marketMediaRetentionDays: number;
     marketLogRetentionDays: number;
     marketChannelKind: string | null;
+    /** D20 / S3.13 — mapping `type|statut → id de tag` du salon forum (vide sinon). */
+    marketForumTags: MarketForumTagMap;
+};
+
+/** Tags **existants** du salon forum, pour alimenter les sélecteurs (§9.4). */
+export type MarketForumTagOption = { id: string; name: string };
+
+export type MarketForumTagsResult = {
+    channelConfigured: boolean;
+    channelKind: string | null;
+    /** `false` = Discord injoignable ou salon non-forum : les sélecteurs sont masqués. */
+    forum: boolean;
+    tags: MarketForumTagOption[];
+    mapping: MarketForumTagMap;
 };
 
 export type MarketConfigTestResult = {
@@ -116,6 +135,13 @@ const marketSettingsSchema = z.object({
         .int()
         .min(MARKET_SETTINGS_BOUNDS.marketLogRetentionDays.min)
         .max(MARKET_SETTINGS_BOUNDS.marketLogRetentionDays.max),
+    /**
+     * D20 / S3.13 — mapping des tags de forum (`clé de type|statut` → id de tag).
+     * Les clés sont **filtrées** par `normalizeMarketForumTags()` et les ids
+     * **revalidés** contre `available_tags` avant écriture (§9.4) : un id
+     * inexistant n'est jamais persisté.
+     */
+    marketForumTags: z.record(z.string().min(1).max(24), snowflake).optional(),
 });
 
 export type MarketSettingsInput = z.input<typeof marketSettingsSchema>;
@@ -174,6 +200,7 @@ export async function getMarketSettings(guildId: string): Promise<ActionResponse
                 marketMediaRetentionDays: true,
                 marketLogRetentionDays: true,
                 marketChannelKind: true,
+                marketForumTags: true,
             },
         });
         if (!config) return { success: false, error: "Guilde introuvable" };
@@ -197,6 +224,7 @@ export async function getMarketSettings(guildId: string): Promise<ActionResponse
                 marketMediaRetentionDays: config.marketMediaRetentionDays,
                 marketLogRetentionDays: config.marketLogRetentionDays,
                 marketChannelKind: config.marketChannelKind,
+                marketForumTags: normalizeMarketForumTags(config.marketForumTags),
             },
         };
     } catch (error) {
@@ -233,6 +261,8 @@ export async function updateMarketSettings(
 
         // Validation serveur du salon de publication (appartient bien à la guilde).
         let channelKind: string | null = null;
+        // `null` = tags inconnus (salon non-forum ou Discord injoignable).
+        let availableTagIds: string[] | null = null;
         if (data.marketNotifyChannelId) {
             const belongs = await validateChannelBelongsToGuild(data.marketNotifyChannelId, guildId);
             if (!belongs) {
@@ -241,9 +271,27 @@ export async function updateMarketSettings(
             try {
                 const channel = await fetchChannel(data.marketNotifyChannelId);
                 channelKind = channel?.type === 15 ? MARKET_CHANNEL_KINDS.FORUM : MARKET_CHANNEL_KINDS.TEXT;
+                availableTagIds =
+                    channel?.type === 15
+                        ? (channel.available_tags ?? [])
+                              .map((tag) => tag.id)
+                              .filter((tagId): tagId is string => typeof tagId === "string" && tagId.length > 0)
+                        : null;
             } catch {
                 channelKind = null;
             }
+        }
+
+        // D20 / S3.13 — tags de forum : on ne persiste QUE des tags **existants**
+        // du salon (un id inventé est écarté : `restrictMarketForumTags`). Salon
+        // textuel ou Discord injoignable ⇒ mapping vidé (fail-closed : on ne
+        // devine jamais un tag, et on ne conserve pas un id non revérifié).
+        const marketForumTags =
+            channelKind === MARKET_CHANNEL_KINDS.FORUM && availableTagIds
+                ? restrictMarketForumTags(data.marketForumTags ?? {}, availableTagIds)
+                : {};
+        if (channelKind === MARKET_CHANNEL_KINDS.FORUM && !availableTagIds) {
+            logger.warn("[updateMarketSettings] tags de forum non revérifiés : mapping vidé", { guildId });
         }
 
         await db.guildConfig.update({
@@ -265,6 +313,7 @@ export async function updateMarketSettings(
                 marketMediaRetentionDays: data.marketMediaRetentionDays,
                 marketLogRetentionDays: data.marketLogRetentionDays,
                 marketChannelKind: channelKind,
+                marketForumTags,
             },
         });
 
@@ -371,6 +420,73 @@ export async function testMarketConfiguration(
         };
     } catch (error) {
         logger.error("[testMarketConfiguration] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+/**
+ * D20 / S3.13 — liste les **tags existants** du salon de publication (salon
+ * forum uniquement) pour alimenter les sélecteurs de l'écran Réglages.
+ *
+ * Lecture seule, réservée aux **admins de la guilde**. Aucun tag n'est créé :
+ * le module ne fait que **lire** `available_tags` (§9.4). Salon textuel, salon
+ * absent ou Discord injoignable ⇒ `forum: false` + liste vide (l'UI masque la
+ * section « Tags », la publication reste normale).
+ */
+export async function listMarketForumAvailableTags(
+    guildId: string
+): Promise<ActionResponse<MarketForumTagsResult>> {
+    try {
+        const guard = await requireMarketAdmin(guildId);
+        if ("error" in guard) return { success: false, error: guard.error };
+
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { marketNotifyChannelId: true, marketChannelKind: true, marketForumTags: true },
+        });
+        if (!config) return { success: false, error: "Guilde introuvable" };
+
+        const mapping = normalizeMarketForumTags(config.marketForumTags);
+
+        if (!config.marketNotifyChannelId) {
+            return {
+                success: true,
+                data: { channelConfigured: false, channelKind: null, forum: false, tags: [], mapping },
+            };
+        }
+
+        let channelKind = config.marketChannelKind;
+        let tags: MarketForumTagOption[] = [];
+        let forum = false;
+
+        try {
+            const channel = await fetchChannel(config.marketNotifyChannelId);
+            if (channel) {
+                channelKind = channel.type === 15 ? MARKET_CHANNEL_KINDS.FORUM : MARKET_CHANNEL_KINDS.TEXT;
+                forum = channel.type === 15;
+                // Liste **bornée** (50 tags max) : jamais de rendu non borné.
+                tags = (channel.available_tags ?? [])
+                    .filter((tag) => typeof tag.id === "string" && typeof tag.name === "string")
+                    .slice(0, 50)
+                    .map((tag) => ({ id: tag.id, name: tag.name }));
+            }
+        } catch (error) {
+            logger.warn("[listMarketForumAvailableTags] Discord injoignable", { err: String(error) });
+        }
+
+        return {
+            success: true,
+            data: {
+                channelConfigured: true,
+                channelKind,
+                // `forum` exige **au moins un** tag disponible : sinon rien à mapper.
+                forum: forum && tags.length > 0,
+                tags,
+                mapping,
+            },
+        };
+    } catch (error) {
+        logger.error("[listMarketForumAvailableTags] failed", { err: error });
         return { success: false, error: "Erreur interne" };
     }
 }

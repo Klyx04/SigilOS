@@ -522,6 +522,16 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                         minigames: true,
                         availability: true,
                         succes: true,
+                        // 🐛 FIX (13/09) — `marche` (et `reactionRoles`/`tickets`/`commandes`/`admin`)
+                        // manquaient ici : `mod.marche` valait donc `undefined` ⇒
+                        // `applyModule(false, perm)` = false pour TOUT LE MONDE sauf le God
+                        // (seul `bypassModules`), quel que soit l'état réel du module en base.
+                        // Le toggle guilde était bien enregistré, mais jamais lu.
+                        marche: true,
+                        reactionRoles: true,
+                        tickets: true,
+                        commandes: true,
+                        admin: true,
                     }
                 }
             }

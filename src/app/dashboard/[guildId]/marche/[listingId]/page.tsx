@@ -3,6 +3,7 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { getMarketListing, getMarketPriceStats, getMarketListingDiscordState } from "@/server/actions/market-actions";
 import { getItemCatalogEntry } from "@/lib/market/item-catalog";
+import { MARKET_ITEM_FAMILY_LABELS, resolveMarketItemPolicy } from "@/lib/market/item-families";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { MarketListingClient } from "../_components/market-listing-client";
@@ -44,6 +45,25 @@ export default async function MarketListingPage({
     const averagePrice = priceStatsRes?.success ? priceStatsRes.data?.average ?? null : null;
     const discordState = discordStateRes.success ? discordStateRes.data ?? null : null;
 
+    /**
+     * Constat beta — la fiche doit dire la **vérité de l'objet** : nom réel du
+     * catalogue, famille, et présence d'un **jet déclaré**. Tout est calculé
+     * **côté serveur** (D17) : l'UI n'arbitre aucune règle métier, elle ne fait
+     * qu'afficher (et le serveur reste seul juge à l'écriture, cf. T10).
+     */
+    const itemPolicy = catalogEntry
+        ? resolveMarketItemPolicy({
+              typeId: catalogEntry.typeId,
+              superTypeId: catalogEntry.superTypeId,
+              typeName: catalogEntry.typeName,
+              category: catalogEntry.category,
+          })
+        : null;
+
+    /** Un lot (ou un objet brut/cosmétique) n'a **jamais** de jet déclaré. */
+    const declaredJet =
+        listing.type === "EQUIPMENT" && listing.stats.length > 0 && (itemPolicy?.statEditorAllowed ?? true);
+
     return (
         <div className="space-y-6 pb-12">
             <UnifiedModuleHeader
@@ -60,10 +80,15 @@ export default async function MarketListingPage({
                 listing={listing}
                 isOwner={isOwner}
                 canManage={user.canManageMarket}
+                canViewRoster={user.canViewRoster}
                 averagePrice={averagePrice}
                 itemSetName={catalogEntry?.itemSetName ?? null}
                 realWeight={catalogEntry?.realWeight ?? null}
                 itemDescription={catalogEntry?.description ?? null}
+                /** Nom réel du catalogue (constat beta : « le nom n'est pas bon »). */
+                itemName={catalogEntry?.name ?? listing.itemName ?? null}
+                itemFamilyLabel={itemPolicy ? MARKET_ITEM_FAMILY_LABELS[itemPolicy.family] : null}
+                declaredJet={declaredJet}
                 discordState={discordState}
             />
         </div>

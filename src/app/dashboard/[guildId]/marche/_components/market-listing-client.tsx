@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -14,11 +13,8 @@ import {
     MARKET_QUALITY_LABELS,
     MARKET_REPORT_REASON_LABELS,
     MARKET_REPORT_REASONS,
-    MARKET_STATUS_CLASSES,
-    MARKET_STATUS_LABELS,
-    MARKET_TYPE_LABELS,
 } from "@/server/actions/market-constants";
-import { formatGroupedInteger, formatKamas } from "@/lib/market/kamas";
+import { formatKamas } from "@/lib/market/kamas";
 import { formatMarketDate, formatMarketDateTime } from "@/lib/market/format-date";
 import { normalizeNativeRange } from "@/lib/market/effects";
 import { cn } from "@/lib/utils";
@@ -26,8 +22,10 @@ import { MarketItemCard } from "@/components/market/market-item-card";
 import { StatIcon } from "@/components/market/stat-icon";
 import { DiscordProfileBubble, type DiscordProfileDTO } from "@/components/shared/discord-profile-bubble";
 import {
+    createMarketOffer,
     deleteMarketListing,
     publishMarketListing,
+    releaseMarketReservation,
     renewMarketListing,
     reportMarketListing,
     reserveMarketListing,
@@ -37,14 +35,13 @@ import { resyncMarketListing, restoreMarketListing, takeDownMarketListing } from
 import { toast } from "sonner";
 import {
     AlertTriangle,
+    ExternalLink,
     Flag,
     Handshake,
     Loader2,
-    Package,
     Pencil,
     RefreshCw,
     ShieldAlert,
-    Store,
     Trash2,
     Upload,
     XCircle,
@@ -96,6 +93,11 @@ type SerializedListing = {
         /** Pseudo Dofus du réservataire (jamais un identifiant Discord). */
         buyerLabel: string;
         buyerClasse: string | null;
+        /**
+         * Constat beta — avatar Discord du réservataire : le bloc « annonce
+         * réservée » montre **qui** a réservé (bulle profil + lien lecture seule).
+         */
+        buyerImage: string | null;
         /** `true` si c'est **le membre courant** qui a réservé. */
         isMine: boolean;
     } | null;
@@ -125,10 +127,27 @@ interface MarketListingClientProps {
     listing: SerializedListing;
     isOwner: boolean;
     canManage: boolean;
+    /**
+     * Constat beta — le bloc « annonce réservée » montre **qui** a réservé
+     * (avatar Discord + lien vers son profil lecture seule) : le lien n'est
+     * rendu que si le lecteur a le droit de consulter l'annuaire (fail-closed :
+     * jamais un lien vers un écran interdit).
+     */
+    canViewRoster: boolean;
     averagePrice: number | null;
     itemSetName: string | null;
     realWeight: number | null;
     itemDescription: string | null;
+    /** Nom **réel** du catalogue (repli : nom figé sur l'annonce, puis titre). */
+    itemName: string | null;
+    /** Famille d'objet (Équipements / Cosmétique / Ressources-Autres). */
+    itemFamilyLabel: string | null;
+    /**
+     * `true` = l'annonce porte un **jet déclaré** (objet modifiable + stats).
+     * Un lot, un cosmétique ou une vente brute n'affichent **jamais** de jet :
+     * la règle est calculée côté serveur (D17), l'UI ne fait qu'obéir.
+     */
+    declaredJet: boolean;
     discordState: { syncStatus: string | null; lastError: string | null; published: boolean } | null;
 }
 
@@ -152,10 +171,14 @@ export function MarketListingClient({
     listing,
     isOwner,
     canManage,
+    canViewRoster,
     averagePrice,
     itemSetName,
     realWeight,
     itemDescription,
+    itemName,
+    itemFamilyLabel,
+    declaredJet,
     discordState,
 }: MarketListingClientProps) {
     const router = useRouter();
@@ -166,6 +189,16 @@ export function MarketListingClient({
     const [reportReason, setReportReason] = useState<(typeof MARKET_REPORT_REASONS)[number]>("JET_MISMATCH");
     const [reportDetails, setReportDetails] = useState("");
     const [moderationNote, setModerationNote] = useState("");
+
+    /**
+     * BUG-3 (R3) — « Faire une offre » depuis la fiche : le montant et le message
+     * restent **privés** (seul le vendeur les voit, dans « Mon espace »). Le
+     * formulaire n'est qu'une saisie : la règle vit côté serveur
+     * (`createMarketOfferCore`, montant borné, annonce négociable et non terminale).
+     */
+    const [offerOpen, setOfferOpen] = useState(false);
+    const [offerKamas, setOfferKamas] = useState("");
+    const [offerNote, setOfferNote] = useState("");
 
     function run(action: () => Promise<{ success: boolean; error?: string }>, successMessage: string) {
         startTransition(async () => {
@@ -225,10 +258,15 @@ export function MarketListingClient({
                     </div>
                 )}
 
-                {/* S2.15 — carte d'item (anatomie §12.3) */}
+                {/* S2.15 — carte d'item (anatomie §12.3). Constat beta : **un seul
+                    bloc** pour l'objet — l'ancienne carte « Le lot / l'objet »
+                    dupliquait le contenu du lot (déjà rendu ici) et affichait un
+                    objet en double sur une annonce d'équipement. */}
                 <MarketItemCard
                     data={{
-                        name: listing.itemName || listing.title,
+                        // Constat beta — le nom affiché est celui **du catalogue**
+                        // (l'annonce peut porter un titre commercial).
+                        name: itemName || listing.itemName || listing.title,
                         level: listing.itemLevel,
                         typeName: listing.itemTypeName,
                         itemSetName,
@@ -239,87 +277,51 @@ export function MarketListingClient({
                         averagePrice,
                         priceKamas: listing.priceKamas,
                         unitLabel: listing.unitLabel,
+                        // Constat beta — quantité du lot + minimum par acheteur :
+                        // rappelés ici, la carte « Le lot / l'objet » ayant disparu.
+                        quantity: listing.quantity,
+                        minQuantity: listing.minQuantity,
                         // S8.10 — forge réelle déclarée → bloc STATUT (S8.4).
                         transcended: listing.transcendenceRuneId !== null,
                         transcendenceLabel: listing.transcendenceLabel,
                         strikeElement: listing.strikeElement,
                         huntingWeapon: listing.huntingWeapon,
-                        stats: listing.stats,
+                        // Constat beta — **aucune ligne de stat** pour un lot, un
+                        // cosmétique ou une vente brute : `declaredJet` est calculé
+                        // côté serveur (famille + jet réellement déclaré, D17).
+                        stats: declaredJet ? listing.stats : [],
                         components: listing.components,
                     }}
                 />
 
-                <Card className="bg-surface/60 border-border">
-                    <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
-                        <CardTitle className="text-base flex items-center gap-2">
-                            <Store className="w-4 h-4 text-gold" />
-                            Le lot / l&apos;objet
-                        </CardTitle>
-                        <Badge
-                            variant="outline"
-                            className={cn("text-[10px] font-black uppercase tracking-wider", MARKET_STATUS_CLASSES[listing.status])}
-                        >
-                            {MARKET_STATUS_LABELS[listing.status]}
+                {itemFamilyLabel && (
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider">
+                            {itemFamilyLabel}
                         </Badge>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {listing.type === "EQUIPMENT" ? (
-                            <div className="flex items-center gap-4">
-                                <div className="relative h-16 w-16 shrink-0 rounded-2xl border border-border bg-background/60 overflow-hidden">
-                                    {listing.itemIconUrl ? (
-                                        <Image src={listing.itemIconUrl} alt={listing.itemName ?? listing.title} fill sizes="64px" className="object-contain p-1" unoptimized />
-                                    ) : (
-                                        <Store className="w-6 h-6 text-muted-foreground absolute inset-0 m-auto" />
-                                    )}
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="font-bold text-foreground">{listing.itemName ?? listing.title}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {listing.itemTypeName ?? MARKET_TYPE_LABELS[listing.type]}
-                                        {listing.itemLevel ? ` · Niv. ${listing.itemLevel}` : ""}
-                                    </p>
-                                    {listing.forgedBy && (
-                                        <p className="text-xs text-gold mt-1">Modifié par {listing.forgedBy}</p>
-                                    )}
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="space-y-2">
-                                <p className="text-sm font-semibold text-foreground flex items-center gap-2">
-                                    <Package className="w-4 h-4 text-info" />
-                                    Contenu du lot ({listing.components.length})
-                                </p>
-                                {listing.components.length === 0 ? (
-                                    <p className="text-xs text-muted-foreground">
-                                        {listing.quantity ? `${listing.quantity} ${listing.unitLabel ?? "unités"}` : "Lot vide"}
-                                    </p>
-                                ) : (
-                                    <ul className="space-y-1">
-                                        {listing.components.map((component) => (
-                                            <li key={component.id} className="flex items-center justify-between text-sm border-b border-border/60 py-1.5">
-                                                <span className="text-foreground truncate">{component.name}</span>
-                                                <span className="font-bold tabular-nums">{formatGroupedInteger(component.quantity)}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                                {listing.minQuantity && (
-                                    <p className="text-xs text-muted-foreground">
-                                        Quantité minimale par acheteur : {formatGroupedInteger(listing.minQuantity)}
-                                    </p>
-                                )}
-                            </div>
-                        )}
+                        <span className="text-caption text-muted-foreground">
+                            {declaredJet
+                                ? "Jet déclaré par le vendeur — over et exo acceptés par conception."
+                                : "Vente brute : aucune statistique n'est déclarée sur cette annonce."}
+                        </span>
+                    </div>
+                )}
 
-                        {listing.description && (
-                            <p className="text-sm text-muted-foreground whitespace-pre-wrap border-t border-border pt-3">
+                {/* Note du vendeur (précédemment portée par la carte dupliquée). */}
+                {listing.description && (
+                    <Card className="bg-surface/60 border-border">
+                        <CardContent className="p-4">
+                            <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">
+                                Note du vendeur
+                            </p>
+                            <p className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap">
                                 {listing.description}
                             </p>
-                        )}
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                )}
 
-                {listing.stats.length > 0 && (
+                {declaredJet && (
                     <Card className="bg-surface/60 border-border">
                         <CardHeader>
                             <CardTitle className="text-base">Jet déclaré</CardTitle>
@@ -391,14 +393,43 @@ export function MarketListingClient({
                             {listing.renewCount > 0 && <p>Renouvelée {listing.renewCount} fois</p>}
                         </div>
 
-                        {/* S7.8/S7.9 — réservation ACTIVE : qui, jusqu'à quand (§13.7) */}
+                        {/* S7.8/S7.9 — réservation ACTIVE : **qui**, jusqu'à quand (§13.7).
+                            Constat beta : le réservataire s'affiche avec son avatar Discord
+                            + un lien vers son profil **lecture seule** (rendu uniquement si
+                            le lecteur a le droit de consulter l'annuaire : fail-closed). */}
                         {listing.reservation && (
-                            <div className="rounded-xl border border-info/30 bg-info/10 px-3 py-2 space-y-1">
+                            <div className="rounded-xl border border-info/30 bg-info/10 px-3 py-2 space-y-2">
                                 <p className="text-[11px] font-black uppercase tracking-wider text-info">
                                     {listing.reservation.isMine
                                         ? "Tu as réservé cette annonce"
                                         : "Annonce réservée"}
                                 </p>
+
+                                {!listing.reservation.isMine && (
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <DiscordProfileBubble
+                                            profile={{
+                                                id: listing.reservation.buyerProfileId,
+                                                name: listing.reservation.buyerLabel,
+                                                image: listing.reservation.buyerImage,
+                                                classe: listing.reservation.buyerClasse,
+                                            }}
+                                            label="Réservé par"
+                                            size="sm"
+                                        />
+                                        {canViewRoster && (
+                                            <Button asChild size="sm" variant="ghost" className="gap-1">
+                                                <Link
+                                                    href={`/dashboard/${guildId}/members/${listing.reservation.buyerProfileId}`}
+                                                >
+                                                    Voir le profil
+                                                    <ExternalLink className="w-3.5 h-3.5" />
+                                                </Link>
+                                            </Button>
+                                        )}
+                                    </div>
+                                )}
+
                                 <p className="text-[11px] text-muted-foreground">
                                     {listing.reservation.isMine ? (
                                         <>
@@ -410,14 +441,7 @@ export function MarketListingClient({
                                         </>
                                     ) : (
                                         <>
-                                            Par{" "}
-                                            <span className="font-semibold text-foreground">
-                                                {listing.reservation.buyerLabel}
-                                            </span>
-                                            {listing.reservation.buyerClasse
-                                                ? ` (${listing.reservation.buyerClasse})`
-                                                : ""}{" "}
-                                            jusqu&apos;au{" "}
+                                            Réservation jusqu&apos;au{" "}
                                             <span className="font-semibold text-foreground">
                                                 {formatDeadline(listing.reservation.expiresAt)}
                                             </span>
@@ -484,6 +508,84 @@ export function MarketListingClient({
                                 <p className="text-xs text-muted-foreground">
                                     Cette annonce n&apos;est plus disponible à la réservation.
                                 </p>
+                            )}
+
+                            {/* BUG-3 (R3, ratifié) — « Faire une offre » reste possible même
+                                si quelqu&apos;un a réservé : on peut toujours proposer un prix.
+                                Montant et message restent **privés** (vendeur uniquement). */}
+                            {listing.negotiable && ["ACTIVE", "RESERVED"].includes(listing.status) && (
+                                <div className="space-y-2 border-t border-border pt-3">
+                                    {offerOpen ? (
+                                        <>
+                                            <input
+                                                value={offerKamas}
+                                                onChange={(event) => setOfferKamas(event.target.value)}
+                                                placeholder="Ton prix en kamas (ex. 12 500)"
+                                                inputMode="numeric"
+                                                maxLength={20}
+                                                className="w-full h-10 rounded-xl border border-border bg-background/60 px-3 text-sm"
+                                            />
+                                            <input
+                                                value={offerNote}
+                                                onChange={(event) => setOfferNote(event.target.value)}
+                                                placeholder="Message au vendeur (facultatif)"
+                                                maxLength={500}
+                                                className="w-full h-10 rounded-xl border border-border bg-background/60 px-3 text-sm"
+                                            />
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    className="flex-1"
+                                                    disabled={isPending}
+                                                    onClick={() => setOfferOpen(false)}
+                                                >
+                                                    Annuler
+                                                </Button>
+                                                <Button
+                                                    className="flex-1 gap-2"
+                                                    disabled={isPending}
+                                                    onClick={() =>
+                                                        run(
+                                                            () =>
+                                                                createMarketOffer(guildId, listing.id, {
+                                                                    offeredKamas: offerKamas,
+                                                                    note: offerNote,
+                                                                }).then((result) => {
+                                                                    if (result.success) {
+                                                                        setOfferOpen(false);
+                                                                        setOfferKamas("");
+                                                                        setOfferNote("");
+                                                                    }
+                                                                    return result;
+                                                                }),
+                                                            "Offre envoyée au vendeur (montant privé)."
+                                                        )
+                                                    }
+                                                >
+                                                    {isPending ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                    ) : (
+                                                        <Flag className="w-4 h-4" />
+                                                    )}
+                                                    Envoyer l&apos;offre
+                                                </Button>
+                                            </div>
+                                            <p className="text-[11px] text-muted-foreground">
+                                                Ton montant reste <strong>privé</strong> : seul le vendeur le voit, dans son
+                                                espace de négociation.
+                                            </p>
+                                        </>
+                                    ) : (
+                                        <Button
+                                            variant="outline"
+                                            className="w-full gap-2"
+                                            onClick={() => setOfferOpen(true)}
+                                        >
+                                            <Flag className="w-4 h-4" />
+                                            Faire une offre
+                                        </Button>
+                                    )}
+                                </div>
                             )}
                         </CardContent>
                     </Card>
@@ -612,6 +714,26 @@ export function MarketListingClient({
                                 >
                                     {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                                     Renouveler (une seule fois)
+                                </Button>
+                            )}
+                            {/* R3 (ratifié) — « Lever la réservation » : le vendeur rend
+                                l'annonce disponible (l'acheteur est prévenu) et les offres
+                                reçues redeviennent acceptables. Propriétaire uniquement. */}
+                            {isOwner && listing.status === "RESERVED" && listing.reservation && (
+                                <Button
+                                    variant="outline"
+                                    className="w-full gap-2"
+                                    disabled={isPending}
+                                    onClick={() =>
+                                        run(
+                                            () =>
+                                                releaseMarketReservation(guildId, listing.reservation!.id),
+                                            "Réservation levée : l'annonce repasse en vente."
+                                        )
+                                    }
+                                >
+                                    <XCircle className="w-4 h-4" />
+                                    Lever la réservation
                                 </Button>
                             )}
                             {isOwner && ["DRAFT", "ACTIVE", "RESERVED", "EXPIRED"].includes(listing.status) && (

@@ -29,6 +29,7 @@ import {
     type MarketDiscordPayloadInput,
     type MarketDiscordStatus,
 } from "@/lib/market/discord-payload";
+import { normalizeItemIconUrl } from "@/lib/market/item-image";
 import { buildMarketDashboardUrl } from "@/lib/market/discord-interactions";
 import { resolveMarketForumTags } from "@/lib/market/forum-tags";
 import { countPendingMarketOffers } from "@/server/market/counters";
@@ -122,6 +123,24 @@ function absoluteItemIconUrl(url: string | null | undefined): string | null {
     return absoluteDiscordAssetUrl(url, getAppBaseUrl());
 }
 
+/**
+ * Constat beta (BUG-4) — la **miniature** de l'embed était vide hors salon
+ * forum, et un lot n'a pas d'icône d'objet. On résout donc l'icône dans cet
+ * ordre : objet → **1ᵉʳ composant du lot**, avec la **même normalisation** que le
+ * reste du module (proxy auto-siphon) pour ne jamais publier un chemin local
+ * `/uploads/…` (Discord renverrait 404, voire `400 Not a well formed URL`).
+ */
+function resolveDiscordThumbnail(
+    listing: NonNullable<Awaited<ReturnType<typeof loadListingForDiscord>>>["listing"]
+): string | null {
+    const fromItem = normalizeItemIconUrl(listing.itemIconUrl, listing.dofusDbItemId);
+    if (fromItem) return absoluteItemIconUrl(fromItem);
+
+    const first = listing.components[0];
+    if (!first) return null;
+    return absoluteItemIconUrl(normalizeItemIconUrl(first.iconUrl, first.dofusDbItemId));
+}
+
 /** Construit le payload pur à partir de l'annonce chargée. */
 function buildPayload(
     loaded: NonNullable<Awaited<ReturnType<typeof loadListingForDiscord>>>,
@@ -164,7 +183,9 @@ function buildPayload(
         acceptsTrade: listing.acceptsTrade,
         imageUrl,
         // Correction 13/09 — Discord exige une URL **absolue** (400 sinon).
-        itemIconUrl: absoluteItemIconUrl(listing.itemIconUrl),
+        // BUG-4 — miniature **toujours** fournie (objet, sinon 1ᵉʳ composant du
+        // lot) : l'embed affiche l'icône en haut à droite dès la publication.
+        itemIconUrl: resolveDiscordThumbnail(listing),
         dashboardUrl: buildMarketDashboardUrl(getAppBaseUrl(), listing.guild.discordGuildId, listing.id),
         forumMode,
     };

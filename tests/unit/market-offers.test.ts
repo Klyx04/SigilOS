@@ -201,17 +201,39 @@ describe("market offre — gardes §11.4 / §16.2 (annonce)", () => {
         expect(db.$transaction).not.toHaveBeenCalled();
     });
 
-    it("refuse une annonce qui n'est plus ACTIVE (réservée, vendue, expirée, retirée)", async () => {
+    it("RÉSERVÉE : le dépôt d'offre reste OUVERT (BUG-3 / R3) — un prix peut toujours être proposé", async () => {
         (db.marketListing.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
             id: LISTING_ID,
+            userId: SELLER_USER_ID,
+            title: ITEM_LABEL,
             profileId: SELLER_PROFILE_ID,
             status: "RESERVED",
             negotiable: true,
+            acceptsTrade: true,
+            guild: { discordGuildId: GUILD_DISCORD_ID },
         });
 
         const res = await createMarketOfferCore(baseParams());
 
-        expect(res).toMatchObject({ ok: false, reason: "NOT_AVAILABLE" });
+        // La règle ratifiée : une réservation en cours ne ferme plus la
+        // négociation — le vendeur décide (et doit lever la réservation pour
+        // accepter, cf. `RESERVATION_ACTIVE` dans les décisions).
+        expect(res.ok).toBe(true);
+    });
+
+    it("refuse un état TERMINAL (vendue, expirée, retirée, brouillon)", async () => {
+        for (const status of ["SOLD", "EXPIRED", "WITHDRAWN", "DRAFT"] as const) {
+            (db.marketListing.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+                id: LISTING_ID,
+                profileId: SELLER_PROFILE_ID,
+                status,
+                negotiable: true,
+            });
+
+            const res = await createMarketOfferCore(baseParams());
+            expect(res, status).toMatchObject({ ok: false, reason: "NOT_AVAILABLE" });
+        }
+
         expect(db.$transaction).not.toHaveBeenCalled();
     });
 
@@ -401,12 +423,14 @@ describe("market offre — journal & synchronisation (effets non bloquants)", ()
     });
 
     it("n'alerte pas sur un refus : aucune offre commitée, donc rien à annoncer", async () => {
+        // Refus choisi sur un **état terminal** (le dépôt sur une annonce
+        // réservée est désormais autorisé — BUG-3 / R3).
         (db.marketListing.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
             id: LISTING_ID,
             userId: SELLER_USER_ID,
             title: ITEM_LABEL,
             profileId: SELLER_PROFILE_ID,
-            status: "RESERVED",
+            status: "SOLD",
             negotiable: true,
             guild: { discordGuildId: GUILD_DISCORD_ID },
         });
@@ -462,6 +486,67 @@ describe("market offre — décision du vendeur (S4.9)", () => {
             discordGuildId: GUILD_DISCORD_ID,
             itemLabel: ITEM_LABEL,
         });
+    });
+
+    /**
+     * R3 (ratifié le 13/09) — **pas de reprise silencieuse** : tant qu'une
+     * réservation est active, l'acceptation est refusée avec un message
+     * actionnable ; le vendeur « lève la réservation » puis accepte.
+     */
+    it("R3 — ACCEPT refusé tant qu'une réservation est active (aucune écriture)", async () => {
+        (db.marketOffer.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+            id: OFFER_ID,
+            status: "PENDING",
+            expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
+            buyerProfileId: BUYER_PROFILE_ID,
+            buyerUserId: BUYER_USER_ID,
+            listing: {
+                id: LISTING_ID,
+                userId: SELLER_USER_ID,
+                profileId: SELLER_PROFILE_ID,
+                title: ITEM_LABEL,
+                // Réservation en cours : le vendeur doit d'abord la lever.
+                status: "RESERVED",
+                acceptsTrade: true,
+                guild: { discordGuildId: GUILD_DISCORD_ID },
+            },
+        });
+
+        const res = await respondToMarketOfferCore(decisionParams());
+        const failure = res as { ok: boolean; reason?: string; error?: string };
+
+        expect(failure.ok).toBe(false);
+        expect(failure.reason).toBe("RESERVATION_ACTIVE");
+        expect(failure.error).toContain("Lever la réservation");
+
+        // Rien n'est écrit, rien n'est annoncé : la transaction n'est même pas ouverte.
+        expect(db.$transaction).not.toHaveBeenCalled();
+        expect(tx.marketOffer.updateMany).not.toHaveBeenCalled();
+        expect(syncListingMessage).not.toHaveBeenCalled();
+        expect(notifyMarketBuyerActivity).not.toHaveBeenCalled();
+    });
+
+    it("R3 — l'annonce ACTIVE accepte normalement (la garde ne bloque que RESERVED)", async () => {
+        (db.marketOffer.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+            id: OFFER_ID,
+            status: "PENDING",
+            expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
+            buyerProfileId: BUYER_PROFILE_ID,
+            buyerUserId: BUYER_USER_ID,
+            listing: {
+                id: LISTING_ID,
+                userId: SELLER_USER_ID,
+                profileId: SELLER_PROFILE_ID,
+                title: ITEM_LABEL,
+                status: "ACTIVE",
+                acceptsTrade: true,
+                guild: { discordGuildId: GUILD_DISCORD_ID },
+            },
+        });
+
+        const res = await respondToMarketOfferCore(decisionParams());
+
+        expect(res).toMatchObject({ ok: true, status: "ACCEPTED", reservationId: RESERVATION_ID });
     });
 
     it("ACCEPT : annonce RESERVED au prix de l'offre, réservation ACTIVE créée", async () => {

@@ -679,6 +679,43 @@ export async function patchChannelMessage(
 }
 
 /**
+ * D20 / S3.13 — met à jour les **tags appliqués** d'un sujet de forum
+ * (`PATCH /channels/{threadId}` avec `applied_tags`).
+ *
+ * Discord remplace **l'intégralité** du tableau : on envoie donc l'ensemble
+ * souhaité (famille + statut), pas un delta. Un tableau vide retire tous les
+ * tags. Jamais d'exception : `false` = à retenter (le module reste fonctionnel
+ * sans tags, §9.4).
+ */
+export async function updateForumThreadTags(threadId: string, tagIds: string[]): Promise<boolean> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return false;
+
+    const bounded = Array.isArray(tagIds) ? tagIds.slice(0, 5) : [];
+
+    try {
+        const res = await fetchWithRetry(`/api/v10/channels/${threadId}`, {
+            method: "PATCH",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ applied_tags: bounded }),
+        });
+
+        if (!res.ok) {
+            const errBody = await res.text();
+            logger.warn(`[Discord] updateForumThreadTags failed ${res.status}`, { error: errBody.slice(0, 300) });
+            return false;
+        }
+        return true;
+    } catch (error) {
+        logger.warn("[Discord] Error updating forum thread tags", { error: String(error) });
+        return false;
+    }
+}
+
+/**
  * Discord embed field
  */
 interface EmbedField {
@@ -706,6 +743,12 @@ interface SendChannelMessageOptions {
     mentionContent?: string;     // Text with @mentions (sent as content, triggers ping)
     components?: any[];          // Discord Components (Buttons, Select Menus)
     suppressEmbeds?: boolean;    // flags: 4 — prevent URL unfurl preview
+    /**
+     * D20 / S3.13 — tags de **forum** appliqués à la création du sujet (ids de
+     * `available_tags`, max 5). Ignoré hors salon forum : Discord refuse des
+     * tags sur un message de salon textuel.
+     */
+    appliedTags?: string[];
     /**
      * Outbox (mode dégrade) : quand l'envoi passe par la file, le worker stocke
      * le VRAI ID du message posté sous cette clé Redis (TTL ci-dessous) au lieu
@@ -1178,6 +1221,12 @@ export async function createForumPost(
     // Unlike regular channels where they go in the top-level body.components
     if (options?.components) {
         body.message.components = options.components;
+    }
+
+    // D20 / S3.13 — tags du forum (ids **existants**, 5 maximum). Absents ⇒
+    // aucun `applied_tags` : le sujet est publié normalement (jamais bloquant).
+    if (Array.isArray(options?.appliedTags) && options.appliedTags.length > 0) {
+        body.applied_tags = options.appliedTags.slice(0, 5);
     }
 
     try {

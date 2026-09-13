@@ -1297,15 +1297,35 @@ const SUCCES_STEPS: TourStep[] = [
 ];
 
 /**
- * Tour complet du module « Marché » (D36) — 6 étapes ancrées sur des
+ * Tour complet du module « Marché » (D36) — étapes ancrées sur des
  * `data-tour="marche-*"` stables (jamais de sélecteur fragile), filtrées par
  * le module actif + la permission `market:trade`.
+ *
+ * S8.22 — ordre = parcours réel du membre : consulter, filtrer, déclarer
+ * (objet + jet + **forge réelle**), publier, rouvrir sa fiche, négocier,
+ * modérer (staff), retrouver ses annonces.
  */
 const MARCHE_STEPS: TourStep[] = [
     {
         target: '[data-tour="marche-header"]',
         title: "Le Marché de guilde",
         description: "Publie et consulte les annonces d'équipements forgemagie et de lots de ressources entre membres. L'échange se conclut en jeu : SigilOS ne garantit pas la transaction.",
+        placement: "bottom",
+        module: "marche",
+        requiresPerm: "canViewMarket",
+    },
+    {
+        target: '[data-tour="marche-catalog"]',
+        title: "Les annonces",
+        description: "Chaque carte affiche l'objet, son prix, son statut (Disponible, Réservé, Vendu, Retiré) et son vendeur. Clique sur « Voir la fiche » pour le détail.",
+        placement: "top",
+        module: "marche",
+        requiresPerm: "canViewMarket",
+    },
+    {
+        target: '[data-tour="marche-filters"]',
+        title: "Filtrer le catalogue",
+        description: "Recherche par objet ou vendeur, filtre par type et par statut, trie par prix ou par niveau, et passe en vue tableau pour une lecture dense.",
         placement: "bottom",
         module: "marche",
         requiresPerm: "canViewMarket",
@@ -1327,6 +1347,14 @@ const MARCHE_STEPS: TourStep[] = [
         requiresPerm: "canViewMarket",
     },
     {
+        target: '[data-tour="marche-forge"]',
+        title: "La forge réelle",
+        description: "Déclare l'état réel de l'objet : rune de Transcendance (qui exclut tout over/exo), élément de frappe et potion (armes), arme de chasse. « Troc accepté » ou « Kamas uniquement » se retrouve ensuite dans l'annonce.",
+        placement: "bottom",
+        module: "marche",
+        requiresPerm: "canViewMarket",
+    },
+    {
         target: '[data-tour="marche-publish"]',
         title: "La publication Discord",
         description: "Vérifie la destination (salon texte ou forum), choisis les rôles à mentionner (parmi ceux autorisés) et publie : l'aperçu montre exactement ce que verront les membres.",
@@ -1335,20 +1363,28 @@ const MARCHE_STEPS: TourStep[] = [
         requiresPerm: "canViewMarket",
     },
     {
-        target: '[data-tour="marche-filters"]',
-        title: "Filtrer le catalogue",
-        description: "Recherche par objet ou vendeur, filtre par type et par statut, trie par prix ou par niveau, et passe en vue tableau pour une lecture dense.",
+        target: '[data-tour="marche-listing"]',
+        title: "La fiche d'une annonce",
+        description: "Le jet déclaré s'affiche avec les icônes officielles, le vendeur apparaît dans sa bulle profil, et les actions (réserver, faire une offre, renouveler, retirer) dépendent de ton rôle. Aucun montant d'offre n'est public.",
         placement: "bottom",
         module: "marche",
         requiresPerm: "canViewMarket",
     },
     {
-        target: '[data-tour="marche-catalog"]',
-        title: "Les annonces",
-        description: "Chaque carte affiche l'objet, son prix, son statut (Disponible, Réservé, Vendu, Expiré) et son vendeur. Clique sur « Voir la fiche » pour le détail.",
+        target: '[data-tour="marche-negotiation"]',
+        title: "Négocier une offre",
+        description: "Dans « Mon espace », accepte, refuse ou contre-propose une offre. Accepter réserve l'annonce et expire automatiquement les autres offres en attente ; le montant reste privé.",
         placement: "top",
         module: "marche",
         requiresPerm: "canViewMarket",
+    },
+    {
+        target: '[data-tour="marche-moderation"]',
+        title: "La modération (staff)",
+        description: "Avec la permission de modération : traite les signalements, retire ou restaure une annonce et consulte l'historique complet de ses transitions. Chaque décision est journalisée.",
+        placement: "top",
+        module: "marche",
+        requiresPerm: "canManageMarket",
     },
     {
         target: '[data-tour="marche-my-listings"]',

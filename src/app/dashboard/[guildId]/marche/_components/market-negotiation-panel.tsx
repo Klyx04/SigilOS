@@ -260,7 +260,7 @@ export function MarketNegotiationPanel({ guildId, received, sent }: MarketNegoti
     const nothing = received.length === 0 && sent.length === 0;
 
     return (
-        <section className="space-y-4">
+        <section className="space-y-4" data-tour="marche-negotiation">
             <div className="flex flex-wrap items-center gap-2">
                 <Handshake className="h-4 w-4 text-gold" />
                 <h2 className="text-sm font-black uppercase tracking-wider text-foreground">Centre de négociation</h2>

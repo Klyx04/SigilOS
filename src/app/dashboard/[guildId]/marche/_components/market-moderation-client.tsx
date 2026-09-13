@@ -506,7 +506,7 @@ export function MarketModerationClient({ guildId, reports, withdrawn }: MarketMo
     const visible = filter === "ALL" ? reports : reports.filter((report) => report.status === filter);
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-4" data-tour="marche-moderation">
             {/* S5.8 — deux vues : dossiers de signalement et annonces retirées. */}
             <div className="flex flex-wrap items-center gap-1 rounded-xl border border-border p-1">
                 <Button

@@ -2,41 +2,81 @@ import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
 import { db } from "@/lib/prisma";
 import { getAppBaseUrl } from "@/lib/utils";
+import { dofusStatAssetUrl, resolveDofusStatTheme } from "@/lib/dofus-stats-theme";
+import { buildMarketStatusLines } from "@/lib/market/discord-payload";
 
 // Prisma impose le runtime Node (pas d'edge).
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const CARD_WIDTH = 640;
-const CARD_HEIGHT = 520;
+const CARD_WIDTH = 760;
+const CARD_HEIGHT = 560;
+const ITEM_BOX = 236;
+/** Nombre de lignes de jet affichées (lisibilité Discord, §12.7). */
+const MAX_STAT_LINES = 12;
 
 /** Statuts dont la carte est publique (déjà exposée dans l'embed Discord). */
 const PUBLIC_STATUSES = ["ACTIVE", "RESERVED", "SOLD", "EXPIRED", "WITHDRAWN"];
 
-function statColor(origin: string, quality: string, characteristic: number | null): string {
-    if (origin === "EXO") return "#67e8f9"; // cyan
-    if ([1, 23, 19].includes(characteristic ?? -1)) return "#67e8f9";
-    switch (quality) {
-        case "PERFECT":
-            return "#ffffff";
+/** Couleur d'une ligne de jet — lecture immédiate, comme en jeu. */
+function statValueColor(stat: {
+    actualValue: number;
+    origin: string;
+    quality: string;
+    characteristic: number | null;
+}): string {
+    if (stat.actualValue < 0) return "#f87171"; // malus
+    if (stat.origin === "EXO") return "#22d3ee"; // exo
+    if ([1, 23, 19].includes(stat.characteristic ?? -1)) return "#22d3ee"; // PA / PM / PO
+    switch (stat.quality) {
         case "OVER":
             return "#22d3ee";
+        case "PERFECT":
+            return "#ffffff";
         case "GOOD":
             return "#34d399";
         case "LOW":
             return "#fbbf24";
         default:
-            return "#9ca3af";
+            return "#cbd5e1";
     }
 }
 
+/** Étiquette courte affichée après la valeur (`over`, `exo`, `malus`, `max`). */
+function statBadge(stat: { actualValue: number; origin: string; quality: string }): string | null {
+    if (stat.actualValue < 0) return "malus";
+    if (stat.origin === "EXO") return "exo";
+    if (stat.quality === "OVER") return "over";
+    if (stat.quality === "PERFECT") return "max";
+    return null;
+}
+
+/** Plage native lisible : `[81 à 100]`, `[1]`, jamais `[null]`. */
+function formatRange(min: number | null, max: number | null): string {
+    if (min == null && max == null) return "";
+    if (min == null) return `[${max}]`;
+    if (max == null) return `[${min}]`;
+    if (min === max) return `[${min}]`;
+    return `[${Math.min(min, max)} à ${Math.max(min, max)}]`;
+}
+
+function formatKamas(value: number | null): string {
+    return value == null ? "Prix non fixé" : `${value.toLocaleString("fr-FR")} K`;
+}
+
 /**
- * GET /api/og/market/[id] — carte PNG d'une annonce (S2.16).
+ * GET /api/og/market/[id] — **carte d'annonce** du Marché (S2.16, refonte S8.22).
  *
- * ⚠️ Discord récupère l'image des embeds **sans session** : la carte est donc
- * publique pour les annonces publiées (statut public) et le contenu affiché est
- * exactement celui de l'embed (nom, jet, pods, prix). Le cache est invalidé par
- * `v=` (= `statsHash`), donc régénéré à chaque modification du jet (§12.7).
+ * ⚠️ Discord récupère l'image des embeds **sans session** : la carte reste donc
+ * publique pour les annonces publiées (statut public) et son contenu est
+ * exactement celui de l'embed (nom, jet, statut de forge, troc, prix, poids,
+ * pseudo Dofus du vendeur). **Aucune donnée privée** : pas d'id Discord, pas de
+ * montant d'offre, pas d'id interne. Le cache est invalidé par `v=`
+ * (= `statsHash`), donc régénéré à chaque modification du jet (§12.7).
+ *
+ * Rendu calqué sur la **tooltip Dofus** : image de l'objet à droite, effets à
+ * gauche avec les **assets officiels** des statistiques et la colorisation
+ * over / malus / exo / transcendance.
  */
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
     try {
@@ -55,10 +95,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 
         const baseUrl = getAppBaseUrl();
         const headerName = listing.itemName || listing.title;
-        const priceLabel = listing.priceKamas != null
-            ? `${listing.priceKamas.toLocaleString("fr-FR")} K`
-            : "Prix non fixé";
-        const exoLabels = listing.stats.filter((s) => s.origin === "EXO").map((s) => s.label);
 
         // Les PODS viennent du CATALOGUE (GameItem), pas de l'annonce.
         const catalogItem = listing.dofusDbItemId
@@ -73,9 +109,36 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
             ? `${baseUrl}/api/assets-dofus/items/${listing.dofusDbItemId}`
             : null;
 
-        // On n'affiche que les 10 premières lignes sur la carte (lisibilité).
-        const visibleStats = listing.stats.slice(0, 10);
-        const visibleComponents = listing.components.slice(0, 5);
+        const visibleStats = listing.stats.slice(0, MAX_STAT_LINES);
+        const hiddenStats = Math.max(0, listing.stats.length - MAX_STAT_LINES);
+        const visibleComponents = listing.components.slice(0, 3);
+
+        // S8.17 — source **unique** du bloc statut (Transcendé, élément + palier,
+        // arme de chasse, « Troc accepté » / « Kamas uniquement »).
+        const statusLines = buildMarketStatusLines({
+            transcended: listing.transcendenceRuneId !== null,
+            transcendenceLabel: listing.transcendenceLabel,
+            strikeElement: listing.strikeElement,
+            elementPotionTier: listing.elementPotionTier,
+            huntingWeapon: listing.huntingWeapon,
+            acceptsTrade: listing.acceptsTrade,
+        });
+
+
+
+        // Lignes prêtes à peindre : icône officielle + valeur + couleur + badge.
+        const statRows = visibleStats.map((stat) => {
+            const theme = resolveDofusStatTheme(stat.characteristic, stat.effectId, null, stat.label);
+            return {
+                id: stat.id,
+                iconUrl: theme ? `${baseUrl}${dofusStatAssetUrl(theme.asset)}` : null,
+                valueLabel: stat.actualValue >= 0 ? `+${stat.actualValue}` : `${stat.actualValue}`,
+                color: statValueColor(stat),
+                badge: statBadge(stat),
+                label: stat.label,
+                range: formatRange(stat.naturalMin, stat.naturalMax),
+            };
+        });
 
         return new ImageResponse(
             (
@@ -85,107 +148,273 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
                         height: CARD_HEIGHT,
                         display: "flex",
                         flexDirection: "column",
-                        background: "linear-gradient(160deg, #101018 0%, #0a0a10 100%)",
-                        border: "2px solid #26283a",
-                        borderRadius: 22,
-                        padding: 28,
+                        background: "linear-gradient(155deg, #14121f 0%, #0b0a12 100%)",
+                        border: "2px solid #2a2740",
+                        borderRadius: 18,
+                        overflow: "hidden",
                         fontFamily: "sans-serif",
-                        color: "#e5e7eb",
                     }}
                 >
-                    {/* En-tête */}
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
-                        <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
-                            <div style={{ fontSize: 26, fontWeight: 900, color: "#ffffff" }}>{headerName}</div>
-                            <div style={{ fontSize: 14, color: "#9ca3af", marginTop: 4 }}>
-                                {listing.itemLevel ? `Niveau ${listing.itemLevel}` : ""}
-                                {listing.itemLevel && listing.itemTypeName ? " • " : ""}
-                                {listing.itemTypeName ?? ""}
-                            </div>
-                            {exoLabels.length > 0 && (
-                                <div style={{ fontSize: 14, fontWeight: 700, color: "#67e8f9", marginTop: 6 }}>
-                                    ★ Exo {exoLabels.join(" · ")}
-                                </div>
-                            )}
-                        </div>
-                        {itemIconUrl && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                                src={itemIconUrl}
-                                alt=""
-                                width={72}
-                                height={72}
-                                style={{ borderRadius: 14, background: "#141520" }}
-                            />
-                        )}
-                    </div>
-
-                    {/* Effets */}
-                    {visibleStats.length > 0 && (
-                        <div style={{ display: "flex", flexDirection: "column", marginTop: 16 }}>
-                            <div style={{ fontSize: 11, letterSpacing: 4, color: "#6b7280", fontWeight: 800 }}>
-                                EFFETS
-                            </div>
-                            {visibleStats.map((stat) => (
-                                <div
-                                    key={`${stat.effectId}-${stat.origin}`}
-                                    style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}
-                                >
-                                    <div
-                                        style={{
-                                            display: "flex",
-                                            fontSize: 15,
-                                            fontWeight: 800,
-                                            color: statColor(stat.origin, stat.quality, stat.characteristic),
-                                            width: 70,
-                                        }}
-                                    >
-                                        {stat.actualValue >= 0 ? `+${stat.actualValue}` : `${stat.actualValue}`}
-                                    </div>
-                                    <div style={{ display: "flex", flex: 1, fontSize: 15, color: "#d1d5db" }}>
-                                        {stat.label}
-                                    </div>
-                                    <div style={{ display: "flex", fontSize: 13, color: "#6b7280" }}>
-                                        {stat.naturalMin != null && stat.naturalMax != null
-                                            ? `[${stat.naturalMin} à ${stat.naturalMax}]`
-                                            : `[${stat.actualValue}]`}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-
-                    {/* Contenu du lot */}
-                    {visibleComponents.length > 0 && (
-                        <div style={{ display: "flex", flexDirection: "column", marginTop: 14 }}>
-                            <div style={{ fontSize: 11, letterSpacing: 4, color: "#6b7280", fontWeight: 800 }}>
-                                CONTENU DU LOT
-                            </div>
-                            {visibleComponents.map((component, index) => (
-                                <div key={index} style={{ display: "flex", fontSize: 14, color: "#d1d5db", marginTop: 4 }}>
-                                    ×{component.quantity.toLocaleString("fr-FR")} {component.name}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Pied */}
+                    {/* ─── En-tête : nom + niveau/type + statut de forge ─────────── */}
                     <div
                         style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: 20,
-                            marginTop: "auto",
-                            paddingTop: 14,
-                            borderTop: "1px solid #26283a",
+                            justifyContent: "space-between",
+                            gap: 16,
+                            padding: "16px 22px",
+                            background: "linear-gradient(90deg, #241d3d 0%, #1a1630 100%)",
+                            borderBottom: "1px solid #322b4d",
+                        }}
+                    >
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                            <div style={{ display: "flex", fontSize: 26, fontWeight: 800, color: "#f5f3ff" }}>
+                                {headerName}
+                            </div>
+                            <div style={{ display: "flex", gap: 12, fontSize: 15, color: "#b9b3d4" }}>
+                                {listing.itemLevel != null && (
+                                    <div style={{ display: "flex" }}>Niveau {listing.itemLevel}</div>
+                                )}
+                                {listing.itemTypeName && <div style={{ display: "flex" }}>{listing.itemTypeName}</div>}
+                                {realWeight != null && <div style={{ display: "flex" }}>{realWeight} pods</div>}
+                            </div>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
+                            {statusLines.slice(0, 3).map((line) => (
+                                <div
+                                    key={line}
+                                    style={{
+                                        display: "flex",
+                                        fontSize: 13,
+                                        fontWeight: 700,
+                                        color: line.startsWith("Transcendé") ? "#f0abfc" : "#a5f3fc",
+                                        border: `1px solid ${line.startsWith("Transcendé") ? "#a21caf" : "#0e7490"}`,
+                                        background: line.startsWith("Transcendé") ? "#3b0764" : "#083344",
+                                        borderRadius: 999,
+                                        padding: "3px 10px",
+                                    }}
+                                >
+                                    {line}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* ─── Corps : effets (gauche) + objet & prix (droite) ────────── */}
+                    <div style={{ display: "flex", flex: 1, gap: 18, padding: "16px 22px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: 7 }}>
+                            <div
+                                style={{
+                                    display: "flex",
+                                    fontSize: 12,
+                                    letterSpacing: 4,
+                                    color: "#8b84ad",
+                                    fontWeight: 800,
+                                }}
+                            >
+                                EFFETS
+                            </div>
+                            {statRows.length === 0 && (
+                                <div style={{ display: "flex", fontSize: 15, color: "#6b7280" }}>
+                                    Jet non déclaré par le vendeur.
+                                </div>
+                            )}
+                            {statRows.map((row) => (
+                                <div key={row.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    {row.iconUrl ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={row.iconUrl} width={18} height={18} alt="" />
+                                    ) : (
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                width: 18,
+                                                height: 18,
+                                                borderRadius: 4,
+                                                background: "#3b3560",
+                                            }}
+                                        />
+                                    )}
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            width: 58,
+                                            justifyContent: "flex-end",
+                                            fontSize: 16,
+                                            fontWeight: 800,
+                                            color: row.color,
+                                        }}
+                                    >
+                                        {row.valueLabel}
+                                    </div>
+                                    <div style={{ display: "flex", flex: 1, fontSize: 15, color: "#e5e7eb" }}>
+                                        {row.label}
+                                    </div>
+                                    {row.badge && (
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                fontSize: 11,
+                                                fontWeight: 800,
+                                                color: row.color,
+                                                border: `1px solid ${row.color}`,
+                                                borderRadius: 999,
+                                                padding: "1px 6px",
+                                                textTransform: "uppercase",
+                                            }}
+                                        >
+                                            {row.badge}
+                                        </div>
+                                    )}
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            width: 82,
+                                            justifyContent: "flex-end",
+                                            fontSize: 13,
+                                            color: "#6b7280",
+                                        }}
+                                    >
+                                        {row.range}
+                                    </div>
+                                </div>
+                            ))}
+                            {hiddenStats > 0 && (
+                                <div style={{ display: "flex", fontSize: 13, color: "#6b7280" }}>
+                                    + {hiddenStats} autre(s) ligne(s) — voir la fiche sur SigilOS.
+                                </div>
+                            )}
+                            {visibleComponents.length > 0 && (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 4 }}>
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            fontSize: 12,
+                                            letterSpacing: 4,
+                                            color: "#8b84ad",
+                                            fontWeight: 800,
+                                        }}
+                                    >
+                                        CONTENU DU LOT
+                                    </div>
+                                    {visibleComponents.map((component, index) => (
+                                        <div key={index} style={{ display: "flex", fontSize: 14, color: "#cbd5e1" }}>
+                                            ×{component.quantity.toLocaleString("fr-FR")} {component.name}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+
+                        {/* ─── Objet (image en gros) + prix + conditions ──────────── */}
+                        <div
+                            style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                width: ITEM_BOX + 20,
+                                gap: 10,
+                            }}
+                        >
+                            <div
+                                style={{
+                                    display: "flex",
+                                    width: ITEM_BOX,
+                                    height: ITEM_BOX,
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    border: "2px solid #3b3560",
+                                    borderRadius: 16,
+                                    background: "radial-gradient(circle at 50% 40%, #2a2547 0%, #14111f 100%)",
+                                }}
+                            >
+                                {itemIconUrl ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={itemIconUrl} width={ITEM_BOX - 40} height={ITEM_BOX - 40} alt="" />
+                                ) : (
+                                    <div style={{ display: "flex", fontSize: 42, color: "#4b5563" }}>?</div>
+                                )}
+                            </div>
+
+                            <div style={{ display: "flex", fontSize: 26, fontWeight: 900, color: "#fbbf24" }}>
+                                {formatKamas(listing.priceKamas)}
+                            </div>
+
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        fontSize: 13,
+                                        fontWeight: 700,
+                                        color: "#a5f3fc",
+                                        border: "1px solid #0e7490",
+                                        background: "#083344",
+                                        borderRadius: 999,
+                                        padding: "3px 10px",
+                                    }}
+                                >
+                                    {listing.acceptsTrade ? "Troc accepté" : "Kamas uniquement"}
+                                </div>
+                                {listing.negotiable && (
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            fontSize: 13,
+                                            fontWeight: 700,
+                                            color: "#fde68a",
+                                            border: "1px solid #b45309",
+                                            background: "#422006",
+                                            borderRadius: 999,
+                                            padding: "3px 10px",
+                                        }}
+                                    >
+                                        Négociable
+                                    </div>
+                                )}
+                                {listing.quantity != null && (
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            fontSize: 13,
+                                            fontWeight: 700,
+                                            color: "#ddd6fe",
+                                            border: "1px solid #6d28d9",
+                                            background: "#2e1065",
+                                            borderRadius: 999,
+                                            padding: "3px 10px",
+                                        }}
+                                    >
+                                        {listing.unitLabel || `×${listing.quantity}`}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div style={{ display: "flex", fontSize: 13, color: "#8b84ad" }}>
+                                Échange conclu en jeu — non garanti
+                            </div>
+                        </div>
+                    </div>
+
+
+                    {/* ─── Pied : vendeur + origine ──────────────────────────────── */}
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 14,
+                            padding: "12px 22px",
+                            borderTop: "1px solid #2a2740",
                             fontSize: 14,
                             color: "#9ca3af",
                         }}
                     >
-                        <div style={{ display: "flex" }}>POIDS {realWeight ?? "—"}</div>
-                        <div style={{ display: "flex", color: "#d4af37", fontWeight: 900 }}>{priceLabel}</div>
-                        <div style={{ display: "flex", marginLeft: "auto", fontSize: 12, color: "#4b5563" }}>
+                        <div style={{ display: "flex", color: "#e5e7eb", fontWeight: 700 }}>
+                            {listing.profile?.pseudoDofus || "Vendeur"}
+                        </div>
+                        {listing.forgedBy && <div style={{ display: "flex" }}>Modifié par {listing.forgedBy}</div>}
+                        <div style={{ display: "flex", marginLeft: "auto", fontSize: 12, color: "#6b7280" }}>
                             SigilOS Market
                         </div>
                     </div>

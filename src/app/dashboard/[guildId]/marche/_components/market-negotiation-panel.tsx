@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Centre de négociation (S4.10, §14.1) — écran **privé** de « Mes espaces ».
+ * Centre de négociation (S4.10, §14.1) — écran **privé** de « Mon espace ».
  *
  * Deux listes, une seule origine de données (`getMyMarketData`) : les offres
  * **reçues** sur mes annonces, et **mes offres** (déposées, ou en attente de ma
@@ -23,7 +23,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { MARKET_OFFER_STATUS_CLASSES, MARKET_OFFER_STATUS_LABELS } from "@/server/actions/market-constants";
 import { formatKamas } from "@/lib/market/kamas";
 import { cn } from "@/lib/utils";
-import { cancelMarketOffer, respondToMarketOffer } from "@/server/actions/market-actions";
+import { cancelMarketOffer, respondToMarketOffer, type MarketCounterpartProfile } from "@/server/actions/market-actions";
+import { MarketStatLines, type MarketStatLine } from "@/components/market/market-stat-lines";
+import { DiscordProfileBubble } from "@/components/shared/discord-profile-bubble";
 import { toast } from "sonner";
 import { ArrowLeftRight, Check, Handshake, Loader2, X, XCircle } from "lucide-react";
 
@@ -45,6 +47,17 @@ export type NegotiationOffer = {
     createdAt: string;
     expiresAt: string | null;
     counterpartLabel: string | null;
+    /**
+     * S8.14 — **bulle profil** de l'autre partie : DTO **minimal**
+     * `{ id, name, image, classe }` (`id` = identifiant **interne**, jamais un
+     * snowflake Discord). `null` quand l'offre vient de moi.
+     */
+    counterpart: MarketCounterpartProfile | null;
+    /**
+     * S8.15 — **jet déclaré** de l'annonce concernée (icônes officielles) : les
+     * offres se jugeaient sans jamais revoir l'objet. Déjà résolu côté serveur.
+     */
+    listingStats: MarketStatLine[];
     canRespond: boolean;
     canCancel: boolean;
 };
@@ -103,11 +116,23 @@ function OfferRow({ guildId, offer, isPending, onRespond, onCounter, onCancel }:
                     </Link>
                 </div>
                 <p className="mt-1 truncate text-xs text-muted-foreground">{offerSummary(offer)}</p>
+                {/* S8.15 — le jet de l'annonce, avec ses icônes officielles. */}
+                {offer.listingStats.length > 0 ? (
+                    <MarketStatLines stats={offer.listingStats} className="mt-2" />
+                ) : null}
                 {offer.note ? (
                     <p className="mt-0.5 truncate text-xs italic text-muted-foreground">« {offer.note} »</p>
                 ) : null}
+                {/* S8.14 — bulle profil du demandeur / acheteur (avatar + pseudo + classe) */}
+                {offer.counterpart ? (
+                    <DiscordProfileBubble
+                        profile={offer.counterpart}
+                        label={offer.isCounter ? "Contre-offreur" : "Demandeur"}
+                        size="sm"
+                        className="mt-1.5"
+                    />
+                ) : null}
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                    {offer.counterpartLabel ? `${offer.counterpartLabel} · ` : ""}
                     {new Date(offer.createdAt).toLocaleDateString("fr-FR")}
                     {offer.status === "PENDING" && offer.expiresAt
                         ? ` · expire le ${new Date(offer.expiresAt).toLocaleDateString("fr-FR")}`

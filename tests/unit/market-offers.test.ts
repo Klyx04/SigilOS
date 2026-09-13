@@ -92,6 +92,8 @@ beforeEach(() => {
         profileId: SELLER_PROFILE_ID,
         status: "ACTIVE",
         negotiable: true,
+        // D43 — annonce par défaut : troc accepté (les tests le désactivent au cas par cas).
+        acceptsTrade: true,
         guild: { discordGuildId: GUILD_DISCORD_ID },
     });
     (db.marketAuditLog.create as ReturnType<typeof vi.fn>).mockResolvedValue({});
@@ -114,6 +116,7 @@ beforeEach(() => {
             id: LISTING_ID,
             userId: SELLER_USER_ID,
             title: ITEM_LABEL,
+            acceptsTrade: true,
             guild: { discordGuildId: GUILD_DISCORD_ID },
         },
     });
@@ -226,6 +229,53 @@ describe("market offre — gardes §11.4 / §16.2 (annonce)", () => {
         expect(listingOff).toMatchObject({ ok: false, reason: "NEGOTIATIONS_OFF" });
 
         expect(db.$transaction).not.toHaveBeenCalled();
+    });
+});
+
+describe("market offre — D43 : « troc accepté » (acceptsTrade)", () => {
+    /** Annonce « kamas uniquement » : négociable, mais aucun troc accepté. */
+    function kamasOnlyListing() {
+        (db.marketListing.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+            id: LISTING_ID,
+            profileId: SELLER_PROFILE_ID,
+            userId: SELLER_USER_ID,
+            title: ITEM_LABEL,
+            status: "ACTIVE",
+            negotiable: true,
+            acceptsTrade: false,
+            guild: { discordGuildId: GUILD_DISCORD_ID },
+        });
+    }
+
+    it("refuse une offre SANS kamas (troc seul) : règle serveur, aucune écriture (§11.4)", async () => {
+        kamasOnlyListing();
+
+        const res = await createMarketOfferCore(
+            baseParams({ offeredKamas: null, tradeDescription: "Épée + 10 potions" })
+        );
+
+        expect(res).toMatchObject({ ok: false, reason: "TRADE_NOT_ACCEPTED" });
+        // Garde posée **avant** la transaction : aucune offre fantôme, aucune
+        // activité fantôme, aucune alerte ni réécriture d'embed (§11.6 / §0.1).
+        expect(db.$transaction).not.toHaveBeenCalled();
+        expect(tx.marketOffer.create).not.toHaveBeenCalled();
+        expect(db.marketAuditLog.create).not.toHaveBeenCalled();
+        expect(syncListingMessage).not.toHaveBeenCalled();
+        expect(notifyMarketSellerActivity).not.toHaveBeenCalled();
+    });
+
+    it("accepte une offre AVEC kamas sur la même annonce (le troc joint ne la disqualifie pas)", async () => {
+        kamasOnlyListing();
+
+        const res = await createMarketOfferCore(
+            baseParams({ offeredKamas: 12_000_000, tradeDescription: "Épée en complément" })
+        );
+
+        expect(res.ok).toBe(true);
+        expect(tx.marketOffer.create.mock.calls[0][0].data).toMatchObject({
+            offeredKamas: 12_000_000,
+            tradeDescription: "Épée en complément",
+        });
     });
 });
 
@@ -624,6 +674,36 @@ describe("market offre — contre-offre (S4.10)", () => {
 
         expect(res).toMatchObject({ ok: false, reason: "EMPTY_OFFER" });
         expect(db.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("D43 — contre-offre SANS kamas refusée sur une annonce « kamas uniquement » (l'offre en face reste PENDING)", async () => {
+        (db.marketOffer.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+            id: OFFER_ID,
+            status: "PENDING",
+            expiresAt: null,
+            buyerProfileId: BUYER_PROFILE_ID,
+            buyerUserId: BUYER_USER_ID,
+            counterOfId: null,
+            listing: {
+                id: LISTING_ID,
+                userId: SELLER_USER_ID,
+                profileId: SELLER_PROFILE_ID,
+                title: ITEM_LABEL,
+                acceptsTrade: false,
+                guild: { discordGuildId: GUILD_DISCORD_ID },
+            },
+        });
+
+        const res = await respondToMarketOfferCore(
+            counterParams({ counter: { offeredKamas: null, tradeDescription: "3 runes PA", note: null } })
+        );
+
+        expect(res).toMatchObject({ ok: false, reason: "TRADE_NOT_ACCEPTED" });
+        // Garde **avant** la transaction : aucun demi-refus, l'offre courante
+        // n'est pas tombée (elle reste `PENDING`, §11.3 / §11.4).
+        expect(db.$transaction).not.toHaveBeenCalled();
+        expect(db.marketOffer.updateMany).not.toHaveBeenCalled();
+        expect(db.marketAuditLog.create).not.toHaveBeenCalled();
     });
 
     it("refuse une saisie inexploitable (`invalid`) au lieu de la lire de travers", async () => {

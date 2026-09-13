@@ -297,7 +297,24 @@ describe("marché — dossiers de signalement (S4.11)", () => {
         createdAt: new Date("2026-09-10T12:00:00.000Z"),
         reviewedAt: null,
         reporterProfileId: BUYER_PROFILE_ID,
-        listing: { id: LISTING_ID, title: "Dofus Turquoise", status: "ACTIVE" },
+        // S8.15 — jet déclaré de l'annonce signalée (mappé dans le DTO).
+        listing: {
+            id: LISTING_ID,
+            title: "Dofus Turquoise",
+            status: "ACTIVE",
+            stats: [
+                {
+                    id: "stat-1",
+                    effectId: 112,
+                    characteristic: 112,
+                    label: "Dommages",
+                    actualValue: 30,
+                    origin: "NATIVE",
+                    naturalMin: 21,
+                    naturalMax: 30,
+                },
+            ],
+        },
     };
 
     it("liste les dossiers de la guilde du contexte, pseudos joints", async () => {
@@ -319,6 +336,19 @@ describe("marché — dossiers de signalement (S4.11)", () => {
             reporterLabel: "Aaz",
             createdAt: "2026-09-10T12:00:00.000Z",
         });
+        // S8.15 — le dossier porte le jet déclaré (copie explicite, pas un spread).
+        expect(res.data?.[0].listingStats).toEqual([
+            {
+                id: "stat-1",
+                effectId: 112,
+                characteristic: 112,
+                label: "Dommages",
+                actualValue: 30,
+                origin: "NATIVE",
+                naturalMin: 21,
+                naturalMax: 30,
+            },
+        ]);
         // Isolation §16.2 : la lecture passe par la relation `listing.guildId`.
         expect(mockDb.marketReport.findMany.mock.calls[0][0].where).toMatchObject({
             listing: { guildId: GUILD_CONFIG_ID },
@@ -400,6 +430,19 @@ describe("marché — annonces retirées (S5.8)", () => {
         updatedAt: new Date("2026-09-09T10:00:00.000Z"),
         expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
         profileId: SELLER_PROFILE_ID,
+        // S8.15 — jet déclaré (mappé dans le DTO du panneau modérateur).
+        stats: [
+            {
+                id: "stat-1",
+                effectId: 112,
+                characteristic: 112,
+                label: "Dommages",
+                actualValue: 30,
+                origin: "NATIVE",
+                naturalMin: 21,
+                naturalMax: 30,
+            },
+        ],
         reports: [{ id: REPORT_ID }],
     };
 
@@ -428,6 +471,19 @@ describe("marché — annonces retirées (S5.8)", () => {
             restoreBlocked: false,
             withdrawnSource: "MODERATION",
             sellerLabel: "Vendeur#1234",
+            // S8.15 — jet déclaré exposé au panneau (copie explicite).
+            stats: [
+                {
+                    id: "stat-1",
+                    effectId: 112,
+                    characteristic: 112,
+                    label: "Dommages",
+                    actualValue: 30,
+                    origin: "NATIVE",
+                    naturalMin: 21,
+                    naturalMax: 30,
+                },
+            ],
             openReports: 1,
         });
         // Isolation §16.2 : identifiant interne de guilde, statut, soft-delete.

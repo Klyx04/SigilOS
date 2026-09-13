@@ -20,6 +20,32 @@ import type {
 import type { FmStatus } from "@/lib/market/fm-effects";
 
 // ---------------------------------------------------------------------------
+// TYPES PARTAGÉS (client + serveur)
+// ---------------------------------------------------------------------------
+
+/**
+ * S8.15 — **ligne de jet** telle que sérialisée par les server actions du marché
+ * pour les écrans qui l'affichent en liste (« Mon espace », négociation,
+ * modération).
+ *
+ * Projection **lecture seule** de `MarketListingStat` : libellé et **signe** sont
+ * ceux résolus **côté serveur** (S8.24/S8.25) — l'UI n'invente jamais un
+ * libellé ni un « + » devant un malus. Type **pur** (aucune dépendance Prisma)
+ * ⇒ importable aussi bien côté serveur que côté client.
+ */
+export type MarketStatLineView = {
+    id: string;
+    effectId: number;
+    characteristic: number | null;
+    label: string;
+    actualValue: number;
+    /** `NATIVE` | `EXO` (un exo est marqué « Exo » à l'écran). */
+    origin: string;
+    naturalMin: number | null;
+    naturalMax: number | null;
+};
+
+// ---------------------------------------------------------------------------
 // BORNES & DÉFAUTS (garde-fous serveur — D35 : bornes anti-débilité uniquement)
 // ---------------------------------------------------------------------------
 
@@ -350,7 +376,7 @@ export const MARKET_STATUS_ORDER: MarketListingStatus[] = [
     "WITHDRAWN",
 ];
 
-/** Statuts considérés comme « terminés » (archives de « Mes espaces »). */
+/** Statuts considérés comme « terminés » (archives de « Mon espace »). */
 export const MARKET_TERMINAL_STATUSES: MarketListingStatus[] = [
     "SOLD",
     "EXPIRED",

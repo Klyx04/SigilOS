@@ -103,9 +103,19 @@ export function MarketSettingsClient({ guildId }: { guildId: string }) {
                 setForumTagsAvailable(forumTagsRes.data.forum);
             }
 
-            if (rolesRes) {
-                const list = Array.isArray(rolesRes) ? rolesRes : (rolesRes as { data?: Role[] }).data;
-                setRoles(Array.isArray(list) ? (list as Role[]) : []);
+            // Contrat réel de `getDiscordRolesAction` : `{ success, roles }` — **jamais** `.data`.
+            // Correctif du 13/09 : le panneau lisait `rolesRes.data` (propriété inexistante) ⇒
+            // `setRoles([])` systématique ⇒ **aucun rôle Discord** dans les 4 sélecteurs du Marché
+            // (rôle à mentionner, rôle modérateur, rôle minimum, rôles pinguables).
+            // `color` est un **entier Discord** (ex. 16711680) : converti en `#rrggbb` pour les
+            // pastilles de couleur (0 = couleur par défaut Discord ⇒ `#000000`, affiché en gris).
+            if (rolesRes.success && rolesRes.roles) {
+                setRoles(
+                    rolesRes.roles.map((role) => ({
+                        ...role,
+                        color: `#${role.color.toString(16).padStart(6, "0")}`,
+                    }))
+                );
             }
             setIsLoading(false);
         }
@@ -217,8 +227,9 @@ export function MarketSettingsClient({ guildId }: { guildId: string }) {
                                 <ChannelPreview guildId={guildId} channelId={config.marketNotifyChannelId} color="cyan" />
                             )}
                             <p className="text-[11px] text-muted-foreground">
-                                Le bot doit pouvoir voir le salon et y écrire. Si c&apos;est un forum, SigilOS crée les tags
-                                manquants (Disponible, Réservé, Vendu…).
+                                Le bot doit pouvoir voir le salon et y écrire. Sur un salon forum, SigilOS applique les tags{" "}
+                                <strong>déjà existants</strong> (Disponible, Réservé, Vendu…) : il n&apos;en crée{" "}
+                                <strong>aucun</strong> — associe-les dans « Tags de forum » ci-dessous.
                             </p>
                         </div>
 

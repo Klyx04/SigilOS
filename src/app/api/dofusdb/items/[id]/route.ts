@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import { normalizeItemIconUrl } from "@/lib/market/item-image";
 
 /**
  * GET /api/dofusdb/items/[id]
@@ -57,7 +58,7 @@ export async function GET(
                 possibleEffects: normalizedFx,
                 hasRecipe: item.hasRecipe,
                 recipe: item.recipe,
-                img: item.iconUrl || `/uploads/assets-dofus/items/${item.ankamaId}.webp`,
+                img: normalizeItemIconUrl(item.iconUrl, item.ankamaId) ?? undefined,
                 itemSet: item.itemSetName ? { name: { fr: item.itemSetName }, id: item.itemSetId } : undefined,
             };
             itemCache.set(id, { data: formatted, expiresAt: Date.now() + ITEM_TTL_MS });

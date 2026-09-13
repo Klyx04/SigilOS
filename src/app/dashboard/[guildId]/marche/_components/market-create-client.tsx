@@ -43,13 +43,33 @@ import {
 import { getGuildRoles } from "@/server/actions/bonus-actions";
 import { searchLocalGameItems, type GameItemSearchResult } from "@/server/actions/game-item-actions";
 import { buildNativeStatDrafts, type MarketStatDraft, type MarketNativeEffect } from "@/lib/market/effects";
+// BUG-11/T10 — familles d'objets : libellés, descriptions et politique
+// (Forge / jet / lot / légendaire) partagés avec le serveur (une seule règle).
+import {
+    MARKET_ITEM_FAMILY_DESCRIPTIONS,
+    MARKET_ITEM_FAMILY_LABELS,
+    resolveMarketItemPolicy,
+    type MarketItemFamily,
+} from "@/lib/market/item-families";
 import { MarketItemCard } from "@/components/market/market-item-card";
 import { MarketJetEditor } from "./market-jet-editor";
 import { MarketPublishStep, type MarketPublishContext } from "./market-publish-step";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Check, Hammer, Loader2, Package, Plus, Save, Search, Store, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Hammer, Loader2, Package, Plus, Save, Search, Sparkles, Store, X } from "lucide-react";
 
-type ListingKind = "EQUIPMENT" | "RESOURCE";
+/**
+ * Nature de l'annonce (BUG-11) : `EQUIPMENT` (objet du catalogue, éventuellement
+ * forgé), `COSMETIC` (apparat / costume : vente brute) et `RESOURCE`
+ * (Ressources / Autres : lot à quantité libre, aucune modification).
+ */
+type ListingKind = "EQUIPMENT" | "COSMETIC" | "RESOURCE";
+
+/** Nature d'annonce ↔ famille d'objet (résolution **serveur** ensuite). */
+const KIND_TO_FAMILY: Record<ListingKind, MarketItemFamily> = {
+    EQUIPMENT: "EQUIPMENT",
+    COSMETIC: "COSMETIC",
+    RESOURCE: "RESOURCES_OTHER",
+};
 
 export type ComponentDraft = {
     key: string;
@@ -247,6 +267,26 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
     );
 
     /**
+     * BUG-11/T10 — **politique de l'objet choisi** (famille + forge / jet / lot /
+     * légendaire). C'est la **même fonction pure** que celle appliquée par le
+     * serveur : l'UI n'ouvre jamais un bloc que le serveur refusera
+     * (compagnon, Dofus, Trophée, Prysmaradite, apparat, ressource…).
+     */
+    const itemPolicy = useMemo(
+        () =>
+            resolveMarketItemPolicy({
+                typeId: item?.typeId ?? null,
+                superTypeId: item?.superTypeId ?? null,
+                // ⚠️ `typeName` / `category` sont les signaux **toujours** présents
+                // dans le référentiel local (cf. item-families.ts) : sans eux, un
+                // objet réel serait classé « Ressources / Autres » par défaut.
+                typeName: item?.typeName ?? null,
+                category: item?.category ?? null,
+            }),
+        [item]
+    );
+
+    /**
      * S8.9 — récapitulatif lisible de la forge (rune nommée, potion + palier),
      * alimenté par le référentiel : aucune donnée inventée côté client.
      */
@@ -399,7 +439,7 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
     const canGoNext = step === 1
         ? true
         : step === 2
-            ? kind === "EQUIPMENT"
+            ? kind !== "RESOURCE"
                 ? !!item && transcendenceConflicts.length === 0
                 : components.length > 0
             : step === 3
@@ -437,21 +477,26 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
     }
 
     function buildPayload() {
+        // BUG-11 — « Cosmétique » est un **objet** : le type d'annonce existant
+        // (`MarketListingType`) reste `EQUIPMENT` (aucune migration) ; seul
+        // `RESOURCES_OTHER` produit un **lot** (`RESOURCE`).
+        const isObjectListing = kind !== "RESOURCE";
         return {
-            type: kind,
+            type: isObjectListing ? ("EQUIPMENT" as const) : ("RESOURCE" as const),
             title: title.trim(),
             description: description.trim() || null,
             forgedBy: forgedBy.trim() || null,
             priceKamas: parsedPrice,
             negotiable,
             acceptsTrade,
-            // S8.9/S8.10 — forge réelle déclarée (6 champs, additifs).
-            ...toForgePayload(),
-            dofusDbItemId: kind === "EQUIPMENT" ? item?.ankamaId ?? null : null,
-            itemName: kind === "EQUIPMENT" ? item?.name ?? null : null,
-            itemIconUrl: kind === "EQUIPMENT" ? item?.iconUrl ?? null : null,
-            itemLevel: kind === "EQUIPMENT" ? item?.level ?? null : null,
-            itemTypeName: kind === "EQUIPMENT" ? item?.typeName ?? null : null,
+            // S8.9/S8.10 — forge réelle déclarée (6 champs, additifs) : envoyée
+            // uniquement si la politique de l'objet l'autorise (BUG-11).
+            ...(itemPolicy.forgeAllowed ? toForgePayload() : {}),
+            dofusDbItemId: isObjectListing ? item?.ankamaId ?? null : null,
+            itemName: isObjectListing ? item?.name ?? null : null,
+            itemIconUrl: isObjectListing ? item?.iconUrl ?? null : null,
+            itemLevel: isObjectListing ? item?.level ?? null : null,
+            itemTypeName: isObjectListing ? item?.typeName ?? null : null,
             quantity: kind === "RESOURCE" && components.length === 1 ? components[0].quantity : null,
             unitLabel: kind === "RESOURCE" && components.length === 1 ? components[0].unitLabel : null,
             minQuantity: kind === "RESOURCE" ? parseKamas(minQuantity) ?? null : null,
@@ -552,9 +597,10 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
                 />
             )}
 
-            {step === 2 && kind === "EQUIPMENT" && (
+            {step === 2 && kind !== "RESOURCE" && (
                 <>
                     <StepEquipment
+                        family={KIND_TO_FAMILY[kind]}
                         item={item}
                         onSelect={(picked) => {
                             setItem(picked);
@@ -579,33 +625,50 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
                                 l'objet réel, puis déclare son jet. */}
                             {catalogueCard && <MarketItemCard data={catalogueCard} />}
 
-                            <Card className="bg-surface/60 border-border">
-                                <CardHeader>
-                                    <CardTitle className="text-base">Déclare ton jet</CardTitle>
-                                    <CardDescription>
-                                        Les lignes natives sont pré-remplies depuis le catalogue. Ajuste la valeur
-                                        réelle, ajoute un exo, ou clique « ✦ Jet parfait ». Les lignes non
-                                        forgeables de l&apos;objet restent affichées sur la carte ci-dessus.
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <MarketJetEditor
-                                        stats={stats}
-                                        onChange={setStats}
-                                        transcendenceActive={isTranscended}
-                                    />
-                                </CardContent>
-                            </Card>
+                            {itemPolicy.statEditorAllowed ? (
+                                <Card className="bg-surface/60 border-border">
+                                    <CardHeader>
+                                        <CardTitle className="text-base">Déclare ton jet</CardTitle>
+                                        <CardDescription>
+                                            Les lignes natives sont pré-remplies depuis le catalogue. Ajuste la valeur
+                                            réelle, ajoute un exo, ou clique « ✦ Jet parfait ». Les lignes non
+                                            forgeables de l&apos;objet restent affichées sur la carte ci-dessus.
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <MarketJetEditor
+                                            stats={stats}
+                                            onChange={setStats}
+                                            transcendenceActive={isTranscended}
+                                        />
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                /* BUG-11 — compagnon / Dofus / Trophée / Prysmaradite /
+                                   apparat : **vente brute**, aucune saisie de stats. */
+                                <Card className="bg-surface/60 border-border">
+                                    <CardHeader>
+                                        <CardTitle className="text-base">Vente brute</CardTitle>
+                                        <CardDescription>
+                                            Cet objet ({MARKET_ITEM_FAMILY_LABELS[itemPolicy.family]}) ne se modifie pas :
+                                            il est vendu tel quel, sans jet déclaré ni forgemagie.
+                                        </CardDescription>
+                                    </CardHeader>
+                                </Card>
+                            )}
 
                             {/* S8.9 — bloc « Forge » (D40/D41) : transcende, élément
-                                de frappe (armes), arme de chasse (armes). */}
-                            <ForgeBlock
-                                item={item}
-                                referential={referential}
-                                forge={forge}
-                                onChange={setForge}
-                                conflicts={transcendenceConflicts}
-                            />
+                                de frappe (armes), arme de chasse (armes).
+                                BUG-11 : masqué pour tout objet non forgeable. */}
+                            {itemPolicy.forgeAllowed && (
+                                <ForgeBlock
+                                    item={item}
+                                    referential={referential}
+                                    forge={forge}
+                                    onChange={setForge}
+                                    conflicts={transcendenceConflicts}
+                                />
+                            )}
                         </>
                     )}
                 </>
@@ -662,9 +725,9 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
                     <MarketPublishStep
                         channelName=""
                         title={title || item?.name || "Annonce"}
-                        itemName={kind === "EQUIPMENT" ? item?.name ?? null : null}
-                        itemLevel={kind === "EQUIPMENT" ? item?.level ?? null : null}
-                        itemTypeName={kind === "EQUIPMENT" ? item?.typeName ?? null : null}
+                        itemName={kind !== "RESOURCE" ? item?.name ?? null : null}
+                        itemLevel={kind !== "RESOURCE" ? item?.level ?? null : null}
+                        itemTypeName={kind !== "RESOURCE" ? item?.typeName ?? null : null}
                         priceKamas={parsedPrice}
                         unitLabel={kind === "RESOURCE" && components.length === 1 ? components[0].unitLabel : null}
                         negotiable={negotiable}
@@ -682,7 +745,7 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
                         stats={publishStats}
                         forgeRecap={forgeRecap}
                         // Correction 13/09 — aperçu fidèle : icône réelle + mode forum.
-                        itemIconUrl={kind === "EQUIPMENT" ? item?.iconUrl ?? null : null}
+                        itemIconUrl={kind !== "RESOURCE" ? item?.iconUrl ?? null : null}
                         forumMode={publishContext?.channelKind === "FORUM"}
                         components={components.map((component) => ({ name: component.name, quantity: component.quantity }))}
                         context={publishContext}
@@ -779,38 +842,44 @@ function StepIndicator({ step, stepCount = 4 }: { step: 1 | 2 | 3 | 4; stepCount
     );
 }
 
-/** Étape 1 — nature de l'annonce (MVP : équipement / lot de ressources). */
+/** Étape 1 — nature de l'annonce (BUG-11 : 3 familles, aucune autre). */
 function StepNature({ kind, onPick }: { kind: ListingKind; onPick: (kind: ListingKind) => void }) {
+    /**
+     * Les 3 natures viennent de `MARKET_ITEM_FAMILY_LABELS` : « Équipement
+     * forgemagie » et « Lot de ressources » sont **remplacés** par
+     * « Équipements », « Cosmétique » et « Ressources / Autres » (BUG-11).
+     */
+    const options: Array<{ kind: ListingKind; Icon: typeof Hammer; tone: string }> = [
+        { kind: "EQUIPMENT", Icon: Hammer, tone: "text-gold" },
+        { kind: "COSMETIC", Icon: Sparkles, tone: "text-violet-400" },
+        { kind: "RESOURCE", Icon: Package, tone: "text-info" },
+    ];
+
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button
-                type="button"
-                onClick={() => onPick("EQUIPMENT")}
-                className={cn(
-                    "text-left rounded-2xl border p-5 transition-colors",
-                    kind === "EQUIPMENT" ? "border-gold/40 bg-gold/5" : "border-border bg-surface/60 hover:border-border-strong"
-                )}
-            >
-                <Hammer className="w-6 h-6 text-gold mb-3" />
-                <p className="font-bold text-foreground">Équipement forgemagie</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                    Choisis un objet du catalogue et déclare son prix (l&apos;éditeur de jet complet arrive en S2).
-                </p>
-            </button>
-            <button
-                type="button"
-                onClick={() => onPick("RESOURCE")}
-                className={cn(
-                    "text-left rounded-2xl border p-5 transition-colors",
-                    kind === "RESOURCE" ? "border-info/40 bg-info/5" : "border-border bg-surface/60 hover:border-border-strong"
-                )}
-            >
-                <Package className="w-6 h-6 text-info mb-3" />
-                <p className="font-bold text-foreground">Lot de ressources</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                    Lot simple (une ressource) ou composite (plusieurs ressources) avec quantité minimale.
-                </p>
-            </button>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {options.map(({ kind: optionKind, Icon, tone }) => {
+                const family = KIND_TO_FAMILY[optionKind];
+                const selected = kind === optionKind;
+                return (
+                    <button
+                        key={optionKind}
+                        type="button"
+                        onClick={() => onPick(optionKind)}
+                        className={cn(
+                            "text-left rounded-2xl border p-5 transition-colors",
+                            selected
+                                ? "border-gold/40 bg-gold/5"
+                                : "border-border bg-surface/60 hover:border-border-strong"
+                        )}
+                    >
+                        <Icon className={cn("w-6 h-6 mb-3", selected ? tone : "text-muted-foreground")} />
+                        <p className="font-bold text-foreground">{MARKET_ITEM_FAMILY_LABELS[family]}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            {MARKET_ITEM_FAMILY_DESCRIPTIONS[family]}
+                        </p>
+                    </button>
+                );
+            })}
         </div>
     );
 }
@@ -819,10 +888,13 @@ function StepNature({ kind, onPick }: { kind: ListingKind; onPick: (kind: Listin
 /** Étape 2 (équipement) — sélection d'un objet du catalogue local. */
 function StepEquipment({
     item,
+    family,
     onSelect,
     onClear,
 }: {
     item: GameItemSearchResult | null;
+    /** BUG-11/T10 — famille filtrée dans le catalogue (Équipements / Cosmétique). */
+    family: MarketItemFamily;
     onSelect: (item: GameItemSearchResult) => void;
     onClear: () => void;
 }) {
@@ -836,7 +908,11 @@ function StepEquipment({
                 {item ? (
                     <SelectedItem item={item} onClear={onClear} />
                 ) : (
-                    <CataloguePicker category="equipment" placeholder="Ex. Anneau de Force…" onSelect={onSelect} />
+                    <CataloguePicker
+                        family={family}
+                        placeholder="Ex. Anneau de Force…"
+                        onSelect={onSelect}
+                    />
                 )}
             </CardContent>
         </Card>
@@ -869,7 +945,7 @@ function StepResources({
             </CardHeader>
             <CardContent className="space-y-4">
                 <CataloguePicker
-                    category="resources"
+                    family="RESOURCES_OTHER"
                     placeholder="Ex. Bois de Frêne…"
                     onSelect={(picked) =>
                         onAdd({
@@ -946,7 +1022,7 @@ function StepPricing(props: {
             <CardHeader>
                 <CardTitle className="text-base">Prix & conditions</CardTitle>
                 <CardDescription>
-                    {props.kind === "EQUIPMENT"
+                    {props.kind !== "RESOURCE"
                         ? props.item?.name ?? "Objet du catalogue"
                         : `${props.components.length} ressource(s)`}
                 </CardDescription>
@@ -962,7 +1038,7 @@ function StepPricing(props: {
                     />
                 </div>
 
-                {props.kind === "EQUIPMENT" && (
+                {props.kind !== "RESOURCE" && (
                     <div className="space-y-1.5">
                         <Label className="text-xs">Modifié par (facultatif)</Label>
                         <Input
@@ -1445,11 +1521,17 @@ function ForgeEntryIcon({
 
 /** Recherche dans le catalogue local (consomme `searchLocalGameItems`, D29). */
 function CataloguePicker({
-    category,
+    family,
     placeholder,
     onSelect,
 }: {
-    category: "equipment" | "resources";
+    /**
+     * BUG-11/T10 — **famille produit** filtrée côté serveur. Le filtre porte sur
+     * `typeId` / `superTypeId` / `typeName` (et **plus** sur la catégorie
+     * grossière du catalogue, dont l'heuristique classait « Bois » en
+     * « equipment » ⇒ recherche vide, constat beta du 13/09).
+     */
+    family: MarketItemFamily;
     placeholder: string;
     onSelect: (item: GameItemSearchResult) => void;
 }) {
@@ -1479,7 +1561,7 @@ function CataloguePicker({
         const id = ++requestId.current;
         setIsSearching(true);
         setError(null);
-        void searchLocalGameItems(trimmed, category, 12)
+        void searchLocalGameItems(trimmed, "all", 12, family)
             .then((res) => {
                 if (id !== requestId.current) return;
                 if (!res.success) {
@@ -1511,9 +1593,9 @@ function CataloguePicker({
         // Debounce : on attend 300 ms d'inactivité avant d'interroger le catalogue.
         const timer = setTimeout(() => runSearch(trimmed), 300);
         return () => clearTimeout(timer);
-        // `runSearch` ne dépend que de `category` (rejouée si la nature change).
+        // `runSearch` ne dépend que de `family` (rejouée si la nature change).
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [query, category]);
+    }, [query, family]);
 
     return (
         <div className="space-y-3">

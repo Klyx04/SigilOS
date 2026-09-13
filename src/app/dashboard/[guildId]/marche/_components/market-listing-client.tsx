@@ -18,7 +18,8 @@ import {
     MARKET_STATUS_LABELS,
     MARKET_TYPE_LABELS,
 } from "@/server/actions/market-constants";
-import { formatKamas } from "@/lib/market/kamas";
+import { formatGroupedInteger, formatKamas } from "@/lib/market/kamas";
+import { formatMarketDate, formatMarketDateTime } from "@/lib/market/format-date";
 import { normalizeNativeRange } from "@/lib/market/effects";
 import { cn } from "@/lib/utils";
 import { MarketItemCard } from "@/components/market/market-item-card";
@@ -141,12 +142,9 @@ function formatDeclaredRange(min: number | null, max: number | null): string {
     return from === to ? ` [${from}]` : ` [${from} à ${to}]`;
 }
 
-/** S7.8 — date + heure d'une échéance de réservation (jamais une date nue). */
+/** S7.8 — date + heure d'une échéance de réservation, **déterministe** (BUG-9). */
 function formatDeadline(iso: string | null): string {
-    if (!iso) return "—";
-    const date = new Date(iso);
-    if (Number.isNaN(date.getTime())) return "—";
-    return date.toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" });
+    return formatMarketDateTime(iso);
 }
 
 export function MarketListingClient({
@@ -300,14 +298,14 @@ export function MarketListingClient({
                                         {listing.components.map((component) => (
                                             <li key={component.id} className="flex items-center justify-between text-sm border-b border-border/60 py-1.5">
                                                 <span className="text-foreground truncate">{component.name}</span>
-                                                <span className="font-bold tabular-nums">{component.quantity.toLocaleString("fr-FR")}</span>
+                                                <span className="font-bold tabular-nums">{formatGroupedInteger(component.quantity)}</span>
                                             </li>
                                         ))}
                                     </ul>
                                 )}
                                 {listing.minQuantity && (
                                     <p className="text-xs text-muted-foreground">
-                                        Quantité minimale par acheteur : {listing.minQuantity.toLocaleString("fr-FR")}
+                                        Quantité minimale par acheteur : {formatGroupedInteger(listing.minQuantity)}
                                     </p>
                                 )}
                             </div>
@@ -388,8 +386,8 @@ export function MarketListingClient({
                                     Vendeur : <span className="text-foreground font-semibold">{sellerName}</span>
                                 </p>
                             )}
-                            {listing.publishedAt && <p>Publiée le {new Date(listing.publishedAt).toLocaleDateString("fr-FR")}</p>}
-                            {listing.expiresAt && <p>Expire le {new Date(listing.expiresAt).toLocaleDateString("fr-FR")}</p>}
+                            {listing.publishedAt && <p>Publiée le {formatMarketDate(listing.publishedAt)}</p>}
+                            {listing.expiresAt && <p>Expire le {formatMarketDate(listing.expiresAt)}</p>}
                             {listing.renewCount > 0 && <p>Renouvelée {listing.renewCount} fois</p>}
                         </div>
 

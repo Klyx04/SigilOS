@@ -322,7 +322,7 @@ La revente d'archimonstres capturés en guilde à l'hôtel des ventes est viveme
 
 <div class="callout callout-important">
 <strong>L'échange se conclut en jeu</strong>
-SigilOS publie, affiche et suit les annonces — mais <strong>n'effectue jamais</strong> le transfert d'objets ni celui des kamas, et <strong>ne garantit pas</strong> la transaction. Le bouton « Contacter » sert uniquement à ouvrir un échange avec le vendeur.
+SigilOS publie, affiche et suit les annonces — mais <strong>n'effectue jamais</strong> le transfert d'objets ni celui des kamas, et <strong>ne garantit pas</strong> la transaction. L'échange se conclut <strong>en jeu</strong> : la fiche SigilOS (bouton « Voir sur SigilOS ») reste la seule passerelle vers le vendeur.
 </div>
 
 <h2>1. Consulter le catalogue</h2>
@@ -339,6 +339,19 @@ Le bouton « Masquer vendues / expirées » garde le catalogue lisible : décoch
 </div>
 
 <h2>2. Publier une annonce</h2>
+<p>L'assistant de création commence par la <strong>nature</strong> de l'annonce. Trois familles, et rien d'autre :</p>
+<table>
+    <thead><tr><th>Famille</th><th>Ce qu'elle contient</th><th>Modifiable ?</th></tr></thead>
+    <tbody>
+        <tr><td><strong>Équipements</strong></td><td>Coiffe, cape, ceinture, amulette, anneau, bouclier, armes (outils, pioches, faux et armes magiques inclus), bottes, familier / montilier / dragodinde / muldo / volkorne, compagnon, Dofus / Trophée / Prysmaradite, équipement de percepteur.</td><td>Oui pour la plupart — voir l'encadré ci-dessous.</td></tr>
+        <tr><td><strong>Cosmétique</strong></td><td>Apparats, costumes, épaulières, ailes.</td><td>Non — vente brute.</td></tr>
+        <tr><td><strong>Ressources / Autres</strong></td><td>Tout le reste : ressources, consommables, runes, ingrédients, certificats…</td><td>Non — mais le <strong>lot à quantité libre</strong> est disponible (ex. ×1 à ×500).</td></tr>
+    </tbody>
+</table>
+<div class="callout callout-important">
+<strong>Objets vendus brut</strong>
+Les <strong>compagnons</strong>, <strong>Dofus</strong>, <strong>Trophées</strong>, <strong>Prysmaradites</strong>, l'<strong>équipement de percepteur</strong> et tout le <strong>cosmétique</strong> se vendent tels quels : SigilOS masque l'éditeur de jet et le bloc Forge, et le serveur refuse toute déclaration de statistique ou de forgemagie sur ces objets. Les <strong>familiers</strong> et <strong>montiliers</strong> gardent leurs statistiques modifiables (ils peuvent être <strong>légendaires</strong>) ; les <strong>dragodindes</strong>, <strong>muldos</strong> et <strong>volkornes</strong> aussi, mais sans mention « légendaire ».
+</div>
 <p>La création se fait en <strong>4 étapes</strong> :</p>
 <ol class="steps">
     <li><strong>Nature</strong> : équipement forgemagie ou lot de ressources.</li>
@@ -851,7 +864,7 @@ Seuls les rôles listés dans « Rôles pinguables » peuvent être mentionnés 
         <tr><td>Paliers de rappel</td><td>7, 15</td><td>Jours des rappels automatiques (1 à 3 paliers).</td></tr>
         <tr><td>Durée d'une réservation</td><td>12 h</td><td>Délai avant libération automatique.</td></tr>
         <tr><td>Durée de vie d'une offre</td><td>48 h</td><td>Délai avant expiration d'une offre.</td></tr>
-        <tr><td>Rétention des médias</td><td>30 jours</td><td>Purge des captures de preuve.</td></tr>
+        <tr><td>Rétention des médias</td><td>30 jours</td><td>Purge des médias d&apos;annonce (aucun upload n&apos;est ouvert aux membres).</td></tr>
         <tr><td>Rétention des logs</td><td>365 jours</td><td>Conservation du journal d'audit du marché.</td></tr>
     </tbody>
 </table>

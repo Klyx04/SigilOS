@@ -127,7 +127,8 @@ export function MarketPublishStep({
         elementPotionTier,
         huntingWeapon,
         exoLabels,
-        stats,
+        // BUG-5 (spec §2.4) — l'aperçu ne liste plus le jet en texte : il est
+        // rendu par la **carte image** (icônes officielles + couleurs).
         components,
         dashboardUrl: "#",
     });

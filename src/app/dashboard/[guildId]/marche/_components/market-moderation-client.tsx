@@ -28,6 +28,7 @@ import {
     MARKET_WITHDRAWN_SOURCE_LABELS,
 } from "@/server/actions/market-constants";
 import { formatKamas } from "@/lib/market/kamas";
+import { formatMarketDate, formatMarketDateTime } from "@/lib/market/format-date";
 import { MarketStatLines, type MarketStatLine } from "@/components/market/market-stat-lines";
 import { cn } from "@/lib/utils";
 import {
@@ -157,8 +158,8 @@ function ReportRow({ guildId, report, isPending, onResolve, onTakeDown, onRestor
 
             <p className="text-xs text-muted-foreground">
                 {report.reporterLabel ? `Signalé par ${report.reporterLabel}` : "Signalé par un membre"}
-                {` · le ${new Date(report.createdAt).toLocaleDateString("fr-FR")}`}
-                {report.reviewedAt ? ` · traité le ${new Date(report.reviewedAt).toLocaleDateString("fr-FR")}` : ""}
+                {` · le ${formatMarketDate(report.createdAt)}`}
+                {report.reviewedAt ? ` · traité le ${formatMarketDate(report.reviewedAt)}` : ""}
                 {snapshot ? ` · ${snapshot}` : ""}
             </p>
 
@@ -361,10 +362,7 @@ function AuditTrail({ guildId, listingId }: { guildId: string; listingId: string
                                         {entry.actionLabel}
                                     </span>
                                     <span className="text-[11px] text-muted-foreground sm:ml-auto">
-                                        {new Date(entry.createdAt).toLocaleString("fr-FR", {
-                                            dateStyle: "short",
-                                            timeStyle: "short",
-                                        })}
+                                        {formatMarketDateTime(entry.createdAt)}
                                     </span>
                                 </div>
                                 <p className="text-[11px] text-muted-foreground">
@@ -439,9 +437,9 @@ function WithdrawnRow({ guildId, listing, isPending, onRestore }: WithdrawnRowPr
 
             <p className="text-xs text-muted-foreground">
                 {listing.sellerLabel ? `Vendeur : ${listing.sellerLabel}` : "Vendeur : profil non résolu"}
-                {` · retirée le ${new Date(withdrawnAt).toLocaleDateString("fr-FR")}`}
+                {` · retirée le ${formatMarketDate(withdrawnAt)}`}
                 {listing.expiresAt
-                    ? ` · échéance le ${new Date(listing.expiresAt).toLocaleDateString("fr-FR")}`
+                    ? ` · échéance le ${formatMarketDate(listing.expiresAt)}`
                     : ""}
                 {` · ${reportLabel}`}
             </p>

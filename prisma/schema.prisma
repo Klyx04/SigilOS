@@ -3512,6 +3512,17 @@ model MarketListing {
   itemLevel      Int?
   itemTypeName   String?             // « Anneau », « Bottes », « Familier »…
 
+  // ── Forge réelle DÉCLARÉE (S8.10 · D40/D41) — additif, AUCUN backfill ────
+  // L'état « Transcendé » est un CHOIX DU VENDEUR (jamais déduit du jet) :
+  // la présence de `transcendenceRuneId` vaut `transcended` (aucun booléen
+  // redondant). Une rune de Transcendance exclut tout over/exo (garde S8.11).
+  transcendenceRuneId Int?      // = GameItem.ankamaId d'une rune (typeId 211)
+  transcendenceLabel  String?   // libellé d'effet dénormalisé (repli : « Empêche les futures forgemagies »)
+  strikeElement       String?   // élément de frappe (Feu|Eau|Terre|Air) — ARMES uniquement
+  elementPotionId     Int?      // = GameItem.ankamaId de la potion (typeId 26) ; null si non siphonnée
+  elementPotionTier   Int?      // palier de la potion (50|65|80) — porte la donnée de jeu
+  huntingWeapon       String?   // libellé DÉCLARÉ de l'arme de chasse (ARMES uniquement)
+
   // ── Contenu ─────────────────────────────────────────────────────────────
   title          String              // titre affiché (pré-rempli : nom de l'item)
   description    String?             // note du vendeur (nettoyée, liens filtrés)

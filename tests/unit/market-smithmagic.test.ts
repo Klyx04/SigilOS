@@ -89,6 +89,8 @@ describe("smithmagic — référentiel de forge réelle (S8.1)", () => {
             effectId: 119,
             statLabel: "Agilité",
             bonus: 10,
+            // S8.9 — icône officielle du proxy DofusDB (jamais une image cassée).
+            iconUrl: "/api/assets-dofus/items/20561",
         });
 
         // Repli `diceNum` (autre forme d'effet DofusDB).
@@ -143,6 +145,7 @@ describe("smithmagic — référentiel de forge réelle (S8.1)", () => {
             name: "Potion de Secousse",
             element: "Terre",
             tier: 50,
+            iconUrl: "/api/assets-dofus/items/1338",
         });
         // Match par nom seul (l'ankamaId peut différer d'un environnement à l'autre).
         expect(parseElementPotion({ ankamaId: 111111, name: "Potion de Séisme" })?.element).toBe("Terre");

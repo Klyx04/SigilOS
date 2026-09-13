@@ -5,7 +5,7 @@ import { getMarketListing } from "@/server/actions/market-actions";
 import { getLocalGameItemDetails } from "@/server/actions/game-item-actions";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
-import { MarketCreateClient, type MarketListingEditInitial } from "../../_components/market-create-client";
+import { MarketCreateClient, type MarketForgeState, type MarketListingEditInitial } from "../../_components/market-create-client";
 import { Pencil } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -92,6 +92,15 @@ export default async function MarketListingEditPage({
             quantity: component.quantity,
             unitLabel: component.unitLabel,
         })),
+        // S8.9/S8.10 — forge réelle déclarée (rejouée telle quelle à l'édition).
+        forge: {
+            transcendenceRuneId: listing.transcendenceRuneId,
+            transcendenceLabel: listing.transcendenceLabel,
+            strikeElement: listing.strikeElement as MarketForgeState["strikeElement"],
+            elementPotionId: listing.elementPotionId,
+            elementPotionTier: listing.elementPotionTier,
+            huntingWeapon: listing.huntingWeapon ?? "",
+        },
     };
 
     return (

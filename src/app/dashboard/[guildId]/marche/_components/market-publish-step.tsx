@@ -13,7 +13,7 @@
 import { DiscordEmbedPreview } from "@/components/discord/DiscordEmbedPreview";
 import { buildMarketDiscordPayload } from "@/lib/market/discord-payload";
 import { cn } from "@/lib/utils";
-import { Hash, MessageSquare, Users } from "lucide-react";
+import { Hash, Hammer, MessageSquare, Users } from "lucide-react";
 
 export type MarketPublishContext = {
     channelConfigured: boolean;
@@ -33,6 +33,14 @@ export interface MarketPublishStepProps {
     negotiable: boolean;
     forgedBy?: string | null;
     exoLabels: string[];
+    /**
+     * S8.9 — **forge réelle déclarée** (rune de Transcendance nommée, potion +
+     * palier, arme de chasse), alimentée par le référentiel côté appelant.
+     * Rappel : l'embed Discord lui-même n'expose pas encore le statut (lot 3,
+     * `S8.17`) — ce récapitulatif est là pour que le vendeur relise sa
+     * déclaration avant de publier.
+     */
+    forgeRecap?: { label: string; value: string }[];
     components: { name: string; quantity: number }[];
     context: MarketPublishContext | null;
     roles: { id: string; name: string }[];
@@ -50,6 +58,7 @@ export function MarketPublishStep({
     unitLabel,
     negotiable,
     exoLabels,
+    forgeRecap = [],
     components,
     context,
     roles,
@@ -158,6 +167,30 @@ export function MarketPublishStep({
                             ))}
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* S8.9 — récapitulatif de la forge déclarée (D40/D41) */}
+            {forgeRecap.length > 0 && (
+                <div className="rounded-2xl border border-border bg-surface/60 p-4">
+                    <p className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">
+                        <Hammer className="h-3.5 w-3.5" /> Forge déclarée
+                    </p>
+                    <ul className="space-y-1">
+                        {forgeRecap.map((line) => (
+                            <li
+                                key={line.label}
+                                className="flex flex-wrap items-baseline gap-2 text-xs"
+                            >
+                                <span className="font-bold text-muted-foreground">{line.label}</span>
+                                <span className="text-foreground">{line.value}</span>
+                            </li>
+                        ))}
+                    </ul>
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                        Ces informations sont enregistrées avec l&apos;annonce et apparaissent sur
+                        la carte de l&apos;objet (bloc STATUT).
+                    </p>
                 </div>
             )}
 

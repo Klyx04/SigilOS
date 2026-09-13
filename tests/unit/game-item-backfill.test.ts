@@ -95,8 +95,21 @@ describe("backfillNativeEffects — réparation", () => {
         expect(update.where).toEqual({ id: "item-effectueux" });
         // S7.4 — `diceSide = 0` ⇒ **valeur fixe** : la plage devient `[568, 568]`
         // (avant, `to: 0` produisait `[568 à 0]` puis « 0 SOUS LA PLAGE »).
+        // Correction 13/09 — la ligne réparée est en plus **résolue**
+        // (`isNegative`, et `label` quand le référentiel sait la nommer) : une
+        // fiche rattrapée une fois s'affiche juste sans référentiel. Ici l'effet
+        // 724 n'est ni curated ni dans le référentiel (base mockée) ⇒ aucun
+        // libellé muet n'est persisté.
         expect(update.data.nativeEffects).toEqual([
-            { effectId: 724, characteristic: null, from: 568, to: 568, category: null, elementId: null },
+            {
+                effectId: 724,
+                characteristic: null,
+                from: 568,
+                to: 568,
+                category: null,
+                elementId: null,
+                isNegative: false,
+            },
         ]);
     });
 });

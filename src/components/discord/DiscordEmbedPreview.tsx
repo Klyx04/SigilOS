@@ -12,6 +12,35 @@ interface EmbedField {
     inline?: boolean;
 }
 
+/** Bouton Discord tel que construit par le payload du module Marché. */
+export type DiscordPreviewButton = {
+    label?: string;
+    /** 1 primary · 2 secondary · 3 success · 4 danger · 5 lien. */
+    style?: number;
+    disabled?: boolean;
+    url?: string;
+};
+
+/** Ligne de composants Discord (`ActionRow` type 1). */
+export type DiscordPreviewComponentRow = {
+    type: number;
+    components: DiscordPreviewButton[];
+};
+
+/**
+ * Couleurs des styles de boutons Discord (charte officielle).
+ * Correction 13/09 : l'aperçu affichait des boutons **codés en dur**
+ * (« S'inscrire / Se désinscrire ») qui ne correspondaient pas à l'annonce
+ * publiée ⇒ il rend désormais les **vrais** composants du payload.
+ */
+const DISCORD_BUTTON_STYLE_CLASSES: Record<number, string> = {
+    1: "bg-[#5865F2]",
+    2: "bg-[#4e5058]",
+    3: "bg-[#248046]",
+    4: "bg-[#da373c]",
+    5: "bg-[#4e5058]",
+};
+
 interface DiscordEmbedPreviewProps {
     title?: string;
     description?: string;
@@ -24,6 +53,8 @@ interface DiscordEmbedPreviewProps {
         name: string;
         iconUrl?: string;
     };
+    /** Boutons **réels** du payload (aucun affichage si absent). */
+    components?: DiscordPreviewComponentRow[];
     mentionContent?: string;
     channelName?: string;
     timestamp?: Date;
@@ -39,6 +70,7 @@ export function DiscordEmbedPreview({
     image,
     footer,
     author,
+    components = [],
     mentionContent,
     channelName = "annonces",
     timestamp = new Date(),
@@ -170,18 +202,31 @@ export function DiscordEmbedPreview({
                         )}
                     </div>
 
-                    {/* Component Buttons (Simulated) */}
-                    <div className="mt-2 flex flex-wrap gap-2">
-                        <div className="px-4 py-1.5 rounded-[3px] bg-[#4e5058] text-foreground text-xs font-bold flex items-center gap-2 cursor-not-allowed opacity-80">
-                             ⚔️ S'inscrire
+                    {/* Component Buttons (réels — correction 13/09) */}
+                    {components.length > 0 && (
+                        <div className="mt-2 flex flex-col gap-2">
+                            {components.map((row, rowIndex) => (
+                                <div key={rowIndex} className="flex flex-wrap gap-2">
+                                    {(row.components ?? []).map((button, buttonIndex) => (
+                                        <div
+                                            key={`${button.label ?? "bouton"}-${buttonIndex}`}
+                                            className={cn(
+                                                "px-4 py-1.5 rounded-[3px] text-foreground text-xs font-bold flex items-center gap-2",
+                                                DISCORD_BUTTON_STYLE_CLASSES[button.style ?? 2] ??
+                                                    DISCORD_BUTTON_STYLE_CLASSES[2],
+                                                button.disabled
+                                                    ? "cursor-not-allowed opacity-60"
+                                                    : "cursor-pointer"
+                                            )}
+                                        >
+                                            {button.label ?? "Bouton"}
+                                            {button.style === 5 && <ExternalLink className="w-3 h-3" />}
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
                         </div>
-                        <div className="px-4 py-1.5 rounded-[3px] bg-[#4e5058] text-foreground text-xs font-bold flex items-center gap-2 cursor-not-allowed opacity-80">
-                            🚪 Se désinscrire
-                        </div>
-                        <div className="px-4 py-1.5 rounded-[3px] bg-[#4e5058] text-foreground text-xs font-bold flex items-center gap-2 cursor-not-allowed opacity-80">
-                            🔗 Voir sur le site <ExternalLink className="w-3 h-3" />
-                        </div>
-                    </div>
+                    )}
                 </div>
             </div>
             <p className="text-caption text-muted-foreground italic mt-1 ml-1 flex items-center gap-1">

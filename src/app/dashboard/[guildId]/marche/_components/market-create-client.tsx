@@ -32,10 +32,12 @@ import {
 import { MARKET_LIMITS } from "@/server/actions/market-constants";
 import {
     createMarketListing,
+    getMarketStatReferential,
     getSmithmagicReferential,
     publishMarketListing,
     updateMarketListing,
     getMarketPublishContext,
+    type MarketStatReferential,
     type SmithmagicReferential,
 } from "@/server/actions/market-actions";
 import { getGuildRoles } from "@/server/actions/bonus-actions";
@@ -45,7 +47,7 @@ import { MarketItemCard } from "@/components/market/market-item-card";
 import { MarketJetEditor } from "./market-jet-editor";
 import { MarketPublishStep, type MarketPublishContext } from "./market-publish-step";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Hammer, Loader2, Package, Plus, Save, Search, Store, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Hammer, Loader2, Package, Plus, Save, Search, Store, X } from "lucide-react";
 
 type ListingKind = "EQUIPMENT" | "RESOURCE";
 
@@ -140,6 +142,14 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
     // S8.9 — référentiel de forge (runes `typeId 211` + potions `typeId 26`).
     const [referential, setReferential] = useState<SmithmagicReferential | null>(null);
 
+    /**
+     * Correction 13/09 — **référentiel d'effets** (libellés exacts + malus).
+     * Source de vérité : table siphonnée `GameEffect` (les tables codées en dur
+     * se sont révélées fausses sur 35 entrées, ex. `162` = « Esquive PA »).
+     * `null` = pas encore chargé (repli : table codée, jamais d'écran cassé).
+     */
+    const [statReferential, setStatReferential] = useState<MarketStatReferential | null>(null);
+
     // S3.14 — contexte de publication Discord (salon, rôles pinguables).
     const [publishContext, setPublishContext] = useState<MarketPublishContext | null>(null);
     const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
@@ -190,10 +200,28 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
         getSmithmagicReferential(guildId).then((res) => {
             if (!cancelled && res.success && res.data) setReferential(res.data);
         });
+        // Correction 13/09 — référentiel d'effets (libellés + **malus**) : il est
+        // chargé au moment où l'objet est choisi, puis appliqué aux lignes.
+        getMarketStatReferential(guildId).then((res) => {
+            if (!cancelled && res.success && res.data) setStatReferential(res.data);
+        });
         return () => {
             cancelled = true;
         };
     }, [guildId, kind, item]);
+
+    /**
+     * Correction 13/09 — entrées de résolution passées à `buildNativeStatDrafts` :
+     * `effectLabels` **prime** sur les caractéristiques (l'`effectId` est
+     * spécifique à la ligne) et `negativeEffectIds` rétablit le signe des malus.
+     */
+    const statDraftOptions = useMemo(
+        () => ({
+            labels: { ...(statReferential?.labels ?? {}), ...(statReferential?.effectLabels ?? {}) },
+            negativeEffectIds: statReferential?.negativeEffectIds ?? [],
+        }),
+        [statReferential]
+    );
 
     /** S8.9 (D40) — « Transcendé » est **déclaratif** : la rune ou rien. */
     const isTranscended = forge.transcendenceRuneId != null;
@@ -261,8 +289,11 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
      */
     const catalogueCard = useMemo(() => {
         if (!item) return null;
+        // Correction 13/09 — lignes fidèles : libellés du référentiel siphonné et
+        // **signe** des malus (« -6 à -8 Esquive PA »), valeurs = jets MAX.
         const drafts = buildNativeStatDrafts(
-            (item.nativeEffects as MarketNativeEffect[] | null) ?? null
+            (item.nativeEffects as MarketNativeEffect[] | null) ?? null,
+            statDraftOptions
         );
         return {
             name: item.name,
@@ -294,7 +325,76 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
                 }),
             })),
         };
-    }, [item, isTranscended, forge]);
+    }, [item, isTranscended, forge, statDraftOptions]);
+
+    /**
+     * Correction 13/09 — **jet déclaré** envoyé à l'aperçu Discord : l'embed
+     * publié doit porter les valeurs (« ✦ Exo 1 PM », « 348 Vitalité [301 à 350] »).
+     */
+    const publishStats = useMemo(
+        () =>
+            stats.map((stat) => ({
+                label: stat.label,
+                actualValue: stat.actualValue,
+                naturalMin: stat.naturalMin,
+                naturalMax: stat.naturalMax,
+                origin: stat.origin,
+            })),
+        [stats]
+    );
+
+    /**
+     * Correction 13/09 — carte de l'annonce **telle qu'elle sera publiée**
+     * (jet déclaré + forge déclarée) : rendue à l'étape Publication pour que le
+     * vendeur voie les icônes officielles, les exo en couleur et les malus
+     * négatifs — exactement comme l'image générée par Discord en salon texte.
+     */
+    const declaredCard = useMemo(() => {
+        if (!item) return null;
+        return {
+            name: item.name,
+            level: item.level,
+            typeName: item.typeName,
+            itemSetName: item.itemSetName ?? null,
+            iconUrl: item.iconUrl,
+            isLegendary: item.isLegendary ?? false,
+            description: description.trim() || null,
+            forgedBy: forgedBy.trim() || null,
+            realWeight: item.realWeight ?? null,
+            priceKamas: parsedPrice,
+            unitLabel:
+                kind === "RESOURCE" && components.length === 1 ? components[0].unitLabel : null,
+            transcended: isTranscended,
+            transcendenceLabel: forge.transcendenceLabel,
+            strikeElement: forge.strikeElement,
+            huntingWeapon: forge.huntingWeapon.trim() || null,
+            stats: stats.map((stat) => ({
+                effectId: stat.effectId,
+                characteristic: stat.characteristic,
+                label: stat.label,
+                naturalMin: stat.naturalMin,
+                naturalMax: stat.naturalMax,
+                actualValue: stat.actualValue,
+                origin: stat.origin,
+                quality: computeStatQuality({
+                    naturalMin: stat.naturalMin,
+                    naturalMax: stat.naturalMax,
+                    actualValue: stat.actualValue,
+                    origin: stat.origin,
+                }),
+            })),
+        };
+    }, [
+        item,
+        kind,
+        components,
+        description,
+        forgedBy,
+        parsedPrice,
+        stats,
+        isTranscended,
+        forge,
+    ]);
 
     const canGoNext = step === 1
         ? true
@@ -462,7 +562,8 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
                             // S2.8 — plages natives pré-remplies (source catalogue).
                             setStats(
                                 buildNativeStatDrafts(
-                                    (picked.nativeEffects as MarketNativeEffect[] | null) ?? null
+                                    (picked.nativeEffects as MarketNativeEffect[] | null) ?? null,
+                                    statDraftOptions
                                 )
                             );
                         }}
@@ -545,24 +646,43 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
             )}
 
             {!isEdit && step === 4 && (
-                <MarketPublishStep
-                    channelName=""
-                    title={title || item?.name || "Annonce"}
-                    itemName={kind === "EQUIPMENT" ? item?.name ?? null : null}
-                    itemLevel={kind === "EQUIPMENT" ? item?.level ?? null : null}
-                    itemTypeName={kind === "EQUIPMENT" ? item?.typeName ?? null : null}
-                    priceKamas={parsedPrice}
-                    unitLabel={kind === "RESOURCE" && components.length === 1 ? components[0].unitLabel : null}
-                    negotiable={negotiable}
-                    forgedBy={forgedBy.trim() || null}
-                    exoLabels={stats.filter((stat) => stat.origin === "EXO").map((stat) => stat.label)}
-                    forgeRecap={forgeRecap}
-                    components={components.map((component) => ({ name: component.name, quantity: component.quantity }))}
-                    context={publishContext}
-                    roles={roles}
-                    selectedPingIds={pingRoleIds}
-                    onTogglePing={togglePing}
-                />
+                <>
+                    {/* Correction 13/09 — la carte publiée (jet + forge déclarés) :
+                        c'est l'image que Discord affiche sous l'embed en salon
+                        texte. Le vendeur y voit les icônes officielles, les exo en
+                        couleur et les malus négatifs. */}
+                    {declaredCard && (
+                        <div className="space-y-2">
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                                Carte de l&apos;annonce (image jointe par Discord)
+                            </p>
+                            <MarketItemCard data={declaredCard} />
+                        </div>
+                    )}
+                    <MarketPublishStep
+                        channelName=""
+                        title={title || item?.name || "Annonce"}
+                        itemName={kind === "EQUIPMENT" ? item?.name ?? null : null}
+                        itemLevel={kind === "EQUIPMENT" ? item?.level ?? null : null}
+                        itemTypeName={kind === "EQUIPMENT" ? item?.typeName ?? null : null}
+                        priceKamas={parsedPrice}
+                        unitLabel={kind === "RESOURCE" && components.length === 1 ? components[0].unitLabel : null}
+                        negotiable={negotiable}
+                        forgedBy={forgedBy.trim() || null}
+                        exoLabels={stats.filter((stat) => stat.origin === "EXO").map((stat) => stat.label)}
+                        // Correction 13/09 — le jet déclaré part dans l'embed.
+                        stats={publishStats}
+                        forgeRecap={forgeRecap}
+                        // Correction 13/09 — aperçu fidèle : icône réelle + mode forum.
+                        itemIconUrl={kind === "EQUIPMENT" ? item?.iconUrl ?? null : null}
+                        forumMode={publishContext?.channelKind === "FORUM"}
+                        components={components.map((component) => ({ name: component.name, quantity: component.quantity }))}
+                        context={publishContext}
+                        roles={roles}
+                        selectedPingIds={pingRoleIds}
+                        onTogglePing={togglePing}
+                    />
+                </>
             )}
 
             {/* Navigation */}
@@ -950,6 +1070,9 @@ function ForgeBlock({
     // 🪶 Fail-soft : pas de référentiel (ou référentiel dégradé) ⇒ bloc masqué.
     if (!referential || referential.degraded) return null;
 
+    /** « Transcendé » est **déclaratif** (D40) : la rune ou rien. */
+    const isTranscended = forge.transcendenceRuneId != null;
+
     const isWeapon = isWeaponItem({
         itemSuperTypeName: item.superTypeName ?? null,
         itemTypeName: item.typeName ?? null,
@@ -965,6 +1088,13 @@ function ForgeBlock({
     const potions = forge.strikeElement
         ? referential.potions.filter((potion) => potion.element === forge.strikeElement)
         : [];
+
+    /**
+     * Rune proposée quand le vendeur **active** la Transcendance : la première du
+     * palier courant (aucune invention — elle vient du référentiel siphonné), ce
+     * qui évite un état « transcende sans rune ».
+     */
+    const firstRune = runes[0] ?? referential.runes[0] ?? null;
 
     /** Rune de Transcendance : présence = objet « transcendé » (D40). */
     function pickRune(rune: TranscendenceRune | null) {
@@ -1000,30 +1130,63 @@ function ForgeBlock({
             <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                     <Hammer className="w-4 h-4 text-gold" />
-                    Forge réelle
+                    Ce qui ne se lit pas dans le jet
                 </CardTitle>
                 <CardDescription>
-                    Au-delà du jet : la <strong>Transcendance</strong>, l&apos;
-                    <strong>élément de frappe</strong> et l&apos;<strong>arme de chasse</strong>{" "}
-                    changent la valeur réelle de l&apos;objet. SigilOS ne lit jamais ton
-                    inventaire : tout est <strong>déclaratif</strong>.
+                    L&apos;éditeur ci-dessus décrit les <strong>valeurs</strong> de l&apos;objet.
+                    Ici, tu déclares ce qui <strong>ne s&apos;y lit pas</strong> : une{" "}
+                    <strong>rune de Transcendance</strong>, un <strong>élément de frappe</strong>{" "}
+                    (potion) et une <strong>arme de chasse</strong>. SigilOS ne lit jamais ton
+                    inventaire : ces trois états sont <strong>déclaratifs</strong> — laisse-les
+                    vides si l&apos;objet ne les porte pas.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
                 {/* 1 — Rune de Transcendance (typeId 211) */}
                 <div className="space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface/40 px-3 py-2">
+                        <div className="min-w-0">
+                            <Label className="text-xs font-bold">
+                                Objet transcendé (rune de Transcendance)
+                            </Label>
+                            <p className="text-[11px] text-muted-foreground">
+                                Bonus <strong>définitif</strong> qui « empêche les futures
+                                forgemagies » ⇒ SigilOS refuse alors tout <strong>over</strong> et
+                                tout <strong>exo</strong> (éditeur de jet verrouillé).
+                            </p>
+                        </div>
+                        <label className="flex shrink-0 items-center gap-2 text-xs font-semibold text-muted-foreground">
+                            <Switch
+                                checked={isTranscended}
+                                disabled={firstRune === null}
+                                onCheckedChange={(checked) => pickRune(checked ? firstRune : null)}
+                            />
+                            {isTranscended ? "Oui" : "Non"}
+                        </label>
+                    </div>
                     <div className="flex flex-wrap items-center gap-3">
-                        <Label className="text-xs">Rune de Transcendance (facultatif)</Label>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                            Runes siphonnées
+                        </span>
                         <span className="flex items-center gap-2 text-[10px] font-bold uppercase text-muted-foreground">
                             {SMITHMAGIC_PALIERS.map((value) => (
                                 <span key={value} className="tabular-nums">
-                                    {value} {referential.runeCounts[value]}
+                                    {value} {referential.runeCounts[value] ?? 0}
                                 </span>
                             ))}
                         </span>
                     </div>
 
-                    {selectedRune ? (
+                    {/*
+                     * Correction 13/09 (2ᵉ passe, constat user) — la rune
+                     * automatiquement posée à l'activation restait **figée** :
+                     * le sélecteur n'était rendu que dans la branche « aucune
+                     * rune choisie », donc jamais une fois la Transcendance
+                     * activée (« impossible à changer »). La liste (paliers +
+                     * recherche) est maintenant **toujours rendue** sous la rune
+                     * courante, qui peut être remplacée d'un clic.
+                     */}
+                    {selectedRune && (
                         <div className="flex items-center gap-3 rounded-xl border border-gold/40 bg-gold/10 px-3 py-2">
                             <ForgeEntryIcon
                                 src={selectedRune.iconUrl}
@@ -1043,9 +1206,13 @@ function ForgeBlock({
                                 Retirer
                             </Button>
                         </div>
-                    ) : (
+                    )}
+                    {isTranscended && (
                         <>
                             <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    Changer de rune
+                                </span>
                                 {SMITHMAGIC_PALIERS.map((value) => (
                                     <button
                                         key={value}
@@ -1078,32 +1245,43 @@ function ForgeBlock({
                                         Aucune rune {palier} ne correspond à « {runeQuery} ».
                                     </li>
                                 )}
-                                {runes.map((rune) => (
-                                    <li key={rune.ankamaId}>
-                                        <button
-                                            type="button"
-                                            onClick={() => pickRune(rune)}
-                                            className="flex w-full items-center gap-3 rounded-xl border border-border bg-surface/60 px-3 py-2 text-left transition-colors hover:border-border-strong"
-                                        >
-                                            <ForgeEntryIcon
-                                                src={rune.iconUrl}
-                                                fallbackAsset={strikeElementAsset("Neutre")}
-                                                alt={rune.name}
-                                            />
-                                            <span className="min-w-0 flex-1">
-                                                <span className="block truncate text-sm font-semibold text-foreground">
-                                                    {rune.name}
+                                {runes.map((rune) => {
+                                    const isSelected = rune.ankamaId === forge.transcendenceRuneId;
+                                    return (
+                                        <li key={rune.ankamaId}>
+                                            <button
+                                                type="button"
+                                                onClick={() => pickRune(rune)}
+                                                className={cn(
+                                                    "flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors",
+                                                    isSelected
+                                                        ? "border-gold/40 bg-gold/10"
+                                                        : "border-border bg-surface/60 hover:border-border-strong"
+                                                )}
+                                            >
+                                                <ForgeEntryIcon
+                                                    src={rune.iconUrl}
+                                                    fallbackAsset={strikeElementAsset("Neutre")}
+                                                    alt={rune.name}
+                                                />
+                                                <span className="min-w-0 flex-1">
+                                                    <span className="block truncate text-sm font-semibold text-foreground">
+                                                        {rune.name}
+                                                    </span>
+                                                    <span className="block text-[11px] text-muted-foreground">
+                                                        {rune.statLabel} +{rune.bonus} · niveau {rune.level}
+                                                    </span>
                                                 </span>
-                                                <span className="block text-[11px] text-muted-foreground">
-                                                    {rune.statLabel} +{rune.bonus} · niveau {rune.level}
+                                                {isSelected && (
+                                                    <Check className="h-4 w-4 shrink-0 text-gold" />
+                                                )}
+                                                <span className="shrink-0 text-[10px] font-black uppercase text-muted-foreground">
+                                                    {rune.palier}
                                                 </span>
-                                            </span>
-                                            <span className="shrink-0 text-[10px] font-black uppercase text-muted-foreground">
-                                                {rune.palier}
-                                            </span>
-                                        </button>
-                                    </li>
-                                ))}
+                                            </button>
+                                        </li>
+                                    );
+                                })}
                             </ul>
                         </>
                     )}

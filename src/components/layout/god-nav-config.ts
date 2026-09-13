@@ -25,6 +25,7 @@ import {
     Image as ImageIcon,
     Award,
     Key,
+    ShoppingBag,
     type LucideIcon
 } from "lucide-react";
 
@@ -71,6 +72,7 @@ export const CONSOLE_PAGES: GodNavItem[] = [
     { id: "storage", name: "Stockage & Captures", icon: HardDrive, color: "text-info", group: "supervision", scope: "all", scopeLabel: "Toutes", brickId: "storage" },
     { id: "notifications", name: "Alertes Système", icon: Bell, color: "text-danger", group: "supervision", scope: "all", scopeLabel: "Toutes", brickId: "notifications" },
     { id: "mini-games", name: "Mini-Jeux", icon: Gamepad2, color: "text-warning", group: "supervision", sub: "mini-games", scope: "all", scopeLabel: "Toutes", brickId: "mini-games" },
+    { id: "market", name: "Marché", icon: ShoppingBag, color: "text-warning", group: "supervision", sub: "market", scope: "all", scopeLabel: "Toutes", brickId: "market" },
     { id: "geo-blacklist", name: "Blacklist Géoguesser", icon: Map, color: "text-danger", group: "supervision", sub: "mini-games", query: "sub=GUESSER", scope: "all", scopeLabel: "Toutes", brickId: "mini-games" },
 
     // Données de Jeu (sous-god friendly)

@@ -343,13 +343,26 @@ Le bouton « Masquer vendues / expirées » garde le catalogue lisible : décoch
 <ol class="steps">
     <li><strong>Nature</strong> : équipement forgemagie ou lot de ressources.</li>
     <li><strong>Objet & jet</strong> : recherche l'objet dans le catalogue (famille, type, niveau, nom) — les <strong>plages natives</strong> se pré-remplissent automatiquement et l'<strong>éditeur de jet</strong> s'ouvre.</li>
-    <li><strong>Prix & conditions</strong> : titre, description, prix en kamas, prix négociable, troc accepté, « Modifié par ».</li>
+    <li><strong>Prix & conditions</strong> : titre, description, prix en kamas, prix négociable, <strong>troc accepté</strong> — une annonce « kamas uniquement » refuse une offre sans kamas — et « Modifié par ».</li>
     <li><strong>Publication Discord</strong> : aperçu fidèle de l'annonce, choix des rôles à mentionner (parmi ceux autorisés par l'admin), puis publication.</li>
 </ol>
 <p>Tu peux enregistrer en <strong>brouillon</strong> (rien n'est publié) puis publier plus tard depuis <em>Mon espace</em>.</p>
 
 <h3>L'éditeur de jet</h3>
-<p>Sur un équipement, chaque ligne native est pré-remplie avec sa <strong>plage</strong> (ex. <code>251 à 300</code>). Tu saisis la valeur réelle et l'état se met à jour en direct : <strong>✦ Jet parfait</strong> remplit toutes les lignes au maximum, les boutons <strong>Exo PA / PM / PO / Invocation</strong> ajoutent un effet exotique en un clic, et une <strong>ligne libre</strong> couvre le mode avancé. Les plages natives viennent <strong>toujours du catalogue</strong> : c'est le serveur qui les recalcule, jamais le navigateur.</p>
+<p>Sur un équipement, chaque ligne native est pré-remplie avec sa <strong>plage</strong> (ex. <code>251 à 300</code>) et affichée avec l'<strong>icône officielle de la statistique</strong> (plus de libellé ambigu ni de signe inversé). Tu saisis la valeur réelle et l'état se met à jour en direct : <strong>✦ Jet parfait</strong> remplit toutes les lignes au maximum, les boutons <strong>Exo PA / PM / PO / Invocation</strong> ajoutent un effet exotique en un clic, et une <strong>ligne libre</strong> couvre le mode avancé. Les plages natives viennent <strong>toujours du catalogue</strong> : c'est le serveur qui les recalcule, jamais le navigateur.</p>
+
+<h3>La forge réelle (Transcendance, élément, arme de chasse)</h3>
+<p>Un objet forgemagie ne se résume pas à son jet : le module permet de <strong>déclarer la forge réellement appliquée</strong>, et cette déclaration se retrouve ensuite dans l'annonce et dans l'embed Discord.</p>
+<table>
+    <thead><tr><th>Déclaration</th><th>Effet</th></tr></thead>
+    <tbody>
+        <tr><td><strong>Rune de Transcendance</strong></td><td>L'objet est transcendant : plus aucune forgemagie future n'est possible. Cette déclaration <strong>exclut tout over et tout exo</strong> (c'est le seul refus du module).</td></tr>
+        <tr><td><strong>Élément de frappe + potion</strong></td><td>Réservé aux <strong>armes</strong> : élément (Feu, Eau, Terre, Air) et palier de potion. Le palier est borné aux valeurs de jeu réellement siphonnées.</td></tr>
+        <tr><td><strong>Arme de chasse</strong></td><td>Réservé aux <strong>armes</strong> : libellé déclaré de l'arme de chasse.</td></tr>
+        <tr><td><strong>Troc accepté / Kamas uniquement</strong></td><td>Ce que tu choisis apparaît noir sur blanc dans l'annonce : une annonce « kamas uniquement » refuse explicitement une offre sans kamas, au dépôt comme en contre-offre.</td></tr>
+    </tbody>
+</table>
+<p>Ces règles sont vérifiées <strong>côté serveur</strong> à chaque création et modification : l'interface les annonce, mais c'est le serveur qui les applique.</p>
 
 <h3>Les lots de ressources</h3>
 <table>
@@ -367,7 +380,7 @@ Le bouton « Masquer vendues / expirées » garde le catalogue lisible : décoch
     <tbody>
         <tr><td><strong>Brouillon</strong></td><td>Créée mais non publiée — visible uniquement par toi.</td></tr>
         <tr><td><strong>Disponible</strong></td><td>Publiée, visible par la guilde.</td></tr>
-        <tr><td><strong>Réservé</strong></td><td>Quelqu'un a réservé ou une offre a été acceptée (arrive avec le sprint des interactions).</td></tr>
+        <tr><td><strong>Réservé</strong></td><td>Quelqu'un a réservé l'annonce ou une offre a été acceptée : l'annonce est bloquée pour cet acheteur jusqu'à l'échéance de la réservation.</td></tr>
         <tr><td><strong>Vendu</strong></td><td>Transaction confirmée par le vendeur (état terminal).</td></tr>
         <tr><td><strong>Expiré</strong></td><td>Échéance dépassée — l'annonce sort du catalogue actif mais reste dans tes archives.</td></tr>
         <tr><td><strong>Retiré</strong></td><td>Retirée par le vendeur ou la modération.</td></tr>
@@ -377,7 +390,7 @@ Le bouton « Masquer vendues / expirées » garde le catalogue lisible : décoch
 
 <div class="callout callout-info">
 <strong>Mon espace</strong>
-L'onglet <em>Mon espace</em> regroupe tes annonces <strong>en cours</strong> et tes <strong>archives</strong>, avec les actions : publier, retirer, renouveler, supprimer.
+L'onglet <em>Mon espace</em> regroupe tes annonces <strong>en cours</strong> et tes <strong>archives</strong>, avec les actions : publier, retirer, renouveler, supprimer. Tu y retrouves aussi les <strong>réservations</strong> reçues et le <strong>centre de négociation</strong> (offres reçues et envoyées) : accepter une offre réserve l'annonce, expire automatiquement les autres offres en attente, et le montant proposé reste <strong>privé</strong> (jamais publié dans Discord).
 </div>
 
 <h2>4. Comprendre un jet forgemagie</h2>
@@ -827,6 +840,19 @@ Seuls les rôles listés dans « Rôles pinguables » peuvent être mentionnés 
 
 <h2>6. Modération</h2>
 <p>Les membres de la permission <code>market:moderate</code> peuvent retirer une annonce et traitent les signalements. Chaque action est journalisée dans le journal d'audit du marché (rétention configurable).</p>
+
+<h2>7. Les 2 permissions du module</h2>
+<table>
+    <thead><tr><th>Permission</th><th>Ce qu'elle ouvre</th></tr></thead>
+    <tbody>
+        <tr><td><code>market:trade</code></td><td>Voir le catalogue, publier ses annonces, réserver et négocier.</td></tr>
+        <tr><td><code>market:moderate</code></td><td>Retirer ou restaurer une annonce, traiter les signalements et consulter l'historique d'une annonce.</td></tr>
+    </tbody>
+</table>
+<p>Ces deux permissions sont indépendantes de la bascule du module : pense à activer <strong>les deux</strong> interrupteurs (module + permission) pour un membre qui doit publier.</p>
+
+<h2>8. Supervision plateforme (staff SigilOS)</h2>
+<p>Le staff dispose d'une vue <strong>inter-guilde</strong> de supervision : indicateurs d'annonces, réservations et offres, signalements ouverts, volume des preuves, santé de la synchronisation Discord, purge des médias, verrou plateforme et rétention globale, ainsi que le journal du marché. Cette vue est réservée au staff : aucune donnée n'en sort côté guilde.</p>
 `,
     },
     {

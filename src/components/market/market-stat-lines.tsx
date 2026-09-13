@@ -51,16 +51,27 @@ export function MarketStatLines({
     if (stats.length === 0) return null;
 
     return (
-        <ul className={cn("space-y-1", className)}>
+        /*
+         * 📐 Mise en page resserrée (constat beta du 13/09 : « trop de vide entre
+         * le nom de l'objet et ses stats ») : le jet passe sur **deux colonnes**
+         * dès `sm`, et la valeur/plage restent **collées au libellé** (plus de
+         * `flex-1` qui poussait la valeur à l'autre bout de l'écran).
+         */
+        <ul
+            className={cn(
+                "grid grid-cols-1 gap-x-6 gap-y-0.5 sm:grid-cols-2",
+                className
+            )}
+        >
             {stats.map((stat) => (
-                <li key={stat.id} className="flex items-center gap-2 text-xs">
+                <li key={stat.id} className="flex min-w-0 items-center gap-2 text-xs">
                     <StatIcon
                         characteristicId={stat.characteristic}
                         effectId={stat.effectId}
                         label={stat.label}
                     />
-                    <span className="min-w-0 flex-1 truncate text-foreground/90">{stat.label}</span>
-                    <span className="shrink-0 font-bold tabular-nums text-foreground">
+                    <span className="truncate text-foreground/90">{stat.label}</span>
+                    <span className="ml-auto shrink-0 font-bold tabular-nums text-foreground">
                         {formatValue(stat)}
                     </span>
                     <span className="shrink-0 tabular-nums text-muted-foreground">

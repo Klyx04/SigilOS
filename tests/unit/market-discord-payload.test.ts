@@ -41,17 +41,19 @@ function buttonsOf(payload: ReturnType<typeof buildMarketDiscordPayload>) {
 }
 
 describe("buildMarketDiscordPayload", () => {
-    it("ACTIVE — titre avec prix, couleur dorée, 4 boutons actifs", () => {
+    it("ACTIVE — titre avec prix, couleur dorée, 3 boutons actifs (BUG-7 : plus de « Contacter »)", () => {
         const payload = buildMarketDiscordPayload(base);
         expect(payload.embedTitle).toContain("Anneau de Force");
         expect(payload.embedTitle).toContain("45");
         expect(payload.embedColor).toBe(MARKET_DISCORD_COLORS.ACTIVE);
         const buttons = buttonsOf(payload);
-        expect(buttons).toHaveLength(4);
+        expect(buttons).toHaveLength(3);
         expect(buttons.filter((b) => b.disabled)).toHaveLength(0);
+        // BUG-7 — le `custom_id` du bouton supprimé ne doit plus JAMAIS apparaître.
+        expect(buttons.some((b) => b.custom_id?.startsWith("mkt:contact"))).toBe(false);
     });
 
-    it("RESERVED — boutons Réserver/Offre DÉSACTIVÉS (jamais supprimés)", () => {
+    it("RESERVED — boutons Réserver/Offre DÉSACTIVÉS (jamais supprimés) + « Me désister » (BUG-8)", () => {
         const payload = buildMarketDiscordPayload({ ...base, status: "RESERVED" });
         expect(payload.embedColor).toBe(MARKET_DISCORD_COLORS.RESERVED);
         const buttons = buttonsOf(payload);
@@ -59,14 +61,21 @@ describe("buildMarketDiscordPayload", () => {
         const offer = buttons.find((b) => b.custom_id === `mkt:offer:${base.listingId}`);
         expect(reserve?.disabled).toBe(true);
         expect(offer?.disabled).toBe(true);
-        // Le bouton « Contacter » reste disponible.
-        expect(buttons.find((b) => b.custom_id?.startsWith("mkt:contact"))?.disabled).toBe(false);
+        // L'acheteur doit pouvoir **revenir en arrière** : bouton dédié, actif.
+        const cancel = buttons.find((b) => b.custom_id === `mkt:cancel:${base.listingId}`);
+        expect(cancel).toMatchObject({ label: "Me désister", style: 4, disabled: false });
+        // 3 boutons + le lien « Voir sur SigilOS ».
+        expect(buttons).toHaveLength(4);
     });
 
-    it("SOLD — bouton Contacter désactivé", () => {
-        const payload = buildMarketDiscordPayload({ ...base, status: "SOLD" });
-        const buttons = buttonsOf(payload);
-        expect(buttons.find((b) => b.custom_id?.startsWith("mkt:contact"))?.disabled).toBe(true);
+    it("aucun bouton « Me désister » hors RESERVED (jamais un bouton mort)", () => {
+        for (const status of ["DRAFT", "ACTIVE", "SOLD", "EXPIRED", "WITHDRAWN"] as const) {
+            const buttons = buttonsOf(buildMarketDiscordPayload({ ...base, status }));
+            expect(
+                buttons.some((b) => b.custom_id?.startsWith("mkt:cancel")),
+                `bouton cancel présent en ${status}`
+            ).toBe(false);
+        }
     });
 
     it("annonce NON négociable — bouton Offre désactivé, Réservation intacte (§13.5)", () => {
@@ -111,7 +120,7 @@ describe("buildMarketDiscordPayload", () => {
         expect(payload.embedImage).toBe("https://sigilos.fr/api/og/market/clx0123456789");
     });
 
-    it("S4.6 — 4ᵉ bouton = lien « Voir sur SigilOS », dans TOUS les états (jamais retiré)", () => {
+    it("S4.6 — dernier bouton = lien « Voir sur SigilOS », dans TOUS les états (jamais retiré)", () => {
         const expectedLink = buildMarketDashboardLinkButton(base.dashboardUrl);
         expect(expectedLink.style).toBe(5);
 
@@ -119,10 +128,12 @@ describe("buildMarketDiscordPayload", () => {
             const payload = buildMarketDiscordPayload({ ...base, status });
             const buttons = buttonsOf(payload);
 
-            expect(buttons).toHaveLength(4);
+            // 3 boutons d'action, + « Me désister » **uniquement** en RESERVED,
+            // puis le bouton lien (BUG-8 / BUG-7).
+            expect(buttons).toHaveLength(status === "RESERVED" ? 4 : 3);
             // Même forme que les réponses éphémères de S4.5 (une seule définition).
-            expect(buttons[3]).toEqual(expectedLink);
-            expect(buttons[3]).not.toHaveProperty("custom_id"); // un lien n'en accepte pas
+            expect(buttons[buttons.length - 1]).toEqual(expectedLink);
+            expect(buttons[buttons.length - 1]).not.toHaveProperty("custom_id"); // un lien n'en accepte pas
             // Une seule ActionRow, jamais désactivée (un lien reste toujours cliquable).
             expect(payload.components[0]).toMatchObject({ type: 1 });
             expect(payload.components).toHaveLength(1);
@@ -157,42 +168,26 @@ describe("bouton lien fiche SigilOS (S4.5 / S4.6)", () => {
     });
 });
 
-describe("formatMarketStatLine (correction 13/09)", () => {
-    it("rend la valeur, le libellé et la plage native (comme la carte)", () => {
-        expect(
-            formatMarketStatLine({ label: "Vitalité", actualValue: 348, naturalMin: 301, naturalMax: 350 })
-        ).toBe("**+348** Vitalité [301 à 350]");
-        // Valeur fixe (PA natif) : une seule borne.
-        expect(formatMarketStatLine({ label: "PM", actualValue: 1, naturalMin: 1, naturalMax: 1 })).toBe(
-            "**+1** PM [1]"
-        );
-        // Malus : signe négatif + plage décroissante, comme DofusDB.
-        expect(
-            formatMarketStatLine({ label: "Esquive PA", actualValue: -8, naturalMin: -6, naturalMax: -8 })
-        ).toBe("**-8** Esquive PA [-6 à -8]");
-        // Ligne libre (pas de plage native) : aucune borne inventée.
-        expect(formatMarketStatLine({ label: "% Dommages aux sorts", actualValue: 3 })).toBe(
-            "**+3** % Dommages aux sorts"
+describe("BUG-5 — le jet vit dans l'image, jamais en texte dans l'embed", () => {
+    it("n'accepte plus de `stats` (le champ est fermé : la carte image a remplacé le texte)", () => {
+        // Le contrat de type interdit désormais de publier un jet en texte ;
+        // le test vérifie aussi qu'aucune entrée n'apparaît dans la description.
+        expect(formatMarketStatLine({ label: "Vitalité", actualValue: 348 })).toBe(
+            "**+348** Vitalité"
         );
     });
 
-    it("marque les exo (Discord n'a pas de couleur de texte)", () => {
-        expect(
-            formatMarketStatLine({ label: "PM", actualValue: 1, origin: "EXO" })
-        ).toBe("✦ Exo **+1** PM");
-    });
-
-    it("publie le jet dans la description de l'embed et résume au-delà de 20 lignes", () => {
-        const stats = Array.from({ length: 22 }, (_, index) => ({
-            label: `Ligne ${index + 1}`,
-            actualValue: index + 1,
-        }));
-        const payload = buildMarketDiscordPayload({ ...base, stats });
-        expect(payload.embedDescription).toContain("**EFFETS**");
-        expect(payload.embedDescription).toContain("Ligne 1");
-        expect(payload.embedDescription).toContain("+ 2 autre(s) ligne(s) de jet");
-        // Jamais les 22 lignes : l'embed Discord est borné.
-        expect(payload.embedDescription).not.toContain("Ligne 21");
+    it("description = vendeur + niveau/type + statut + lot — jamais d'EFFETS", () => {
+        const payload = buildMarketDiscordPayload({
+            ...base,
+            components: [{ name: "Eau Potable", quantity: 500 }],
+        });
+        expect(payload.embedDescription).toContain("Vendeur : VendeurTest");
+        expect(payload.embedDescription).toContain("Niveau 200");
+        expect(payload.embedDescription).toContain("Eau Potable");
+        // Aucune section « EFFETS » : les statistiques sont dans l'image (§2.4).
+        expect(payload.embedDescription).not.toContain("EFFETS");
+        expect(payload.embedDescription).not.toContain("Vitalité");
     });
 
     it("joint la carte PNG dans TOUS les modes (icônes et couleurs du jet)", () => {

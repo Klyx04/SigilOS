@@ -11,6 +11,9 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { Prisma } from "@prisma/client";
 import { resolveNativeEffects } from "@/lib/market/effects";
+import { normalizeItemIconUrl } from "@/lib/market/item-image";
+import { buildMarketFamilyWhere } from "@/lib/market/family-where";
+import { type MarketItemFamily } from "@/lib/market/item-families";
 import { siphonGameItemByAnkamaId } from "@/server/actions/game-item-actions";
 
 export type ItemCatalogCategory = "all" | "equipment" | "resources" | "consumables" | "cosmetics";
@@ -18,6 +21,8 @@ export type ItemCatalogCategory = "all" | "equipment" | "resources" | "consumabl
 export type ItemCatalogFilters = {
     query?: string;
     category?: ItemCatalogCategory;
+    /** BUG-11/T10 — famille produit (`Équipements` / `Cosmétique` / `Ressources / Autres`). */
+    family?: MarketItemFamily | null;
     superTypeId?: number | null;
     typeName?: string | null;
     minLevel?: number | null;
@@ -34,6 +39,7 @@ export type ItemCatalogEntry = {
     category: string;
     description: string | null;
     iconUrl: string | null;
+    typeId: number | null;
     superTypeId: number | null;
     superTypeName: string | null;
     itemSetId: number | null;
@@ -52,6 +58,7 @@ const CATALOG_SELECT = {
     category: true,
     description: true,
     iconUrl: true,
+    typeId: true,
     superTypeId: true,
     superTypeName: true,
     itemSetId: true,
@@ -72,6 +79,11 @@ function buildWhere(filters: ItemCatalogFilters): Prisma.GameItemWhereInput {
     }
     if (filters.category && filters.category !== "all") {
         where.category = filters.category;
+    }
+    if (filters.family) {
+        // BUG-11/T10 — filtre **NULL-safe** (voir `buildMarketFamilyWhere` : un
+        // `NOT { OR }` excluait les lignes dont `typeId`/`superTypeId` est NULL).
+        Object.assign(where, buildMarketFamilyWhere(filters.family));
     }
     if (filters.superTypeId != null) {
         where.superTypeId = filters.superTypeId;
@@ -143,7 +155,15 @@ export async function searchItems(
             take: pageSize,
         });
 
-        return { items, total, source };
+        return {
+            items: items.map((item) => ({
+                ...item,
+                // BUG-3 — une seule forme d'URL d'icône (proxy auto-siphon).
+                iconUrl: normalizeItemIconUrl(item.iconUrl, item.ankamaId),
+            })),
+            total,
+            source,
+        };
     } catch (error) {
         logger.error("[market] searchItems failed", {
             err: error instanceof Error ? error.message : String(error),
@@ -174,5 +194,10 @@ export async function getItemCatalogEntry(ankamaId: number): Promise<ItemCatalog
     // `nativeEffects` est encore vide (fiche siphonnée AVANT S2.2). `effects`
     // (lourd) est écarté du retour : il ne doit jamais partir au client.
     const { effects: _rawEffects, ...entry } = item;
-    return { ...entry, nativeEffects: resolveNativeEffects(item) };
+    return {
+        ...entry,
+        // BUG-3 — même normalisation que la recherche du catalogue.
+        iconUrl: normalizeItemIconUrl(entry.iconUrl, entry.ankamaId),
+        nativeEffects: resolveNativeEffects(item),
+    };
 }

@@ -8,8 +8,10 @@
  *      (type 9) — sans fuite de montant ni de pseudo d'acheteur (§13.7) ;
  *   5. soumission de la modale d'offre (type 5, S4.4) : la règle « kamas OU troc »
  *      est **recalculée serveur** — un envoi vide est refusé, jamais deviné ;
- *   6. contact (S4.5) : commande `/w` du **vendeur** + bouton lien vers la fiche
- *      SigilOS — jamais de montant ni de pseudo d'acheteur (§13.7).
+ *   6. réservation (S4.2) **et** désistement (BUG-8, `mkt:cancel`) : le moteur
+ *      partagé reste la seule source de vérité, le clic est throttlé serveur ;
+ *   7. BUG-6 : profil **absent** et profil **inactif** renvoient deux messages
+ *      distincts (l'ancien message unique accusait à tort un profil existant).
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -28,6 +30,30 @@ vi.mock("@/lib/utils", () => ({ getAppBaseUrl: () => "https://sigilos.fr" }));
 vi.mock("@/server/market/discord", () => ({
     syncListingMessage: vi.fn().mockResolvedValue({ ok: true }),
 }));
+
+/**
+ * BUG-8 — le **rate limit fail-closed** des boutons est injecté : par défaut il
+ * laisse passer (les tests métier ne doivent pas dépendre de Redis), et le test
+ * dédié le fait refuser (`mockResolvedValueOnce`).
+ */
+const mockRateLimit = vi.fn();
+vi.mock("@/lib/ratelimit", () => ({
+    rateLimit: (...args: unknown[]) => mockRateLimit(...args),
+}));
+
+/**
+ * BUG-8 — seul `cancelMarketReservationCore` est espionné (les tests de
+ * réservation existants exercent le **vrai** moteur) : le contrat « aucune règle
+ * métier dupliquée dans la couche Discord » reste donc vérifiable ici.
+ */
+const mockCancelCore = vi.fn();
+vi.mock("@/server/market/reservations", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@/server/market/reservations")>();
+    return {
+        ...actual,
+        cancelMarketReservationCore: (...args: unknown[]) => mockCancelCore(...args),
+    };
+});
 
 /**
  * S4.8/S4.9 — les alertes §11.9 passent par `@/server/actions/notification-actions`
@@ -54,6 +80,7 @@ const tx = {
 const mockGuildConfigFindUnique = vi.fn();
 const mockUserProfileFindUnique = vi.fn();
 const mockListingFindFirst = vi.fn();
+const mockReservationFindFirst = vi.fn();
 const mockAuditCreate = vi.fn();
 
 vi.mock("@/lib/prisma", () => ({
@@ -61,6 +88,7 @@ vi.mock("@/lib/prisma", () => ({
         guildConfig: { findUnique: (...args: unknown[]) => mockGuildConfigFindUnique(...args) },
         userProfile: { findUnique: (...args: unknown[]) => mockUserProfileFindUnique(...args) },
         marketListing: { findFirst: (...args: unknown[]) => mockListingFindFirst(...args) },
+        marketReservation: { findFirst: (...args: unknown[]) => mockReservationFindFirst(...args) },
         marketAuditLog: { create: (...args: unknown[]) => mockAuditCreate(...args) },
         $transaction: vi.fn(),
     },
@@ -71,7 +99,6 @@ import {
     MARKET_EPHEMERAL,
     MARKET_EPHEMERAL_LINK_LABEL,
     MARKET_OFFER_MODAL,
-    buildMarketContactContent,
     buildMarketDashboardUrl,
     buildMarketOfferModal,
     parseMarketCustomId,
@@ -80,6 +107,16 @@ import {
     handleMarketComponentInteraction,
     handleMarketModalSubmit,
 } from "@/server/market/discord-interactions";
+
+/**
+ * BUG-8 — défauts sûrs pour **toute** la suite : le rate limit laisse passer et
+ * aucune réservation active n'existe (le pré-contrôle « déjà réservée par toi »
+ * ne doit pas court-circuiter les tests de réservation existants).
+ */
+beforeEach(() => {
+    mockRateLimit.mockResolvedValue({ success: true, remaining: 5, reset: 0 });
+    mockReservationFindFirst.mockResolvedValue(null);
+});
 
 /** `cuid()` d'annonce utilisé dans tous les tests. */
 const LISTING_ID = "cm5marketlisting0001";
@@ -99,9 +136,13 @@ function marketModalValues(values: { kamas?: string; trade?: string; note?: stri
 
 describe("market discord interactions — parsing des custom_id (S4.1)", () => {
     it("accepte les 3 actions produites par les boutons de l'annonce (§13.3)", () => {
-        for (const action of ["reserve", "offer", "contact"] as const) {
+        for (const action of ["reserve", "offer", "cancel"] as const) {
             expect(parseMarketCustomId(`mkt:${action}:${LISTING_ID}`)).toEqual({ action, listingId: LISTING_ID });
         }
+    });
+
+    it("BUG-7 — l'ancien `mkt:contact` est refusé (bouton supprimé, fail-closed)", () => {
+        expect(parseMarketCustomId(`mkt:contact:${LISTING_ID}`)).toBeNull();
     });
 
     it("refuse toute forme ambiguë plutôt que de deviner (fail-closed)", () => {
@@ -230,11 +271,11 @@ describe("market discord interactions — gardes serveur (S4.1)", () => {
 
 });
 
-describe("market discord interactions — contact mkt:contact (S4.5)", () => {
-    /** Clic réel du bouton « Contacter » de l'annonce (§13.3). */
-    const clickContact = () =>
+describe("market discord interactions — désistement mkt:cancel (BUG-8)", () => {
+    /** Clic réel du bouton « Me désister » de l'annonce réservée. */
+    const clickCancel = () =>
         handleMarketComponentInteraction({
-            customId: `mkt:contact:${LISTING_ID}`,
+            customId: `mkt:cancel:${LISTING_ID}`,
             discordGuildId: GUILD_ID,
             userId: "user-buyer",
         });
@@ -252,20 +293,22 @@ describe("market discord interactions — contact mkt:contact (S4.5)", () => {
         mockListingFindFirst.mockResolvedValue({
             id: LISTING_ID,
             profileId: "profile-seller",
-            status: "ACTIVE",
-            profile: { pseudoDofus: "Iop-Du-93" },
+            status: "RESERVED",
         });
+        // La réservation ACTIVE du membre demandeur (lue **dans la guilde**).
+        mockReservationFindFirst.mockResolvedValue({ id: "reservation-1" });
+        // Le moteur partagé confirme le désistement (rôle = acheteur, déduit serveur).
+        mockCancelCore.mockResolvedValue({ ok: true, cancelledBy: "BUYER" });
     });
 
-    it("donne la commande `/w` du vendeur + le bouton lien vers la fiche (§13.5)", async () => {
-        const res = await clickContact();
+    it("annule la réservation, prévient le vendeur (core partagé) et resynchronise le message", async () => {
+        const res = await clickCancel();
 
         expect(res.kind).toBe("ephemeral");
         if (res.kind !== "ephemeral") throw new Error("réponse éphémère attendue");
 
         expect(res.ok).toBe(true);
-        expect(res.content).toBe(buildMarketContactContent("Iop-Du-93"));
-        expect(res.content).toContain("/w Iop-Du-93 ");
+        expect(res.content).toBe(MARKET_EPHEMERAL.CANCEL_SUCCESS);
         // §13.7 : ni montant d'offre ni pseudo d'acheteur dans la réponse.
         expect(res.content).not.toMatch(/\d{2,}\s*k/i);
         expect(res.content).not.toContain("profile-");
@@ -283,62 +326,83 @@ describe("market discord interactions — contact mkt:contact (S4.5)", () => {
         ]);
         expect(JSON.stringify(res.components)).not.toContain("custom_id");
 
-        // Isolation §16.2 : l'annonce est relue dans la guilde interne résolue.
+        // Isolation §16.2 : l'annonce **et** la réservation sont relues dans la
+        // guilde interne résolue — jamais dans une autre guilde.
         expect(mockListingFindFirst.mock.calls[0][0].where.guildId).toBe("guild-internal-1");
+        expect(mockReservationFindFirst.mock.calls[0][0].where.listing.guildId).toBe(
+            "guild-internal-1"
+        );
+        // L'identité de l'auteur vient du **serveur** (jamais de Discord).
+        expect(mockCancelCore.mock.calls[0][0]).toMatchObject({
+            guildConfigId: "guild-internal-1",
+            reservationId: "reservation-1",
+            actorProfileId: "profile-buyer",
+            actorUserId: "user-buyer",
+        });
+        // Le message Discord est resynchronisé après l'annulation.
+        const { syncListingMessage } = await import("@/server/market/discord");
+        expect(syncListingMessage).toHaveBeenCalledWith(LISTING_ID);
     });
 
-    it("refuse de contacter sa propre annonce (aucune commande `/w`)", async () => {
+    it("refuse le vendeur : il retire son annonce, il ne « se désiste » pas", async () => {
         mockListingFindFirst.mockResolvedValue({
             id: LISTING_ID,
             profileId: "profile-buyer",
-            status: "ACTIVE",
-            profile: { pseudoDofus: "Iop-Du-93" },
+            status: "RESERVED",
         });
 
-        const res = await clickContact();
+        const res = await clickCancel();
 
         expect(res).toEqual({
             kind: "ephemeral",
             ok: false,
-            content: MARKET_EPHEMERAL.CONTACT_OWN_LISTING,
+            content: MARKET_EPHEMERAL.CANCEL_OWN_LISTING,
         });
-        expect(JSON.stringify(res)).not.toContain("/w ");
+        expect(mockCancelCore).not.toHaveBeenCalled();
     });
 
-    it("refuse une annonce vendue mais laisse la fiche accessible (§13.3)", async () => {
+    it("refuse une annonce qui n'est plus réservée (vendue / expirée / retirée)", async () => {
         mockListingFindFirst.mockResolvedValue({
             id: LISTING_ID,
             profileId: "profile-seller",
             status: "SOLD",
-            profile: { pseudoDofus: "Iop-Du-93" },
         });
 
-        const res = await clickContact();
+        const res = await clickCancel();
 
-        expect(res.kind).toBe("ephemeral");
-        if (res.kind !== "ephemeral") throw new Error("réponse éphémère attendue");
-        expect(res.ok).toBe(false);
-        expect(res.content).toBe(MARKET_EPHEMERAL.CONTACT_UNAVAILABLE);
-        expect(JSON.stringify(res.components)).not.toContain("/w ");
-        expect(res.components?.[0].components[0]).toMatchObject({ style: 5 });
+        expect(res).toEqual({
+            kind: "ephemeral",
+            ok: false,
+            content: MARKET_EPHEMERAL.CANCEL_UNAVAILABLE,
+        });
+        expect(mockCancelCore).not.toHaveBeenCalled();
     });
 
-    it("refuse un vendeur sans pseudo Dofus : jamais de commande `/w undefined`", async () => {
-        mockListingFindFirst.mockResolvedValue({
-            id: LISTING_ID,
-            profileId: "profile-seller",
-            status: "ACTIVE",
-            profile: { pseudoDofus: null },
+    it("refuse un membre sans réservation active sur cette annonce (§16.2)", async () => {
+        mockReservationFindFirst.mockResolvedValue(null);
+
+        const res = await clickCancel();
+
+        expect(res).toEqual({
+            kind: "ephemeral",
+            ok: false,
+            content: MARKET_EPHEMERAL.CANCEL_NOT_YOURS,
         });
+        expect(mockCancelCore).not.toHaveBeenCalled();
+    });
 
-        const res = await clickContact();
+    it("rate limit (fail-closed) : un clic de trop est refusé sans toucher la base", async () => {
+        mockRateLimit.mockResolvedValueOnce({ success: false, remaining: 0, reset: 0 });
 
-        expect(res.kind).toBe("ephemeral");
-        if (res.kind !== "ephemeral") throw new Error("réponse éphémère attendue");
-        expect(res.ok).toBe(false);
-        expect(res.content).toBe(MARKET_EPHEMERAL.CONTACT_NO_PSEUDO);
-        expect(JSON.stringify(res)).not.toContain("undefined");
-        expect(res.components?.[0].components[0]).toMatchObject({ style: 5 });
+        const res = await clickCancel();
+
+        expect(res).toEqual({
+            kind: "ephemeral",
+            ok: false,
+            content: MARKET_EPHEMERAL.RATE_LIMITED,
+        });
+        expect(mockCancelCore).not.toHaveBeenCalled();
+        expect(mockReservationFindFirst).not.toHaveBeenCalled();
     });
 });
 
@@ -414,7 +478,7 @@ describe("market discord interactions — réservation mkt:reserve (S4.2)", () =
             userId: "user-stranger",
         });
 
-        expect(res).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.PROFILE_REQUIRED });
+        expect(res).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.PROFILE_MISSING });
         expect(mockListingFindFirst).not.toHaveBeenCalled();
     });
 
@@ -593,7 +657,7 @@ describe("market discord interactions — offre mkt:offer (S4.3)", () => {
             userId: "user-stranger",
         });
 
-        expect(res).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.PROFILE_REQUIRED });
+        expect(res).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.PROFILE_MISSING });
         expect(mockListingFindFirst).not.toHaveBeenCalled();
     });
 });
@@ -801,7 +865,7 @@ describe("market discord interactions — gardes d'accès modale mkt:offer (S4.4
             userId: "user-stranger",
         });
 
-        expect(res).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.PROFILE_REQUIRED });
+        expect(res).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.PROFILE_MISSING });
         expect(mockListingFindFirst).not.toHaveBeenCalled();
     });
 });

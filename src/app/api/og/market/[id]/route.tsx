@@ -1,9 +1,9 @@
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
 import { db } from "@/lib/prisma";
-import { getAppBaseUrl } from "@/lib/utils";
-import { dofusStatAssetUrl, resolveDofusStatTheme } from "@/lib/dofus-stats-theme";
-import { buildMarketStatusLines } from "@/lib/market/discord-payload";
+import { resolveDofusStatTheme } from "@/lib/dofus-stats-theme";
+import { buildMarketStatusLines, shortListingId } from "@/lib/market/discord-payload";
+import { loadItemImageDataUrl, loadKamasIconDataUrl, loadStatIconDataUrl } from "@/lib/market/og-assets";
 
 // Prisma impose le runtime Node (pas d'edge).
 export const runtime = "nodejs";
@@ -93,7 +93,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
             return new Response("Carte introuvable", { status: 404 });
         }
 
-        const baseUrl = getAppBaseUrl();
         const headerName = listing.itemName || listing.title;
 
         // Les PODS viennent du CATALOGUE (GameItem), pas de l'annonce.
@@ -105,9 +104,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
             : null;
         const realWeight = catalogItem?.realWeight ?? null;
 
-        const itemIconUrl = listing.dofusDbItemId
-            ? `${baseUrl}/api/assets-dofus/items/${listing.dofusDbItemId}`
-            : null;
+        // BUG-5 — image de l'objet **inlinée** (WebP siphonné → PNG via Sharp) :
+        // Satori ne décode pas le WebP et un auto-appel HTTP pouvait échouer.
+        const itemImageDataUrl = await loadItemImageDataUrl(listing.dofusDbItemId);
+        // BUG-5 — icône Kamas officielle, embarquée DANS l'image (spec §2.4).
+        const kamasIconDataUrl = loadKamasIconDataUrl();
 
         const visibleStats = listing.stats.slice(0, MAX_STAT_LINES);
         const hiddenStats = Math.max(0, listing.stats.length - MAX_STAT_LINES);
@@ -131,7 +132,9 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
             const theme = resolveDofusStatTheme(stat.characteristic, stat.effectId, null, stat.label);
             return {
                 id: stat.id,
-                iconUrl: theme ? `${baseUrl}${dofusStatAssetUrl(theme.asset)}` : null,
+                // BUG-5 — icône officielle **inlinée** (data-URI) : plus de 404,
+                // plus de dépendance réseau au moment du rendu Discord.
+                iconUrl: theme ? loadStatIconDataUrl(theme.asset) : null,
                 valueLabel: stat.actualValue >= 0 ? `+${stat.actualValue}` : `${stat.actualValue}`,
                 color: statValueColor(stat),
                 badge: statBadge(stat),
@@ -330,16 +333,39 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
                                     background: "radial-gradient(circle at 50% 40%, #2a2547 0%, #14111f 100%)",
                                 }}
                             >
-                                {itemIconUrl ? (
+                                {itemImageDataUrl ? (
                                     // eslint-disable-next-line @next/next/no-img-element
-                                    <img src={itemIconUrl} width={ITEM_BOX - 40} height={ITEM_BOX - 40} alt="" />
+                                    <img
+                                        src={itemImageDataUrl}
+                                        width={ITEM_BOX - 40}
+                                        height={ITEM_BOX - 40}
+                                        alt=""
+                                    />
                                 ) : (
                                     <div style={{ display: "flex", fontSize: 42, color: "#4b5563" }}>?</div>
                                 )}
                             </div>
 
-                            <div style={{ display: "flex", fontSize: 26, fontWeight: 900, color: "#fbbf24" }}>
-                                {formatKamas(listing.priceKamas)}
+                            {/* BUG-5 — le **prix + l'icône Kamas** sont dans l'image (spec §2.4). */}
+                            <div
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: 8,
+                                    padding: "4px 12px",
+                                    borderRadius: 12,
+                                    border: "1px solid #78350f",
+                                    background: "#1c1408",
+                                }}
+                            >
+                                {kamasIconDataUrl && (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={kamasIconDataUrl} width={22} height={22} alt="" />
+                                )}
+                                <div style={{ display: "flex", fontSize: 26, fontWeight: 900, color: "#fbbf24" }}>
+                                    {formatKamas(listing.priceKamas)}
+                                </div>
                             </div>
 
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>
@@ -414,8 +440,20 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
                             {listing.profile?.pseudoDofus || "Vendeur"}
                         </div>
                         {listing.forgedBy && <div style={{ display: "flex" }}>Modifié par {listing.forgedBy}</div>}
+                        {/* BUG-5 — vendeur + #annonce + horodatage dans l'image (spec §2.4). */}
                         <div style={{ display: "flex", marginLeft: "auto", fontSize: 12, color: "#6b7280" }}>
-                            SigilOS Market
+                            Annonce #{shortListingId(listing.id)} ·{" "}
+                            {listing.createdAt.toLocaleDateString("fr-FR", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                            })}{" "}
+                            à{" "}
+                            {listing.createdAt.toLocaleTimeString("fr-FR", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                            })}{" "}
+                            · SigilOS Market
                         </div>
                     </div>
                 </div>

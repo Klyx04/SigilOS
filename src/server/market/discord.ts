@@ -149,14 +149,8 @@ function buildPayload(
         offersCount,
         exoLabels,
         components: listing.components.map((c) => ({ name: c.name, quantity: c.quantity })),
-        // Correction 13/09 — le jet est publiable (l'annonce était muette).
-        stats: listing.stats.map((stat) => ({
-            label: stat.label,
-            actualValue: stat.actualValue,
-            naturalMin: stat.naturalMin,
-            naturalMax: stat.naturalMax,
-            origin: stat.origin,
-        })),
+        // BUG-5 (spec §2.4) — le jet n'est PLUS publié en texte : il est embarqué
+        // dans la carte image. `discord.ts` ne transmet donc plus `stats`.
         // S8.17 — **statut de forge déclaré** (D40/D41) : Transcendé, élément de
         // frappe (+ palier de potion), arme de chasse. La **présence** de la rune
         // vaut « Transcendé » (aucun booléen redondant en base).

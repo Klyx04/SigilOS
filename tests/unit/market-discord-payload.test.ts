@@ -53,14 +53,16 @@ describe("buildMarketDiscordPayload", () => {
         expect(buttons.some((b) => b.custom_id?.startsWith("mkt:contact"))).toBe(false);
     });
 
-    it("RESERVED — boutons Réserver/Offre DÉSACTIVÉS (jamais supprimés) + « Me désister » (BUG-8)", () => {
+    it("RESERVED — « Réserver » désactivé, « Faire une offre » ACTIF (BUG-3 / R3) + « Me désister » (BUG-8)", () => {
         const payload = buildMarketDiscordPayload({ ...base, status: "RESERVED" });
         expect(payload.embedColor).toBe(MARKET_DISCORD_COLORS.RESERVED);
         const buttons = buttonsOf(payload);
         const reserve = buttons.find((b) => b.custom_id === `mkt:reserve:${base.listingId}`);
         const offer = buttons.find((b) => b.custom_id === `mkt:offer:${base.listingId}`);
+        // Une seule réservation à la fois : « Réserver » reste inactif…
         expect(reserve?.disabled).toBe(true);
-        expect(offer?.disabled).toBe(true);
+        // …mais la négociation reste **ouverte** : on peut toujours proposer un prix.
+        expect(offer?.disabled).toBe(false);
         // L'acheteur doit pouvoir **revenir en arrière** : bouton dédié, actif.
         const cancel = buttons.find((b) => b.custom_id === `mkt:cancel:${base.listingId}`);
         expect(cancel).toMatchObject({ label: "Me désister", style: 4, disabled: false });

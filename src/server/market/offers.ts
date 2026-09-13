@@ -138,7 +138,15 @@ export async function createMarketOfferCore(params: {
         });
         if (!listing) return fail("NOT_FOUND");
         if (listing.profileId === params.buyerProfileId) return fail("OWN_LISTING");
-        if (listing.status !== "ACTIVE") return fail("NOT_AVAILABLE");
+        /**
+         * BUG-3 (R3, ratifié le 13/09) — une **réservation en cours** n'empêche
+         * plus de **déposer** une offre : seul un état terminal (vendu, expiré,
+         * retiré, brouillon) ferme la négociation. En revanche le vendeur ne peut
+         * pas **accepter** tant que la réservation n'est pas levée
+         * (`respondToMarketOfferCore` → `RESERVATION_ACTIVE`) : aucune reprise
+         * silencieuse de l'engagement d'un acheteur.
+         */
+        if (listing.status !== "ACTIVE" && listing.status !== "RESERVED") return fail("NOT_AVAILABLE");
         if (!params.negotiationsEnabled || !listing.negotiable) return fail("NEGOTIATIONS_OFF");
 
         // D43 / §11.4 — « Troc accepté » : une annonce « **kamas uniquement** »
@@ -246,6 +254,8 @@ export type MarketOfferDecisionFailure =
     | "NOT_PENDING"
     | "EXPIRED"
     | "CONFLICT"
+    /** R3 — une réservation est en cours : le vendeur doit la **lever** d'abord. */
+    | "RESERVATION_ACTIVE"
     | "EMPTY_OFFER"
     | "TRADE_NOT_ACCEPTED"
     | "INVALID"
@@ -284,6 +294,9 @@ const DECISION_FAILURE_MESSAGES: Record<MarketOfferDecisionFailure, string> = {
     NOT_PENDING: "Cette offre a déjà reçu une réponse.",
     EXPIRED: "Cette offre a expiré.",
     CONFLICT: "Cette annonce vient d'être réservée.",
+    // R3 (ratifié) — pas de reprise silencieuse : le vendeur lève la réservation.
+    RESERVATION_ACTIVE:
+        "Une réservation est en cours sur cette annonce : lève-la d'abord (« Lever la réservation »), puis accepte l'offre.",
     EMPTY_OFFER: "Renseigne un montant en kamas ou un troc.",
     TRADE_NOT_ACCEPTED: "Cette annonce n'accepte que les kamas : propose un montant.",
     INVALID: "Demande invalide.",
@@ -383,6 +396,9 @@ export async function respondToMarketOfferCore(params: {
                         userId: true,
                         profileId: true,
                         title: true,
+                        // R3 (ratifié) — une réservation en cours interdit
+                        // l'**acceptation** (le vendeur doit la lever d'abord).
+                        status: true,
                         // D43 — la contre-offre suit la règle du dépôt d'offre
                         // (§11.4) : il faut lire « troc accepté » sur l'annonce.
                         acceptsTrade: true,
@@ -421,6 +437,13 @@ export async function respondToMarketOfferCore(params: {
         // L'expiration **effective** appartient au cron (§15.1 point 5) : ici on
         // refuse, on ne ressuscite jamais une offre périmée.
         if (offer.expiresAt && offer.expiresAt.getTime() <= now.getTime()) return failDecision("EXPIRED");
+
+        // R3 (ratifié) — **pas de reprise silencieuse** : accepter une offre sur
+        // une annonce RÉSERVÉE est refusé avec un message actionnable ; le vendeur
+        // lève d'abord la réservation (« Lever la réservation »), puis accepte.
+        if (params.decision === "ACCEPT" && offer.listing.status === "RESERVED") {
+            return failDecision("RESERVATION_ACTIVE");
+        }
 
         // Auteur de l'offre vivante (celui qui a proposé les termes courants) et
         // **acheteur** d'une acceptation : la partie qui n'est pas le vendeur.

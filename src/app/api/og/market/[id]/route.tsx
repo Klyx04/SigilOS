@@ -12,6 +12,13 @@ export const dynamic = "force-dynamic";
 const CARD_WIDTH = 760;
 const CARD_HEIGHT = 560;
 const ITEM_BOX = 236;
+/**
+ * BUG-4 — quand l'annonce n'a **aucune ligne de stats** (cosmétique, ressources,
+ * vente brute), l'objet est affiché **en grand** : il n'y a pas de colonne
+ * d'effets à équilibrer, et une petite vignette au milieu d'un cadre vide est
+ * illisible sur Discord.
+ */
+const ITEM_BOX_LARGE = 340;
 /** Nombre de lignes de jet affichées (lisibilité Discord, §12.7). */
 const MAX_STAT_LINES = 12;
 
@@ -112,6 +119,14 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 
         const visibleStats = listing.stats.slice(0, MAX_STAT_LINES);
         const hiddenStats = Math.max(0, listing.stats.length - MAX_STAT_LINES);
+        /**
+         * BUG-4 — pas de lignes de stats ⇒ **objet en grand** (et l'image est
+         * proportionnellement plus grande) : c'est le seul contenu utile de la
+         * carte. Sinon on garde la composition « tooltip Dofus » (effets à
+         * gauche, objet à droite).
+         */
+        const hasStatLines = visibleStats.length > 0;
+        const boxSize = hasStatLines ? ITEM_BOX : ITEM_BOX_LARGE;
         const visibleComponents = listing.components.slice(0, 3);
 
         // S8.17 — source **unique** du bloc statut (Transcendé, élément + palier,
@@ -317,15 +332,15 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
                                 flexDirection: "column",
                                 alignItems: "center",
                                 justifyContent: "space-between",
-                                width: ITEM_BOX + 20,
+                                width: boxSize + 20,
                                 gap: 10,
                             }}
                         >
                             <div
                                 style={{
                                     display: "flex",
-                                    width: ITEM_BOX,
-                                    height: ITEM_BOX,
+                                    width: boxSize,
+                                    height: boxSize,
                                     alignItems: "center",
                                     justifyContent: "center",
                                     border: "2px solid #3b3560",
@@ -337,12 +352,25 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img
                                         src={itemImageDataUrl}
-                                        width={ITEM_BOX - 40}
-                                        height={ITEM_BOX - 40}
+                                        width={boxSize - 40}
+                                        height={boxSize - 40}
                                         alt=""
                                     />
                                 ) : (
-                                    <div style={{ display: "flex", fontSize: 42, color: "#4b5563" }}>?</div>
+                                    /*
+                                     * BUG-4 — plus jamais de « ? » : un cadre neutre
+                                     * (aucun glyphe de question) quand l'asset est
+                                     * introuvable après les trois tentatives.
+                                     */
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            width: boxSize - 80,
+                                            height: boxSize - 80,
+                                            border: "2px dashed #4b5563",
+                                            borderRadius: 14,
+                                        }}
+                                    />
                                 )}
                             </div>
 

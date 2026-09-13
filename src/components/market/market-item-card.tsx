@@ -54,6 +54,13 @@ export type MarketItemCardData = {
     priceKamas?: number | null;
     unitLabel?: string | null;
     /**
+     * Constat beta — **quantité du lot** et **minimum par acheteur** : affichés
+     * dans la carte d'item depuis la suppression de la carte « Le lot / l'objet »
+     * (qui les dupliquait).
+     */
+    quantity?: number | null;
+    minQuantity?: number | null;
+    /**
      * S8.4 (D40) — **forge réelle**. Ces informations sont **déclarées** par le
      * vendeur (jamais déduites du jet) et alimentent le **bloc STATUT** :
      * - `transcended` : l'objet porte une rune de Transcendance ;
@@ -265,6 +272,29 @@ export function MarketItemCard({ data, className }: { data: MarketItemCardData; 
                             </li>
                         ))}
                     </ul>
+                </div>
+            )}
+
+            {/* Constat beta — quantité du lot & minimum par acheteur */}
+            {(data.quantity != null || data.minQuantity != null) && (
+                <div className="mt-3 space-y-0.5 text-caption text-muted-foreground">
+                    {data.quantity != null && (
+                        <p>
+                            Quantité du lot :{" "}
+                            <span className="font-bold tabular-nums text-foreground">
+                                {formatGroupedInteger(data.quantity)}
+                            </span>
+                            {data.unitLabel ? ` ${data.unitLabel}` : ""}
+                        </p>
+                    )}
+                    {data.minQuantity != null && (
+                        <p>
+                            Minimum par acheteur :{" "}
+                            <span className="font-bold tabular-nums text-foreground">
+                                {formatGroupedInteger(data.minQuantity)}
+                            </span>
+                        </p>
+                    )}
                 </div>
             )}
 

@@ -243,11 +243,15 @@ async function handleReserve(
 /**
  * S4.3 — `mkt:offer:<listingId>` : ouvre la **modale d'offre** (type 9).
  *
- * Les pré-requis du bouton (§13.5 : annonce `ACTIVE`, négociations activées,
- * demandeur ≠ vendeur) sont vérifiés **avant** d'ouvrir la modale : un message
- * non resynchronisé ne doit pas laisser saisir une offre vouée à l'échec. La
- * **création** de l'offre à la soumission vit en S4.4 (même moteur que le
- * dashboard).
+ * Les pré-requis du bouton (§13.5 : annonce négociable et **non terminale**,
+ * négociations activées, demandeur ≠ vendeur) sont vérifiés **avant** d'ouvrir la
+ * modale : un message non resynchronisé ne doit pas laisser saisir une offre
+ * vouée à l'échec. La **création** de l'offre à la soumission vit en S4.4 (même
+ * moteur que le dashboard).
+ *
+ * BUG-3 (R3, ratifié) — une annonce **`RESERVED`** reste **négociable** : on peut
+ * toujours proposer un prix, le vendeur décide (et doit **lever** la réservation
+ * avant d'accepter l'offre).
  */
 async function handleOffer(
     discordGuildId: string,
@@ -263,7 +267,9 @@ async function handleOffer(
     });
     if (!listing) return ephemeral(MARKET_EPHEMERAL.LISTING_NOT_FOUND);
     if (listing.profileId === member.profileId) return ephemeral(MARKET_EPHEMERAL.OFFER_OWN_LISTING);
-    if (listing.status !== "ACTIVE") return ephemeral(MARKET_EPHEMERAL.OFFER_NOT_AVAILABLE);
+    if (listing.status !== "ACTIVE" && listing.status !== "RESERVED") {
+        return ephemeral(MARKET_EPHEMERAL.OFFER_NOT_AVAILABLE);
+    }
     if (!member.negotiationsEnabled || !listing.negotiable) {
         return ephemeral(MARKET_EPHEMERAL.OFFER_DISABLED);
     }

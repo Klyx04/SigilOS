@@ -6,8 +6,11 @@
  * et il est **testé** (`tests/unit/market-discord-payload.test.ts`).
  *
  * Contrat (spec §13.2/§13.3, D35) : **aucun montant d'offre ni pseudo d'acheteur
- * n'est jamais public** — seul un **compteur** d'offres l'est. Les boutons
- * Rèserver/Offre sont **désactivés** (jamais retirés) en `RESERVED`.
+ * n'est jamais public** — seul un **compteur** d'offres l'est. Les boutons sont
+ * **désactivés** (jamais retirés) quand leur action n'est pas possible :
+ * « Réserver au prix » sur une annonce non `ACTIVE`, « Faire une offre »
+ * uniquement sur un état terminal ou non négociable (BUG-3 / R3 : une annonce
+ * `RESERVED` reste **négociable**).
  *
  * S4.6 — le 4ᵉ bouton est toujours le **lien** « Voir sur SigilOS » vers la fiche
  * dashboard : sa forme (`style: 5`, URL, libellé) vient de
@@ -310,22 +313,30 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
     ];
 
     // ── Boutons ──────────────────────────────────────────────────────────────
-    const actionsDisabled = status !== "ACTIVE";
+    /**
+     * BUG-3 (R3, ratifié) — « Réserver au prix » exige une annonce `ACTIVE`
+     * (une seule réservation à la fois), mais « **Faire une offre** » reste
+     * **ouvert** sur une annonce `RESERVED` : on peut toujours proposer un prix.
+     * Le vendeur, lui, doit **lever la réservation** avant d'accepter une offre
+     * (garde serveur `RESERVATION_ACTIVE`) — aucune reprise silencieuse.
+     */
+    const reserveDisabled = status !== "ACTIVE";
+    const offerDisabled = !["ACTIVE", "RESERVED"].includes(status) || !negotiable;
     const buttons: Array<Record<string, unknown>> = [
         {
             type: 2,
             style: 3,
             label: "Réserver au prix",
             custom_id: `mkt:reserve:${listingId}`,
-            disabled: actionsDisabled,
+            disabled: reserveDisabled,
         },
         {
             type: 2,
             style: 1,
             label: "Faire une offre",
             custom_id: `mkt:offer:${listingId}`,
-            // §13.5 : l'offre exige une annonce `ACTIVE` ET négociable.
-            disabled: actionsDisabled || !negotiable,
+            // §13.5 : l'offre exige une annonce négociable et non terminale.
+            disabled: offerDisabled,
         },
         // BUG-8 — l'acheteur qui a réservé au prix doit pouvoir **revenir en
         // arrière** : le bouton « Me désister » n'existe QUE sur une annonce
@@ -354,10 +365,14 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
         embedDescription: `${author}\n${descriptionLines.join("\n")}`.trim(),
         embedColor: MARKET_DISCORD_COLORS[status],
         embedFooter: `SigilOS Market • Annonce #${shortListingId(listingId)}`,
-        // Mode forum : l'icône objet part en **thumbnail** ET la carte PNG en
-        // **image** (correction 13/09) — sans elle, le post ne montrait ni les
-        // icônes officielles ni les couleurs (exo, malus) du jet.
-        embedThumbnail: forumMode ? (itemIconUrl ?? undefined) : undefined,
+        /**
+         * BUG-4 (constat beta) — la **miniature est toujours renseignée** quand
+         * une icône exploitable existe (objet, sinon 1ᵉʳ composant du lot) :
+         * l'embed affiche l'objet en haut à droite **dès la publication**, sans
+         * dépendre du chargement de la carte PNG (qui reste l'`image`, y compris
+         * en salon forum — correctif BUG-5 du 13/09).
+         */
+        embedThumbnail: itemIconUrl ?? undefined,
         embedImage: imageUrl ?? undefined,
         fields,
         components: [{ type: 1, components: buttons }],

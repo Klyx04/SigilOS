@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MARKET_STATUS_CLASSES, MARKET_STATUS_LABELS } from "@/server/actions/market-constants";
-import { formatKamas } from "@/lib/market/kamas";
+import { formatGroupedInteger, formatKamas } from "@/lib/market/kamas";
 import { formatMarketDate } from "@/lib/market/format-date";
+import { MarketItemIcon } from "@/components/market/market-item-icon";
 import { cn } from "@/lib/utils";
 import {
     deleteMarketListing,
@@ -27,17 +28,29 @@ type MyListing = {
     id: string;
     title: string;
     status: "DRAFT" | "ACTIVE" | "RESERVED" | "SOLD" | "EXPIRED" | "WITHDRAWN";
+    /** Nature de l'annonce : un **lot** n'affiche pas de jet, mais un contenu. */
+    type: "EQUIPMENT" | "RESOURCE" | "SERVICE" | "WANTED";
     priceKamas: number | null;
     publishedAt: string | null;
     expiresAt: string | null;
     renewCount: number;
     itemName: string | null;
+    /** BUG-1/finition — vignette d'objet (URL **déjà normalisée** par le serveur). */
+    itemIconUrl: string | null;
+    /** Identifiant Ankama : repli sûr du proxy d'icône. */
+    dofusDbItemId: number | null;
+    itemTypeName: string | null;
+    quantity: number | null;
+    unitLabel: string | null;
     /**
      * S8.15 — **jet déclaré** : déjà sérialisé par `getMyMarketData` (aucune
      * requête supplémentaire). Optionnel : une annonce sans jet n'affiche rien.
      */
     stats?: MarketStatLine[];
 };
+
+/** Lignes de jet montrées sur une carte de « Mon espace » (le reste : la fiche). */
+const LISTING_STAT_PREVIEW = 4;
 
 interface MarketMySpaceClientProps {
     guildId: string;
@@ -117,10 +130,22 @@ export function MarketMySpaceClient({ guildId, viewer, active, archived, receive
                 <div className="space-y-3">
                     {rows.map((listing) => (
                         <Card key={listing.id} className="bg-surface/60 border-border">
-                            <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                            <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-start">
+                                {/* Constat beta — **vignette d'objet** : cet écran n'affichait
+                                    aucune image, seulement des lignes de stats en bloc. */}
+                                <div className="h-12 w-12 shrink-0 rounded-xl border border-border bg-background/60 flex items-center justify-center overflow-hidden">
+                                    <MarketItemIcon
+                                        src={listing.itemIconUrl}
+                                        ankamaId={listing.dofusDbItemId}
+                                        alt={listing.itemName ?? listing.title}
+                                        size={44}
+                                        className="p-1"
+                                        fallback={<Store className="w-5 h-5 text-muted-foreground" />}
+                                    />
+                                </div>
+
                                 <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-2">
-                                        <Store className="w-4 h-4 text-gold shrink-0" />
+                                    <div className="flex flex-wrap items-center gap-2">
                                         <p className="font-semibold text-foreground truncate">{listing.title}</p>
                                         <Badge
                                             variant="outline"
@@ -128,16 +153,39 @@ export function MarketMySpaceClient({ guildId, viewer, active, archived, receive
                                         >
                                             {MARKET_STATUS_LABELS[listing.status]}
                                         </Badge>
+                                        {listing.type === "RESOURCE" && (
+                                            <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
+                                                Lot
+                                            </Badge>
+                                        )}
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-1">
                                         {listing.itemName ? `${listing.itemName} · ` : ""}
                                         {formatKamas(listing.priceKamas)}
+                                        {listing.quantity
+                                            ? ` · ×${formatGroupedInteger(listing.quantity)}${listing.unitLabel ? ` ${listing.unitLabel}` : ""}`
+                                            : ""}
                                         {listing.expiresAt ? ` · expire le ${formatMarketDate(listing.expiresAt)}` : ""}
                                     </p>
-                                    {/* S8.15 — jet déclaré avec les icônes officielles
-                                        (avant : aucune ligne de stats sur cet écran). */}
+                                    {/* S8.15 — jet déclaré avec les icônes officielles.
+                                        Constat beta : l'écran **déversait toutes** les lignes ;
+                                        on n'en montre que les premières, la fiche a le détail. */}
                                     {listing.stats && listing.stats.length > 0 ? (
-                                        <MarketStatLines stats={listing.stats} className="mt-2" />
+                                        <>
+                                            <MarketStatLines
+                                                stats={listing.stats.slice(0, LISTING_STAT_PREVIEW)}
+                                                className="mt-2"
+                                            />
+                                            {listing.stats.length > LISTING_STAT_PREVIEW && (
+                                                <Link
+                                                    href={`/dashboard/${guildId}/marche/${listing.id}`}
+                                                    className="mt-1 inline-block text-[11px] font-semibold text-info hover:underline"
+                                                >
+                                                    + {listing.stats.length - LISTING_STAT_PREVIEW} autre(s) ligne(s) — voir
+                                                    la fiche
+                                                </Link>
+                                            )}
+                                        </>
                                     ) : null}
                                 </div>
 

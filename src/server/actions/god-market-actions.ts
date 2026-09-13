@@ -157,6 +157,19 @@ export type GodMarketOverview = {
         enabledCount: number;
         mediaRetentionDaysInUse: number[];
         logRetentionDaysInUse: number[];
+        /**
+         * T4 (D-B) — **défauts globaux** de durées / plafonds, mêmes « valeurs en
+         * base » que la rétention : le God fixe les valeurs une fois pour toutes
+         * les guildes. Les tableaux listent les valeurs **réellement en base**
+         * (dédupliquées, triées) pour que le staff voie ce qui est appliqué.
+         */
+        marketMaxActivePerMemberInUse: number[];
+        marketDefaultDurationDaysInUse: number[];
+        marketMaxLifetimeDaysInUse: number[];
+        marketReminderDaysInUse: number[];
+        marketReservationHoursInUse: number[];
+        marketOfferHoursInUse: number[];
+        negotiationsEnabledInUse: boolean[];
     };
 };
 
@@ -169,6 +182,24 @@ const EMPTY_STATUS_COUNTS: Record<string, number> = {
     EXPIRED: 0,
     WITHDRAWN: 0,
 };
+
+/** Valeurs numériques **distinctes** réellement en base (tri croissant). */
+function uniqueSortedNumbers(values: number[]): number[] {
+    return [...new Set(values)].sort((a, b) => a - b);
+}
+
+/**
+ * `GuildConfig.marketReminderDays` est une colonne **Json** (`@default("[7, 15]")`) :
+ * on n'expose que des entiers **bornés** (jamais la valeur brute, jamais un
+ * `string`/`null` égaré qui ferait planter l'affichage).
+ */
+function reminderDaysFromJson(value: unknown): number[] {
+    if (!Array.isArray(value)) return [];
+    const { min, max } = MARKET_SETTINGS_BOUNDS.marketReminderDays;
+    return value.filter(
+        (entry): entry is number => typeof entry === "number" && Number.isInteger(entry) && entry >= min && entry <= max
+    );
+}
 
 
 /**
@@ -198,6 +229,14 @@ export async function getGodMarketOverview(): Promise<GodMarketResult<GodMarketO
                     name: true,
                     marketMediaRetentionDays: true,
                     marketLogRetentionDays: true,
+                    // T4 (D-B) — défauts globaux de durées / plafonds (§9.1, §11).
+                    marketMaxActivePerMember: true,
+                    marketDefaultDurationDays: true,
+                    marketMaxLifetimeDays: true,
+                    marketReminderDays: true,
+                    marketReservationHours: true,
+                    marketOfferHours: true,
+                    marketNegotiationsEnabled: true,
                     modules: { select: { marche: true, disabledByGod: true } },
                 },
                 orderBy: { name: "asc" },
@@ -312,12 +351,21 @@ export async function getGodMarketOverview(): Promise<GodMarketResult<GodMarketO
                     guildCount: guilds.length,
                     lockedCount: guildRows.filter((row) => row.lockedByGod).length,
                     enabledCount: guildRows.filter((row) => row.moduleEnabled).length,
-                    mediaRetentionDaysInUse: [...new Set(guilds.map((g) => g.marketMediaRetentionDays))].sort(
-                        (a, b) => a - b
+                    mediaRetentionDaysInUse: uniqueSortedNumbers(guilds.map((g) => g.marketMediaRetentionDays)),
+                    logRetentionDaysInUse: uniqueSortedNumbers(guilds.map((g) => g.marketLogRetentionDays)),
+                    marketMaxActivePerMemberInUse: uniqueSortedNumbers(
+                        guilds.map((g) => g.marketMaxActivePerMember)
                     ),
-                    logRetentionDaysInUse: [...new Set(guilds.map((g) => g.marketLogRetentionDays))].sort(
-                        (a, b) => a - b
+                    marketDefaultDurationDaysInUse: uniqueSortedNumbers(
+                        guilds.map((g) => g.marketDefaultDurationDays)
                     ),
+                    marketMaxLifetimeDaysInUse: uniqueSortedNumbers(guilds.map((g) => g.marketMaxLifetimeDays)),
+                    marketReminderDaysInUse: uniqueSortedNumbers(
+                        guilds.flatMap((g) => reminderDaysFromJson(g.marketReminderDays))
+                    ),
+                    marketReservationHoursInUse: uniqueSortedNumbers(guilds.map((g) => g.marketReservationHours)),
+                    marketOfferHoursInUse: uniqueSortedNumbers(guilds.map((g) => g.marketOfferHours)),
+                    negotiationsEnabledInUse: [...new Set(guilds.map((g) => g.marketNegotiationsEnabled))],
                 },
             },
         };
@@ -564,14 +612,56 @@ const godMarketSettingsSchema = z
             .min(MARKET_SETTINGS_BOUNDS.marketLogRetentionDays.min)
             .max(MARKET_SETTINGS_BOUNDS.marketLogRetentionDays.max)
             .optional(),
+        // ── T4 (D-B) — **défauts globaux** « Durées, plafonds & rappels » ─────
+        // Mêmes bornes et mêmes noms de colonnes que le schéma de guilde
+        // (`market-admin-actions.ts`) : le God pousse **une** fois pour toutes
+        // les guildes, le panneau de guilde ne sert plus que d'exception.
+        marketMaxActivePerMember: z
+            .number()
+            .int()
+            .min(MARKET_SETTINGS_BOUNDS.marketMaxActivePerMember.min)
+            .max(MARKET_SETTINGS_BOUNDS.marketMaxActivePerMember.max)
+            .optional(),
+        marketDefaultDurationDays: z
+            .number()
+            .int()
+            .min(MARKET_SETTINGS_BOUNDS.marketDefaultDurationDays.min)
+            .max(MARKET_SETTINGS_BOUNDS.marketDefaultDurationDays.max)
+            .optional(),
+        marketMaxLifetimeDays: z
+            .number()
+            .int()
+            .min(MARKET_SETTINGS_BOUNDS.marketMaxLifetimeDays.min)
+            .max(MARKET_SETTINGS_BOUNDS.marketMaxLifetimeDays.max)
+            .optional(),
+        marketReminderDays: z
+            .array(
+                z
+                    .number()
+                    .int()
+                    .min(MARKET_SETTINGS_BOUNDS.marketReminderDays.min)
+                    .max(MARKET_SETTINGS_BOUNDS.marketReminderDays.max)
+            )
+            .min(1)
+            .max(3)
+            .optional(),
+        marketReservationHours: z
+            .number()
+            .int()
+            .min(MARKET_SETTINGS_BOUNDS.marketReservationHours.min)
+            .max(MARKET_SETTINGS_BOUNDS.marketReservationHours.max)
+            .optional(),
+        marketOfferHours: z
+            .number()
+            .int()
+            .min(MARKET_SETTINGS_BOUNDS.marketOfferHours.min)
+            .max(MARKET_SETTINGS_BOUNDS.marketOfferHours.max)
+            .optional(),
+        marketNegotiationsEnabled: z.boolean().optional(),
     })
-    .refine(
-        (value) =>
-            value.lockModule !== undefined ||
-            value.mediaRetentionDays !== undefined ||
-            value.logRetentionDays !== undefined,
-        { message: "Aucun réglage fourni" }
-    );
+    .refine((value) => Object.values(value).some((entry) => entry !== undefined), {
+        message: "Aucun réglage fourni",
+    });
 
 /**
  * Réglages **globaux** du Marché — **aucune migration** : uniquement des
@@ -581,16 +671,33 @@ const godMarketSettingsSchema = z
  *     le module est effectivement OFF dans **toutes** les guildes, la bascule
  *     guilde est conservée ;
  *   · **rétention** ⇒ `GuildConfig.marketMediaRetentionDays` /
- *     `marketLogRetentionDays`, appliqués en **un** `updateMany` borné.
+ *     `marketLogRetentionDays`, appliqués en **un** `updateMany` borné ;
+ *   · **T4 (D-B) — durées, plafonds & rappels** ⇒ les 7 colonnes globales
+ *     (`marketMaxActivePerMember`, `marketDefaultDurationDays`,
+ *     `marketMaxLifetimeDays`, `marketReminderDays`, `marketReservationHours`,
+ *     `marketOfferHours`, `marketNegotiationsEnabled`) : le God fixe les valeurs
+ *     **une fois pour toutes les guildes** (même modèle que la rétention), le
+ *     panneau de guilde devenant un écran **facultatif** (exception locale).
  *
- * Chaque passe est gardée par la valeur courante (`WHERE`), donc idempotente
- * même en cas d'appels concurrents.
+ * Chaque passe est gardée par la valeur courante (`WHERE`) ou bornée par Zod,
+ * donc idempotente même en cas d'appels concurrents. **Toute** mutation est
+ * auditée (`createGodAuditLog`, `isGodLog: true`) et précédée d'un
+ * `isSuperAdmin()` **fail-closed** + d'un rate-limit God.
  */
 export async function saveGodMarketSettings(params: {
     lockModule?: boolean;
     mediaRetentionDays?: number;
     logRetentionDays?: number;
-}): Promise<GodMarketResult<{ lockedGuilds: number; retentionUpdated: boolean }>> {
+    marketMaxActivePerMember?: number;
+    marketDefaultDurationDays?: number;
+    marketMaxLifetimeDays?: number;
+    marketReminderDays?: number[];
+    marketReservationHours?: number;
+    marketOfferHours?: number;
+    marketNegotiationsEnabled?: boolean;
+}): Promise<
+    GodMarketResult<{ lockedGuilds: number; retentionUpdated: boolean; settingsUpdated: boolean }>
+> {
     const guard = await requireSuperAdmin();
     if ("error" in guard) return { success: false, error: guard.error };
 
@@ -640,6 +747,46 @@ export async function saveGodMarketSettings(params: {
             retentionUpdated = true;
         }
 
+        // T4 (D-B) — **défauts globaux** « Durées, plafonds & rappels » : un seul
+        // `updateMany` sur toutes les guildes, avec des valeurs **déjà bornées**
+        // par `MARKET_SETTINGS_BOUNDS` (Zod) — jamais une valeur libre du client.
+        const settingsUpdated =
+            parsed.data.marketMaxActivePerMember !== undefined ||
+            parsed.data.marketDefaultDurationDays !== undefined ||
+            parsed.data.marketMaxLifetimeDays !== undefined ||
+            parsed.data.marketReminderDays !== undefined ||
+            parsed.data.marketReservationHours !== undefined ||
+            parsed.data.marketOfferHours !== undefined ||
+            parsed.data.marketNegotiationsEnabled !== undefined;
+
+        if (settingsUpdated) {
+            await db.guildConfig.updateMany({
+                data: {
+                    ...(parsed.data.marketMaxActivePerMember !== undefined
+                        ? { marketMaxActivePerMember: parsed.data.marketMaxActivePerMember }
+                        : {}),
+                    ...(parsed.data.marketDefaultDurationDays !== undefined
+                        ? { marketDefaultDurationDays: parsed.data.marketDefaultDurationDays }
+                        : {}),
+                    ...(parsed.data.marketMaxLifetimeDays !== undefined
+                        ? { marketMaxLifetimeDays: parsed.data.marketMaxLifetimeDays }
+                        : {}),
+                    ...(parsed.data.marketReminderDays !== undefined
+                        ? { marketReminderDays: parsed.data.marketReminderDays }
+                        : {}),
+                    ...(parsed.data.marketReservationHours !== undefined
+                        ? { marketReservationHours: parsed.data.marketReservationHours }
+                        : {}),
+                    ...(parsed.data.marketOfferHours !== undefined
+                        ? { marketOfferHours: parsed.data.marketOfferHours }
+                        : {}),
+                    ...(parsed.data.marketNegotiationsEnabled !== undefined
+                        ? { marketNegotiationsEnabled: parsed.data.marketNegotiationsEnabled }
+                        : {}),
+                },
+            });
+        }
+
         await createGodAuditLog({
             action: "GOD_MARKET_SETTINGS",
             targetType: "CONFIG",
@@ -648,11 +795,18 @@ export async function saveGodMarketSettings(params: {
                 lockedGuilds,
                 mediaRetentionDays: parsed.data.mediaRetentionDays ?? null,
                 logRetentionDays: parsed.data.logRetentionDays ?? null,
+                marketMaxActivePerMember: parsed.data.marketMaxActivePerMember ?? null,
+                marketDefaultDurationDays: parsed.data.marketDefaultDurationDays ?? null,
+                marketMaxLifetimeDays: parsed.data.marketMaxLifetimeDays ?? null,
+                marketReminderDays: parsed.data.marketReminderDays ?? null,
+                marketReservationHours: parsed.data.marketReservationHours ?? null,
+                marketOfferHours: parsed.data.marketOfferHours ?? null,
+                marketNegotiationsEnabled: parsed.data.marketNegotiationsEnabled ?? null,
             },
         });
 
         revalidatePath("/god");
-        return { success: true, data: { lockedGuilds, retentionUpdated } };
+        return { success: true, data: { lockedGuilds, retentionUpdated, settingsUpdated } };
     } catch (error) {
         logger.error("[god-market] saveGodMarketSettings failed", { err: error });
         return { success: false, error: "Erreur interne" };

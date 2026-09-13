@@ -586,21 +586,39 @@ describe("market discord interactions — offre mkt:offer (S4.3)", () => {
         expect(res).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.OFFER_OWN_LISTING });
     });
 
-    it("refuse une annonce déjà réservée / vendue (§13.5)", async () => {
+    it("RESERVÉE : la modale d'offre reste OUVERTE (BUG-3 / R3) ; terminal : refusée (§13.5)", async () => {
         mockListingFindFirst.mockResolvedValue({
             id: LISTING_ID,
             profileId: "profile-seller",
             status: "RESERVED",
             negotiable: true,
+            acceptsTrade: true,
         });
 
-        const res = await handleMarketComponentInteraction({
+        const reserved = await handleMarketComponentInteraction({
             customId: `mkt:offer:${LISTING_ID}`,
             discordGuildId: GUILD_ID,
             userId: "user-buyer",
         });
 
-        expect(res).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.OFFER_NOT_AVAILABLE });
+        // Une réservation en cours ne ferme plus la négociation : on peut
+        // toujours proposer un prix (le vendeur lève la réservation pour accepter).
+        expect(reserved.kind).toBe("modal");
+
+        mockListingFindFirst.mockResolvedValue({
+            id: LISTING_ID,
+            profileId: "profile-seller",
+            status: "SOLD",
+            negotiable: true,
+        });
+
+        const sold = await handleMarketComponentInteraction({
+            customId: `mkt:offer:${LISTING_ID}`,
+            discordGuildId: GUILD_ID,
+            userId: "user-buyer",
+        });
+
+        expect(sold).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.OFFER_NOT_AVAILABLE });
     });
 
     it("refuse quand l'annonce n'est pas négociable (§13.5)", async () => {
@@ -907,12 +925,13 @@ describe("market discord interactions — gardes métier modale mkt:offer (S4.4)
         expect(res).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.OFFER_OWN_LISTING });
     });
 
-    it("refuse une annonce plus ACTIVE, puis une annonce non négociable (§13.5)", async () => {
+    it("RESERVÉE acceptée (BUG-3 / R3) ; annonce non négociable refusée (§13.5)", async () => {
         mockListingFindFirst.mockResolvedValue({
             id: LISTING_ID,
             profileId: "profile-seller",
             status: "RESERVED",
             negotiable: true,
+            acceptsTrade: true,
         });
         const reserved = await handleMarketModalSubmit({
             customId: `mkt:offer:${LISTING_ID}`,
@@ -920,7 +939,8 @@ describe("market discord interactions — gardes métier modale mkt:offer (S4.4)
             discordGuildId: GUILD_ID,
             userId: "user-buyer",
         });
-        expect(reserved).toEqual({ kind: "ephemeral", ok: false, content: MARKET_EPHEMERAL.OFFER_NOT_AVAILABLE });
+        // Réservation en cours : l'offre est **déposée** (moteur partagé), plus refusée.
+        expect(reserved.kind).not.toBe("ephemeral-blocked");
 
         mockListingFindFirst.mockResolvedValue({
             id: LISTING_ID,

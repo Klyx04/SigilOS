@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MARKET_SETTINGS_BOUNDS, MARKET_SETTINGS_DEFAULTS } from "@/server/actions/market-constants";
+import { parseReminderDays } from "@/lib/market/reminder-days";
 import {
     getGodMarketOverview,
     listGodMarketAuditLogs,
@@ -59,6 +60,37 @@ export function GodMarketPanel({ initialOverview }: { initialOverview: GodMarket
     );
     const [logRetentionDays, setLogRetentionDays] = useState(
         initialOverview.settings.logRetentionDaysInUse[0] ?? MARKET_SETTINGS_DEFAULTS.marketLogRetentionDays
+    );
+
+    // T4 (D-B) — **défauts globaux** « Durées, plafonds & rappels » : le God fixe
+    // les valeurs une fois pour toutes les guildes (« valeurs en base » remontées
+    // par `getGodMarketOverview().settings`).
+    const [maxActivePerMember, setMaxActivePerMember] = useState(
+        initialOverview.settings.marketMaxActivePerMemberInUse[0] ?? MARKET_SETTINGS_DEFAULTS.marketMaxActivePerMember
+    );
+    const [defaultDurationDays, setDefaultDurationDays] = useState(
+        initialOverview.settings.marketDefaultDurationDaysInUse[0] ??
+            MARKET_SETTINGS_DEFAULTS.marketDefaultDurationDays
+    );
+    const [maxLifetimeDays, setMaxLifetimeDays] = useState(
+        initialOverview.settings.marketMaxLifetimeDaysInUse[0] ?? MARKET_SETTINGS_DEFAULTS.marketMaxLifetimeDays
+    );
+    const [reservationHours, setReservationHours] = useState(
+        initialOverview.settings.marketReservationHoursInUse[0] ?? MARKET_SETTINGS_DEFAULTS.marketReservationHours
+    );
+    const [offerHours, setOfferHours] = useState(
+        initialOverview.settings.marketOfferHoursInUse[0] ?? MARKET_SETTINGS_DEFAULTS.marketOfferHours
+    );
+    const [reminderDays, setReminderDays] = useState(
+        (initialOverview.settings.marketReminderDaysInUse.length > 0
+            ? initialOverview.settings.marketReminderDaysInUse
+            : MARKET_SETTINGS_DEFAULTS.marketReminderDays
+        ).join(", ")
+    );
+    const [negotiationsEnabled, setNegotiationsEnabled] = useState(
+        initialOverview.settings.negotiationsEnabledInUse.length > 0
+            ? initialOverview.settings.negotiationsEnabledInUse.every(Boolean)
+            : MARKET_SETTINGS_DEFAULTS.marketNegotiationsEnabled
     );
 
     const [logs, setLogs] = useState<GodMarketLogRow[]>(initialOverview.logs);
@@ -133,12 +165,37 @@ export function GodMarketPanel({ initialOverview }: { initialOverview: GodMarket
         });
     }
 
-    /** Applique les réglages globaux (verrou plateforme + rétention). */
+    /**
+     * Applique les réglages globaux : verrou plateforme, rétention **et**
+     * défauts « Durées, plafonds & rappels » (T4 / D-B).
+     *
+     * ⚠️ La saisie des jours de rappel est **refusée** si inexploitable : on
+     * n'écrit jamais une valeur arbitraire en base (fail-closed).
+     */
     function saveSettings() {
+        const parsedReminderDays = parseReminderDays(reminderDays);
+        if (!parsedReminderDays) {
+            toast.error(
+                `Jours de rappel invalides : indique 1 à 3 valeurs entre ${MARKET_SETTINGS_BOUNDS.marketReminderDays.min} et ${MARKET_SETTINGS_BOUNDS.marketReminderDays.max} (ex. « 7, 15 »).`
+            );
+            return;
+        }
+
         startTransition(async () => {
             setBusy("settings");
             try {
-                const result = await saveGodMarketSettings({ lockModule, mediaRetentionDays, logRetentionDays });
+                const result = await saveGodMarketSettings({
+                    lockModule,
+                    mediaRetentionDays,
+                    logRetentionDays,
+                    marketMaxActivePerMember: maxActivePerMember,
+                    marketDefaultDurationDays: defaultDurationDays,
+                    marketMaxLifetimeDays: maxLifetimeDays,
+                    marketReminderDays: parsedReminderDays,
+                    marketReservationHours: reservationHours,
+                    marketOfferHours: offerHours,
+                    marketNegotiationsEnabled: negotiationsEnabled,
+                });
                 if (!result.success) {
                     toast.error(result.error);
                     return;
@@ -146,7 +203,7 @@ export function GodMarketPanel({ initialOverview }: { initialOverview: GodMarket
                 toast.success(
                     `Réglages appliqués — verrou : ${result.data.lockedGuilds} guilde(s)${
                         result.data.retentionUpdated ? " · rétention mise à jour" : ""
-                    }`
+                    }${result.data.settingsUpdated ? " · durées/plafonds poussés" : ""}`
                 );
                 await refresh();
             } finally {
@@ -170,6 +227,61 @@ export function GodMarketPanel({ initialOverview }: { initialOverview: GodMarket
 
     const { totals, settings, guilds, health } = overview;
     const disabled = isPending || busy !== null;
+
+    /**
+     * T4 (D-B) — champs **bornés** des défauts globaux « Durées, plafonds &
+     * rappels » : mêmes bornes et mêmes libellés que la rétention (jamais une
+     * valeur libre), avec les « valeurs en base » affichées sous chaque champ.
+     */
+    const durationFields: {
+        id: string;
+        label: string;
+        value: number;
+        onChange: (value: number) => void;
+        bounds: { min: number; max: number };
+        inUse: number[];
+    }[] = [
+        {
+            id: "god-market-max-active",
+            label: "Annonces actives / membre",
+            value: maxActivePerMember,
+            onChange: setMaxActivePerMember,
+            bounds: MARKET_SETTINGS_BOUNDS.marketMaxActivePerMember,
+            inUse: settings.marketMaxActivePerMemberInUse,
+        },
+        {
+            id: "god-market-default-duration",
+            label: "Durée par défaut (jours)",
+            value: defaultDurationDays,
+            onChange: setDefaultDurationDays,
+            bounds: MARKET_SETTINGS_BOUNDS.marketDefaultDurationDays,
+            inUse: settings.marketDefaultDurationDaysInUse,
+        },
+        {
+            id: "god-market-max-lifetime",
+            label: "Durée de vie maximale (jours)",
+            value: maxLifetimeDays,
+            onChange: setMaxLifetimeDays,
+            bounds: MARKET_SETTINGS_BOUNDS.marketMaxLifetimeDays,
+            inUse: settings.marketMaxLifetimeDaysInUse,
+        },
+        {
+            id: "god-market-reservation-hours",
+            label: "Durée d'une réservation (h)",
+            value: reservationHours,
+            onChange: setReservationHours,
+            bounds: MARKET_SETTINGS_BOUNDS.marketReservationHours,
+            inUse: settings.marketReservationHoursInUse,
+        },
+        {
+            id: "god-market-offer-hours",
+            label: "Durée de vie d'une offre (h)",
+            value: offerHours,
+            onChange: setOfferHours,
+            bounds: MARKET_SETTINGS_BOUNDS.marketOfferHours,
+            inUse: settings.marketOfferHoursInUse,
+        },
+    ];
 
 
     const indicators: { label: string; value: number | string; tone: string }[] = [
@@ -332,6 +444,72 @@ export function GodMarketPanel({ initialOverview }: { initialOverview: GodMarket
                                 onCheckedChange={setLockModule}
                                 disabled={disabled}
                             />
+                        </div>
+
+                        {/* T4 (D-B) — défauts globaux « Durées, plafonds & rappels » */}
+                        <div className="rounded-2xl border border-border bg-surface/40 p-4 space-y-3">
+                            <div>
+                                <p className="text-label font-bold text-foreground">Durées, plafonds &amp; rappels</p>
+                                <p className="text-caption text-muted-foreground">
+                                    Valeurs globales appliquées à toutes les guildes d&apos;un coup : le panneau de
+                                    guilde devient un écran facultatif (exception locale). Chaque champ est borné et
+                                    journalisé dans l&apos;audit God.
+                                </p>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {durationFields.map((field) => (
+                                    <div key={field.id} className="space-y-2">
+                                        <Label htmlFor={field.id}>{field.label}</Label>
+                                        <Input
+                                            id={field.id}
+                                            type="number"
+                                            min={field.bounds.min}
+                                            max={field.bounds.max}
+                                            value={field.value}
+                                            onChange={(event) => field.onChange(Number(event.target.value))}
+                                            disabled={disabled}
+                                        />
+                                        <p className="text-caption text-muted-foreground">
+                                            Valeurs en base : {field.inUse.join(" / ") || "—"} · bornes{" "}
+                                            {field.bounds.min}–{field.bounds.max}
+                                        </p>
+                                    </div>
+                                ))}
+                                <div className="space-y-2">
+                                    <Label htmlFor="god-market-reminder-days">Rappels (jours après publication)</Label>
+                                    <Input
+                                        id="god-market-reminder-days"
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={reminderDays}
+                                        onChange={(event) => setReminderDays(event.target.value)}
+                                        placeholder="7, 15"
+                                        disabled={disabled}
+                                    />
+                                    <p className="text-caption text-muted-foreground">
+                                        Valeurs en base : {settings.marketReminderDaysInUse.join(" / ") || "—"} · 1 à 3
+                                        valeurs, bornes {MARKET_SETTINGS_BOUNDS.marketReminderDays.min}–
+                                        {MARKET_SETTINGS_BOUNDS.marketReminderDays.max}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-background/40 p-3">
+                                <div>
+                                    <Label htmlFor="god-market-negotiations" className="font-semibold">
+                                        Négociations (offres) activées
+                                    </Label>
+                                    <p className="text-caption text-muted-foreground">
+                                        Une annonce non négociable reste sans bouton « Faire une offre », même si ce
+                                        réglage est actif.
+                                    </p>
+                                </div>
+                                <Switch
+                                    id="god-market-negotiations"
+                                    checked={negotiationsEnabled}
+                                    onCheckedChange={setNegotiationsEnabled}
+                                    disabled={disabled}
+                                />
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

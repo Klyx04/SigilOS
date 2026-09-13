@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useCallback, useContext, useState, useEffect, ReactNode } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 export type TourPhase =
@@ -76,6 +76,15 @@ interface TourStep {
     requiresPerm?: string;
     /** Module optionnel (ex: "missions") — la carte n'apparaît que si ce module est actif. */
     module?: string;
+    /**
+     * BUG-6 (constat beta) — **page où vit l'ancre**, quand ce n'est pas la page
+     * courante (ex. l'éditeur de jet vit sur `/marche/nouveau`). Le provider y
+     * **navigue** au lieu de sauter l'étape, ce qui coupait la suite du tutoriel.
+     *
+     * 🔒 Chemin **relatif** de la guilde, validé par préfixe
+     * (`requestStepNavigation`) : jamais une URL fournie par l'utilisateur.
+     */
+    href?: string;
 }
 
 interface TourContextType {
@@ -90,6 +99,13 @@ interface TourContextType {
     startTour: (phase: TourPhase) => void;
     isCelebrationActive: boolean;
     setCelebrationActive: (active: boolean) => void;
+    /**
+     * BUG-6 — demande de navigation vers la page qui porte l'ancre de l'étape
+     * courante : le provider **valide le préfixe** (même guilde, module Marché)
+     * avant de pousser la route. Sans ancre trouvée et sans `href`, l'overlay
+     * conserve son comportement anti-centrage (skip).
+     */
+    requestStepNavigation: (href: string) => void;
 }
 
 const PROFILE_STEPS: TourStep[] = [
@@ -1345,6 +1361,8 @@ const MARCHE_STEPS: TourStep[] = [
         placement: "bottom",
         module: "marche",
         requiresPerm: "canViewMarket",
+        // BUG-6 — l'éditeur vit sur la page de création : on y **navigue**.
+        href: "/marche/nouveau",
     },
     {
         target: '[data-tour="marche-forge"]',
@@ -1353,6 +1371,7 @@ const MARCHE_STEPS: TourStep[] = [
         placement: "bottom",
         module: "marche",
         requiresPerm: "canViewMarket",
+        href: "/marche/nouveau",
     },
     {
         target: '[data-tour="marche-publish"]',
@@ -1361,6 +1380,7 @@ const MARCHE_STEPS: TourStep[] = [
         placement: "bottom",
         module: "marche",
         requiresPerm: "canViewMarket",
+        href: "/marche/nouveau",
     },
     {
         target: '[data-tour="marche-listing"]',
@@ -1377,6 +1397,8 @@ const MARCHE_STEPS: TourStep[] = [
         placement: "top",
         module: "marche",
         requiresPerm: "canViewMarket",
+        // BUG-6 — la négociation vit dans « Mon espace » : on y **navigue**.
+        href: "/marche/mes-espaces",
     },
     {
         target: '[data-tour="marche-moderation"]',
@@ -1393,6 +1415,7 @@ const MARCHE_STEPS: TourStep[] = [
         placement: "bottom",
         module: "marche",
         requiresPerm: "canViewMarket",
+        href: "/marche/mes-espaces",
     },
     {
         target: '[data-tour="sidebar-marche"]',
@@ -1794,6 +1817,27 @@ export function TourProvider({
         }
     }, [pathname, tourPhase, isActive, guildId]);
 
+    /**
+     * BUG-6 — navigation d'étape : le chemin est **relatif au tableau de bord**
+     * (`/marche/nouveau`, …) et doit rester dans **cette** guilde.
+     *
+     * 🔒 Allowlist stricte : caractères autorisés, refus de `//`, `..`, `:` et de
+     * tout préfixe absolu ⇒ jamais une redirection ouverte, même si un `href`
+     * venait un jour d'une donnée non fiable.
+     *
+     * `useCallback` : l'identité reste **stable**, sinon l'effet de l'overlay se
+     * relancerait à chaque rendu du provider (et relancerait une navigation).
+     */
+    const requestStepNavigation = useCallback(
+        (relativeHref: string) => {
+            if (!relativeHref.startsWith("/") || relativeHref.startsWith("//")) return;
+            if (relativeHref.includes("..") || relativeHref.includes(":")) return;
+            if (!/^\/[A-Za-z0-9/_-]*$/.test(relativeHref)) return;
+            router.push(`/dashboard/${guildId}${relativeHref}`);
+        },
+        [guildId, router]
+    );
+
     return (
         <TourContext.Provider
             value={{
@@ -1807,7 +1851,8 @@ export function TourProvider({
                 completeTour,
                 startTour,
                 isCelebrationActive,
-                setCelebrationActive
+                setCelebrationActive,
+                requestStepNavigation
             }}
         >
             {children}

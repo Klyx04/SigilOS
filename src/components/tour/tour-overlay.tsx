@@ -15,14 +15,29 @@ export function TourOverlay() {
         totalSteps,
         advance,
         back,
-        tourPhase
+        tourPhase,
+        requestStepNavigation
     } = useTour();
 
     const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
     const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
     const requestRef = useRef<number | null>(null);
+    const tooltipRef = useRef<HTMLDivElement | null>(null);
+    /**
+     * BUG-6 — mémorise le dernier `href` vers lequel on a **déjà** navigué : une
+     * ancre réellement absente ne provoque donc jamais une boucle de navigation
+     * (l'overlay retombe sur son saut anti-centrage).
+     */
+    const navigatedHrefRef = useRef<string | null>(null);
+    /**
+     * Constat beta (BUG-6) — le texte était **mangé à droite** dans la bulle : la
+     * position était calculée avec une largeur/hauteur **codées en dur** (320 ×
+     * 180) alors que la bulle est `w-full max-w-[320px] sm:max-w-[340px]`. On
+     * mesure donc la **taille réelle** (ResizeObserver) et on recadre la bulle
+     * dans la fenêtre : jamais de débordement, jamais de texte tronqué.
+     */
+    const [tooltipSize, setTooltipSize] = useState({ width: 320, height: 180 });
 
-    // Track window resize and updates
     useEffect(() => {
         if (typeof window === "undefined") return;
         const handleResize = () => {
@@ -33,6 +48,25 @@ export function TourOverlay() {
         return () => window.removeEventListener("resize", handleResize);
     }, []);
 
+    // Mesure réelle de la bulle (largeur **et** hauteur), à chaque étape.
+    useEffect(() => {
+        const element = tooltipRef.current;
+        if (!element) return;
+
+        const measure = () => {
+            const width = element.offsetWidth;
+            const height = element.offsetHeight;
+            if (width > 0 && height > 0) setTooltipSize({ width, height });
+        };
+
+        measure();
+        if (typeof ResizeObserver === "undefined") return;
+
+        const observer = new ResizeObserver(measure);
+        observer.observe(element);
+        return () => observer.disconnect();
+    }, [isActive, activeStepData, currentStep]);
+
     // Watch target element and update position in a loop to handle scrolling/layout shifts smoothly
     useEffect(() => {
         if (!isActive || !activeStepData) {
@@ -42,6 +76,14 @@ export function TourOverlay() {
 
         let attempts = 0;
         let settled = false;
+        /**
+         * BUG-6 (constat beta) — l'étape visait une ancre qui vit sur **une autre
+         * page** du module (éditeur de jet, forge, publication, négociation) :
+         * l'overlay sautait l'étape et le tutoriel « se coupait ». Désormais, si
+         * l'étape déclare un `href`, on **navigue** (chemin validé par le
+         * provider), on repart à zéro dans l'attente de l'ancre, et le saut
+         * anti-centrage ne reste qu'en dernier recours (ancre réellement absente).
+         */
         const updatePosition = () => {
             const el = document.querySelector(activeStepData.target);
             if (el) {
@@ -54,6 +96,17 @@ export function TourOverlay() {
                 attempts = 0; // reset
             } else {
                 attempts++;
+
+                // ~1 s : la page de l'étape n'est pas la page courante → on y va
+                // (une seule fois par destination : jamais de boucle).
+                if (attempts === 60 && activeStepData.href && navigatedHrefRef.current !== activeStepData.href) {
+                    navigatedHrefRef.current = activeStepData.href;
+                    requestStepNavigation(activeStepData.href);
+                    attempts = 0;
+                    requestRef.current = requestAnimationFrame(updatePosition);
+                    return;
+                }
+
                 // Après ~2s si l'élément est introuvable (module caché/collapsé / sidebar repliée),
                 // on SAUTE l'étape au lieu d'afficher un tooltip centralisé inutile (anti-centrage).
                 // On avance d'une seule étape (pas de cascade) puis on stoppe la boucle rAF.
@@ -72,7 +125,7 @@ export function TourOverlay() {
         return () => {
             if (requestRef.current) cancelAnimationFrame(requestRef.current);
         };
-    }, [isActive, activeStepData, advance]);
+    }, [isActive, activeStepData, advance, requestStepNavigation]);
 
     if (!isActive || !activeStepData || !targetRect) return null;
 
@@ -83,11 +136,13 @@ export function TourOverlay() {
     const width = targetRect.width + padding * 2;
     const height = targetRect.height + padding * 2;
 
-    // Calculate tooltip position
+    // Calculate tooltip position — dimensions **mesurées** (BUG-6).
     let tooltipStyle: React.CSSProperties = {};
-    const tooltipWidth = 320;
-    const tooltipHeight = 180; // approximate
+    const tooltipWidth = tooltipSize.width;
+    const tooltipHeight = tooltipSize.height;
     const margin = 16;
+    // Jamais plus large que la fenêtre (téléphone inclus) : le texte respire.
+    const maxWidth = Math.max(240, windowSize.width - margin * 2);
 
     const placement = activeStepData.placement;
 
@@ -132,8 +187,11 @@ export function TourOverlay() {
             left: margin,
             right: margin,
             width: "auto",
-            top: "auto"
+            maxWidth,
+            top: "auto",
         };
+    } else {
+        tooltipStyle = { ...tooltipStyle, maxWidth };
     }
 
     const isAdminPhase = isReplayableTourPhase(tourPhase);
@@ -180,6 +238,7 @@ export function TourOverlay() {
 
             {/* Tooltip content card */}
             <div
+                ref={tooltipRef}
                 className={cn(
                     "absolute pointer-events-auto transition-all duration-300 w-full max-w-[320px] sm:max-w-[340px] z-[120]",
                     windowSize.width < 768 ? "fixed" : ""
@@ -192,20 +251,20 @@ export function TourOverlay() {
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 10 }}
                     transition={{ duration: 0.2 }}
-                    className="glass-premium rounded-2xl border border-border p-5 bg-background/90 backdrop-blur-md shadow-2xl relative overflow-hidden flex flex-col space-y-4"
+                    className="glass-premium rounded-2xl border border-border p-5 bg-background/90 backdrop-blur-md shadow-2xl relative overflow-hidden flex flex-col space-y-4 min-w-0"
                 >
                     {/* Glowing effect inside tooltip */}
                     <div className="absolute -top-12 -right-12 w-24 h-24 bg-violet-500/10 rounded-full blur-2xl pointer-events-none" />
 
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
                         <div className="p-2 rounded-xl bg-violet-500/10 text-violet-400 shrink-0 border border-violet-500/20">
                             <Award className="w-4 h-4" />
                         </div>
-                        <div className="space-y-1">
-                            <h3 className="text-sm font-black uppercase tracking-widest text-foreground leading-tight">
+                        <div className="space-y-1 min-w-0 flex-1">
+                            <h3 className="text-sm font-black uppercase tracking-widest text-foreground leading-tight break-words">
                                 {activeStepData.title}
                             </h3>
-                            <p className="text-xs font-medium text-muted-foreground leading-relaxed pr-1">
+                            <p className="text-xs font-medium text-muted-foreground leading-relaxed break-words">
                                 {activeStepData.description}
                             </p>
                         </div>

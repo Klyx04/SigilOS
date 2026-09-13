@@ -44,6 +44,7 @@ import {
     MARKET_REPORT_REASONS,
     MARKET_TERMINAL_STATUSES,
     isMarketTransitionAllowed,
+    type MarketStatLineView,
 } from "./market-constants";
 
 // ---------------------------------------------------------------------------
@@ -101,6 +102,24 @@ export type MarketListingDetail = MarketListingRecord & {
 };
 
 /**
+ * S8.14 — **DTO minimal** d'un profil affiché en bulle (avatar + pseudo + classe).
+ *
+ * Aucune donnée sensible : pas d'email, pas de token, et surtout **aucun
+ * identifiant Discord** — `id` est le `UserProfile.id` **interne**. Écran privé à
+ * la guilde : le pseudo y est légitime, il ne l'est jamais dans l'embed (§13.7).
+ */
+export type MarketCounterpartProfile = {
+    /** `UserProfile.id` **interne** (jamais un snowflake Discord). */
+    id: string;
+    /** Pseudo Dofus (repli : pseudo Discord puis « Membre »). */
+    name: string;
+    /** Avatar Discord (`User.image`) — `null` ⇒ repli initiales côté UI. */
+    image: string | null;
+    /** Classe Dofus déclarée (`UserProfile.classe`). */
+    classe: string | null;
+};
+
+/**
  * Offre du **centre de négociation** (S4.10), telle que vue par le membre courant.
  * §13.7 : cet écran est privé — le pseudo de l'autre partie y est légitime, il ne
  * l'est jamais dans le salon Discord (seul le compteur d'offres y est public).
@@ -121,6 +140,10 @@ export type MarketNegotiationOffer = {
     expiresAt: string | null;
     /** Pseudo de l'autre partie, quand c'est à moi de répondre. */
     counterpartLabel: string | null;
+    /** S8.14 — bulle profil de l'autre partie (`null` si l'offre est la mienne). */
+    counterpart: MarketCounterpartProfile | null;
+    /** S8.15 — jet déclaré de l'annonce concernée (icônes officielles). */
+    listingStats: MarketStatLineView[];
     /** `true` = accepter / refuser / contre-proposer (§11.4). */
     canRespond: boolean;
     /** `true` = retirer mon offre (§14.1). */
@@ -559,7 +582,16 @@ const NEGOTIATION_OFFER_SELECT = {
     note: true,
     createdAt: true,
     expiresAt: true,
-    listing: { select: { id: true, title: true } },
+    listing: {
+        select: {
+            id: true,
+            title: true,
+            // S8.15 — **jet déclaré** de l'annonce : affiché dans la ligne d'offre
+            // avec les icônes officielles (projection **lecture seule**, isolée
+            // par la guilde de l'offre via `NEGOTIATION_OFFER_SELECT`).
+            stats: true,
+        },
+    },
 } as const;
 
 /** Ligne brute renvoyée par `NEGOTIATION_OFFER_SELECT`. */
@@ -574,7 +606,7 @@ type NegotiationOfferRow = {
     note: string | null;
     createdAt: Date;
     expiresAt: Date | null;
-    listing: { id: string; title: string };
+    listing: { id: string; title: string; stats: MarketStatLineView[] };
 };
 
 /** Nombre d'offres conservées dans l'historique « mes offres » (S4.10). */
@@ -589,7 +621,7 @@ const MARKET_NEGOTIATION_HISTORY_LIMIT = 20;
  */
 function toNegotiationOffer(
     row: NegotiationOfferRow,
-    params: { role: "AUTHOR" | "COUNTERPART"; counterpartLabel: string | null; now: number }
+    params: { role: "AUTHOR" | "COUNTERPART"; counterpart: MarketCounterpartProfile | null; now: number }
 ): MarketNegotiationOffer {
     const live = row.status === "PENDING" && !(row.expiresAt && row.expiresAt.getTime() <= params.now);
     return {
@@ -604,14 +636,28 @@ function toNegotiationOffer(
         note: row.note,
         createdAt: row.createdAt.toISOString(),
         expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
-        counterpartLabel: params.counterpartLabel,
+        // S8.14 — le libellé texte est **dérivé** du DTO : une seule source.
+        counterpartLabel: params.counterpart?.name ?? null,
+        counterpart: params.counterpart,
+        // S8.15 — jet déclaré de l'annonce (copie explicite, jamais un spread
+        // qui laisserait fuiter des colonnes futures).
+        listingStats: row.listing.stats.map((stat) => ({
+            id: stat.id,
+            effectId: stat.effectId,
+            characteristic: stat.characteristic,
+            label: stat.label,
+            actualValue: stat.actualValue,
+            origin: stat.origin,
+            naturalMin: stat.naturalMin,
+            naturalMax: stat.naturalMax,
+        })),
         // Répondre = être **la contrepartie** (§11.4) ; retirer = être l'**auteur**.
         canRespond: live && params.role === "COUNTERPART",
         canCancel: live && params.role === "AUTHOR",
     };
 }
 
-/** « Mes espaces » (S1.23 / S1.31) : mes annonces actives, mes archives et, depuis S4.10, mon centre de négociation. */
+/** « Mon espace » (S1.23 / S1.31) : mes annonces actives, mes archives et, depuis S4.10, mon centre de négociation. */
 export async function getMyMarketData(guildId: string): Promise<ActionResponse<MyMarketData>> {
     try {
         const ctx = await resolveMarketContext(guildId);
@@ -664,8 +710,10 @@ export async function getMyMarketData(guildId: string): Promise<ActionResponse<M
               })
             : [];
 
-        // Pseudos des contreparties : `MarketOffer.buyerProfileId` n'a pas de
-        // relation Prisma, une requête dédiée évite une jointure implicite (§13.7).
+        // S8.14 — **bulles profil** des contreparties : `MarketOffer.buyerProfileId`
+        // n'a pas de relation Prisma, une requête dédiée évite une jointure
+        // implicite. Les identifiants viennent d'offres **déjà filtrées par
+        // guilde** : la lecture reste isolée (§16.2).
         const counterpartIds = Array.from(
             new Set(
                 [...receivedRows, ...incomingRows]
@@ -676,13 +724,26 @@ export async function getMyMarketData(guildId: string): Promise<ActionResponse<M
         const counterpartProfiles = counterpartIds.length
             ? await db.userProfile.findMany({
                   where: { id: { in: counterpartIds } },
-                  select: { id: true, pseudoDofus: true, discordNickname: true },
+                  select: {
+                      id: true,
+                      pseudoDofus: true,
+                      discordNickname: true,
+                      classe: true,
+                      // Avatar Discord : DTO **minimal** (id interne + nom + image),
+                      // jamais l'identifiant Discord lui-même (§13.7).
+                      user: { select: { image: true } },
+                  },
               })
             : [];
-        const labelByProfileId = new Map(
+        const counterpartByProfileId = new Map<string, MarketCounterpartProfile>(
             counterpartProfiles.map((profile) => [
                 profile.id,
-                profile.pseudoDofus?.trim() || profile.discordNickname?.trim() || null,
+                {
+                    id: profile.id,
+                    name: profile.pseudoDofus?.trim() || profile.discordNickname?.trim() || "Membre",
+                    image: profile.user?.image ?? null,
+                    classe: profile.classe ?? null,
+                },
             ])
         );
 
@@ -690,18 +751,18 @@ export async function getMyMarketData(guildId: string): Promise<ActionResponse<M
         const receivedOffers = receivedRows.map((row) =>
             toNegotiationOffer(row, {
                 role: "COUNTERPART",
-                counterpartLabel: labelByProfileId.get(row.buyerProfileId) ?? null,
+                counterpart: counterpartByProfileId.get(row.buyerProfileId) ?? null,
                 now,
             })
         );
         const sentOffers = [
             ...myOfferRows.map((row) =>
-                toNegotiationOffer(row, { role: "AUTHOR", counterpartLabel: null, now })
+                toNegotiationOffer(row, { role: "AUTHOR", counterpart: null, now })
             ),
             ...incomingRows.map((row) =>
                 toNegotiationOffer(row, {
                     role: "COUNTERPART",
-                    counterpartLabel: labelByProfileId.get(row.buyerProfileId) ?? null,
+                    counterpart: counterpartByProfileId.get(row.buyerProfileId) ?? null,
                     now,
                 })
             ),

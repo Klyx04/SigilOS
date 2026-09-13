@@ -31,6 +31,21 @@ export interface MarketPublishStepProps {
     priceKamas?: number | null;
     unitLabel?: string | null;
     negotiable: boolean;
+    /**
+     * D43 — « troc accepté » de l'annonce : l'embed l'affiche désormais
+     * (« Troc accepté » / « Kamas uniquement »), donc l'aperçu aussi.
+     */
+    acceptsTrade?: boolean;
+    /**
+     * S8.17 — **forge déclarée** publiée par l'embed (Transcendé, élément de
+     * frappe + palier de potion, arme de chasse) : mêmes valeurs que la carte
+     * d'item, pour que l'aperçu reste **fidèle** à ce que verront les membres.
+     */
+    transcended?: boolean;
+    transcendenceLabel?: string | null;
+    strikeElement?: string | null;
+    elementPotionTier?: number | null;
+    huntingWeapon?: string | null;
     forgedBy?: string | null;
     exoLabels: string[];
     /**
@@ -73,6 +88,12 @@ export function MarketPublishStep({
     priceKamas,
     unitLabel,
     negotiable,
+    acceptsTrade,
+    transcended,
+    transcendenceLabel,
+    strikeElement,
+    elementPotionTier,
+    huntingWeapon,
     exoLabels,
     stats = [],
     forgeRecap = [],
@@ -98,6 +119,13 @@ export function MarketPublishStep({
         priceKamas,
         unitLabel,
         negotiable,
+        // S8.17 — statut de forge déclaré + conditions de troc (D43).
+        acceptsTrade,
+        transcended,
+        transcendenceLabel,
+        strikeElement,
+        elementPotionTier,
+        huntingWeapon,
         exoLabels,
         stats,
         components,

@@ -97,6 +97,8 @@ const OFFER_FAILURE_MESSAGES: Record<MarketOfferFailure, string> = {
     // §11.4 — « ni kamas ni troc » : la modale laisse tout facultatif, la règle
     // est donc recalculée ici, côté serveur (jamais devinée, §0.1).
     EMPTY_OFFER: MARKET_EPHEMERAL.OFFER_EMPTY,
+    // D43 — « kamas uniquement » : le refus vient du moteur partagé (§11.4).
+    TRADE_NOT_ACCEPTED: MARKET_EPHEMERAL.OFFER_TRADE_NOT_ACCEPTED,
     INVALID: MARKET_EPHEMERAL.OFFER_INVALID,
     ERROR: MARKET_EPHEMERAL.GENERIC_ERROR,
 };
@@ -214,7 +216,7 @@ async function handleOffer(
 
     const listing = await db.marketListing.findFirst({
         where: { id: listingId, guildId: member.guildConfigId, deletedAt: null },
-        select: { id: true, profileId: true, status: true, negotiable: true },
+        select: { id: true, profileId: true, status: true, negotiable: true, acceptsTrade: true },
     });
     if (!listing) return ephemeral(MARKET_EPHEMERAL.LISTING_NOT_FOUND);
     if (listing.profileId === member.profileId) return ephemeral(MARKET_EPHEMERAL.OFFER_OWN_LISTING);
@@ -224,7 +226,8 @@ async function handleOffer(
     }
 
     logger.info("[market] modale d'offre ouverte", { discordGuildId, listingId, userId });
-    return modal(buildMarketOfferModal(listingId));
+    // D43 — « kamas uniquement » : la modale le dit, le serveur le fera respecter.
+    return modal(buildMarketOfferModal(listingId, { acceptsTrade: listing.acceptsTrade }));
 }
 
 /**

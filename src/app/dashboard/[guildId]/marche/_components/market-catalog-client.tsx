@@ -157,7 +157,7 @@ export function MarketCatalogClient({
                 <Button asChild variant="outline" className="gap-2" data-tour="marche-my-listings">
                     <Link href={`/dashboard/${guildId}/marche/mes-espaces`}>
                         <Boxes className="w-4 h-4" />
-                        Mes espaces
+                        Mon espace
                     </Link>
                 </Button>
                 {isAdmin && (

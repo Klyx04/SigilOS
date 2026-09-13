@@ -32,6 +32,7 @@ export type MarketOfferFailure =
     | "NOT_AVAILABLE"
     | "NEGOTIATIONS_OFF"
     | "EMPTY_OFFER"
+    | "TRADE_NOT_ACCEPTED"
     | "INVALID"
     | "ERROR";
 
@@ -45,6 +46,7 @@ const FAILURE_MESSAGES: Record<MarketOfferFailure, string> = {
     NOT_AVAILABLE: "Cette annonce n'est plus disponible.",
     NEGOTIATIONS_OFF: "Les négociations sont désactivées sur cette annonce.",
     EMPTY_OFFER: "Renseigne un montant en kamas ou un troc.",
+    TRADE_NOT_ACCEPTED: "Cette annonce n'accepte que les kamas : propose un montant.",
     INVALID: "Offre invalide.",
     ERROR: "Erreur interne, réessaie dans un instant.",
 };
@@ -125,6 +127,8 @@ export async function createMarketOfferCore(params: {
                 profileId: true,
                 status: true,
                 negotiable: true,
+                // D43 — « troc accepté » : règle **serveur** lue sur l'annonce.
+                acceptsTrade: true,
                 // §11.9 — destinataire de l'alerte vendeur (propriétaire logique)
                 // et deep-link : jamais le snowflake en dur côté appelant.
                 userId: true,
@@ -136,6 +140,13 @@ export async function createMarketOfferCore(params: {
         if (listing.profileId === params.buyerProfileId) return fail("OWN_LISTING");
         if (listing.status !== "ACTIVE") return fail("NOT_AVAILABLE");
         if (!params.negotiationsEnabled || !listing.negotiable) return fail("NEGOTIATIONS_OFF");
+
+        // D43 / §11.4 — « Troc accepté » : une annonce « **kamas uniquement** »
+        // (`acceptsTrade = false`) refuse une offre **sans kamas** (troc seul).
+        // À cet instant `offeredKamas` vaut `null` ou `> 0` (gardes ci-dessus) :
+        // `null` est donc bien « aucune pièce offerte ». Règle **serveur**, posée
+        // **avant toute écriture** — le client n'est jamais cru (§0.1).
+        if (params.offeredKamas === null && !listing.acceptsTrade) return fail("TRADE_NOT_ACCEPTED");
 
         const now = new Date();
         const expiresAt = new Date(now.getTime() + params.offerHours * 60 * 60 * 1000);
@@ -236,6 +247,7 @@ export type MarketOfferDecisionFailure =
     | "EXPIRED"
     | "CONFLICT"
     | "EMPTY_OFFER"
+    | "TRADE_NOT_ACCEPTED"
     | "INVALID"
     | "ERROR";
 
@@ -273,6 +285,7 @@ const DECISION_FAILURE_MESSAGES: Record<MarketOfferDecisionFailure, string> = {
     EXPIRED: "Cette offre a expiré.",
     CONFLICT: "Cette annonce vient d'être réservée.",
     EMPTY_OFFER: "Renseigne un montant en kamas ou un troc.",
+    TRADE_NOT_ACCEPTED: "Cette annonce n'accepte que les kamas : propose un montant.",
     INVALID: "Demande invalide.",
     ERROR: "Erreur interne, réessaie dans un instant.",
 };
@@ -370,6 +383,9 @@ export async function respondToMarketOfferCore(params: {
                         userId: true,
                         profileId: true,
                         title: true,
+                        // D43 — la contre-offre suit la règle du dépôt d'offre
+                        // (§11.4) : il faut lire « troc accepté » sur l'annonce.
+                        acceptsTrade: true,
                         guild: { select: { discordGuildId: true } },
                     },
                 },
@@ -489,6 +505,13 @@ export async function respondToMarketOfferCore(params: {
             const trade = counter.tradeDescription?.trim() || null;
             const note = counter.note?.trim() || null;
             if (counter.offeredKamas === null && trade === null) return failDecision("EMPTY_OFFER");
+            // D43 / §11.4 — même règle qu'un dépôt d'offre : une annonce « kamas
+            // uniquement » n'accepte pas non plus une contre-offre **sans kamas**.
+            // Garde posée **avant la transaction** ⇒ l'offre en face reste
+            // `PENDING` (aucun demi-refus, §11.3).
+            if (counter.offeredKamas === null && !offer.listing.acceptsTrade) {
+                return failDecision("TRADE_NOT_ACCEPTED");
+            }
 
             const counterExpiresAt = new Date(now.getTime() + counterHours * 60 * 60 * 1000);
 

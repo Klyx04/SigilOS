@@ -19,6 +19,8 @@ import {
 import { toast } from "sonner";
 import { Boxes, Loader2, Pencil, Plus, RefreshCw, Store, Trash2, Upload, XCircle } from "lucide-react";
 import { MarketNegotiationPanel, type NegotiationOffer } from "./market-negotiation-panel";
+import { MarketStatLines, type MarketStatLine } from "@/components/market/market-stat-lines";
+import { DiscordProfileBubble, type DiscordProfileDTO } from "@/components/shared/discord-profile-bubble";
 
 type MyListing = {
     id: string;
@@ -29,10 +31,17 @@ type MyListing = {
     expiresAt: string | null;
     renewCount: number;
     itemName: string | null;
+    /**
+     * S8.15 — **jet déclaré** : déjà sérialisé par `getMyMarketData` (aucune
+     * requête supplémentaire). Optionnel : une annonce sans jet n'affiche rien.
+     */
+    stats?: MarketStatLine[];
 };
 
 interface MarketMySpaceClientProps {
     guildId: string;
+    /** S8.14 — bulle profil du membre courant (« tu publies en tant que »). */
+    viewer?: DiscordProfileDTO | null;
     active: MyListing[];
     archived: MyListing[];
     /** S4.10 — offres reçues sur mes annonces (centre de négociation). */
@@ -41,7 +50,7 @@ interface MarketMySpaceClientProps {
     sent: NegotiationOffer[];
 }
 
-export function MarketMySpaceClient({ guildId, active, archived, received, sent }: MarketMySpaceClientProps) {
+export function MarketMySpaceClient({ guildId, viewer, active, archived, received, sent }: MarketMySpaceClientProps) {
     const router = useRouter();
     const [tab, setTab] = useState<"active" | "archived">("active");
     const [isPending, startTransition] = useTransition();
@@ -62,6 +71,18 @@ export function MarketMySpaceClient({ guildId, active, archived, received, sent 
 
     return (
         <div className="space-y-6">
+            {/* S8.14 — bulle profil du membre courant (avatar Discord + pseudo). */}
+            {viewer ? (
+                <Card className="border-border bg-surface/60">
+                    <CardContent className="flex flex-wrap items-center gap-3 p-4">
+                        <DiscordProfileBubble profile={viewer} label="Tu publies en tant que" />
+                        <p className="text-xs text-muted-foreground sm:ml-auto">
+                            Les annonces listées ci-dessous sont les tiennes.
+                        </p>
+                    </CardContent>
+                </Card>
+            ) : null}
+
             <MarketNegotiationPanel guildId={guildId} received={received} sent={sent} />
 
             <div className="flex flex-wrap items-center gap-3">
@@ -112,6 +133,11 @@ export function MarketMySpaceClient({ guildId, active, archived, received, sent 
                                         {formatKamas(listing.priceKamas)}
                                         {listing.expiresAt ? ` · expire le ${new Date(listing.expiresAt).toLocaleDateString("fr-FR")}` : ""}
                                     </p>
+                                    {/* S8.15 — jet déclaré avec les icônes officielles
+                                        (avant : aucune ligne de stats sur cet écran). */}
+                                    {listing.stats && listing.stats.length > 0 ? (
+                                        <MarketStatLines stats={listing.stats} className="mt-2" />
+                                    ) : null}
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-2 shrink-0">

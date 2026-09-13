@@ -1352,7 +1352,7 @@ const MARCHE_STEPS: TourStep[] = [
     },
     {
         target: '[data-tour="marche-my-listings"]',
-        title: "Mes espaces",
+        title: "Mon espace",
         description: "Retrouve tes annonces en cours et tes archives, avec les actions de publication, de retrait et de renouvellement.",
         placement: "bottom",
         module: "marche",

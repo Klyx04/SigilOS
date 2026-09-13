@@ -28,6 +28,7 @@ import {
     MARKET_WITHDRAWN_SOURCE_LABELS,
 } from "@/server/actions/market-constants";
 import { formatKamas } from "@/lib/market/kamas";
+import { MarketStatLines, type MarketStatLine } from "@/components/market/market-stat-lines";
 import { cn } from "@/lib/utils";
 import {
     listMarketListingAuditTrail,
@@ -69,6 +70,11 @@ export type MarketReportRow = {
     status: ReportStatus;
     resolution: string | null;
     reporterLabel: string | null;
+    /**
+     * S8.15 — **jet déclaré** de l'annonce signalée (icônes officielles) :
+     * projection lecture seule, déjà résolue côté serveur.
+     */
+    listingStats: MarketStatLine[];
     createdAt: string;
     reviewedAt: string | null;
 };
@@ -155,6 +161,11 @@ function ReportRow({ guildId, report, isPending, onResolve, onTakeDown, onRestor
                 {report.reviewedAt ? ` · traité le ${new Date(report.reviewedAt).toLocaleDateString("fr-FR")}` : ""}
                 {snapshot ? ` · ${snapshot}` : ""}
             </p>
+
+            {/* S8.15 — jet déclaré : le litige « JET_MISMATCH » se juge ici. */}
+            {report.listingStats.length > 0 ? (
+                <MarketStatLines stats={report.listingStats} className="mt-2" />
+            ) : null}
 
             {report.details ? <p className="text-xs italic text-muted-foreground">« {report.details} »</p> : null}
 
@@ -434,6 +445,11 @@ function WithdrawnRow({ guildId, listing, isPending, onRestore }: WithdrawnRowPr
                     : ""}
                 {` · ${reportLabel}`}
             </p>
+
+            {/* S8.15 — jet déclaré de l'annonce retirée (icônes officielles). */}
+            {listing.stats.length > 0 ? (
+                <MarketStatLines stats={listing.stats} className="mt-2" />
+            ) : null}
 
             {listing.moderationNote ? (
                 <p className="rounded-lg border border-border bg-background/40 p-2 text-xs text-muted-foreground">

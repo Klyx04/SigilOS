@@ -13,6 +13,10 @@ import { Prisma } from "@prisma/client";
 import { createAuditLog } from "./audit-actions";
 import { getDisplayName } from "@/lib/display-name";
 import { auth } from "@/auth";
+import {
+    withdrawMarketListingsForGuildMember,
+    withdrawMarketListingsForProfileCore,
+} from "@/server/market/lifecycle";
 
 /**
  * Archive a profile (Self-service or Admin)
@@ -741,6 +745,23 @@ export async function handleGdprDeletionRequest() {
             await invalidateUserContextCache(userId, profile.guild.id, profile.guild.discordGuildId);
         }
 
+        // S5.11/S8.20 — RGPD : les annonces **encore vivantes** du membre partent en
+        // `WITHDRAWN` (journal d'audit du marché) AVANT la suppression du `User`
+        // (dont la cascade effacerait les annonces). Best-effort : un échec du
+        // marché ne doit jamais bloquer la suppression RGPD.
+        for (const profile of userProfiles) {
+            try {
+                await withdrawMarketListingsForProfileCore({
+                    guildConfigId: profile.guild.id,
+                    profileId: profile.id,
+                    reason: "GDPR_DELETION",
+                    actorUserId: userId,
+                });
+            } catch (marketError) {
+                logger.warn("[GDPR Deletion] cascade Marché différée", { err: String(marketError) });
+            }
+        }
+
         await db.user.delete({
             where: { id: userId }
         });
@@ -1024,6 +1045,19 @@ export async function wipeUserProfile(profileId: string, discordGuildId: string)
             }
         });
 
+        // S5.11/S8.20 — un profil nettoyé (BANNED) ne garde pas d'annonces actives :
+        // cascade marché best-effort, jamais bloquante pour le nettoyage RGPD.
+        try {
+            await withdrawMarketListingsForGuildMember({
+                discordGuildId,
+                profileId,
+                reason: "KICKED (RGPD wipe)",
+                actorUserId: ctx.id ?? null,
+            });
+        } catch (marketError) {
+            logger.warn("[Manual Wipe] cascade Marché différée", { err: String(marketError) });
+        }
+
         revalidatePath(`/dashboard/${discordGuildId}/admin`);
         return { success: true };
     } catch (error) {
@@ -1292,6 +1326,7 @@ export async function liftGuildMemberBan(guildId: string, discordId: string) {
  * Ferme TOUT le contenu publié par un membre exclu (archivé / banni / supprimé) :
  * - Posts DJ & quêtes en cours (OPEN/FULL) → CLOSED + suppression de l'embed Discord
  * - Runs songes en cours (leader) → ABANDONED + suppression de l'embed Discord
+ * - Annonces du Marché encore vivantes → WITHDRAWN (S5.11/S8.20, §15.2) + audit du marché
  * Best-effort et non bloquant. Aucune auto-expiration temporelle : un post ne se ferme
  * que si son émetteur quitte le dashboard (chantier #31).
  */
@@ -1300,8 +1335,8 @@ export async function closeMemberPublishedContent(
     profileId: string,
     userId: string,
     reason: string
-): Promise<{ dj: number; runs: number }> {
-    const closed = { dj: 0, runs: 0 };
+): Promise<{ dj: number; runs: number; market: number }> {
+    const closed = { dj: 0, runs: 0, market: 0 };
     try {
         // 1. Posts DJ / quêtes actifs du membre → CLOSED
         const djPosts = await (db as any).djSearchPost.findMany({
@@ -1330,6 +1365,20 @@ export async function closeMemberPublishedContent(
             closed.runs = dreamRuns.length;
         }
 
+        // 2bis. S5.11/S8.20 — annonces du Marché encore vivantes → WITHDRAWN.
+        // Le core est **non bloquant** (try/catch local + Discord jamais attendu) :
+        // un échec du marché ne doit jamais empêcher l'archivage / la suppression.
+        try {
+            const marketOutcome = await withdrawMarketListingsForGuildMember({
+                discordGuildId: guildId,
+                profileId,
+                reason,
+            });
+            closed.market = marketOutcome.withdrawn;
+        } catch (marketError) {
+            logger.warn("[Lifecycle] cascade Marché différée", { err: String(marketError) });
+        }
+
         // 3. Suppression des embeds Discord (best-effort, jamais bloquant)
         if (closed.dj > 0 || closed.runs > 0) {
             const { deleteChannelMessage } = await import("@/server/discord");
@@ -1345,7 +1394,7 @@ export async function closeMemberPublishedContent(
                 }
             }
             await Promise.allSettled(deleteTasks);
-            logger.info(`[Lifecycle] Contenu fermé pour exclusion (${reason}): ${closed.dj} post(s) DJ, ${closed.runs} run(s) songes`);
+            logger.info(`[Lifecycle] Contenu fermé pour exclusion (${reason}): ${closed.dj} post(s) DJ, ${closed.runs} run(s) songes, ${closed.market} annonce(s) Marché`);
         }
     } catch (e) {
         logger.error("[closeMemberPublishedContent] error:", e);

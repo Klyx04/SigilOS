@@ -364,6 +364,11 @@ Le bouton « Masquer vendues / expirées » garde le catalogue lisible : décoch
 </table>
 <p>Ces règles sont vérifiées <strong>côté serveur</strong> à chaque création et modification : l'interface les annonce, mais c'est le serveur qui les applique.</p>
 
+<div class="callout callout-tip">
+<strong>Discord : filtre par tag</strong>
+Si le salon du marché est un <strong>forum</strong>, chaque annonce reçoit un tag de <em>famille</em> et un tag de <em>statut</em> : dans Discord, clique un tag pour ne voir que les annonces qui t'intéressent (par exemple « Équipement » + « Disponible »).
+</div>
+
 <h3>Les lots de ressources</h3>
 <table>
     <thead><tr><th>Type de lot</th><th>Contenu</th><th>Usage typique</th></tr></thead>
@@ -798,11 +803,27 @@ Les permissions marquées ★ ne peuvent être attribuées que par un réel Admi
 </ol>
 
 <h2>2. Salon de publication</h2>
-<p>Choisis un salon <strong>textuel, annonces ou forum</strong>. Le bot doit pouvoir le voir et y écrire. Si c'est un forum, SigilOS crée automatiquement les tags manquants (Disponible, Réservé, Vendu…).</p>
+<p>Choisis un salon <strong>textuel, annonces ou forum</strong>. Le bot doit pouvoir le voir et y écrire. Sur un salon <strong>forum</strong>, SigilOS utilise les <strong>tags déjà présents</strong> dans le salon (voir « Tags de forum » ci-dessous) : <strong>aucun tag n'est créé automatiquement</strong> — c'est à toi de les créer dans les réglages du salon Discord.</p>
 <div class="callout callout-info">
 <strong>Validation serveur</strong>
 Le salon est revalidé à chaque sauvegarde et à chaque test : un identifiant fourni par le navigateur n'est jamais utilisé aveuglément.
 </div>
+
+<h2>2bis. Tags de forum (salon forum uniquement)</h2>
+<p>Un salon forum permet aux membres de <strong>filtrer les annonces depuis Discord</strong>. SigilOS applique aux sujets les tags qui <strong>existent déjà</strong> dans le salon — il n'en crée jamais et n'en modifie jamais la liste :</p>
+<ol class="steps">
+    <li><strong>Crée les tags dans Discord</strong> (réglages du salon forum), par exemple une famille (<em>Équipement</em>, <em>Ressources</em>) et les statuts (<em>Disponible</em>, <em>Réservé</em>, <em>Vendu</em>…).</li>
+    <li><strong>Associe chaque tag</strong> dans <em>Réglages → Marché → Tags de forum</em> : la section n'apparaît que si le salon configuré est un forum avec au moins un tag.</li>
+    <li><strong>Enregistre</strong> : à la publication, le sujet reçoit la <strong>famille</strong> et le <strong>statut</strong> ; à chaque changement de statut, l'ancien tag est retiré et le nouveau appliqué.</li>
+</ol>
+<table>
+    <thead><tr><th>Comportement</th><th>Détail</th></tr></thead>
+    <tbody>
+        <tr><td><strong>Aucun tag appliqué</strong> si…</td><td>le mapping est vide, le salon n'a pas de tag, ou le salon est textuel : la publication reste <strong>normale</strong> (jamais d'erreur).</td></tr>
+        <tr><td><strong>Maximum 5 tags</strong> par sujet</td><td>limite Discord : la famille + le statut suffisent largement.</td></tr>
+        <tr><td><strong>Tag inconnu</strong></td><td>un tag supprimé du salon côté Discord est <strong>écarté</strong> à l'enregistrement (jamais conservé à l'aveugle).</td></tr>
+    </tbody>
+</table>
 
 <h2>3. Rôles</h2>
 <table>

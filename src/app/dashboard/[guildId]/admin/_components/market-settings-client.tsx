@@ -13,10 +13,21 @@ import { RoleSelector } from "@/components/admin/role-selector";
 import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
 import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
-import { getMarketSettings, updateMarketSettings, testMarketConfiguration } from "@/server/actions/market-admin-actions";
+import {
+    getMarketSettings,
+    updateMarketSettings,
+    testMarketConfiguration,
+    listMarketForumAvailableTags,
+    type MarketForumTagOption,
+} from "@/server/actions/market-admin-actions";
 import { MARKET_SETTINGS_BOUNDS, MARKET_SETTINGS_DEFAULTS } from "@/server/actions/market-constants";
+import {
+    MARKET_FORUM_TAG_KEYS,
+    MARKET_FORUM_TAG_LABELS,
+    type MarketForumTagMap,
+} from "@/lib/market/forum-tags";
 import { toast } from "sonner";
-import { AlertTriangle, FlaskConical, Hash, Loader2, Save, ShieldCheck } from "lucide-react";
+import { AlertTriangle, FlaskConical, Hash, Loader2, Save, ShieldCheck, Tags } from "lucide-react";
 
 type Role = { id: string; name: string; color: string };
 
@@ -36,6 +47,8 @@ type MarketConfigSnapshot = {
     marketProofsEnabled: boolean;
     marketMediaRetentionDays: number;
     marketLogRetentionDays: number;
+    /** D20 / S3.13 — mapping `type|statut → id de tag` (vide hors forum). */
+    marketForumTags: MarketForumTagMap;
 };
 
 const EMPTY: MarketConfigSnapshot = {
@@ -44,6 +57,7 @@ const EMPTY: MarketConfigSnapshot = {
     marketAllowedPingRoleIds: [],
     marketModeratorRoleId: null,
     marketMinRoleId: null,
+    marketForumTags: {},
     ...MARKET_SETTINGS_DEFAULTS,
 };
 
@@ -56,14 +70,18 @@ export function MarketSettingsClient({ guildId }: { guildId: string }) {
     const [isTesting, setIsTesting] = useState(false);
     const [channelKind, setChannelKind] = useState<string | null>(null);
     const [issues, setIssues] = useState<string[]>([]);
+    /** D20 / S3.13 — tags **existants** du salon forum (sélecteurs). */
+    const [forumTagOptions, setForumTagOptions] = useState<MarketForumTagOption[]>([]);
+    const [forumTagsAvailable, setForumTagsAvailable] = useState(false);
 
     const hasUnsavedChanges = isDirty(config, initialConfig);
 
     useEffect(() => {
         async function load() {
-            const [settingsRes, rolesRes] = await Promise.all([
+            const [settingsRes, rolesRes, forumTagsRes] = await Promise.all([
                 getMarketSettings(guildId),
                 getDiscordRolesAction(guildId, { ignoreWhitelist: true }),
+                listMarketForumAvailableTags(guildId),
             ]);
 
             if (settingsRes.success && settingsRes.data) {
@@ -71,12 +89,18 @@ export function MarketSettingsClient({ guildId }: { guildId: string }) {
                     ...EMPTY,
                     ...settingsRes.data,
                     marketNotifyChannelId: settingsRes.data.marketNotifyChannelId || "",
+                    marketForumTags: settingsRes.data.marketForumTags ?? {},
                 };
                 setConfig(loaded);
                 setInitialConfig(loaded);
                 setChannelKind(settingsRes.data.marketChannelKind);
             } else {
                 setInitialConfig(EMPTY);
+            }
+
+            if (forumTagsRes.success && forumTagsRes.data) {
+                setForumTagOptions(forumTagsRes.data.tags);
+                setForumTagsAvailable(forumTagsRes.data.forum);
             }
 
             if (rolesRes) {
@@ -119,6 +143,7 @@ export function MarketSettingsClient({ guildId }: { guildId: string }) {
                 marketProofsEnabled: config.marketProofsEnabled,
                 marketMediaRetentionDays: config.marketMediaRetentionDays,
                 marketLogRetentionDays: config.marketLogRetentionDays,
+                marketForumTags: config.marketForumTags,
             });
 
             if (result.success) {
@@ -246,6 +271,57 @@ export function MarketSettingsClient({ guildId }: { guildId: string }) {
                         </div>
                     </CardContent>
                 </Card>
+
+                {/* D20 / S3.13 — tags de forum (salon forum uniquement) */}
+                {forumTagsAvailable && (
+                    <Card className="bg-surface/60 border-border rounded-2xl overflow-hidden">
+                        <CardHeader className="border-b border-border bg-surface/30 p-6">
+                            <CardTitle className="text-base font-black uppercase tracking-wider text-foreground flex items-center gap-2">
+                                <Tags className="w-4 h-4 text-info" />
+                                Tags de forum
+                            </CardTitle>
+                            <CardDescription>
+                                Assigne aux sujets les tags <strong>déjà existants</strong> de ton salon forum : les membres
+                                peuvent alors filtrer les annonces par famille ou par statut directement depuis Discord.
+                                SigilOS <strong>ne crée aucun tag</strong> — crée-les d&apos;abord dans les réglages du salon Discord.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-6 space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {MARKET_FORUM_TAG_KEYS.map((key) => (
+                                    <div key={key} className="space-y-2">
+                                        <Label className="text-xs">{MARKET_FORUM_TAG_LABELS[key]}</Label>
+                                        <select
+                                            className="h-9 w-full rounded-xl border border-border bg-surface px-3 text-body-sm text-foreground"
+                                            value={config.marketForumTags[key] ?? ""}
+                                            onChange={(event) =>
+                                                setConfig((prev) => {
+                                                    const next: MarketForumTagMap = { ...prev.marketForumTags };
+                                                    const value = event.target.value;
+                                                    if (value) next[key] = value;
+                                                    else delete next[key];
+                                                    return { ...prev, marketForumTags: next };
+                                                })
+                                            }
+                                            disabled={isPending}
+                                        >
+                                            <option value="">— Aucun tag —</option>
+                                            {forumTagOptions.map((tag) => (
+                                                <option key={tag.id} value={tag.id}>
+                                                    {tag.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                ))}
+                            </div>
+                            <p className="text-caption text-muted-foreground">
+                                {forumTagOptions.length} tag(s) disponible(s) dans le salon. Maximum 5 tags par sujet :
+                                la famille et le statut suffisent.
+                            </p>
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* Durées, plafonds & rappels */}
                 <Card className="bg-surface/60 border-border rounded-2xl overflow-hidden">

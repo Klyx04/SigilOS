@@ -20,6 +20,7 @@ import {
     fetchChannel,
     sendChannelMessage,
     updateChannelMessage,
+    updateForumThreadTags,
 } from "@/server/discord";
 import {
     absoluteDiscordAssetUrl,
@@ -29,6 +30,7 @@ import {
     type MarketDiscordStatus,
 } from "@/lib/market/discord-payload";
 import { buildMarketDashboardUrl } from "@/lib/market/discord-interactions";
+import { resolveMarketForumTags } from "@/lib/market/forum-tags";
 import { countPendingMarketOffers } from "@/server/market/counters";
 
 export type MarketDiscordResult = {
@@ -77,6 +79,8 @@ async function loadListingForDiscord(listingId: string) {
                     marketNotifyRoleId: true,
                     marketChannelKind: true,
                     marketAllowedPingRoleIds: true,
+                    // D20 / S3.13 — mapping type|statut → id de tag de forum.
+                    marketForumTags: true,
                 },
             },
             profile: {
@@ -252,6 +256,13 @@ export async function publishListingToDiscord(
         let effectiveChannelId = channelId;
 
         if (forumMode) {
+            // D20 / S3.13 — tags **existants** du forum (famille + statut) ; mapping
+            // vide ⇒ aucun tag, la publication reste normale (§9.4).
+            const appliedTags = resolveMarketForumTags(listing.guild.marketForumTags, {
+                type: listing.type,
+                status: listing.status,
+            });
+
             const post = await createForumPost(channelId, buildForumPostName(payload), mentionContent, {
                 embedTitle: built.embedTitle,
                 embedColor: built.embedColor,
@@ -260,6 +271,7 @@ export async function publishListingToDiscord(
                 embedThumbnail: built.embedThumbnail,
                 fields: built.fields,
                 components: built.components,
+                appliedTags,
             });
             if (!post) throw new Error("Création du post forum refusée");
             messageId = post.messageId;
@@ -347,6 +359,20 @@ export async function syncListingMessage(listingId: string): Promise<MarketDisco
             components: built.components,
         });
         if (!ok) throw new Error("Édition Discord refusée");
+
+        // D20 / S3.13 — le tag de **statut** suit l'annonce : Discord remplace
+        // l'ensemble, donc on renvoie famille + statut (l'ancien statut disparaît).
+        // Jamais bloquant : un échec de tag ne remet pas en cause l'embed réécrit.
+        if (listing.guild.marketChannelKind === MARKET_CHANNEL_KIND_FORUM) {
+            const desiredTags = resolveMarketForumTags(listing.guild.marketForumTags, {
+                type: listing.type,
+                status: listing.status,
+            });
+            const tagsOk = await updateForumThreadTags(existing.discordChannelId, desiredTags);
+            if (!tagsOk) {
+                logger.warn("[market] tags de forum non appliqués (embed à jour)", { listingId });
+            }
+        }
 
         await db.marketDiscordMessage.update({
             where: { listingId },

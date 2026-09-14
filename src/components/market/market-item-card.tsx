@@ -143,6 +143,16 @@ export function MarketItemCard({ data, className }: { data: MarketItemCardData; 
         huntingWeapon: data.huntingWeapon,
     });
 
+    /**
+     * Constat beta (14/09) — « espace vide énorme » et « texte en tout petit »
+     * sur la fiche d'un lot : quand l'annonce ne porte **aucun jet** (lot,
+     * cosmétique, vente brute), la colonne d'effets est vide et la grande
+     * vignette ne fait que creuser du blanc. On passe alors en présentation
+     * **compacte** (vignette 80 px centrée, textes agrandis, marges serrées).
+     * Un équipement **avec jet déclaré** garde la composition « tooltip Dofus ».
+     */
+    const compact = stats.length === 0;
+
     return (
         <div
             className={cn(
@@ -151,33 +161,57 @@ export function MarketItemCard({ data, className }: { data: MarketItemCardData; 
             )}
         >
             {/* 2 — Nom · niveau/type · panoplie · image */}
-            <div className="flex items-start gap-4">
+            <div className={cn("flex gap-4", compact ? "items-center" : "items-start")}>
                 <div className="min-w-0 flex-1">
-                    <h3 className="text-body font-black text-foreground truncate">{data.name}</h3>
-                    <p className="text-caption text-muted-foreground mt-0.5">
+                    <h3
+                        className={cn(
+                            "font-black text-foreground truncate",
+                            compact ? "text-title" : "text-body"
+                        )}
+                    >
+                        {data.name}
+                    </h3>
+                    <p
+                        className={cn(
+                            "text-muted-foreground mt-0.5",
+                            compact ? "text-body-sm" : "text-caption"
+                        )}
+                    >
                         {data.level ? `Niveau ${data.level}` : ""}
                         {data.level && data.typeName ? " • " : ""}
                         {data.typeName ?? ""}
                     </p>
                     {data.itemSetName && (
-                        <p className="text-label font-bold text-gold mt-1">{data.itemSetName}</p>
+                        <p className={cn("font-bold text-gold mt-1", compact ? "text-body-sm" : "text-label")}>
+                            {data.itemSetName}
+                        </p>
                     )}
                 </div>
                 {/* 📐 Constat beta du 13/09 : l'objet était trop petit — il passe en
                     112 px et sert de repère visuel principal de la carte. Repli :
                     l'icône du premier composant du lot (annonce sans objet). */}
-                <div className="relative h-28 w-28 shrink-0 rounded-2xl border border-border-strong bg-background/60">
+                <div
+                    className={cn(
+                        "relative shrink-0 rounded-2xl border border-border-strong bg-background/60",
+                        compact ? "h-20 w-20" : "h-28 w-28"
+                    )}
+                >
                     {itemIconUrl ? (
                         <Image
                             src={itemIconUrl}
                             alt={data.name}
                             fill
-                            sizes="112px"
-                            className="object-contain p-2"
+                            sizes={compact ? "80px" : "112px"}
+                            className={compact ? "object-contain p-1.5" : "object-contain p-2"}
                             unoptimized
                         />
                     ) : (
-                        <Package className="absolute inset-0 m-auto h-12 w-12 text-muted-foreground/40" />
+                        <Package
+                            className={cn(
+                                "absolute inset-0 m-auto text-muted-foreground/40",
+                                compact ? "h-9 w-9" : "h-12 w-12"
+                            )}
+                        />
                     )}
                 </div>
             </div>
@@ -253,13 +287,19 @@ export function MarketItemCard({ data, className }: { data: MarketItemCardData; 
 
             {/* Contenu du lot (ressources) */}
             {components.length > 0 && (
-                <div className="mt-4">
+                <div className={cn(compact ? "mt-3" : "mt-4")}>
                     <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">
                         Contenu du lot
                     </p>
                     <ul className="mt-2 space-y-1">
                         {components.map((component, index) => (
-                            <li key={index} className="flex items-center gap-2 text-label text-foreground/90">
+                            <li
+                                key={index}
+                                className={cn(
+                                    "flex items-center gap-2 text-foreground/90",
+                                    compact ? "text-body-sm" : "text-label"
+                                )}
+                            >
                                 <span className="font-black tabular-nums text-gold">
                                     {/* BUG-9 — formatage déterministe (pas de `toLocaleString`) :
                                         le rendu serveur et l'hydratation produisent la même chaîne. */}
@@ -277,7 +317,7 @@ export function MarketItemCard({ data, className }: { data: MarketItemCardData; 
 
             {/* Constat beta — quantité du lot & minimum par acheteur */}
             {(data.quantity != null || data.minQuantity != null) && (
-                <div className="mt-3 space-y-0.5 text-caption text-muted-foreground">
+                <div className={cn("mt-3 space-y-0.5 text-muted-foreground", compact ? "text-body-sm" : "text-caption")}>
                     {data.quantity != null && (
                         <p>
                             Quantité du lot :{" "}
@@ -299,10 +339,10 @@ export function MarketItemCard({ data, className }: { data: MarketItemCardData; 
             )}
 
             {/* 6 — Séparateur ornemental */}
-            <div className="my-4 h-px bg-gradient-to-r from-transparent via-border-strong to-transparent" />
+            <div className={cn("h-px bg-gradient-to-r from-transparent via-border-strong to-transparent", compact ? "my-3" : "my-4")} />
 
             {/* 7 — Pied : pods · prix moyen · prix */}
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-caption">
+            <div className={cn("flex flex-wrap items-center gap-x-5 gap-y-2", compact ? "text-body-sm" : "text-caption")}>
                 <span className="inline-flex items-center gap-1.5 text-muted-foreground">
                     <Scale className="h-3.5 w-3.5" aria-hidden="true" />
                     POIDS
@@ -327,7 +367,9 @@ export function MarketItemCard({ data, className }: { data: MarketItemCardData; 
 
             {/* 8 — Description */}
             {data.description && (
-                <p className="mt-3 text-caption italic text-muted-foreground">{data.description}</p>
+                <p className={cn("mt-3 italic text-muted-foreground", compact ? "text-body-sm" : "text-caption")}>
+                    {data.description}
+                </p>
             )}
         </div>
     );

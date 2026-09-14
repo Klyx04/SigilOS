@@ -78,7 +78,11 @@ describe("constat beta — les lignes de métadonnées `0 → 0` ne sont jamais 
 
         const og = codeOnly(read("src/app/api/og/market/[id]/route.tsx"));
         expect(og).toMatch(/const statLines = listing\.stats\.filter\(isStatBearingStatRow\);/);
-        expect(og).toMatch(/const visibleStats = statLines\.slice\(0, MAX_STAT_LINES\);/);
+        // Constat beta — **toutes** les lignes sont peintes : plus de troncature
+        // (`MAX_STAT_LINES`) ni de mention « + N autres lignes ».
+        expect(og).not.toMatch(/MAX_STAT_LINES/);
+        expect(og).not.toMatch(/autre\(s\) ligne\(s\)/);
+        expect(og).toMatch(/const metrics = statRowMetrics\(statLines\.length\);/);
         // Une annonce sans jet (donc sans métadonnées) reste « objet en grand ».
         expect(og).toMatch(/const boxSize = hasStatLines \? ITEM_BOX : ITEM_BOX_LARGE;/);
 

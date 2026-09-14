@@ -44,6 +44,9 @@ vi.mock("@/lib/prisma", () => ({
         },
         // S7.8 — fiche d'annonce : réservation active + profil du réservataire.
         marketReservation: { findFirst: vi.fn() },
+        // Constat beta 14/09 — **timeline des offres** de la fiche (statut + date
+        // seuls, §13.7) : la fiche interroge les offres de l'annonce.
+        marketOffer: { findMany: vi.fn().mockResolvedValue([]) },
         userProfile: { findFirst: vi.fn() },
         // S7.14 — recalcul serveur du jet (catalogue) + référentiel d'effets.
         gameItem: { findUnique: vi.fn() },

@@ -5,7 +5,7 @@ import { resolveDofusStatTheme } from "@/lib/dofus-stats-theme";
 // Constat beta — une ligne de jet `0 → 0` (« Échangeable : », « Compatible
 // avec : ») n'est pas une statistique : jamais peinte, ni comptée dans la carte.
 import { isStatBearingStatRow } from "@/lib/market/effects";
-import { buildMarketStatusLines, shortListingId } from "@/lib/market/discord-payload";
+import { buildMarketStatusLines } from "@/lib/market/discord-payload";
 import { loadItemImageDataUrl, loadKamasIconDataUrl, loadStatIconDataUrl } from "@/lib/market/og-assets";
 
 // Prisma impose le runtime Node (pas d'edge).
@@ -29,8 +29,20 @@ const ITEM_BOX_LARGE = 340;
  * ligne, icône, valeur, libellé, badge, plage).
  */
 const CARD_HEADER_HEIGHT = 80;
-const CARD_FOOTER_HEIGHT = 48;
 const CARD_BODY_PADDING = 32;
+/**
+ * 🧨 Constat beta (14/09/2026) — « ça cache le mot *EFFETS* en haut, ça ajoute
+ * une ligne horizontale en bas, les effets sont écrasés ».
+ *
+ * La hauteur de carte **oubliait** le titre `EFFETS` et l'espacement des lignes
+ * (la colonne empile `gap: 7` par ligne) : dès ~14 lignes, le bloc débordait
+ * **vers le haut**, recouvrait le titre. On réserve désormais explicitement le
+ * titre + un `gap` par ligne. Le **pied** (vendeur, `#annonce`, date,
+ * `SigilOS Market`) est **supprimé** (décision user) : plus de `borderTop`, donc
+ * plus de « ligne horizontale en bas ».
+ */
+const STATS_HEADING_HEIGHT = 20;
+const STATS_ROW_GAP = 7;
 
 type StatRowMetrics = {
     /** Hauteur d'une ligne (px). */
@@ -122,7 +134,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
             include: {
                 stats: true,
                 components: { orderBy: { position: "asc" } },
-                profile: { select: { pseudoDofus: true } },
             },
         });
         if (!listing || !PUBLIC_STATUSES.includes(listing.status)) {
@@ -180,10 +191,10 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         const cardHeight = Math.max(
             CARD_HEIGHT,
             CARD_HEADER_HEIGHT +
-                CARD_FOOTER_HEIGHT +
                 CARD_BODY_PADDING +
-                (hasStatLines ? 0 : 32) +
-                statLines.length * metrics.row +
+                (hasStatLines
+                    ? STATS_HEADING_HEIGHT + statLines.length * (metrics.row + STATS_ROW_GAP)
+                    : 32) +
                 componentBlockHeight
         );
 
@@ -505,38 +516,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
                     </div>
 
 
-                    {/* ─── Pied : vendeur + origine ──────────────────────────────── */}
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 14,
-                            padding: "12px 22px",
-                            borderTop: "1px solid #2a2740",
-                            fontSize: 14,
-                            color: "#9ca3af",
-                        }}
-                    >
-                        <div style={{ display: "flex", color: "#e5e7eb", fontWeight: 700 }}>
-                            {listing.profile?.pseudoDofus || "Vendeur"}
-                        </div>
-                        {listing.forgedBy && <div style={{ display: "flex" }}>Modifié par {listing.forgedBy}</div>}
-                        {/* BUG-5 — vendeur + #annonce + horodatage dans l'image (spec §2.4). */}
-                        <div style={{ display: "flex", marginLeft: "auto", fontSize: 12, color: "#6b7280" }}>
-                            Annonce #{shortListingId(listing.id)} ·{" "}
-                            {listing.createdAt.toLocaleDateString("fr-FR", {
-                                day: "2-digit",
-                                month: "2-digit",
-                                year: "numeric",
-                            })}{" "}
-                            à{" "}
-                            {listing.createdAt.toLocaleTimeString("fr-FR", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                            })}{" "}
-                            · SigilOS Market
-                        </div>
-                    </div>
+{/* Pied supprimé (décision user du 14/09/2026) : « Annonce #… / date /
+                        SigilOS Market / pseudo du vendeur » ne figure plus dans l'image
+                        générée — ces informations sont déjà dans le message Discord
+                        (titre + auteur de l'embed) et le pied créait la « ligne
+                        horizontale en bas » qui écrasait les dernières stats. */}
                 </div>
             ),
             {

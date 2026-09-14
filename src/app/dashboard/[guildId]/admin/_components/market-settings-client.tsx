@@ -1,15 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { DiscordChannelPicker, DISCORD_FORUM_CHANNEL_TYPES } from "@/components/shared/DiscordChannelPicker";
 import { ChannelPreview } from "@/components/shared/ChannelPreview";
-import { RoleSelector } from "@/components/admin/role-selector";
 import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
 import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
@@ -20,8 +17,7 @@ import {
     listMarketForumAvailableTags,
     type MarketForumTagOption,
 } from "@/server/actions/market-admin-actions";
-import { MARKET_SETTINGS_BOUNDS, MARKET_SETTINGS_DEFAULTS } from "@/server/actions/market-constants";
-import { formatReminderDays, parseReminderDays } from "@/lib/market/reminder-days";
+import { MARKET_SETTINGS_DEFAULTS } from "@/server/actions/market-constants";
 import {
     MARKET_FORUM_TAG_KEYS,
     MARKET_FORUM_TAG_LABELS,
@@ -128,18 +124,13 @@ export function MarketSettingsClient({ guildId }: { guildId: string }) {
         load();
     }, [guildId]);
 
-    const numericFields = useMemo(
-        () => [
-            { key: "marketMaxActivePerMember", label: "Annonces actives / membre", bounds: MARKET_SETTINGS_BOUNDS.marketMaxActivePerMember },
-            { key: "marketDefaultDurationDays", label: "Durée par défaut (jours)", bounds: MARKET_SETTINGS_BOUNDS.marketDefaultDurationDays },
-            { key: "marketMaxLifetimeDays", label: "Durée de vie maximale (jours)", bounds: MARKET_SETTINGS_BOUNDS.marketMaxLifetimeDays },
-            { key: "marketReservationHours", label: "Durée d'une réservation (h)", bounds: MARKET_SETTINGS_BOUNDS.marketReservationHours },
-            { key: "marketOfferHours", label: "Durée de vie d'une offre (h)", bounds: MARKET_SETTINGS_BOUNDS.marketOfferHours },
-            { key: "marketMediaRetentionDays", label: "Rétention des médias (jours)", bounds: MARKET_SETTINGS_BOUNDS.marketMediaRetentionDays },
-            { key: "marketLogRetentionDays", label: "Rétention des logs (jours)", bounds: MARKET_SETTINGS_BOUNDS.marketLogRetentionDays },
-        ] as const,
-        []
-    );
+    /**
+     * 🗑️ Les champs « Durées, plafonds & rappels » ne sont **plus édités ici**
+     * (décision user du 14/09/2026 : réglages **globaux** côté God). Ils restent
+     * dans l'état du panneau — `getMarketSettings` les renvoie et `handleSave` les
+     * renvoie tels quels — pour qu'un enregistrement du panneau de guilde ne
+     * **modifie jamais** une valeur pilotée par SigilOS (§ « une seule vérité »).
+     */
 
     function handleSave() {
         startTransition(async () => {
@@ -239,35 +230,16 @@ export function MarketSettingsClient({ guildId }: { guildId: string }) {
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label className="text-xs">Rôle à mentionner à la publication</Label>
-                                <RoleSelector
-                                    value={config.marketNotifyRoleId}
-                                    onChange={(value) => setConfig((prev) => ({ ...prev, marketNotifyRoleId: value }))}
-                                    roles={roles}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label className="text-xs">Rôle modérateur du marché</Label>
-                                <RoleSelector
-                                    value={config.marketModeratorRoleId}
-                                    onChange={(value) => setConfig((prev) => ({ ...prev, marketModeratorRoleId: value }))}
-                                    roles={roles}
-                                />
-                            </div>
-                            <div className="space-y-2 md:col-span-2">
-                                <Label className="text-xs">Rôle minimum pour publier (facultatif)</Label>
-                                <RoleSelector
-                                    value={config.marketMinRoleId}
-                                    onChange={(value) => setConfig((prev) => ({ ...prev, marketMinRoleId: value }))}
-                                    roles={roles}
-                                />
-                            </div>
-                        </div>
-
                         <div className="space-y-2">
                             <Label className="text-xs">Rôles que le créateur peut mentionner</Label>
+                            {/* Décision user (14/09/2026) — les sélecteurs « Rôle à mentionner à
+                                la publication », « Rôle modérateur du marché » et « Rôle minimum
+                                pour publier » sont **supprimés** : la **matrice RBAC** est la seule
+                                source de vérité (`market:trade` = voir / publier / offrir / gérer
+                                ses annonces · `market:moderate` = modération du marché EN PLUS).
+                                Les colonnes restent en base (aucune migration) et ne sont plus
+                                alimentées : aucun écran ne doit réintroduire un second système de
+                                droits par rôle Discord. */}
                             <PingRolesSelector
                                 value={config.marketAllowedPingRoleIds}
                                 onChange={(value) => setConfig((prev) => ({ ...prev, marketAllowedPingRoleIds: value }))}
@@ -340,83 +312,14 @@ export function MarketSettingsClient({ guildId }: { guildId: string }) {
                     </Card>
                 )}
 
-                {/* Durées, plafonds & rappels — T4 (D-B) : écran FACULTATIF */}
-                <Card className="bg-surface/60 border-border rounded-2xl overflow-hidden">
-                    <CardHeader className="border-b border-border bg-surface/30 p-6">
-                        <div className="flex flex-wrap items-center gap-3">
-                            <CardTitle className="text-base font-black uppercase tracking-wider text-foreground">
-                                Durées, plafonds &amp; rappels
-                            </CardTitle>
-                            {/* D-B (ratifié) — les valeurs sont poussées par SigilOS pour TOUTES
-                                les guildes (panneau God) : ce bloc ne sert plus que d'exception locale. */}
-                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider">
-                                Facultatif — exception locale
-                            </Badge>
-                        </div>
-                        <CardDescription>
-                            Ces valeurs sont <strong>globales</strong> : SigilOS les applique déjà à toutes les
-                            guildes. Ne modifie ce bloc que pour une <strong>exception locale</strong> — enregistrer
-                            ici ne changera <strong>que cette guilde</strong>. Le marché applique ensuite un cycle de
-                            vie à paliers : rappels puis expiration automatique.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-6 space-y-5">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {numericFields.map((field) => (
-                                <div key={field.key} className="space-y-1.5">
-                                    <Label className="text-xs">{field.label}</Label>
-                                    <Input
-                                        type="number"
-                                        min={field.bounds.min}
-                                        max={field.bounds.max}
-                                        value={config[field.key] as number}
-                                        onChange={(event) => {
-                                            const raw = Number.parseInt(event.target.value || "0", 10);
-                                            const value = Math.min(field.bounds.max, Math.max(field.bounds.min, Number.isNaN(raw) ? field.bounds.min : raw));
-                                            setConfig((prev) => ({ ...prev, [field.key]: value }));
-                                        }}
-                                    />
-                                    <p className="text-[11px] text-muted-foreground">
-                                        Entre {field.bounds.min} et {field.bounds.max}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <Label className="text-xs">Paliers de rappel (jours, séparés par des virgules)</Label>
-                            <Input
-                                value={formatReminderDays(config.marketReminderDays)}
-                                onChange={(event) => {
-                                    // Bornes + dédoublonnage + max 3 valeurs : une seule règle,
-                                    // partagée avec le panneau God (`lib/market/reminder-days`).
-                                    const parsed = parseReminderDays(event.target.value);
-                                    // Saisie en cours (« 7, ») ou inexploitable : on n'écrit RIEN
-                                    // en base plutôt qu'une valeur inventée (fail-closed).
-                                    if (!parsed) return;
-                                    setConfig((prev) => ({ ...prev, marketReminderDays: parsed }));
-                                }}
-                                placeholder="Ex. 7, 15"
-                            />
-                            <p className="text-[11px] text-muted-foreground">
-                                L&apos;annonce expire automatiquement à la durée de vie maximale, même sans rappel.
-                            </p>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-6 border-t border-border pt-4">
-                            <label className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                                <Switch
-                                    checked={config.marketNegotiationsEnabled}
-                                    onCheckedChange={(value) => setConfig((prev) => ({ ...prev, marketNegotiationsEnabled: value }))}
-                                />
-                                Négociation autorisée
-                            </label>
-                            {/* D-A (ratifié) — l'interrupteur « Preuves (captures) autorisées » a été
-                                RETIRÉ : il était sans effet (aucun upload n'existe). `marketProofsEnabled`
-                                reste en base (aucune migration), simplement plus exposé. */}
-                        </div>
-                    </CardContent>
-                </Card>
+                {/* 🗑️ Décision user (14/09/2026) — le panneau de guilde « Durées, plafonds &
+                    rappels » est **supprimé** : les réglages sont **globaux** (God, « Marché »)
+                    et `saveGodMarketSettings` les pousse à **toutes** les guildes
+                    (`db.guildConfig.updateMany`, mesuré). Un doublon de réglage = deux vérités ;
+                    la guilde ne garde que ce qui est **local par nature** : le salon de
+                    publication, les rôles pinguables et les tags du forum.
+                    Les colonnes `GuildConfig.market*` restent en base (aucune migration) et
+                    continuent d'être lues par le serveur (héritage du panneau God). */}
             </div>
 
             {/* Diagnostic */}

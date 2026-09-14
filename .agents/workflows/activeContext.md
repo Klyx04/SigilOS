@@ -139,6 +139,8 @@
 ## Références clés
 - 🎨 **SOURCE D'ICÔNES OFFICIELLE (permanente, tout module)** : `C:\Users\user\Desktop\dofus_assets` (~23 770 fichiers : icônes 1x/2x, items 2x, sorts, monstres, UI…). On peut y piocher des icônes pour n'importe quel module, **UNIQUEMENT après les avoir proposées au user ET validées** avant intégration.
 - Backlog canonique : `docs/ROADMAP.md` (à lire en premier en mode plan).
+- 🧭 **Amorce de session générique** : `.agents/workflows/session-amorce.md` (contexte + **checklist sécurité non négociable** + méthode de preuve + vérifs + DoD + **bloc à coller** §10) — copie prête à copier : `src/temp/AMORCE-GENERIQUE-A-COLLER.txt`.
+- 🛒 **Marché — amorce de la phase de debug** : `src/temp/refonte-marche/AMORCE-DERNIERE-PHASE-DEBUG.md` (+ `AMORCE-DEBUG-A-COLLER.txt`).
 - Demandes ouvertes + annotations : `src/temp/chantier-actif.md`.
 - Plan maître #223 : `src/temp/refonte-long-terme-discord-compatibilite/PLAN-MAITRE-RESILIENCE-DISCORD-LONG-TERME.md` + `sigilos-discord-resilience.md`.
 - Dernier mémo détaillé : `src/temp/memo-2026-09-14-marche-d49-q15.md` (D49 + Q15) · `src/temp/memo-2026-09-14-marche-embeds-cartes.md` (#657/#659) · archives : `memo-2026-10-06-chantier-fiche-boss.md`.

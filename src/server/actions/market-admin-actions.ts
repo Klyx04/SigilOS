@@ -409,12 +409,13 @@ export async function testMarketConfiguration(
         if (toStringArray(config.marketAllowedPingRoleIds).length === 0) {
             issues.push("Aucun rôle « pinguable » : les créateurs ne pourront mentionner personne à la publication.");
         }
-        if (!config.marketModeratorRoleId) {
-            issues.push("Aucun rôle modérateur défini : seuls les admins pourront modérer le marché.");
-        }
-        if (!config.marketNotifyRoleId) {
-            issues.push("Aucun rôle à mentionner : la publication se fera sans notification de rôle.");
-        }
+        {/* Décision user (14/09/2026) — plus aucun avertissement sur « rôle modérateur » ni
+            « rôle à mentionner » : ces deux réglages **n'existent plus** (ils sont supprimés
+            de `Réglages → Marché`). La modération du marché est portée par la **permission**
+            `market:moderate` (matrice RBAC), et la mention à la publication par les **rôles
+            pinguables** ci-dessus. Les colonnes restent en base (aucune migration) mais ne
+            sont plus alimentées : les signaler comme un défaut de configuration induisait en
+            erreur (constat beta « panneau inutile »). */}
 
         await db.guildConfig.update({
             where: { id: config.id },

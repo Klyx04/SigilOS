@@ -96,6 +96,12 @@ interface TourContextType {
     advance: () => void;
     back: () => void;
     completeTour: () => void;
+    /**
+     * BUG-7 — quitte le tutoriel **proprement** et **sans écran de fin** : la
+     * bulle doit toujours pouvoir être passée (bouton « Passer » ou touche
+     * `Échap`), sinon un utilisateur dont la bulle s'affiche mal reste bloqué.
+     */
+    skipTour: () => void;
     startTour: (phase: TourPhase) => void;
     isCelebrationActive: boolean;
     setCelebrationActive: (active: boolean) => void;
@@ -1807,6 +1813,22 @@ export function TourProvider({
         setCelebrationActive(true);
     };
 
+    /**
+     * BUG-7 — sortie de secours du tutoriel : on masque la bulle et on nettoie la
+     * progression, **sans** écran de célébration (passer n'est pas terminer).
+     *
+     * Pour les tours non rejouables (profil / dashboard), on pose le flag `done`
+     * exactement comme `completeTour` : sans ça, l'auto-start relancerait le tour
+     * à la visite suivante et l'utilisateur « passerait » en boucle.
+     */
+    const skipTour = useCallback(() => {
+        setIsActive(false);
+        if (!tourPhase || !isReplayableTourPhase(tourPhase)) {
+            localStorage.setItem(`sigilos-tour-done-${guildId}`, "true");
+        }
+        localStorage.removeItem(`sigilos-tour-step-${guildId}`);
+    }, [guildId, tourPhase]);
+
     // Le tour du guide (plein écran) ne doit JAMAIS « fuir » sur une autre page :
     // dès qu'on quitte la route du guide alors qu'il est actif, on l'arrête
     // silencieusement (sans écran de célébration — ce n'est pas une fin de tour).
@@ -1849,6 +1871,7 @@ export function TourProvider({
                 advance,
                 back,
                 completeTour,
+                skipTour,
                 startTour,
                 isCelebrationActive,
                 setCelebrationActive,

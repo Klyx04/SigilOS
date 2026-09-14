@@ -60,10 +60,31 @@ Toutes les échéances du marché passent par **une seule route** : `/api/cron/m
 | 6 | `reconcileMarketDiscordMessagesCore` (**1×/jour**) | messages Discord divergents (`syncStatus = FAILED`/`PENDING`) réécrits, ou **recréés** si supprimés à la main (`404`) |
 | 7 | `purgeMarketListingMediaCore` (**1×/jour**) | médias des annonces **terminées** depuis plus de `marketMediaRetentionDays` : fichiers du disque **puis** lignes, chaque annonce purgée auditée (`MEDIA_PURGED`) |
 
-**Crontab VPS** — ligne à ajouter **à la main** (D33) :
+**Crontab VPS** — ligne à ajouter **à la main** (D33). ⚠️ **Corrigée le 14/09/2026** :
+le secret doit venir d'un **fichier** (l'environnement de `cron` est minimal : `$CRON_SECRET`
+y est **vide** ⇒ `401` ⇒ *aucune* télémétrie, panneau God « Inconnu ») et la sortie doit être
+**redirigée** vers le log lu par le panneau (`/home/sigiladmin/SigilOS/logs/market-expire.log`) :
+
 ```bash
-*/10 * * * * curl -s -H "x-cron-secret: $CRON_SECRET" https://sigilos.fr/api/cron/market-expire >/dev/null 2>&1
+# 1) une seule fois : le secret de CET environnement (600, root)
+umask 077 && printf '%s' '<CRON_SECRET du conteneur>' > /home/sigiladmin/.sigilos-cron-secret
+
+# 2) la tâche (adapter l'URL à l'environnement : beta.sigilos.fr / sigilos.fr)
+*/10 * * * * curl -s -o /dev/null -w "market-expire %{http_code} $(date -Is)\n" \
+  -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
+  https://beta.sigilos.fr/api/cron/market-expire >> /home/sigiladmin/SigilOS/logs/market-expire.log 2>&1
 ```
+
+**Diagnostic « Inconnu / Jamais » dans God → Tâches CRON** (constat user du 14/09/2026) — dans
+l'ordre :
+
+| # | À vérifier | Attendu |
+|---|---|---|
+| 1 | `curl -s -o /dev/null -w '%{http_code}' -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" https://beta.sigilos.fr/api/cron/market-expire` | **200** (un **401** = secret vide/erroné ⇒ le panneau affiche désormais « Refusé (401) : … ») |
+| 2 | `docker exec <conteneur-beta> printenv CRON_SECRET` | même valeur que le fichier ci-dessus |
+| 3 | URL de la ligne de crontab | celle de **l'environnement supervisé** (la télémétrie est écrite dans le **Redis de cet environnement**) |
+| 4 | `ls -l /home/sigiladmin/SigilOS/logs/market-expire.log` | fichier existant et **daté de moins de 10 min** (repli disque du panneau : `LOG_DIR` est **codé** dans `src/app/api/god/cron-status/route.ts`) |
+| 5 | `redis-cli -a <pass> keys 'cron:telemetry:*'` | la clé `cron:telemetry:market_expire` existe (TTL 7 j) — **si aucune clé n'existe pour AUCUNE tâche**, le problème est **Redis** (`NOAUTH` ⇒ `recordCronExecution` échoue silencieusement) et non le Marché |
 
 > 💡 **Aucun développement** pour la supervision : la tâche `market_expire` est déclarée dans `KNOWN_CRON_TASKS` (`src/lib/cron-telemetry.ts`) et apparaît **automatiquement** dans **God → Tâches CRON** (`/god?tab=cron-status`) avec son état, sa durée et son récapitulatif de passe.
 

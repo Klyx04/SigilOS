@@ -840,21 +840,24 @@ Le salon est revalidé à chaque sauvegarde et à chaque test : un identifiant f
 
 <h2>3. Rôles</h2>
 <table>
-    <thead><tr><th>Réglage</th><th>Rôle attendu</th></tr></thead>
+    <thead><tr><th>Réglage</th><th>Ce qu'il fait</th></tr></thead>
     <tbody>
-        <tr><td><strong>Rôle à mentionner</strong></td><td>Rôle notifié à chaque publication (facultatif).</td></tr>
-        <tr><td><strong>Rôles « pinguables »</strong></td><td>Rôles que le créateur peut mentionner lui-même (vide = aucun ping possible).</td></tr>
-        <tr><td><strong>Rôle modérateur</strong></td><td>Rôle habilité à retirer / restaurer une annonce et traiter les signalements.</td></tr>
-        <tr><td><strong>Rôle minimum pour publier</strong></td><td>Filtre facultatif : seuls les membres avec ce rôle (ou au-dessus) publient.</td></tr>
+        <tr><td><strong>Rôles « pinguables »</strong></td><td>Rôles que le créateur peut mentionner lui-même à la publication (vide = aucun ping possible).</td></tr>
     </tbody>
 </table>
 
 <div class="callout callout-important">
+<strong>Les droits du Marché viennent de la matrice RBAC, pas des rôles Discord</strong>
+Publier, réserver, offrir et gérer ses propres annonces demandent la permission <code>market:trade</code> ; la modération du marché demande <code>market:moderate</code>. Un second système de droits « par rôle Discord » (rôle minimum, rôle modérateur) a été <strong>retiré</strong> : il faisait doublon et créait deux vérités.
+</div>
+
+<div class="callout callout-tip">
 <strong>Ping vérifié côté serveur</strong>
 Seuls les rôles listés dans « Rôles pinguables » peuvent être mentionnés à la publication : un identifiant envoyé par le navigateur est revalidé en base avant l'envoi et ignoré s'il n'est pas autorisé.
 </div>
 
 <h2>4. Durées, plafonds & rétention</h2>
+<p>Ces valeurs sont <strong>globales</strong> : elles sont pilotées depuis <strong>God → Marché</strong> et appliquées à <strong>toutes</strong> les guildes en une fois. Le panneau de guilde ne les édite plus (un doublon de réglage = deux vérités) ; il ne conserve que ce qui est local par nature (salon de publication, rôles pinguables, tags du forum).</p>
 <table>
     <thead><tr><th>Réglage</th><th>Défaut</th><th>Rôle</th></tr></thead>
     <tbody>
@@ -870,7 +873,7 @@ Seuls les rôles listés dans « Rôles pinguables » peuvent être mentionnés 
 </table>
 
 <h2>5. Bouton « Tester la configuration »</h2>
-<p>Le test vérifie que le salon est joignable, en détecte le type (texte / forum) et liste les points à corriger (rôle à mentionner absent, aucun rôle pinguable, aucun modérateur…). Aucun test n'est bloquant : le marché reste utilisable depuis le dashboard.</p>
+<p>Le test vérifie que le salon est joignable, en détecte le type (texte / forum) et liste les points à corriger (salon absent, aucun rôle pinguable…). Aucun test n'est bloquant : le marché reste utilisable depuis le dashboard.</p>
 
 <h2>6. Modération</h2>
 <p>Les membres de la permission <code>market:moderate</code> peuvent retirer une annonce et traitent les signalements. Chaque action est journalisée dans le journal d'audit du marché (rétention configurable).</p>

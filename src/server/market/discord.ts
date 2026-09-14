@@ -26,10 +26,14 @@ import {
     absoluteDiscordAssetUrl,
     buildForumPostName,
     buildMarketDiscordPayload,
+    pickMarketEmbedImage,
     type MarketDiscordPayloadInput,
     type MarketDiscordStatus,
 } from "@/lib/market/discord-payload";
 import { normalizeItemIconUrl } from "@/lib/market/item-image";
+// Constat beta — une ligne de jet `0 → 0` (« Échangeable : ») n'est pas un jet :
+// elle ne fait pas basculer l'embed en « carte ». Même règle que le serveur.
+import { isStatBearingStatRow } from "@/lib/market/effects";
 import { buildMarketDashboardUrl } from "@/lib/market/discord-interactions";
 import { resolveMarketForumTags } from "@/lib/market/forum-tags";
 import { countPendingMarketOffers } from "@/server/market/counters";
@@ -139,6 +143,28 @@ function resolveDiscordThumbnail(
     const first = listing.components[0];
     if (!first) return null;
     return absoluteItemIconUrl(normalizeItemIconUrl(first.iconUrl, first.dofusDbItemId));
+}
+
+/**
+ * Constat beta (14/09/2026) — **image de l'embed selon la réalité de l'annonce**.
+ *
+ * Un **jet déclaré** ⇒ carte PNG `/api/og/market/[id]` (tooltip Dofus : effets,
+ * couleurs, prix) ; sinon (lot, cosmétique, vente brute) ⇒ **l'image de l'objet
+ * en grand** (celle de la miniature), posée comme image de l'embed : plus de
+ * carte inutile, plus de cadre vide pour un lot sans `ankamaId` d'annonce.
+ *
+ * ⚠️ Une ligne de **métadonnées** (`0 → 0`, « Échangeable : ») ne compte pas
+ * comme un jet (`isStatBearingStatRow`) : elle ne déclenche jamais la carte.
+ */
+function resolveDiscordImageUrl(
+    listing: NonNullable<Awaited<ReturnType<typeof loadListingForDiscord>>>["listing"]
+): string | null {
+    const hasDeclaredJet = listing.stats.some(isStatBearingStatRow);
+    return pickMarketEmbedImage({
+        cardImageUrl: buildMarketImageUrl(listing.id, listing.statsHash),
+        itemImageUrl: resolveDiscordThumbnail(listing),
+        hasDeclaredJet,
+    });
 }
 
 /** Construit le payload pur à partir de l'annonce chargée. */
@@ -253,7 +279,7 @@ export async function publishListingToDiscord(
             return { ok: true, skipped: true };
         }
 
-        const imageUrl = buildMarketImageUrl(listingId, listing.statsHash);
+        const imageUrl = resolveDiscordImageUrl(listing);
         const { payload, forumMode, roleId } = buildPayload(loaded, imageUrl);
         const built = buildMarketDiscordPayload(payload);
 
@@ -359,7 +385,7 @@ export async function syncListingMessage(listingId: string): Promise<MarketDisco
             return publishListingToDiscord(listingId);
         }
 
-        const imageUrl = buildMarketImageUrl(listingId, listing.statsHash);
+        const imageUrl = resolveDiscordImageUrl(listing);
         const { payload } = buildPayload(loaded, imageUrl);
         const built = buildMarketDiscordPayload(payload);
 

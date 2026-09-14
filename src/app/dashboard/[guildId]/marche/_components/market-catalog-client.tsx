@@ -65,7 +65,19 @@ type SerializedListing = {
         user: { name: string | null; image: string | null } | null;
     } | null;
     stats: { id: string; label: string; actualValue: number }[];
-    components: { id: string; name: string; quantity: number; unitLabel: string | null }[];
+    /**
+     * Contenu d'un lot. `iconUrl` / `dofusDbItemId` servent de **repli d'image**
+     * pour une annonce de lot (elle n'a ni icône ni `ankamaId` propres) —
+     * constat beta : le catalogue affichait un cube gris.
+     */
+    components: {
+        id: string;
+        name: string;
+        quantity: number;
+        unitLabel: string | null;
+        iconUrl: string | null;
+        dofusDbItemId: number | null;
+    }[];
 };
 
 interface MarketCatalogClientProps {
@@ -289,14 +301,20 @@ function StatusBadge({ status }: { status: SerializedListing["status"] }) {
 /** Carte d'annonce (vue « Cartes », maquette A). */
 function MarketListingCard({ guildId, listing }: { guildId: string; listing: SerializedListing }) {
     const sellerName = listing.profile?.pseudoDofus || listing.profile?.user?.name || "Membre";
+    /**
+     * Constat beta — une annonce de **lot** n'a pas d'icône ni d'`ankamaId`
+     * propres : la carte affichait un cube gris. Repli : le **1ᵉʳ composant**
+     * du lot (même règle que la fiche d'annonce).
+     */
+    const firstComponent = listing.components[0] ?? null;
     return (
         <Card className="bg-surface/60 border-border hover:border-border-strong transition-colors overflow-hidden">
             <CardContent className="p-4 space-y-3">
                 <div className="flex items-start gap-3">
                     <div className="h-12 w-12 shrink-0 rounded-xl border border-border bg-background/60 flex items-center justify-center overflow-hidden">
                         <MarketItemIcon
-                            src={listing.itemIconUrl}
-                            ankamaId={listing.dofusDbItemId}
+                            src={listing.itemIconUrl ?? firstComponent?.iconUrl ?? null}
+                            ankamaId={listing.dofusDbItemId ?? firstComponent?.dofusDbItemId ?? null}
                             alt={listing.itemName ?? listing.title}
                             size={44}
                             className="p-1"
@@ -373,11 +391,27 @@ function MarketTable({ guildId, listings }: { guildId: string; listings: Seriali
                         {listings.map((listing) => (
                             <tr key={listing.id} className="border-b border-border/60 hover:bg-foreground/[0.02]">
                                 <td className="px-4 py-3">
-                                    <p className="font-semibold text-foreground truncate max-w-[220px]">{listing.title}</p>
-                                    <p className="text-[11px] text-muted-foreground truncate max-w-[220px]">
-                                        {listing.itemName || "—"}
-                                        {listing.itemLevel ? ` · Niv. ${listing.itemLevel}` : ""}
-                                    </p>
+                                    <div className="flex items-center gap-3">
+                                        {/* Constat beta — même repli d'image que la carte
+                                            (une annonce de lot → le 1ᵉʳ composant). */}
+                                        <div className="h-8 w-8 shrink-0 rounded-lg border border-border bg-background/60 flex items-center justify-center overflow-hidden">
+                                            <MarketItemIcon
+                                                src={listing.itemIconUrl ?? listing.components[0]?.iconUrl ?? null}
+                                                ankamaId={listing.dofusDbItemId ?? listing.components[0]?.dofusDbItemId ?? null}
+                                                alt={listing.itemName ?? listing.title}
+                                                size={28}
+                                                className="p-0.5"
+                                                fallback={<Store className="w-4 h-4 text-muted-foreground" />}
+                                            />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="font-semibold text-foreground truncate max-w-[220px]">{listing.title}</p>
+                                            <p className="text-[11px] text-muted-foreground truncate max-w-[220px]">
+                                                {listing.itemName || "—"}
+                                                {listing.itemLevel ? ` · Niv. ${listing.itemLevel}` : ""}
+                                            </p>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td className="px-4 py-3 text-muted-foreground">{MARKET_TYPE_LABELS[listing.type]}</td>
                                 <td className="px-4 py-3 text-muted-foreground">

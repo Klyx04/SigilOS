@@ -22,8 +22,34 @@ const ITEM_BOX = 236;
  * illisible sur Discord.
  */
 const ITEM_BOX_LARGE = 340;
-/** Nombre de lignes de jet affichées (lisibilité Discord, §12.7). */
-const MAX_STAT_LINES = 12;
+/**
+ * Constat beta (14/09) — « n'affiche pas "+3 autres lignes", affiche **toutes**
+ * les lignes, compresse un peu plus intelligemment ». Plus de troncature : la
+ * carte **grandit** et la densité des lignes s'adapte au volume (hauteur de
+ * ligne, icône, valeur, libellé, badge, plage).
+ */
+const CARD_HEADER_HEIGHT = 80;
+const CARD_FOOTER_HEIGHT = 48;
+const CARD_BODY_PADDING = 32;
+
+type StatRowMetrics = {
+    /** Hauteur d'une ligne (px). */
+    row: number;
+    /** Côté de l'icône officielle (px). */
+    icon: number;
+    value: number;
+    label: number;
+    badge: number;
+    range: number;
+};
+
+/** Métriques d'une ligne de jet, **compressées** au-delà de 12 / 18 / 24 lignes. */
+function statRowMetrics(count: number): StatRowMetrics {
+    if (count > 24) return { row: 19, icon: 12, value: 12.5, label: 12.5, badge: 9, range: 10.5 };
+    if (count > 18) return { row: 21, icon: 14, value: 13.5, label: 13.5, badge: 10, range: 11.5 };
+    if (count > 12) return { row: 24, icon: 16, value: 15, label: 14.5, badge: 10, range: 12.5 };
+    return { row: 29, icon: 18, value: 16, label: 15, badge: 11, range: 13 };
+}
 
 /** Statuts dont la carte est publique (déjà exposée dans l'embed Discord). */
 const PUBLIC_STATUSES = ["ACTIVE", "RESERVED", "SOLD", "EXPIRED", "WITHDRAWN"];
@@ -116,7 +142,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 
         // BUG-5 — image de l'objet **inlinée** (WebP siphonné → PNG via Sharp) :
         // Satori ne décode pas le WebP et un auto-appel HTTP pouvait échouer.
-        const itemImageDataUrl = await loadItemImageDataUrl(listing.dofusDbItemId);
+        // Constat beta — un **lot** n'a pas d'`ankamaId` d'annonce : on retombe
+        // sur le **1ᵉʳ composant** (la carte montrait un cadre vide).
+        const itemImageDataUrl = await loadItemImageDataUrl(
+            listing.dofusDbItemId ?? listing.components[0]?.dofusDbItemId ?? null
+        );
         // BUG-5 — icône Kamas officielle, embarquée DANS l'image (spec §2.4).
         const kamasIconDataUrl = loadKamasIconDataUrl();
 
@@ -126,8 +156,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
          * un objet sans jet (objet en grand), jamais « +0 Échangeable : [0] ».
          */
         const statLines = listing.stats.filter(isStatBearingStatRow);
-        const visibleStats = statLines.slice(0, MAX_STAT_LINES);
-        const hiddenStats = Math.max(0, statLines.length - MAX_STAT_LINES);
+        // Constat beta — **toutes** les lignes sont peintes (aucune troncature,
+        // aucun « + N autre(s) ligne(s) ») : la carte grandit, les lignes se
+        // compressent par paliers (`statRowMetrics`).
+        const visibleStats = statLines;
+        const metrics = statRowMetrics(statLines.length);
         /**
          * BUG-4 — pas de lignes de stats ⇒ **objet en grand** (et l'image est
          * proportionnellement plus grande) : c'est le seul contenu utile de la
@@ -136,7 +169,23 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
          */
         const hasStatLines = visibleStats.length > 0;
         const boxSize = hasStatLines ? ITEM_BOX : ITEM_BOX_LARGE;
-        const visibleComponents = listing.components.slice(0, 3);
+        const visibleComponents = listing.components.slice(0, 6);
+        /**
+         * Hauteur **dynamique** : la carte s'allonge avec le nombre de lignes de
+         * jet et le contenu du lot (jamais de ligne perdue, jamais de texte
+         * écrasé) — minimum `CARD_HEIGHT`.
+         */
+        const componentBlockHeight =
+            visibleComponents.length > 0 ? 26 + visibleComponents.length * 21 : 0;
+        const cardHeight = Math.max(
+            CARD_HEIGHT,
+            CARD_HEADER_HEIGHT +
+                CARD_FOOTER_HEIGHT +
+                CARD_BODY_PADDING +
+                (hasStatLines ? 0 : 32) +
+                statLines.length * metrics.row +
+                componentBlockHeight
+        );
 
         // S8.17 — source **unique** du bloc statut (Transcendé, élément + palier,
         // arme de chasse, « Troc accepté » / « Kamas uniquement »).
@@ -172,7 +221,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
                 <div
                     style={{
                         width: CARD_WIDTH,
-                        height: CARD_HEIGHT,
+                        height: cardHeight,
                         display: "flex",
                         flexDirection: "column",
                         background: "linear-gradient(155deg, #14121f 0%, #0b0a12 100%)",
@@ -250,13 +299,13 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
                                 <div key={row.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                     {row.iconUrl ? (
                                         // eslint-disable-next-line @next/next/no-img-element
-                                        <img src={row.iconUrl} width={18} height={18} alt="" />
+                                        <img src={row.iconUrl} width={metrics.icon} height={metrics.icon} alt="" />
                                     ) : (
                                         <div
                                             style={{
                                                 display: "flex",
-                                                width: 18,
-                                                height: 18,
+                                                width: metrics.icon,
+                                                height: metrics.icon,
                                                 borderRadius: 4,
                                                 background: "#3b3560",
                                             }}
@@ -267,21 +316,21 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
                                             display: "flex",
                                             width: 58,
                                             justifyContent: "flex-end",
-                                            fontSize: 16,
+                                            fontSize: metrics.value,
                                             fontWeight: 800,
                                             color: row.color,
                                         }}
                                     >
                                         {row.valueLabel}
                                     </div>
-                                    <div style={{ display: "flex", flex: 1, fontSize: 15, color: "#e5e7eb" }}>
+                                    <div style={{ display: "flex", flex: 1, fontSize: metrics.label, color: "#e5e7eb" }}>
                                         {row.label}
                                     </div>
                                     {row.badge && (
                                         <div
                                             style={{
                                                 display: "flex",
-                                                fontSize: 11,
+                                                fontSize: metrics.badge,
                                                 fontWeight: 800,
                                                 color: row.color,
                                                 border: `1px solid ${row.color}`,
@@ -298,7 +347,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
                                             display: "flex",
                                             width: 82,
                                             justifyContent: "flex-end",
-                                            fontSize: 13,
+                                            fontSize: metrics.range,
                                             color: "#6b7280",
                                         }}
                                     >
@@ -306,11 +355,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
                                     </div>
                                 </div>
                             ))}
-                            {hiddenStats > 0 && (
-                                <div style={{ display: "flex", fontSize: 13, color: "#6b7280" }}>
-                                    + {hiddenStats} autre(s) ligne(s) — voir la fiche sur SigilOS.
-                                </div>
-                            )}
                             {visibleComponents.length > 0 && (
                                 <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 4 }}>
                                     <div
@@ -497,7 +541,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
             ),
             {
                 width: CARD_WIDTH,
-                height: CARD_HEIGHT,
+                height: cardHeight,
                 headers: {
                     "Cache-Control": "public, max-age=86400, stale-while-revalidate=43200",
                 },

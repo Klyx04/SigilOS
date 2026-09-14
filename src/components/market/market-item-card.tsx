@@ -148,7 +148,8 @@ export function MarketItemCard({ data, className }: { data: MarketItemCardData; 
      * sur la fiche d'un lot : quand l'annonce ne porte **aucun jet** (lot,
      * cosmétique, vente brute), la colonne d'effets est vide et la grande
      * vignette ne fait que creuser du blanc. On passe alors en présentation
-     * **compacte** (vignette 80 px centrée, textes agrandis, marges serrées).
+     * **compacte** : vignette 64 px **à gauche, collée au texte**, contenus du lot
+     * et quantités dans la même colonne, textes agrandis, marges serrées.
      * Un équipement **avec jet déclaré** garde la composition « tooltip Dofus ».
      */
     const compact = stats.length === 0;
@@ -160,8 +161,43 @@ export function MarketItemCard({ data, className }: { data: MarketItemCardData; 
                 className
             )}
         >
-            {/* 2 — Nom · niveau/type · panoplie · image */}
-            <div className={cn("flex gap-4", compact ? "items-center" : "items-start")}>
+            {/* 2 — Image · Nom · niveau/type · panoplie
+                Constat beta (14/09) — la vignette est **dans le DOM en premier** :
+                en présentation compacte elle est à **gauche**, collée au texte
+                (fini le « vide immense au milieu » d'une icône isolée à droite) ;
+                en composition « tooltip Dofus » (objet **avec jet**) la ligne est
+                inversée (`flex-row-reverse`) pour garder l'objet à droite, comme
+                la tooltip du jeu. */}
+            <div
+                className={cn(
+                    "flex gap-4",
+                    compact ? "flex-row items-start" : "flex-row-reverse items-start"
+                )}
+            >
+                <div
+                    className={cn(
+                        "relative shrink-0 border border-border-strong bg-background/60",
+                        compact ? "h-16 w-16 rounded-xl" : "h-28 w-28 rounded-2xl"
+                    )}
+                >
+                    {itemIconUrl ? (
+                        <Image
+                            src={itemIconUrl}
+                            alt={data.name}
+                            fill
+                            sizes={compact ? "64px" : "112px"}
+                            className={compact ? "object-contain p-1" : "object-contain p-2"}
+                            unoptimized
+                        />
+                    ) : (
+                        <Package
+                            className={cn(
+                                "absolute inset-0 m-auto text-muted-foreground/40",
+                                compact ? "h-8 w-8" : "h-12 w-12"
+                            )}
+                        />
+                    )}
+                </div>
                 <div className="min-w-0 flex-1">
                     <h3
                         className={cn(
@@ -186,32 +222,59 @@ export function MarketItemCard({ data, className }: { data: MarketItemCardData; 
                             {data.itemSetName}
                         </p>
                     )}
-                </div>
-                {/* 📐 Constat beta du 13/09 : l'objet était trop petit — il passe en
-                    112 px et sert de repère visuel principal de la carte. Repli :
-                    l'icône du premier composant du lot (annonce sans objet). */}
-                <div
-                    className={cn(
-                        "relative shrink-0 rounded-2xl border border-border-strong bg-background/60",
-                        compact ? "h-20 w-20" : "h-28 w-28"
+                    {components.length > 0 && (
+                        <div className={cn(compact ? "mt-2" : "mt-4")}>
+                            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">
+                                Contenu du lot
+                            </p>
+                            <ul className="mt-1 space-y-0.5">
+                                {components.map((component, index) => (
+                                    <li
+                                        key={index}
+                                        className={cn(
+                                            "flex items-center gap-2 text-foreground/90",
+                                            compact ? "text-body" : "text-label"
+                                        )}
+                                    >
+                                        <span className="font-black tabular-nums text-gold">
+                                            ×{formatGroupedInteger(component.quantity)}
+                                        </span>
+                                        <span className="min-w-0 flex-1 truncate">{component.name}</span>
+                                        {component.unitLabel && (
+                                            <span className="text-caption text-muted-foreground">
+                                                {component.unitLabel}
+                                            </span>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
                     )}
-                >
-                    {itemIconUrl ? (
-                        <Image
-                            src={itemIconUrl}
-                            alt={data.name}
-                            fill
-                            sizes={compact ? "80px" : "112px"}
-                            className={compact ? "object-contain p-1.5" : "object-contain p-2"}
-                            unoptimized
-                        />
-                    ) : (
-                        <Package
+                    {(data.quantity != null || data.minQuantity != null) && (
+                        <div
                             className={cn(
-                                "absolute inset-0 m-auto text-muted-foreground/40",
-                                compact ? "h-9 w-9" : "h-12 w-12"
+                                "mt-2 space-y-0.5 text-muted-foreground",
+                                compact ? "text-body-sm" : "text-caption"
                             )}
-                        />
+                        >
+                            {data.quantity != null && (
+                                <p>
+                                    Quantité du lot :{" "}
+                                    <span className="font-bold tabular-nums text-foreground">
+                                        {formatGroupedInteger(data.quantity)}
+                                    </span>
+                                    {data.unitLabel ? ` ${data.unitLabel}` : ""}
+                                </p>
+                            )}
+                            {data.minQuantity != null && (
+                                <p>
+                                    Minimum par acheteur :{" "}
+                                    <span className="font-bold tabular-nums text-foreground">
+                                        {formatGroupedInteger(data.minQuantity)}
+                                    </span>
+                                </p>
+                            )}
+                        </div>
                     )}
                 </div>
             </div>
@@ -285,9 +348,11 @@ export function MarketItemCard({ data, className }: { data: MarketItemCardData; 
                 <p className="mt-3 text-label font-bold text-gold">Modifié par : {data.forgedBy}</p>
             )}
 
-            {/* Contenu du lot (ressources) */}
-            {components.length > 0 && (
-                <div className={cn(compact ? "mt-3" : "mt-4")}>
+            {/* Contenu du lot (ressources) — **seulement** hors présentation
+                compacte : en compact, il vit dans la colonne de droite, collé à la
+                vignette (constat beta « vide immense au milieu »). */}
+            {!compact && components.length > 0 && (
+                <div className="mt-4">
                     <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">
                         Contenu du lot
                     </p>
@@ -315,9 +380,10 @@ export function MarketItemCard({ data, className }: { data: MarketItemCardData; 
                 </div>
             )}
 
-            {/* Constat beta — quantité du lot & minimum par acheteur */}
-            {(data.quantity != null || data.minQuantity != null) && (
-                <div className={cn("mt-3 space-y-0.5 text-muted-foreground", compact ? "text-body-sm" : "text-caption")}>
+            {/* Constat beta — quantité du lot & minimum par acheteur (hors compact :
+                déjà rendus dans la colonne de la vignette). */}
+            {!compact && (data.quantity != null || data.minQuantity != null) && (
+                <div className="mt-3 space-y-0.5 text-caption text-muted-foreground">
                     {data.quantity != null && (
                         <p>
                             Quantité du lot :{" "}

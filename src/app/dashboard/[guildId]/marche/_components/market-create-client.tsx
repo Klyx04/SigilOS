@@ -53,22 +53,39 @@ import {
 } from "@/lib/market/item-families";
 import { MarketItemCard } from "@/components/market/market-item-card";
 import { MarketJetEditor } from "./market-jet-editor";
+import { MarketBundleItemsEditor } from "./market-bundle-items-editor";
+import {
+    MARKET_BUNDLE_MAX_ITEMS,
+    MARKET_BUNDLE_MIN_ITEMS,
+    computeBundleTotal,
+    type BundleItemInput,
+} from "@/lib/market/bundle";
 import { MarketPublishStep, type MarketPublishContext } from "./market-publish-step";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Check, Hammer, Loader2, Package, Plus, Save, Search, Sparkles, Store, X } from "lucide-react";
+import { Boxes, ChevronLeft, ChevronRight, Check, Hammer, Loader2, Package, Plus, Save, Search, Sparkles, Store, X } from "lucide-react";
 
 /**
  * Nature de l'annonce (BUG-11) : `EQUIPMENT` (objet du catalogue, éventuellement
- * forgé), `COSMETIC` (apparat / costume : vente brute) et `RESOURCE`
- * (Ressources / Autres : lot à quantité libre, aucune modification).
+ * forgé), `COSMETIC` (apparat / costume : vente brute), `RESOURCE`
+ * (Ressources / Autres : lot à quantité libre, aucune modification) et
+ * **`BUNDLE`** — 🧺 *lot multiple* (décision user du 14/09/2026) : **2 à 5 objets
+ * différents** vendus ensemble, chacun avec **son propre prix** (option A : un
+ * message Discord par objet). Le prix vit donc sur l'objet, jamais sur le lot.
  */
-type ListingKind = "EQUIPMENT" | "COSMETIC" | "RESOURCE";
+type ListingKind = "EQUIPMENT" | "COSMETIC" | "RESOURCE" | "BUNDLE";
 
-/** Nature d'annonce ↔ famille d'objet (résolution **serveur** ensuite). */
+/**
+ * Nature d'annonce ↔ famille d'objet (résolution **serveur** ensuite).
+ *
+ * ⚠️ Un lot multiple est **hétérogène** : il n'a pas de famille de catalogue
+ * (la famille ne sert qu'au sélecteur d'objet, étape 2) — on retient la famille
+ * générique « Ressources / Autres » sans que cela ne contraigne les objets du lot.
+ */
 const KIND_TO_FAMILY: Record<ListingKind, MarketItemFamily> = {
     EQUIPMENT: "EQUIPMENT",
     COSMETIC: "COSMETIC",
     RESOURCE: "RESOURCES_OTHER",
+    BUNDLE: "RESOURCES_OTHER",
 };
 
 /**
@@ -86,6 +103,11 @@ export type ComponentDraft = {
     iconUrl: string | null;
     quantity: number;
     unitLabel: string | null;
+    /**
+     * 🧺 Lot multiple uniquement — **prix de CET objet** en kamas (`null` pour un
+     * lot de ressources classique, où le prix reste global à l'annonce).
+     */
+    priceKamas?: number | null;
 };
 
 /**
@@ -462,14 +484,41 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
         forge,
     ]);
 
+    /**
+     * 🧺 Lot multiple — objets du lot vus par le moteur pur (`BundleItemInput`) :
+     * le prix par objet vit dans `components[].priceKamas`.
+     */
+    const bundleItems: BundleItemInput[] = useMemo(
+        () =>
+            components.map((component) => ({
+                dofusDbItemId: component.dofusDbItemId,
+                name: component.name,
+                iconUrl: component.iconUrl,
+                quantity: component.quantity,
+                unitLabel: component.unitLabel,
+                priceKamas: component.priceKamas ?? 0,
+            })),
+        [components]
+    );
+
+    /** Tous les objets du lot sont nommés et prixés (borne 2→5, cf. moteur pur). */
+    const bundleItemsValid =
+        components.length >= MARKET_BUNDLE_MIN_ITEMS &&
+        components.length <= MARKET_BUNDLE_MAX_ITEMS &&
+        components.every(
+            (component) => component.name.trim().length > 0 && (component.priceKamas ?? 0) > 0
+        );
+
     const canGoNext = step === 1
         ? true
         : step === 2
-            ? kind !== "RESOURCE"
-                ? !!item && transcendenceConflicts.length === 0
-                : components.length > 0
+            ? kind === "BUNDLE"
+                ? bundleItemsValid
+                : kind !== "RESOURCE"
+                    ? !!item && transcendenceConflicts.length === 0
+                    : components.length > 0
             : step === 3
-                ? title.trim().length >= 3 && !priceInvalid
+                ? title.trim().length >= 3 && (kind === "BUNDLE" ? bundleItemsValid : !priceInvalid)
                 : true; // étape 4 — publication Discord
 
     function togglePing(roleId: string) {
@@ -503,6 +552,30 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
     }
 
     function buildPayload() {
+        // 🧺 Lot multiple (décision user du 14/09/2026) — le prix vit sur **chaque
+        // objet** : on envoie `items[]` (le serveur revalide 2→5 via
+        // `bundleItemsSchema` et **recalcule le total**), et **aucun** prix global.
+        if (kind === "BUNDLE") {
+            return {
+                type: "BUNDLE" as const,
+                title: title.trim(),
+                description: description.trim() || null,
+                priceKamas: null,
+                negotiable,
+                acceptsTrade,
+                items: bundleItems.map((entry) => ({
+                    dofusDbItemId: entry.dofusDbItemId ?? null,
+                    name: entry.name.trim(),
+                    iconUrl: entry.iconUrl ?? null,
+                    quantity: entry.quantity,
+                    unitLabel: entry.unitLabel ?? null,
+                    priceKamas: entry.priceKamas,
+                })),
+                components: [],
+                stats: [],
+            };
+        }
+
         // BUG-11 — « Cosmétique » est un **objet** : le type d'annonce existant
         // (`MarketListingType`) reste `EQUIPMENT` (aucune migration) ; seul
         // `RESOURCES_OTHER` produit un **lot** (`RESOURCE`).
@@ -727,6 +800,37 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
                 />
             )}
 
+            {/* 🧺 Lot multiple — 2 à 5 objets, **prix par objet** (décision user
+                du 14/09/2026). Éditeur partagé : mêmes bornes que le serveur. */}
+            {step === 2 && kind === "BUNDLE" && (
+                <MarketBundleItemsEditor
+                    items={bundleItems}
+                    onChange={(items) =>
+                        setComponents(
+                            items.map((entry, index) => ({
+                                key: `bundle-${index}-${entry.name}`,
+                                dofusDbItemId: entry.dofusDbItemId ?? null,
+                                name: entry.name,
+                                iconUrl: entry.iconUrl ?? null,
+                                quantity: entry.quantity,
+                                unitLabel: entry.unitLabel ?? null,
+                                priceKamas: entry.priceKamas,
+                            }))
+                        )
+                    }
+                />
+            )}
+
+            {/* 🧺 Lot multiple — le prix est déjà fixé **objet par objet** : ici on
+                nomme le lot et on pose ses conditions (aucun montant global). */}
+            {step === 3 && kind === "BUNDLE" && (
+                <p className="text-xs text-muted-foreground">
+                    🧺 Lot multiple : chaque objet a <strong>son</strong> prix (étape 2, total&nbsp;:{" "}
+                    {formatKamas(computeBundleTotal(bundleItems))}). Ici tu nommes ton lot et tu fixes ses
+                    conditions — le montant global n&apos;est pas utilisé.
+                </p>
+            )}
+
             {step === 3 && (
                 <StepPricing
                     kind={kind}
@@ -882,22 +986,38 @@ function StepIndicator({ step, stepCount = 4 }: { step: 1 | 2 | 3 | 4; stepCount
     );
 }
 
-/** Étape 1 — nature de l'annonce (BUG-11 : 3 familles, aucune autre). */
+/** Étape 1 — nature de l'annonce (BUG-11 : 3 familles + 🧺 lot multiple). */
 function StepNature({ kind, onPick }: { kind: ListingKind; onPick: (kind: ListingKind) => void }) {
     /**
-     * Les 3 natures viennent de `MARKET_ITEM_FAMILY_LABELS` : « Équipement
+     * Les 3 premières natures viennent de `MARKET_ITEM_FAMILY_LABELS` : « Équipement
      * forgemagie » et « Lot de ressources » sont **remplacés** par
-     * « Équipements », « Cosmétique » et « Ressources / Autres » (BUG-11).
+     * « Équipements », « Cosmétique » et « Ressources / Autres » (BUG-11). La 4ᵉ,
+     * **« Lot multiple »**, est une décision user du 14/09/2026 : un lot est
+     * **hétérogène**, il n'a donc pas de libellé de famille (libellé propre).
      */
-    const options: Array<{ kind: ListingKind; Icon: typeof Hammer; tone: string }> = [
+    const options: Array<{
+        kind: ListingKind;
+        Icon: typeof Hammer;
+        tone: string;
+        label?: string;
+        description?: string;
+    }> = [
         { kind: "EQUIPMENT", Icon: Hammer, tone: "text-gold" },
         { kind: "COSMETIC", Icon: Sparkles, tone: "text-violet-400" },
         { kind: "RESOURCE", Icon: Package, tone: "text-info" },
+        {
+            kind: "BUNDLE",
+            Icon: Boxes,
+            tone: "text-success",
+            label: "Lot multiple",
+            description:
+                "De 2 à 5 objets différents vendus ensemble : chaque objet a son prix et son message Discord.",
+        },
     ];
 
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {options.map(({ kind: optionKind, Icon, tone }) => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {options.map(({ kind: optionKind, Icon, tone, label, description: optionDescription }) => {
                 const family = KIND_TO_FAMILY[optionKind];
                 const selected = kind === optionKind;
                 return (
@@ -913,9 +1033,11 @@ function StepNature({ kind, onPick }: { kind: ListingKind; onPick: (kind: Listin
                         )}
                     >
                         <Icon className={cn("w-6 h-6 mb-3", selected ? tone : "text-muted-foreground")} />
-                        <p className="font-bold text-foreground">{MARKET_ITEM_FAMILY_LABELS[family]}</p>
+                        <p className="font-bold text-foreground">
+                            {label ?? MARKET_ITEM_FAMILY_LABELS[family]}
+                        </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                            {MARKET_ITEM_FAMILY_DESCRIPTIONS[family]}
+                            {optionDescription ?? MARKET_ITEM_FAMILY_DESCRIPTIONS[family]}
                         </p>
                     </button>
                 );
@@ -923,6 +1045,8 @@ function StepNature({ kind, onPick }: { kind: ListingKind; onPick: (kind: Listin
         </div>
     );
 }
+
+/* (ancien rendu 3 colonnes retiré — remplacé par la version 4 natures ci-dessus) */
 
 
 /** Étape 2 (équipement) — sélection d'un objet du catalogue local. */

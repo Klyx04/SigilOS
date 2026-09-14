@@ -203,8 +203,12 @@ const marketStatSchema = z.object({
     origin: z.enum(["NATIVE", "EXO"]).default("NATIVE"),
 });
 
+/** 🧺 Lot multiple — bornes & règles d'objets **partagées** avec le moteur. */
+import { bundleItemSchema, MARKET_BUNDLE_MAX_ITEMS } from "@/lib/market/bundle";
+
 const marketListingBaseSchema = z.object({
-    type: z.enum(["EQUIPMENT", "RESOURCE", "SERVICE", "WANTED"]),
+    // 🧺 Décision user du 14/09/2026 — `BUNDLE` = lot de 2 à 5 objets, **prix par objet**.
+    type: z.enum(["EQUIPMENT", "RESOURCE", "SERVICE", "WANTED", "BUNDLE"]),
     title: z.string().trim().min(3, "Titre trop court").max(MARKET_LIMITS.TITLE_MAX),
     description: z.string().trim().max(MARKET_LIMITS.DESCRIPTION_MAX).nullable().optional(),
     forgedBy: z.string().trim().max(80).nullable().optional(),
@@ -220,6 +224,15 @@ const marketListingBaseSchema = z.object({
     unitLabel: z.string().trim().max(40).nullable().optional(),
     minQuantity: z.number().int().positive().max(1_000_000_000).nullable().optional(),
     components: z.array(marketComponentSchema).max(MARKET_LIMITS.MAX_COMPONENTS).default([]),
+    /**
+     * 🧺 Lot multiple — objets **avec leur prix** (transport). ⚠️ Le schéma porte
+     * uniquement le **type d'un objet** et la borne haute : `.default([])` est
+     * **validé** par Zod, donc y mettre la règle « au moins 2 objets » rejetterait
+     * toutes les annonces non-lot. La règle métier (2 → 5, noms uniques) vit dans
+     * `bundleItemsSchema`, appliquée par le moteur `createBundleListingCore`
+     * (§13.4 : une seule source de vérité, jamais dupliquée).
+     */
+    items: z.array(bundleItemSchema).max(MARKET_BUNDLE_MAX_ITEMS).default([]),
     stats: z.array(marketStatSchema).max(MARKET_LIMITS.MAX_STATS).default([]),
     // S8.10 — forge réelle déclarée (source unique : `forge-guards.ts`).
     ...marketForgeFieldsSchema.shape,
@@ -1521,6 +1534,25 @@ export async function createMarketListing(
                 success: false,
                 error: `Tu as atteint ton plafond de ${guildConfig.marketMaxActivePerMember} annonces actives.`,
             };
+        }
+
+        // ── 🧺 Lot multiple (décision user du 14/09/2026) ────────────────────
+        // Le prix vit sur **chaque objet** : la création part dans le moteur
+        // partagé (`createBundleListingCore`), qui **revalide** les bornes 2→5 et
+        // recalcule le total côté serveur. Aucune règle dupliquée ici (§13.4).
+        if (data.type === "BUNDLE") {
+            const { createBundleListingCore } = await import("@/server/market/bundle");
+            const bundleSession = await auth();
+            const created = await createBundleListingCore({
+                guildId: guildConfig.id,
+                profileId: user.profileId,
+                userId: bundleSession?.user?.id ?? "",
+                title: data.title,
+                description: sanitizeMarketText(data.description),
+                items: data.items,
+            });
+            if (!created.success) return { success: false, error: created.error };
+            return { success: true, data: { id: created.data.listingId } };
         }
 
         const resolvedStats = await resolveServerStats(data.dofusDbItemId, data.stats);

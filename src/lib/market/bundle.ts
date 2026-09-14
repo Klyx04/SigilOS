@@ -15,6 +15,8 @@
 
 import { z } from "zod";
 
+import { formatGroupedInteger } from "@/lib/market/kamas";
+
 /** Un lot se compose au minimum de **2** objets (sinon c'est une annonce simple). */
 export const MARKET_BUNDLE_MIN_ITEMS = 2;
 
@@ -94,9 +96,15 @@ export function computeItemUnitPrice(priceKamas: number, quantity: number): numb
     return Math.round(Math.max(0, priceKamas) / quantity);
 }
 
-/** « 12 500 » → `12 500 kamas` (lecture FR). */
+/**
+ * « 12 500 » → `12 500 kamas`.
+ *
+ * ⚠️ **BUG-9** : formatage **déterministe** via le formateur partagé
+ * (`formatGroupedInteger`, espace fine insécable U+202F) — jamais
+ * `toLocaleString`, dont le rendu dépend de l'ICU du serveur ou du navigateur.
+ */
 export function formatKamas(value: number): string {
-    return `${Math.max(0, Math.trunc(value)).toLocaleString("fr-FR")} kamas`;
+    return `${formatGroupedInteger(Math.max(0, Math.trunc(value)))} kamas`;
 }
 
 /**

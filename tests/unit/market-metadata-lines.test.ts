@@ -51,8 +51,11 @@ describe("constat beta — les lignes de métadonnées `0 → 0` ne sont jamais 
         expect(source).toMatch(
             /const range = normalizeNativeRange\(fx\.from, fx\.to\);\s*\n\s*return range\.from !== 0 \|\| range\.to !== 0;/
         );
-        // L'assistant ne pré-remplit plus jamais une ligne fantôme.
-        expect(source).toMatch(/nativeEffects\.filter\(isStatBearingNativeEffect\)\.map\(/);
+        // L'assistant ne pré-remplit plus jamais une ligne fantôme. Depuis le
+        // 14/09 (constat « +15975 Effet »), la règle composée
+        // `isDisplayableNativeEffect` (métadonnée `0 → 0` **ET** ligne
+        // « pouvoir » de capacité légendaire) est la seule utilisée ici.
+        expect(source).toMatch(/nativeEffects\.filter\(isDisplayableNativeEffect\)\.map\(/);
     });
 
     it("le serveur ne persiste plus ces lignes et la garde de famille reste intacte", () => {

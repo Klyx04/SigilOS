@@ -71,6 +71,14 @@ const KIND_TO_FAMILY: Record<ListingKind, MarketItemFamily> = {
     RESOURCE: "RESOURCES_OTHER",
 };
 
+/**
+ * Constat beta — référence **stable** de « aucune ligne de jet déclarable »
+ * (famille « vente brute » : cosmétique, apparat, compagnon, Dofus…). Elle
+ * évite de recréer un tableau à chaque rendu, donc de faire recalculer les
+ * `useMemo` qui en dépendent (carte publiée, embeds, récapitulatif).
+ */
+const NO_DECLARABLE_STATS: MarketStatDraft[] = [];
+
 export type ComponentDraft = {
     key: string;
     dofusDbItemId: number | null;
@@ -247,26 +255,6 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
     const isTranscended = forge.transcendenceRuneId != null;
 
     /**
-     * S8.11 — lignes incompatibles avec la Transcendance, calculées **côté
-     * client** avec la même règle pure que le serveur : bandeau + bouton
-     * « Continuer » bloqué, jamais un refus surprise à l'enregistrement.
-     */
-    const transcendenceConflicts = useMemo(
-        () =>
-            isTranscended
-                ? describeTranscendenceConflicts(
-                      stats.map((stat) => ({
-                          label: stat.label,
-                          origin: stat.origin,
-                          naturalMax: stat.naturalMax,
-                          actualValue: stat.actualValue,
-                      }))
-                  )
-                : [],
-        [isTranscended, stats]
-    );
-
-    /**
      * BUG-11/T10 — **politique de l'objet choisi** (famille + forge / jet / lot /
      * légendaire). C'est la **même fonction pure** que celle appliquée par le
      * serveur : l'UI n'ouvre jamais un bloc que le serveur refusera
@@ -284,6 +272,42 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
                 category: item?.category ?? null,
             }),
         [item]
+    );
+
+    /**
+     * Constat beta — **jamais de jet déclaré pour une famille « vente brute »**
+     * (cosmétique, apparat, compagnon, Dofus, Trophée, percepteur…).
+     *
+     * Le serveur applique déjà la même règle (`statEditorAllowed`) et refuse
+     * toute statistique sur ces objets. L'assistant cessait pourtant d'en
+     * **pré-remplir** depuis le catalogue : une monture d'apparat partait avec
+     * deux lignes fantômes (« Échangeable : », « Compatible avec : », mesurées
+     * `0 → 0` sur l'objet `23559`), la carte les affichait et la publication
+     * échouait sur « aucune statistique ne peut être déclarée » — alors que le
+     * vendeur n'avait rien déclaré. Ces lignes ne sont donc plus **affichées**
+     * (carte du catalogue, carte publiée) ni **envoyées**. C'est la **seule**
+     * source du jet affiché et publié.
+     */
+    const declarableStats = itemPolicy.statEditorAllowed ? stats : NO_DECLARABLE_STATS;
+
+    /**
+     * S8.11 — lignes incompatibles avec la Transcendance, calculées **côté
+     * client** avec la même règle pure que le serveur : bandeau + bouton
+     * « Continuer » bloqué, jamais un refus surprise à l'enregistrement.
+     */
+    const transcendenceConflicts = useMemo(
+        () =>
+            isTranscended
+                ? describeTranscendenceConflicts(
+                      declarableStats.map((stat) => ({
+                          label: stat.label,
+                          origin: stat.origin,
+                          naturalMax: stat.naturalMax,
+                          actualValue: stat.actualValue,
+                      }))
+                  )
+                : [],
+        [isTranscended, declarableStats]
     );
 
     /**
@@ -331,10 +355,12 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
         if (!item) return null;
         // Correction 13/09 — lignes fidèles : libellés du référentiel siphonné et
         // **signe** des malus (« -6 à -8 Esquive PA »), valeurs = jets MAX.
-        const drafts = buildNativeStatDrafts(
-            (item.nativeEffects as MarketNativeEffect[] | null) ?? null,
-            statDraftOptions
-        );
+        const drafts = itemPolicy.statEditorAllowed
+            ? buildNativeStatDrafts(
+                  (item.nativeEffects as MarketNativeEffect[] | null) ?? null,
+                  statDraftOptions
+              )
+            : [];
         return {
             name: item.name,
             level: item.level,
@@ -365,7 +391,7 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
                 }),
             })),
         };
-    }, [item, isTranscended, forge, statDraftOptions]);
+    }, [item, isTranscended, forge, statDraftOptions, itemPolicy.statEditorAllowed]);
 
     /**
      * Correction 13/09 — **jet déclaré** envoyé à l'aperçu Discord : l'embed
@@ -373,14 +399,14 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
      */
     const publishStats = useMemo(
         () =>
-            stats.map((stat) => ({
+            declarableStats.map((stat) => ({
                 label: stat.label,
                 actualValue: stat.actualValue,
                 naturalMin: stat.naturalMin,
                 naturalMax: stat.naturalMax,
                 origin: stat.origin,
             })),
-        [stats]
+        [declarableStats]
     );
 
     /**
@@ -408,7 +434,7 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
             transcendenceLabel: forge.transcendenceLabel,
             strikeElement: forge.strikeElement,
             huntingWeapon: forge.huntingWeapon.trim() || null,
-            stats: stats.map((stat) => ({
+            stats: declarableStats.map((stat) => ({
                 effectId: stat.effectId,
                 characteristic: stat.characteristic,
                 label: stat.label,
@@ -431,7 +457,7 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
         description,
         forgedBy,
         parsedPrice,
-        stats,
+        declarableStats,
         isTranscended,
         forge,
     ]);
@@ -507,7 +533,7 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
                 quantity: component.quantity,
                 unitLabel: component.unitLabel,
             })),
-            stats: stats.map((stat) => ({
+            stats: declarableStats.map((stat) => ({
                 effectId: stat.effectId,
                 characteristic: stat.characteristic,
                 label: stat.label,
@@ -605,12 +631,26 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
                         onSelect={(picked) => {
                             setItem(picked);
                             if (!title.trim()) setTitle(picked.name);
-                            // S2.8 — plages natives pré-remplies (source catalogue).
+                            /**
+                             * S2.8 — plages natives pré-remplies (source
+                             * catalogue), **sauf** famille « vente brute »
+                             * (constat beta) : une monture d'apparat ne part
+                             * plus avec ses lignes de métadonnées `0 → 0`.
+                             * Le serveur reste seul juge (`statEditorAllowed`).
+                             */
+                            const pickedPolicy = resolveMarketItemPolicy({
+                                typeId: picked.typeId ?? null,
+                                superTypeId: picked.superTypeId ?? null,
+                                typeName: picked.typeName ?? null,
+                                category: picked.category ?? null,
+                            });
                             setStats(
-                                buildNativeStatDrafts(
-                                    (picked.nativeEffects as MarketNativeEffect[] | null) ?? null,
-                                    statDraftOptions
-                                )
+                                pickedPolicy.statEditorAllowed
+                                    ? buildNativeStatDrafts(
+                                          (picked.nativeEffects as MarketNativeEffect[] | null) ?? null,
+                                          statDraftOptions
+                                      )
+                                    : []
                             );
                         }}
                         onClear={() => {
@@ -740,7 +780,7 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
                         elementPotionTier={forge.elementPotionTier}
                         huntingWeapon={forge.huntingWeapon.trim() || null}
                         forgedBy={forgedBy.trim() || null}
-                        exoLabels={stats.filter((stat) => stat.origin === "EXO").map((stat) => stat.label)}
+                        exoLabels={declarableStats.filter((stat) => stat.origin === "EXO").map((stat) => stat.label)}
                         // Correction 13/09 — le jet déclaré part dans l'embed.
                         stats={publishStats}
                         forgeRecap={forgeRecap}

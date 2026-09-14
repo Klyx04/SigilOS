@@ -21,6 +21,8 @@ import {
     findNativeRange,
     isNativeEffect,
     buildNativeStatDrafts,
+    isStatBearingNativeEffect,
+    isStatBearingStatRow,
     applyEffectSign,
     resolveNativeStatLabel,
     EXO_EFFECT_PRESETS,
@@ -576,4 +578,73 @@ describe("effects — signe déterministe (3ᵉ passe, 13/09)", () => {
         });
     });
 });
+
+/**
+ * Constat beta 13/09/2026 — « tout ce qui est encore dans cosmétique continue
+ * d'afficher : Effets · +0 Échangeable : [0] · +0 Compatible avec : [0] ».
+ *
+ * 📏 Payload **réel** mesuré en base (`ankamaId 23559` *Gladius Moldus*,
+ * `typeId 324` « Monture d'apparat », `category cosmetics`) : **5** entrées
+ * `nativeEffects`, **toutes** en `0 → 0` — `983` « Échangeable : » puis `1179`
+ * ×4 « Compatible avec : » (`GameEffect`). Après dédoublonnage : les **deux**
+ * lignes de la capture. Aucune n'est un jet ⇒ la carte ne doit plus les peindre
+ * et l'assistant ne doit plus les pré-remplir (sinon le serveur refusait la
+ * publication d'un cosmétique : « aucune statistique ne peut être déclarée »).
+ */
+describe("effects — lignes de métadonnées 0 → 0 (constat beta)", () => {
+    /** Payload brut mesuré sur l'objet `23559` (avant dédoublonnage). */
+    const gladiusMoldus: MarketNativeEffect[] = [
+        { effectId: 983, characteristic: null, from: 0, to: 0, category: null, elementId: null },
+        { effectId: 1179, characteristic: null, from: 0, to: 0, category: null, elementId: null },
+        { effectId: 1179, characteristic: null, from: 0, to: 0, category: null, elementId: null },
+    ];
+
+    it("isStatBearingNativeEffect écarte les métadonnées du catalogue", () => {
+        // « Échangeable : » / « Compatible avec : » (mesurés).
+        expect(isStatBearingNativeEffect({ from: 0, to: 0 })).toBe(false);
+        expect(isStatBearingNativeEffect({ from: -0, to: 0 })).toBe(false);
+        // Une plage **réelle** est toujours un jet.
+        expect(isStatBearingNativeEffect({ from: 351, to: 400 })).toBe(true);
+        // Valeurs **fixes** (`diceSide = 0`) : jamais écartées.
+        expect(isStatBearingNativeEffect({ from: 2, to: 0 })).toBe(true);
+        expect(isStatBearingNativeEffect({ from: 30, to: 0 })).toBe(true);
+        // Malus en plage (négatif).
+        expect(isStatBearingNativeEffect({ from: -6, to: -8 })).toBe(true);
+    });
+
+    it("buildNativeStatDrafts ne pré-remplit plus aucune ligne fantôme", () => {
+        // Monture d'apparat : 0 ligne (la carte n'affiche plus de bloc EFFETS).
+        expect(buildNativeStatDrafts(gladiusMoldus, null)).toEqual([]);
+        // Contre-épreuve : un objet réel garde **toutes** ses lignes.
+        const cape: MarketNativeEffect[] = [
+            { effectId: 125, characteristic: null, from: 351, to: 400, category: null, elementId: null },
+            { effectId: 117, characteristic: null, from: 2, to: 0, category: null, elementId: null },
+            { effectId: 421, characteristic: null, from: 30, to: 0, category: null, elementId: null },
+        ];
+        expect(buildNativeStatDrafts(cape, null)).toHaveLength(3);
+        // Un objet dont **toutes** les lignes sont des métadonnées n'a aucun jet.
+        expect(buildNativeStatDrafts(null, null)).toEqual([]);
+        expect(buildNativeStatDrafts([], null)).toEqual([]);
+    });
+
+    it("isStatBearingStatRow applique la même règle aux lignes persistées", () => {
+        // Bruit : plage `0 → 0` **et** valeur déclarée `0` (annonces anciennes).
+        expect(isStatBearingStatRow({ naturalMin: 0, naturalMax: 0, actualValue: 0 })).toBe(false);
+        // Une valeur déclarée sur une plage nulle reste une déclaration.
+        expect(isStatBearingStatRow({ naturalMin: 0, naturalMax: 0, actualValue: 5 })).toBe(true);
+        // Ligne **EXO** (aucune plage native) : toujours porteuse.
+        expect(isStatBearingStatRow({ naturalMin: null, naturalMax: null, actualValue: 1 })).toBe(true);
+        // Plage réelle (fixe ou non).
+        expect(isStatBearingStatRow({ naturalMin: 351, naturalMax: 400, actualValue: 400 })).toBe(true);
+        expect(isStatBearingStatRow({ naturalMin: -30, naturalMax: -30, actualValue: -30 })).toBe(true);
+    });
+
+    it("le transport du catalogue garde les lignes brutes (backfill convergent)", () => {
+        // `resolveNativeEffects` reste **fidèle à la colonne** : le rattrapage God
+        // doit pouvoir écrire une fiche dont toutes les lignes sont des
+        // métadonnées, sinon `remaining` ne retomberait jamais à `0`.
+        expect(resolveNativeEffects({ nativeEffects: gladiusMoldus })).toHaveLength(2);
+    });
+});
+
 

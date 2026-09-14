@@ -141,8 +141,12 @@ describe("BUG-6 — tutoriel lisible et continu", () => {
         expect(overlay).toMatch(/new ResizeObserver/);
         expect(overlay).not.toMatch(/const tooltipWidth = 320/);
         expect(overlay).not.toMatch(/const tooltipHeight = 180/);
-        // Recadrage : largeur maximale bornée par la fenêtre + texte qui respire.
-        expect(overlay).toMatch(/const maxWidth = Math\.max\(240, windowSize\.width - margin \* 2\)/);
+        // Recadrage : largeur maximale bornée par le design (`max-w-[320px]
+        // sm:max-w-[340px]`) **et** par la fenêtre + texte qui respire.
+        // BUG-7 : le `maxWidth` inline, sans plafond de design, écrasait les
+        // classes CSS et la bulle s'étalait sur toute la largeur de la fenêtre.
+        expect(overlay).toMatch(/const designMaxWidth = windowSize\.width >= 640 \? 340 : 320/);
+        expect(overlay).toMatch(/const maxWidth = Math\.max\(240, Math\.min\(designMaxWidth, windowSize\.width - margin \* 2\)\)/);
         expect(overlay).toMatch(/maxWidth,/);
         expect(overlay).toMatch(/break-words/);
     });

@@ -109,7 +109,58 @@ async function loadListingForDiscord(listingId: string) {
     // montant ni un pseudo, et jamais d'échec bloquant.
     const offersCount = await countPendingMarketOffers(listingId);
 
-    return { listing, offersCount };
+    // **D49** (14/09/2026, décision user) — la ligne « Réservé par … » de l'embed.
+    // Lue **uniquement** sur une annonce `RESERVED` : les autres états ne paient
+    // donc **aucune** requête supplémentaire (même exigence que la fiche, S7.8).
+    const reservationBuyer =
+        listing.status === "RESERVED"
+            ? await loadReservationBuyerForDiscord(listing.id, listing.guild.id)
+            : null;
+
+    return { listing, offersCount, reservationBuyer };
+}
+
+/**
+ * **D49** (14/09/2026, décision user) — **qui a réservé, et jusqu'à quand**.
+ *
+ * L'acte de réservation est **public** (il bloque l'annonce pour tous les
+ * membres) : l'embed nomme donc le réservataire, exactement comme le bandeau de
+ * la fiche (`buildReservationView`, S7.8). Deux gardes :
+ *  - le profil est relu **dans la guilde de l'annonce** (`guildId` interne) ⇒ un
+ *    profil d'une autre guilde ne peut pas fuiter (§16.2) ;
+ *  - repli **neutre** « Un membre de la guilde » si le profil a disparu (BUG-6 :
+ *    profil absent ≠ donnée fausse), et **jamais** d'id Discord, **jamais** de
+ *    mention. Les montants d'offres, eux, restent strictement privés.
+ */
+async function loadReservationBuyerForDiscord(
+    listingId: string,
+    guildConfigId: string
+): Promise<{ label: string; expiresAt: Date } | null> {
+    try {
+        const reservation = await db.marketReservation.findFirst({
+            where: { listingId, status: "ACTIVE" },
+            orderBy: { createdAt: "desc" },
+            select: { buyerProfileId: true, expiresAt: true },
+        });
+        if (!reservation) return null;
+
+        const buyer = await db.userProfile.findFirst({
+            where: { id: reservation.buyerProfileId, guildId: guildConfigId },
+            select: { pseudoDofus: true, user: { select: { name: true } } },
+        });
+
+        return {
+            label: buyer?.pseudoDofus || buyer?.user?.name || "Un membre de la guilde",
+            expiresAt: reservation.expiresAt,
+        };
+    } catch (error) {
+        // Best-effort : le **nom du réservataire** est une information
+        // d'affichage. Un échec de cette lecture ne doit **jamais** empêcher la
+        // publication/l'actualisation de l'embed (S3.6 : un incident Discord ne
+        // perd jamais l'annonce) ⇒ repli `null` = aucune ligne « Réservé par … ».
+        logger.warn("[market] réservataire illisible pour l'embed", { listingId, err: error });
+        return null;
+    }
 }
 
 /**
@@ -172,7 +223,7 @@ function buildPayload(
     loaded: NonNullable<Awaited<ReturnType<typeof loadListingForDiscord>>>,
     imageUrl: string | null
 ): { payload: MarketDiscordPayloadInput; forumMode: boolean; channelId: string | null; roleId: string | null } {
-    const { listing, offersCount } = loaded;
+    const { listing, offersCount, reservationBuyer } = loaded;
     const forumMode = listing.guild.marketChannelKind === MARKET_CHANNEL_KIND_FORUM;
 
     const exoLabels = listing.stats
@@ -207,6 +258,11 @@ function buildPayload(
         // D43 — « Troc accepté » / « Kamas uniquement » : l'acheteur Discord doit
         // savoir **avant** d'ouvrir la modale d'offre.
         acceptsTrade: listing.acceptsTrade,
+        // **D49** (14/09/2026, décision user) — une annonce **réservée** nomme le
+        // réservataire et son échéance (bouton « Réserver au prix » déjà grisé par
+        // R3). `null` sur tous les autres états ⇒ la ligne n'est jamais ajoutée.
+        reservedByLabel: reservationBuyer?.label ?? null,
+        reservedUntil: reservationBuyer?.expiresAt.toISOString() ?? null,
         imageUrl,
         // Correction 13/09 — Discord exige une URL **absolue** (400 sinon).
         // BUG-4 — miniature **toujours** fournie (objet, sinon 1ᵉʳ composant du

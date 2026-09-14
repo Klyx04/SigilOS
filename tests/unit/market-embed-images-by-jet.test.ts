@@ -71,6 +71,41 @@ describe("embed — le serveur applique la règle (Discord)", () => {
     });
 });
 
+/**
+ * **D49** (14/09/2026, décision user) — l'embed d'une annonce **réservée** nomme
+ * le réservataire. Le serveur doit donc relire ce nom **au bon endroit**, avec
+ * les mêmes gardes que la fiche (S7.8) : profil **de la guilde de l'annonce**, et
+ * **aucune** requête ajoutée sur les autres états.
+ */
+describe("D49 — le serveur nomme le réservataire (embed Discord)", () => {
+    const source = codeOnly(read("src/server/market/discord.ts"));
+
+    it("ne lit le réservataire QUE sur une annonce `RESERVED`", () => {
+        expect(source).toMatch(
+            /const reservationBuyer =\s+listing\.status === "RESERVED"\s+\? await loadReservationBuyerForDiscord\(listing\.id, listing\.guild\.id\)\s+: null;/
+        );
+    });
+
+    it("relit le profil dans la guilde de l'annonce (isolation §16.2, jamais un id Discord)", () => {
+        expect(source).toMatch(
+            /where: \{ id: reservation\.buyerProfileId, guildId: guildConfigId \}/
+        );
+        expect(source).toMatch(/select: \{ pseudoDofus: true, user: \{ select: \{ name: true \} \} \}/);
+        // Repli neutre (BUG-6 : profil absent ≠ donnée fausse).
+        expect(source).toMatch(/\|\| "Un membre de la guilde"/);
+    });
+
+    it("transmet nom + échéance au payload pur, `null` sinon", () => {
+        expect(source).toMatch(/reservedByLabel: reservationBuyer\?\.label \?\? null/);
+        expect(source).toMatch(/reservedUntil: reservationBuyer\?\.expiresAt\.toISOString\(\) \?\? null/);
+    });
+
+    it("reste best-effort : une réservation illisible ne bloque jamais l'embed (repli null)", () => {
+        expect(source).toMatch(/logger\.warn\("\[market\] réservataire illisible pour l'embed"/);
+        expect(source).toMatch(/return null;/);
+    });
+});
+
 describe("carte OG — toutes les lignes, image du lot, hauteur dynamique", () => {
     const og = codeOnly(read("src/app/api/og/market/[id]/route.tsx"));
 

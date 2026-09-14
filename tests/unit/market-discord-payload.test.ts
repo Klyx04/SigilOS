@@ -19,8 +19,13 @@ import {
 
 /**
  * Module « Marché » — payload Discord par état (S3.1 / S3.10).
- * Contrat : aucun montant d'offre ni pseudo d'acheteur n'est public ; les
- * boutons Rèserver/Offre sont désactivés (jamais retirés) hors `ACTIVE`.
+ * Contrat : aucun **montant d'offre** ni identité d'un **offrant** n'est public
+ * (compteur seul) ; les boutons Réserver/Offre sont désactivés (jamais retirés)
+ * hors `ACTIVE`.
+ *
+ * **D49** (14/09/2026, décision user) — *seule exception assumée* à §13.7 : une
+ * annonce `RESERVED` **nomme le réservataire** (« 🔒 Réservé par X — jusqu'au … »),
+ * l'acte de réservation étant public (il bloque l'annonce pour tout le monde).
  */
 const base: MarketDiscordPayloadInput = {
     listingId: "clx0123456789",
@@ -87,7 +92,7 @@ describe("buildMarketDiscordPayload", () => {
         expect(buttons.find((b) => b.custom_id === `mkt:reserve:${base.listingId}`)?.disabled).toBe(false);
     });
 
-    it("n'expose JAMAIS un montant d'offre ni un pseudo d'acheteur (compteur seulement)", () => {
+    it("n'expose JAMAIS un montant d'offre ni l'identité d'un offrant (compteur seulement)", () => {
         const payload = buildMarketDiscordPayload({ ...base, status: "RESERVED", offersCount: 3 });
         const serialized = JSON.stringify(payload);
         expect(serialized).not.toMatch(/offeredKamas|acheteur|buyer/i);
@@ -323,7 +328,7 @@ describe("S8.17 — bloc STATUT de forge dans l'embed", () => {
         expect(payload.embedDescription).not.toContain("potion 0");
     });
 
-    it("le bloc STATUT ne porte ni montant d'offre ni identité d'acheteur (§13.7)", () => {
+    it("le bloc STATUT ne porte ni montant d'offre ni identité d'un offrant (§13.7)", () => {
         const payload = buildMarketDiscordPayload({
             ...base,
             status: "RESERVED",
@@ -336,5 +341,76 @@ describe("S8.17 — bloc STATUT de forge dans l'embed", () => {
 
         const serialized = JSON.stringify(payload);
         expect(serialized).not.toMatch(/acheteur|buyer|buyerProfileId|offeredKamas|discord/i);
+    });
+});
+
+/**
+ * **D49** (14/09/2026, décision user) — deux demandes liées à la réservation :
+ *  1. une seule réservation à la fois ⇒ le bouton « Réserver au prix » reste
+ *     **grisé** pour tout le monde (déjà le cas, R3/BUG-3 — verrouillé ici) ;
+ *  2. l'embed **signale qui a réservé** (« mettre le pseudo ») pour que le salon
+ *     n'ait plus à poser la question en MP.
+ *
+ * ⚠️ C'est la **seule** exception assumée à §13.7 : les **montants d'offres** et
+ * l'identité des **offrants** restent strictement privés (compteur seul), et le
+ * nom du réservataire ne porte **jamais** de mention (`@`).
+ */
+describe("D49 — le réservataire est nommé dans l'embed (décision user du 14/09)", () => {
+    const reserved: MarketDiscordPayloadInput = {
+        ...base,
+        status: "RESERVED",
+        reservedByLabel: "Klyx",
+        reservedUntil: "2026-09-15T08:30:00.000Z",
+    };
+
+    it("affiche « Réservé par … — jusqu'au … » et garde « Réserver » grisé", () => {
+        const payload = buildMarketDiscordPayload(reserved);
+
+        expect(payload.embedDescription).toContain("🔒 **Réservé par Klyx**");
+        // Date **figée en UTC** (BUG-9) : jamais de `toLocale*` (rendu identique
+        // serveur / navigateur, et lisible tel quel côté Discord).
+        expect(payload.embedDescription).toContain("jusqu'au 15/09/2026 08:30");
+        // Une seule réservation à la fois : le bouton reste inactif (R3).
+        expect(
+            buttonsOf(payload).find((b) => b.custom_id === `mkt:reserve:${base.listingId}`)?.disabled
+        ).toBe(true);
+    });
+
+    it("ne nomme PERSONNE hors RESERVED, même si un libellé est transmis par erreur", () => {
+        for (const status of ["DRAFT", "ACTIVE", "SOLD", "EXPIRED", "WITHDRAWN"] as const) {
+            const payload = buildMarketDiscordPayload({ ...reserved, status });
+            expect(payload.embedDescription, `fuite du réservataire en ${status}`).not.toContain(
+                "Réservé par"
+            );
+            expect(payload.embedDescription).not.toContain("Klyx");
+        }
+    });
+
+    it("sans nom résolu : aucune ligne inventée (jamais « Réservé par » tout seul)", () => {
+        const payload = buildMarketDiscordPayload({
+            ...base,
+            status: "RESERVED",
+            reservedByLabel: null,
+            reservedUntil: "2026-09-15T08:30:00.000Z",
+        });
+
+        expect(payload.embedDescription).not.toContain("Réservé par");
+        expect(payload.embedDescription).not.toContain("15/09/2026");
+    });
+
+    it("sans échéance lisible : le nom reste, la date est omise (jamais « jusqu'au — »)", () => {
+        const payload = buildMarketDiscordPayload({ ...reserved, reservedUntil: null });
+
+        expect(payload.embedDescription).toContain("Réservé par Klyx");
+        expect(payload.embedDescription).not.toContain("jusqu'au");
+    });
+
+    it("nomme un membre de la guilde SANS mention et sans montant d'offre", () => {
+        const payload = buildMarketDiscordPayload({ ...reserved, offersCount: 4 });
+        const serialized = JSON.stringify(payload);
+
+        expect(payload.embedDescription).not.toContain("@");
+        expect(serialized).not.toMatch(/offeredKamas|acheteur/i);
+        expect(payload.fields.find((f) => f.name === "Offres")?.value).toBe("4 en cours");
     });
 });

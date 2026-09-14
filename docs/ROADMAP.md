@@ -8,6 +8,13 @@
 
 ---
 
+## ✅ PR #666 (prête à merger) — **Marché · LOT MULTIPLE (option A) — fondations + moteur** → branche `feat/marche-lot-multiple` (depuis `dev`)
+> **Décisions user (14/09/2026)** : **2 à 5 objets** par lot (familles mélangées) · **le prix vit sur l'objet** (pas de prix global) · **option A** = **un message Discord par objet** (boutons propres à chaque objet) · maquette `src/temp/refonte-marche/maquette-lot-multiple.html` **validée** · plan `src/temp/refonte-marche/PLAN-LOT-MULTIPLE.md`.
+> **Schéma (migration additive `20261201000000_add_market_bundle`, idempotente, aucun backfill)** : `MarketListingType + BUNDLE` · enum `MarketComponentStatus` (`AVAILABLE`/`RESERVED`/`SOLD`) · `MarketListingComponent.priceKamas/status/reservedAt/soldAt` · `MarketReservation.componentId` (réservation **par objet**) · `MarketDiscordMessage.componentId` (un message par objet) + index dédiés.
+> **Moteur** : `src/lib/market/bundle.ts` (**pur** : bornes 2→5, `computeBundleTotal`, `computeItemUnitPrice`, `canReserveComponent` + refus typés, `describeBundleProgress`, `deriveBundleListingStatus`, `summarizeBundle`) et `src/server/market/bundle.ts` (`createBundleListingCore`, `reserveBundleComponentCore`, `releaseBundleComponentCore`, `settleBundleComponentCore`, `refreshBundleListingStatusCore`, `expireBundleComponentsCore`). ⚠️ **Anti-double-clic** : la disponibilité est portée par le `WHERE` (`status = 'AVAILABLE'`) ⇒ un seul `count === 1`, l'autre reçoit `ALREADY_RESERVED` ; échec de création ⇒ **libération en compensation**.
+> **Preuves** : `prisma validate` OK · migration jouée en local + `migrate resolve --applied` · `migrate diff` **0 écart sur le Marché** (reste la dérive préexistante `Titan`, hors périmètre) · `prisma generate` · **`tsc` 0** · **tests 1303/1303** · `eslint` 0.
+> **Reste (même branche, lots suivants)** : ① assistant — 4ᵉ nature « Lot multiple » + 2→5 lignes avec prix **par objet** ; ② nouvelle étape **« Publication »** (résumé + estimation des notifiés + aperçu du salon) ; ③ Discord — `buildMarketBundleMessages()` (N messages), `custom_id` à **4 segments** rétro-compatible, réconciliation par message ; ④ UI catalogue/fiche (avancement du lot, réservation d'**un** objet).
+
 ## 🧭 Règle mode plan (économie de tokens)
 
 1. Lire `docs/ROADMAP.md` + `src/temp/chantier-actif.md`.

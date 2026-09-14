@@ -495,6 +495,46 @@ export function isStatBearingNativeEffect(fx: Pick<MarketNativeEffect, "from" | 
 }
 
 /**
+ * 🧨 Constat beta du **14/09/2026** — la carte d'une *Pestilence de Corruption*
+ * (`22412`) affichait **« +15975 Effet [15975] »** (carte d'annonce, image OG et
+ * bloc « Jet déclaré »).
+ *
+ * 📏 Cause **mesurée** (sonde `src/temp/_probe-effet-15975.mjs` + `api.dofusdb.fr`) :
+ * l'`effectId` **1175** est un **porteur de capacité légendaire** — son `diceNum`
+ * est l'**identifiant du pouvoir** (« Nuée Pestilentielle » → `15975`), jamais un
+ * montant. DofusDB **écarte lui-même** cette ligne de son tableau normalisé
+ * `effects` (mesuré sur `/items/22412` : **17** entrées dans la forme brute
+ * `possibleEffects`, **16** dans `effects`) ; notre siphon copie la forme brute,
+ * d'où la valeur parasite. Portée mesurée : **334** fiches en base.
+ *
+ * Le libellé du référentiel est un gabarit (« Effet 1175 ») que
+ * `isPlaceholderStatLabel` écarte déjà ⇒ l'UI affichait « Effet ».
+ *
+ * ⚪ La capacité elle-même n'est **pas** une statistique de vente : elle n'est ni
+ * affichée, ni déclarable (sa restitution est une évolution, plan §S6/V1.1).
+ */
+export const NON_STAT_EFFECT_IDS: readonly number[] = [1175];
+
+/** Index du filtre (recherche O(1) sur chaque ligne). */
+const NON_STAT_EFFECT_ID_SET = new Set<number>(NON_STAT_EFFECT_IDS);
+
+/** La ligne porte-t-elle un **pouvoir** (capacité légendaire), pas un jet ? */
+export function isNonStatNativeEffect(fx: Pick<MarketNativeEffect, "effectId">): boolean {
+    return NON_STAT_EFFECT_ID_SET.has(fx.effectId);
+}
+
+/**
+ * Ligne native **affichable / déclarable** : ni métadonnée (`0 → 0`), ni
+ * porteuse d'un **pouvoir**. Règle **unique** partagée par le pré-remplissage de
+ * l'éditeur, la lecture client et le siphon (§13.4).
+ */
+export function isDisplayableNativeEffect(
+    fx: Pick<MarketNativeEffect, "from" | "to" | "effectId">
+): boolean {
+    return isStatBearingNativeEffect(fx) && !isNonStatNativeEffect(fx);
+}
+
+/**
  * Miroir **côté lignes persistées** (`MarketListingStat`) de la règle
  * ci-dessus — pour les annonces écrites **avant** la garde d'écriture
  * (aucune migration : le filtre est appliqué à la lecture).
@@ -503,10 +543,17 @@ export function isStatBearingNativeEffect(fx: Pick<MarketNativeEffect, "from" | 
  * valeur déclarée : seule une plage `0 → 0` **avec** une valeur `0` est du bruit.
  */
 export function isStatBearingStatRow(stat: {
+    effectId?: number | null;
     naturalMin?: number | null;
     naturalMax?: number | null;
     actualValue?: number | null;
 }): boolean {
+    // 🧨 Constat beta 14/09/2026 — miroir de `isNonStatNativeEffect` : une ligne
+    // **persistée** sur l'`effectId` d'un **pouvoir légendaire** (`1175`, valeur =
+    // identifiant du pouvoir) n'est jamais un jet. Filtre de **lecture** : les
+    // annonces écrites avant la garde d'écriture disparaissent des écrans, de
+    // l'image OG et du payload Discord (aucune migration).
+    if (stat.effectId != null && NON_STAT_EFFECT_ID_SET.has(stat.effectId)) return false;
     const min = stat.naturalMin ?? null;
     const max = stat.naturalMax ?? null;
     if (min == null && max == null) return true;
@@ -543,7 +590,15 @@ export function toNativeEffects(
                 elementId: fx.elementId != null ? Number(fx.elementId) : null,
             };
         })
-        .filter((fx) => Number.isFinite(fx.effectId) && fx.effectId > 0);
+        .filter(
+            (fx) =>
+                Number.isFinite(fx.effectId) &&
+                fx.effectId > 0 &&
+                // 🧨 Constat beta 14/09 — la ligne « pouvoir » (`1175`) n'entre
+                // jamais dans les plages natives : DofusDB l'écarte lui-même de
+                // `effects` (mesuré sur `/items/22412`).
+                !NON_STAT_EFFECT_ID_SET.has(fx.effectId)
+        );
 
     return mapped.length > 0 ? mapped : null;
 }
@@ -925,8 +980,13 @@ export function enrichNativeEffects(
 ): MarketNativeEffect[] | null {
     // Anti-doublon **ici aussi** : l'enrichissement est le point par lequel
     // passent les lignes envoyées au client (recherche, fiche, rattrapage God).
-    const unique = dedupeNativeEffects(nativeEffects);
-    if (!unique) return null;
+    const deduped = dedupeNativeEffects(nativeEffects);
+    if (!deduped) return null;
+    // 🧨 Constat beta 14/09 — les lignes « pouvoir » (capacité légendaire,
+    // `effectId 1175`) ne partent **jamais** vers un écran : la valeur stockée
+    // est l'identifiant du pouvoir (« +15975 Effet »).
+    const unique = deduped.filter((fx) => !isNonStatNativeEffect(fx));
+    if (unique.length === 0) return null;
     const labels = referential?.labels ?? null;
     return unique.map((fx) => {
         const referentialLabel = labels
@@ -976,7 +1036,10 @@ export function buildNativeStatDrafts(
     // sont **pas des jets** et ne sont donc jamais pré-remplies. Sans ce filtre,
     // un cosmétique partait en déclaration avec des lignes que le serveur
     // refusait ensuite (« aucune statistique ne peut être déclarée »).
-    return nativeEffects.filter(isStatBearingNativeEffect).map((fx) => {
+    // 🧨 2ᵉ constat du 14/09 (même règle) — une ligne **pouvoir** (`effectId`
+    // `1175`, valeur = identifiant de la capacité légendaire) n'est pas non plus
+    // un jet : « +15975 Effet » ne doit jamais entrer dans l'éditeur.
+    return nativeEffects.filter(isDisplayableNativeEffect).map((fx) => {
         const range = applyEffectSign(
             normalizeNativeRange(fx.from, fx.to),
             // 3ᵉ passe — le signe ne dépend plus d'un référentiel disponible :

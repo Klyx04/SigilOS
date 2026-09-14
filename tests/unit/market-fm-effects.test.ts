@@ -376,10 +376,16 @@ describe("fm-effects — S4.0b : mapping des caractéristiques vérifié (D39)",
     });
 });
 
-describe("fm-effects — S4.0c : Pods gelés (Q15, capture rune manquante)", () => {
-    it("gèle la densité historique 0,1/pt et son over max 1010", () => {
-        // Tant que la capture de la rune n'est pas fournie (0,1 / 0,25 / 0,025),
-        // le plan interdit de trancher ⇒ ce test verrouille la valeur **actuelle**.
+describe("fm-effects — S4.0c / Q15 TRANCHÉ : Pods à 0,1/pt (mesure DofusDB du 14/09)", () => {
+    it("verrouille 0,1/pt et son over max 1010 (« Rune Pod » = +10 Pods pour 1 PWR)", () => {
+        // Q15 est clos le 14/09/2026 **par la donnée du jeu**, pas par une source
+        // communautaire : « Rune Pod » (DofusDB `items/7443`) pèse **1 PWR** et vaut
+        // **+10 Pods** ⇒ 1 ÷ 10 = **0,1 pt** ⇒ over max **1010** sur les 101 du
+        // budget. Modèle vérifié sur le reste du référentiel : « Rune Vi »
+        // (`items/1523`) = +5 Vi/1 PWR ⇒ 0,2 ; « Rune Ini » (`items/7448`) =
+        // +10 Ini/1 PWR ⇒ 0,1. Le « 0,25 » communautaire visait une rune à **+4
+        // Pods** (inexistante) et le « 0,025 » du guide SEO était une coquille
+        // (corrigée en 0,1 dans `src/content/guides/poids-runes-forgemagie-dofus.ts`).
         const pods = getFmEffect("pods")!;
         expect(pods.unitWeight).toBe(0.1);
         expect(pods.maxOverStandalone).toBe(1010);

@@ -119,9 +119,15 @@ describe("interface — lot : icône et compacité", () => {
     it("la carte d'item passe en présentation compacte sans jet", () => {
         const card = codeOnly(read("src/components/market/market-item-card.tsx"));
         expect(card).toMatch(/const compact = stats\.length === 0;/);
-        expect(card).toMatch(/compact \? "h-20 w-20" : "h-28 w-28"/);
-        expect(card).toMatch(/compact \? "items-center" : "items-start"/);
+        // Vignette **à gauche** en compact (fini le vide au milieu), et à droite
+        // en composition « tooltip Dofus » (objet avec jet) via `flex-row-reverse`.
+        expect(card).toMatch(/compact \? "h-16 w-16 rounded-xl" : "h-28 w-28 rounded-2xl"/);
+        expect(card).toMatch(/compact \? "flex-row items-start" : "flex-row-reverse items-start"/);
+        // Contenu du lot / quantités rendus **dans la colonne** de la vignette.
+        expect(card).toMatch(/\{!compact && components\.length > 0 && \(/);
+        expect(card).toMatch(/\{!compact && \(data\.quantity != null \|\| data\.minQuantity != null\) && \(/);
         // Textes agrandis en compact (constat « texte en tout petit »).
         expect(card).toMatch(/compact \? "text-title" : "text-body"/);
+        expect(card).toMatch(/compact \? "text-body" : "text-label"/);
     });
 });

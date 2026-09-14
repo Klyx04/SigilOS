@@ -9,7 +9,7 @@ import { Prisma, type MarketOfferStatus, type MarketReservationStatus } from "@p
 import { getUserContext, type ActionResponse } from "./user-actions";
 import { KAMAS_MAX } from "@/lib/market/kamas";
 import { computeStatQuality, computeStatsHash } from "@/lib/market/stat-quality";
-import { applyEffectSign, findNativeRange, isNegativeNativeEffect, isPlaceholderStatLabel, normalizeNativeRange, resolveStatLabel, resolveStoredStatLabel, toNativeEffects, type DofusItemEffectLike, type MarketNativeEffect } from "@/lib/market/effects";
+import { applyEffectSign, findNativeRange, isNegativeNativeEffect, isPlaceholderStatLabel, isStatBearingStatRow, normalizeNativeRange, resolveStatLabel, resolveStoredStatLabel, toNativeEffects, type DofusItemEffectLike, type MarketNativeEffect } from "@/lib/market/effects";
 import { loadMarketReferential, type MarketReferential } from "@/lib/market/referential";
 import {
     SMITHMAGIC_ELEMENT_POTION_TYPE_ID,
@@ -289,6 +289,12 @@ function withDisplayReadyStats<
     }
 >(listing: T, referential?: MarketReferential | null): T {
     if (listing.stats.length === 0) return listing;
+    // Constat beta — les lignes de **métadonnées** du catalogue (`0 → 0`,
+    // « Échangeable : », « Compatible avec : »…) écrites dans des annonces
+    // **antérieures** à la garde d'écriture ne sont jamais affichées : la carte
+    // ne montre plus « +0 Échangeable : [0] » (aucune migration, filtre lu).
+    const bearingStats = listing.stats.filter(isStatBearingStatRow);
+    if (bearingStats.length === 0) return { ...listing, stats: [] } as T;
     // Correction 13/09 — le **signe** des malus est rétabli ici pour les
     // annonces **déjà publiées** (avant le correctif, leurs bornes étaient
     // positives) : les nouvelles le sont dès l'écriture (`resolveServerStats`).
@@ -298,7 +304,7 @@ function withDisplayReadyStats<
     // est momentanément indisponible.
     return {
         ...listing,
-        stats: listing.stats.map((stat) => {
+        stats: bearingStats.map((stat) => {
             const range = applyEffectSign(
                 normalizeNativeRange(
                     stat.naturalMin ?? stat.naturalMax ?? 0,
@@ -426,7 +432,7 @@ async function resolveServerStats(
     // objet étant toujours positifs, c'est ici que le signe est rétabli (source
     // serveur, jamais le client).
 
-    const rows = stats.map((stat) => {
+    const mapped = stats.map((stat) => {
         const native = findNativeRange(natives, {
             effectId: stat.effectId,
             characteristic: stat.characteristic ?? null,
@@ -477,6 +483,17 @@ async function resolveServerStats(
             }),
         };
     });
+
+    /**
+     * Constat beta — une ligne native `0 → 0` (« Échangeable : », « Compatible
+     * avec : »…) n'est **pas un jet** : elle n'est jamais persistée. Le filtre
+     * est aussi le **garde-fou** qui rend un cosmétique publiable : un brouillon
+     * ancien (ou un client périmé) qui transmet encore ces lignes ne déclenche
+     * plus « aucune statistique ne peut être déclarée » — la garde de famille
+     * ne compte que des lignes **porteuses d'une valeur**.
+     */
+    const rows = mapped.filter(isStatBearingStatRow);
+    if (rows.length === 0) return { rows: [], hash: null };
 
     return { rows, hash: computeStatsHash(rows) };
 }
@@ -715,7 +732,13 @@ export async function getMyMarketData(guildId: string): Promise<ActionResponse<M
 
         // BUG-1 — icônes **normalisées** (proxy auto-siphon) y compris pour les
         // annonces déjà en base : la vignette de « Mon espace » ne peut pas 404.
-        const displayRows = rows.map((row) => withDisplayReadyIcons(row));
+        // Constat beta — on écarte ici les lignes de **métadonnées** (`0 → 0`,
+        // « Échangeable : ») : le **résumé** de jet et son compteur
+        // (« + N autre(s) ligne(s) ») restent justes sur une annonce ancienne.
+        const displayRows = rows.map((row) => ({
+            ...withDisplayReadyIcons(row),
+            stats: row.stats.filter(isStatBearingStatRow),
+        }));
         const active = displayRows.filter((row) => !MARKET_TERMINAL_STATUSES.includes(row.status));
         const archived = displayRows.filter((row) => MARKET_TERMINAL_STATUSES.includes(row.status));
 

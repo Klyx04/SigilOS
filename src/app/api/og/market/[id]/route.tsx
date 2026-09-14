@@ -2,6 +2,9 @@ import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
 import { db } from "@/lib/prisma";
 import { resolveDofusStatTheme } from "@/lib/dofus-stats-theme";
+// Constat beta — une ligne de jet `0 → 0` (« Échangeable : », « Compatible
+// avec : ») n'est pas une statistique : jamais peinte, ni comptée dans la carte.
+import { isStatBearingStatRow } from "@/lib/market/effects";
 import { buildMarketStatusLines, shortListingId } from "@/lib/market/discord-payload";
 import { loadItemImageDataUrl, loadKamasIconDataUrl, loadStatIconDataUrl } from "@/lib/market/og-assets";
 
@@ -117,8 +120,14 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         // BUG-5 — icône Kamas officielle, embarquée DANS l'image (spec §2.4).
         const kamasIconDataUrl = loadKamasIconDataUrl();
 
-        const visibleStats = listing.stats.slice(0, MAX_STAT_LINES);
-        const hiddenStats = Math.max(0, listing.stats.length - MAX_STAT_LINES);
+        /**
+         * Constat beta — les lignes de **métadonnées** (`0 → 0`) sont écartées
+         * avant tout calcul : une annonce ancienne qui les porte s'affiche comme
+         * un objet sans jet (objet en grand), jamais « +0 Échangeable : [0] ».
+         */
+        const statLines = listing.stats.filter(isStatBearingStatRow);
+        const visibleStats = statLines.slice(0, MAX_STAT_LINES);
+        const hiddenStats = Math.max(0, statLines.length - MAX_STAT_LINES);
         /**
          * BUG-4 — pas de lignes de stats ⇒ **objet en grand** (et l'image est
          * proportionnellement plus grande) : c'est le seul contenu utile de la

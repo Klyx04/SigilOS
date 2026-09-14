@@ -4,6 +4,7 @@ import { db } from "@/lib/prisma";
 import { getAppBaseUrl } from "@/lib/utils";
 import { DOFUS_JOBS } from "@/lib/dofus-assets";
 import { normSearch, parseAlmanaxDateInput, frenchLongDate } from "@/lib/slash-command-helpers";
+import { PERMISSIONS as PERMISSION_IDS, type PermissionId } from "@/lib/permissions";
 
 // ============================================
 // DOFUS CLASSES for Modal validation
@@ -64,6 +65,71 @@ async function findUserByDiscordId(discordId: string) {
     });
 }
 
+// ============================================
+// RBAC DES INTERACTIONS DISCORD (boutons **et** modales)
+// ============================================
+
+/**
+ * `prefix` d'un `custom_id` → permission RBAC requise.
+ *
+ * ⚠️ **Cause racine du constat beta du 14/09/2026** (« bouton Offre de l'embed
+ * KO : Aucun profil SigilOS dans cette guilde ») : cette carte vivait **dans** la
+ * branche `payload.type === 3` (boutons). La soumission de la **modale d'offre**
+ * du Marché (`mkt:offer`, `payload.type === 5`) n'était donc **jamais** filtrée,
+ * et surtout elle transmettait le **snowflake Discord** (`member.user.id`) au
+ * service du module — qui attend l'`User.id` interne (`resolveMemberContext` lit
+ * `UserProfile.userId`) ⇒ refus « aucun profil » alors que l'offre fonctionnait
+ * depuis le dashboard (session = `User.id`).
+ *
+ * Ajouter un module Discord : 1) constante dans `lib/permissions.ts`,
+ * 2) entrée **ici**, 3) traitement du prefix dans la branche concernée.
+ * Propriétaires et admins Discord passent automatiquement
+ * (`internalCheckPermission`). `poll` reste **volontairement** absent (son
+ * contrôle vit en aval, via le profil SigilOS).
+ */
+const DISCORD_PERM_MAP: Record<string, PermissionId> = {
+    calendar: PERMISSION_IDS.COMMUNITY_ACCESS,   // Calendrier = participation sociale
+    songes: PERMISSION_IDS.GAME_OPERATIONS,      // Songes = organisation d'activités
+    dj: PERMISSION_IDS.GAME_OPERATIONS,          // Donjons = organisation d'activités
+    svc: PERMISSION_IDS.GAME_OPERATIONS,         // Services = organisation d'activités
+    mkt: PERMISSION_IDS.MARKET_TRADE,            // Marché = réserver / offrir / contacter
+};
+
+/** Refus éphémère standard (type 4, `flags: 64` — jamais muet, jamais public). */
+function ephemeralDiscordRefusal(content: string): NextResponse {
+    return NextResponse.json({ type: 4, data: { content, flags: 64 } });
+}
+
+/** Textes de refus partagés par les boutons **et** les modales (une source). */
+const DISCORD_ACCOUNT_REQUIRED =
+    "❌ Tu dois t'être connecté au moins une fois sur le site pour utiliser ce bouton.";
+const DISCORD_PERMISSION_DENIED =
+    "🚫 Tes rôles Discord ne t'autorisent pas à utiliser cette fonctionnalité. Contacte un admin de ta guilde.";
+
+/**
+ * Gate RBAC **commun** aux deux types d'interaction (3 = bouton, 5 = modale).
+ *
+ * `true` = autorisé. Un `prefix` absent de la carte n'est **pas** filtré ici : on
+ * ne devine jamais un droit (chaque branche garde ses propres refus). La clé est
+ * résolue **fail-closed** : une permission absente/renommée refuse l'accès.
+ */
+async function isDiscordPrefixAuthorized(
+    prefix: string,
+    discordGuildId: string,
+    discordUserId: string
+): Promise<boolean> {
+    const required = DISCORD_PERM_MAP[prefix];
+    if (!required) return true;
+
+    const { internalCheckPermission } = await import("@/server/actions/user-actions");
+    try {
+        return await internalCheckPermission(discordGuildId, discordUserId, required);
+    } catch {
+        // Fail-closed : Discord/RBAC injoignable ⇒ refus, jamais un accès par défaut.
+        return false;
+    }
+}
+
 export async function POST(request: NextRequest) {
     try {
         const bodyText = await request.text();
@@ -99,49 +165,14 @@ export async function POST(request: NextRequest) {
 
             const account = await findUserByDiscordId(member.user.id);
             if (!account && prefix !== "ticket" && prefix !== "rr") {
-                return NextResponse.json({
-                    type: 4,
-                    data: { content: "❌ Tu dois t'être connecté au moins une fois sur le site pour utiliser ce bouton.", flags: 64 },
-                });
+                return ephemeralDiscordRefusal(DISCORD_ACCOUNT_REQUIRED);
             }
 
-            // =============================================================
-            // RBAC Permission Gate (centralized for ALL Discord interactions)
-            // --
-            // Maps interaction prefix → required permission.
-            // When adding a NEW MODULE with Discord buttons:
-            //   1. Add the permission constant in lib/permissions.ts
-            //   2. Add an entry here: "prefix": PERMISSIONS.XXX
-            //   3. Handle the prefix logic below (join/leave/etc.)
-            // Owners and Discord admins bypass automatically (see internalCheckPermission).
-            // =============================================================
-            const { internalCheckPermission } = await import("@/server/actions/user-actions");
-            const { PERMISSIONS } = await import("@/lib/permissions");
-
-            const DISCORD_PERM_MAP: Record<string, string> = {
-                calendar: PERMISSIONS.COMMUNITY_ACCESS,   // Calendrier = participation sociale
-                songes: PERMISSIONS.GAME_OPERATIONS,      // Songes = organisation d'activités
-                dj: PERMISSIONS.GAME_OPERATIONS,          // Donjons = organisation d'activités
-                // NOTE: 'poll' is intentionally NOT in this map.
-                // Poll vote security is enforced downstream via SigilOS profile check
-                // (db.userProfile lookup). The Discord API gate can false-negative
-                // on rate limits or temporary API failures, blocking valid members.
-                svc: PERMISSIONS.GAME_OPERATIONS,         // Services = organisation d'activités
-                mkt: PERMISSIONS.MARKET_TRADE,            // Marché = réserver / offrir / contacter
-            };
-
-            const requiredPerm = DISCORD_PERM_MAP[prefix];
-            if (requiredPerm) {
-                const isAuthorized = await internalCheckPermission(guild_id, member.user.id, requiredPerm as any);
-                if (!isAuthorized) {
-                    return NextResponse.json({
-                        type: 4,
-                        data: {
-                            content: "🚫 Tes rôles Discord ne t'autorisent pas à utiliser cette fonctionnalité. Contacte un admin de ta guilde.",
-                            flags: 64,
-                        },
-                    });
-                }
+            // RBAC Permission Gate — carte **unique** `DISCORD_PERM_MAP` (portée
+            // module) partagée avec les soumissions de modale (`type === 5`) :
+            // même gate, même texte, aucune règle dupliquée (§13.4).
+            if (!(await isDiscordPrefixAuthorized(prefix, guild_id, member.user.id))) {
+                return ephemeralDiscordRefusal(DISCORD_PERMISSION_DENIED);
             }
 
             let result;
@@ -1415,14 +1446,31 @@ export async function POST(request: NextRequest) {
                 // custom_id = mkt:offer:{listingId}
                 // §13.4 : la route ne décide de RIEN (elle ne lit ni le montant
                 // ni la guilde interne) — parsing fail-closed, module, profil et
-                // moteur métier partagé vivent dans le service du module.
+                // moteur métier partagé vivent dans le service du module. Elle ne
+                // résout que l'IDENTITÉ (compte interne + RBAC), comme les boutons.
                 // =========================================================
+                // Constat beta 14/09/2026 — deux manques mesurés **ici** :
+                //   · le gate RBAC ne couvrait que `type === 3` ⇒ on le réapplique
+                //     (même carte, même refus, aucune règle dupliquée) ;
+                //   · `member.user.id` (snowflake Discord) était transmis comme
+                //     `userId`, or `resolveMemberContext` lit `UserProfile.userId`
+                //     (id **interne** SigilOS) ⇒ « ❌ Aucun profil SigilOS dans cette
+                //     guilde » à chaque offre, alors que le dashboard fonctionnait
+                //     (session = `User.id`).
+                const account = await findUserByDiscordId(member.user.id);
+                if (!account) {
+                    return ephemeralDiscordRefusal(DISCORD_ACCOUNT_REQUIRED);
+                }
+                if (!(await isDiscordPrefixAuthorized(prefix, guild_id, member.user.id))) {
+                    return ephemeralDiscordRefusal(DISCORD_PERMISSION_DENIED);
+                }
+
                 const { handleMarketModalSubmit } = await import("@/server/market/discord-interactions");
                 const marketOutcome = await handleMarketModalSubmit({
                     customId: custom_id,
                     components,
                     discordGuildId: guild_id ?? null,
-                    userId: member.user.id,
+                    userId: account.userId,
                 });
                 // §13.7 : ni montant offert ni pseudo d'acheteur dans la réponse.
                 return NextResponse.json({

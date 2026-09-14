@@ -10,7 +10,7 @@
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { Prisma } from "@prisma/client";
-import { resolveNativeEffects } from "@/lib/market/effects";
+import { isNonStatNativeEffect, resolveNativeEffects } from "@/lib/market/effects";
 import { normalizeItemIconUrl } from "@/lib/market/item-image";
 import { buildMarketFamilyWhere } from "@/lib/market/family-where";
 import { type MarketItemFamily } from "@/lib/market/item-families";
@@ -194,10 +194,14 @@ export async function getItemCatalogEntry(ankamaId: number): Promise<ItemCatalog
     // `nativeEffects` est encore vide (fiche siphonnée AVANT S2.2). `effects`
     // (lourd) est écarté du retour : il ne doit jamais partir au client.
     const { effects: _rawEffects, ...entry } = item;
+    const natives = resolveNativeEffects(item);
     return {
         ...entry,
         // BUG-3 — même normalisation que la recherche du catalogue.
         iconUrl: normalizeItemIconUrl(entry.iconUrl, entry.ankamaId),
-        nativeEffects: resolveNativeEffects(item),
+        // 🧨 Constat beta 14/09 — la ligne **pouvoir** (capacité légendaire,
+        // `effectId 1175`) n'entre jamais dans le catalogue du Marché : sa valeur
+        // stockée est l'identifiant du pouvoir (« +15975 Effet »), pas un jet.
+        nativeEffects: natives ? natives.filter((fx) => !isNonStatNativeEffect(fx)) : null,
     };
 }

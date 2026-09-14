@@ -468,6 +468,52 @@ export function normalizeNativeRange(from: number, to: number): { from: number; 
 }
 
 /**
+ * Constat beta (14/09/2026) — **une ligne d'effet sans valeur n'est pas un jet**.
+ *
+ * 📏 Mesure en base (sonde locale `src/temp/_probe-cosmetic-noise.mjs`) :
+ * DofusDB range dans `GameItem.nativeEffects` des **métadonnées** d'objet,
+ * toujours écrites `0 → 0` — `983` « Échangeable : » (**3 330** fiches),
+ * `1179` « Compatible avec : » (**2 603**), `811` « Combat restant », `805`
+ * « Reçu le : », `981` « Lié au personnage », `149` « Change l'apparence »,
+ * `3830` « Fertile », `949` « Monter/Descendre d'une monture », `2825`
+ * « Empêche les futures forgemagies »… Portée mesurée : **4 203** fiches
+ * `equipment` + **2 196** `cosmetics` (+200 `consumables`, +34 `resources`).
+ *
+ * Sans cette règle, l'objet `23559` *Gladius Moldus* (monture d'apparat) partait
+ * en déclaration avec **deux lignes fantômes** (« +0 Échangeable : [0] »,
+ * « +0 Compatible avec : [0] ») : la carte les affichait **et** la garde de
+ * famille refusait ensuite la publication (« aucune statistique ne peut être
+ * déclarée ») alors que le vendeur n'avait **rien** déclaré — cul-de-sac.
+ *
+ * ⚠️ Le test porte sur la plage **normalisée** : `2 → 0` (Portée, valeur fixe)
+ * et `30 → 0` (malus, valeur fixe) gardent leur valeur et ne sont **jamais**
+ * écartés.
+ */
+export function isStatBearingNativeEffect(fx: Pick<MarketNativeEffect, "from" | "to">): boolean {
+    const range = normalizeNativeRange(fx.from, fx.to);
+    return range.from !== 0 || range.to !== 0;
+}
+
+/**
+ * Miroir **côté lignes persistées** (`MarketListingStat`) de la règle
+ * ci-dessus — pour les annonces écrites **avant** la garde d'écriture
+ * (aucune migration : le filtre est appliqué à la lecture).
+ *
+ * ⚠️ Une ligne **EXO** (`naturalMin` / `naturalMax` nuls) porte toujours sa
+ * valeur déclarée : seule une plage `0 → 0` **avec** une valeur `0` est du bruit.
+ */
+export function isStatBearingStatRow(stat: {
+    naturalMin?: number | null;
+    naturalMax?: number | null;
+    actualValue?: number | null;
+}): boolean {
+    const min = stat.naturalMin ?? null;
+    const max = stat.naturalMax ?? null;
+    if (min == null && max == null) return true;
+    return !((min ?? 0) === 0 && (max ?? 0) === 0 && (stat.actualValue ?? 0) === 0);
+}
+
+/**
  * ⚙️ S2.2 — Convertit les effets DofusDB en version **LÉGÈRE** (`nativeEffects`)
  * stockée sur `GameItem` : ce sont les **plages natives** (source serveur) que
  * l'éditeur de jet pré-remplit et que la carte d'item affiche.
@@ -925,7 +971,12 @@ export function buildNativeStatDrafts(
     referential?: MarketStatReferentialInput | null
 ): MarketStatDraft[] {
     if (!Array.isArray(nativeEffects)) return [];
-    return nativeEffects.map((fx) => {
+    // Constat beta (14/09) — les lignes de **métadonnées** du catalogue
+    // (« Échangeable : », « Compatible avec : »…) arrivent en `0 → 0` : elles ne
+    // sont **pas des jets** et ne sont donc jamais pré-remplies. Sans ce filtre,
+    // un cosmétique partait en déclaration avec des lignes que le serveur
+    // refusait ensuite (« aucune statistique ne peut être déclarée »).
+    return nativeEffects.filter(isStatBearingNativeEffect).map((fx) => {
         const range = applyEffectSign(
             normalizeNativeRange(fx.from, fx.to),
             // 3ᵉ passe — le signe ne dépend plus d'un référentiel disponible :

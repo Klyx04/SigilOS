@@ -13,7 +13,7 @@
  */
 
 import { StatIcon } from "@/components/market/stat-icon";
-import { normalizeNativeRange } from "@/lib/market/effects";
+import { isStatBearingStatRow, normalizeNativeRange } from "@/lib/market/effects";
 import type { MarketStatLineView } from "@/server/actions/market-constants";
 import { cn } from "@/lib/utils";
 
@@ -48,7 +48,14 @@ export function MarketStatLines({
     stats: MarketStatLine[];
     className?: string;
 }) {
-    if (stats.length === 0) return null;
+    /**
+     * Constat beta — les lignes de **métadonnées** (`0 → 0`, « Échangeable : »,
+     * « Compatible avec : ») des annonces écrites avant la garde d'écriture ne
+     * sont jamais rendues : « Mon espace », la négociation et la modération
+     * n'affichent plus « +0 Échangeable : [0] ».
+     */
+    const lines = stats.filter(isStatBearingStatRow);
+    if (lines.length === 0) return null;
 
     return (
         /*
@@ -63,7 +70,7 @@ export function MarketStatLines({
                 className
             )}
         >
-            {stats.map((stat) => (
+            {lines.map((stat) => (
                 <li key={stat.id} className="flex min-w-0 items-center gap-2 text-xs">
                     <StatIcon
                         characteristicId={stat.characteristic}

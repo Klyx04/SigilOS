@@ -11,6 +11,7 @@
  */
 
 import type {
+    MarketComponentStatus,
     MarketListingStatus,
     MarketListingType,
     MarketOfferStatus,
@@ -99,6 +100,15 @@ export const MARKET_TYPE_LABELS: Record<MarketListingType, string> = {
     RESOURCE: "Ressources",
     SERVICE: "Service",
     WANTED: "Recherche",
+    // 🧺 Décision user du 14/09/2026 — lot multiple (≤ 5 objets, **prix par objet**).
+    BUNDLE: "Lot multiple",
+};
+
+/** Statut d'**un objet** d'un lot multiple (`MarketComponentStatus`). */
+export const MARKET_COMPONENT_STATUS_LABELS: Record<MarketComponentStatus, string> = {
+    AVAILABLE: "Disponible",
+    RESERVED: "Réservé",
+    SOLD: "Vendu",
 };
 
 export const MARKET_STATUS_LABELS: Record<MarketListingStatus, string> = {

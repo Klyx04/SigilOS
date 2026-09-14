@@ -181,6 +181,35 @@ export async function recordCronExecution(
 }
 
 /**
+ * 🚨 Constat ops (14/09/2026) — **un cron refusé n'écrivait rien**.
+ *
+ * Avec un `x-cron-secret` absent ou erroné, la route renvoie `401` **avant**
+ * `recordCronExecution` : le panneau **God → Tâches CRON** restait donc
+ * « Inconnu » / « Jamais », indiscernable d'une tâche qui n'a jamais été
+ * appelée (constat user : « la crontab est mise depuis hier, toujours en
+ * inconnu »). On trace désormais **le refus lui-même** — sans secret, sans
+ * payload, sans donnée de guilde.
+ *
+ * 🛡️ Throttle **Redis `SET NX EX 600`** : la route de cron est publique, un
+ * tiers ne peut donc pas remplir Redis (au plus **une** trace par tâche et par
+ * 10 minutes). Redis indisponible ⇒ aucune trace (l'appelant l'ignore).
+ */
+export async function recordCronRefusal(cronId: string): Promise<boolean> {
+    try {
+        const claimed = await redis.set(`cron:refusal:${cronId}`, "1", "EX", 600, "NX");
+        if (!claimed) return false;
+        return await recordCronExecution(cronId, {
+            success: false,
+            summary:
+                "Refusé (401) : en-tête « x-cron-secret » absent ou invalide — vérifier la ligne de crontab (secret réel + URL de CET environnement) puis relancer.",
+        });
+    } catch (err) {
+        logger.error("[CronTelemetry] Failed to record cron refusal:", { cronId, error: err });
+        return false;
+    }
+}
+
+/**
  * Récupère le statut de tous les crons enregistrés.
  */
 export async function getAllCronStatuses(): Promise<CronExecutionRecord[]> {

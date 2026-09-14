@@ -111,6 +111,16 @@ const STAT_THEMES = {
     pods: { asset: "pod.png", label: "Pods", color: "text-warning" },
     dodge: { asset: "fuite.png", label: "Fuite", color: "text-info" },
     tackle: { asset: "tacle.png", label: "Tacle", color: "text-success" },
+    /**
+     * Correction 14/09/2026 (constat beta « icône assets ko : +5 % Mêlée (%) ») —
+     * les deux résistances **de contact** n'avaient **aucun** thème : la ligne
+     * tombait sur le repli lucide (éclair), jamais sur l'asset officiel.
+     * Le référentiel DofusDB les nomme `Mêlée (%)` (`tx_resMelee`) et
+     * `Distance (%)` (`tx_distanceRes`) — le **bouclier** est l'asset des autres
+     * résistances (`Résistance Critiques`, `Résistance Poussée`).
+     */
+    meleeResistance: { asset: "bouclier.png", label: "Résistance Mêlée", color: "text-danger" },
+    distanceResistance: { asset: "bouclier.png", label: "Résistance Distance", color: "text-info" },
     apReduction: { asset: "retraitPA.png", label: "Retrait PA", color: "text-muted-foreground" },
     mpReduction: { asset: "retraitPM.png", label: "Retrait PM", color: "text-muted-foreground" },
     apDodge: { asset: "esquivePA.png", label: "Esquive PA", color: "text-info" },
@@ -161,20 +171,38 @@ const THEME_BY_ID: Record<number, StatThemeKey> = {
     // Combat & utilitaires
     16: "damage",
     18: "criticalHits",
+    /**
+     * ⚠️ Correction 14/09/2026 — **audit de tous les ids de cette carte** contre
+     * le référentiel siphonné (`GameCharacteristic` / `GameEffect`, sonde
+     * `src/temp/_probe-stat-icons-audit.mjs`) : trois entrées donnaient une
+     * **mauvaise** icône (le référentiel est la source de vérité) :
+     *   · `82` = « Retrait PA » (`tx_attackAP`) — était `apDodge` ;
+     *   · `84` = « Poussée » (`tx_push`) — était `mpDodge` ;
+     *   · `88` = « Terre » (`tx_strength`, dommages) — était `pushResistance`.
+     */
     27: "apDodge",
-    82: "apDodge",
+    160: "apDodge",
+    82: "apReduction",
     28: "mpDodge",
-    84: "mpDodge",
+    161: "mpDodge",
     80: "apReduction",
+    410: "apReduction",
     83: "mpReduction",
     412: "mpReduction",
     31: "damage",
     40: "pods",
+    158: "pods",
     44: "initiative",
+    174: "initiative",
+    175: "initiative",
     48: "prospecting",
+    176: "prospecting",
     49: "heals",
     178: "heals",
     50: "shield",
+    115: "criticalHits",
+    116: "range",
+    138: "power",
     // Résistances élémentaires (%) — caractéristiques 33→37 et effects 210→214
     33: "earthResistance",
     213: "earthResistance",
@@ -186,14 +214,23 @@ const THEME_BY_ID: Record<number, StatThemeKey> = {
     212: "airResistance",
     37: "neutralResistance",
     214: "neutralResistance",
+    // Résistances élémentaires **fixes** (« Terre (fixe) »…) — ids mesurés
+    240: "earthResistance",
+    241: "waterResistance",
+    242: "airResistance",
+    243: "fireResistance",
+    244: "neutralResistance",
     // Dommages élémentaires
     89: "fireDamage",
     424: "fireDamage",
     90: "waterDamage",
+    426: "waterDamage",
     432: "waterDamage",
     91: "airDamage",
     428: "airDamage",
+    88: "earthDamage",
     92: "earthDamage",
+    423: "earthDamage",
     430: "earthDamage",
     93: "neutralDamage",
     141: "neutralDamage",
@@ -201,17 +238,54 @@ const THEME_BY_ID: Record<number, StatThemeKey> = {
     // Critique & poussée
     112: "criticalDamage",
     162: "criticalDamage",
+    418: "criticalDamage",
+    419: "criticalDamage",
     87: "criticalResistance",
     163: "criticalResistance",
+    420: "criticalResistance",
+    421: "criticalResistance",
     114: "pushDamage",
+    84: "pushDamage",
     164: "pushDamage",
-    88: "pushResistance",
+    414: "pushDamage",
     165: "pushResistance",
+    416: "pushResistance",
+    417: "pushResistance",
+    /**
+     * Résistances **au corps à corps** (constat beta du 14/09 : « +5 % Mêlée (%) »
+     * avec une icône cassée) — `2803` = « Mêlée (%) », `2804`/`2807` =
+     * « Distance (%) » (référentiel `/effects/2803` : `characteristic: 124`,
+     * description FR « …% Résistance mêlée », `isInPercent: true`).
+     */
+    2803: "meleeResistance",
+    2804: "distanceResistance",
+    2807: "distanceResistance",
     // Fuite / tacle
     78: "dodge",
     752: "dodge",
+    754: "dodge",
     79: "tackle",
     753: "tackle",
+    755: "tackle",
+};
+
+/**
+ * ⚠️ Correction 14/09/2026 — **collision d'identifiants** (constat beta
+ * « +5 % Mêlée (%) ») : `124` désigne **deux choses** dans DofusDB —
+ * l'`effectId` **124** = *Sagesse* et la `characteristicId` **124** =
+ * *Mêlée (%)* (`receivedDamageMultiplierMelee`, asset `tx_resMelee`).
+ *
+ * `THEME_BY_ID` ne peut donc pas être juste pour les deux à la fois : la
+ * résolution **caractéristique → thème** passe par cette carte **d'abord**
+ * (c'est la même donnée que `GameCharacteristic`, vérifiée en base), puis
+ * retombe sur `THEME_BY_ID` pour la compatibilité, et enfin l'`effectId` est
+ * résolu dans `THEME_BY_ID`. Résultat : la caracteristique 124 donne
+ * « Résistance Mêlée » et l'`effectId` 124 donne toujours « Sagesse ».
+ */
+const THEME_BY_CHARACTERISTIC: Record<number, StatThemeKey> = {
+    120: "distanceResistance",
+    121: "distanceResistance",
+    124: "meleeResistance",
 };
 
 /** Code court historique (DofusBook / Solomonk) → thème. */
@@ -271,6 +345,16 @@ const LABEL_THEME_PATTERNS: { pattern: RegExp; theme: StatThemeKey }[] = [
     { pattern: /retrait\s+pm/i, theme: "mpReduction" },
     { pattern: /esquive\s+pa/i, theme: "apDodge" },
     { pattern: /esquive\s+pm/i, theme: "mpDodge" },
+    // Constat beta 14/09 — libellés du référentiel sans motif : « Critiques (fixe) »
+    // et « Poussée (fixe) » sont des **résistances** (char. 87 / 85), à traiter
+    // AVANT les motifs génériques « critique » / « poussée » (dégâts).
+    { pattern: /critiques?\s*\(fixe\)/i, theme: "criticalResistance" },
+    { pattern: /pouss[eé]e\s*\(fixe\)/i, theme: "pushResistance" },
+    { pattern: /pouss[eé]e/i, theme: "pushDamage" },
+    // « Mêlée (%) » / « Distance (%) » (chars 124 / 120-121) : résistances au
+    // contact — l'asset officiel est le **bouclier** (aucun PNG dédié).
+    { pattern: /m[eê]l[eé]e/i, theme: "meleeResistance" },
+    { pattern: /distance/i, theme: "distanceResistance" },
     { pattern: /r[eé]sistance[^a-z]*critique/i, theme: "criticalResistance" },
     { pattern: /r[eé]sistance[^a-z]*pouss/i, theme: "pushResistance" },
     { pattern: /r[eé]sistance[^a-z]*neutre/i, theme: "neutralResistance" },
@@ -324,7 +408,9 @@ export function resolveDofusStatTheme(
     label?: string | null
 ): DofusStatAsset | null {
     const key =
-        (characteristicId != null ? THEME_BY_ID[characteristicId] : undefined) ??
+        (characteristicId != null
+            ? THEME_BY_CHARACTERISTIC[characteristicId] ?? THEME_BY_ID[characteristicId]
+            : undefined) ??
         (effectId != null ? THEME_BY_ID[effectId] : undefined) ??
         (charCode ? THEME_BY_CODE[charCode.toLowerCase()] : undefined) ??
         (label ? LABEL_THEME_PATTERNS.find((entry) => entry.pattern.test(label))?.theme : undefined);

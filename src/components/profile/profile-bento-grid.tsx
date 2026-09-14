@@ -200,6 +200,42 @@ export function ProfileBentoGrid({
         }
     }, [activeStepData, tourPhase]);
 
+    /**
+     * Constat beta « tes préférences KO » — le bandeau d'onglets est
+     * **défilable horizontalement** (`overflow-x-auto` + onglets `min-w-max`) :
+     * l'onglet « Réglages » (`[data-tour="profile-tab-settings"]`), dernier de la
+     * liste, vit **hors du cadre visible** sur un écran normal. Le spotlight de
+     * l'étape « Tes préférences » encadrait donc… du vide (le tutoriel semblait
+     * pointer nulle part).
+     *
+     * On amène l'onglet visé dans le cadre dès que l'étape change. L'overlay relit
+     * la position à chaque frame : le spotlight suit le défilement.
+     */
+    useEffect(() => {
+        if (tourPhase !== "profile" || !activeStepData) return;
+        const target = activeStepData.target;
+        if (!target.includes("profile-tab-")) return;
+
+        // Deux rAF : on attend le re-rendu déclenché par `setActiveTab` ci-dessus.
+        let frame = requestAnimationFrame(() => {
+            frame = requestAnimationFrame(() => {
+                const strip = tabsScrollRef.current;
+                const tabElement = document.querySelector<HTMLElement>(target);
+                if (!strip || !tabElement) return;
+
+                const stripRect = strip.getBoundingClientRect();
+                const tabRect = tabElement.getBoundingClientRect();
+                // Déjà entièrement visible → rien à faire.
+                if (tabRect.left >= stripRect.left && tabRect.right <= stripRect.right) return;
+
+                const delta = tabRect.left - stripRect.left - (stripRect.width - tabRect.width) / 2;
+                strip.scrollTo({ left: strip.scrollLeft + delta, behavior: "smooth" });
+            });
+        });
+
+        return () => cancelAnimationFrame(frame);
+    }, [activeStepData, tourPhase]);
+
     // Default permissions to true if not provided (internal consistency)
     const { 
         canViewOcre = true, 

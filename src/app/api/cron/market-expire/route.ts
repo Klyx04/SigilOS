@@ -59,6 +59,12 @@ import { notifyMarketIncidentsCore } from "@/server/market/incidents";
  */
 async function handleMarketExpire(req: Request) {
     if (!verifyCronSecret(req)) {
+        // 🚨 Constat ops (14/09/2026) — le refus **laisse une trace** : sans ça le
+        // panneau God restait « Inconnu » alors que la crontab appelait bien la
+        // route (secret vide : `$CRON_SECRET` n'existe pas dans l'environnement de
+        // `cron`, ou URL d'un autre environnement). Throttlé (1 trace / 10 min).
+        const { recordCronRefusal } = await import("@/lib/cron-telemetry");
+        await recordCronRefusal("market_expire");
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

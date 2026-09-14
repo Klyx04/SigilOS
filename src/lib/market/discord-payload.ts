@@ -174,6 +174,36 @@ export function absoluteDiscordAssetUrl(
     return url.startsWith("/") ? `${base}${url}` : `${base}/${url}`;
 }
 
+/**
+ * Constat beta (14/09/2026) — **la carte image n'a de sens que s'il y a un jet**.
+ *
+ * Constat user : « Les embeds des items de type Cosmétique / Ressources-Autres
+ * ne génèrent pas l'image dans l'embed, ça ne sert à rien — uniquement utile
+ * pour les items de type équipement : affiche juste en grand la miniature de
+ * l'item. » (la carte d'un lot montrait en plus un cadre **vide**, faute
+ * d'`ankamaId` sur l'annonce).
+ *
+ * Règle : **un jet réellement déclaré** (au moins une ligne porteuse, cf.
+ * `isStatBearingStatRow`) ⇒ carte PNG `/api/og/market/[id]` (tooltip Dofus :
+ * effets, couleurs, prix) ; sinon (lot, cosmétique, vente brute) ⇒ **l'image de
+ * l'objet** en grand, posée directement comme image de l'embed — plus de carte
+ * inutile à générer, plus de cadre vide.
+ *
+ * ⚠️ Fonction **pure** (testée) : les URL absolues sont résolues par l'appelant.
+ * Jamais d'image vide : si la source préférée manque, on retombe sur l'autre.
+ */
+export function pickMarketEmbedImage(options: {
+    /** Carte PNG générée (`/api/og/market/[id]`), absolue — `null` si indisponible. */
+    cardImageUrl: string | null;
+    /** Image de l'objet (absolue, 1ᵉʳ composant du lot si l'annonce n'a pas d'icône). */
+    itemImageUrl: string | null;
+    /** `true` si l'annonce porte un jet déclaré. */
+    hasDeclaredJet: boolean;
+}): string | null {
+    const preferred = options.hasDeclaredJet ? options.cardImageUrl : options.itemImageUrl;
+    return preferred ?? options.cardImageUrl ?? options.itemImageUrl ?? null;
+}
+
 /** Phrase de jet dérivée des exos éventuels (jamais de jugement de faisabilité). */
 function buildExoBadge(exoLabels: string[] | undefined): string | null {
     if (!exoLabels || exoLabels.length === 0) return null;

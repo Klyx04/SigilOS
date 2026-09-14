@@ -168,10 +168,10 @@ export const guide = {
                             <strong>Pods</strong>
                         </div>
                     </td>
-                    <td>+10 Pod (0.25 PWR)</td>
-                    <td>+30 Pod (0.75 PWR)</td>
-                    <td>+100 Pod (2.5 PWR)</td>
-                    <td>0.025 par point</td>
+                    <td>+10 Pod (1 PWR)</td>
+                    <td>+30 Pod (3 PWR)</td>
+                    <td>+100 Pod (10 PWR)</td>
+                    <td>0.1 par point <span class="text-zinc-400 text-xs">(1 PWR = 10 Pod)</span></td>
                 </tr>
                 <tr>
                     <td>

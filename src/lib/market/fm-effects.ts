@@ -243,10 +243,16 @@ export const FM_EFFECTS: FmEffectDefinition[] = [
         label: "Pods",
         shortLabel: "Pod",
         rune: "Pod",
-        // ⚠️ S4.0c / Q15 — densité **non tranchée** : 0,1 (code historique) vs 0,25
-        // (sources communautaires) vs 0,025 (guide SEO à corriger). Le plan impose de
-        // **ne rien changer sans la capture de la rune** fournie par le user ⇒ valeur
-        // gelée volontairement (test dédié) + signalée au rapport.
+        // ✅ S4.0c / Q15 **TRANCHÉ le 14/09/2026 — par la donnée du jeu** (DofusDB,
+        // données du client) et non par une source communautaire : « Rune Pod »
+        // (item `7443`) pèse **1 PWR** et vaut **+10 Pods** ⇒ densité = 1 ÷ 10 =
+        // **0,1 pt** sur les 101 du budget ⇒ over max **1010**. Modèle vérifié sur
+        // les autres runes du même tableau : « Rune Vi » (`1523`) = +5 Vi pour
+        // 1 PWR ⇒ 0,2 (valeur déjà en base) ; « Rune Ini » (`7448`) = +10 Ini pour
+        // 1 PWR ⇒ 0,1. ⚠️ Le « 0,25 » communautaire supposerait une rune à
+        // **+4 Pods** : elle n'existe pas (`Rune Pa Pod` = +30, `Rune Ra Pod` =
+        // +100). C'est le guide SEO `poids-runes-forgemagie-dofus` (0,025) qui
+        // portait la coquille — corrigée.
         unitWeight: 0.1,
         maxOverStandalone: 1010,
         canExo: true,

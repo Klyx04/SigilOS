@@ -5,8 +5,17 @@
  * l'embed et les boutons pour **chaque** transition de statut, une seule fois,
  * et il est **testé** (`tests/unit/market-discord-payload.test.ts`).
  *
- * Contrat (spec §13.2/§13.3, D35) : **aucun montant d'offre ni pseudo d'acheteur
- * n'est jamais public** — seul un **compteur** d'offres l'est. Les boutons sont
+ * Contrat (spec §13.2/§13.3, D35) : **aucun montant d'offre ni identité d'un
+ * offrant** n'est jamais public — seul un **compteur** d'offres l'est.
+ *
+ * ⚠️ **D49 (14/09/2026, décision user)** — *seule exception assumée* à §13.7 :
+ * une annonce `RESERVED` nomme **le réservataire** (« Réservé par X — jusqu'au … »).
+ * L'acte de réservation est **public** (il bloque l'annonce pour tout le monde)
+ * et c'est exactement ce que le salon demande ; le nom vient du **profil de la
+ * guilde** (pseudo Dofus), jamais d'un id Discord, et **sans mention** (`@`).
+ * Montants d'offres et identité des offrants restent, eux, strictement privés.
+ *
+ * Les boutons sont
  * **désactivés** (jamais retirés) quand leur action n'est pas possible :
  * « Réserver au prix » sur une annonce non `ACTIVE`, « Faire une offre »
  * uniquement sur un état terminal ou non négociable (BUG-3 / R3 : une annonce
@@ -19,6 +28,7 @@
  */
 
 import { formatKamas } from "@/lib/market/kamas";
+import { formatMarketDateTime } from "@/lib/market/format-date";
 import { SMITHMAGIC_POTION_TIERS, describeSmithmagicStatus } from "@/lib/market/smithmagic";
 import {
     MARKET_DASHBOARD_LINK_LABEL,
@@ -99,6 +109,21 @@ export type MarketDiscordPayloadInput = {
      * historiques / aperçus sans contexte).
      */
     acceptsTrade?: boolean;
+    /**
+     * **D49** (14/09/2026, décision user) — **le réservataire est nommé** dans
+     * l'embed d'une annonce `RESERVED` : « 🔒 Réservé par X — jusqu'au … ».
+     * L'acte de réservation est **public** (il bloque l'annonce pour tout le
+     * monde) ⇒ le salon n'a plus à demander « qui a réservé ? » en MP.
+     *
+     * Pseudo **Dofus** du profil de la guilde (jamais un id Discord, jamais de
+     * mention). Absent ⇒ aucune ligne : **un autre état ne nomme personne**.
+     */
+    reservedByLabel?: string | null;
+    /**
+     * Échéance de la réservation (ISO). Affichée **à côté** du nom (jamais
+     * seule : sans nom, aucune ligne de réservation n'est ajoutée).
+     */
+    reservedUntil?: string | null;
 };
 
 export type MarketDiscordField = { name: string; value: string; inline?: boolean };
@@ -288,6 +313,8 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
         elementPotionTier,
         huntingWeapon,
         acceptsTrade,
+        reservedByLabel,
+        reservedUntil,
     } = input;
 
     const priceLabel = formatKamas(priceKamas ?? null);
@@ -322,6 +349,24 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
     });
     if (statusLines.length > 0) {
         descriptionLines.push(`**STATUT**\n${statusLines.join("\n")}`);
+    }
+
+    /**
+     * **D49** (14/09/2026, décision user) — une annonce **réservée** dit **qui**
+     * et **jusqu'à quand**. Le bouton « Réserver au prix » est déjà **grisé**
+     * (une seule réservation à la fois, R3) : ce bloc est le pendant lisible côté
+     * Discord, comme le bandeau « Déjà réservée par X jusqu'au … » de la fiche.
+     *
+     * Garde : la ligne n'existe **que** sur `RESERVED` et seulement si le serveur
+     * a résolu un nom ⇒ aucune fuite sur une annonce `ACTIVE`/`SOLD`/`EXPIRED`,
+     * même si l'appelant transmet un libellé par erreur. Aucun `@` : jamais de
+     * mention, donc jamais de ping involontaire.
+     */
+    if (status === "RESERVED" && reservedByLabel) {
+        const until = formatMarketDateTime(reservedUntil);
+        descriptionLines.push(
+            `🔒 **Réservé par ${reservedByLabel}**${until === "—" ? "" : ` — jusqu'au ${until}`}`
+        );
     }
 
     // BUG-5 (spec §2.4) — **aucune ligne de statistique ici** : le jet complet

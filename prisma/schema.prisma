@@ -3438,6 +3438,19 @@ enum MarketListingType {
   RESOURCE
   SERVICE
   WANTED
+  /// 🧺 Décision user du 14/09/2026 — **lot multiple** : jusqu'à 5 objets
+  /// différents (familles mélangées) vendus **ensemble**, chaque objet portant
+  /// **son propre prix** (réservable séparément) et publié dans **son** message
+  /// Discord. Cf. `src/temp/refonte-marche/PLAN-LOT-MULTIPLE.md`.
+  BUNDLE
+}
+
+/// Statut d'**un objet** d'un lot multiple (le lot lui-même garde son
+/// `MarketListingStatus`).
+enum MarketComponentStatus {
+  AVAILABLE
+  RESERVED
+  SOLD
 }
 
 enum MarketListingStatus {
@@ -3628,11 +3641,24 @@ model MarketListingComponent {
   quantity      Int                           // 1 000
   unitLabel     String?                       // « unité », « lot », « kamas »…
 
+  // ── 🧺 Lot multiple (décision user du 14/09/2026) ─────────────────────────
+  // Le **prix vit sur l'objet** (et non sur l'annonce) : chaque objet est
+  // réservable séparément. `status` suit l'objet, pas le lot.
+  priceKamas    Int?                          // prix de CET objet (kamas)
+  status        MarketComponentStatus @default(AVAILABLE)
+  reservedAt    DateTime?
+  soldAt        DateTime?
+
   createdAt     DateTime      @default(now())
 
   listing       MarketListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  /// Réservations **ciblant cet objet** (lot multiple).
+  reservations  MarketReservation[]
+  /// Messages Discord **de cet objet** (un message par objet, option A).
+  discordMessages MarketDiscordMessage[]
 
   @@index([listingId, position])
+  @@index([listingId, status])   // « quels objets restent disponibles ? »
 }
 
 /// La négociation (offre / contre-offre).
@@ -3666,6 +3692,9 @@ model MarketOffer {
 model MarketReservation {
   id                 String                   @id @default(cuid())
   listingId          String
+  /// 🧺 Lot multiple — **objet ciblé** (`null` = annonce entière, cas
+  /// historique). Une réservation ne porte que sur **un** objet.
+  componentId        String?
   buyerProfileId     String
   buyerUserId        String
 
@@ -3680,10 +3709,12 @@ model MarketReservation {
   updatedAt          DateTime                  @updatedAt
 
   listing            MarketListing             @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  component          MarketListingComponent?   @relation(fields: [componentId], references: [id], onDelete: Cascade)
 
   @@index([listingId, status])
   @@index([buyerProfileId, status])
   @@index([status, expiresAt])       // cron de libération
+  @@index([componentId, status])     // « cet objet est-il déjà réservé ? »
 }
 
 
@@ -3709,6 +3740,9 @@ model MarketListingMedia {
 model MarketDiscordMessage {
   id                       String        @id @default(cuid())
   listingId                String        @unique
+  /// 🧺 Lot multiple (option A) — **objet** dont ce message porte l'embed et
+  /// les boutons (`null` = message de l'annonce elle-même, cas historique).
+  componentId              String?
 
   discordGuildId           String        // snowflake Discord (traçabilité de l'app utilisée)
   discordChannelId         String
@@ -3723,8 +3757,10 @@ model MarketDiscordMessage {
   updatedAt                DateTime      @updatedAt
 
   listing                  MarketListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  component                MarketListingComponent? @relation(fields: [componentId], references: [id], onDelete: Cascade)
 
   @@index([discordGuildId, syncStatus])
+  @@index([componentId])
 }
 
 /// Signalement d'une annonce (dossiers humains, aucune sanction automatique).

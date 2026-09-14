@@ -524,6 +524,26 @@ export function isNonStatNativeEffect(fx: Pick<MarketNativeEffect, "effectId">):
 }
 
 /**
+ * 🏅 **Objet légendaire** (décision user du 14/09/2026) — la carte n'affiche
+ * que la **mention**, jamais le texte du pouvoir.
+ *
+ * 📏 Le drapeau `GameItem.isLegendary` (siphon DofusDB) **ne peut pas** marquer
+ * ces objets : DofusDB **n'expose pas** `isLegendary` dans `/items/{id}` (mesuré
+ * sur `22412` → notre colonne vaut `false`). Le **vrai marqueur du jeu** est la
+ * ligne de capacité légendaire (`effectId` **1175**, la même que celle écartée
+ * des stats) — c'est **elle** qui dit « objet légendaire ».
+ *
+ * ⚠️ À lire **avant** tout filtre d'affichage : c'est la donnée brute
+ * (`nativeEffects` du catalogue) qu'on interroge, jamais une liste déjà nettoyée.
+ */
+export function hasLegendaryCapacity(
+    nativeEffects: Pick<MarketNativeEffect, "effectId">[] | null | undefined
+): boolean {
+    if (!Array.isArray(nativeEffects)) return false;
+    return nativeEffects.some((fx) => NON_STAT_EFFECT_ID_SET.has(fx.effectId));
+}
+
+/**
  * Ligne native **affichable / déclarable** : ni métadonnée (`0 → 0`), ni
  * porteuse d'un **pouvoir**. Règle **unique** partagée par le pré-remplissage de
  * l'éditeur, la lecture client et le siphon (§13.4).

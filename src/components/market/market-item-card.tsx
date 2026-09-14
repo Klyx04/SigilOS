@@ -282,7 +282,7 @@ export function MarketItemCard({ data, className }: { data: MarketItemCardData; 
             {/* 9 — Variante légendaire / familier */}
             {data.isLegendary && (
                 <div className="mt-3 rounded-xl border border-gold/30 bg-gold/10 px-3 py-1.5 text-label font-bold text-gold">
-                    Statut légendaire
+                    Objet légendaire
                 </div>
             )}
 
@@ -431,12 +431,11 @@ export function MarketItemCard({ data, className }: { data: MarketItemCardData; 
                 </span>
             </div>
 
-            {/* 8 — Description */}
-            {data.description && (
-                <p className={cn("mt-3 italic text-muted-foreground", compact ? "text-body-sm" : "text-caption")}>
-                    {data.description}
-                </p>
-            )}
+            {/* 8 — Description : **retirée** (constat beta du 14/09/2026 — « supprime
+                les textes un peu de lore/histoire des équipements, c'est inutile »).
+                Le champ reste dans le contrat (l'assistant le transmet encore) mais
+                n'est **jamais** rendu : la carte d'annonce montre la **vérité de
+                l'objet** (nom, jet, forge, prix), pas son texte de catalogue. */}
         </div>
     );
 }

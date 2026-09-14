@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+    MARKET_OFFER_STATUS_LABELS,
     MARKET_ORIGIN_CLASSES,
     MARKET_ORIGIN_LABELS,
     MARKET_QUALITY_CLASSES,
@@ -22,6 +23,7 @@ import { MarketItemCard } from "@/components/market/market-item-card";
 import { StatIcon } from "@/components/market/stat-icon";
 import { DiscordProfileBubble, type DiscordProfileDTO } from "@/components/shared/discord-profile-bubble";
 import {
+    cancelMarketReservation,
     createMarketOffer,
     deleteMarketListing,
     publishMarketListing,
@@ -148,6 +150,13 @@ interface MarketListingClientProps {
      * la règle est calculée côté serveur (D17), l'UI ne fait qu'obéir.
      */
     declaredJet: boolean;
+    /** 🏅 Capacité légendaire du catalogue (`effectId` 1175) — décision user 14/09. */
+    isLegendary: boolean;
+    /**
+     * 🕒 Constat beta 14/09 (décision user : timeline des offres) — historique
+     * **anonyme** : statut + date seuls (§13.7 : jamais un montant ni un offrant).
+     */
+    offerHistory: { id: string; status: string; at: string }[];
     discordState: { syncStatus: string | null; lastError: string | null; published: boolean } | null;
 }
 
@@ -179,6 +188,8 @@ export function MarketListingClient({
     itemName,
     itemFamilyLabel,
     declaredJet,
+    isLegendary,
+    offerHistory,
     discordState,
 }: MarketListingClientProps) {
     const router = useRouter();
@@ -273,6 +284,8 @@ export function MarketListingClient({
                         iconUrl: listing.itemIconUrl,
                         description: itemDescription,
                         forgedBy: listing.forgedBy,
+                        // 🏅 Décision user (14/09) — mention « Objet légendaire » seule.
+                        isLegendary,
                         realWeight,
                         averagePrice,
                         priceKamas: listing.priceKamas,
@@ -293,6 +306,51 @@ export function MarketListingClient({
                         components: listing.components,
                     }}
                 />
+
+                {/* 🕒 Constat beta 14/09 — **timeline des offres** (décision user :
+                    « un historique en live des offres validées / non validées, une
+                    sorte de timeline sous l'item » ; placement retenu : **sous la
+                    carte d'item**, repliée par défaut ⇒ un équipement à 17 lignes
+                    ne pousse jamais les boutons d'achat hors de l'écran).
+
+                    🔒 §13.7 — timeline **anonyme** : statut + date uniquement,
+                    **jamais** un montant ni l'identité d'un offrant. */}
+                {offerHistory.length > 0 && (
+                    <details className="rounded-2xl border border-border bg-surface/60 px-4 py-3" data-tour="marche-offers-timeline">
+                        <summary className="cursor-pointer list-none text-[11px] font-black uppercase tracking-wider text-muted-foreground">
+                            Historique des offres ({offerHistory.length})
+                        </summary>
+                        <ul className="mt-3 space-y-1.5">
+                            {offerHistory.map((entry) => (
+                                <li key={entry.id} className="flex items-center gap-2 text-xs">
+                                    <span
+                                        className={cn(
+                                            "h-1.5 w-1.5 shrink-0 rounded-full",
+                                            entry.status === "ACCEPTED"
+                                                ? "bg-success"
+                                                : entry.status === "PENDING"
+                                                  ? "bg-info"
+                                                  : "bg-muted-foreground/50"
+                                        )}
+                                        aria-hidden="true"
+                                    />
+                                    <span className="text-foreground/90">
+                                        {MARKET_OFFER_STATUS_LABELS[
+                                            entry.status as keyof typeof MARKET_OFFER_STATUS_LABELS
+                                        ] ?? entry.status}
+                                    </span>
+                                    <span className="ml-auto shrink-0 tabular-nums text-muted-foreground">
+                                        {formatMarketDateTime(entry.at)}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                        <p className="mt-3 text-[11px] text-muted-foreground">
+                            Montants et identités des offrants restent privés (visibles du vendeur
+                            uniquement, dans la négociation).
+                        </p>
+                    </details>
+                )}
 
                 {itemFamilyLabel && (
                     <div className="flex flex-wrap items-center gap-2">
@@ -491,11 +549,33 @@ export function MarketListingClient({
                                     </p>
                                 </>
                             ) : listing.reservation?.isMine ? (
-                                <p className="text-xs text-info">
-                                    Tu as réservé cette annonce jusqu&apos;au{" "}
-                                    {formatDeadline(listing.reservation.expiresAt)}. Le vendeur a été
-                                    prévenu.
-                                </p>
+                                <div className="space-y-2">
+                                    <p className="text-xs text-info">
+                                        Tu as réservé cette annonce jusqu&apos;au{" "}
+                                        {formatDeadline(listing.reservation.expiresAt)}. Le vendeur a été
+                                        prévenu.
+                                    </p>
+                                    {/* 🕒 Constat beta 14/09 — le réservataire pouvait se désister
+                                        **uniquement** depuis l'embed Discord (`mkt:cancel`) ; la
+                                        fiche du dashboard n'exposait rien. Même action serveur
+                                        (`cancelMarketReservation` → `cancelMarketReservationCore`,
+                                        §13.4) : aucune règle dupliquée. */}
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full gap-2"
+                                        disabled={isPending}
+                                        onClick={() =>
+                                            run(
+                                                () => cancelMarketReservation(guildId, listing.reservation!.id),
+                                                "Réservation annulée : l'annonce repart en vente."
+                                            )
+                                        }
+                                    >
+                                        {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                                        Me désister
+                                    </Button>
+                                </div>
                             ) : listing.reservation ? (
                                 <p className="text-xs text-muted-foreground">
                                     Déjà réservée par{" "}

@@ -190,66 +190,72 @@ export function MarketCatalogClient({
                 )}
             </div>
 
-            {/* Filtres */}
+            {/* Filtres — 🎛️ **une seule barre d'outils** (constat beta du 14/09 :
+                « les boutons sont éparpillés un peu partout »). Tout est aligné :
+                recherche → filtres → bascule d'affichage ; les options secondaires
+                (masquage, compteur, réinitialisation) vivent sur une 2ᵉ ligne
+                séparée par un filet. */}
             <Card className="bg-surface/60 border-border" data-tour="marche-filters">
-                <CardContent className="p-4 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 items-center">
-                        <div className="relative">
+                <CardContent className="p-4 space-y-3">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                        <div className="relative w-full lg:max-w-xs">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <Input
                                 value={search}
                                 onChange={(event) => setSearch(event.target.value)}
                                 placeholder="Rechercher un objet, un vendeur…"
                                 className="h-10 pl-9"
+                                aria-label="Rechercher une annonce"
                             />
                         </div>
-                        <Select value={type} onValueChange={setType}>
-                            <SelectTrigger className="h-10">
-                                <SelectValue placeholder="Type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ALL">Tous les types</SelectItem>
-                                <SelectItem value="EQUIPMENT">Équipement</SelectItem>
-                                <SelectItem value="RESOURCE">Ressources</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <Select value={status} onValueChange={setStatus}>
-                            <SelectTrigger className="h-10">
-                                <SelectValue placeholder="Statut" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ALL">Tous les statuts</SelectItem>
-                                <SelectItem value="ACTIVE">Disponible</SelectItem>
-                                <SelectItem value="RESERVED">Réservé</SelectItem>
-                                <SelectItem value="SOLD">Vendu</SelectItem>
-                                <SelectItem value="EXPIRED">Expiré</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <Select value={sort} onValueChange={setSort}>
-                            <SelectTrigger className="h-10">
-                                <SelectValue placeholder="Trier" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="recent">Plus récentes</SelectItem>
-                                <SelectItem value="price_asc">Prix croissant</SelectItem>
-                                <SelectItem value="price_desc">Prix décroissant</SelectItem>
-                                <SelectItem value="level_desc">Niveau décroissant</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
 
-                    <div className="flex flex-wrap items-center gap-6">
-                        <label className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                            <Switch checked={hideTerminal} onCheckedChange={setHideTerminal} />
-                            Masquer vendues / expirées
-                        </label>
+                        {/* Filtres regroupés : largeur fixe ⇒ plus de sélecteurs qui
+                            flottent au milieu de la carte. */}
+                        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3 lg:w-auto">
+                            <Select value={type} onValueChange={setType}>
+                                <SelectTrigger className="h-10 w-full lg:w-[160px]" aria-label="Type d'annonce">
+                                    <SelectValue placeholder="Type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">Tous les types</SelectItem>
+                                    <SelectItem value="EQUIPMENT">Équipement</SelectItem>
+                                    <SelectItem value="RESOURCE">Ressources</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Select value={status} onValueChange={setStatus}>
+                                <SelectTrigger className="h-10 w-full lg:w-[170px]" aria-label="Statut de l'annonce">
+                                    <SelectValue placeholder="Statut" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">Tous les statuts</SelectItem>
+                                    <SelectItem value="ACTIVE">Disponible</SelectItem>
+                                    <SelectItem value="RESERVED">Réservé</SelectItem>
+                                    <SelectItem value="SOLD">Vendu</SelectItem>
+                                    <SelectItem value="EXPIRED">Expiré</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Select value={sort} onValueChange={setSort}>
+                                <SelectTrigger className="h-10 w-full lg:w-[190px]" aria-label="Tri des annonces">
+                                    <SelectValue placeholder="Trier" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="recent">Plus récentes</SelectItem>
+                                    <SelectItem value="price_asc">Prix croissant</SelectItem>
+                                    <SelectItem value="price_desc">Prix décroissant</SelectItem>
+                                    <SelectItem value="level_desc">Niveau décroissant</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
 
-                        <div className="flex items-center gap-1 ml-auto rounded-xl border border-border p-1">
+                        {/* Bascule d'affichage : collée à droite de la barre, plus
+                            perdue au milieu de la carte. */}
+                        <div className="flex items-center gap-1 lg:ml-auto rounded-xl border border-border p-1">
                             <Button
                                 variant={view === "cards" ? "secondary" : "ghost"}
                                 size="sm"
                                 className="h-8 gap-2"
                                 onClick={() => setView("cards")}
+                                aria-pressed={view === "cards"}
                             >
                                 <LayoutGrid className="w-4 h-4" />
                                 Cartes
@@ -259,11 +265,36 @@ export function MarketCatalogClient({
                                 size="sm"
                                 className="h-8 gap-2"
                                 onClick={() => setView("table")}
+                                aria-pressed={view === "table"}
                             >
                                 <Table2 className="w-4 h-4" />
                                 Tableau
                             </Button>
                         </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-4 border-t border-border pt-3">
+                        <label className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                            <Switch checked={hideTerminal} onCheckedChange={setHideTerminal} />
+                            Masquer vendues / expirées
+                        </label>
+                        <p className="text-[11px] text-muted-foreground" aria-live="polite">
+                            {filtered.length} annonce{filtered.length > 1 ? "s" : ""}
+                        </p>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="ml-auto h-8 text-xs"
+                            onClick={() => {
+                                setSearch("");
+                                setType("ALL");
+                                setStatus("ALL");
+                                setSort("recent");
+                                setHideTerminal(true);
+                            }}
+                        >
+                            Réinitialiser les filtres
+                        </Button>
                     </div>
                 </CardContent>
             </Card>

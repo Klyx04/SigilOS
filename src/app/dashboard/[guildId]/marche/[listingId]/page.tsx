@@ -85,10 +85,16 @@ export default async function MarketListingPage({
                 itemSetName={catalogEntry?.itemSetName ?? null}
                 realWeight={catalogEntry?.realWeight ?? null}
                 itemDescription={catalogEntry?.description ?? null}
+                /** 🏅 Constat beta 14/09 — « objet légendaire » dérivé de la
+                 * capacité légendaire du catalogue (DofusDB n'expose pas le
+                 * drapeau : la donnée réelle est la ligne `effectId` 1175). */
+                isLegendary={catalogEntry?.isLegendary ?? false}
                 /** Nom réel du catalogue (constat beta : « le nom n'est pas bon »). */
                 itemName={catalogEntry?.name ?? listing.itemName ?? null}
                 itemFamilyLabel={itemPolicy ? MARKET_ITEM_FAMILY_LABELS[itemPolicy.family] : null}
                 declaredJet={declaredJet}
+                /** 🕒 Timeline des offres — statut + date seuls (§13.7). */
+                offerHistory={listing.offerHistory ?? []}
                 discordState={discordState}
             />
         </div>

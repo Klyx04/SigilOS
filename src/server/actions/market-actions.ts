@@ -111,6 +111,12 @@ export type MarketReservationView = {
 /** Fiche d'annonce : la fiche + sa réservation active (ou `null`). */
 export type MarketListingDetail = MarketListingRecord & {
     reservation: MarketReservationView | null;
+    /**
+     * 🕒 Constat beta 14/09 — **timeline des offres** de l'annonce (statut + date
+     * seulement, §13.7 : jamais un montant ni un offrant). Vide s'il n'y a aucune
+     * offre.
+     */
+    offerHistory: MarketOfferTimelineEntry[];
 };
 
 /**
@@ -614,6 +620,32 @@ export async function getMarketListing(
         // libellés exacts + signe des malus sur la fiche.
         const referential = await loadMarketReferential();
 
+        /**
+         * 🕒 Constat beta (14/09/2026) — **timeline des offres** (décision user :
+         * « un historique en live des offres validées / non validées, une sorte de
+         * timeline sous l'item »).
+         *
+         * 🔒 §13.7 — une timeline visible par **toute la guilde** ne peut porter
+         * **ni montant ni identité** : on ne sélectionne donc que `status` et les
+         * horodatages (jamais `offeredKamas`, `tradeDescription`, `note`,
+         * `buyerProfileId`). Le détail chiffré reste dans le centre de négociation
+         * (privé vendeur/offrant). Lecture **bornée** (`take`) et **scopée** par la
+         * guilde de l'annonce (isolation §16.2).
+         */
+        const offerRows = await db.marketOffer.findMany({
+            where: { listingId: listing.id, listing: { guildId: guildConfig.id } },
+            orderBy: { createdAt: "desc" },
+            take: MARKET_OFFER_TIMELINE_LIMIT,
+            select: { id: true, status: true, createdAt: true, updatedAt: true },
+        });
+        const offerHistory: MarketOfferTimelineEntry[] = offerRows.map((row) => ({
+            id: row.id,
+            status: row.status,
+            // Une offre `PENDING` s'est « passée » à sa création ; une offre
+            // tranchée (acceptée/refusée/annulée/expirée) à sa dernière écriture.
+            at: (row.status === "PENDING" ? row.createdAt : row.updatedAt).toISOString(),
+        }));
+
         return {
             success: true,
             data: {
@@ -621,6 +653,7 @@ export async function getMarketListing(
                 reservation: reservationRow
                     ? await buildReservationView(reservationRow, user.profileId ?? null, guildConfig.id)
                     : null,
+                offerHistory,
             },
         };
     } catch (error) {
@@ -670,6 +703,24 @@ type NegotiationOfferRow = {
 
 /** Nombre d'offres conservées dans l'historique « mes offres » (S4.10). */
 const MARKET_NEGOTIATION_HISTORY_LIMIT = 20;
+
+/**
+ * 🕒 Nombre d'événements de la **timeline publique** d'une annonce (constat
+ * beta 14/09). Volontairement petit : c'est un **indicateur d'activité**, pas
+ * un journal (le détail vit dans la négociation, privée).
+ */
+const MARKET_OFFER_TIMELINE_LIMIT = 12;
+
+/**
+ * Entrée **anonyme** de la timeline des offres — §13.7 : le **statut** et la
+ * **date**, jamais un montant ni l'identité d'un offrant.
+ */
+export type MarketOfferTimelineEntry = {
+    id: string;
+    status: MarketOfferStatus;
+    /** Horodatage de l'événement (ISO 8601). */
+    at: string;
+};
 
 /**
  * Met une ligne `MarketOffer` en forme pour le centre de négociation (§14.1).

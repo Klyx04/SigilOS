@@ -10,7 +10,7 @@
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { Prisma } from "@prisma/client";
-import { isNonStatNativeEffect, resolveNativeEffects } from "@/lib/market/effects";
+import { hasLegendaryCapacity, isNonStatNativeEffect, resolveNativeEffects } from "@/lib/market/effects";
 import { normalizeItemIconUrl } from "@/lib/market/item-image";
 import { buildMarketFamilyWhere } from "@/lib/market/family-where";
 import { type MarketItemFamily } from "@/lib/market/item-families";
@@ -195,8 +195,17 @@ export async function getItemCatalogEntry(ankamaId: number): Promise<ItemCatalog
     // (lourd) est écarté du retour : il ne doit jamais partir au client.
     const { effects: _rawEffects, ...entry } = item;
     const natives = resolveNativeEffects(item);
+    /**
+     * 🏅 Constat beta 14/09 (décision user : « équipement légendaire : afficher
+     * seulement objet légendaire ») — `GameItem.isLegendary` (siphon DofusDB)
+     * vaut **toujours `false`** (DofusDB n'expose pas ce champ : mesuré sur
+     * `22412`). Le marqueur réel est la **capacité légendaire** (`effectId`
+     * **1175**), lue ici **avant** le filtre d'affichage.
+     */
+    const legendary = Boolean(entry.isLegendary) || hasLegendaryCapacity(natives);
     return {
         ...entry,
+        isLegendary: legendary,
         // BUG-3 — même normalisation que la recherche du catalogue.
         iconUrl: normalizeItemIconUrl(entry.iconUrl, entry.ankamaId),
         // 🧨 Constat beta 14/09 — la ligne **pouvoir** (capacité légendaire,

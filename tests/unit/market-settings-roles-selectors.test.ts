@@ -78,10 +78,19 @@ describe("Panneau Marché — sélecteurs de rôles (régression « aucun rôle 
         expect(suspicious, `accès à une propriété inexistante : ${suspicious.join(" · ")}`).toEqual([]);
     });
 
-    it("les 4 sélecteurs reçoivent bien la liste de rôles", () => {
+    it("ne laisse qu'UN sélecteur de rôles : les « pinguables »", () => {
         const passed = [...read(MARKET_SETTINGS).matchAll(/roles=\{roles\}/g)].length;
-        // 3 × RoleSelector (à mentionner, modérateur, minimum) + 1 × PingRolesSelector.
-        expect(passed).toBe(4);
+        // Décision user (14/09/2026) — « Rôle à mentionner », « Rôle modérateur » et
+        // « Rôle minimum pour publier » sont **supprimés** (la matrice RBAC est la
+        // seule source de droits) : il ne reste que `PingRolesSelector`.
+        expect(passed).toBe(1);
+        const source = readCode(MARKET_SETTINGS);
+        expect(source, "aucun second système de droits par rôle Discord").not.toMatch(/RoleSelector/);
+        // Les libellés retirés ne doivent plus être **rendus** (les commentaires qui
+        // expliquent la suppression sont hors périmètre : `readCode` les retire).
+        expect(source).not.toMatch(
+            /Rôle à mentionner à la publication|Rôle modérateur du marché|Rôle minimum pour publier|Durées, plafonds/
+        );
     });
 
     it("convertit la couleur Discord (entier) en `#rrggbb` pour les pastilles", () => {

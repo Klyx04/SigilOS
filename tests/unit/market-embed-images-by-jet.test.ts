@@ -104,6 +104,18 @@ describe("interface — lot : icône et compacité", () => {
         expect(catalog).toMatch(/iconUrl: string \| null;\s*\n\s*dofusDbItemId: number \| null;/);
     });
 
+    it("« Mon espace » retombe aussi sur le 1ᵉʳ composant du lot", () => {
+        const mine = codeOnly(
+            read("src/app/dashboard/[guildId]/marche/_components/market-my-space-client.tsx")
+        );
+        expect(mine).toMatch(/src=\{listing\.itemIconUrl \?\? listing\.components\?\.\[0\]\?\.iconUrl \?\? null\}/);
+        expect(mine).toMatch(
+            /ankamaId=\{listing\.dofusDbItemId \?\? listing\.components\?\.\[0\]\?\.dofusDbItemId \?\? null\}/
+        );
+        // Le type client porte les champs du repli (sinon il est mort).
+        expect(mine).toMatch(/components\?: \{/);
+    });
+
     it("la carte d'item passe en présentation compacte sans jet", () => {
         const card = codeOnly(read("src/components/market/market-item-card.tsx"));
         expect(card).toMatch(/const compact = stats\.length === 0;/);

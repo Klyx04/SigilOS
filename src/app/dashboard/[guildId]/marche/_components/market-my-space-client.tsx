@@ -43,6 +43,17 @@ type MyListing = {
     quantity: number | null;
     unitLabel: string | null;
     /**
+     * Constat beta — contenu d'un lot : son **1ᵉʳ composant** fournit l'icône
+     * (une annonce de lot n'a ni `itemIconUrl` ni `dofusDbItemId` propres).
+     */
+    components?: {
+        id: string;
+        name: string;
+        quantity: number;
+        iconUrl: string | null;
+        dofusDbItemId: number | null;
+    }[];
+    /**
      * S8.15 — **jet déclaré** : déjà sérialisé par `getMyMarketData` (aucune
      * requête supplémentaire). Optionnel : une annonce sans jet n'affiche rien.
      */
@@ -135,8 +146,8 @@ export function MarketMySpaceClient({ guildId, viewer, active, archived, receive
                                     aucune image, seulement des lignes de stats en bloc. */}
                                 <div className="h-12 w-12 shrink-0 rounded-xl border border-border bg-background/60 flex items-center justify-center overflow-hidden">
                                     <MarketItemIcon
-                                        src={listing.itemIconUrl}
-                                        ankamaId={listing.dofusDbItemId}
+                                        src={listing.itemIconUrl ?? listing.components?.[0]?.iconUrl ?? null}
+                                        ankamaId={listing.dofusDbItemId ?? listing.components?.[0]?.dofusDbItemId ?? null}
                                         alt={listing.itemName ?? listing.title}
                                         size={44}
                                         className="p-1"

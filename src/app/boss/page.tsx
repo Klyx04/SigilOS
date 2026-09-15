@@ -66,28 +66,27 @@ export default async function PublicBossCatalogPage() {
           </Link>
 
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-wider">
-              ✨ 100% Gratuit · Sans Inscription
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-border text-muted-foreground text-xs font-medium">
+              Accès libre · sans inscription
             </span>
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-black uppercase tracking-wider">
-              <Swords className="w-3.5 h-3.5" /> Bestiaire Tactique
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-border text-muted-foreground text-xs font-medium">
+              <Swords className="w-3.5 h-3.5" /> Bestiaire tactique
             </span>
           </div>
         </div>
 
-        {/* Hero Header */}
-        <div className="relative rounded-3xl bg-gradient-to-br from-amber-950/40 via-surface to-background border border-amber-500/20 p-6 sm:p-10 mb-8 overflow-hidden shadow-2xl backdrop-blur-xl">
-          <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/10 rounded-full blur-[100px] pointer-events-none -mr-20 -mt-20" />
-
-          <div className="relative z-10 space-y-3 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/10 text-[11px] font-bold text-amber-300">
-              <span>Accès libre & illimité pour tous les aventuriers</span>
-            </div>
-            <h1 className="text-3xl sm:text-5xl font-black text-foreground tracking-tight font-heading">
+        {/* En-tête de section (sobre : pas de halos, pas de dégradés) */}
+        <div className="rounded-xl border border-border bg-surface/40 p-5 sm:p-7 mb-6">
+          <div className="space-y-2.5 max-w-2xl">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              Encyclopédie des combats
+            </p>
+            <h1 className="text-2xl sm:text-4xl font-bold text-foreground">
               Fiches Boss & Donjons Dofus Unity
             </h1>
-            <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-              Consultez les caractéristiques exactes, les grilles isométriques de portée de sorts, les zones d'effet et détachez une mini-fenêtre par-dessus votre jeu Dofus pour anticiper chaque tour.
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Caractéristiques exactes, grilles de portée des sorts, lignes de vue, placements de départ et
+              détachement d'une mini-fenêtre par-dessus votre jeu — de quoi préparer chaque tour.
             </p>
           </div>
         </div>

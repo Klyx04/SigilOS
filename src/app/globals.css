@@ -332,6 +332,47 @@ html {
     background: var(--primary);
   }
 
+  /* ── Barre de défilement de l'overlay Bestiaire/Boss (§B) ──────────────
+     La zone de contenu de l'overlay (fenêtre Document PiP / popup) utilise cette
+     classe DÉDIÉE plutôt que les variantes arbitraires Tailwind :
+       • gouttière large (12 px) et toujours visible ⇒ réellement « attrapable » à
+         la souris (l'ancienne gouttière fine était peinte mais quasi immaniable) ;
+       • `pointer-events: auto` explicite ⇒ aucun parent qui la neutraliserait ;
+       • `overscroll-behavior: contain` ⇒ la molette ne « fuit » pas vers le parent ;
+       • `scrollbar-gutter: stable` ⇒ la barre ne bouge pas quand le contenu mute.
+     Déclarée dans `@layer utilities` : `preparePipDocument()` copie ces règles dans
+     le document PiP, l'overlay est donc stylé à l'identique dans la mini-fenêtre. */
+  .overlay-scroll {
+    overflow-y: auto;
+    overflow-x: hidden;
+    pointer-events: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    scrollbar-width: auto;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+  }
+
+  .overlay-scroll::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  .overlay-scroll::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .overlay-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: content-box;
+  }
+
+  .overlay-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+    background-clip: content-box;
+  }
+
   .layout-container {
     @apply w-full max-w-[1700px] mx-auto px-4 sm:px-6 lg:px-8;
   }

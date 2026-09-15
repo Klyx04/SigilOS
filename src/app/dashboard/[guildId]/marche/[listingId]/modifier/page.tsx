@@ -50,8 +50,13 @@ export default async function MarketListingEditPage({
     if (!EDITABLE_STATUSES.includes(listing.status as (typeof EDITABLE_STATUSES)[number])) {
         redirect(`/dashboard/${guildId}/marche/${listingId}`);
     }
-    // L'assistant ne couvre que l'équipement et les lots de ressources (MVP).
-    if (listing.type !== "EQUIPMENT" && listing.type !== "RESOURCE") {
+    // L'assistant couvre l'équipement, les lots de ressources **et** le 🧺 lot
+    // multiple (décision user du 14/09/2026) ; les autres natures restent au MVP.
+    if (
+        listing.type !== "EQUIPMENT" &&
+        listing.type !== "RESOURCE" &&
+        listing.type !== "BUNDLE"
+    ) {
         redirect(`/dashboard/${guildId}/marche/${listingId}`);
     }
 
@@ -91,6 +96,9 @@ export default async function MarketListingEditPage({
             iconUrl: component.iconUrl,
             quantity: component.quantity,
             unitLabel: component.unitLabel,
+            // 🧺 Lot multiple — le prix de **cet** objet est rejoué tel quel à
+            // l'édition (les lots antérieurs restent à `null`).
+            priceKamas: component.priceKamas ?? null,
         })),
         // S8.9/S8.10 — forge réelle déclarée (rejouée telle quelle à l'édition).
         forge: {

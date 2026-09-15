@@ -16,6 +16,7 @@
  */
 
 import { useState, type ReactNode } from "react";
+import Image from "next/image";
 import { AlertCircle, Package, Plus, Trash2 } from "lucide-react";
 
 import {
@@ -24,9 +25,9 @@ import {
     bundleItemsSchema,
     computeBundleTotal,
     computeItemUnitPrice,
-    formatKamas,
     type BundleItemInput,
 } from "@/lib/market/bundle";
+import { KamasAmount } from "@/components/market/kamas-amount";
 
 /** Objet vide d'un nouveau lot (prix à 1 kama : à corriger par le vendeur). */
 export function emptyBundleItem(): BundleItemInput {
@@ -108,16 +109,56 @@ export function MarketBundleItemsEditor({
                     return (
                         <li key={index} className="space-y-2 rounded-lg border border-border bg-card/50 p-3">
                             <div className="flex items-start gap-2">
-                                <span className="mt-2 w-4 text-xs text-muted-foreground">{index + 1}</span>
-                                <input
-                                    type="text"
-                                    value={item.name}
-                                    onChange={(event) => update(index, { name: event.target.value })}
-                                    onBlur={() => setTouched(true)}
-                                    disabled={disabled}
-                                    placeholder="Nom de l'objet (ex. Bois de Frêne)"
-                                    className="min-w-0 flex-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold/50"
-                                />
+                                <span className="mt-2.5 w-4 text-xs text-muted-foreground">{index + 1}</span>
+                                <div className="min-w-0 flex-1">
+                                    {item.name.trim().length > 0 ? (
+                                        <div className="flex items-center gap-3 rounded-lg border border-border bg-background/50 p-2">
+                                            {item.iconUrl ? (
+                                                <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-border bg-background/70">
+                                                    <Image
+                                                        src={item.iconUrl}
+                                                        alt=""
+                                                        fill
+                                                        sizes="40px"
+                                                        className="object-contain p-0.5"
+                                                        unoptimized
+                                                    />
+                                                </span>
+                                            ) : null}
+                                            <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                                                {item.name}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    update(index, {
+                                                        name: "",
+                                                        dofusDbItemId: null,
+                                                        iconUrl: null,
+                                                    })
+                                                }
+                                                disabled={disabled}
+                                                className="shrink-0 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+                                            >
+                                                Changer
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            <p className="text-xs text-muted-foreground">
+                                                Cherche l&apos;objet dans le catalogue : son nom et son
+                                                icône sont repris tels quels (rien à saisir à la main).
+                                            </p>
+                                            {renderPicker?.(index, (picked) =>
+                                                update(index, {
+                                                    dofusDbItemId: picked.ankamaId,
+                                                    name: picked.name,
+                                                    iconUrl: picked.iconUrl ?? null,
+                                                })
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                                 <button
                                     type="button"
                                     onClick={() => removeItem(index)}
@@ -133,15 +174,7 @@ export function MarketBundleItemsEditor({
                                 </button>
                             </div>
 
-                            {renderPicker?.(index, (picked) =>
-                                update(index, {
-                                    dofusDbItemId: picked.ankamaId,
-                                    name: picked.name,
-                                    iconUrl: picked.iconUrl ?? null,
-                                })
-                            )}
-
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            <div className="grid grid-cols-2 gap-2">
                                 <label className="space-y-1 text-xs text-muted-foreground">
                                     Quantité
                                     <input
@@ -153,19 +186,6 @@ export function MarketBundleItemsEditor({
                                         }
                                         disabled={disabled}
                                         className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold/50"
-                                    />
-                                </label>
-                                <label className="space-y-1 text-xs text-muted-foreground">
-                                    Unité (facultatif)
-                                    <input
-                                        type="text"
-                                        value={item.unitLabel ?? ""}
-                                        onChange={(event) =>
-                                            update(index, { unitLabel: event.target.value || null })
-                                        }
-                                        disabled={disabled}
-                                        placeholder="unité, lot…"
-                                        className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold/50"
                                     />
                                 </label>
                                 <label className="space-y-1 text-xs text-muted-foreground">
@@ -185,8 +205,8 @@ export function MarketBundleItemsEditor({
                             </div>
 
                             {unit !== null && item.quantity > 1 && (
-                                <p className="text-xs text-muted-foreground">
-                                    Soit {formatKamas(unit)} l&apos;unité.
+                                <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    Soit <KamasAmount value={unit} /> l&apos;unité.
                                 </p>
                             )}
                         </li>
@@ -203,7 +223,9 @@ export function MarketBundleItemsEditor({
 
             <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
                 <span className="text-muted-foreground">Total du lot (recalculé côté serveur)</span>
-                <span className="font-semibold text-foreground">{formatKamas(total)}</span>
+                <span className="font-semibold text-foreground">
+                    <KamasAmount value={total} />
+                </span>
             </div>
         </div>
     );

@@ -3649,6 +3649,13 @@ model MarketListingComponent {
   reservedAt    DateTime?
   soldAt        DateTime?
 
+  // ── 🧺 Option A — un message Discord **par objet** ────────────────────────
+  // Le message de l'**annonce** reste dans `MarketDiscordMessage`
+  // (`componentId = NULL`) ; ces deux colonnes portent le message **dédié à cet
+  // objet** (embed + boutons propres, réservation à son prix).
+  discordChannelId String?
+  discordMessageId String?
+
   createdAt     DateTime      @default(now())
 
   listing       MarketListing @relation(fields: [listingId], references: [id], onDelete: Cascade)

@@ -60,6 +60,7 @@ import {
     computeBundleTotal,
     type BundleItemInput,
 } from "@/lib/market/bundle";
+import { KamasAmount } from "@/components/market/kamas-amount";
 import { MarketPublishStep, type MarketPublishContext } from "./market-publish-step";
 import { toast } from "sonner";
 import { Boxes, ChevronLeft, ChevronRight, Check, Hammer, Loader2, Package, Plus, Save, Search, Sparkles, Store, X } from "lucide-react";
@@ -168,9 +169,14 @@ interface MarketCreateClientProps {
     guildId: string;
     /** S7.12 — annonce existante ⇒ mode **édition** (sinon création). */
     initial?: MarketListingEditInitial | null;
+    /**
+     * 🎨 Vignettes **réelles** des natures (objets siphonnés du catalogue local,
+     * résolues côté serveur) — jamais une illustration inventée.
+     */
+    natureIcons?: Partial<Record<ListingKind, string[]>>;
 }
 
-export function MarketCreateClient({ guildId, initial = null }: MarketCreateClientProps) {
+export function MarketCreateClient({ guildId, initial = null, natureIcons }: MarketCreateClientProps) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     /** S7.12 — édition d'une annonce existante : l'étape 4 (Discord) disparaît. */
@@ -485,6 +491,18 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
     ]);
 
     /**
+     * 🧺 Lot multiple — **nom pré-rempli** à partir des objets choisis (le vendeur
+     * ajuste s'il veut) : « Lot : Bois de Frêne, Fer, Rune Pa Vi ». On ne le fait
+     * qu'une fois le titre vide et à l'étape 3, pour ne jamais écraser une saisie.
+     */
+    useEffect(() => {
+        if (kind !== "BUNDLE" || step !== 3 || title.trim().length > 0) return;
+        const names = components.map((component) => component.name.trim()).filter((name) => name.length > 0);
+        if (names.length === 0) return;
+        setTitle(`Lot : ${names.slice(0, 3).join(", ")}${names.length > 3 ? "…" : ""}`);
+    }, [kind, step, title, components]);
+
+    /**
      * 🧺 Lot multiple — objets du lot vus par le moteur pur (`BundleItemInput`) :
      * le prix par objet vit dans `components[].priceKamas`.
      */
@@ -689,8 +707,27 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
             {step === 1 && (
                 <StepNature
                     kind={kind}
+                    icons={natureIcons}
                     onPick={(picked) => {
                         setKind(picked);
+                        // 🧺 Lot multiple — on part directement sur **2 objets**
+                        // (le minimum du lot) : plus besoin de cliquer « Ajouter un
+                        // objet » pour atteindre la borne basse.
+                        if (picked === "BUNDLE") {
+                            setComponents((prev) =>
+                                prev.length >= MARKET_BUNDLE_MIN_ITEMS
+                                    ? prev
+                                    : Array.from({ length: MARKET_BUNDLE_MIN_ITEMS }, (_, index) => ({
+                                          key: `bundle-${index}-nouveau`,
+                                          dofusDbItemId: null,
+                                          name: "",
+                                          iconUrl: null,
+                                          quantity: 1,
+                                          unitLabel: null,
+                                          priceKamas: 0,
+                                      }))
+                            );
+                        }
                         setStep(2);
                     }}
                 />
@@ -835,17 +872,21 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
                 />
             )}
 
-            {/* 🧺 Lot multiple — le prix est déjà fixé **objet par objet** : ici on
-                nomme le lot et on pose ses conditions (aucun montant global). */}
             {step === 3 && kind === "BUNDLE" && (
-                <p className="text-xs text-muted-foreground">
-                    🧺 Lot multiple : chaque objet a <strong>son</strong> prix (étape 2, total&nbsp;:{" "}
-                    {formatKamas(computeBundleTotal(bundleItems))}). Ici tu nommes ton lot et tu fixes ses
-                    conditions — le montant global n&apos;est pas utilisé.
-                </p>
+                <StepBundleTerms
+                    items={bundleItems}
+                    title={title}
+                    setTitle={setTitle}
+                    description={description}
+                    setDescription={setDescription}
+                    negotiable={negotiable}
+                    setNegotiable={setNegotiable}
+                    acceptsTrade={acceptsTrade}
+                    setAcceptsTrade={setAcceptsTrade}
+                />
             )}
 
-            {step === 3 && (
+            {step === 3 && kind !== "BUNDLE" && (
                 <StepPricing
                     kind={kind}
                     item={item}
@@ -864,6 +905,42 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
                     acceptsTrade={acceptsTrade}
                     setAcceptsTrade={setAcceptsTrade}
                 />
+            )}
+
+            {/* 🧺 Lot multiple — **vrai récapitulatif** avant publication : un prix
+                par objet, le total, et ce que les membres verront réellement
+                (option A = un message Discord par objet, donc N messages). */}
+            {!isEdit && step === 4 && kind === "BUNDLE" && (
+                <div className="space-y-2 rounded-xl border border-border bg-surface/60 p-4">
+                    <p className="text-sm font-semibold text-foreground">Récapitulatif du lot</p>
+                    <ul className="space-y-1">
+                        {bundleItems.map((entry, index) => (
+                            <li
+                                key={`${index}-${entry.name}`}
+                                className="flex items-center justify-between gap-3 text-sm"
+                            >
+                                <span className="min-w-0 flex-1 truncate text-foreground">
+                                    {index + 1}. {entry.name || "(objet à nommer)"}
+                                    {entry.quantity > 1 ? ` × ${entry.quantity}` : ""}
+                                </span>
+                                <span className="shrink-0 font-medium text-foreground">
+                                    <KamasAmount value={entry.priceKamas} />
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                    <div className="flex items-center justify-between border-t border-border pt-2 text-sm">
+                        <span className="text-muted-foreground">Total du lot</span>
+                        <span className="font-semibold text-foreground">
+                            <KamasAmount value={computeBundleTotal(bundleItems)} />
+                        </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        🧺 {bundleItems.length} objet(s) ⇒{" "}
+                        <strong>{bundleItems.length} message(s) Discord</strong>, un par objet : chacun
+                        peut être réservé et négocié séparément, à son prix.
+                    </p>
+                </div>
             )}
 
             {!isEdit && step === 4 && (
@@ -905,6 +982,16 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
                         // Correction 13/09 — aperçu fidèle : icône réelle + mode forum.
                         itemIconUrl={kind !== "RESOURCE" ? item?.iconUrl ?? null : null}
                         forumMode={publishContext?.channelKind === "FORUM"}
+                    bundleItems={
+                        kind === "BUNDLE"
+                            ? bundleItems.map((entry) => ({
+                                  name: entry.name,
+                                  quantity: entry.quantity,
+                                  priceKamas: entry.priceKamas,
+                                  iconUrl: entry.iconUrl ?? null,
+                              }))
+                            : []
+                    }
                         components={components.map((component) => ({ name: component.name, quantity: component.quantity }))}
                         context={publishContext}
                         roles={roles}
@@ -1001,7 +1088,16 @@ function StepIndicator({ step, stepCount = 4 }: { step: 1 | 2 | 3 | 4; stepCount
 }
 
 /** Étape 1 — nature de l'annonce (BUG-11 : 3 familles + 🧺 lot multiple). */
-function StepNature({ kind, onPick }: { kind: ListingKind; onPick: (kind: ListingKind) => void }) {
+function StepNature({
+    kind,
+    icons,
+    onPick,
+}: {
+    kind: ListingKind;
+    /** 🎨 Vignettes réelles par nature (objets du catalogue local, résolues serveur). */
+    icons?: Partial<Record<ListingKind, string[]>>;
+    onPick: (kind: ListingKind) => void;
+}) {
     /**
      * Les 3 premières natures viennent de `MARKET_ITEM_FAMILY_LABELS` : « Équipement
      * forgemagie » et « Lot de ressources » sont **remplacés** par
@@ -1016,16 +1112,31 @@ function StepNature({ kind, onPick }: { kind: ListingKind; onPick: (kind: Listin
         label?: string;
         description?: string;
     }> = [
-        { kind: "EQUIPMENT", Icon: Hammer, tone: "text-gold" },
-        { kind: "COSMETIC", Icon: Sparkles, tone: "text-violet-400" },
-        { kind: "RESOURCE", Icon: Package, tone: "text-info" },
+        {
+            kind: "EQUIPMENT",
+            Icon: Hammer,
+            tone: "text-gold",
+            description:
+                "Coiffe, cape, anneau, ceinture, bottes, arme, bouclier : le barda de l'aventurier, jet déclarable.",
+        },
+        {
+            kind: "COSMETIC",
+            Icon: Sparkles,
+            tone: "text-violet-400",
+            description: "Apparats et costumes : l'apparence se vend brute, aucun jet à déclarer.",
+        },
+        {
+            kind: "RESOURCE",
+            Icon: Package,
+            tone: "text-info",
+            description: "Bois, minerais, runes, pains, ingrédients : au détail ou en lot, quantité libre.",
+        },
         {
             kind: "BUNDLE",
             Icon: Boxes,
             tone: "text-success",
             label: "Lot multiple",
-            description:
-                "De 2 à 5 objets différents vendus ensemble : chaque objet a son prix et son message Discord.",
+            description: "Plusieurs prises d'un coup : 2 à 5 objets, chacun son prix et son annonce Discord.",
         },
     ];
 
@@ -1046,7 +1157,35 @@ function StepNature({ kind, onPick }: { kind: ListingKind; onPick: (kind: Listin
                                 : "border-border bg-surface/60 hover:border-border-strong"
                         )}
                     >
-                        <Icon className={cn("w-6 h-6 mb-3", selected ? tone : "text-muted-foreground")} />
+                        {icons?.[optionKind]?.length ? (
+                            /* 🎨 Vignette(s) **réelle(s)** : l'objet du catalogue local
+                               lui-même. Un lot en montre trois (il est hétérogène). */
+                            <span
+                                className={cn(
+                                    "mb-3 flex h-11 items-center",
+                                    (icons?.[optionKind]?.length ?? 0) > 1 && "-space-x-2.5"
+                                )}
+                            >
+                                {(icons?.[optionKind] ?? []).map((url, position) => (
+                                    <span
+                                        key={url}
+                                        style={{ zIndex: 10 - position }}
+                                        className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-border bg-background/70 shadow-sm"
+                                    >
+                                        <Image
+                                            src={url}
+                                            alt=""
+                                            fill
+                                            sizes="44px"
+                                            className="object-contain p-0.5"
+                                            unoptimized
+                                        />
+                                    </span>
+                                ))}
+                            </span>
+                        ) : (
+                            <Icon className={cn("w-6 h-6 mb-3", selected ? tone : "text-muted-foreground")} />
+                        )}
                         <p className="font-bold text-foreground">
                             {label ?? MARKET_ITEM_FAMILY_LABELS[family]}
                         </p>
@@ -1174,6 +1313,113 @@ function StepResources({
     );
 }
 
+
+/**
+ * 🧺 Étape 3 — **conditions du lot multiple** (décision user 14/09/2026).
+ *
+ * Pourquoi un panneau dédié plutôt que `StepPricing` : un lot **n'a pas de prix
+ * global** (le prix vit sur chaque objet, étape 2) ⇒ le champ « Prix en kamas »
+ * y serait un piège (on le remplit et il est ignoré), et « Modifié par » relève
+ * de la forge, donc sans objet pour un lot. Ici : on nomme, on décrit, on pose
+ * les conditions, et on **relit la composition** avec le total.
+ */
+function StepBundleTerms({
+    items,
+    title,
+    setTitle,
+    description,
+    setDescription,
+    negotiable,
+    setNegotiable,
+    acceptsTrade,
+    setAcceptsTrade,
+}: {
+    items: BundleItemInput[];
+    title: string;
+    setTitle: (value: string) => void;
+    description: string;
+    setDescription: (value: string) => void;
+    negotiable: boolean;
+    setNegotiable: (value: boolean) => void;
+    acceptsTrade: boolean;
+    setAcceptsTrade: (value: boolean) => void;
+}) {
+    return (
+        <div className="space-y-4">
+            <Card className="bg-surface/60 border-border">
+                <CardHeader>
+                    <CardTitle className="text-base">Ce que tu exposes</CardTitle>
+                    <CardDescription>
+                        Le prix de chaque objet est déjà posé (étape 2). Ici tu nommes le lot et tu dis
+                        comment l&apos;échange se conclut.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-1.5">
+                        <Label className="text-xs">Nom du lot</Label>
+                        <Input
+                            value={title}
+                            onChange={(event) => setTitle(event.target.value)}
+                            placeholder="Ex. Lot du mineur : bois, fer, runes"
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label className="text-xs">Description (facultatif)</Label>
+                        <Textarea
+                            value={description}
+                            onChange={(event) => setDescription(event.target.value)}
+                            placeholder="Précise l'état, les conditions d'échange, tes disponibilités… (les liens sont retirés)"
+                        />
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-5">
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Switch checked={negotiable} onCheckedChange={setNegotiable} />
+                            Prix négociable
+                        </label>
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Switch checked={acceptsTrade} onCheckedChange={setAcceptsTrade} />
+                            Troc accepté
+                        </label>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card className="bg-surface/60 border-border">
+                <CardHeader>
+                    <CardTitle className="text-base">Composition du lot</CardTitle>
+                    <CardDescription>
+                        Chaque objet est réservable séparément, à son prix (les membres verront un message
+                        Discord par objet).
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                    {items.map((item, index) => (
+                        <div
+                            key={`${index}-${item.name}`}
+                            className="flex items-center justify-between gap-3 text-sm"
+                        >
+                            <span className="min-w-0 flex-1 truncate text-foreground">
+                                {index + 1}. {item.name}
+                                {item.quantity > 1 ? ` × ${item.quantity}` : ""}
+                            </span>
+                            <span className="shrink-0">
+                                <KamasAmount value={item.priceKamas} />
+                            </span>
+                        </div>
+                    ))}
+                    <div className="flex items-center justify-between border-t border-border pt-2 text-sm">
+                        <span className="text-muted-foreground">Total du lot</span>
+                        <span className="font-semibold text-foreground">
+                            <KamasAmount value={computeBundleTotal(items)} />
+                        </span>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
 
 /** Étape 3 — titre, description, prix et conditions. */
 function StepPricing(props: {
@@ -1815,7 +2061,17 @@ function CataloguePicker({
                         <button
                             key={result.ankamaId}
                             type="button"
-                            onClick={() => onSelect(result)}
+                            onClick={() => {
+                                onSelect(result);
+                                // UX (retour user 15/09) — le clic **referme** la
+                                // recherche : sans cela le panneau de résultats
+                                // restait ouvert sous la ligne, ce qui obligeait à
+                                // le fermer à la main pour chaque objet du lot.
+                                setQuery("");
+                                setResults([]);
+                                setSearched(false);
+                                setError(null);
+                            }}
                             className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-foreground/[0.03] transition-colors"
                         >
                             <span className="relative h-8 w-8 shrink-0 rounded-lg border border-border bg-background/60 overflow-hidden">

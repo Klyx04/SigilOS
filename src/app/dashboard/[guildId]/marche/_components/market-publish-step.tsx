@@ -73,6 +73,12 @@ export interface MarketPublishStepProps {
      */
     forgeRecap?: { label: string; value: string }[];
     components: { name: string; quantity: number }[];
+    /**
+     * 🧺 Lot multiple — **un message Discord par objet** (option A, décision user
+     * du 14/09/2026) : l'aperçu en montre donc **N**, chacun avec son objet, son
+     * prix et ses propres boutons. Vide pour les annonces simples.
+     */
+    bundleItems?: { name: string; quantity: number; priceKamas: number; iconUrl?: string | null }[];
     context: MarketPublishContext | null;
     roles: { id: string; name: string }[];
     selectedPingIds: string[];
@@ -100,6 +106,7 @@ export function MarketPublishStep({
     itemIconUrl,
     forumMode = false,
     components,
+    bundleItems = [],
     context,
     roles,
     selectedPingIds,
@@ -243,7 +250,60 @@ export function MarketPublishStep({
                 </div>
             )}
 
-            {/* Aperçu fidèle (correction 13/09 : boutons réels + icône objet) */}
+            {/* 🧺 Lot multiple — **un message Discord par objet** (option A) : l'aperçu
+                en montre donc N, chacun avec son nom, son prix et ses boutons. */}
+            {bundleItems.length > 0 ? (
+                <div className="space-y-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">
+                        Aperçu Discord — {bundleItems.length} message{bundleItems.length > 1 ? "s" : ""}, un
+                        par objet
+                    </p>
+                    {bundleItems.map((bundleItem, index) => {
+                        const itemPayload = buildMarketDiscordPayload({
+                            listingId: "preview",
+                            title,
+                            status: "ACTIVE",
+                            sellerName: "Toi",
+                            itemName: bundleItem.name,
+                            itemLevel,
+                            itemTypeName,
+                            priceKamas: bundleItem.priceKamas,
+                            unitLabel: null,
+                            negotiable,
+                            acceptsTrade,
+                            transcended: false,
+                            transcendenceLabel: null,
+                            strikeElement: null,
+                            elementPotionTier: null,
+                            huntingWeapon: null,
+                            exoLabels: [],
+                            components: [{ name: bundleItem.name, quantity: bundleItem.quantity }],
+                            dashboardUrl: "#",
+                        });
+                        return (
+                            <div key={`${index}-${bundleItem.name}`} className="space-y-2">
+                                <p className="text-xs font-semibold text-foreground">
+                                    {index + 1}/{bundleItems.length} — {bundleItem.name}
+                                </p>
+                                <DiscordEmbedPreview
+                                    title={itemPayload.embedTitle}
+                                    description={itemPayload.embedDescription}
+                                    color={itemPayload.embedColor}
+                                    fields={itemPayload.fields}
+                                    footer={itemPayload.embedFooter}
+                                    components={
+                                        itemPayload.components as unknown as DiscordPreviewComponentRow[]
+                                    }
+                                    thumbnail={bundleItem.iconUrl ?? undefined}
+                                    mentionContent={selectedPingIds.map(() => "@role").join(" ")}
+                                    channelName={channelName || "marche"}
+                                />
+                            </div>
+                        );
+                    })}
+                </div>
+            ) : (
+            /* Aperçu fidèle (correction 13/09 : boutons réels + icône objet) */
             <DiscordEmbedPreview
                 title={payload.embedTitle}
                 description={payload.embedDescription}
@@ -257,7 +317,8 @@ export function MarketPublishStep({
                 mentionContent={selectedPingIds.map(() => "@role").join(" ")}
                 channelName={channelName || "marche"}
             />
-            {!forumMode && (
+            )}
+            {!forumMode && bundleItems.length === 0 && (
                 <p className="text-caption italic text-muted-foreground">
                     En salon texte, Discord affiche à la place l&apos;image de la carte de
                     l&apos;annonce, générée <strong>au moment de la publication</strong>.

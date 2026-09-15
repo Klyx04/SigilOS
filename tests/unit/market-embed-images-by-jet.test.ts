@@ -64,9 +64,11 @@ describe("embed — le serveur applique la règle (Discord)", () => {
         expect(source).toMatch(/function resolveDiscordImageUrl\(/);
         expect(source).toMatch(/const hasDeclaredJet = listing\.stats\.some\(isStatBearingStatRow\);/);
         expect(source).toMatch(/return pickMarketEmbedImage\(\{/);
-        // La carte n'est plus construite en dur à la publication : les **deux**
-        // points d'entrée (publication + resynchro) passent par la règle.
-        expect(source.match(/const imageUrl = resolveDiscordImageUrl\(listing\);/g)).toHaveLength(2);
+        // La carte n'est plus construite en dur à la publication : les **points
+        // d'entrée** passent tous par la règle — publication, resynchro, et
+        // depuis le 15/09/2026 les **messages par objet** d'un lot (option A,
+        // `syncBundleComponentMessages`).
+        expect(source.match(/const imageUrl = resolveDiscordImageUrl\(listing\);/g)).toHaveLength(3);
         expect(source).not.toMatch(/const imageUrl = buildMarketImageUrl\(listingId/);
     });
 });

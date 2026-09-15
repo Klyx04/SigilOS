@@ -80,7 +80,7 @@ interface DungeonFamily {
   monsters: FamilyMember[];
 }
 
-type CatalogFilter = "boss" | "monstre" | "titan";
+type CatalogFilter = "boss" | "anomalie" | "monstre" | "titan";
 type OverlayTab = "info" | "sorts" | "sim";
 
 // ─── MonsterImage ─────────────────────────────────────────────────────────────
@@ -450,11 +450,13 @@ export function BossOverlayClient({
       .catch(() => setDungeonMaps(null));
   }, [selected, activeMonsterName]);
 
-  // 4. Filtrage dynamique selon le filtre sélectionné (Boss / Monstres / Ocre) + recherche
+  // 4. Filtrage dynamique selon le filtre sélectionné (Boss / Anomalies / Monstres / Titans) + recherche
   const filtered = useMemo(() => {
     let pool = catalog;
     if (catalogFilter === "boss") {
       pool = pool.filter((e) => e.type === "boss");
+    } else if (catalogFilter === "anomalie") {
+      pool = pool.filter((e) => e.type === "anomalie");
     } else if (catalogFilter === "monstre") {
       pool = pool.filter((e) => e.type === "monstre");
     } else if (catalogFilter === "titan") {
@@ -569,9 +571,10 @@ export function BossOverlayClient({
           </div>
 
           {/* Filtres du catalogue : contrôle segmenté unique, état actif neutre */}
-          <div className="grid grid-cols-3 gap-0.5 rounded-lg bg-white/[0.05] p-0.5">
+          <div className="grid grid-cols-4 gap-0.5 rounded-lg bg-white/[0.05] p-0.5">
             {([
               { id: "boss" as CatalogFilter, label: "Boss" },
+              { id: "anomalie" as CatalogFilter, label: "Anomalies" },
               { id: "monstre" as CatalogFilter, label: "Monstres" },
               { id: "titan" as CatalogFilter, label: "Titans" },
             ]).map(({ id, label }) => (

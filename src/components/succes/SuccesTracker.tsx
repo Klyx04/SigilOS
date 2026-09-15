@@ -26,6 +26,7 @@ import {
 } from "@/server/actions/dungeon-finder-actions";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 interface Achievement {
@@ -41,6 +42,9 @@ interface Dungeon {
     level: number;
     imageUrl?: string | null;
     isOcreQuest?: boolean;
+    /* Chantier « boss d'anomalie » : contenu siphonné (Gardiens des anomalies). */
+    isAnomalyBoss?: boolean | null;
+    anomalyFamily?: string | null;
     // #171 — liens guides externes (rendus avec favicon dans le détail donjon)
     dpnlUrl?: string | null;
     dofuspourlesnoobsUrl?: string | null;
@@ -77,6 +81,11 @@ const LEVEL_PRESETS = [
     { label: "200+", min: 200, max: 1000 },
 ] as const;
 
+/** Libellé lisible d'une tranche de niveau (contrôle compact du filtre « Mes Succès »). */
+function levelPresetLabel(label: (typeof LEVEL_PRESETS)[number]["label"]): string {
+    return label === "Tous" ? "Tous les niveaux" : `Niveau ${label}`;
+}
+
 /**
  * #138 — Vue « Moi » du module Succès (refonte d'AchievementTracker).
  * Split view : liste de donjons à gauche, détail à droite (mobile : plein écran + Retour).
@@ -95,6 +104,8 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
     const [status, setStatus] = useState<StatusFilter>("all");
     const [minLevel, setMinLevel] = useState(1);
     const [maxLevel, setMaxLevel] = useState(1000);
+    // Filtre « Boss Anomalie » (chantier gardiens des anomalies) — cumulable avec la tranche de niveau.
+    const [anomalyOnly, setAnomalyOnly] = useState(searchParams.get("anomaly") === "1");
     const [partners, setPartners] = useState<Record<string, Partner[]>>({});
     const [loadingPartners, setLoadingPartners] = useState(false);
     const [bracketLoading, setBracketLoading] = useState(false);
@@ -288,7 +299,9 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
         return dungeons.filter((d) => {
             const matchSearch = d.name.toLowerCase().includes(term) || d.bossName.toLowerCase().includes(term);
             const matchLevel = d.level >= minLevel && d.level <= maxLevel;
-            if (!matchSearch || !matchLevel) return false;
+            // Filtre « Boss Anomalie » : uniquement le contenu siphonné (isAnomalyBoss).
+            const matchKind = !anomalyOnly || !!d.isAnomalyBoss;
+            if (!matchSearch || !matchLevel || !matchKind) return false;
             const done = d.achievements.filter((a) => completedIds.has(a.id)).length;
             // Un donjon sans aucun succès n'est ni « done » ni « todo » → il reste visible sous « Tous ».
             if (d.achievements.length === 0) return true;
@@ -296,7 +309,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
             if (status === "todo") return done < d.achievements.length;
             return true;
         });
-    }, [dungeons, search, status, minLevel, maxLevel, completedIds]);
+    }, [dungeons, search, status, minLevel, maxLevel, anomalyOnly, completedIds]);
 
     const selectedPartners = selectedDungeon ? partners[selectedDungeon.id] : undefined;
 
@@ -366,41 +379,71 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                     )}
                 </div>
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-                    {(["all", "todo", "done"] as StatusFilter[]).map((s) => (
-                        <button
-                            key={s}
-                            onClick={() => {
-                                setStatus(s);
-                                updateParam("status", s === "all" ? null : s);
-                            }}
-                            className={cn(
-                                "px-3 py-1.5 h-9 rounded-xl border text-xs font-bold transition-colors shrink-0",
-                                status === s
-                                    ? "bg-warning/15 border-warning/40 text-warning"
-                                    : "bg-surface/70 border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
-                            )}
-                        >
-                            {s === "all" ? "Tous" : s === "todo" ? "À faire" : "Finis"}
-                        </button>
-                    ))}
+                    {/* Statut — un seul contrôle segmenté (Tous / À faire / Finis) */}
+                    <div className="flex items-center gap-0.5 p-0.5 rounded-xl border border-border bg-surface/70 shrink-0">
+                        {(["all", "todo", "done"] as StatusFilter[]).map((s) => (
+                            <button
+                                key={s}
+                                onClick={() => {
+                                    setStatus(s);
+                                    updateParam("status", s === "all" ? null : s);
+                                }}
+                                className={cn(
+                                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-colors",
+                                    status === s
+                                        ? "bg-warning/15 text-warning"
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                {s === "all" ? "Tous" : s === "todo" ? "À faire" : "Finis"}
+                            </button>
+                        ))}
+                    </div>
                     <div className="w-px h-5 bg-border shrink-0" />
-                    {LEVEL_PRESETS.map((p) => (
-                        <button
-                            key={p.label}
-                            onClick={() => {
-                                setMinLevel(p.min);
-                                maxLevel !== p.max && setMaxLevel(p.max);
-                            }}
-                            className={cn(
-                                "px-2.5 py-1.5 h-9 rounded-xl border text-xs font-bold transition-colors shrink-0",
-                                minLevel === p.min && maxLevel === p.max
-                                    ? "bg-elevated border-border-strong text-foreground"
-                                    : "bg-surface/70 border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
-                            )}
+                    {/* Filtre « Fiches Anomalies » (gardiens des anomalies temporelles). */}
+                    <button
+                        type="button"
+                        data-tour="succes-filter-anomaly"
+                        onClick={() => {
+                            const next = !anomalyOnly;
+                            setAnomalyOnly(next);
+                            updateParam("anomaly", next ? "1" : null);
+                        }}
+                        title="N'afficher que les fiches d'anomalie (gardiens des anomalies temporelles)"
+                        className={cn(
+                            "inline-flex items-center gap-1.5 px-2.5 h-9 rounded-xl border text-xs font-bold transition-colors shrink-0",
+                            anomalyOnly
+                                ? "bg-info/15 border-info/40 text-info"
+                                : "bg-surface/70 border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
+                        )}
+                    >
+                        <img src="/assets/missions/ano1.png" alt="" aria-hidden className="w-3.5 h-3.5 object-contain" />
+                        Fiches Anomalies
+                    </button>
+                    {/* Niveau — un seul contrôle compact (remplace les 5 puces de tranche) */}
+                    <Select
+                        value={`${minLevel}-${maxLevel}`}
+                        onValueChange={(value) => {
+                            const preset = LEVEL_PRESETS.find((p) => `${p.min}-${p.max}` === value);
+                            if (!preset) return;
+                            setMinLevel(preset.min);
+                            setMaxLevel(preset.max);
+                        }}
+                    >
+                        <SelectTrigger
+                            aria-label="Filtrer par tranche de niveau"
+                            className="h-9 w-[9.5rem] shrink-0 rounded-xl border-border bg-surface/70 text-xs font-bold text-foreground"
                         >
-                            {p.label}
-                        </button>
-                    ))}
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-surface border-border">
+                            {LEVEL_PRESETS.map((p) => (
+                                <SelectItem key={p.label} value={`${p.min}-${p.max}`} className="text-xs font-bold">
+                                    {levelPresetLabel(p.label)}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
 
                     {/* Validation globale de la tranche sélectionnée */}
                     {canEdit && (
@@ -476,6 +519,14 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                                 alt="Quête Ocre"
                                                 title="Donjon de la Quête Ocre"
                                                 className="absolute -bottom-1 -right-1 w-5 h-5 object-contain rounded-full bg-background border border-warning/30 p-0.5"
+                                            />
+                                        )}
+                                        {d.isAnomalyBoss && (
+                                            <img
+                                                src="/assets/missions/ano1.png"
+                                                alt="Boss Anomalie"
+                                                title={d.anomalyFamily ? `Boss d'anomalie — ${d.anomalyFamily}` : "Boss d'anomalie"}
+                                                className="absolute -bottom-1 -right-1 w-5 h-5 object-contain rounded-full bg-background border border-info/30 p-0.5"
                                             />
                                         )}
                                     </div>

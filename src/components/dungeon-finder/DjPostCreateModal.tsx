@@ -625,9 +625,9 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                 {selectedDefi ? (
                                                     <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
                                                         <div className="flex items-center gap-3 min-w-0">
-                                                            <div className="w-9 h-9 rounded-lg overflow-hidden bg-background border border-border shrink-0">
+                                                            <div className="w-20 h-12 rounded-xl overflow-hidden bg-background border border-border shrink-0">
                                                                 {selectedDefi.imageUrl ? (
-                                                                    <img src={selectedDefi.imageUrl} alt={selectedDefi.name} className="w-full h-full object-contain p-0.5" />
+                                                                    <img src={selectedDefi.imageUrl} alt={selectedDefi.name} className="w-full h-full object-cover" />
                                                                 ) : (
                                                                     <div className="w-full h-full flex items-center justify-center"><Zap className="w-4 h-4 text-amber-500" /></div>
                                                                 )}
@@ -662,9 +662,9 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                                         onClick={() => { setSelectedDefi(d); setDefiSearch(""); }}
                                                                         className="w-full flex items-center gap-3 p-3 hover:bg-elevated/60 border-b border-border/50 last:border-0 text-left transition-colors"
                                                                     >
-                                                                        <div className="w-9 h-9 rounded-lg overflow-hidden bg-background border border-border shrink-0">
+                                                                        <div className="w-14 h-10 rounded-lg overflow-hidden bg-background border border-border shrink-0">
                                                                             {d.imageUrl ? (
-                                                                                <img src={d.imageUrl} alt={d.name} className="w-full h-full object-contain p-0.5" />
+                                                                                <img src={d.imageUrl} alt={d.name} className="w-full h-full object-cover" />
                                                                             ) : (
                                                                                 <div className="w-full h-full flex items-center justify-center"><Zap className="w-4 h-4 text-amber-500" /></div>
                                                                             )}
@@ -681,6 +681,16 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                 )}
                                             </div>
                                         </div>
+
+                                        {/* ⚠️ Sans ce bouton, le mode Défi restait bloqué à l'étape 1
+                                            (aucun moyen de valider la sélection) — parité avec Titan/Quête. */}
+                                        <Button
+                                            className="w-full h-12 text-sm bg-amber-600 hover:bg-amber-600 text-warning-foreground font-bold disabled:opacity-50"
+                                            disabled={!selectedDefi}
+                                            onClick={() => setStep(2)}
+                                        >
+                                            Suivant
+                                        </Button>
                                     </div>
                                 )}
 

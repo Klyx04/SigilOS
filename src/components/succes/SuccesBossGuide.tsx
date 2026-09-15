@@ -13,6 +13,7 @@ import {
     getDofensiveDungeonForBoss,
     type DofensiveDungeonInfo,
 } from "@/server/actions/dofensive-actions";
+import { getAnomalyBossBattleMap, getAnomalyBossFamily } from "@/server/actions/anomaly-boss-actions";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getWorldName } from "@/lib/dofus-assets";
@@ -94,6 +95,10 @@ interface BossDungeon {
     /* Chantier double boss — dissociation affichage / résolution Dofensive. */
     dofensiveMonsterName?: string | null;
     dofensiveDungeonName?: string | null;
+    /* Chantier « boss d'anomalie » — contenu siphonné (Dofensive + DofusDB). */
+    isAnomalyBoss?: boolean | null;
+    anomalyMapId?: number | null;
+    anomalyFamily?: string | null;
     achievements?: { id: string; points: number; challenge?: { name: string } }[];
 }
 
@@ -124,11 +129,19 @@ interface FamilyMember {
     name: string;
     imageUrl: string | null;
     isBoss: boolean;
+    /** 🌀 Monstre de l'anomalie (Briko/Bruto/Gromo) — 3 tirés au hasard par combat. */
+    isCompanion?: boolean;
+    level?: number | null;
+    raceName?: string | null;
 }
 
 interface DungeonFamily {
     familyId: number | null;
     monsters: FamilyMember[];
+    /** Monstres de l'anomalie uniquement (accompagnateurs) — sous-ensemble de `monsters`. */
+    companions?: FamilyMember[];
+    /** « 3 au hasard parmi 16 » (fourni par la source siphonnée). */
+    companionHint?: string | null;
 }
 
 interface LinkedQuest {
@@ -150,7 +163,7 @@ interface LinkedQuestsData {
     rushActive: { pseudoDofus: string; dofusClass: string | null; milestoneId: string | null }[];
 }
 
-export function SuccesBossGuide({ guildId }: { guildId: string }) {
+export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: string; anomalyOnly?: boolean }) {
     const { openBossOverlay, isOpen: isOverlayOpen } = useBossOverlay(guildId);
     const [dungeons, setDungeons] = useState<BossDungeon[]>([]);
     const [statsByBoss, setStatsByBoss] = useState<Record<string, MonsterStats>>({});
@@ -183,6 +196,10 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                 if (res.success && Array.isArray(res.data)) {
                     const withBoss = (res.data as any[])
                         .filter((d) => d && (d.bossName || d.name))
+                        // Onglet « Boss Anomalie » : uniquement le contenu siphonné marqué
+                        // `isAnomalyBoss` (onglet « Fiches Boss » : les donjons classiques).
+                        .filter((d) => !anomalyOnly || !!d.isAnomalyBoss)
+                        .filter((d) => anomalyOnly || !d.isAnomalyBoss)
                         .map((d) => ({
                             id: d.id,
                             name: d.name,
@@ -193,6 +210,11 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                             dpnlUrl: d.dpnlUrl ?? null,
                             dofuspourlesnoobsUrl: d.dofuspourlesnoobsUrl ?? null,
                             dofusdbId: d.dofusdbId ?? null,
+                            dofensiveMonsterName: d.dofensiveMonsterName ?? null,
+                            dofensiveDungeonName: d.dofensiveDungeonName ?? null,
+                            isAnomalyBoss: !!d.isAnomalyBoss,
+                            anomalyMapId: d.anomalyMapId ?? null,
+                            anomalyFamily: d.anomalyFamily ?? null,
                             achievements: Array.isArray(d.achievements) ? d.achievements : [],
                         }));
                     setDungeons(withBoss);
@@ -204,7 +226,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [anomalyOnly]);
 
     // 2. Deep-link `?dungeon={id}` : dès que la liste des donjons est chargée, on ouvre
     //    directement la fiche du boss ciblé (au lieu de laisser l'onglet sur la liste).
@@ -258,7 +280,12 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
         setDetailTab("overview");
         setSelectedSpellId(undefined);
         if (!familyByDungeon[d.id]) {
-            getDungeonMonsters(d.bossName, d.name).then((res) => {
+            // 🌀 Boss d'anomalie : la « famille » = les autres gardiens de la MÊME carte
+            // (métadonnées siphonnées) — aucun donjon Dofensive à interroger.
+            const request = d.isAnomalyBoss
+                ? getAnomalyBossFamily(d.bossName)
+                : getDungeonMonsters(d.bossName, d.name);
+            request.then((res) => {
                 if (res.success && res.data) {
                     setFamilyByDungeon((prev) => ({ ...prev, [d.id]: res.data as DungeonFamily }));
                 }
@@ -285,10 +312,14 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
         // On passe aussi le nom du donjon (`d.name`) : le resolver Dofensive a un
         // fallback par nom de donjon (token overlap) — indispensable pour les donjons
         // multi-boss dont le `bossName` DofusDB ne matche pas le nom Dofensive.
-        getDofensiveDungeonForBoss(boss, d.name, {
-            dofensiveMonsterName: d.dofensiveMonsterName,
-            dofensiveDungeonName: d.dofensiveDungeonName,
-        })
+        // 🌀 Boss d'anomalie : résolution LOCALE (carte siphonnée, sinon map par défaut).
+        const resolution = d.isAnomalyBoss
+            ? getAnomalyBossBattleMap(boss, d.anomalyMapId)
+            : getDofensiveDungeonForBoss(boss, d.name, {
+                dofensiveMonsterName: d.dofensiveMonsterName,
+                dofensiveDungeonName: d.dofensiveDungeonName,
+            });
+        resolution
             .then((res) => {
                 if (cancelled) return;
                 setDungeonMapsByBoss((prev) => ({ ...prev, [boss]: res.success && res.data ? res.data : null }));
@@ -380,7 +411,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                 setSelectedSpellId(undefined);
                             }
                         }}
-                        placeholder="Rechercher un boss ou un donjon…"
+                        placeholder={anomalyOnly ? "Rechercher un gardien d'anomalie…" : "Rechercher un boss ou un donjon…"}
                         className="w-full h-11 pl-9 pr-8 rounded-xl bg-surface border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
                     {search && (
@@ -394,7 +425,9 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                     )}
                 </div>
                 <p className="text-xs text-muted-foreground font-semibold">
-                    {search ? `${filtered.length} boss trouvé(s) sur ${dungeons.length}` : `${dungeons.length} boss répertoriés`}
+                    {search
+                        ? `${filtered.length} ${anomalyOnly ? "gardien(s)" : "boss"} trouvé(s) sur ${dungeons.length}`
+                        : `${dungeons.length} ${anomalyOnly ? "gardiens d'anomalie répertoriés" : "boss répertoriés"}`}
                 </p>
             </div>
 
@@ -402,7 +435,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
             {!selected && (filtered.length === 0 ? (
                 <div className="py-16 text-center text-muted-foreground border border-dashed border-border rounded-2xl bg-background/40">
                     <Swords className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                    <p className="font-medium">Aucun boss trouvé.</p>
+                    <p className="font-medium">{anomalyOnly ? "Aucun gardien d'anomalie trouvé." : "Aucun boss trouvé."}</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" data-tour="succes-tracker-list">
@@ -439,6 +472,13 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                     <div className="absolute top-1.5 left-1.5 rounded-md bg-background/85 backdrop-blur px-1.5 py-0.5 text-[11px] font-bold text-foreground border border-border">
                                         LVL {d.level}
                                     </div>
+                                    {/* Chantier « boss d'anomalie » : marqueur visuel du contenu siphonné. */}
+                                    {d.isAnomalyBoss && (
+                                        <div className="absolute top-1.5 right-1.5 flex items-center gap-1 rounded-md bg-info/20 backdrop-blur px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-info border border-info/30">
+                                            <img src="/assets/missions/ano1.png" alt="" aria-hidden className="w-3.5 h-3.5 object-contain" />
+                                            Anomalie
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="p-3 border-t border-border">
                                     <p className="text-sm font-bold text-foreground leading-tight truncate group-hover:text-foreground transition-colors">{d.bossName}</p>
@@ -472,7 +512,11 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                 </div>
                                 <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
                                     <Compass className="w-3.5 h-3.5 opacity-70" />
-                                    Donjon : <strong className="text-foreground">{selected.name}</strong>
+                                    {selected.isAnomalyBoss ? "Carte :" : "Donjon :"}{" "}
+                                    <strong className="text-foreground">{selected.name}</strong>
+                                    {selected.isAnomalyBoss && selected.anomalyFamily ? (
+                                        <span className="ml-1 text-[11px] font-semibold text-info/90">· {selected.anomalyFamily}</span>
+                                    ) : null}
                                 </p>
                             </div>
                         </div>
@@ -762,14 +806,27 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                         </div>
                     )}
 
-                    {/* Onglet dédié : Monstres de la salle */}
-                    {detailTab === "family" && (
+                    {/* Onglet dédié : Monstres de la salle + monstres de l'anomalie */}
+                    {detailTab === "family" && (() => {
+                        const family = familyByDungeon[selected.id];
+                        const companionCount = family?.companions?.length ?? 0;
+                        return (
                         <div className="space-y-3">
-                            <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                                <Users className="w-4 h-4 opacity-70" /> Monstres accompagnateurs de la salle
-                            </h4>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                                    <Users className="w-4 h-4 opacity-70" /> Monstres accompagnateurs de la salle
+                                </h4>
+                                {companionCount > 0 && (
+                                    <span
+                                        className="text-[11px] font-bold px-2 py-0.5 rounded-full border border-info/30 text-info bg-info/10"
+                                        title="En combat, le gardien est accompagné de 3 de ces monstres, tirés au hasard à l'ouverture de l'anomalie."
+                                    >
+                                        Anomalie · {family?.companionHint ?? `${companionCount} monstres possibles`}
+                                    </span>
+                                )}
+                            </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                                {(familyByDungeon[selected.id]?.monsters || []).map((m) => {
+                                {(family?.monsters || []).map((m) => {
                                     const isActive = (activeMonsterName ?? selected.bossName) === m.name;
                                     return (
                                         <div
@@ -794,7 +851,11 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                                         {m.isBoss && "👑 "}{m.name}
                                                     </p>
                                                     <span className="text-[11px] text-muted-foreground block">
-                                                        {m.isBoss ? "Boss principal" : "Monstre de salle"}
+                                                        {m.isBoss
+                                                            ? "Boss principal"
+                                                            : m.isCompanion
+                                                            ? `Monstre de l'anomalie${m.raceName ? ` · ${m.raceName}` : ""}`
+                                                            : "Monstre de salle"}
                                                     </span>
                                                 </div>
                                             </div>
@@ -827,7 +888,8 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                 })}
                             </div>
                         </div>
-                    )}
+                        );
+                    })()}
 
                     {/* Onglet : Sorts du Boss (Mécaniques clés & sorts principaux) */}
                     {detailTab === "sorts" && (

@@ -149,9 +149,9 @@ export function SuccesDefiTab({ guildId, canEdit }: { guildId: string; canEdit: 
                                     selectedId === d.id ? "border-warning/40 bg-warning/5" : "border-border bg-surface/40 hover:bg-elevated"
                                 )}
                             >
-                                <div className="w-10 h-10 rounded-xl overflow-hidden bg-background border border-border shrink-0">
+                                <div className="w-16 h-11 rounded-xl overflow-hidden bg-background border border-border shrink-0">
                                     {d.imageUrl
-                                        ? <img src={d.imageUrl} alt={d.name} className="w-full h-full object-contain p-1" />
+                                        ? <img src={d.imageUrl} alt={d.name} className="w-full h-full object-cover" />
                                         : <div className="w-full h-full flex items-center justify-center text-muted-foreground"><Swords className="w-5 h-5" /></div>}
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -177,14 +177,17 @@ export function SuccesDefiTab({ guildId, canEdit }: { guildId: string; canEdit: 
             {/* Panneau de détail */}
             {selected ? (
                 <div className="bg-surface/90 border border-border rounded-2xl p-6 space-y-5">
+                    {/* Visuel du défi — bandeau pleine largeur : les visuels de défi sont des panoramas,
+                        illisibles dans un petit cadre carré. */}
+                    <div className="relative w-full h-44 sm:h-60 rounded-2xl bg-background border border-border overflow-hidden">
+                        {selected.imageUrl
+                            ? <img src={selected.imageUrl} alt={selected.name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                            : <div className="w-full h-full flex items-center justify-center"><Swords className="w-12 h-12 text-warning/50" /></div>}
+                    </div>
+
                     <div className="flex items-start gap-4">
-                        <div className="w-20 h-20 rounded-2xl bg-background border border-border flex items-center justify-center p-2 shrink-0 overflow-hidden">
-                            {selected.imageUrl
-                                ? <img src={selected.imageUrl} alt={selected.name} className="w-full h-full object-contain" />
-                                : <Swords className="w-8 h-8 text-warning/60" />}
-                        </div>
                         <div className="flex-1 min-w-0">
-                            <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                            <h3 className="text-2xl font-bold text-foreground flex items-center gap-2">
                                 {selected.name}
                                 {completedIds.has(selected.id) && <CheckCircle2 className="w-5 h-5 text-success" />}
                             </h3>

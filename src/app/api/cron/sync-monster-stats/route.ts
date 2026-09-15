@@ -53,6 +53,12 @@ export async function GET(req: Request) {
         let imagesSiphoned = 0;
         let errors = 0;
         let skippedFresh = 0;
+        // Boss d'anomalie (siphon section 3) — compteurs SÉPARÉS des fiches de donjon/titans.
+        let anomalySynced = 0;
+        let anomalyErrors = 0;
+        let anomalyDefaultMap = 0;
+        // Monstres de l'anomalie (Briko/Bruto/Gromo) — accompagnateurs rattachés par la famille 35.
+        let anomalyCompanions = 0;
 
         // Phase 5.1 — le forceRefresh ne touche pas au frais < 24 h : seules
         // les fiches manquantes/périmées sont re-fetchées (dry-run BDD pur,
@@ -154,6 +160,40 @@ export async function GET(req: Request) {
             logger.warn("[Cron:SyncMonsterStats] Erreur chargement des titans:", { error: String(err) });
         }
 
+        // 3. Boss d'ANOMALIE (Gardiens des anomalies temporelles) — contenu entièrement
+        // siphonné : liste DofusDB (race 191) + cartes/familles Dofensive + sorts + icônes,
+        // puis écriture `Dungeon` (isAnomalyBoss) / `MonsterStat` / `DofensiveMap`.
+        // Pas de nouveau cron : la passe nocturne existante couvre le contenu neuf.
+        // Compteurs SÉPARÉS : `synced`/`errors` restent la mesure des fiches de donjon + titans
+        // (contrat de télémétrie existant) ; les anomalies ont leurs propres compteurs.
+        try {
+            const { syncAnomalyBosses } = await import("@/lib/anomaly-boss-siphon");
+            const anomalyResult = await syncAnomalyBosses();
+            anomalySynced = anomalyResult.synced + anomalyResult.unchanged;
+            anomalyErrors = anomalyResult.errors.length;
+            anomalyDefaultMap = anomalyResult.guardians.filter((g) => g.isDefaultMap).length;
+            anomalyCompanions = anomalyResult.companions?.length ?? 0;
+            imagesSiphoned += anomalyResult.imagesSiphoned;
+            if (anomalySynced > 0) {
+                logger.info(
+                    `[Cron:SyncMonsterStats] Anomalies : ${anomalyResult.guardians.length} gardiens résolus, ${anomalySynced} boss en fiche ` +
+                    `(${anomalyDefaultMap} en map par défaut) + ${anomalyCompanions} monstre(s) de l'anomalie (3 tirés au hasard en combat).`
+                );
+            } else {
+                logger.warn("[Cron:SyncMonsterStats] Anomalies : aucun gardien résolu.", {
+                    error: anomalyResult.errors.slice(0, 3),
+                });
+            }
+            if (anomalyResult.errors.length > 0) {
+                logger.warn(`[Cron:SyncMonsterStats] Anomalies : ${anomalyResult.errors.length} erreur(s) unitaire(s).`, {
+                    error: anomalyResult.errors.slice(0, 3),
+                });
+            }
+        } catch (err) {
+            anomalyErrors++;
+            logger.warn("[Cron:SyncMonsterStats] Erreur siphon des boss d'anomalie:", { error: String(err) });
+        }
+
         logger.info(`[Cron:SyncMonsterStats] Terminé: ${synced} monstres synchronisés, ${imagesSiphoned} images siphonnées, ${errors} erreurs, ${skippedFresh} frais ignorés`);
 
         // Visibilité dans le Dashboard GOD (Audit Logs & Alertes) — sans session utilisateur.
@@ -184,13 +224,23 @@ export async function GET(req: Request) {
         // Télémétrie panel God « Tâches CRON »
         const { recordCronExecution } = await import("@/lib/cron-telemetry");
         await recordCronExecution("sync_monster_stats", {
-            success: errors === 0,
+            success: errors === 0 && anomalyErrors === 0,
             durationMs: Date.now() - startedAt,
-            summary: `${synced} monstres synchronisés, ${errors} erreur(s) sur ${bosses.length} (${skippedFresh} frais ignorés)`,
-            details: { synced, errors, images: imagesSiphoned, totalBosses: bosses.length, skippedFresh },
+            summary: `${synced} monstres synchronisés, ${errors} erreur(s) sur ${bosses.length} (${skippedFresh} frais ignorés) · ${anomalySynced} gardien(s) d'anomalie · ${anomalyCompanions} monstre(s) de l'anomalie`,
+            details: {
+                synced,
+                errors,
+                images: imagesSiphoned,
+                totalBosses: bosses.length,
+                skippedFresh,
+                anomalySynced,
+                anomalyErrors,
+                anomalyDefaultMap,
+                anomalyCompanions,
+            },
         });
 
-        return NextResponse.json({ success: true, synced, errors, skippedFresh });
+        return NextResponse.json({ success: true, synced, errors, skippedFresh, anomalySynced, anomalyErrors });
     } catch (error: any) {
         logger.error("[Cron:SyncMonsterStats] Erreur globale:", { error: String(error) });
         const { recordCronExecution } = await import("@/lib/cron-telemetry");

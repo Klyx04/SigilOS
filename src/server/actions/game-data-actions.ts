@@ -276,7 +276,7 @@ export interface BestiaireEntry {
     dofensiveMonsterName?: string | null;
     dofensiveDungeonName?: string | null;
     isOcreQuest: boolean;
-    type: 'boss' | 'monstre' | 'titan';
+    type: 'boss' | 'monstre' | 'titan' | 'anomalie';
 }
 
 /**
@@ -302,6 +302,8 @@ export async function getBestiaireCatalog(): Promise<ActionResponse<BestiaireEnt
                 dofensiveMonsterName: true,
                 dofensiveDungeonName: true,
                 isOcreQuest: true,
+                isAnomalyBoss: true,
+                anomalyFamily: true,
             }
         });
 
@@ -319,7 +321,8 @@ export async function getBestiaireCatalog(): Promise<ActionResponse<BestiaireEnt
                 dofensiveMonsterName: d.dofensiveMonsterName ?? null,
                 dofensiveDungeonName: d.dofensiveDungeonName ?? null,
                 isOcreQuest: !!d.isOcreQuest,
-                type: 'boss',
+                // 🌀 Boss d'anomalie : catégorie dédiée (jamais mélangée aux boss de donjon).
+                type: d.isAnomalyBoss ? ('anomalie' as const) : ('boss' as const),
             }));
 
         // Fail-soft : le seed référence des visuels `/game-data/...` qui n'existent

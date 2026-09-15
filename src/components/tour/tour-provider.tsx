@@ -1270,7 +1270,7 @@ const SUCCES_STEPS: TourStep[] = [
     {
         target: '[data-tour="succes-views"]',
         title: "Navigation du Module Succès",
-        description: "Six vues complémentaires : « Mes Succès » pour cocher ta progression donjon par donjon, « Succès Commun » pour voir qui dans la guilde a validé quoi, « Fiches Boss » pour les sorts et simulations de combat, « Fiche Titans » pour les événements krosmiques, « Quêtes & Succès » pour les quêtes associées, et « Défis » pour les événements et challenges communautaires.",
+        description: "Sept vues complémentaires : « Mes Succès » pour cocher ta progression donjon par donjon, « Succès Commun » pour voir qui dans la guilde a validé quoi, « Fiches Boss » pour les sorts et simulations de combat, « Fiches Anomalies » pour les gardiens des anomalies temporelles (siphonnés Dofensive/DofusDB), « Fiches Titans » pour les événements krosmiques, « Quêtes & Succès » pour les quêtes associées, et « Défis » pour les événements et challenges communautaires.",
         placement: "bottom",
         module: "succes",
     },

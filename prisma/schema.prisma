@@ -895,6 +895,14 @@ model Dungeon {
   dofensiveDungeonName String?
   /* donjon sans succès : le « succès » est d'être validé → un pseudo-succès « Donjon validé » est créé. */
   isNoAchievement      Boolean               @default(false) // Donjon sans succès (validable en un clic)
+  /* Chantier « boss d'anomalie » (Gardiens des anomalies temporelles) — contenu SIPHONNÉ
+     (Dofensive `/monsters/{id}` + DofusDB `monsters?race=191`), jamais saisi à la main.
+     `anomalyMapId`  = map de combat Dofensive du gardien (map par défaut si le gardien n'est
+                       pas exposé par Dofensive, ex. Qilby) ;
+     `anomalyFamily` = libellé de famille affiché (« Créatures des Anomalies Temporelles »). */
+  isAnomalyBoss        Boolean               @default(false) // Boss d'anomalie temporelle (Gardiens des anomalies)
+  anomalyMapId         Int?                  // Map de combat Dofensive (résolue par le siphon)
+  anomalyFamily        String?               // Famille/race Dofensive du gardien (affichage)
   djSearchPosts        DjSearchPost[]
   achievements         DungeonAchievement[]
   userProgress         UserDungeonProgress[]
@@ -905,6 +913,7 @@ model Dungeon {
   @@index([level])
   @@index([isExpedition])
   @@index([isEventDungeon])
+  @@index([isAnomalyBoss])
   @@index([dofusdbId])
 }
 

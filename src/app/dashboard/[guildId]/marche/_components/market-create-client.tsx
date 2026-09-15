@@ -982,6 +982,16 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
                         // Correction 13/09 — aperçu fidèle : icône réelle + mode forum.
                         itemIconUrl={kind !== "RESOURCE" ? item?.iconUrl ?? null : null}
                         forumMode={publishContext?.channelKind === "FORUM"}
+                    bundleItems={
+                        kind === "BUNDLE"
+                            ? bundleItems.map((entry) => ({
+                                  name: entry.name,
+                                  quantity: entry.quantity,
+                                  priceKamas: entry.priceKamas,
+                                  iconUrl: entry.iconUrl ?? null,
+                              }))
+                            : []
+                    }
                         components={components.map((component) => ({ name: component.name, quantity: component.quantity }))}
                         context={publishContext}
                         roles={roles}

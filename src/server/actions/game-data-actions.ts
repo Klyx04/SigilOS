@@ -996,6 +996,21 @@ const MONSTER_STATS_TTL = 60 * 60 * 1000; // 1 h — data de jeu statique
 const dungeonFamilyCache = new Map<string, { data: any; expiresAt: number }>();
 const DUNGEON_FAMILY_TTL = 24 * 60 * 60 * 1000;
 
+/**
+ * Options de fetch DofusDB pour les **fiches** (boss, monstre d'une salle) :
+ * jamais de cache HTTP **et délai dur de 8 s**.
+ *
+ * Sans borne, un DofusDB (ou Dofensive) en carafe laissait la requête ouverte
+ * indéfiniment ⇒ la fiche et la simulation « tournaient à l'infini sans charger »
+ * (constat user du 15/09/2026). Le repli local (`getLocalMonsterStat`,
+ * `getLocalDofensiveDungeon`) est déjà servi avant tout appel réseau ; cette borne
+ * garantit qu'un incident amont se termine toujours en échec fail-closed, donc en
+ * affichage local/état vide — jamais en spinner infini.
+ */
+function dofusdbFicheInit(): RequestInit {
+    return { cache: 'no-store', signal: AbortSignal.timeout(8_000) };
+}
+
 export async function getMonsterStats(
     monsterName: string,
     dungeonName?: string,
@@ -1064,7 +1079,7 @@ export async function getMonsterStats(
         // Search for the monster - search by name.fr
         const searchRes = await fetch(
             `https://api.dofusdb.fr/monsters?name.fr=${encodeURIComponent(monsterName.trim())}&lang=fr&$limit=5`,
-            { cache: 'no-store' }
+            dofusdbFicheInit()
         );
         if (!searchRes.ok) throw new Error("DofusDB search failed");
         const searchData = await searchRes.json();
@@ -1077,14 +1092,14 @@ export async function getMonsterStats(
                 const cleanDungeonQuery = dungeonName.replace(/\s*\(\d+\)$/, "").trim();
                 const djRes = await fetch(
                     `https://api.dofusdb.fr/dungeons?name.fr=${encodeURIComponent(cleanDungeonQuery)}&lang=fr&$limit=5`,
-                    { cache: 'no-store' }
+                    dofusdbFicheInit()
                 );
                 if (djRes.ok) {
                     const djData = await djRes.json();
                     const dj = djData.data?.[0];
                     if (dj && Array.isArray(dj.monsters) && dj.monsters.length > 0) {
                         const firstMobId = dj.monsters[0];
-                        const mobRes = await fetch(`https://api.dofusdb.fr/monsters/${firstMobId}?lang=fr`, { cache: 'no-store' });
+                        const mobRes = await fetch(`https://api.dofusdb.fr/monsters/${firstMobId}?lang=fr`, dofusdbFicheInit());
                         if (mobRes.ok) {
                             monsterHeader = await mobRes.json();
                         }
@@ -1101,7 +1116,7 @@ export async function getMonsterStats(
                     const firstMob = dofDungeon.data.monsters[0];
                     const searchMob = await fetch(
                         `https://api.dofusdb.fr/monsters?name.fr=${encodeURIComponent(firstMob.name)}&lang=fr&$limit=5`,
-                        { cache: 'no-store' }
+                        dofusdbFicheInit()
                     );
                     if (searchMob.ok) {
                         const smData = await searchMob.json();
@@ -1116,7 +1131,7 @@ export async function getMonsterStats(
         // Fetch FULL details
         const fullRes = await fetch(
             `https://api.dofusdb.fr/monsters/${monsterHeader.id}?lang=fr`,
-            { cache: 'no-store' }
+            dofusdbFicheInit()
         );
         if (!fullRes.ok) throw new Error("DofusDB details failed");
         const monster = await fullRes.json();
@@ -1141,7 +1156,7 @@ export async function getMonsterStats(
             const chunk = dropObjectIds.slice(i, i + 40);
             const queryQuery = chunk.map((id: unknown) => `id[$in][]=${id}`).join('&');
             fetchPromises.push(
-                fetch(`https://api.dofusdb.fr/items?${queryQuery}&$limit=50&lang=fr`, { cache: 'no-store' })
+                fetch(`https://api.dofusdb.fr/items?${queryQuery}&$limit=50&lang=fr`, dofusdbFicheInit())
                     .then(res => res.json())
                     .then(data => {
                         if (data && Array.isArray(data.data)) {
@@ -1155,7 +1170,7 @@ export async function getMonsterStats(
         if (spellIds.length > 0) {
             const spellQuery = spellIds.map((id: unknown) => `id[$in][]=${id}`).join('&');
             fetchPromises.push(
-                fetch(`https://api.dofusdb.fr/spells?${spellQuery}&$limit=50&lang=fr`, { cache: 'no-store' })
+                fetch(`https://api.dofusdb.fr/spells?${spellQuery}&$limit=50&lang=fr`, dofusdbFicheInit())
                     .then(res => res.json())
                     .then(data => {
                         if (data && Array.isArray(data.data)) {
@@ -1179,7 +1194,7 @@ export async function getMonsterStats(
 
             if (requestedLevels.length > 0) {
                 const levelQuery = requestedLevels.map((id: unknown) => `id[$in][]=${id}`).join('&');
-                const levelRes = await fetch(`https://api.dofusdb.fr/spell-levels?${levelQuery}&$limit=50&lang=fr`, { cache: 'no-store' });
+                const levelRes = await fetch(`https://api.dofusdb.fr/spell-levels?${levelQuery}&$limit=50&lang=fr`, dofusdbFicheInit());
                 if (levelRes.ok) {
                     const levelData = await levelRes.json();
                     if (levelData && Array.isArray(levelData.data)) {
@@ -1226,7 +1241,7 @@ export async function getMonsterStats(
             try {
                 // Fetch sub-spells
                 const subSpellQuery = uniqueTriggeredIds.map((id: number) => `id[$in][]=${id}`).join('&');
-                const subSpellsRes = await fetch(`https://api.dofusdb.fr/spells?${subSpellQuery}&$limit=50&lang=fr`, { cache: 'no-store' });
+                const subSpellsRes = await fetch(`https://api.dofusdb.fr/spells?${subSpellQuery}&$limit=50&lang=fr`, dofusdbFicheInit());
                 if (subSpellsRes.ok) {
                     const subSpellsData = await subSpellsRes.json();
                     const subSpellsArr = subSpellsData.data || [];
@@ -1239,7 +1254,7 @@ export async function getMonsterStats(
 
                     if (subLevelsToFetch.length > 0) {
                         const subLevelQuery = subLevelsToFetch.map((id: any) => `id[$in][]=${id}`).join('&');
-                        const subLevelRes = await fetch(`https://api.dofusdb.fr/spell-levels?${subLevelQuery}&$limit=50&lang=fr`, { cache: 'no-store' });
+                        const subLevelRes = await fetch(`https://api.dofusdb.fr/spell-levels?${subLevelQuery}&$limit=50&lang=fr`, dofusdbFicheInit());
                         if (subLevelRes.ok) {
                             const subLevelData = await subLevelRes.json();
                             const subLevelsMap: Record<number, any> = {};
@@ -1633,7 +1648,7 @@ export async function getDungeonMonsters(
     try {
         const searchRes = await fetch(
             `https://api.dofusdb.fr/monsters?name.fr=${encodeURIComponent(bossName.trim())}&lang=fr&$limit=5`,
-            { cache: 'no-store' }
+            dofusdbFicheInit()
         );
         if (!searchRes.ok) throw new Error('DofusDB search failed');
         const searchData = await searchRes.json();
@@ -1642,7 +1657,7 @@ export async function getDungeonMonsters(
         if (race) {
             const familyRes = await fetch(
                 `https://api.dofusdb.fr/monsters?race=${race}&lang=fr&$limit=50`,
-                { cache: 'no-store' }
+                dofusdbFicheInit()
             );
             if (familyRes.ok) {
                 const familyData = await familyRes.json();
@@ -1666,7 +1681,7 @@ export async function getDungeonMonsters(
                 const cleanDungeonQuery = dungeonName.replace(/\s*\(\d+\)$/, "").trim();
                 const djRes = await fetch(
                     `https://api.dofusdb.fr/dungeons?name.fr=${encodeURIComponent(cleanDungeonQuery)}&lang=fr&$limit=5`,
-                    { cache: 'no-store' }
+                    dofusdbFicheInit()
                 );
                 if (djRes.ok) {
                     const djData = await djRes.json();
@@ -1675,7 +1690,7 @@ export async function getDungeonMonsters(
                         const mobList: { id: number; name: string; imageUrl: string | null; isBoss: boolean }[] = [];
                         for (const mobId of dj.monsters) {
                             try {
-                                const mRes = await fetch(`https://api.dofusdb.fr/monsters/${mobId}?lang=fr`, { cache: 'no-store' });
+                                const mRes = await fetch(`https://api.dofusdb.fr/monsters/${mobId}?lang=fr`, dofusdbFicheInit());
                                 if (mRes.ok) {
                                     const m = await mRes.json();
                                     mobList.push({
@@ -2376,7 +2391,8 @@ export async function searchArchimonstresForMap(
                 const url = `https://api.dofusdb.fr/monsters?lang=fr&name.fr[$regex]=${encodedQuery}${bossOnly}&$limit=10`;
                 const resp = await fetch(url, {
                     headers: { 'Accept': 'application/json' },
-                    cache: 'no-store'
+                    cache: 'no-store',
+                    signal: AbortSignal.timeout(8_000),
                 });
                 if (!resp.ok) {
                     logger.error('[searchArchimonstresForMap] DofusDB non-ok:', { status: resp.status });

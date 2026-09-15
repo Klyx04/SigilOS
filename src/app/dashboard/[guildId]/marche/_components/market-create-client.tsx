@@ -491,6 +491,18 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
     ]);
 
     /**
+     * 🧺 Lot multiple — **nom pré-rempli** à partir des objets choisis (le vendeur
+     * ajuste s'il veut) : « Lot : Bois de Frêne, Fer, Rune Pa Vi ». On ne le fait
+     * qu'une fois le titre vide et à l'étape 3, pour ne jamais écraser une saisie.
+     */
+    useEffect(() => {
+        if (kind !== "BUNDLE" || step !== 3 || title.trim().length > 0) return;
+        const names = components.map((component) => component.name.trim()).filter((name) => name.length > 0);
+        if (names.length === 0) return;
+        setTitle(`Lot : ${names.slice(0, 3).join(", ")}${names.length > 3 ? "…" : ""}`);
+    }, [kind, step, title, components]);
+
+    /**
      * 🧺 Lot multiple — objets du lot vus par le moteur pur (`BundleItemInput`) :
      * le prix par objet vit dans `components[].priceKamas`.
      */
@@ -860,18 +872,21 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
                 />
             )}
 
-            {/* 🧺 Lot multiple — le prix est déjà fixé **objet par objet** : ici on
-                nomme le lot et on pose ses conditions (aucun montant global). */}
             {step === 3 && kind === "BUNDLE" && (
-                <p className="text-xs text-muted-foreground">
-                    🧺 Lot multiple : chaque objet a <strong>son</strong> prix (étape 2, total&nbsp;:{" "}
-                    <KamasAmount value={computeBundleTotal(bundleItems)} />
-                    ). Ici tu nommes ton lot et tu fixes ses conditions — le montant global n&apos;est pas
-                    utilisé.
-                </p>
+                <StepBundleTerms
+                    items={bundleItems}
+                    title={title}
+                    setTitle={setTitle}
+                    description={description}
+                    setDescription={setDescription}
+                    negotiable={negotiable}
+                    setNegotiable={setNegotiable}
+                    acceptsTrade={acceptsTrade}
+                    setAcceptsTrade={setAcceptsTrade}
+                />
             )}
 
-            {step === 3 && (
+            {step === 3 && kind !== "BUNDLE" && (
                 <StepPricing
                     kind={kind}
                     item={item}
@@ -1288,6 +1303,113 @@ function StepResources({
     );
 }
 
+
+/**
+ * 🧺 Étape 3 — **conditions du lot multiple** (décision user 14/09/2026).
+ *
+ * Pourquoi un panneau dédié plutôt que `StepPricing` : un lot **n'a pas de prix
+ * global** (le prix vit sur chaque objet, étape 2) ⇒ le champ « Prix en kamas »
+ * y serait un piège (on le remplit et il est ignoré), et « Modifié par » relève
+ * de la forge, donc sans objet pour un lot. Ici : on nomme, on décrit, on pose
+ * les conditions, et on **relit la composition** avec le total.
+ */
+function StepBundleTerms({
+    items,
+    title,
+    setTitle,
+    description,
+    setDescription,
+    negotiable,
+    setNegotiable,
+    acceptsTrade,
+    setAcceptsTrade,
+}: {
+    items: BundleItemInput[];
+    title: string;
+    setTitle: (value: string) => void;
+    description: string;
+    setDescription: (value: string) => void;
+    negotiable: boolean;
+    setNegotiable: (value: boolean) => void;
+    acceptsTrade: boolean;
+    setAcceptsTrade: (value: boolean) => void;
+}) {
+    return (
+        <div className="space-y-4">
+            <Card className="bg-surface/60 border-border">
+                <CardHeader>
+                    <CardTitle className="text-base">Ce que tu exposes</CardTitle>
+                    <CardDescription>
+                        Le prix de chaque objet est déjà posé (étape 2). Ici tu nommes le lot et tu dis
+                        comment l&apos;échange se conclut.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-1.5">
+                        <Label className="text-xs">Nom du lot</Label>
+                        <Input
+                            value={title}
+                            onChange={(event) => setTitle(event.target.value)}
+                            placeholder="Ex. Lot du mineur : bois, fer, runes"
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label className="text-xs">Description (facultatif)</Label>
+                        <Textarea
+                            value={description}
+                            onChange={(event) => setDescription(event.target.value)}
+                            placeholder="Précise l'état, les conditions d'échange, tes disponibilités… (les liens sont retirés)"
+                        />
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-5">
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Switch checked={negotiable} onCheckedChange={setNegotiable} />
+                            Prix négociable
+                        </label>
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Switch checked={acceptsTrade} onCheckedChange={setAcceptsTrade} />
+                            Troc accepté
+                        </label>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card className="bg-surface/60 border-border">
+                <CardHeader>
+                    <CardTitle className="text-base">Composition du lot</CardTitle>
+                    <CardDescription>
+                        Chaque objet est réservable séparément, à son prix (les membres verront un message
+                        Discord par objet).
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                    {items.map((item, index) => (
+                        <div
+                            key={`${index}-${item.name}`}
+                            className="flex items-center justify-between gap-3 text-sm"
+                        >
+                            <span className="min-w-0 flex-1 truncate text-foreground">
+                                {index + 1}. {item.name}
+                                {item.quantity > 1 ? ` × ${item.quantity}` : ""}
+                            </span>
+                            <span className="shrink-0">
+                                <KamasAmount value={item.priceKamas} />
+                            </span>
+                        </div>
+                    ))}
+                    <div className="flex items-center justify-between border-t border-border pt-2 text-sm">
+                        <span className="text-muted-foreground">Total du lot</span>
+                        <span className="font-semibold text-foreground">
+                            <KamasAmount value={computeBundleTotal(items)} />
+                        </span>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
 
 /** Étape 3 — titre, description, prix et conditions. */
 function StepPricing(props: {

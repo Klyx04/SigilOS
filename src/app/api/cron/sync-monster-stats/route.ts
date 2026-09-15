@@ -18,6 +18,14 @@ import { db } from "@/lib/prisma";
  */
 export async function GET(req: Request) {
     if (!verifyCronSecret(req)) {
+        // 🔎 Télémétrie du refus (throttlée Redis 1×/10 min, sans secret) : le panneau
+        // God « Tâches CRON » affichait « Inconnu — Aucune exécution récente » alors que
+        // la tâche était déclenchée mais rejetée en 401 (secret de crontab absent/erroné
+        // ou URL d'un autre environnement) — donc AUCUNE donnée siphonnée, donc des
+        // **salles de donjon manquantes** dans la simulation. Le panneau montre
+        // désormais « Refusé (401) », comme `market-expire`.
+        const { recordCronRefusal } = await import("@/lib/cron-telemetry");
+        await recordCronRefusal("sync_monster_stats");
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

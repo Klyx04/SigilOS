@@ -62,11 +62,23 @@ export interface BundleItemInput {
  */
 export const bundleItemSchema = z.object({
     dofusDbItemId: z.number().int().positive().nullable().optional(),
-    name: z.string().trim().min(1).max(120),
+    name: z
+        .string()
+        .trim()
+        .min(1, "Choisis un objet du catalogue pour chaque ligne.")
+        .max(120, "Nom d'objet trop long."),
     iconUrl: z.string().trim().max(500).nullable().optional(),
-    quantity: z.number().int().min(1).max(100_000),
+    quantity: z
+        .number()
+        .int()
+        .min(1, "Indique une quantité d'au moins 1.")
+        .max(100_000, "Quantité trop élevée pour un lot."),
     unitLabel: z.string().trim().max(24).nullable().optional(),
-    priceKamas: z.number().int().min(1).max(1_000_000_000),
+    priceKamas: z
+        .number()
+        .int()
+        .min(1, "Indique un prix en kamas pour chaque objet (au moins 1 kama).")
+        .max(1_000_000_000, "Prix trop élevé : vérifie ta saisie."),
 });
 
 /**

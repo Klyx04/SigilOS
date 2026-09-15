@@ -1714,17 +1714,36 @@ export async function updateMarketListing(
             }
 
             await tx.marketListingComponent.deleteMany({ where: { listingId: existing.id } });
-            if (data.components.length > 0) {
+            /**
+             * 🧺 Lot multiple — les objets viennent de `items[]` (le prix vit sur
+             * l'objet) et **non** de `components[]`, et ils portent leur
+             * `priceKamas`. Sans cette branche, éditer un lot changeait bien le
+             * titre/la description, mais **la liste d'objets et leurs prix
+             * n'étaient jamais enregistrés** (constat user du 15/09/2026).
+             */
+            const componentRows =
+                data.type === "BUNDLE" && data.items.length > 0
+                    ? data.items.map((item, index) => ({
+                          position: index,
+                          dofusDbItemId: item.dofusDbItemId ?? null,
+                          name: item.name,
+                          iconUrl: normalizeItemIconUrl(item.iconUrl ?? null, item.dofusDbItemId ?? null),
+                          quantity: item.quantity,
+                          unitLabel: item.unitLabel ?? null,
+                          priceKamas: item.priceKamas,
+                      }))
+                    : data.components.map((component, index) => ({
+                          position: index,
+                          dofusDbItemId: component.dofusDbItemId ?? null,
+                          name: component.name,
+                          iconUrl: normalizeItemIconUrl(component.iconUrl ?? null, component.dofusDbItemId ?? null),
+                          quantity: component.quantity,
+                          unitLabel: component.unitLabel ?? null,
+                          priceKamas: null,
+                      }));
+            if (componentRows.length > 0) {
                 await tx.marketListingComponent.createMany({
-                    data: data.components.map((component, index) => ({
-                        listingId: existing.id,
-                        position: index,
-                        dofusDbItemId: component.dofusDbItemId ?? null,
-                        name: component.name,
-                        iconUrl: normalizeItemIconUrl(component.iconUrl ?? null, component.dofusDbItemId ?? null),
-                        quantity: component.quantity,
-                        unitLabel: component.unitLabel ?? null,
-                    })),
+                    data: componentRows.map((row) => ({ ...row, listingId: existing.id })),
                 });
             }
         });
@@ -1740,9 +1759,37 @@ export async function updateMarketListing(
         });
 
         // S7.12 — l'annonce peut **déjà être publiée** : l'embed Discord doit
-        // refléter le nouveau titre / prix / jet. Même invariant qu'en S3 :
-        // la resynchronisation n'est **jamais bloquante**.
+        // refléter le nouveau titre / prix / jet / **objet**. Même invariant qu'en
+        // S3 : la resynchronisation n'est **jamais bloquante**.
+        //
+        // Retour user du 15/09/2026 — on passe par `regenerateMarketImage` (et non
+        // `syncListingMessage` seul) : c'est ce qui **invalide la carte** (clé
+        // objet + jet + horodatage). Sans cela, changer l'objet laissait
+        // l'ancienne image PNG dans l'embed (cache par URL côté Discord).
         if (existing.status === "ACTIVE" || existing.status === "RESERVED") {
+            /**
+             * 1) **Invalider la carte** : la clé porte l'objet, le jet et
+             *    l'horodatage — sans quoi Discord (cache par URL) réafficherait
+             *    l'ancienne image après un changement d'équipement (retour user).
+             * 2) **Resynchroniser l'embed** par le **même** point d'entrée que le
+             *    reste du module (`syncListingMessage`) : aucune duplication, et
+             *    le service reste celui observé par les tests et les crons.
+             */
+            try {
+                await db.marketDiscordMessage.updateMany({
+                    where: { listingId: existing.id },
+                    data: {
+                        generatedImageStorageKey: `og:${data.dofusDbItemId ?? 0}:${resolvedStats.hash ?? "0"}:${Date.now()}`,
+                    },
+                });
+            } catch (err) {
+                // Jamais bloquant : la traçabilité Discord ne fait pas échouer
+                // l'édition (l'annonce est déjà écrite, l'embed sera resynchronisé).
+                logger.warn("[market] invalidation de la carte impossible après édition", {
+                    listingId: existing.id,
+                    err: String(err),
+                });
+            }
             void syncListingMessage(existing.id).catch((err) => {
                 logger.warn("[market] resynchro Discord différée après édition", {
                     listingId: existing.id,

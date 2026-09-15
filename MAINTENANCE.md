@@ -86,6 +86,35 @@ umask 077 && printf '%s' '<CRON_SECRET du conteneur>' > /home/sigiladmin/.sigilo
   https://beta.sigilos.fr/api/cron/sync-monster-stats >> /home/sigiladmin/SigilOS/logs/sync-monster-stats.log 2>&1
 ```
 
+**⚠️ Manques constatés le 15/09/2026 (crontab VPS réelle)** : deux tâches déclarées dans
+`KNOWN_CRON_TASKS` n'avaient **aucune ligne** (donc panneau God « Inconnu » à jamais) et
+`market-expire` y pointait **en dur sur `sigilos.fr`** (⇒ depuis le VPS **beta**, on expire les
+annonces de **prod**) avec `> /dev/null` (⇒ **aucun log**, donc invisible dans God). À corriger :
+
+```bash
+# Marché — la MÊME route, mais sur $APP_URL et avec log (⚠️ jamais d'URL en dur : la
+# télémétrie est écrite dans le Redis de l'environnement appelé)
+*/10 * * * * curl -s -o /dev/null -w "market-expire %{http_code} $(date -Is)\n" \
+  -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
+  "$APP_URL/api/cron/market-expire" >> "$LOG_DIR/market-expire.log" 2>&1
+
+# Ladder Dofus (worker externe, 5 profils/exécution) — toutes les 12 h
+0 */12 * * * curl -s -o /dev/null -w "ladder-sync %{http_code} $(date -Is)\n" \
+  -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
+  "$APP_URL/api/cron/ladder-sync" >> "$LOG_DIR/ladder-sync.log" 2>&1
+
+# Ping Statut Global (page /status) — toutes les 5 min (HEAD supporté pour UptimeRobot)
+*/5 * * * * curl -s -o /dev/null -w "status-ping %{http_code} $(date -Is)\n" \
+  -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
+  "$APP_URL/api/cron/status-ping" >> "$LOG_DIR/status-ping.log" 2>&1
+```
+
+> 📋 **Rappel des 23 tâches lues par God** (`KNOWN_CRON_TASKS`, `src/lib/cron-telemetry.ts`) : chacune
+> n'apparaît « Succès » que si son **log** est écrit (`$LOG_DIR` **codé** dans
+> `src/app/api/god/cron-status/route.ts` = `/home/sigiladmin/SigilOS/logs`) **et/ou** si le Redis de
+> l'environnement reçoit `recordCronExecution`. `janitor` n'a **pas** de ligne : il est lancé par
+> `maintenance.sh` (04h00), qui écrit `janitor.log`.
+
 **Diagnostic « Inconnu / Jamais » dans God → Tâches CRON** (constat user du 14/09/2026) — dans
 l'ordre :
 
@@ -160,16 +189,23 @@ Chaque tâche CRON enregistre automatiquement son état, sa durée et son résum
 ## ✅ Checklist Déploiement — Sync intelligente fiches boss (chantier 06/10, branche `feat/chantier-2026-09-07`)
 
 1. **Migration Prisma** (beta **et** prod) : `npx prisma migrate deploy` → `20261005010000_add_dofensive_sync_tables` (tables `DofensiveDungeon`, `DofensiveMap`, `MonsterStat`).
-2. **Crontab VPS** (3 lignes) :
+2. **Crontab VPS** (3 lignes) — ⚠️ **forme de référence uniquement** (voir le bloc
+   « Crontab VPS » du §Module « Marché » ci-dessus) : secret **par fichier** (l'env de `cron` est
+   minimal, `$CRON_SECRET` y est **vide** ⇒ 401 silencieux), sortie **redirigée vers le log** lu par
+   God (sinon panneau « Inconnu »), et URL **`$APP_URL`** (jamais `sigilos.fr` en dur : depuis le VPS
+   beta, on appellerait la prod) :
    ```
-   30 3 * * * curl -s -H "x-cron-secret: $CRON_SECRET" https://sigilos.fr/api/cron/sync-dofensive-maps > /dev/null
-   45 3 * * * curl -s -H "x-cron-secret: $CRON_SECRET" https://sigilos.fr/api/cron/sync-monster-stats > /dev/null
-   15 4 * * 0 curl -s -H "x-cron-secret: $CRON_SECRET" https://sigilos.fr/api/cron/check-links > /dev/null
+   */10 * * * * curl -s -o /dev/null -w "market-expire %{http_code} $(date -Is)\n" -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/market-expire" >> "$LOG_DIR/market-expire.log" 2>&1
+   30 3 * * * curl -s -o /dev/null -w "sync-dofensive-maps %{http_code} $(date -Is)\n" -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/sync-dofensive-maps" >> "$LOG_DIR/sync-dofensive-maps.log" 2>&1
+   45 3 * * * curl -s -o /dev/null -w "sync-monster-stats %{http_code} $(date -Is)\n" -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/sync-monster-stats" >> "$LOG_DIR/sync-monster-stats.log" 2>&1
+   0 */12 * * * curl -s -o /dev/null -w "ladder-sync %{http_code} $(date -Is)\n" -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/ladder-sync" >> "$LOG_DIR/ladder-sync.log" 2>&1
+   */5 * * * * curl -s -o /dev/null -w "status-ping %{http_code} $(date -Is)\n" -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/status-ping" >> "$LOG_DIR/status-ping.log" 2>&1
+   15 4 * * 0 curl -s -o /dev/null -w "check-links %{http_code} $(date -Is)\n" -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/check-links" >> "$LOG_DIR/check-links.log" 2>&1
    ```
 3. **Pré-chauffage optionnel (recommandé)** — lance manuellement les 2 syncs une fois (le 1er run de `sync-monster-stats` est lourd : 10-30 min, à faire de nuit) :
    ```
-   curl -s -H "x-cron-secret: $CRON_SECRET" https://sigilos.fr/api/cron/sync-dofensive-maps
-   curl -s -H "x-cron-secret: $CRON_SECRET" https://sigilos.fr/api/cron/sync-monster-stats
+   curl -s -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/sync-dofensive-maps"
+   curl -s -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/sync-monster-stats"
    ```
 4. **Sans pré-chauffage, pas de panne** : les actions sont « local-first » — données absentes/périmées (> 24 h) → fetch live Dofensive/DofusDB depuis le VPS + auto-persistance (self-healing). Les joueurs ne contactent jamais les API externes directement.
 5. **Audit** : chaque run écrit un log God (`createSystemAuditLog`, `actorName: "Système (Cron)"`) visible dans `/god` → Audit Logs.

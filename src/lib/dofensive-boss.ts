@@ -64,3 +64,56 @@ export function resolveMonsterKey(
     if (derived) return derived;
     return normLite(displayName ?? "");
 }
+
+/**
+ * Choisit l'ID Dofensive du monstre à interroger pour `requestedName` parmi les
+ * **membres du donjon** (`monsters`), et non systématiquement le boss du donjon.
+ *
+ * 🐞 Bug corrigé : `getBossDofensiveSpells` prenait toujours `bossMonsterId` ⇒ une fiche de
+ * **monstre de salle** (ex. « Tambourreau ») affichait les sorts du **boss** (« Servitude »),
+ * aussi bien dans les onglets du dashboard que dans la simulation.
+ *
+ * Ordre de résolution :
+ *  1. correspondance **exacte** normalisée (minuscules, sans accents) ;
+ *  2. correspondance **partielle unique** (« Kardorim » ↔ « Kardorim le Ténébreux », noms
+ *     DofusDB/Dofensive légèrement différents) — uniquement si elle est **non ambiguë** ;
+ *  3. repli sur `bossMonsterId` (comportement historique) : le monstre demandé n'existe pas
+ *     dans la famille Dofensive (nommage trop éloigné) ou c'est le boss/l'entité principale.
+ *
+ * Retourne `null` si aucun ID exploitable (le caller garde alors son message d'erreur).
+ */
+export function pickDofensiveMonsterId(
+    monsters: Array<{ id: number; name: string }> | null | undefined,
+    requestedName: string | null | undefined,
+    bossMonsterId: number | null | undefined
+): number | null {
+    const list = (Array.isArray(monsters) ? monsters : [])
+        .map((m) => ({ id: Number(m?.id), name: String(m?.name ?? "") }))
+        .filter((m) => Number.isFinite(m.id) && m.id > 0);
+    const wanted = normLite(requestedName ?? "");
+
+    if (list.length > 0 && wanted) {
+        const exact = list.find((m) => normLite(m.name) === wanted);
+        if (exact) return exact.id;
+
+        const partial = list.filter((m) => {
+            const n = normLite(m.name);
+            return n.length >= 4 && wanted.length >= 4 && (n.includes(wanted) || wanted.includes(n));
+        });
+        if (partial.length === 1) return partial[0].id;
+        if (partial.length > 1) {
+            // Ambigu (ex. « Tursoel » face à « Tursoel Sauvage »/« Tursoel Affamé ») :
+            // on préfère le nom le plus proche en longueur, à défaut le boss.
+            const closest = partial.slice().sort((a, b) => {
+                const da = Math.abs(normLite(a.name).length - wanted.length);
+                const db = Math.abs(normLite(b.name).length - wanted.length);
+                return da - db;
+            })[0];
+            if (closest) return closest.id;
+        }
+    }
+
+    const boss = Number(bossMonsterId);
+    return Number.isFinite(boss) && boss > 0 ? boss : null;
+}
+

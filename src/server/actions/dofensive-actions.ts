@@ -25,9 +25,11 @@ import type {
 import { dofensiveFetch, norm, toSafeId } from "@/lib/dofensive-fetch";
 import { deriveDofensiveMonsterName, pickDofensiveMonsterId } from "@/lib/dofensive-boss";
 import {
-    getLocalDofensiveDungeon,
-    getLocalDofensiveMap,
-    getLocalDofensiveSpells,
+    getLocalDofensiveDungeonAny,
+    getLocalDofensiveMapAny,
+    getLocalDofensiveSpellsAny,
+    // Résolution « par nom » (siphon anomalies/double boss) : aucune variante `…Any` —
+    // comportement fraîcheur conservé (la donnée est réécrite au siphon).
     getLocalDofensiveSpellsByName,
     persistDofensiveMap,
 } from "@/lib/dofensive-sync";
@@ -36,7 +38,27 @@ type ActionResponse<T = void> = {
     success: boolean;
     error?: string;
     data?: T;
+    /**
+     * 🛰️ Lot 1 « stale-while-offline » : `true` ⇒ donnée servie depuis une ligne LOCALE
+     * **périmée** (> TTL). Elle n'est jamais masquée ni bloquante : l'UI l'affiche **datée**.
+     */
+    stale?: boolean;
+    /** Date de dernière synchronisation de la ligne servie (ISO) — `null` si inconnue. */
+    syncedAt?: string | null;
 };
+
+/**
+ * Réponse d'une lecture locale : **propage la fraîcheur** au lieu de la perdre
+ * (une péremption ne doit jamais devenir une absence — cause racine du 15/09/2026).
+ */
+function localStaleResponse<T>(hit: { data: T; lastSyncedAt: Date | null; stale: boolean }): ActionResponse<T> {
+    return {
+        success: true,
+        data: hit.data,
+        stale: hit.stale,
+        syncedAt: hit.lastSyncedAt ? hit.lastSyncedAt.toISOString() : null,
+    };
+}
 
 // ─── Types exposés (camelCase normalisé) ────────────────────────────────────
 
@@ -108,11 +130,17 @@ export async function getDofensiveDungeonForBoss(
 ): Promise<ActionResponse<DofensiveDungeonInfo>> {
     if (!bossName || !bossName.trim()) return { success: false, error: "Nom de boss manquant" };
 
-    // Chantier double boss : si le donjon a été configuré avec des champs de résolution Dofensive explicites
-    // (`dofensiveMonsterName` + `dofensiveDungeonName`), on résout DIRECTEMENT le bon donjon + le bon monstre.
-    // Lève l'ambiguïté avec les donjons solo homonymes (ex. « Sylargh » seul vs « Donjon du Comte Harebourg »).
-    // Si `dofensiveMonsterName` n'est pas renseigné, on dérive le monstre depuis un `bossName` du type « X et Y »
-    // (« Comte et Klime » → « Klime ») — robuste même quand la donnée en base est incomplète.
+    // 🛰️ Lot 1 « stale-while-offline » : la LECTURE LOCALE passe AVANT tout appel réseau.
+    // Une ligne **périmée** est servie (datée) — seul « aucune ligne » autorise le live.
+    try {
+        const local = await getLocalDofensiveDungeonAny(bossName, dungeonName);
+        if (local) return localStaleResponse(local);
+    } catch {
+        // Aucune ligne locale exploitable → résolution live ci-dessous
+    }
+
+    // Chantier double boss : résolution explicite par champs configurés — tentée UNIQUEMENT
+    // sans donnée locale (sinon on ne paierait un appel réseau pour rien).
     const explicitMonsterName = opts?.dofensiveMonsterName ?? deriveDofensiveMonsterName(bossName) ?? undefined;
     if (explicitMonsterName || opts?.dofensiveDungeonName) {
         try {
@@ -121,15 +149,6 @@ export async function getDofensiveDungeonForBoss(
         } catch {
             // Fallback vers la résolution heuristique ci-dessous
         }
-    }
-
-    // Local-first (siphon local, chantier 2) : donjon déjà synchronisé en base →
-    // zéro appel réseau Dofensive (les maps/monstres/boss y sont stockés).
-    try {
-        const local = await getLocalDofensiveDungeon(bossName, dungeonName);
-        if (local) return { success: true, data: local };
-    } catch {
-        // Fallback live ci-dessous
     }
 
     const dungeons = await dofensiveFetch<any[]>(
@@ -304,10 +323,11 @@ export async function getDofensiveMap(mapId: number | string): Promise<ActionRes
     const id = toSafeId(mapId);
     if (!id) return { success: false, error: "ID de map invalide" };
 
-    // 1. Essai local-first (PostgreSQL)
+    // 1. Essai local-first 🛰️ Lot 1 : une ligne **périmée** est servie (datée) — seul
+    //    « aucune ligne » bascule sur le réseau.
     try {
-        const local = await getLocalDofensiveMap(id);
-        if (local) return { success: true, data: local };
+        const local = await getLocalDofensiveMapAny(id);
+        if (local) return localStaleResponse(local);
     } catch {
         // Fallback live ci-dessous
     }
@@ -505,14 +525,15 @@ export async function getDofensiveSpells(
     const id = toSafeId(monsterId);
     if (!id) return { success: false, error: "ID de monstre invalide" };
 
-    // Local-first (siphon local, chantier 2) : les sorts de combat fusionnés du grade
-    // MAX sont déjà en base (`MonsterStat.stats.spells`) → zéro appel Dofensive. Un
-    // changement de grade explicite (gradeLevel) garde le fetch live (données par grade) ;
-    // `forceRefresh` (crons de sync) re-fetch TOUJOURS la source.
+    // Local-first 🛰️ Lot 1 : les sorts de combat fusionnés du grade MAX sont en base
+    // (`MonsterStat.stats.spells`) → zéro appel Dofensive, même si la ligne est **périmée**
+    // (elle est alors servie datée via `stale`/`syncedAt`). Un changement de grade explicite
+    // (gradeLevel) garde le fetch live (données par grade) ; `forceRefresh` (crons de sync)
+    // re-fetch TOUJOURS la source.
     if (gradeLevel === undefined && !forceRefresh) {
         try {
-            const local = await getLocalDofensiveSpells(id);
-            if (local && local.length > 0) return { success: true, data: local };
+            const local = await getLocalDofensiveSpellsAny(id);
+            if (local) return localStaleResponse(local);
         } catch {
             // Fallback live ci-dessous
         }

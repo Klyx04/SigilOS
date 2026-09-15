@@ -10,7 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { logger } from "@/lib/logger";
 import { sanitizeHtml } from "@/lib/security";
-import { getLocalMonsterStat, persistMonsterStat } from "@/lib/dofensive-sync";
+import { getLocalMonsterStatAny, persistMonsterStat } from "@/lib/dofensive-sync";
 import { getDofensiveDungeonForBoss } from "@/server/actions/dofensive-actions";
 
 const normStr = (s: string | null | undefined): string =>
@@ -994,6 +994,12 @@ export async function getBountiesForZone(zoneName: string): Promise<ActionRespon
 // #138 — cache mémoire 1h pour les fiches monstres (dofusdb externe, jusqu'à 5 requêtes/boss).
 const monsterStatsCache = new Map<string, { data: any; expiresAt: number }>();
 const MONSTER_STATS_TTL = 60 * 60 * 1000; // 1 h — data de jeu statique
+/**
+ * 🛰️ Lot 1 « stale-while-offline » : une fiche servie depuis une ligne PÉRIMÉE est mise en
+ * cache très peu de temps — on l'affiche (datée) mais on veut re-tenter la synchronisation
+ * vite, sans marteler la source à chaque clic.
+ */
+const STALE_STATS_TTL = 5 * 60 * 1000; // 5 min
 
 // Cache court pour la famille (race DofusDB) d'un boss — 24 h.
 const dungeonFamilyCache = new Map<string, { data: any; expiresAt: number }>();
@@ -1061,16 +1067,19 @@ export async function getMonsterStats(
         logger.error("[getMonsterStats] Local coordinate fetch error:", { error: err });
     }
 
-    // Local-first (siphon local, chantier 2) : fiche fraîche (< 24 h) → zéro appel
-    // DofusDB en direct. Les coordonnées du donjon sont ré-attachées si absentes
-    // (le cron de sync ne les stocke pas — elles viennent du worldmap.json local).
+    // Local-first (siphon local) — 🛰️ Lot 1 « stale-while-offline » : une ligne **périmée**
+    // est servie elle aussi (marquée `stale` + datée), jamais transformée en absence.
+    // Seul « aucune ligne » autorise le repli live. Les coordonnées du donjon sont
+    // ré-attachées si absentes (le cron ne les stocke pas — elles viennent du worldmap.json).
     // `forceRefresh` (crons de sync) re-fetch TOUJOURS la source.
     if (process.env.VITEST !== "true" && !forceRefresh) {
         try {
-            const local = await getLocalMonsterStat(monsterName);
-            if (local) {
+            const hit = await getLocalMonsterStatAny(monsterName);
+            if (hit) {
+                const local = { ...hit.data, stale: hit.stale, syncedAt: hit.lastSyncedAt };
                 if (!local.coordinates && coordinates) local.coordinates = coordinates;
-                monsterStatsCache.set(cacheKey, { data: local, expiresAt: Date.now() + MONSTER_STATS_TTL });
+                const ttl = hit.stale ? STALE_STATS_TTL : MONSTER_STATS_TTL;
+                monsterStatsCache.set(cacheKey, { data: local, expiresAt: Date.now() + ttl });
                 return { success: true, data: local };
             }
         } catch (err) {

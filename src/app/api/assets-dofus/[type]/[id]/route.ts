@@ -215,6 +215,50 @@ export async function GET(
             }
         }
 
+        // Tentative 2bis : SORTS — DofusDB n'expose PAS `img/spells/{id}.png` pour la
+        // majorité des sorts : l'icône réellement servie est `img/spells/sort_{iconId}.png`
+        // (`iconId` = propriété du sort, différente de son `id`). Sans cette résolution,
+        // le proxy retombait sur le placeholder ⇒ « les icônes des sorts ne chargent pas ».
+        if (!downloaded && isNumericId && assetType === 'spells') {
+            try {
+                const spellRes = await fetch(`https://api.dofusdb.fr/spells/${safeId}?lang=fr`, {
+                    headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
+                    signal: AbortSignal.timeout(6_000),
+                });
+                if (spellRes.ok) {
+                    const spellData = await spellRes.json();
+                    const rawIcon = String(spellData?.iconId ?? spellData?.img ?? '');
+                    const iconId = rawIcon.match(/\d+/)?.[0] ?? null;
+                    const candidates = iconId
+                        ? [
+                            `https://api.dofusdb.fr/img/spells/sort_${iconId}.png`,
+                            `https://api.dofusdb.fr/img/spells/${iconId}.png`,
+                        ]
+                        : [];
+                    for (const candidate of candidates) {
+                        try {
+                            const iconRes = await fetch(candidate, {
+                                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                                signal: AbortSignal.timeout(6_000),
+                            });
+                            if (!iconRes.ok) continue;
+                            const contentType = iconRes.headers.get('content-type') || '';
+                            if (!contentType.startsWith('image/') && !contentType.startsWith('application/octet-stream')) continue;
+                            const arrayBuffer = await iconRes.arrayBuffer();
+                            if (arrayBuffer.byteLength === 0 || arrayBuffer.byteLength > MAX_IMAGE_BYTES) continue;
+                            inputBuffer = Buffer.from(arrayBuffer);
+                            downloaded = true;
+                            break;
+                        } catch {
+                            // Candidat suivant
+                        }
+                    }
+                }
+            } catch {
+                // Échec résolution icône de sort
+            }
+        }
+
         // Tentative 3 : Si c'est un monstre et que l'URL par défaut a échoué, résolution via l'API DofusDB (graphicLookId)
         if (!downloaded && isNumericId && assetType === 'monsters') {
             try {

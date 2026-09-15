@@ -9,6 +9,7 @@ import {
   Compass,
   ExternalLink,
   Loader2,
+  Move,
   Search,
   Shield,
   Sparkles,
@@ -365,6 +366,13 @@ export function BossOverlayClient({
   const [activeSpellId, setActiveSpellId] = useState<number | undefined>(undefined);
   const [activeGradeIndex, setActiveGradeIndex] = useState<number>(0);
   const [isHeroCollapsed, setIsHeroCollapsed] = useState<boolean>(false);
+  /**
+   * 🕹️ Bascule « Boss libre » de l'overlay (sections §C) : état LOCAL à la fenêtre,
+   * purement de prévisualisation. ON ⇒ un clic sur une case marchable déplace le boss
+   * pour tester les portées ; OFF (défaut) ⇒ boss épinglé sur son placement réel.
+   * Aucune donnée n'est écrite, l'état retombe à OFF à la fermeture de la fenêtre.
+   */
+  const [freeBossMove, setFreeBossMove] = useState<boolean>(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   // Empêche le deep-link initial de re-sélectionner le boss après un retour manuel.
   const deepLinkedRef = useRef(false);
@@ -730,13 +738,15 @@ export function BossOverlayClient({
         </div>
       )}
 
-      {/* ── Zone de contenu SCROLLABLE ── */}
+      {/* ── Zone de contenu SCROLLABLE ──
+          `.overlay-scroll` (globals.css) : gouttière large et hit-testable, `pointer-events`
+          garanti, `overscroll-behavior: contain`. Corrige le §B (barre de défilement non
+          « attrapable » à la souris alors que la molette fonctionnait : la gouttière était
+          trop étroite / non stylée dans le document PiP). */}
       <div
         className={cn(
           "flex-1 min-h-0",
-          tab === "sim"
-            ? "flex flex-col overflow-hidden"
-            : "overflow-y-auto overflow-x-hidden [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent]"
+          tab === "sim" ? "flex flex-col overflow-hidden" : "overlay-scroll"
         )}
       >
         {/* Liste du catalogue (1ère page) */}
@@ -1007,26 +1017,54 @@ export function BossOverlayClient({
                 <span className="text-[11px]">Chargement…</span>
               </div>
             ) : stats?.spells && stats.spells.length > 0 ? (
-              <SpellRangeGrid
-                spells={stats.spells}
-                activeSpellId={activeSpellId}
-                onSelectSpell={(s) => setActiveSpellId(s.id)}
-                bossName={activeMonsterName ?? selected.bossName}
-                bossImageUrl={stats?.imageUrl ?? selected.imageUrl ?? undefined}
-                dungeonMaps={dungeonMaps?.maps ?? undefined}
-                dungeonName={selected.name}
-                grades={stats?.grades}
-                activeGradeIndex={activeGradeIndex}
-                onGradeChange={setActiveGradeIndex}
-                monsters={family?.monsters.map((m) => ({
-                  id: m.id,
-                  name: m.name,
-                  isBoss: m.isBoss,
-                  imageUrl: m.imageUrl,
-                }))}
-                entityScale={selected.type === "titan" ? 4 : 1}
-                compact={true}
-              />
+              <>
+                {/* Bascule « Boss libre » (même libellé que la landing publique) : elle
+                    pilote la grille juste en dessous — un seul état, deux commandes. */}
+                <button
+                  type="button"
+                  onClick={() => setFreeBossMove((v) => !v)}
+                  aria-pressed={freeBossMove}
+                  title={
+                    freeBossMove
+                      ? "Boss libre actif : cliquez une case marchable de la grille pour déplacer le boss (prévisualisation seule)"
+                      : "Boss libre : cliquez une case marchable de la grille pour déplacer le boss et tester les portées"
+                  }
+                  className={cn(
+                    "self-start shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-colors",
+                    freeBossMove
+                      ? "bg-amber-500/20 border-amber-400 text-amber-300"
+                      : "bg-white/[0.04] border-white/10 text-white/50 hover:text-white/80 hover:bg-white/[0.08]"
+                  )}
+                >
+                  <Move className="w-3.5 h-3.5" />
+                  Boss libre : {freeBossMove ? "ON" : "OFF"}
+                </button>
+                <div className="flex-1 min-h-0 flex flex-col">
+                  <SpellRangeGrid
+                    spells={stats.spells}
+                    activeSpellId={activeSpellId}
+                    onSelectSpell={(s) => setActiveSpellId(s.id)}
+                    bossName={activeMonsterName ?? selected.bossName}
+                    bossImageUrl={stats?.imageUrl ?? selected.imageUrl ?? undefined}
+                    dungeonMaps={dungeonMaps?.maps ?? undefined}
+                    dungeonName={selected.name}
+                    grades={stats?.grades}
+                    activeGradeIndex={activeGradeIndex}
+                    onGradeChange={setActiveGradeIndex}
+                    monsters={family?.monsters.map((m) => ({
+                      id: m.id,
+                      name: m.name,
+                      isBoss: m.isBoss,
+                      imageUrl: m.imageUrl,
+                    }))}
+                    entityScale={selected.type === "titan" ? 4 : 1}
+                    compact={true}
+                    allowFreeCasterMove
+                    freeCasterMove={freeBossMove}
+                    onFreeCasterMoveChange={setFreeBossMove}
+                  />
+                </div>
+              </>
             ) : (
               <div className="flex flex-col items-center justify-center py-10 gap-2 text-white/25">
                 <Brain className="w-6 h-6" />

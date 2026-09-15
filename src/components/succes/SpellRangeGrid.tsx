@@ -85,6 +85,12 @@ interface SpellRangeGridProps {
      *  case marchable (ignore les placements de départ) pour jouer avec la préview
      *  des sorts. Opt-in explicite (landing publique) — le dashboard reste épinglé. */
     allowFreeCasterMove?: boolean;
+    /** Bascule « Boss libre » **pilotée par le parent** (overlay Bestiaire) : quand elle
+     *  est fournie, c'est SA valeur qui fait foi (les boutons internes remontent leur
+     *  clic via `onFreeCasterMoveChange`). Absente ⇒ état interne (landing, démo). */
+    freeCasterMove?: boolean;
+    /** Notification d'un changement de bascule (clic interne ou parent). */
+    onFreeCasterMoveChange?: (value: boolean) => void;
 }
 
 // Ligne de Bresenham entre deux cellules (grille orthogonale) — pour la ligne de vue.
@@ -128,6 +134,8 @@ export function SpellRangeGrid({
     compact = false,
     entityScale = 1,
     allowFreeCasterMove = false,
+    freeCasterMove: controlledFreeCasterMove,
+    onFreeCasterMoveChange,
 }: SpellRangeGridProps) {
     // Sort actif — le parent peut contrôler la sélection (activeSpellId/onSelectSpell) ;
     // sinon l'état interne prend le relais (cas de la démo /demo/boss-sim).
@@ -171,7 +179,21 @@ export function SpellRangeGrid({
     // Bypass « boss libre » (opt-in landing publique) : actif par défaut quand la
     // prop est présente, désactivable via le toggle de la toolbar. Le dashboard
     // interne garde le comportement historique (boss épinglé sur son placement).
-    const [freeCasterMove, setFreeCasterMove] = useState<boolean>(allowFreeCasterMove);
+    //
+    // Mode **piloté** (overlay Bestiaire) : si le parent fournit `freeCasterMove`, sa
+    // valeur fait foi — l'icône compacte ET la bascule libellée remontent le clic via
+    // `onFreeCasterMoveChange`, donc les deux commandes ne peuvent jamais diverger.
+    // Aucune donnée n'est touchée : la position du boss reste un état de prévisualisation.
+    const [internalFreeCasterMove, setInternalFreeCasterMove] = useState<boolean>(allowFreeCasterMove);
+    const freeCasterMove = controlledFreeCasterMove ?? internalFreeCasterMove;
+    const setFreeCasterMove = (next: boolean | ((prev: boolean) => boolean)) => {
+        const value =
+            typeof next === "function"
+                ? (next as (prev: boolean) => boolean)(controlledFreeCasterMove ?? internalFreeCasterMove)
+                : next;
+        setInternalFreeCasterMove(value);
+        onFreeCasterMoveChange?.(value);
+    };
 
     // Survol souris
     const [hoveredCell, setHoveredCell] = useState<DofusPos | null>(null);
@@ -373,6 +395,15 @@ export function SpellRangeGrid({
             setCasterPos({ x: Math.floor(gridCols / 2), y: Math.floor(gridRows / 2) });
         }
     };
+
+    // Garde « Boss libre » : dès qu'on repasse en mode épinglé, on repose le boss sur
+    // son vrai placement de départ (prévisualisation pure, aucune écriture de donnée).
+    useEffect(() => {
+        if (!freeCasterMove && mapData && showStartCells) {
+            applyStartCells(mapData, true, placementIndex);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [freeCasterMove]);
 
     // Donjon « double boss » : on ne propose QUE la map du boss courant.
     //  - les maps marquées `isBoss` (PreferredMaps du monstre) ;
@@ -906,7 +937,7 @@ export function SpellRangeGrid({
             >
                 {/* Mode compact : barre d'outils épurée en 2 lignes (sticky en haut) */}
                 {compact ? (
-                    <div className="w-full space-y-1.5 mb-1.5 px-1 relative z-30 shrink-0 bg-[#161614] pb-1.5 border-b border-white/5" data-no-drag>
+                    <div className="w-full space-y-1.5 mb-1.5 px-1 relative z-40 shrink-0 bg-[#161614] pb-1.5 border-b border-white/5" data-no-drag>
                         {/* Ligne 1 : Choix du Sort + Choix de la Salle */}
                         <div className="flex items-center gap-1.5 w-full">
                             {/* Sélecteur de sort stylé */}
@@ -1213,9 +1244,11 @@ export function SpellRangeGrid({
                             </span>
                         </div>
 
-                        {/* Sélecteur de map (salles du donjon) */}
+                        {/* Sélecteur de map (salles du donjon) — z-40 : le menu déroulant
+                            doit passer AU-DESSUS des barres d'outils suivantes (z-10/z-30),
+                            sinon la barre « Ordre d'apparition » masque la liste des salles. */}
                         {shownMaps.length > 0 && (
-                            <div className="w-full flex flex-wrap items-center gap-2 mb-2 px-2 relative z-10">
+                            <div className="w-full flex flex-wrap items-center gap-2 mb-2 px-2 relative z-40">
                                 <span className="inline-flex items-center gap-1.5 text-xs font-bold text-zinc-400">
                                     <MapIcon className="w-3.5 h-3.5 text-amber-400" /> Salle :
                                 </span>

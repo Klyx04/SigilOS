@@ -1111,6 +1111,10 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                                 )}
                             </div>
 
+                            {/* 🎛️ Parité avec la landing publique : le toggle « Boss libre »
+                                (déplacement libre du boss pour tester les portées) est aussi
+                                disponible dans le dashboard — prévisualisation pure, aucune
+                                écriture de donnée. */}
                             <SpellRangeGrid
                                 spells={statsOf(selected)?.spells ?? []}
                                 activeSpellId={selectedSpellId}
@@ -1123,6 +1127,7 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                                 activeGradeIndex={activeGradeIndex ?? ((statsOf(selected)?.grades?.length ?? 1) - 1)}
                                 onGradeChange={(idx) => setActiveGradeIndex(idx)}
                                 monsters={familyByDungeon[selected.id]?.monsters ?? []}
+                                allowFreeCasterMove
                             />
                         </div>
                     )}

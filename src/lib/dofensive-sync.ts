@@ -55,35 +55,79 @@ export function normName(s: string): string {
     return norm(s);
 }
 
+/**
+ * Lecture locale **hors contrôle de fraîcheur** (Lot 1 « stale-while-offline »).
+ *
+ * `stale = true` ⇒ la ligne **EXISTE** mais dépasse le TTL : elle doit être **servie**
+ * (datée côté UI — Lot 6), jamais transformée en absence. Sinon une péremption devient une
+ * **bascule live silencieuse** : c'est la cause racine de la panne du 15/09/2026 (crontab
+ * cassé ⇒ données > 24 h ⇒ `null` ⇒ appel live ⇒ panne amont = panne utilisateur).
+ *
+ * `null` ⇒ **aucune** ligne en base : seul cas où un repli live est légitime.
+ */
+export interface LocalStaleResult<T> {
+    data: T;
+    lastSyncedAt: Date | null;
+    stale: boolean;
+}
+
+/** Emballage commun : `stale` = ligne présente mais plus vieille que `SYNC_TTL`. */
+export function toStaleResult<T>(data: T, lastSyncedAt: Date | string | null | undefined): LocalStaleResult<T> {
+    const at = lastSyncedAt
+        ? (typeof lastSyncedAt === "string" ? new Date(lastSyncedAt) : lastSyncedAt)
+        : null;
+    return {
+        data,
+        lastSyncedAt: at instanceof Date && !Number.isNaN(at.getTime()) ? at : null,
+        stale: !isFresh(lastSyncedAt),
+    };
+}
+
+/**
+ * Garde partagée des sorts locaux : ne servir QUE des sorts de combat Dofensive
+ * (`apCost` numérique + `effects` tableau) — jamais un payload DofusDB brut.
+ */
+export function pickCombatSpells(spells: unknown): DofensiveSpellCombat[] | null {
+    if (!Array.isArray(spells) || spells.length === 0) return null;
+    const combat = spells.filter((s: any) => s && typeof s?.apCost === "number" && Array.isArray(s?.effects));
+    return combat.length > 0 ? (combat as DofensiveSpellCombat[]) : null;
+}
+
 
 // ─── Local-first getters (utilisés par les actions) ─────────────────────────
 
-/** Lit une map Dofensive dans PostgreSQL (null si absente/périmée ou DB KO). */
-export async function getLocalDofensiveMap(mapId: number): Promise<DofensiveMapData | null> {
+/** Lit une map Dofensive SANS contrôle de fraîcheur (Lot 1) — `null` si la ligne est absente. */
+export async function getLocalDofensiveMapAny(mapId: number): Promise<LocalStaleResult<DofensiveMapData> | null> {
     if (!DB_READABLE) return null;
     try {
         const row = await db.dofensiveMap.findUnique({ where: { mapId } });
-        if (!row || !isFresh(row.lastSyncedAt)) return null;
-        const cells = row.cells as number[][];
-        const allyCells = row.allyCells as number[];
-        const enemyCells = row.enemyCells as number[];
+        if (!row) return null;
         const subarea = (row.subarea as { id: number; name: string } | null) ?? null;
         const coords = (row.coords as { x: number; y: number } | null) ?? null;
-        return {
-            id: row.mapId,
-            name: row.name,
-            subarea,
-            dungeon: row.dungeonId ? { id: row.dungeonId, name: row.name } : null,
-            isBossMap: row.isBossMap,
-            coordinates: coords,
-            cells,
-            allyCells,
-            enemyCells,
-        };
+        return toStaleResult<DofensiveMapData>(
+            {
+                id: row.mapId,
+                name: row.name,
+                subarea,
+                dungeon: row.dungeonId ? { id: row.dungeonId, name: row.name } : null,
+                isBossMap: row.isBossMap,
+                coordinates: coords,
+                cells: row.cells as number[][],
+                allyCells: row.allyCells as number[],
+                enemyCells: row.enemyCells as number[],
+            },
+            row.lastSyncedAt
+        );
     } catch (error) {
-        logger.warn("[dofensive-sync] getLocalDofensiveMap échec:", { error: String(error) });
+        logger.warn("[dofensive-sync] getLocalDofensiveMapAny échec:", { error: String(error) });
         return null;
     }
+}
+
+/** Lit une map Dofensive dans PostgreSQL (null si absente/périmée ou DB KO). */
+export async function getLocalDofensiveMap(mapId: number): Promise<DofensiveMapData | null> {
+    const hit = await getLocalDofensiveMapAny(mapId);
+    return hit && !hit.stale ? hit.data : null;
 }
 
 /** Persiste une map après un fetch live (self-healing). Fire-and-forget côté appelant. */
@@ -178,11 +222,11 @@ export async function siphonDofensiveMapById(mapId: number, force = false): Prom
     }
 }
 
-/** Lit un donjon Dofensive (local) et cherche le boss — null si absent/périmé. */
-export async function getLocalDofensiveDungeon(
+/** Lit un donjon Dofensive local SANS contrôle de fraîcheur (Lot 1) — `null` si aucun hit. */
+export async function getLocalDofensiveDungeonAny(
     bossName: string,
     dungeonName?: string
-): Promise<DofensiveDungeonInfo | null> {
+): Promise<LocalStaleResult<DofensiveDungeonInfo> | null> {
     if (!DB_READABLE || !bossName) return null;
     try {
         const key = norm(bossName);
@@ -198,38 +242,76 @@ export async function getLocalDofensiveDungeon(
             const dk = norm(dungeonName);
             hit = hits.find((r) => norm(r.name).includes(dk)) ?? hits[0];
         }
-        if (!isFresh(hit.lastSyncedAt)) return null;
 
         const monsters = (hit.monsters as { id: number; name: string }[]) ?? [];
-        return {
-            dungeonId: hit.dungeonId,
-            dungeonName: hit.name,
-            maps: ((hit.maps as { id: number; name: string; isBoss?: boolean }[]) ?? []).map((m) => ({
-                id: m.id,
-                name: m.name,
-                isBoss: !!m.isBoss,
-            })),
-            monsters,
-            bossMonsterId: hit.bossMonsterId,
-        };
+        return toStaleResult<DofensiveDungeonInfo>(
+            {
+                dungeonId: hit.dungeonId,
+                dungeonName: hit.name,
+                maps: ((hit.maps as { id: number; name: string; isBoss?: boolean }[]) ?? []).map((m) => ({
+                    id: m.id,
+                    name: m.name,
+                    isBoss: !!m.isBoss,
+                })),
+                monsters,
+                bossMonsterId: hit.bossMonsterId,
+            },
+            hit.lastSyncedAt
+        );
     } catch (error) {
-        logger.warn("[dofensive-sync] getLocalDofensiveDungeon échec:", { error: String(error) });
+        logger.warn("[dofensive-sync] getLocalDofensiveDungeonAny échec:", { error: String(error) });
         return null;
     }
 }
 
-/** Lit une fiche monstre locale par nom normalisé — null si absente/périmée. */
-export async function getLocalMonsterStat(monsterName: string): Promise<any | null> {
+/** Lit un donjon Dofensive (local) et cherche le boss — null si absent/périmé. */
+export async function getLocalDofensiveDungeon(
+    bossName: string,
+    dungeonName?: string
+): Promise<DofensiveDungeonInfo | null> {
+    const hit = await getLocalDofensiveDungeonAny(bossName, dungeonName);
+    return hit && !hit.stale ? hit.data : null;
+}
+
+/** Lit une fiche monstre locale par nom SANS contrôle de fraîcheur (Lot 1) — `null` si absente. */
+export async function getLocalMonsterStatAny(monsterName: string): Promise<LocalStaleResult<any> | null> {
     if (!DB_READABLE || !monsterName) return null;
     try {
         const row = await db.monsterStat.findFirst({
             where: { monsterName: { equals: monsterName, mode: "insensitive" } },
             orderBy: { lastSyncedAt: "desc" },
         });
-        if (!row || !isFresh(row.lastSyncedAt)) return null;
-        return row.stats;
+        if (!row) return null;
+        return toStaleResult<any>(row.stats, row.lastSyncedAt);
     } catch (error) {
-        logger.warn("[dofensive-sync] getLocalMonsterStat échec:", { error: String(error) });
+        logger.warn("[dofensive-sync] getLocalMonsterStatAny échec:", { error: String(error) });
+        return null;
+    }
+}
+
+/** Lit une fiche monstre locale par nom normalisé — null si absente/périmée. */
+export async function getLocalMonsterStat(monsterName: string): Promise<any | null> {
+    const hit = await getLocalMonsterStatAny(monsterName);
+    return hit && !hit.stale ? hit.data : null;
+}
+
+/**
+ * Lit les sorts de combat Dofensive d'un monstre SANS contrôle de fraîcheur (Lot 1).
+ * `null` si la ligne est absente **ou** si elle ne contient pas de sorts de combat
+ * exploitables (un payload DofusDB brut ne suffit pas : la simulation exige `apCost`).
+ */
+export async function getLocalDofensiveSpellsAny(
+    monsterId: number
+): Promise<LocalStaleResult<DofensiveSpellCombat[]> | null> {
+    if (!DB_READABLE || !Number.isFinite(monsterId) || monsterId <= 0) return null;
+    try {
+        const row = await db.monsterStat.findUnique({ where: { monsterId } });
+        if (!row) return null;
+        const combat = pickCombatSpells((row.stats as any)?.spells);
+        if (!combat) return null;
+        return toStaleResult<DofensiveSpellCombat[]>(combat, row.lastSyncedAt);
+    } catch (error) {
+        logger.warn("[dofensive-sync] getLocalDofensiveSpellsAny échec:", { error: String(error) });
         return null;
     }
 }
@@ -240,21 +322,8 @@ export async function getLocalMonsterStat(monsterName: string): Promise<any | nu
  * (champ `apCost` + `effects` présents — un simple payload DofusDB ne suffit pas).
  */
 export async function getLocalDofensiveSpells(monsterId: number): Promise<DofensiveSpellCombat[] | null> {
-    if (!DB_READABLE || !Number.isFinite(monsterId) || monsterId <= 0) return null;
-    try {
-        const row = await db.monsterStat.findUnique({ where: { monsterId } });
-        if (!row || !isFresh(row.lastSyncedAt)) return null;
-        const spells = (row.stats as any)?.spells;
-        if (!Array.isArray(spells) || spells.length === 0) return null;
-        // Garde : ne servir que des vrais sorts de combat Dofensive (jamais du DofusDB brut).
-        const combat = spells.filter(
-            (s: any) => s && typeof s?.apCost === "number" && Array.isArray(s?.effects)
-        );
-        return combat.length > 0 ? (combat as DofensiveSpellCombat[]) : null;
-    } catch (error) {
-        logger.warn("[dofensive-sync] getLocalDofensiveSpells échec:", { error: String(error) });
-        return null;
-    }
+    const hit = await getLocalDofensiveSpellsAny(monsterId);
+    return hit && !hit.stale ? hit.data : null;
 }
 
 /**

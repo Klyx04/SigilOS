@@ -174,7 +174,7 @@ export function MarketBundleItemsEditor({
                                 </button>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            <div className="grid grid-cols-2 gap-2">
                                 <label className="space-y-1 text-xs text-muted-foreground">
                                     Quantité
                                     <input
@@ -186,19 +186,6 @@ export function MarketBundleItemsEditor({
                                         }
                                         disabled={disabled}
                                         className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold/50"
-                                    />
-                                </label>
-                                <label className="space-y-1 text-xs text-muted-foreground">
-                                    Unité (facultatif)
-                                    <input
-                                        type="text"
-                                        value={item.unitLabel ?? ""}
-                                        onChange={(event) =>
-                                            update(index, { unitLabel: event.target.value || null })
-                                        }
-                                        disabled={disabled}
-                                        placeholder="unité, lot…"
-                                        className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold/50"
                                     />
                                 </label>
                                 <label className="space-y-1 text-xs text-muted-foreground">

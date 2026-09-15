@@ -90,11 +90,26 @@ export async function GET(req: NextRequest) {
 Ajouter la ligne dans le crontab du VPS (`crontab -e`) :
 
 ```bash
-# Exemple : Tous les jours à 04h30
-30 4 * * * curl -s -H "x-cron-secret: $CRON_SECRET" https://sigilos.fr/api/cron/ma-nouvelle-tache > /dev/null 2>&1
+# Exemple : Tous les jours à 04h30 — ⚠️ `\%` : obligatoire dans un crontab (voir ci-dessous)
+30 4 * * * curl -s -o /dev/null -w "ma-nouvelle-tache \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/ma-nouvelle-tache" >> "$LOG_DIR/ma-nouvelle-tache.log" 2>&1
 ```
 
-> 💡 **Astuce** : Le crontab du VPS dispose déjà de la variable `CRON_SECRET` définie en en-tête.
+> 💡 **Astuce** : Le crontab du VPS dispose déjà de la variable `CRON_SECRET` définie en en-tête
+> (sinon lire le secret d'un **fichier** : `-H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)"`
+> — l'environnement de `cron` est **minimal** et un `$CRON_SECRET` non défini s'expanse en **vide**
+> ⇒ `401` sur toutes les tâches).
+
+> ⚠️⚠️ **Piège n°1 des crons SigilOS — le `%` doit être écrit `\%`.** Dans un fichier crontab, cron
+> **coupe la ligne au premier `%` non échappé**, envoie le reste en **stdin** et n'exécute **pas** la
+> commande : bash reçoit une quote non fermée ⇒ erreur de syntaxe, **exit 2**, **aucun log**, **aucune
+> télémétrie** (panneau God « Inconnu » à jamais). Concerne tout `-w "… %{http_code} …"`.
+> Constaté le 15/09/2026 sur 7 lignes (siphons `sync-dofensive-maps` / `sync-monster-stats`,
+> `check-links`, `cleanup-inactive-service-requests`, `market-expire`, `ladder-sync`, `status-ping`) :
+> elles étaient les **seules** dont le log n'existait pas, alors que les 13 autres lignes (sans `%`)
+> s'exécutaient normalement. ➜ **Toujours vérifier** : `ls -l $LOG_DIR/<ta-tache>.log` **doit exister**
+> après la 1ʳᵉ échéance ; sinon, la ligne n'est **pas** exécutée.
+> ➜ Contourner le problème autrement : ne pas utiliser `%` du tout (`-s -o /dev/null` sans `-w`, ou
+> écrire le code HTTP via `-w "…"` **sans** variable curl), au prix d'un log moins diagnostique.
 
 ---
 

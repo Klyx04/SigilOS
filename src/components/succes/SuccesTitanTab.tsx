@@ -569,6 +569,7 @@ export function SuccesTitanTab({ guildId, canEdit }: { guildId: string; canEdit:
                                     onGradeChange={(idx) => setActiveGradeIndex(idx)}
                                     monsters={(family?.monsters ?? []).map((m) => ({ id: m.id, name: m.name, isBoss: m.isBoss, imageUrl: m.imageUrl }))}
                                     entityScale={4}
+                                    allowFreeCasterMove
                                 />
                             ) : (
                                 <p className="text-xs text-muted-foreground">Aucun sort disponible pour la simulation. Lancez le cron de sync.</p>

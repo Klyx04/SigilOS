@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
     CellState,
+    allyStartPositions,
     blocksLineOfSight,
     castRangeDistance,
     cellIdToXY,
@@ -229,6 +230,39 @@ describe("dofus-grid — repère losange inverse + zones d'effet (AoE)", () => {
         expect(path.length).toBe(3);
         expect(path).not.toContainEqual(p0);
         expect(path).not.toContainEqual(p1);
+    });
+});
+
+describe("dofus-grid — allyStartPositions (toggle « Placements de départ »)", () => {
+    it("pose les alliés sur les cases joueurs triées par ID croissant, bornées au max", () => {
+        // Dofensive expose les cases joueurs dans `enemyCells` (les monstres sont dans `allyCells`).
+        const playerCells = [207, 13, 195, 14, 196];
+        const positions = allyStartPositions(playerCells, 4);
+        expect(positions).toHaveLength(4);
+        // Tri par ID croissant : 13, 14, 195, 196 (207 écartée par la borne max=4)
+        expect(positions.map((p) => positionToCellId(p))).toEqual([13, 14, 195, 196]);
+        expect(positions[0]).toEqual(cellIdToXY(13));
+    });
+
+    it("ne pose JAMAIS plus d'alliés que disponible (et pas de case fantôme)", () => {
+        expect(allyStartPositions([14], 4)).toEqual([cellIdToXY(14)]);
+        expect(allyStartPositions([], 4)).toEqual([]);
+    });
+
+    it("tolère les entrées invalides : null/undefined, max <= 0, doublons, IDs non finis", () => {
+        expect(allyStartPositions(null, 4)).toEqual([]);
+        expect(allyStartPositions(undefined, 4)).toEqual([]);
+        expect(allyStartPositions([1, 2], 0)).toEqual([]);
+        expect(allyStartPositions([1, 2], -1)).toEqual([]);
+        // Doublons dédupliqués, valeurs non finies écartées, 0 (case valide Dofus) conservée
+        expect(allyStartPositions([5, 5, Number.NaN, 0], 4).map((p) => positionToCellId(p))).toEqual([0, 5]);
+    });
+
+    it("respecte la règle de départage des monstres (plus petit ID de case en premier)", () => {
+        // Cohérence avec computeMonsterPlacements : le boss reste sur sortedCells[placement-1],
+        // les joueurs sont posés du plus petit ID au plus grand.
+        const cells = [559, 0, 14];
+        expect(allyStartPositions(cells, 3).map((p) => positionToCellId(p))).toEqual([0, 14, 559]);
     });
 });
 

@@ -426,3 +426,25 @@ export function computeMonsterPlacements(
     };
 }
 
+/**
+ * Cases de départ des **ALLIÉS** (Fécas) : cases joueurs triées par ID croissant (même règle de
+ * départage que les monstres) puis bornées au nombre d'alliés demandé.
+ *
+ * Sert au toggle « Placements de départ » de la simulation : la carte Dofensive expose les
+ * joueurs dans `enemyCells` (inversion conforme Dofus) et les monstres dans `allyCells`.
+ * Déterministe et pur ⇒ testable, aucune dépendance UI.
+ */
+export function allyStartPositions(
+    playerCellIds: number[] | null | undefined,
+    maxAllies: number
+): DofusPos[] {
+    if (!Array.isArray(playerCellIds) || maxAllies <= 0) return [];
+    return [...new Set(playerCellIds)]
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id) && id >= 0)
+        .sort((a, b) => a - b)
+        .slice(0, Math.floor(maxAllies))
+        .map((id) => cellIdToXY(id));
+}
+
+

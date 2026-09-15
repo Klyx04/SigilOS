@@ -29,6 +29,7 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { isSuperAdmin } from "./super-admin-actions";
+import { fetchGuildRoles } from "@/server/discord";
 import { createGodAuditLog } from "./audit-actions";
 import { MARKET_AUDIT_ACTIONS, MARKET_SETTINGS_BOUNDS, marketAuditActionLabel } from "./market-constants";
 import { buildMarketImageUrl } from "@/server/market/discord";
@@ -815,8 +816,113 @@ export async function saveGodMarketSettings(params: {
 
 
 /**
- * Journal d'audit du marché (cross-guild), filtrable par **id interne** de
- * guilde et par action connue. Lecture : super-admin uniquement, `take` borné.
+ * 🧺 **§A3 — « rôles notifiables » d'une guilde** (réglage réellement manquant).
+ *
+ * Cause mesurée (constat user du 15/09/2026, « Aucun rôle autorisé par
+ * l'admin ») : `GuildConfig.marketAllowedPingRoleIds` n'était plus alimenté
+ * nulle part côté UI — les sélecteurs d'admin ont été retirés — donc le ping de
+ * publication restait **vide à jamais**, quelle que soit la configuration. Ce
+ * réglage unique vit désormais **dans la console God** : le staff lit les rôles
+ * **réels** du serveur (API Discord, jamais une saisie libre) et pose la liste
+ * des rôles mentionnables à la publication.
+ *
+ * 🔒 Garde-fous : super-admin fail-closed, `GuildConfig.id` **interne** en entrée
+ * (jamais un snowflake, §16.2), `@everyone` **écarté** (côté Discord il porte
+ * l'id de la guilde), lecture uniquement d'ids/noms de rôles (aucune donnée de
+ * membre), mutation tracée (`createGodAuditLog`, `isGodLog: true`) + rate-limit.
+ */
+export async function getGodMarketPingRoles(params: {
+    guildConfigId: string;
+}): Promise<GodMarketResult<{ guildName: string | null; roles: { id: string; name: string }[]; selected: string[] }>> {
+    const guard = await requireSuperAdmin();
+    if ("error" in guard) return { success: false, error: guard.error };
+
+    const parsed = z.object({ guildConfigId: z.string().min(1).max(64) }).safeParse(params);
+    if (!parsed.success) return { success: false, error: "Paramètres invalides" };
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { id: parsed.data.guildConfigId },
+            select: { id: true, name: true, discordGuildId: true, marketAllowedPingRoleIds: true },
+        });
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+
+        const selected = Array.isArray(guild.marketAllowedPingRoleIds)
+            ? (guild.marketAllowedPingRoleIds as unknown[]).filter(
+                  (entry): entry is string => typeof entry === "string" && entry !== guild.discordGuildId
+              )
+            : [];
+
+        let roles: { id: string; name: string }[] = [];
+        try {
+            const fetched = await fetchGuildRoles(guild.discordGuildId);
+            roles = (Array.isArray(fetched) ? fetched : [])
+                .filter((role) => role && typeof role.id === "string" && role.id !== guild.discordGuildId)
+                .map((role) => ({ id: role.id, name: String(role.name ?? "Rôle") }))
+                .slice(0, 100);
+        } catch (error) {
+            // Discord injoignable : on renvoie la sélection courante, jamais d'échec.
+            logger.warn("[god-market] rôles Discord injoignables", { err: String(error) });
+        }
+
+        return { success: true, data: { guildName: guild.name, roles, selected } };
+    } catch (error) {
+        logger.error("[god-market] getGodMarketPingRoles failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+/** Écriture des « rôles notifiables » d'une guilde (mutation God, tracée). */
+export async function saveGodMarketPingRoles(params: {
+    guildConfigId: string;
+    roleIds: string[];
+}): Promise<GodMarketResult<{ count: number }>> {
+    const guard = await requireSuperAdmin();
+    if ("error" in guard) return { success: false, error: guard.error };
+
+    const parsed = z
+        .object({
+            guildConfigId: z.string().min(1).max(64),
+            roleIds: z.array(z.string().regex(/^\d{5,25}$/)).max(25),
+        })
+        .safeParse(params);
+    if (!parsed.success) return { success: false, error: "Paramètres invalides" };
+
+    const limited = await godMarketRateLimit(guard.userId, "ping-roles");
+    if (limited) return { success: false, error: limited };
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { id: parsed.data.guildConfigId },
+            select: { id: true, discordGuildId: true, marketAllowedPingRoleIds: true },
+        });
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+
+        // Défense en profondeur : `@everyone` (= id de guilde) n'est jamais conservé.
+        const roleIds = [...new Set(parsed.data.roleIds.filter((roleId) => roleId !== guild.discordGuildId))];
+
+        await db.guildConfig.update({
+            where: { id: guild.id },
+            data: { marketAllowedPingRoleIds: roleIds },
+        });
+
+        await createGodAuditLog({
+            action: "GOD_MARKET_SETTINGS",
+            targetType: "CONFIG",
+            targetId: guild.id,
+            newValue: { marketAllowedPingRoleIds: roleIds },
+        });
+
+        revalidatePath("/god");
+        return { success: true, data: { count: roleIds.length } };
+    } catch (error) {
+        logger.error("[god-market] saveGodMarketPingRoles failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+/**
+ * Journal d'audit du marché (cross-guild), filtrable par **id interne** de guilde et par action connue. Lecture : super-admin uniquement, `take` borné.
  */
 export async function listGodMarketAuditLogs(params: {
     limit?: number;

@@ -997,6 +997,8 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
                         roles={roles}
                         selectedPingIds={pingRoleIds}
                         onTogglePing={togglePing}
+                        // §A2 — estimation de l'audience notifiée (lecture seule).
+                        guildId={guildId}
                     />
                 </>
             )}

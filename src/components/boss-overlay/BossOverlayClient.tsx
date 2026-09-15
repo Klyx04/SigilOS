@@ -652,21 +652,6 @@ export function BossOverlayClient({
                     <span>Fiche SigilOS</span>
                     <ExternalLink className="w-2.5 h-2.5 opacity-60" />
                   </a>
-
-                  {selected.dofensiveUrl && (
-                    <>
-                      <span className="text-white/20">·</span>
-                      <a
-                        href={selected.dofensiveUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-white/45 hover:text-white/85 transition-colors"
-                      >
-                        <span>Dofensive</span>
-                        <ExternalLink className="w-2.5 h-2.5 opacity-60" />
-                      </a>
-                    </>
-                  )}
                 </div>
               </div>
 

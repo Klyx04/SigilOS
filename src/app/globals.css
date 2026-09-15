@@ -9,6 +9,22 @@ html {
   /* removed scrollbar-gutter to fix double scrollbar track issues */
 }
 
+/* ── §D — Gouttière de défilement STABLE : fiches boss publiques ──────────
+   Symptôme signalé : « quand on change d'onglet, toute la page bouge / secoue ».
+   Cause : chaque onglet a une hauteur différente ⇒ le document franchit la
+   hauteur du viewport ⇒ la **barre de défilement verticale apparaît puis
+   disparaît**, et comme le contenu est **centré** (`max-w-6xl mx-auto`), il se
+   décale latéralement de la largeur de la barre (~15 px) à chaque bascule.
+   Correctif : **réserver la gouttière** (`scrollbar-gutter: stable`) sur cette
+   seule page. Le sélecteur `:has()` évite d'imposer la règle au reste de l'app
+   (cf. le commentaire ci-dessus : la gouttière globale avait provoqué un double
+   rail). La fenêtre **Document PiP de l'overlay** ne contient jamais
+   `.boss-detail-shell` — son `scrollbar-gutter` reste celui de `.overlay-scroll`,
+   donc aucun double rail possible. */
+html:has(.boss-detail-shell) {
+  scrollbar-gutter: stable;
+}
+
 :root,
 .dark {
   /* ── V2 Phase 0 (GROK) — Tokens sémantiques OKLCH (mode sombre) ─────

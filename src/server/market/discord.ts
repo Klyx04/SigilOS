@@ -419,6 +419,113 @@ export async function publishListingToDiscord(
 }
 
 /**
+ * 🧺 **Option A — un message Discord par objet** d'un lot (décision user du
+ * 14/09/2026, plan `PLAN-LOT-MULTIPLE.md`).
+ *
+ * Pourquoi un chemin dédié : une annonce simple = **un** message, un lot = **un
+ * message par objet** (chacun avec son nom, son icône et **son** prix). Les
+ * identifiants sont stockés **sur l'objet** (`MarketListingComponent
+ * .discordChannelId/.discordMessageId`, migration additive
+ * `20261215000000_add_component_discord_message`) : le message de l'annonce
+ * elle-même reste dans `MarketDiscordMessage`, donc **rien n'est cassé** côté
+ * annonces existantes.
+ *
+ * Idempotent : un objet déjà publié est **réécrit** (jamais reposté, §13.7), un
+ * objet nouveau est **envoyé**. Jamais bloquant, comme le reste du service.
+ *
+ * ⚠️ **Boutons** : aucun pour l'instant sur ces messages. Les boutons par objet
+ * exigent `mkt:<action>:<listingId>:<componentId>` (custom_id à **4 segments**)
+ * — livré au commit suivant. Tant que ce n'est pas en place, mieux vaut un
+ * message sans bouton qu'un bouton qui réserverait **le lot entier** par erreur.
+ */
+export async function syncBundleComponentMessages(listingId: string): Promise<MarketDiscordResult> {
+    try {
+        const loaded = await loadListingForDiscord(listingId);
+        if (!loaded) return { ok: false, error: "Annonce introuvable" };
+        const { listing } = loaded;
+
+        // S5.1 — annonce archivée : plus jamais publiée ni réécrite.
+        if (listing.deletedAt) return { ok: true, skipped: true };
+        // S3.7 — aucun salon configuré : annonce publiée sur SigilOS sans Discord.
+        if (!listing.guild.marketNotifyChannelId) return { ok: true, skipped: true };
+
+        const components = await db.marketListingComponent.findMany({
+            where: { listingId },
+            orderBy: { position: "asc" },
+            select: {
+                id: true,
+                name: true,
+                quantity: true,
+                unitLabel: true,
+                priceKamas: true,
+                discordChannelId: true,
+                discordMessageId: true,
+            },
+        });
+
+        const imageUrl = resolveDiscordImageUrl(listing);
+        const base = buildPayload(loaded, imageUrl).payload;
+        let lastMessageId: string | null = null;
+
+        for (const component of components) {
+            const payload: MarketDiscordPayloadInput = {
+                ...base,
+                // L'embed de **cet** objet : son nom, son prix, sa quantité.
+                itemName: component.name,
+                itemLevel: null,
+                itemTypeName: null,
+                priceKamas: component.priceKamas ?? null,
+                unitLabel: component.unitLabel ?? null,
+                components: [{ name: component.name, quantity: component.quantity }],
+            };
+            const built = buildMarketDiscordPayload(payload);
+            const embed = {
+                embedTitle: built.embedTitle,
+                embedColor: built.embedColor,
+                embedDescription: built.embedDescription,
+                embedFooter: built.embedFooter,
+                embedImage: built.embedImage,
+                embedThumbnail: built.embedThumbnail,
+                fields: built.fields,
+                // Aucun bouton tant que le custom_id par objet n'est pas livré.
+                components: [],
+            };
+
+            if (component.discordMessageId && component.discordChannelId) {
+                const ok = await updateChannelMessage(
+                    component.discordChannelId,
+                    component.discordMessageId,
+                    "",
+                    embed
+                );
+                if (!ok) throw new Error("Édition Discord refusée (objet du lot)");
+                lastMessageId = component.discordMessageId;
+                continue;
+            }
+
+            const sent = await sendChannelMessage(listing.guild.marketNotifyChannelId, "", embed);
+            if (!sent) throw new Error("Envoi Discord refusé (objet du lot)");
+            const messageId = typeof sent === "string" ? sent : String(sent);
+            await db.marketListingComponent.update({
+                where: { id: component.id },
+                data: {
+                    discordChannelId: listing.guild.marketNotifyChannelId,
+                    discordMessageId: messageId,
+                },
+            });
+            lastMessageId = messageId;
+        }
+
+        return { ok: true, messageId: lastMessageId };
+    } catch (error) {
+        const message = errorMessage(error);
+        logger.error("[market] syncBundleComponentMessages failed", { listingId, err: message });
+        await markSyncFailed(listingId, message);
+        return { ok: false, error: message };
+    }
+}
+
+/**
  * S3.4 — Réécrit l'embed existant (statut, compteur d'offres, boutons).
  * Si l'annonce n'a jamais été publiée, on **publie** (création du message).
  */
@@ -428,6 +535,11 @@ export async function syncListingMessage(listingId: string): Promise<MarketDisco
         if (!loaded) return { ok: false, error: "Annonce introuvable" };
         const { listing } = loaded;
         const existing = listing.discordMessage;
+
+        // 🧺 **Lot multiple (option A)** : un message **par objet** — chemin dédié,
+        // pris ici pour couvrir d'un coup la publication, l'édition, les
+        // réservations et les crons (tous passent par `syncListingMessage`).
+        if (listing.type === "BUNDLE") return syncBundleComponentMessages(listingId);
 
         // S5.1 — annonce archivée ou supprimée : plus jamais publiée ni réécrite.
         // Sans cette garde, une synchronisation lancée en tâche de fond par une

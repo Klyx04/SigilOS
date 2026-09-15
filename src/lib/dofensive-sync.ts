@@ -123,6 +123,61 @@ export async function persistDofensiveMap(data: DofensiveMapData): Promise<void>
     }
 }
 
+/**
+ * Siphonne UNE map Dofensive par ID (fetch + persistance locale) — utilisé par le siphon des
+ * boss d'anomalie : leurs cartes de combat ne figurent dans AUCUN donjon (`PreferredMaps` du
+ * monstre), donc `syncDofensiveMaps` ne les couvre pas. `force` ignore le cache mémoire/DB.
+ * Fail-closed : toute erreur réseau renvoie false (la donnée précédente reste servie).
+ */
+export async function siphonDofensiveMapById(mapId: number, force = false): Promise<boolean> {
+    if (!DB_READABLE) return false;
+    const id = Number(mapId);
+    if (!Number.isFinite(id) || !Number.isInteger(id) || id <= 0) return false;
+    try {
+        if (!force) {
+            const existing = await db.dofensiveMap.findUnique({ where: { mapId: id } });
+            if (existing && isFresh(existing.lastSyncedAt)) return true;
+        }
+        const raw = await dofensiveFetch<any>(`/maps/${id}?lang=fr`, `sync-anomaly-map-${id}`, true);
+        const item = Array.isArray(raw) ? raw[0] : raw;
+        if (!item) return false;
+        const data = normalizeMapItem(item);
+        const hash = hashPayload(data);
+        await db.dofensiveMap.upsert({
+            where: { mapId: id },
+            create: {
+                mapId: data.id,
+                name: data.name,
+                dungeonId: data.dungeon?.id ?? null,
+                subarea: data.subarea ?? undefined,
+                coords: data.coordinates ?? undefined,
+                cells: data.cells,
+                allyCells: data.allyCells,
+                enemyCells: data.enemyCells,
+                isBossMap: data.isBossMap,
+                versionHash: hash,
+                lastSyncedAt: new Date(),
+            },
+            update: {
+                name: data.name,
+                dungeonId: data.dungeon?.id ?? null,
+                subarea: data.subarea ?? undefined,
+                coords: data.coordinates ?? undefined,
+                cells: data.cells,
+                allyCells: data.allyCells,
+                enemyCells: data.enemyCells,
+                isBossMap: data.isBossMap,
+                versionHash: hash,
+                lastSyncedAt: new Date(),
+            },
+        });
+        return true;
+    } catch (error) {
+        logger.warn("[dofensive-sync] siphonDofensiveMapById échec:", { error: String(error) });
+        return false;
+    }
+}
+
 /** Lit un donjon Dofensive (local) et cherche le boss — null si absent/périmé. */
 export async function getLocalDofensiveDungeon(
     bossName: string,
@@ -198,6 +253,34 @@ export async function getLocalDofensiveSpells(monsterId: number): Promise<Dofens
         return combat.length > 0 ? (combat as DofensiveSpellCombat[]) : null;
     } catch (error) {
         logger.warn("[dofensive-sync] getLocalDofensiveSpells échec:", { error: String(error) });
+        return null;
+    }
+}
+
+/**
+ * Lit les sorts de combat LOCAUX d'un monstre par son NOM (normalisé) — utilisé par les
+ * boss d'ANOMALIE : ils n'appartiennent à aucun donjon Dofensive, donc `getBossDofensiveSpells`
+ * ne peut pas résoudre leur ID via un donjon. Le siphon (cron `sync-monster-stats`) stocke
+ * leurs sorts de combat dans `MonsterStat.stats.spells` → lecture locale, zéro appel réseau.
+ * Retourne null si absent/périmé OU si les sorts stockés ne sont pas des sorts de combat.
+ */
+export async function getLocalDofensiveSpellsByName(monsterName: string): Promise<DofensiveSpellCombat[] | null> {
+    const name = String(monsterName ?? "").trim();
+    if (!DB_READABLE || !name) return null;
+    try {
+        const row = await db.monsterStat.findFirst({
+            where: { monsterName: { equals: name, mode: "insensitive" } },
+            orderBy: { lastSyncedAt: "desc" },
+        });
+        if (!row || !isFresh(row.lastSyncedAt)) return null;
+        const spells = (row.stats as any)?.spells;
+        if (!Array.isArray(spells) || spells.length === 0) return null;
+        const combat = spells.filter(
+            (s: any) => s && typeof s?.apCost === "number" && Array.isArray(s?.effects)
+        );
+        return combat.length > 0 ? (combat as DofensiveSpellCombat[]) : null;
+    } catch (error) {
+        logger.warn("[dofensive-sync] getLocalDofensiveSpellsByName échec:", { error: String(error) });
         return null;
     }
 }

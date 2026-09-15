@@ -28,6 +28,7 @@ import {
     getLocalDofensiveDungeon,
     getLocalDofensiveMap,
     getLocalDofensiveSpells,
+    getLocalDofensiveSpellsByName,
     persistDofensiveMap,
 } from "@/lib/dofensive-sync";
 
@@ -598,7 +599,15 @@ export async function getBossDofensiveSpells(
     opts?: { dofensiveMonsterName?: string | null; dofensiveDungeonName?: string | null }
 ): Promise<ActionResponse<DofensiveSpellCombat[]>> {
     const dungeon = await getDofensiveDungeonForBoss(monsterName, dungeonName, opts);
-    if (!dungeon.success || !dungeon.data) return { success: false, error: "Monstre Dofensive introuvable" };
+    if (!dungeon.success || !dungeon.data) {
+        // 🌀 Gardiens d'ANOMALIE (et tout monstre hors donjon Dofensive) : leurs sorts de combat
+        // sont stockés par le siphon dans `MonsterStat.stats.spells` → lecture LOCALE par nom,
+        // zéro appel réseau. Sans ce repli, la fiche d'un gardien (ex. Qilby, absent de
+        // Dofensive) n'aurait aucun sort exploitable par la simulation isométrique.
+        const local = await getLocalDofensiveSpellsByName(opts?.dofensiveMonsterName ?? monsterName);
+        if (local && local.length > 0) return { success: true, data: local };
+        return { success: false, error: "Monstre Dofensive introuvable" };
+    }
 
     // 🐞 FIX « les monstres de salle affichaient les sorts du boss » : on résout l'ID du
     // monstre DEMANDÉ dans la famille du donjon (`monsters`), au lieu de prendre

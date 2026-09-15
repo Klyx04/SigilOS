@@ -60,6 +60,7 @@ import {
     computeBundleTotal,
     type BundleItemInput,
 } from "@/lib/market/bundle";
+import { KamasAmount } from "@/components/market/kamas-amount";
 import { MarketPublishStep, type MarketPublishContext } from "./market-publish-step";
 import { toast } from "sonner";
 import { Boxes, ChevronLeft, ChevronRight, Check, Hammer, Loader2, Package, Plus, Save, Search, Sparkles, Store, X } from "lucide-react";
@@ -864,8 +865,9 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
             {step === 3 && kind === "BUNDLE" && (
                 <p className="text-xs text-muted-foreground">
                     🧺 Lot multiple : chaque objet a <strong>son</strong> prix (étape 2, total&nbsp;:{" "}
-                    {formatKamas(computeBundleTotal(bundleItems))}). Ici tu nommes ton lot et tu fixes ses
-                    conditions — le montant global n&apos;est pas utilisé.
+                    <KamasAmount value={computeBundleTotal(bundleItems)} />
+                    ). Ici tu nommes ton lot et tu fixes ses conditions — le montant global n&apos;est pas
+                    utilisé.
                 </p>
             )}
 
@@ -907,7 +909,7 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
                                     {entry.quantity > 1 ? ` × ${entry.quantity}` : ""}
                                 </span>
                                 <span className="shrink-0 font-medium text-foreground">
-                                    {formatKamas(entry.priceKamas)}
+                                    <KamasAmount value={entry.priceKamas} />
                                 </span>
                             </li>
                         ))}
@@ -915,7 +917,7 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
                     <div className="flex items-center justify-between border-t border-border pt-2 text-sm">
                         <span className="text-muted-foreground">Total du lot</span>
                         <span className="font-semibold text-foreground">
-                            {formatKamas(computeBundleTotal(bundleItems))}
+                            <KamasAmount value={computeBundleTotal(bundleItems)} />
                         </span>
                     </div>
                     <p className="text-xs text-muted-foreground">

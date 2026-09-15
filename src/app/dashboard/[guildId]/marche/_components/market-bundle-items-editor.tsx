@@ -25,9 +25,9 @@ import {
     bundleItemsSchema,
     computeBundleTotal,
     computeItemUnitPrice,
-    formatKamas,
     type BundleItemInput,
 } from "@/lib/market/bundle";
+import { KamasAmount } from "@/components/market/kamas-amount";
 
 /** Objet vide d'un nouveau lot (prix à 1 kama : à corriger par le vendeur). */
 export function emptyBundleItem(): BundleItemInput {
@@ -218,8 +218,8 @@ export function MarketBundleItemsEditor({
                             </div>
 
                             {unit !== null && item.quantity > 1 && (
-                                <p className="text-xs text-muted-foreground">
-                                    Soit {formatKamas(unit)} l&apos;unité.
+                                <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    Soit <KamasAmount value={unit} /> l&apos;unité.
                                 </p>
                             )}
                         </li>
@@ -236,7 +236,9 @@ export function MarketBundleItemsEditor({
 
             <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
                 <span className="text-muted-foreground">Total du lot (recalculé côté serveur)</span>
-                <span className="font-semibold text-foreground">{formatKamas(total)}</span>
+                <span className="font-semibold text-foreground">
+                    <KamasAmount value={total} />
+                </span>
             </div>
         </div>
     );

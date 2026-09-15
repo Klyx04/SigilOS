@@ -129,7 +129,7 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
 
       <JsonLd id="json-ld-boss-detail" nonce={nonce} data={jsonLdData} />
 
-      <main className="flex-1 pt-28 pb-20 px-4 sm:px-6 md:px-8 relative z-10 max-w-6xl mx-auto w-full">
+      <main className="boss-detail-shell flex-1 pt-28 pb-20 px-4 sm:px-6 md:px-8 relative z-10 max-w-6xl mx-auto w-full">
         {/* Navigation retour */}
         <div className="mb-6 flex items-center justify-between">
           <Link
@@ -140,8 +140,8 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
             Tous les boss & donjons
           </Link>
 
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-black uppercase tracking-wider">
-            <Swords className="w-3.5 h-3.5" /> Simulation Dofensive
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-border bg-surface/60 text-muted-foreground text-[11px] uppercase tracking-wider">
+            <Swords className="w-3.5 h-3.5" /> Simulation tactique
           </span>
         </div>
 

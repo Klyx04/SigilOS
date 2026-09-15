@@ -951,8 +951,8 @@ export function SpellRangeGrid({
                                     className={cn(
                                         "w-full flex items-center justify-between gap-1.5 bg-zinc-900/95 border rounded-lg px-2 py-1 text-[11px] font-bold transition-all",
                                         isSpellMenuOpen
-                                            ? "border-amber-500/50 bg-amber-500/[0.1] text-amber-300 shadow-md shadow-black/40"
-                                            : "border-white/10 hover:border-white/20 text-amber-400 hover:bg-zinc-800"
+                                            ? "border-white/20 bg-white/[0.08] text-white"
+                                            : "border-white/10 hover:border-white/20 text-zinc-200 hover:bg-zinc-800"
                                     )}
                                     title={currentSpell ? `${currentSpell.name} (${currentSpell.apCost ?? 0} PA · ${currentSpell.minRange === currentSpell.range ? `${currentSpell.range} PO` : `${currentSpell.minRange ?? 0}-${currentSpell.range ?? 0} PO`})` : "Sélectionner un sort"}
                                 >
@@ -965,7 +965,7 @@ export function SpellRangeGrid({
                                                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                                             />
                                         ) : (
-                                            <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                            <Zap className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                                         )}
                                         <span className="truncate">{currentSpell?.name ?? "Sort"}</span>
                                         {currentSpell && (
@@ -977,7 +977,7 @@ export function SpellRangeGrid({
                                     <ChevronDown
                                         className={cn(
                                             "w-3 h-3 text-zinc-400 transition-transform duration-200 shrink-0",
-                                            isSpellMenuOpen && "rotate-180 text-amber-400"
+                                            isSpellMenuOpen && "rotate-180 text-white/70"
                                         )}
                                     />
                                 </button>
@@ -1000,7 +1000,7 @@ export function SpellRangeGrid({
                                                     className={cn(
                                                         "w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg text-[11px] text-left transition-colors mt-0.5",
                                                         isSelected
-                                                            ? "bg-amber-500/15 border border-amber-500/30 text-amber-300 font-semibold"
+                                                            ? "bg-white/[0.10] text-white"
                                                             : "text-zinc-300 hover:text-white hover:bg-white/[0.06]"
                                                     )}
                                                 >
@@ -1013,16 +1013,16 @@ export function SpellRangeGrid({
                                                                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                                                             />
                                                         ) : (
-                                                            <Zap className="w-4 h-4 text-amber-400/60 shrink-0" />
+                                                            <Zap className="w-4 h-4 text-zinc-400 shrink-0" />
                                                         )}
                                                         <span className="truncate font-medium">{s.name}</span>
                                                     </div>
                                                     <div className="flex items-center gap-1 shrink-0 text-[10px]">
-                                                        <span className="text-amber-400 font-bold">{s.apCost ?? 0} PA</span>
-                                                        <span className="text-sky-400 font-bold">
+                                                        <span className="text-white/70">{s.apCost ?? 0} PA</span>
+                                                        <span className="text-white/60">
                                                             {s.minRange === s.range ? `${s.range} PO` : `${s.minRange ?? 0}-${s.range ?? 0} PO`}
                                                         </span>
-                                                        {isSelected && <Check className="w-3 h-3 text-amber-400 ml-1" />}
+                                                        {isSelected && <Check className="w-3 h-3 text-white ml-1" />}
                                                     </div>
                                                 </button>
                                             );
@@ -1043,7 +1043,7 @@ export function SpellRangeGrid({
                                         className={cn(
                                             "w-full flex items-center justify-between gap-1.5 bg-zinc-900/95 border rounded-lg px-2 py-1 text-[11px] font-medium transition-all",
                                             isMapMenuOpen
-                                                ? "border-amber-500/50 bg-amber-500/[0.1] text-amber-300 shadow-md shadow-black/40"
+                                                ? "border-white/20 bg-white/[0.08] text-white"
                                                 : "border-white/10 hover:border-white/20 text-zinc-300 hover:text-white hover:bg-zinc-800"
                                         )}
                                         title={currentMapName}
@@ -1052,14 +1052,14 @@ export function SpellRangeGrid({
                                             {selectedMapId === "empty" ? (
                                                 <Grid className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                                             ) : (
-                                                <MapIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                                <MapIcon className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                                             )}
                                             <span className="truncate">{currentMapName}</span>
                                         </div>
                                         <ChevronDown
                                             className={cn(
                                                 "w-3 h-3 text-zinc-400 transition-transform duration-200 shrink-0",
-                                                isMapMenuOpen && "rotate-180 text-amber-400"
+                                                isMapMenuOpen && "rotate-180 text-white/70"
                                             )}
                                         />
                                     </button>
@@ -1078,7 +1078,7 @@ export function SpellRangeGrid({
                                                 className={cn(
                                                     "w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg text-[11px] text-left transition-colors",
                                                     selectedMapId === "empty"
-                                                        ? "bg-amber-500/15 border border-amber-500/30 text-amber-300 font-semibold"
+                                                        ? "bg-white/[0.10] text-white"
                                                         : "text-zinc-300 hover:text-white hover:bg-white/[0.06]"
                                                 )}
                                             >
@@ -1086,7 +1086,7 @@ export function SpellRangeGrid({
                                                     <Grid className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                                                     <span className="truncate">Map vide (Grille 17×17)</span>
                                                 </div>
-                                                {selectedMapId === "empty" && <Check className="w-3 h-3 text-amber-400 shrink-0" />}
+                                                {selectedMapId === "empty" && <Check className="w-3 h-3 text-zinc-400 shrink-0" />}
                                             </button>
 
                                             {shownMaps.map((m) => {
@@ -1102,24 +1102,24 @@ export function SpellRangeGrid({
                                                         className={cn(
                                                             "w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg text-[11px] text-left transition-colors mt-0.5",
                                                             isSelected
-                                                                ? "bg-amber-500/15 border border-amber-500/30 text-amber-300 font-semibold"
+                                                                ? "bg-white/[0.10] text-white"
                                                                 : "text-zinc-300 hover:text-white hover:bg-white/[0.06]"
                                                         )}
                                                     >
                                                         <div className="flex items-center gap-2 min-w-0 flex-1">
                                                             {m.isBoss ? (
-                                                                <Swords className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                                                <Swords className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                                                             ) : (
                                                                 <MapIcon className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                                                             )}
                                                             <span className="truncate" title={m.name}>{m.name}</span>
                                                         </div>
                                                         {m.isBoss && (
-                                                            <span className="text-[8px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
+                                                            <span className="text-[8px] px-1.5 py-0.2 rounded bg-white/[0.10] text-white/80 shrink-0">
                                                                 Boss
                                                             </span>
                                                         )}
-                                                        {isSelected && <Check className="w-3 h-3 text-amber-400 shrink-0" />}
+                                                        {isSelected && <Check className="w-3 h-3 text-zinc-400 shrink-0" />}
                                                     </button>
                                                 );
                                             })}
@@ -1127,7 +1127,7 @@ export function SpellRangeGrid({
                                     )}
                                 </div>
                             )}
-                            {mapLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400 shrink-0" />}
+                            {mapLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400 shrink-0" />}
                         </div>
 
                         {/* Ligne 2 : Zoom + Placement + Butin + Toggles */}
@@ -1137,7 +1137,7 @@ export function SpellRangeGrid({
                                 <button type="button" onClick={() => setZoom((z) => Math.max(ZOOM_MIN, Number((z - 0.2).toFixed(2))))} className="px-1.5 py-0.5 font-black text-zinc-400 hover:text-white" title="Zoom arrière">−</button>
                                 <span className="px-1 font-bold text-zinc-300 tabular-nums text-[9px]">{Math.round(zoom * 100)}%</span>
                                 <button type="button" onClick={() => setZoom((z) => Math.min(ZOOM_MAX, Number((z + 0.2).toFixed(2))))} className="px-1.5 py-0.5 font-black text-zinc-400 hover:text-white" title="Zoom avant">+</button>
-                                <button type="button" onClick={() => { setZoom(0.6); setPan({ x: 0, y: 0 }); }} className="px-1.5 py-0.5 font-bold text-amber-400 hover:text-amber-300" title="Ajuster et recentrer">Fit</button>
+                                <button type="button" onClick={() => { setZoom(0.6); setPan({ x: 0, y: 0 }); }} className="px-1.5 py-0.5 font-bold text-white/70 hover:text-white" title="Ajuster et recentrer">Fit</button>
                             </div>
 
                             {/* Placement & Butin compacts */}
@@ -1152,7 +1152,7 @@ export function SpellRangeGrid({
                                                 setShowStartCells(true);
                                                 applyStartCells(mapData, true, nextIdx);
                                             }}
-                                            className="bg-zinc-900 border border-white/10 text-amber-400 text-[10px] font-bold rounded-md px-1.5 py-0.5 focus:outline-none"
+                                            className="bg-zinc-900 border border-white/10 text-zinc-200 text-[10px] rounded-md px-1.5 py-0.5 focus:outline-none"
                                         >
                                             {Array.from({ length: totalPlacements }).map((_, i) => (
                                                 <option key={i + 1} value={i + 1}>P{i + 1}</option>
@@ -1168,7 +1168,7 @@ export function SpellRangeGrid({
                                             setShowStartCells(true);
                                             applyStartCells(mapData, true, placementIndex);
                                         }}
-                                        className="bg-zinc-900 border border-white/10 text-sky-400 text-[10px] font-bold rounded-md px-1.5 py-0.5 focus:outline-none"
+                                        className="bg-zinc-900 border border-white/10 text-zinc-200 text-[10px] rounded-md px-1.5 py-0.5 focus:outline-none"
                                     >
                                         {[4, 5, 6, 7, 8].map((b) => (
                                             <option key={b} value={b}>B{b}</option>
@@ -1198,7 +1198,7 @@ export function SpellRangeGrid({
                                         onClick={toggleStartCells}
                                         className={cn(
                                             "px-1.5 py-0.5 rounded-md border text-[10px] font-semibold transition-colors",
-                                            showStartCells ? "bg-amber-500/20 border-amber-400 text-amber-300" : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-white"
+                                            showStartCells ? "bg-white/[0.12] border-white/25 text-white" : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-white"
                                         )}
                                         title="Toggle placements de départ"
                                     >
@@ -1212,7 +1212,7 @@ export function SpellRangeGrid({
                                         onClick={() => setFreeCasterMove((v) => !v)}
                                         className={cn(
                                             "px-1.5 py-0.5 rounded-md border text-[10px] font-semibold transition-colors",
-                                            freeCasterMove ? "bg-amber-500/20 border-amber-400 text-amber-300" : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-white"
+                                            freeCasterMove ? "bg-white/[0.12] border-white/25 text-white" : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-white"
                                         )}
                                         title={freeCasterMove ? "Boss libre : cliquez une case pour le déplacer (actif)" : "Boss libre : cliquez une case pour le déplacer"}
                                     >
@@ -1236,7 +1236,7 @@ export function SpellRangeGrid({
                     <>
                         <div className="w-full flex items-center justify-between text-xs text-zinc-400 mb-2 px-2">
                             <span className="font-bold text-zinc-300">
-                                Entité : <strong className="text-amber-400">{bossName}</strong>
+                                Entité : <strong className="text-zinc-300">{bossName}</strong>
                             </span>
                             <span className="text-zinc-500">
                                 Carte : <strong className="text-zinc-400">{mapData ? mapData.name : "Map Tactique Isométrique"}</strong>
@@ -1250,7 +1250,7 @@ export function SpellRangeGrid({
                         {shownMaps.length > 0 && (
                             <div className="w-full flex flex-wrap items-center gap-2 mb-2 px-2 relative z-40">
                                 <span className="inline-flex items-center gap-1.5 text-xs font-bold text-zinc-400">
-                                    <MapIcon className="w-3.5 h-3.5 text-amber-400" /> Salle :
+                                    <MapIcon className="w-3.5 h-3.5 text-zinc-300" /> Salle :
                                 </span>
                                 <div ref={mapMenuRef} className="relative min-w-[240px] max-w-[360px]">
                                     <button
@@ -1259,7 +1259,7 @@ export function SpellRangeGrid({
                                         className={cn(
                                             "w-full flex items-center justify-between gap-2 bg-zinc-900/90 border rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all",
                                             isMapMenuOpen
-                                                ? "border-amber-500/50 bg-amber-500/[0.08] text-amber-300"
+                                                ? "border-white/20 bg-white/[0.08] text-white"
                                                 : "border-white/10 hover:border-white/20 text-zinc-200 hover:bg-zinc-800"
                                         )}
                                         title={currentMapName}
@@ -1268,11 +1268,11 @@ export function SpellRangeGrid({
                                             {selectedMapId === "empty" ? (
                                                 <Grid className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                                             ) : (
-                                                <MapIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                                <MapIcon className="w-3.5 h-3.5 text-zinc-300 shrink-0" />
                                             )}
                                             <span className="truncate">{currentMapName}</span>
                                         </div>
-                                        <ChevronDown className={cn("w-3.5 h-3.5 text-zinc-400 transition-transform duration-200 shrink-0", isMapMenuOpen && "rotate-180 text-amber-400")} />
+                                        <ChevronDown className={cn("w-3.5 h-3.5 text-zinc-400 transition-transform duration-200 shrink-0", isMapMenuOpen && "rotate-180 text-zinc-300")} />
                                     </button>
 
                                     {isMapMenuOpen && (
@@ -1286,7 +1286,7 @@ export function SpellRangeGrid({
                                                 className={cn(
                                                     "w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors",
                                                     selectedMapId === "empty"
-                                                        ? "bg-amber-500/15 border border-amber-500/30 text-amber-300 font-semibold"
+                                                        ? "bg-white/[0.10] text-white"
                                                         : "text-zinc-300 hover:text-white hover:bg-white/[0.06]"
                                                 )}
                                             >
@@ -1294,7 +1294,7 @@ export function SpellRangeGrid({
                                                     <Grid className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                                                     <span>Map vide</span>
                                                 </div>
-                                                {selectedMapId === "empty" && <Check className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                                                {selectedMapId === "empty" && <Check className="w-3.5 h-3.5 text-zinc-300 shrink-0" />}
                                             </button>
                                             {shownMaps.map((m) => {
                                                 const isSelected = selectedMapId === m.id;
@@ -1309,23 +1309,23 @@ export function SpellRangeGrid({
                                                         className={cn(
                                                             "w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors mt-0.5",
                                                             isSelected
-                                                                ? "bg-amber-500/15 border border-amber-500/30 text-amber-300 font-semibold"
+                                                                ? "bg-white/[0.10] text-white"
                                                                 : "text-zinc-300 hover:text-white hover:bg-white/[0.06]"
                                                         )}
                                                     >
                                                         <div className="flex items-center gap-2 min-w-0 flex-1">
-                                                            {m.isBoss ? <Swords className="w-3.5 h-3.5 text-amber-400 shrink-0" /> : <MapIcon className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
+                                                            {m.isBoss ? <Swords className="w-3.5 h-3.5 text-zinc-300 shrink-0" /> : <MapIcon className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
                                                             <span className="truncate" title={m.name}>{m.name}</span>
                                                         </div>
-                                                        {m.isBoss && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Boss</span>}
-                                                        {isSelected && <Check className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                                                        {m.isBoss && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/[0.10] text-white/85">Boss</span>}
+                                                        {isSelected && <Check className="w-3.5 h-3.5 text-zinc-300 shrink-0" />}
                                                     </button>
                                                 );
                                             })}
                                         </div>
                                     )}
                                 </div>
-                                {mapLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />}
+                                {mapLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-300" />}
                                 {mapError && <span className="text-[11px] text-red-400">{mapError}</span>}
                             </div>
                         )}
@@ -1357,7 +1357,7 @@ export function SpellRangeGrid({
                                     className={cn(
                                         "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all",
                                         showStartCells
-                                            ? "bg-amber-500/20 border-amber-400 text-amber-500 dark:text-amber-300"
+                                            ? "bg-white/[0.12] border-white/25 text-white"
                                             : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
                                     )}
                                     title="Placer le boss et les monstres sur leurs cases réelles"
@@ -1372,7 +1372,7 @@ export function SpellRangeGrid({
                                     className={cn(
                                         "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all",
                                         freeCasterMove
-                                            ? "bg-amber-500/20 border-amber-400 text-amber-500 dark:text-amber-300"
+                                            ? "bg-white/[0.12] border-white/25 text-white"
                                             : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
                                     )}
                                     title="Bypass : déplacez le boss sur n'importe quelle case marchable pour tester les portées"
@@ -1393,7 +1393,7 @@ export function SpellRangeGrid({
                                                 applyStartCells(mapData, true, nextIdx);
                                             }
                                         }}
-                                        className="bg-zinc-800 border border-white/10 text-amber-400 text-xs font-black rounded-md px-2 py-1 focus:outline-none cursor-pointer"
+                                        className="bg-zinc-800 border border-white/10 text-zinc-300 text-xs font-black rounded-md px-2 py-1 focus:outline-none cursor-pointer"
                                     >
                                         {Array.from({ length: totalPlacements }).map((_, i) => (
                                             <option key={i + 1} value={i + 1}>
@@ -1404,7 +1404,7 @@ export function SpellRangeGrid({
                                     <button
                                         type="button"
                                         onClick={() => setShowRulesModal(true)}
-                                        className="p-1 text-zinc-400 hover:text-amber-400 transition-colors pr-1.5"
+                                        className="p-1 text-zinc-400 hover:text-zinc-300 transition-colors pr-1.5"
                                         title="Comment fonctionnent les règles de placement sur Dofus ?"
                                     >
                                         <HelpCircle className="w-3.5 h-3.5" />
@@ -1450,7 +1450,7 @@ export function SpellRangeGrid({
                 {/* Bandeau Composition de la salle */}
                 {mapData && showStartCells && monsterPlacements.length > 0 && (
                     <div className="w-full flex flex-wrap items-center gap-1.5 mb-2 px-2 py-1.5 bg-zinc-900/90 border border-white/10 rounded-xl text-[11px] relative z-10 shrink-0">
-                        <span className="font-bold text-amber-400 flex items-center gap-1 shrink-0">
+                        <span className="font-bold text-zinc-300 flex items-center gap-1 shrink-0">
                             <Users className="w-3.5 h-3.5" /> Ordre d'apparition (Butin {lootCount}) :
                         </span>
                         <div className="flex flex-wrap items-center gap-1.5">
@@ -1460,7 +1460,7 @@ export function SpellRangeGrid({
                                     className={cn(
                                         "inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold text-[10px] border",
                                         mp.isBoss
-                                            ? "bg-amber-500/15 text-amber-300 border-amber-500/30 font-black"
+                                            ? "bg-white/[0.12] text-white border-white/25"
                                             : "bg-zinc-800 text-zinc-300 border-white/10"
                                     )}
                                 >
@@ -1846,23 +1846,24 @@ export function SpellRangeGrid({
                 </div>
                 </div>
 
-                {/* Légende & Astuces */}
+                {/* Légende & astuces — repliée par défaut, en-tête neutre, aide d'**une
+                    ligne** (l'ancien paragraphe de 3 phrases saturait la fenêtre PiP). */}
                 {compact ? (
-                    <div className="w-full mt-2 pt-1.5 border-t border-white/5 shrink-0 relative z-30 bg-[#161614]">
+                    <div className="w-full mt-1.5 pt-1 border-t border-white/5 shrink-0 relative z-30 bg-[#161614]">
                         <button
                             type="button"
                             onClick={() => setShowCompactLegend((v) => !v)}
-                            className="w-full flex items-center justify-between px-2 py-1 rounded-md text-[10px] font-bold text-zinc-400 hover:text-white hover:bg-white/[0.04] transition-colors"
+                            className="w-full flex items-center justify-between px-2 py-1 rounded-md text-[10px] text-zinc-400 hover:text-white hover:bg-white/[0.04] transition-colors"
                         >
                             <span className="flex items-center gap-1.5">
-                                <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
-                                {showCompactLegend ? "Masquer la légende" : "Légende des couleurs & astuces"}
+                                <HelpCircle className="w-3.5 h-3.5" />
+                                {showCompactLegend ? "Masquer la légende" : "Légende & astuces"}
                             </span>
-                            <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", showCompactLegend && "rotate-180 text-amber-400")} />
+                            <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", showCompactLegend && "rotate-180")} />
                         </button>
                         {showCompactLegend && (
-                            <div className="mt-2 space-y-2 animate-in fade-in duration-150 px-1">
-                                <div className="w-full flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[9px] font-bold text-zinc-400">
+                            <div className="mt-2 space-y-2 px-1">
+                                <div className="w-full flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[9px] text-zinc-400">
                                     <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#6b1d1d", border: "1px solid #c53030" }} /> Boss (lanceur)</span>
                                     <span className="inline-flex items-center gap-1"><img src="/assets/module-succes/feca.webp" alt="" className="w-3.5 h-3.5 object-contain rounded-[2px]" /> Joueur (allié)</span>
                                     <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-[2px] inline-block" style={{ background: "#79b638" }} /> Portée du sort</span>
@@ -1880,7 +1881,12 @@ export function SpellRangeGrid({
                                     )}
                                 </div>
                                 <p className="text-[10px] text-zinc-500 leading-tight">
-                                    💡 {allowFreeCasterMove ? "Boss libre : cliquez n'importe quelle case marchable pour déplacer le boss et tester les portées. " : "Le Boss est épinglé sur sa case de placement (non déplaçable). "}Cliquez un Féca pour le sélectionner, une case pour le déplacer. « Placements de départ » pose boss + monstres sur leurs cases réelles.
+                                    {allowFreeCasterMove
+                                        ? freeCasterMove
+                                            ? "Boss libre : clique une case marchable pour le déplacer (prévisualisation)."
+                                            : "Boss épinglé sur son placement — active « Boss libre » pour le déplacer."
+                                        : "Boss épinglé sur sa case de placement."}{" "}
+                                    Féca : clic pour sélectionner, clic ailleurs pour déplacer, re-clic pour orienter.
                                 </p>
                             </div>
                         )}

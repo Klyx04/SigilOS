@@ -1,5 +1,21 @@
 # Active Context — SigilOS
 
+## ✅ Session 15/09/2026 (nuit) — **amorce soldée (A/B/C) + 6 correctifs user** → branche `feat/marche-publication-discord`
+> **Demande user** : « one shot toute l'amorce » (§A marché, §B barre de défilement overlay, §C « Boss libre ») **plus** les constats beta : menus déroulants **sous** le contenu (salles + niveaux/type), `/boss` « trop IA-like », icônes de sorts qui ne chargent pas, fiches mobs/simulation **en spinner infini** quand DofusDB/Dofensive tombe, **maps manquantes**, 2 crons « Inconnu ».
+> **§A1** : `componentId` optionnel (`mkt:<action>:<listingId>[:<componentId>]`, **3 OU 4 segments** acceptés = rétro-compatibilité), routeur → `reserveBundleComponentCore` / `releaseBundleComponentCore`, **boutons remis** dans `syncBundleComponentMessages` (état **par objet**), pied d'embed « Objet #… ».
+> **§A2** : étape 4 « Publication » **dédiée** + estimation « 👥 X membres seront notifiés » (`estimateMarketPingAudience` — dédupliqué, rôles **intersectés**, borné 1000, `approximate`, jamais de liste de membres).
+> **§A3** : « rôles notifiables » configurable **uniquement** dans God → Marché (`getGodMarketPingRoles` / `saveGodMarketPingRoles`, super-admin, ids internes, `@everyone` écarté, audit) ⇒ le ping ne restera plus vide.
+> **§A4** : fiche `/marche/[listingId]` — badge **`X/N disponibles`**, prix **par objet** (icône kamas), état par objet, bouton **« Réserver cet objet »** (`reserveMarketBundleComponent`).
+> **§A5** : suppression des **N messages d'objet** au retrait + message d'objet supprimé à la main **recréé** (§13.6).
+> **§B** : `.overlay-scroll` (globals.css, copiée dans le document PiP) — gouttière 12 px, `pointer-events:auto`, `overscroll-behavior:contain`.
+> **§C** : « Boss libre » piloté dans l'overlay (`freeCasterMove` + `onFreeCasterMoveChange`), retour au placement réel en épinglé.
+> **🐞 dropdowns** : contexte d'empilement corrigé (`relative z-30` barre de filtres `/boss`, `z-40` sélecteur de **Salle** compact + complet, fond de menu opaque).
+> **🎨 `/boss`** : hero et cartes **sobres** (plus de halos/ombres/zooms/badges clinquants).
+> **🖼️ sorts** : proxy `/api/assets-dofus` résout `img/spells/sort_<iconId>.png` (l'`id` du sort n'est pas l'icône).
+> **⏳** : `dofusdbFicheInit()` (délai dur 8 s) sur **tous** les fetch DofusDB des fiches ⇒ plus de spinner infini, repli local.
+> **🕒 crons** : `sync-dofensive-maps` / `sync-monster-stats` **tracent leurs 401** (`recordCronRefusal`) + les **2 lignes de crontab** documentées dans `MAINTENANCE.md` (cause des **maps manquantes**).
+> **Preuves** : `tsc` 0 · **128/128 fichiers** (**1334 tests**) · `eslint` 0 erreur.
+
 ## ✅ PR #668 (en cours de CI) — **Marché · lot multiple (option A) — assistant complet + message Discord par objet** → branche `feat/marche-publication-discord` (dernier commit `c02404b65`)
 > **Décisions user (14-15/09/2026)** : **2 à 5 objets** par lot · **prix par objet** (jamais de prix global) · **option A** = **un message Discord par objet** · maquette validée · plan `src/temp/refonte-marche/PLAN-LOT-MULTIPLE.md` · **amorce des prochains fixes** `src/temp/AMORCE-PROCHAINS-FIX.md`.
 > **Assistant (visible)** : 4ᵉ nature « **Lot multiple** », **2 objets pré-remplis**, **une recherche catalogue par ligne** (toutes familles, l'objet choisi s'affiche avec sa vignette + « Changer », plus de nom saisi à la main, champ « unité » supprimé), **étape 3 dédiée** (nom de lot pré-rempli, conditions, composition + total), **N aperçus d'embed** (un par objet) + récapitulatif, **vignettes de nature = objets réels** par famille (surchargeables par `public/assets/dofus/natures/*.png`), **icône kamas** officielle sur tous les montants, messages zod **en français**.

@@ -31,7 +31,8 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/components/ui/select";
-import { Search, Plus, MapPin, Trophy, ShieldAlert, Swords, Skull, MoreHorizontal, Edit2, Trash2, ImageIcon } from "lucide-react";
+import { Search, Plus, MapPin, Trophy, ShieldAlert, Swords, Skull, MoreHorizontal, Edit2, Trash2, ImageIcon, Loader2 } from "lucide-react";
+import { siphonAnomalyBossesNow } from "@/server/actions/anomaly-boss-admin-actions";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -59,6 +60,10 @@ interface Dungeon {
     dofensiveDungeonName?: string | null;
     /* Chantier donjon sans succès. */
     isNoAchievement?: boolean;
+    /* Chantier « boss d'anomalie » — contenu SIPHONNÉ (jamais saisi à la main : préférer le bouton Siphonner). */
+    isAnomalyBoss?: boolean | null;
+    anomalyMapId?: number | null;
+    anomalyFamily?: string | null;
     achievements: { challengeId: string; challenge: { name: string; slug: string; iconUrl?: string | null } }[];
 }
 
@@ -84,6 +89,9 @@ export default function DungeonManager() {
     const [searchQuery, setSearchQuery] = useState("");
     const [challengeSearch, setChallengeSearch] = useState("");
     const [selectedLevel, setSelectedLevel] = useState<string>("all");
+    // Filtre « type » du catalogue (chantier boss d'anomalie) : all | anomaly | classic.
+    const [selectedKind, setSelectedKind] = useState<string>("all");
+    const [siphoning, setSiphoning] = useState(false);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -104,6 +112,7 @@ export default function DungeonManager() {
         dofensiveMonsterName: "",
         dofensiveDungeonName: "",
         isNoAchievement: false,
+        isAnomalyBoss: false,
     });
 
     useEffect(() => {
@@ -208,6 +217,7 @@ export default function DungeonManager() {
             dofensiveMonsterName: "",
             dofensiveDungeonName: "",
             isNoAchievement: false,
+            isAnomalyBoss: false,
         });
     }
 
@@ -231,16 +241,23 @@ export default function DungeonManager() {
             dofensiveMonsterName: dungeon.dofensiveMonsterName || "",
             dofensiveDungeonName: dungeon.dofensiveDungeonName || "",
             isNoAchievement: dungeon.isNoAchievement ?? false,
+            isAnomalyBoss: dungeon.isAnomalyBoss ?? false,
         });
         setIsDialogOpen(true);
     }
 
 
 
-    const filteredDungeons = dungeons.filter(d =>
-        d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        d.bossName.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredDungeons = dungeons.filter((d) => {
+        const matchSearch =
+            d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            d.bossName.toLowerCase().includes(searchQuery.toLowerCase());
+        if (!matchSearch) return false;
+        // Filtre « type » : boss d'anomalie (siphonné) vs donjons classiques.
+        if (selectedKind === "anomaly") return !!d.isAnomalyBoss;
+        if (selectedKind === "classic") return !d.isAnomalyBoss;
+        return true;
+    });
 
     return (
         <div className="space-y-4">
@@ -272,6 +289,55 @@ export default function DungeonManager() {
                         </SelectContent>
                     </Select>
                 </div>
+
+                {/* Type Filter (chantier boss d'anomalie) */}
+                <div className="w-full md:w-52">
+                    <Select value={selectedKind} onValueChange={setSelectedKind}>
+                        <SelectTrigger className="bg-elevated border-border text-foreground">
+                            <SelectValue placeholder="Filtrer par type" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-surface border-border">
+                            <SelectItem value="all">Tous les types</SelectItem>
+                            <SelectItem value="classic">Donjons classiques</SelectItem>
+                            <SelectItem value="anomaly">🌀 Fiches Anomalies</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                {/* Siphon du contenu d'anomalie (liste DofusDB race 191 + cartes/sorts/icônes Dofensive) */}
+                <Button
+                    variant="outline"
+                    disabled={siphoning}
+                    onClick={async () => {
+                        setSiphoning(true);
+                        try {
+                            const res = await siphonAnomalyBossesNow();
+                            if (res.success && res.data) {
+                                const bosses = res.data.guardians.filter((g) => g.isBoss).length;
+                                const defaults = res.data.guardians.filter((g) => g.isDefaultMap).length;
+                                const companions = res.data.companions.length;
+                                const unvalidated = res.data.companions.filter((c) => !c.validated).length;
+                                toast.success(
+                                    `${bosses} boss d'anomalie en fiche (${res.data.guardians.length} gardiens, ${defaults} en map par défaut) · ` +
+                                    `${companions} monstre(s) de l'anomalie${unvalidated ? ` (${unvalidated} non validé(s) — famille Dofensive non lue)` : ""}` +
+                                    (res.data.errors.length ? ` — ${res.data.errors.length} erreur(s)` : "")
+                                );
+                                loadData();
+                            } else {
+                                toast.error(res.error || "Siphon impossible");
+                            }
+                        } catch {
+                            toast.error("Siphon impossible");
+                        } finally {
+                            setSiphoning(false);
+                        }
+                    }}
+                    className="w-full md:w-auto border-info/40 text-info hover:bg-info/10"
+                    title="Siphonne les Gardiens des anomalies (DofusDB race 191 + Dofensive) : cartes, sorts, icônes"
+                >
+                    {siphoning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <img src="/assets/missions/ano1.png" alt="" aria-hidden className="w-4 h-4 mr-2 object-contain" />}
+                    Siphonner les boss d'anomalie
+                </Button>
                 <Button
                     onClick={() => { resetForm(); setIsDialogOpen(true); }}
                     className="w-full md:w-auto bg-info hover:bg-info shadow-lg shadow-indigo-900/20 transition-all font-medium"
@@ -354,6 +420,13 @@ export default function DungeonManager() {
                                             <Badge variant="outline" className="bg-background/50 border-border text-muted-foreground text-caption h-5">
                                                 Lvl {dungeon.level}
                                             </Badge>
+                                            {/* Chantier « boss d'anomalie » : contenu siphonné (carte de combat + famille). */}
+                                            {dungeon.isAnomalyBoss && (
+                                                <Badge variant="outline" className="bg-info/20 border-info/30 text-info text-caption h-5 gap-1" title={dungeon.anomalyFamily || "Gardiens des anomalies"}>
+                                                    <img src="/assets/missions/ano1.png" alt="" aria-hidden className="w-3 h-3 object-contain" />
+                                                    Anomalie
+                                                </Badge>
+                                            )}
                                             {dungeon.achievements.length > 0 && (
                                                 <Badge variant="outline" className="bg-warning/20 border-warning/30 text-warning text-caption h-5 gap-1">
                                                     <Trophy className="w-3 h-3" />
@@ -441,6 +514,16 @@ export default function DungeonManager() {
                                                     checked={formData.isNoAchievement}
                                                     onCheckedChange={(checked) => setFormData({ ...formData, isNoAchievement: checked })}
                                                     className="data-[state=checked]:bg-foreground"
+                                                />
+                                                {/* Chantier « boss d'anomalie » : contenu siphonné (Gardiens des anomalies). */}
+                                                <span className="flex items-center gap-1.5 text-sm font-bold text-muted-foreground uppercase">
+                                                    <img src="/assets/missions/ano1.png" alt="" aria-hidden className="w-4 h-4 object-contain" />
+                                                    Fiches Anomalies
+                                                </span>
+                                                <Switch
+                                                    checked={formData.isAnomalyBoss}
+                                                    onCheckedChange={(checked) => setFormData({ ...formData, isAnomalyBoss: checked })}
+                                                    className="data-[state=checked]:bg-info"
                                                 />
                                             </div>
                                         </div>

@@ -45,6 +45,14 @@ vi.mock("@/lib/dungeon-monsters-siphon", () => ({
     siphonDungeonMonstersDataset: vi.fn().mockResolvedValue({ totalDungeons: 2, totalMonsters: 2 }),
 }));
 
+// Phase 3 du cron : le siphon des boss d'ANOMALIE (DofusDB race 191 + Dofensive) est
+// mocké ici — ce fichier teste uniquement la règle « frais < 24 h ignorés » des fiches
+// de donjon, et le siphon d'anomalie ne doit donc effectuer AUCUN appel réseau.
+const mockSyncAnomalies = vi.fn();
+vi.mock("@/lib/anomaly-boss-siphon", () => ({
+    syncAnomalyBosses: (...args: any[]) => mockSyncAnomalies(...args),
+}));
+
 vi.mock("@/server/actions/super-admin-actions", () => ({
     isSuperAdmin: vi.fn().mockResolvedValue(true),
     canAccessBrick: vi.fn().mockResolvedValue(true),
@@ -85,6 +93,14 @@ beforeEach(() => {
     mockGetBossSpells.mockResolvedValue({ success: false });
     mockSiphonImage.mockResolvedValue({ success: true });
     mockTitanFindMany.mockResolvedValue([]);
+    mockSyncAnomalies.mockResolvedValue({
+        synced: 0,
+        unchanged: 0,
+        errors: [],
+        imagesSiphoned: 0,
+        guardians: [],
+        companions: [],
+    });
     vi.unstubAllGlobals();
 });
 

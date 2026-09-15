@@ -73,6 +73,17 @@ umask 077 && printf '%s' '<CRON_SECRET du conteneur>' > /home/sigiladmin/.sigilo
 */10 * * * * curl -s -o /dev/null -w "market-expire %{http_code} $(date -Is)\n" \
   -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
   https://beta.sigilos.fr/api/cron/market-expire >> /home/sigiladmin/SigilOS/logs/market-expire.log 2>&1
+
+# 3) les DEUX siphons de données de jeu — mêmes précautions, sinon panneau God
+#    « Inconnu / Aucune exécution » ET **salles de donjon manquantes** dans la
+#    simulation (aucune map siphonnée). Vérifiés le 15/09/2026 : absents de la
+#    crontab déployée alors que leurs URLs sont bien documentées ci-dessus.
+30 3 * * * curl -s -o /dev/null -w "sync-dofensive-maps %{http_code} $(date -Is)\n" \
+  -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
+  https://beta.sigilos.fr/api/cron/sync-dofensive-maps >> /home/sigiladmin/SigilOS/logs/sync-dofensive-maps.log 2>&1
+45 3 * * * curl -s -o /dev/null -w "sync-monster-stats %{http_code} $(date -Is)\n" \
+  -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
+  https://beta.sigilos.fr/api/cron/sync-monster-stats >> /home/sigiladmin/SigilOS/logs/sync-monster-stats.log 2>&1
 ```
 
 **Diagnostic « Inconnu / Jamais » dans God → Tâches CRON** (constat user du 14/09/2026) — dans

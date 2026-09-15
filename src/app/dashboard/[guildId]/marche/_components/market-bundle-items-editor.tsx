@@ -15,7 +15,7 @@
  * la source de vérité, il rejoue `computeBundleTotal`).
  */
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { AlertCircle, Package, Plus, Trash2 } from "lucide-react";
 
 import {
@@ -38,6 +38,17 @@ interface MarketBundleItemsEditorProps {
     onChange: (items: BundleItemInput[]) => void;
     /** Objet suggéré par le catalogue (facultatif) : préremplit la 1ʳᵉ ligne. */
     suggested?: Partial<BundleItemInput> | null;
+    /**
+     * 🧺 Recherche dans le catalogue **par ligne** (facultatif).
+     *
+     * Le parent fournit le sélecteur (il connaît le catalogue local) ; une
+     * **instance par objet** garantit que chaque ligne cherche indépendamment —
+     * l'utilisateur doit pouvoir trouver **n'importe quoi**, ligne par ligne.
+     */
+    renderPicker?: (
+        index: number,
+        onPick: (item: { ankamaId: number; name: string; iconUrl?: string | null }) => void
+    ) => ReactNode;
     disabled?: boolean;
 }
 
@@ -45,6 +56,7 @@ export function MarketBundleItemsEditor({
     items,
     onChange,
     suggested,
+    renderPicker,
     disabled = false,
 }: MarketBundleItemsEditorProps) {
     const [touched, setTouched] = useState(false);
@@ -120,6 +132,14 @@ export function MarketBundleItemsEditor({
                                     <Trash2 className="h-3.5 w-3.5" />
                                 </button>
                             </div>
+
+                            {renderPicker?.(index, (picked) =>
+                                update(index, {
+                                    dofusDbItemId: picked.ankamaId,
+                                    name: picked.name,
+                                    iconUrl: picked.iconUrl ?? null,
+                                })
+                            )}
 
                             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                                 <label className="space-y-1 text-xs text-muted-foreground">

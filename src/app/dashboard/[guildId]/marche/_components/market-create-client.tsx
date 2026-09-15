@@ -696,7 +696,9 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
                 />
             )}
 
-            {step === 2 && kind !== "RESOURCE" && (
+            {/* 🧺 Lot multiple : **aucun** sélecteur d'objet unique (le lot se compose
+                de 2 à 5 objets, chacun cherché dans **tout** le catalogue). */}
+            {step === 2 && kind !== "RESOURCE" && kind !== "BUNDLE" && (
                 <>
                     <StepEquipment
                         family={KIND_TO_FAMILY[kind]}
@@ -805,6 +807,18 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
             {step === 2 && kind === "BUNDLE" && (
                 <MarketBundleItemsEditor
                     items={bundleItems}
+                    renderPicker={(index, onPick) => (
+                        <CataloguePicker
+                            placeholder={`Rechercher l'objet n°${index + 1} — tout le catalogue Dofus`}
+                            onSelect={(picked) =>
+                                onPick({
+                                    ankamaId: picked.ankamaId,
+                                    name: picked.name,
+                                    iconUrl: picked.iconUrl ?? null,
+                                })
+                            }
+                        />
+                    )}
                     onChange={(items) =>
                         setComponents(
                             items.map((entry, index) => ({
@@ -1694,8 +1708,12 @@ function CataloguePicker({
      * `typeId` / `superTypeId` / `typeName` (et **plus** sur la catégorie
      * grossière du catalogue, dont l'heuristique classait « Bois » en
      * « equipment » ⇒ recherche vide, constat beta du 13/09).
+     *
+     * 🧺 Lot multiple — **facultative** : un lot est hétérogène, chaque objet doit
+     * pouvoir venir de **n'importe quelle** famille (`undefined` ⇒ aucun filtre
+     * côté serveur, cf. `if (filters.family)` dans `item-catalog.ts`).
      */
-    family: MarketItemFamily;
+    family?: MarketItemFamily;
     placeholder: string;
     onSelect: (item: GameItemSearchResult) => void;
 }) {

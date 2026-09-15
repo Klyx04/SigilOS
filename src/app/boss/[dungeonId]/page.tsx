@@ -11,8 +11,9 @@ import { getAppBaseUrl } from "@/lib/utils";
 import { db } from "@/lib/prisma";
 import { getMonsterStats, getDungeonMonsters } from "@/server/actions/game-data-actions";
 import { getBossDofensiveSpells, getDofensiveDungeonForBoss } from "@/server/actions/dofensive-actions";
+import { getAnomalyBossBattleMap, getAnomalyBossFamily } from "@/server/actions/anomaly-boss-actions";
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
-import { PublicBossDetailClient } from "./_components/PublicBossDetailClient";
+import { PublicBossDetailClient, type DungeonFamily } from "./_components/PublicBossDetailClient";
 
 export const revalidate = 3600;
 
@@ -76,21 +77,32 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
   const isTitan = !dungeon && !!titan;
   const bossName = dungeon ? dungeon.bossName || dungeon.name : titan!.name;
   const dungeonName = dungeon ? dungeon.name : titan!.mapName || titan!.zone || titan!.name;
+  // 🌀 Boss d'anomalie (« Gardiens des anomalies ») : Dofensive n'expose PAS ces donjons.
+  // Sans branchement dédié, la landing publique restait sans carte ⇒ ni « Salle », ni
+  // « Placements de départ », ni Placement/Butin (constat user du 15/09/2026).
+  const isAnomalyBoss = !!dungeon?.isAnomalyBoss;
 
   const [statsRes, spellsRes, familyRes, mapsRes] = await Promise.all([
     getMonsterStats(bossName, dungeonName),
     getBossDofensiveSpells(bossName, dungeonName),
-    getDungeonMonsters(bossName, dungeonName),
-    getDofensiveDungeonForBoss(
-      bossName,
-      dungeonName,
-      dungeon
-        ? {
-            dofensiveMonsterName: dungeon.dofensiveMonsterName,
-            dofensiveDungeonName: dungeon.dofensiveDungeonName,
-          }
-        : undefined
-    ),
+    // « Famille » (monstres accompagnateurs) : pour une anomalie = les autres gardiens de la
+    // même carte + les monstres de l'anomalie (Briko/Bruto/Gromo), 100 % local (siphon).
+    isAnomalyBoss
+      ? getAnomalyBossFamily(bossName)
+      : getDungeonMonsters(bossName, dungeonName),
+    // Carte de combat : pour une anomalie, résolution locale puis repli map par défaut.
+    isAnomalyBoss
+      ? getAnomalyBossBattleMap(bossName, dungeon!.anomalyMapId)
+      : getDofensiveDungeonForBoss(
+          bossName,
+          dungeonName,
+          dungeon
+            ? {
+                dofensiveMonsterName: dungeon.dofensiveMonsterName,
+                dofensiveDungeonName: dungeon.dofensiveDungeonName,
+              }
+            : undefined
+        ),
   ]);
 
   let monsterStats = statsRes.success ? statsRes.data : null;
@@ -100,7 +112,7 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
   } else if (!monsterStats && spellsData) {
     monsterStats = { name: bossName, spells: spellsData, grades: [], drops: [] };
   }
-  const family = familyRes.success ? familyRes.data : null;
+  const family: DungeonFamily | null = familyRes.success ? ((familyRes.data as DungeonFamily) ?? null) : null;
   const dungeonMaps = mapsRes.success ? mapsRes.data : null;
 
   const headersList = await headers();
@@ -159,6 +171,8 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
                   dofuspourlesnoobsUrl: dungeon.dofuspourlesnoobsUrl,
                   dofensiveMonsterName: dungeon.dofensiveMonsterName,
                   dofensiveDungeonName: dungeon.dofensiveDungeonName,
+                  isAnomalyBoss: !!dungeon.isAnomalyBoss,
+                  anomalyMapId: dungeon.anomalyMapId ?? null,
                   kind: "boss" as const,
                 }
               : {
@@ -174,7 +188,7 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
           }
           monsterStats={monsterStats}
           initialFamily={family}
-          initialDungeonMaps={dungeonMaps}
+          initialDungeonMaps={dungeonMaps ?? undefined}
         />
       </main>
 

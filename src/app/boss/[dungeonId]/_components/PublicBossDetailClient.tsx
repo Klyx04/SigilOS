@@ -33,6 +33,7 @@ import {
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { deriveDofensiveMonsterName } from "@/lib/dofensive-boss";
 import { getWorldName } from "@/lib/dofus-assets";
+import { getAnomalyBossBattleMap, getAnomalyBossFamily } from "@/server/actions/anomaly-boss-actions";
 
 interface PublicDungeon {
   id: string;
@@ -44,6 +45,9 @@ interface PublicDungeon {
   dofuspourlesnoobsUrl?: string | null;
   dofensiveMonsterName?: string | null;
   dofensiveDungeonName?: string | null;
+  /* 🌀 Chantier « boss d'anomalie » — carte de combat + famille siphonnées localement. */
+  isAnomalyBoss?: boolean | null;
+  anomalyMapId?: number | null;
   kind?: "boss" | "titan";
 }
 
@@ -52,11 +56,19 @@ interface FamilyMember {
   name: string;
   imageUrl: string | null;
   isBoss: boolean;
+  /** 🌀 Monstre de l'anomalie (Briko/Bruto/Gromo) — 3 tirés au hasard par combat. */
+  isCompanion?: boolean;
+  level?: number | null;
+  raceName?: string | null;
 }
 
-interface DungeonFamily {
+export interface DungeonFamily {
   familyId: number | null;
   monsters: FamilyMember[];
+  /** Monstres de l'anomalie uniquement (accompagnateurs) — sous-ensemble de `monsters`. */
+  companions?: FamilyMember[];
+  /** « 3 au hasard parmi 16 » (fourni par la source siphonnée). */
+  companionHint?: string | null;
 }
 
 interface PublicBossDetailClientProps {
@@ -118,6 +130,9 @@ export function PublicBossDetailClient({
 }: PublicBossDetailClientProps) {
   const bossName = dungeon.bossName || dungeon.name;
   const isTitan = dungeon.kind === "titan";
+  // 🌀 Boss d'anomalie : Dofensive n'expose pas ces donjons ⇒ carte + famille sont résolues
+  // LOCALEMENT (lecteurs dédiés) au lieu du resolver Dofensive standard.
+  const isAnomalyBoss = !!dungeon.isAnomalyBoss;
   const { openBossOverlay } = useBossOverlay("public");
 
   const [detailTab, setDetailTab] = useState<DetailTab>("sorts");
@@ -196,10 +211,15 @@ export function PublicBossDetailClient({
   }, [entityKey]);
 
   // Lazy-load famille si absente (rare : la page serveur la pré-charge déjà).
+  // 🌀 Anomalie : les « monstres de la salle » viennent du siphon local (co-gardiens + 3
+  // accompagnateurs au hasard) et non du donjon Dofensive (inexistant pour une anomalie).
   useEffect(() => {
     if (familyByDungeon[dungeon.id]) return;
     let cancelled = false;
-    getDungeonMonsters(bossName, dungeon.name)
+    const request = isAnomalyBoss
+      ? getAnomalyBossFamily(bossName)
+      : getDungeonMonsters(bossName, dungeon.name);
+    request
       .then((res) => {
         if (!cancelled && res.success && res.data) {
           setFamilyByDungeon((p) => ({ ...p, [dungeon.id]: res.data as DungeonFamily }));
@@ -211,20 +231,26 @@ export function PublicBossDetailClient({
   }, [dungeon.id]);
 
   // Lazy-load maps Dofensive pour l'entité active.
+  // 🌀 Anomalie : carte de combat résolue LOCALEMENT (siphon) — sans ce branchement la landing
+  // publique n'exposait ni sélecteur de « Salle », ni « Placements de départ », ni
+  // Placement/Butin (constat user du 15/09/2026).
   useEffect(() => {
     if (mapsByBoss[activeBossKey] !== undefined) return;
     let cancelled = false;
     const isMain = !activeMonsterName;
-    getDofensiveDungeonForBoss(
-      activeBossKey,
-      dungeon.name,
-      isMain
-        ? {
-            dofensiveMonsterName: dungeon.dofensiveMonsterName,
-            dofensiveDungeonName: dungeon.dofensiveDungeonName,
-          }
-        : undefined
-    )
+    const resolution = isAnomalyBoss
+      ? getAnomalyBossBattleMap(activeBossKey, dungeon.anomalyMapId)
+      : getDofensiveDungeonForBoss(
+          activeBossKey,
+          dungeon.name,
+          isMain
+            ? {
+                dofensiveMonsterName: dungeon.dofensiveMonsterName,
+                dofensiveDungeonName: dungeon.dofensiveDungeonName,
+              }
+            : undefined
+        );
+    resolution
       .then((res) => {
         if (!cancelled) setMapsByBoss((p) => ({ ...p, [activeBossKey]: res.success && res.data ? res.data : null }));
       })
@@ -760,11 +786,24 @@ export function PublicBossDetailClient({
       )}
 
       {/* ── TAB: MONSTRES DE LA SALLE ── */}
-      {detailTab === "family" && (
+      {detailTab === "family" && (() => {
+        const companionCount = familyByDungeon[dungeon.id]?.companions?.length ?? 0;
+        const companionHint = familyByDungeon[dungeon.id]?.companionHint ?? null;
+        return (
         <div className="space-y-3">
-          <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-            <Users className="w-4 h-4 opacity-70" /> Monstres accompagnateurs de la salle
-          </h4>
+          <div className="flex flex-wrap items-center gap-2">
+            <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+              <Users className="w-4 h-4 opacity-70" /> Monstres accompagnateurs de la salle
+            </h4>
+            {companionCount > 0 && (
+              <span
+                className="text-[11px] font-bold px-2 py-0.5 rounded-full border border-info/30 text-info bg-info/10"
+                title="En combat, le gardien est accompagné de 3 de ces monstres, tirés au hasard à l'ouverture de l'anomalie."
+              >
+                Anomalie · {companionHint ?? `${companionCount} monstres possibles`}
+              </span>
+            )}
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {roomMonsters.map((m) => {
               const isActive = (activeMonsterName ?? bossName) === m.name;
@@ -780,7 +819,13 @@ export function PublicBossDetailClient({
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className={cn("text-xs font-bold truncate", isActive ? "text-foreground" : "text-muted-foreground")}>{m.isBoss && "👑 "}{m.name}</p>
-                      <span className="text-[11px] text-muted-foreground block">{m.isBoss ? "Boss principal" : "Monstre de salle"}</span>
+                      <span className="text-[11px] text-muted-foreground block">
+                        {m.isBoss
+                          ? "Boss principal"
+                          : m.isCompanion
+                          ? `Monstre de l'anomalie${m.raceName ? ` · ${m.raceName}` : ""}`
+                          : "Monstre de salle"}
+                      </span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 pt-1 border-t border-white/10">
@@ -805,7 +850,8 @@ export function PublicBossDetailClient({
             })}
           </div>
         </div>
-      )}
+        );
+      })()}
       </div>
 
       {/* ── COORDONNÉES (entrée donjon + /travel) ── */}

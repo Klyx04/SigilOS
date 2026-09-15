@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { getDofensiveMap, type DofensiveMapData, type DofensiveMapLite } from "@/server/actions/dofensive-actions";
 import {
     CellState,
+    allyStartPositions,
     castRangeDistance,
     cellIdToXY,
     cellToScreen,
@@ -490,12 +491,29 @@ export function SpellRangeGrid({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedMapId]);
 
+    /**
+     * Alliés (Fécas) posés sur les cases de départ **joueurs** de la carte réelle.
+     * `enemyCells` = cases joueurs Dofensive (inversion conforme Dofus : les monstres sont
+     * exposés dans `allyCells`). Aucune case joueur ⇒ aucun allié posé.
+     */
+    const allyStartTokens = (data: DofensiveMapData): AllyToken[] =>
+        allyStartPositions(data.enemyCells, MAX_ALLIES).map((p) => ({ x: p.x, y: p.y, facing: 0 }));
+
     // Toggle « placements de départ » : pose/retire boss + alliés sur les cases réelles.
     const toggleStartCells = () => {
         const next = !showStartCells;
         setShowStartCells(next);
         if (mapData) {
             applyStartCells(mapData, next);
+            // Les alliés ne sont posés qu'à l'ACTIVATION et jamais par-dessus des Fécas déjà
+            // placés (le bouton « Vider » doit rester vide) : le toggle promet « boss + alliés
+            // sur leurs cases réelles », or il ne posait que le boss (constat user 15/09/2026).
+            if (next) {
+                const tokens = allyStartTokens(mapData);
+                if (tokens.length > 0) {
+                    setAllies((prev) => (prev.length > 0 ? prev : tokens));
+                }
+            }
         }
     };
 
@@ -616,13 +634,16 @@ export function SpellRangeGrid({
         const el = zoomRef.current;
         if (!el) return;
         const onWheel = (e: WheelEvent) => {
-            // La map est une surface interactive : la molette ne doit JAMAIS faire défiler
-            // l'overlay parent (sinon la toolbar/tabs "sortent" de l'overlay). On bloque
-            // le scroll par défaut et on ne zoome que si l'utilisateur tient Ctrl/Cmd.
+            // La map est une surface interactive : la molette ZOOME (interne ET landing) et ne
+            // fait JAMAIS défiler le parent (sinon la toolbar/les onglets « sortent » de
+            // l'overlay et la page saute pendant la simulation).
+            // `preventDefault` n'est possible que sur un listener natif NON passif : un `onWheel`
+            // React est passif par défaut ⇒ `preventDefault` ignoré et le zoom restait KO.
             e.preventDefault();
-            if (compact || e.ctrlKey || e.metaKey) {
-                setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Number((z - e.deltaY * 0.0015).toFixed(2)))));
-            }
+            // Normalisation des unités : Firefox peut rapporter des « lignes » (deltaMode 1)
+            // ou des « pages » (2) au lieu de pixels.
+            const pixels = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+            setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Number((z - pixels * 0.0015).toFixed(2)))));
         };
         el.addEventListener("wheel", onWheel, { passive: false });
         return () => el.removeEventListener("wheel", onWheel);
@@ -1200,7 +1221,7 @@ export function SpellRangeGrid({
                                             "px-1.5 py-0.5 rounded-md border text-[10px] font-semibold transition-colors",
                                             showStartCells ? "bg-white/[0.12] border-white/25 text-white" : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-white"
                                         )}
-                                        title="Toggle placements de départ"
+                                        title="Placements de départ : pose le boss, les monstres et les alliés sur leurs cases réelles"
                                     >
                                         <MapIcon className="w-3 h-3" />
                                     </button>
@@ -1360,7 +1381,7 @@ export function SpellRangeGrid({
                                             ? "bg-white/[0.12] border-white/25 text-white"
                                             : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
                                     )}
-                                    title="Placer le boss et les monstres sur leurs cases réelles"
+                                    title="Placements de départ : pose le boss, les monstres et les alliés sur leurs cases réelles"
                                 >
                                     <MapIcon className="w-3.5 h-3.5" /> Placements de départ
                                 </button>
@@ -1886,7 +1907,7 @@ export function SpellRangeGrid({
                                             ? "Boss libre : clique une case marchable pour le déplacer (prévisualisation)."
                                             : "Boss épinglé sur son placement — active « Boss libre » pour le déplacer."
                                         : "Boss épinglé sur sa case de placement."}{" "}
-                                    Féca : clic pour sélectionner, clic ailleurs pour déplacer, re-clic pour orienter.
+                                    Molette = zoom · clic-glisser = déplacer. Féca : clic pour sélectionner, clic ailleurs pour déplacer, re-clic pour orienter.
                                 </p>
                             </div>
                         )}
@@ -1914,7 +1935,7 @@ export function SpellRangeGrid({
                         </div>
 
                         <p className="text-[11px] text-zinc-400 mt-2 text-center">
-                            💡 {allowFreeCasterMove ? "Boss libre : cliquez n'importe quelle case marchable pour déplacer le boss et tester les portées. " : "Le Boss est épinglé sur sa case de placement (non déplaçable). "}Cliquez un Féca pour le sélectionner, une case pour le déplacer, re-cliquez pour l'orienter. « Placements de départ » pose boss + alliés sur leurs cases réelles.
+                            💡 {allowFreeCasterMove ? "Boss libre : cliquez n'importe quelle case marchable pour déplacer le boss et tester les portées. " : "Le Boss est épinglé sur sa case de placement (non déplaçable). "}Molette = zoom · clic-glisser = déplacer la carte. Cliquez un Féca pour le sélectionner, une case pour le déplacer, re-cliquez pour l'orienter. « Placements de départ » pose boss + alliés sur leurs cases réelles.
                         </p>
                     </>
                 )}

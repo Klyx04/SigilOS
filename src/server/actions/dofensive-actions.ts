@@ -23,6 +23,7 @@ import type {
     DofensiveZoneShape,
 } from "@/lib/dofensive-spells";
 import { dofensiveFetch, norm, toSafeId } from "@/lib/dofensive-fetch";
+import { pickMonsterDamageStats, scaleDamageInEffectGroups } from "@/lib/dofus-monster-damage";
 import { deriveDofensiveMonsterName, pickDofensiveMonsterId } from "@/lib/dofensive-boss";
 import {
     getLocalDofensiveDungeon,
@@ -521,6 +522,12 @@ export async function getDofensiveSpells(
     const monRaw = await dofensiveFetch<any>(`/monsters/${id}?lang=fr`, `dofensive-monster-${id}`);
     const mon = Array.isArray(monRaw) ? monRaw[0] : monRaw;
 
+    // 🎯 Calcul de dégâts (parité Dofensive « Activer le calcul de dégâts ») : les jets du
+    // payload sont BRUTS ; l'API n'applique pas les caractéristiques du monstre. On les
+    // calcule ici (`floor(jet × (1 + stat/100))`, Neutre non boosté) avec le grade du sort
+    // affiché — sinon la fiche annonce « 74 à 86 » là où le combat inflige « 666 à 774 ».
+    const damageStats = pickMonsterDamageStats(mon?.Grades, gradeLevel);
+
     // Ordre affiché par Dofensive : sort de démarrage (StartingSpell du Grade) EN PREMIER,
     // puis la liste Spells. Ex. Fuji Givrefoux : Instinct maternel (2676) + ses 3 sorts.
     const spellIds: number[] = [];
@@ -550,10 +557,11 @@ export async function getDofensiveSpells(
             if (!level) return null;
             const firstEffect = level.GroupEffects?.[0]?.Effects?.[0];
             // Effets détaillés (tous les groupes de cibles) : durées, déclencheurs, masques.
-            const effectDetails = collectEffectDetails(level.GroupEffects);
+            // Les jets passent AVANT par le calcul de dégâts (dégâts réels du grade).
+            const effectDetails = collectEffectDetails(scaleDamageInEffectGroups(level.GroupEffects, damageStats));
             const effects = flattenEffectLines(effectDetails).slice(0, 30);
-            // Effets critiques (GroupCriticalEffects) — section séparée.
-            const criticalDetails = collectEffectDetails(level.GroupCriticalEffects);
+            // Effets critiques (GroupCriticalEffects) — section séparée (mêmes dégâts calculés).
+            const criticalDetails = collectEffectDetails(scaleDamageInEffectGroups(level.GroupCriticalEffects, damageStats));
             const criticalEffects = flattenEffectLines(criticalDetails).slice(0, 20);
             return {
                 id: Number(spell.Id ?? sid),

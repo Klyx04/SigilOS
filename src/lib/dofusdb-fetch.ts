@@ -18,10 +18,29 @@ const DOFUSDB_HEADERS = {
 const DOFUSDB_PATH_RE = /^\/(?:spells|spell-levels|spell-variants|breeds|items|monsters|classes)\??/;
 
 /**
+ * Interrupteur de TEST DE PANNE (D6 de l'amorce « indépendance totale »).
+ *
+ * `DOFUSDB_OFFLINE=1` coupe **tout** appel sortant vers DofusDB : le fetcher refuse la
+ * requête (log + `null`) au lieu de laisser filer un appel réseau. Indispensable pour
+ * exécuter le « test de panne » (fiches/icônes/simulation doivent tenir sans réseau) et
+ * pour prouver qu'aucun chemin de LECTURE ne retombe sur le live.
+ *
+ * ⚠️ Réservé aux tests/dev : en production, la valeur n'est jamais posée (les siphons
+ * doivent, eux, joindre la source).
+ */
+export function isDofusDbOffline(): boolean {
+    return String(process.env.DOFUSDB_OFFLINE ?? "").trim() === "1";
+}
+
+/**
  * Fetch DofusDB avec garde SSRF + timeout + fail-closed.
  * `path` doit commencer par `/` suivi d'une collection de l'allowlist.
  */
 export async function dofusdbFetch<T>(path: string): Promise<T | null> {
+    if (isDofusDbOffline()) {
+        logger.warn(`[dofusdb] mode OFFLINE (DOFUSDB_OFFLINE=1) — appel refusé: ${path}`);
+        return null;
+    }
     if (!DOFUSDB_PATH_RE.test(path)) {
         logger.error(`[dofusdb] Chemin refusé (garde SSRF): ${path}`);
         return null;

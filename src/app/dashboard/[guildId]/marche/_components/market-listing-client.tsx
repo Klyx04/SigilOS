@@ -31,8 +31,10 @@ import {
     renewMarketListing,
     reportMarketListing,
     reserveMarketListing,
+    reserveMarketBundleComponent,
     withdrawMarketListing,
 } from "@/server/actions/market-actions";
+import { KamasAmount } from "@/components/market/kamas-amount";
 import { resyncMarketListing, restoreMarketListing, takeDownMarketListing } from "@/server/actions/market-admin-actions";
 import { toast } from "sonner";
 import {
@@ -51,7 +53,7 @@ import {
 
 type SerializedListing = {
     id: string;
-    type: "EQUIPMENT" | "RESOURCE" | "SERVICE" | "WANTED";
+    type: "EQUIPMENT" | "RESOURCE" | "SERVICE" | "WANTED" | "BUNDLE";
     status: "DRAFT" | "ACTIVE" | "RESERVED" | "SOLD" | "EXPIRED" | "WITHDRAWN";
     title: string;
     description: string | null;
@@ -121,7 +123,21 @@ type SerializedListing = {
         naturalMin: number | null;
         naturalMax: number | null;
     }[];
-    components: { id: string; name: string; quantity: number; unitLabel: string | null }[];
+    components: {
+        id: string;
+        name: string;
+        quantity: number;
+        unitLabel: string | null;
+        /**
+         * 🧺 **Option A (§A4)** — prix **de cet objet** et état **de cet objet**
+         * (`AVAILABLE` / `RESERVED` / `SOLD`) : sans ces deux champs, la fiche ne
+         * pouvait ni afficher l'avancement du lot (3/5) ni permettre « Réserver
+         * cet objet ». Facultatifs côté type pour rester tolérant aux données
+         * historiques (un lot sans prix détaillé reste affichable).
+         */
+        priceKamas?: number | null;
+        status?: "AVAILABLE" | "RESERVED" | "SOLD";
+    }[];
 };
 
 interface MarketListingClientProps {
@@ -225,6 +241,15 @@ export function MarketListingClient({
 
     const sellerName = listing.profile?.pseudoDofus || listing.profile?.user?.name || "Membre";
     /**
+     * 🧺 **Option A (§A4)** — avancement du lot : nombre d'objets encore
+     * **disponibles** (badge « 3/5 disponibles » de la fiche). Tolérant aux données
+     * historiques : un objet dont l'état n'est pas porté est considéré disponible —
+     * exactement le comportement qui existait avant l'option A.
+     */
+    const availableComponents = listing.components.filter(
+        (component) => (component.status ?? "AVAILABLE") === "AVAILABLE"
+    ).length;
+    /**
      * S8.14 — DTO **minimal** de la bulle profil du vendeur (`id` interne, nom,
      * avatar, classe). Aucun email, aucun token, aucun identifiant Discord.
      */
@@ -306,6 +331,101 @@ export function MarketListingClient({
                         components: listing.components,
                     }}
                 />
+
+                {/* 🧺 **Option A (§A4)** — **avancement du lot** (`X/N disponibles`) et
+                    **réservation par objet** : chaque objet a son prix et son état, et se
+                    réserve séparément — exactement la capacité offerte par les boutons des
+                    messages Discord, portée par le **même** moteur serveur (§13.4). */}
+                {listing.type === "BUNDLE" && listing.components.length > 0 && (
+                    <Card className="bg-surface/60 border-border">
+                        <CardHeader>
+                            <CardTitle className="text-sm flex items-center justify-between gap-2">
+                                <span className="flex items-center gap-2">
+                                    <Handshake className="w-4 h-4 text-warning" />
+                                    Objets du lot
+                                </span>
+                                <Badge variant="outline" className="font-mono text-[11px]">
+                                    {availableComponents}/{listing.components.length} disponibles
+                                </Badge>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                            {listing.components.map((component) => {
+                                const componentStatus = component.status ?? "AVAILABLE";
+                                return (
+                                    <div
+                                        key={component.id}
+                                        className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background/40 px-3 py-2"
+                                    >
+                                        <div className="min-w-0">
+                                            <p className="text-xs font-semibold text-foreground truncate">
+                                                {component.quantity > 1 ? `${component.quantity} × ` : ""}
+                                                {component.name}
+                                            </p>
+                                            <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                                                {component.unitLabel ? <span>{component.unitLabel} ·</span> : null}
+                                                {typeof component.priceKamas === "number" ? (
+                                                    <KamasAmount value={component.priceKamas} />
+                                                ) : (
+                                                    <span>Prix non détaillé</span>
+                                                )}
+                                            </p>
+                                        </div>
+                                        <div className="flex shrink-0 items-center gap-2">
+                                            <Badge
+                                                variant="outline"
+                                                className={cn(
+                                                    "text-[10px] uppercase tracking-wider",
+                                                    componentStatus === "AVAILABLE"
+                                                        ? "border-success/40 text-success"
+                                                        : componentStatus === "RESERVED"
+                                                          ? "border-warning/40 text-warning"
+                                                          : "text-muted-foreground"
+                                                )}
+                                            >
+                                                {componentStatus === "AVAILABLE"
+                                                    ? "Disponible"
+                                                    : componentStatus === "RESERVED"
+                                                      ? "Réservé"
+                                                      : "Vendu"}
+                                            </Badge>
+                                            {!isOwner && componentStatus === "AVAILABLE" && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="gap-1.5"
+                                                    disabled={isPending}
+                                                    onClick={() =>
+                                                        run(
+                                                            () =>
+                                                                reserveMarketBundleComponent(
+                                                                    guildId,
+                                                                    listing.id,
+                                                                    component.id
+                                                                ),
+                                                            "Objet réservé. Le vendeur est prévenu."
+                                                        )
+                                                    }
+                                                >
+                                                    {isPending ? (
+                                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                    ) : (
+                                                        <Handshake className="w-3.5 h-3.5" />
+                                                    )}
+                                                    Réserver cet objet
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            <p className="text-[11px] text-muted-foreground">
+                                Chaque objet se réserve séparément, au prix affiché pour cet objet. L&apos;échange
+                                se conclut toujours en jeu.
+                            </p>
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* 🕒 Constat beta 14/09 — **timeline des offres** (décision user :
                     « un historique en live des offres validées / non validées, une

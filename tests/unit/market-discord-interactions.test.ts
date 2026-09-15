@@ -147,7 +147,8 @@ describe("market discord interactions — parsing des custom_id (S4.1)", () => {
 
     it("refuse toute forme ambiguë plutôt que de deviner (fail-closed)", () => {
         expect(parseMarketCustomId(`mkt:reserve`)).toBeNull(); // segment manquant
-        expect(parseMarketCustomId(`mkt:reserve:${LISTING_ID}:extra`)).toBeNull(); // segment en trop
+        expect(parseMarketCustomId(`mkt:reserve:${LISTING_ID}:short`)).toBeNull(); // objet trop court
+        expect(parseMarketCustomId(`mkt:reserve:${LISTING_ID}:${LISTING_ID}:x`)).toBeNull(); // 5 segments
         expect(parseMarketCustomId(`mkt:reserve:${LISTING_ID}`)).not.toBeNull(); // témoin
         expect(parseMarketCustomId(`mkt:delete:${LISTING_ID}`)).toBeNull(); // action inconnue
         expect(parseMarketCustomId(`svc:reserve:${LISTING_ID}`)).toBeNull(); // autre module
@@ -157,6 +158,39 @@ describe("market discord interactions — parsing des custom_id (S4.1)", () => {
         expect(parseMarketCustomId("mkt:reserve:a$b$c")).toBeNull(); // caractères non-cuid
         expect(parseMarketCustomId("")).toBeNull();
         expect(parseMarketCustomId("mkt")).toBeNull();
+    });
+
+    /**
+     * 🧺 **Option A** — un lot publie **un message par objet** : chaque message
+     * porte les `custom_id` de **son** objet (4 segments). La forme à 3 segments
+     * (annonces simples + messages publiés avant l'option A) doit rester acceptée :
+     * sans cette rétro-compatibilité, les boutons déjà en salon deviendraient muets.
+     */
+    describe("custom_id par objet (option A)", () => {
+        const COMPONENT_ID = "cm5marketcomponent0001";
+
+        it("accepte la forme à 4 segments et restitue l'objet visé", () => {
+            for (const action of ["reserve", "offer", "cancel"] as const) {
+                expect(parseMarketCustomId(`mkt:${action}:${LISTING_ID}:${COMPONENT_ID}`)).toEqual({
+                    action,
+                    listingId: LISTING_ID,
+                    componentId: COMPONENT_ID,
+                });
+            }
+        });
+
+        it("rétro-compatibilité : la forme à 3 segments reste valide, sans objet", () => {
+            const parsed = parseMarketCustomId(`mkt:reserve:${LISTING_ID}`);
+            expect(parsed).toEqual({ action: "reserve", listingId: LISTING_ID });
+            expect(parsed !== null && "componentId" in parsed).toBe(false);
+        });
+
+        it("refuse un identifiant d'objet invalide (fail-closed, mêmes bornes que l'annonce)", () => {
+            expect(parseMarketCustomId(`mkt:reserve:${LISTING_ID}:short`)).toBeNull();
+            expect(parseMarketCustomId(`mkt:reserve:${LISTING_ID}:${"a".repeat(41)}`)).toBeNull();
+            expect(parseMarketCustomId(`mkt:reserve:${LISTING_ID}:a$b$c$`)).toBeNull();
+            expect(parseMarketCustomId(`mkt:reserve:${LISTING_ID}:${COMPONENT_ID}:x`)).toBeNull();
+        });
     });
 
     it("construit l'URL de la fiche SigilOS sans double slash", () => {

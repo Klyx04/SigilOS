@@ -433,10 +433,11 @@ export async function publishListingToDiscord(
  * Idempotent : un objet déjà publié est **réécrit** (jamais reposté, §13.7), un
  * objet nouveau est **envoyé**. Jamais bloquant, comme le reste du service.
  *
- * ⚠️ **Boutons** : aucun pour l'instant sur ces messages. Les boutons par objet
- * exigent `mkt:<action>:<listingId>:<componentId>` (custom_id à **4 segments**)
- * — livré au commit suivant. Tant que ce n'est pas en place, mieux vaut un
- * message sans bouton qu'un bouton qui réserverait **le lot entier** par erreur.
+ * ⚠️ **Boutons** : ✅ livrés — chaque message porte SES boutons
+ * (`mkt:<action>:<listingId>:<componentId>`, `custom_id` à **4 segments**) : le
+ * clic réserve **cet objet** au prix de cet objet (`reserveBundleComponentCore`),
+ * jamais le lot entier. Les messages publiés avant cette livraison (sans bouton)
+ * sont réécrits à la première synchronisation, donc rattrapés automatiquement.
  */
 export async function syncBundleComponentMessages(listingId: string): Promise<MarketDiscordResult> {
     try {
@@ -458,6 +459,7 @@ export async function syncBundleComponentMessages(listingId: string): Promise<Ma
                 quantity: true,
                 unitLabel: true,
                 priceKamas: true,
+                status: true,
                 discordChannelId: true,
                 discordMessageId: true,
             },
@@ -477,30 +479,70 @@ export async function syncBundleComponentMessages(listingId: string): Promise<Ma
                 priceKamas: component.priceKamas ?? null,
                 unitLabel: component.unitLabel ?? null,
                 components: [{ name: component.name, quantity: component.quantity }],
+                // 🧺 Identifiant porté par les `custom_id` : bouton = cet objet.
+                componentId: component.id,
             };
             const built = buildMarketDiscordPayload(payload);
+
+            /**
+             * État **de cet objet** : un objet `SOLD` ou `RESERVED` ne doit plus
+             * proposer « Réserver au prix » (le bouton reste **visible mais
+             * désactivé** — Discord affiche le `disabled`, et un clic sur un vieux
+             * message est de toute façon refusé par le moteur atomique).
+             */
+            const componentStatus: MarketDiscordStatus =
+                component.status === "SOLD" || listing.status === "SOLD"
+                    ? "SOLD"
+                    : component.status === "RESERVED"
+                        ? "RESERVED"
+                        : listing.status;
+            const componentBuilt =
+                componentStatus === listing.status
+                    ? built
+                    : buildMarketDiscordPayload({ ...payload, status: componentStatus });
+
             const embed = {
-                embedTitle: built.embedTitle,
-                embedColor: built.embedColor,
-                embedDescription: built.embedDescription,
-                embedFooter: built.embedFooter,
-                embedImage: built.embedImage,
-                embedThumbnail: built.embedThumbnail,
-                fields: built.fields,
-                // Aucun bouton tant que le custom_id par objet n'est pas livré.
-                components: [],
+                embedTitle: componentBuilt.embedTitle,
+                embedColor: componentBuilt.embedColor,
+                embedDescription: componentBuilt.embedDescription,
+                embedFooter: componentBuilt.embedFooter,
+                embedImage: componentBuilt.embedImage,
+                embedThumbnail: componentBuilt.embedThumbnail,
+                fields: componentBuilt.fields,
+                components: componentBuilt.components,
             };
 
             if (component.discordMessageId && component.discordChannelId) {
-                const ok = await updateChannelMessage(
-                    component.discordChannelId,
-                    component.discordMessageId,
-                    "",
-                    embed
-                );
-                if (!ok) throw new Error("Édition Discord refusée (objet du lot)");
-                lastMessageId = component.discordMessageId;
-                continue;
+                try {
+                    await updateChannelMessage(
+                        component.discordChannelId,
+                        component.discordMessageId,
+                        "",
+                        embed
+                    );
+                    lastMessageId = component.discordMessageId;
+                    continue;
+                } catch (editError) {
+                    // 🧺 §A5 — message d'objet **supprimé à la main** (404) ou post forum
+                    // fermé : on **efface la trace** de l'objet puis on le republie, au lieu
+                    // d'échouer à chaque passe (l'ancien comportement laissait une annonce
+                    // `FAILED` définitivement irréconciliable). Même règle que §13.6 pour le
+                    // message d'annonce, portée ici pour les messages par objet.
+                    const detail = editError instanceof Error ? editError.message : String(editError);
+                    // Import **paresseux** : `maintenance.ts` importe ce module (aucun
+                    // cycle à l'évaluation), et la garde pure n'est nécessaire qu'ici.
+                    const { isDiscordMessageGoneError } = await import("@/server/market/maintenance");
+                    if (!isDiscordMessageGoneError(detail)) throw editError;
+
+                    await db.marketListingComponent.update({
+                        where: { id: component.id },
+                        data: { discordChannelId: null, discordMessageId: null },
+                    });
+                    logger.info("[market] message d'objet disparu — recréation", {
+                        listingId,
+                        componentId: component.id,
+                    });
+                }
             }
 
             const sent = await sendChannelMessage(listing.guild.marketNotifyChannelId, "", embed);
@@ -617,6 +659,35 @@ export async function deleteListingDiscordMessage(listingId: string): Promise<Ma
             where: { listingId },
             select: { discordChannelId: true, discordMessageId: true },
         });
+
+        /**
+         * 🧺 **Option A — nettoyage des messages par objet** : un lot a publié
+         * **un message par objet**. Les laisser en salon ferait survivre des
+         * boutons « Réserver » sur une annonce morte (§13.7). On les supprime
+         * **avant** de conclure, et leur trace est effacée pour qu'une
+         * republication ultérieure envoie de vrais messages neufs.
+         * Non bloquant : un échec est journalisé, jamais propagé — le message du
+         * lot reste supprimé et la trace `syncStatus = FAILED` porte l'erreur.
+         */
+        const components = await db.marketListingComponent.findMany({
+            where: { listingId, discordMessageId: { not: null } },
+            select: { id: true, discordChannelId: true, discordMessageId: true },
+        });
+        for (const component of components) {
+            if (!component.discordChannelId || !component.discordMessageId) continue;
+            const ok = await deleteChannelMessage(component.discordChannelId, component.discordMessageId);
+            if (!ok) {
+                logger.warn("[market] suppression du message d'objet refusée", {
+                    listingId,
+                    componentId: component.id,
+                });
+                continue;
+            }
+            await db.marketListingComponent.update({
+                where: { id: component.id },
+                data: { discordChannelId: null, discordMessageId: null },
+            });
+        }
 
         // Annonce jamais publiée (brouillon, salon non configuré) : rien à retirer.
         if (!existing) return { ok: true, skipped: true };

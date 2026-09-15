@@ -13,6 +13,13 @@ import { createSystemAuditLog, syncDofensiveMaps } from "@/lib/dofensive-sync";
  */
 export async function GET(req: Request) {
     if (!verifyCronSecret(req)) {
+        // 🔎 Télémétrie du refus (throttlée Redis 1×/10 min, sans secret) : le panneau
+        // God « Tâches CRON » affichait « Inconnu — Aucune exécution récente » alors que
+        // la tâche était déclenchée mais rejetée en 401 (secret de crontab absent/erroné
+        // ou URL d'un autre environnement). Le panneau montre désormais « Refusé (401) »,
+        // comme `market-expire` — plus de faux « jamais exécuté ».
+        const { recordCronRefusal } = await import("@/lib/cron-telemetry");
+        await recordCronRefusal("sync_dofensive_maps");
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

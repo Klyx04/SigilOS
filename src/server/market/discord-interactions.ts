@@ -48,6 +48,11 @@ import {
     type MarketReservationFailure,
 } from "@/server/market/reservations";
 import { createMarketOfferCore, type MarketOfferFailure } from "@/server/market/offers";
+import {
+    releaseBundleComponentCore,
+    reserveBundleComponentCore,
+    type BundleCoreReason,
+} from "@/server/market/bundle";
 
 /** Message éphémère renvoyé au membre (jamais vide, §13.5). */
 export type MarketEphemeralOutcome = {
@@ -107,6 +112,22 @@ const OFFER_FAILURE_MESSAGES: Record<MarketOfferFailure, string> = {
     // D43 — « kamas uniquement » : le refus vient du moteur partagé (§11.4).
     TRADE_NOT_ACCEPTED: MARKET_EPHEMERAL.OFFER_TRADE_NOT_ACCEPTED,
     INVALID: MARKET_EPHEMERAL.OFFER_INVALID,
+    ERROR: MARKET_EPHEMERAL.GENERIC_ERROR,
+};
+
+/**
+ * 🧺 **Option A** — refus du moteur **par objet** (`reserveBundleComponentCore`).
+ * Chaque motif a son message : l'acheteur doit comprendre *pourquoi* **cet objet**
+ * n'est pas réservable (déjà pris, déjà vendu, lot clôturé), jamais un « échec ».
+ */
+const BUNDLE_RESERVE_FAILURE_MESSAGES: Record<BundleCoreReason, string> = {
+    NOT_FOUND: MARKET_EPHEMERAL.LISTING_NOT_FOUND,
+    OWN_LISTING: MARKET_EPHEMERAL.RESERVE_OWN_LISTING,
+    NOT_AVAILABLE: MARKET_EPHEMERAL.RESERVE_UNAVAILABLE,
+    ALREADY_RESERVED: MARKET_EPHEMERAL.RESERVE_CONFLICT,
+    SOLD: "❌ Cet objet du lot a déjà été vendu.",
+    CONFLICT: MARKET_EPHEMERAL.RESERVE_CONFLICT,
+    INVALID: MARKET_EPHEMERAL.LISTING_NOT_FOUND,
     ERROR: MARKET_EPHEMERAL.GENERIC_ERROR,
 };
 
@@ -191,13 +212,23 @@ async function resolveMemberContext(
 }
 
 /**
- * S4.2 — `mkt:reserve:<listingId>` : réserve l'annonce au prix demandé.
+ * S4.2 — `mkt:reserve:<listingId>[:<componentId>]` : réserve l'annonce **ou
+ * l'objet visé** au prix demandé.
+ *
+ * 🧺 **Option A** : sur un lot, chaque message d'objet porte ses propres boutons
+ * (4 segments) ⇒ on délègue au moteur **par objet** (`reserveBundleComponentCore`),
+ * qui réserve *cet* objet à *son* prix. Sans `componentId`, on garde exactement le
+ * comportement historique (annonce entière) : rétro-compatibilité des messages
+ * publiés avant l'option A, et simplicité des annonces non-lot.
  */
 async function handleReserve(
     discordGuildId: string,
     listingId: string,
-    userId: string
+    userId: string,
+    componentId?: string
 ): Promise<MarketInteractionOutcome> {
+    if (componentId) return handleReserveComponent(discordGuildId, listingId, componentId, userId);
+
     const member = await resolveMemberContext(discordGuildId, userId);
     if (!member.ok) return member.outcome;
 
@@ -238,6 +269,90 @@ async function handleReserve(
         reservationId: outcome.reservationId,
     });
     return ephemeral(MARKET_EPHEMERAL.RESERVE_SUCCESS, true);
+}
+
+/**
+ * 🧺 **Option A** — `mkt:reserve:<listingId>:<componentId>` : réserve **un objet**
+ * d'un lot au prix de **cet objet**.
+ *
+ * Tout est résolu **côté serveur** (guilde interne, profil SigilOS, identités) :
+ * le `componentId` ne vient que du `custom_id` signé par Discord et est
+ * systématiquement re-vérifié comme appartenant bien à l'annonce
+ * (`reserveBundleComponentCore` porte `listingId` **et** `guildId` dans ses
+ * requêtes — isolation §16.2, aucune donnée du client n'est crue).
+ *
+ * Après succès, le message du lot **et** tous les messages d'objets sont
+ * resynchronisés par le point d'entrée habituel (`syncListingMessage`, non
+ * bloquant) : le bouton de l'objet réservé passe en « réservé », les autres
+ * restent disponibles.
+ */
+async function handleReserveComponent(
+    discordGuildId: string,
+    listingId: string,
+    componentId: string,
+    userId: string
+): Promise<MarketInteractionOutcome> {
+    const member = await resolveMemberContext(discordGuildId, userId);
+    if (!member.ok) return member.outcome;
+
+    // Re-clic sur SA propre réservation d'objet : même garde-fou que pour
+    // l'annonce entière (sinon « déjà réservé par quelqu'un d'autre »).
+    const ownReservation = await db.marketReservation.findFirst({
+        where: {
+            listingId,
+            componentId,
+            buyerProfileId: member.profileId,
+            status: "ACTIVE",
+            listing: { guildId: member.guildConfigId },
+        },
+        select: { id: true },
+    });
+    if (ownReservation) return ephemeral(MARKET_EPHEMERAL.RESERVE_ALREADY_YOURS);
+
+    const outcome = await reserveBundleComponentCore({
+        guildId: member.guildConfigId,
+        listingId,
+        componentId,
+        buyerProfileId: member.profileId,
+        buyerUserId: userId,
+        reservationHours: member.reservationHours,
+    });
+
+    if (!outcome.success) {
+        logger.info("[market] réservation d'objet refusée", {
+            discordGuildId,
+            listingId,
+            componentId,
+            reason: outcome.reason,
+        });
+        return ephemeral(BUNDLE_RESERVE_FAILURE_MESSAGES[outcome.reason] ?? MARKET_EPHEMERAL.RESERVE_UNAVAILABLE);
+    }
+
+    logger.info("[market] réservation d'objet créée depuis Discord", {
+        discordGuildId,
+        listingId,
+        componentId,
+        reservationId: outcome.data.reservationId,
+    });
+
+    // Resynchronisation **non bloquante** (même contrat que le désistement) :
+    // l'état réel doit apparaître dans le salon sans que le clic en dépende.
+    try {
+        const { syncListingMessage } = await import("@/server/market/discord");
+        await syncListingMessage(listingId);
+    } catch (error) {
+        logger.warn("[market] resynchronisation Discord après réservation d'objet échouée", {
+            discordGuildId,
+            listingId,
+            componentId,
+            err: error instanceof Error ? error.message : String(error),
+        });
+    }
+
+    const dashboardUrl = buildMarketDashboardUrl(getAppBaseUrl(), discordGuildId, listingId);
+    return ephemeral(MARKET_EPHEMERAL.RESERVE_SUCCESS, true, [
+        buildMarketDashboardLinkRow(dashboardUrl, MARKET_EPHEMERAL_LINK_LABEL),
+    ]);
 }
 
 /**
@@ -298,7 +413,8 @@ async function handleOffer(
 async function handleCancel(
     discordGuildId: string,
     listingId: string,
-    userId: string
+    userId: string,
+    componentId?: string
 ): Promise<MarketInteractionOutcome> {
     const member = await resolveMemberContext(discordGuildId, userId);
     if (!member.ok) return member.outcome;
@@ -309,18 +425,67 @@ async function handleCancel(
     });
     if (!listing) return ephemeral(MARKET_EPHEMERAL.LISTING_NOT_FOUND);
     if (listing.profileId === member.profileId) return ephemeral(MARKET_EPHEMERAL.CANCEL_OWN_LISTING);
-    if (listing.status !== "RESERVED") return ephemeral(MARKET_EPHEMERAL.CANCEL_UNAVAILABLE);
 
     const reservation = await db.marketReservation.findFirst({
         where: {
             listingId: listing.id,
             buyerProfileId: member.profileId,
             status: "ACTIVE",
+            // 🧺 Objet visé : un même lot peut avoir **plusieurs** réservations
+            // simultanées (une par objet) ⇒ le filtre par `componentId` est
+            // indispensable, sinon on annulerait la réservation d'un autre objet.
+            ...(componentId ? { componentId } : {}),
             listing: { guildId: member.guildConfigId },
         },
         select: { id: true },
     });
     if (!reservation) return ephemeral(MARKET_EPHEMERAL.CANCEL_NOT_YOURS);
+
+    /**
+     * 🧺 **Option A** — désistement sur un **objet** de lot : le moteur par objet
+     * libère l'objet **et** clôt la réservation (`releaseBundleComponentCore`),
+     * puis redérive le statut du lot (`refreshBundleListingStatusCore`) — le lot
+     * redevient `ACTIVE` s'il reste des objets disponibles.
+     */
+    if (componentId) {
+        const released = await releaseBundleComponentCore({
+            guildId: member.guildConfigId,
+            listingId: listing.id,
+            componentId,
+            reservationStatus: "CANCELLED_BY_BUYER",
+            actorUserId: userId,
+            reason: "Désistement de l'acheteur (Discord, objet du lot)",
+        });
+        if (!released.success) {
+            logger.info("[market] désistement d'objet refusé", {
+                discordGuildId,
+                listingId,
+                componentId,
+                reason: released.reason,
+            });
+            return ephemeral(MARKET_EPHEMERAL.CANCEL_UNAVAILABLE);
+        }
+
+        try {
+            const { syncListingMessage } = await import("@/server/market/discord");
+            await syncListingMessage(listingId);
+        } catch (error) {
+            logger.warn("[market] resynchronisation Discord après désistement d'objet échouée", {
+                discordGuildId,
+                listingId,
+                componentId,
+                err: error instanceof Error ? error.message : String(error),
+            });
+        }
+
+        logger.info("[market] désistement d'objet depuis Discord", { discordGuildId, listingId, componentId });
+        const componentDashboardUrl = buildMarketDashboardUrl(getAppBaseUrl(), discordGuildId, listingId);
+        return ephemeral(MARKET_EPHEMERAL.CANCEL_SUCCESS, true, [
+            buildMarketDashboardLinkRow(componentDashboardUrl, MARKET_EPHEMERAL_LINK_LABEL),
+        ]);
+    }
+
+    if (listing.status !== "RESERVED") return ephemeral(MARKET_EPHEMERAL.CANCEL_UNAVAILABLE);
 
     const outcome = await cancelMarketReservationCore({
         guildConfigId: member.guildConfigId,
@@ -415,9 +580,10 @@ export async function handleMarketComponentInteraction(params: {
     }
 
     // S4.2 — réservation : délègue au moteur partagé avec le dashboard (verrou
-    // §11.3, refus de sa propre annonce, embed réécrit).
+    // §11.3, refus de sa propre annonce, embed réécrit). Sur un **message par
+    // objet**, `parsed.componentId` route vers le moteur par objet (§A1).
     if (parsed.action === "reserve") {
-        return handleReserve(params.discordGuildId, parsed.listingId, params.userId);
+        return handleReserve(params.discordGuildId, parsed.listingId, params.userId, parsed.componentId);
     }
 
     // S4.3 — offre : ouvre la modale (type 9). La création de l'offre à la
@@ -426,9 +592,10 @@ export async function handleMarketComponentInteraction(params: {
         return handleOffer(params.discordGuildId, parsed.listingId, params.userId);
     }
 
-    // BUG-8 — désistement de l'acheteur (moteur partagé `cancelMarketReservationCore`).
+    // BUG-8 — désistement de l'acheteur (moteur partagé `cancelMarketReservationCore`,
+    // ou `releaseBundleComponentCore` sur un message par objet).
     if (parsed.action === "cancel") {
-        return handleCancel(params.discordGuildId, parsed.listingId, params.userId);
+        return handleCancel(params.discordGuildId, parsed.listingId, params.userId, parsed.componentId);
     }
 
     // Défensif : `parseMarketCustomId()` n'accepte que les 3 actions ci-dessus,

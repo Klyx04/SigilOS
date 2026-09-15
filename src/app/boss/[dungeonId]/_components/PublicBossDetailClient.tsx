@@ -9,7 +9,6 @@ import {
   Zap,
   Layers,
   Users,
-  ExternalLink,
   ArrowRight,
   Target,
   Flame,
@@ -349,21 +348,6 @@ export function PublicBossDetailClient({
             <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="h-3.5 w-3.5 rounded-sm" loading="lazy" />
             DofusDB
           </a>
-          {dungeon.dofensiveUrl && (
-            <>
-              <span className="text-border">·</span>
-              <a
-                href={dungeon.dofensiveUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                title="Voir sur Dofensive"
-              >
-                Dofensive
-                <ExternalLink className="h-3 w-3 opacity-60" />
-              </a>
-            </>
-          )}
         </div>
       </div>
 
@@ -908,16 +892,14 @@ export function PublicBossDetailClient({
         </div>
       )}
 
-      {/* ── LIENS GUIDES COMPLÉMENTAIRES ── */}
+      {/* ── LIENS GUIDES COMPLÉMENTAIRES ──
+          Le libellé « Guides : » n'apparaît que s'il y a réellement un lien
+          sortant à proposer (sinon il resterait orphelin). */}
       <div className="flex flex-wrap items-center gap-2 pt-2">
-        <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-          <Layers className="w-3.5 h-3.5" /> Guides :
-        </span>
-        {dungeon.dofensiveUrl && (
-          <a href={dungeon.dofensiveUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-surface/60 text-foreground text-xs font-bold hover:bg-surface transition-colors">
-            <img src="https://www.google.com/s2/favicons?domain=dofensive.com&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm" loading="lazy" />
-            Dofensive
-          </a>
+        {dungeon.dofuspourlesnoobsUrl && (
+          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            <Layers className="w-3.5 h-3.5" /> Guides :
+          </span>
         )}
         {dungeon.dofuspourlesnoobsUrl && (
           <a href={dungeon.dofuspourlesnoobsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-surface/60 text-foreground text-xs font-bold hover:bg-surface transition-colors">

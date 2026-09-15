@@ -16,6 +16,7 @@
  */
 
 import { useState, type ReactNode } from "react";
+import Image from "next/image";
 import { AlertCircle, Package, Plus, Trash2 } from "lucide-react";
 
 import {
@@ -108,16 +109,56 @@ export function MarketBundleItemsEditor({
                     return (
                         <li key={index} className="space-y-2 rounded-lg border border-border bg-card/50 p-3">
                             <div className="flex items-start gap-2">
-                                <span className="mt-2 w-4 text-xs text-muted-foreground">{index + 1}</span>
-                                <input
-                                    type="text"
-                                    value={item.name}
-                                    onChange={(event) => update(index, { name: event.target.value })}
-                                    onBlur={() => setTouched(true)}
-                                    disabled={disabled}
-                                    placeholder="Nom de l'objet (ex. Bois de Frêne)"
-                                    className="min-w-0 flex-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold/50"
-                                />
+                                <span className="mt-2.5 w-4 text-xs text-muted-foreground">{index + 1}</span>
+                                <div className="min-w-0 flex-1">
+                                    {item.name.trim().length > 0 ? (
+                                        <div className="flex items-center gap-3 rounded-lg border border-border bg-background/50 p-2">
+                                            {item.iconUrl ? (
+                                                <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-border bg-background/70">
+                                                    <Image
+                                                        src={item.iconUrl}
+                                                        alt=""
+                                                        fill
+                                                        sizes="40px"
+                                                        className="object-contain p-0.5"
+                                                        unoptimized
+                                                    />
+                                                </span>
+                                            ) : null}
+                                            <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                                                {item.name}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    update(index, {
+                                                        name: "",
+                                                        dofusDbItemId: null,
+                                                        iconUrl: null,
+                                                    })
+                                                }
+                                                disabled={disabled}
+                                                className="shrink-0 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+                                            >
+                                                Changer
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            <p className="text-xs text-muted-foreground">
+                                                Cherche l&apos;objet dans le catalogue : son nom et son
+                                                icône sont repris tels quels (rien à saisir à la main).
+                                            </p>
+                                            {renderPicker?.(index, (picked) =>
+                                                update(index, {
+                                                    dofusDbItemId: picked.ankamaId,
+                                                    name: picked.name,
+                                                    iconUrl: picked.iconUrl ?? null,
+                                                })
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                                 <button
                                     type="button"
                                     onClick={() => removeItem(index)}
@@ -132,14 +173,6 @@ export function MarketBundleItemsEditor({
                                     <Trash2 className="h-3.5 w-3.5" />
                                 </button>
                             </div>
-
-                            {renderPicker?.(index, (picked) =>
-                                update(index, {
-                                    dofusDbItemId: picked.ankamaId,
-                                    name: picked.name,
-                                    iconUrl: picked.iconUrl ?? null,
-                                })
-                            )}
 
                             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                                 <label className="space-y-1 text-xs text-muted-foreground">

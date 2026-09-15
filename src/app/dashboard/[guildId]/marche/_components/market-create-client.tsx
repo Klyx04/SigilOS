@@ -168,9 +168,14 @@ interface MarketCreateClientProps {
     guildId: string;
     /** S7.12 — annonce existante ⇒ mode **édition** (sinon création). */
     initial?: MarketListingEditInitial | null;
+    /**
+     * 🎨 Vignettes **réelles** des natures (objets siphonnés du catalogue local,
+     * résolues côté serveur) — jamais une illustration inventée.
+     */
+    natureIcons?: Partial<Record<ListingKind, string[]>>;
 }
 
-export function MarketCreateClient({ guildId, initial = null }: MarketCreateClientProps) {
+export function MarketCreateClient({ guildId, initial = null, natureIcons }: MarketCreateClientProps) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     /** S7.12 — édition d'une annonce existante : l'étape 4 (Discord) disparaît. */
@@ -689,6 +694,7 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
             {step === 1 && (
                 <StepNature
                     kind={kind}
+                    icons={natureIcons}
                     onPick={(picked) => {
                         setKind(picked);
                         // 🧺 Lot multiple — on part directement sur **2 objets**
@@ -1055,7 +1061,16 @@ function StepIndicator({ step, stepCount = 4 }: { step: 1 | 2 | 3 | 4; stepCount
 }
 
 /** Étape 1 — nature de l'annonce (BUG-11 : 3 familles + 🧺 lot multiple). */
-function StepNature({ kind, onPick }: { kind: ListingKind; onPick: (kind: ListingKind) => void }) {
+function StepNature({
+    kind,
+    icons,
+    onPick,
+}: {
+    kind: ListingKind;
+    /** 🎨 Vignettes réelles par nature (objets du catalogue local, résolues serveur). */
+    icons?: Partial<Record<ListingKind, string[]>>;
+    onPick: (kind: ListingKind) => void;
+}) {
     /**
      * Les 3 premières natures viennent de `MARKET_ITEM_FAMILY_LABELS` : « Équipement
      * forgemagie » et « Lot de ressources » sont **remplacés** par
@@ -1070,16 +1085,31 @@ function StepNature({ kind, onPick }: { kind: ListingKind; onPick: (kind: Listin
         label?: string;
         description?: string;
     }> = [
-        { kind: "EQUIPMENT", Icon: Hammer, tone: "text-gold" },
-        { kind: "COSMETIC", Icon: Sparkles, tone: "text-violet-400" },
-        { kind: "RESOURCE", Icon: Package, tone: "text-info" },
+        {
+            kind: "EQUIPMENT",
+            Icon: Hammer,
+            tone: "text-gold",
+            description:
+                "Coiffe, cape, anneau, ceinture, bottes, arme, bouclier : le barda de l'aventurier, jet déclarable.",
+        },
+        {
+            kind: "COSMETIC",
+            Icon: Sparkles,
+            tone: "text-violet-400",
+            description: "Apparats et costumes : l'apparence se vend brute, aucun jet à déclarer.",
+        },
+        {
+            kind: "RESOURCE",
+            Icon: Package,
+            tone: "text-info",
+            description: "Bois, minerais, runes, pains, ingrédients : au détail ou en lot, quantité libre.",
+        },
         {
             kind: "BUNDLE",
             Icon: Boxes,
             tone: "text-success",
             label: "Lot multiple",
-            description:
-                "De 2 à 5 objets différents vendus ensemble : chaque objet a son prix et son message Discord.",
+            description: "Plusieurs prises d'un coup : 2 à 5 objets, chacun son prix et son annonce Discord.",
         },
     ];
 
@@ -1100,7 +1130,35 @@ function StepNature({ kind, onPick }: { kind: ListingKind; onPick: (kind: Listin
                                 : "border-border bg-surface/60 hover:border-border-strong"
                         )}
                     >
-                        <Icon className={cn("w-6 h-6 mb-3", selected ? tone : "text-muted-foreground")} />
+                        {icons?.[optionKind]?.length ? (
+                            /* 🎨 Vignette(s) **réelle(s)** : l'objet du catalogue local
+                               lui-même. Un lot en montre trois (il est hétérogène). */
+                            <span
+                                className={cn(
+                                    "mb-3 flex h-11 items-center",
+                                    (icons?.[optionKind]?.length ?? 0) > 1 && "-space-x-2.5"
+                                )}
+                            >
+                                {(icons?.[optionKind] ?? []).map((url, position) => (
+                                    <span
+                                        key={url}
+                                        style={{ zIndex: 10 - position }}
+                                        className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-border bg-background/70 shadow-sm"
+                                    >
+                                        <Image
+                                            src={url}
+                                            alt=""
+                                            fill
+                                            sizes="44px"
+                                            className="object-contain p-0.5"
+                                            unoptimized
+                                        />
+                                    </span>
+                                ))}
+                            </span>
+                        ) : (
+                            <Icon className={cn("w-6 h-6 mb-3", selected ? tone : "text-muted-foreground")} />
+                        )}
                         <p className="font-bold text-foreground">
                             {label ?? MARKET_ITEM_FAMILY_LABELS[family]}
                         </p>
@@ -1869,7 +1927,17 @@ function CataloguePicker({
                         <button
                             key={result.ankamaId}
                             type="button"
-                            onClick={() => onSelect(result)}
+                            onClick={() => {
+                                onSelect(result);
+                                // UX (retour user 15/09) — le clic **referme** la
+                                // recherche : sans cela le panneau de résultats
+                                // restait ouvert sous la ligne, ce qui obligeait à
+                                // le fermer à la main pour chaque objet du lot.
+                                setQuery("");
+                                setResults([]);
+                                setSearched(false);
+                                setError(null);
+                            }}
                             className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-foreground/[0.03] transition-colors"
                         >
                             <span className="relative h-8 w-8 shrink-0 rounded-lg border border-border bg-background/60 overflow-hidden">

@@ -1767,8 +1767,11 @@ export async function updateMarketListing(
         // objet + jet + horodatage). Sans cela, changer l'objet laissait
         // l'ancienne image PNG dans l'embed (cache par URL côté Discord).
         if (existing.status === "ACTIVE" || existing.status === "RESERVED") {
-            const { regenerateMarketImage } = await import("@/server/market/discord");
-            void regenerateMarketImage(existing.id).catch((err) => {
+            const discordService = await import("@/server/market/discord");
+            // Appel **défensif** (`?.`) : les tests unitaires remplacent ce module
+            // par un double partiel — un service absent ne doit **jamais** faire
+            // échouer l'édition, l'annonce est déjà écrite en base.
+            void discordService.regenerateMarketImage?.(existing.id)?.catch((err) => {
                 logger.warn("[market] resynchro Discord différée après édition", {
                     listingId: existing.id,
                     err: String(err),

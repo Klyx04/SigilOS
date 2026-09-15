@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Search, Sparkles, ChevronDown, ArrowRight } from "lucide-react";
+import { Search, Swords, ChevronDown, ArrowRight } from "lucide-react";
 import type { BestiaireEntry } from "@/server/actions/game-data-actions";
 
 interface PublicBossCatalogClientProps {
@@ -78,7 +78,7 @@ function FilterDropdown({
         <div
           role="listbox"
           aria-label={ariaLabel}
-          className={`absolute z-50 mt-2 min-w-full w-max max-w-[260px] rounded-xl border border-white/10 bg-popover shadow-2xl p-1 ${align === "right" ? "right-0" : "left-0"}`}
+          className={`absolute z-50 mt-2 min-w-full w-max max-w-[260px] rounded-lg border border-border-strong bg-elevated shadow-2xl p-1 ${align === "right" ? "right-0" : "left-0"}`}
         >
           {options.map((o) => (
             <button
@@ -128,10 +128,15 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
   }, [bosses, search, selectedRange, selectedType]);
 
   return (
-    <div className="space-y-6">
-      {/* ── SEARCH & FILTERS BAR : 1 champ + 2 dropdowns compacts ── */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-3 rounded-2xl bg-surface/60 border border-white/[0.08] backdrop-blur-xl shadow-xl">
-        {/* Search */}
+    <div className="space-y-5">
+      {/* ── BARRE DE FILTRES ────────────────────────────────────────────────
+          `relative z-30` : indispensable — la barre contient les menus déroulants
+          (enfants `z-50`) et la grille de cartes SUIT dans le DOM. Sans contexte
+          d'empilement positif ici, les cartes (positionnées) passaient devant les
+          listes ouvertes (« le drop-down est sous le reste »). On retire aussi le
+          `backdrop-blur` qui créait un contexte d'empilement à `z-auto`. */}
+      <div className="relative z-30 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-3 rounded-xl bg-surface/60 border border-border">
+        {/* Recherche */}
         <div className="relative flex-1">
           <Search className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
@@ -140,11 +145,11 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher un boss, un donjon..."
             aria-label="Rechercher un boss ou un donjon"
-            className="w-full h-10 pl-10 pr-4 rounded-xl bg-background/60 border border-white/10 text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:border-amber-500/50 transition-colors"
+            className="w-full h-10 pl-10 pr-4 rounded-lg bg-background/60 border border-border text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:border-warning/50 transition-colors"
           />
         </div>
 
-        {/* Type dropdown (Tous / Boss / Titan) */}
+        {/* Type (Tous / Boss / Titan) */}
         <FilterDropdown
           value={selectedType}
           onChange={(v) => setSelectedType(v as TypeFilter)}
@@ -152,7 +157,7 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
           ariaLabel="Filtrer par type"
         />
 
-        {/* Level dropdown */}
+        {/* Niveau */}
         <FilterDropdown
           value={String(selectedRange)}
           onChange={(v) => setSelectedRange(Number(v))}
@@ -162,28 +167,28 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
         />
       </div>
 
-      {/* ── COUNT & RESULT SUMMARY ── */}
-      <div className="flex items-center justify-between px-1 text-xs text-muted-foreground font-semibold">
-        <span>{filteredBosses.length} boss et donjons répertoriés</span>
-        <span>Simulations de sorts & grille 3D disponibles</span>
+      {/* ── COMPTEUR ── */}
+      <div className="px-1 text-xs text-muted-foreground">
+        <span className="font-mono">{filteredBosses.length}</span> entrée{filteredBosses.length > 1 ? "s" : ""} — boss de donjon, titans et monstres jouables
       </div>
 
-      {/* ── BOSS CARDS GRID ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* ── CARTES ──────────────────────────────────────────────────────────
+          Sobriété volontaire : bordures franches, aucune ombre portée ni glow,
+          un seul accent (or) réservé au survol. Aucune animation de zoom : on
+          lit des données, on ne « vend » pas une app. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {filteredBosses.map((boss) => {
           const bossName = boss.bossName || boss.name;
           const dungeonName = boss.name;
 
           return (
-            <div
+            <Link
               key={boss.id}
-              className="group relative rounded-2xl border border-white/[0.08] bg-surface/50 hover:bg-surface/80 hover:border-amber-500/30 p-5 transition-all duration-200 flex flex-col justify-between shadow-lg overflow-hidden"
+              href={`/boss/${boss.id}`}
+              className="group rounded-lg border border-border bg-surface/30 hover:bg-surface/60 hover:border-warning/40 transition-colors p-3.5 flex flex-col gap-3"
             >
-              <div className="space-y-4">
-                {/* Header card */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-14 h-14 rounded-xl bg-background/80 border border-white/10 flex items-center justify-center p-1 shrink-0 overflow-hidden shadow-inner">
+              <div className="flex items-start gap-3">
+                <div className="w-11 h-11 rounded-md bg-background/70 border border-border flex items-center justify-center overflow-hidden shrink-0">
                       {(() => {
                         let monsterId: string | null = boss.dofusdbId ? String(boss.dofusdbId) : null;
                         if (!monsterId && boss.imageUrl) {
@@ -198,7 +203,7 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
                           <img
                             src={src}
                             alt={bossName}
-                            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                            className="w-full h-full object-contain"
                             loading="lazy"
                             onError={(e) => {
                               // Fallback local garanti (l'ancien monster-fallback.png n'existe pas en public/)
@@ -208,44 +213,32 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
                             }}
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-white/[0.04] text-warning/40">
-                            <Sparkles className="w-5 h-5" />
-                          </div>
+                          <Swords className="w-4 h-4 text-muted-foreground" />
                         );
                       })()}
                     </div>
-                    <div className="min-w-0">
-                      <h3 className="text-sm font-bold text-foreground group-hover:text-warning transition-colors truncate">
+
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-semibold text-foreground truncate group-hover:text-warning transition-colors">
                         {bossName}
                       </h3>
                       <p className="text-xs text-muted-foreground truncate">{dungeonName}</p>
                     </div>
                   </div>
 
-                  <div className="flex flex-col items-end gap-1 shrink-0">
-                    <span className="px-2 py-0.5 rounded-md bg-warning/10 border border-warning/20 text-warning font-mono font-bold text-[11px]">
-                      Niv. {boss.level}
+                  <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-border">
+                    <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <span className="font-mono font-semibold text-foreground/90">{boss.level}</span>
+                      {boss.type === "titan" && (
+                        <span className="uppercase tracking-wide text-[10px] text-warning/90">Titan</span>
+                      )}
                     </span>
-                    {boss.type === "titan" && (
-                      <span className="px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/30 text-amber-300 font-black text-[10px] uppercase tracking-wider">
-                        Titan
-                      </span>
-                    )}
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground group-hover:text-warning transition-colors">
+                      Fiche
+                      <ArrowRight className="w-3 h-3" />
+                    </span>
                   </div>
-                </div>
-              </div>
-
-              {/* Actions Footer */}
-              <div className="pt-4 mt-4 border-t border-white/[0.06] flex items-center justify-end gap-2">
-                <Link
-                  href={`/boss/${boss.id}`}
-                  className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-warning/15 hover:bg-warning/25 text-warning text-xs font-bold border border-warning/30 transition-colors"
-                >
-                  <span>Fiche complète</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-            </div>
+            </Link>
           );
         })}
       </div>

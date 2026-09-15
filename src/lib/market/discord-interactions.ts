@@ -33,6 +33,12 @@ export type MarketInteractionAction = "reserve" | "offer" | "cancel";
 export type MarketCustomId = {
     action: MarketInteractionAction;
     listingId: string;
+    /**
+     * 🧺 **Option A** — objet visé quand le bouton vient d'un **message par objet**
+     * (`mkt:<action>:<listingId>:<componentId>`). `undefined` = bouton d'une annonce
+     * entière (message historique ou annonce simple).
+     */
+    componentId?: string;
 };
 
 /**
@@ -71,7 +77,12 @@ const LISTING_ID_MAX_LENGTH = 40;
 const LISTING_ID_PATTERN = /^[a-z0-9]+$/i;
 
 /**
- * `mkt:<action>:<listingId>` → action + annonce.
+ * `mkt:<action>:<listingId>[:<componentId>]` → action + annonce (+ objet).
+ *
+ * 🧺 **Option A** : un lot publie **un message par objet**, chacun porteur de SES
+ * boutons ⇒ `custom_id` à **4 segments**. La forme à **3 segments** (annonces
+ * simples, messages publiés avant l'option A) reste acceptée à l'identique : les
+ * boutons déjà en salon continuent de fonctionner, sans resynchronisation forcée.
  *
  * Retourne `null` dès que la forme n'est **pas exactement** celle produite par
  * les boutons (§0.1 fail-closed) : un `custom_id` bricolé, tronqué, d'une autre
@@ -81,15 +92,28 @@ export function parseMarketCustomId(customId: string): MarketCustomId | null {
     if (typeof customId !== "string") return null;
 
     const parts = customId.split(":");
-    if (parts.length !== 3) return null;
+    if (parts.length !== 3 && parts.length !== 4) return null;
 
-    const [prefix, rawAction, listingId] = parts;
+    const [prefix, rawAction, listingId, componentId] = parts;
     if (prefix !== MARKET_INTERACTION_PREFIX) return null;
     if (!MARKET_INTERACTION_ACTIONS.includes(rawAction as MarketInteractionAction)) return null;
     if (listingId.length < LISTING_ID_MIN_LENGTH || listingId.length > LISTING_ID_MAX_LENGTH) return null;
     if (!LISTING_ID_PATTERN.test(listingId)) return null;
 
-    return { action: rawAction as MarketInteractionAction, listingId };
+    // Segment optionnel : mêmes bornes et mêmes caractères que l'ID d'annonce
+    // (cuid/cuid2 d'objet de lot) — jamais un `componentId` fantaisiste.
+    if (componentId !== undefined) {
+        if (componentId.length < LISTING_ID_MIN_LENGTH || componentId.length > LISTING_ID_MAX_LENGTH) {
+            return null;
+        }
+        if (!LISTING_ID_PATTERN.test(componentId)) return null;
+    }
+
+    return {
+        action: rawAction as MarketInteractionAction,
+        listingId,
+        ...(componentId !== undefined ? { componentId } : {}),
+    };
 }
 
 /**

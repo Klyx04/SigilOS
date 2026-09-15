@@ -76,6 +76,15 @@ export type MarketDiscordPayloadInput = {
     exoLabels?: string[];
     /** Contenu du lot (affiché à 5 lignes max + « + N autres »). */
     components?: { name: string; quantity: number }[];
+    /**
+     * 🧺 **Option A — un message par objet** : identifiant de l'objet du lot porté
+     * par le `custom_id` des boutons (`mkt:<action>:<listingId>:<componentId>`).
+     *
+     * Absent ⇒ boutons de **l'annonce entière** (annonces simples et annonces de
+     * lot publiées avant l'option A) : la forme à 3 segments reste produite, donc
+     * les messages déjà en salon continuent de fonctionner sans resynchronisation.
+     */
+    componentId?: string | null;
     /** URL absolue de la carte PNG générée (optionnelle : publication sans image OK). */
     imageUrl?: string | null;
     /** URL absolue de la fiche SigilOS (bouton lien). */
@@ -303,6 +312,7 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
         offersCount = 0,
         exoLabels,
         components: lotComponents,
+        componentId,
         imageUrl,
         dashboardUrl,
         forumMode,
@@ -397,19 +407,26 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
      */
     const reserveDisabled = status !== "ACTIVE";
     const offerDisabled = !["ACTIVE", "RESERVED"].includes(status) || !negotiable;
+    /**
+     * 🧺 **Option A** — suffixe des `custom_id` : `:${componentId}` sur les messages
+     * **par objet** (un lot publie N messages, chacun réservable seul), rien sur les
+     * messages d'annonce entière. Le serveur accepte **les deux** formes : un bouton
+     * publié avant cette livraison continue de réserver l'annonce entière.
+     */
+    const componentSuffix = componentId ? `:${componentId}` : "";
     const buttons: Array<Record<string, unknown>> = [
         {
             type: 2,
             style: 3,
             label: "Réserver au prix",
-            custom_id: `mkt:reserve:${listingId}`,
+            custom_id: `mkt:reserve:${listingId}${componentSuffix}`,
             disabled: reserveDisabled,
         },
         {
             type: 2,
             style: 1,
             label: "Faire une offre",
-            custom_id: `mkt:offer:${listingId}`,
+            custom_id: `mkt:offer:${listingId}${componentSuffix}`,
             // §13.5 : l'offre exige une annonce négociable et non terminale.
             disabled: offerDisabled,
         },
@@ -422,7 +439,7 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
                       type: 2,
                       style: 4,
                       label: "Me désister",
-                      custom_id: `mkt:cancel:${listingId}`,
+                      custom_id: `mkt:cancel:${listingId}${componentSuffix}`,
                       disabled: false,
                   },
               ]
@@ -439,7 +456,9 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
         embedTitle,
         embedDescription: `${author}\n${descriptionLines.join("\n")}`.trim(),
         embedColor: MARKET_DISCORD_COLORS[status],
-        embedFooter: `SigilOS Market • Annonce #${shortListingId(listingId)}`,
+        embedFooter: componentId
+            ? `SigilOS Market • Annonce #${shortListingId(listingId)} • Objet #${shortListingId(componentId)}`
+            : `SigilOS Market • Annonce #${shortListingId(listingId)}`,
         /**
          * BUG-4 (constat beta) — la **miniature est toujours renseignée** quand
          * une icône exploitable existe (objet, sinon 1ᵉʳ composant du lot) :

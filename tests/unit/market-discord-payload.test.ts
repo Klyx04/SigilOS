@@ -414,3 +414,32 @@ describe("D49 — le réservataire est nommé dans l'embed (décision user du 14
         expect(payload.fields.find((f) => f.name === "Offres")?.value).toBe("4 en cours");
     });
 });
+/**
+ * 🧺 **Option A — un message par objet** : les boutons d'un message d'objet
+ * portent un `custom_id` à **4 segments** (`mkt:<action>:<listingId>:<componentId>`)
+ * pour que le clic réserve **cet** objet et pas le lot entier. Sans objet, la
+ * forme historique à 3 segments est strictement conservée.
+ */
+describe("option A — boutons par objet", () => {
+    const componentId = "cm5marketcomponent0001";
+
+    it("porte l'objet dans les trois boutons et dans le pied d'embed", () => {
+        const payload = buildMarketDiscordPayload({ ...base, status: "RESERVED", componentId });
+        const buttons = buttonsOf(payload);
+        expect(buttons.some((b) => b.custom_id === `mkt:reserve:${base.listingId}:${componentId}`)).toBe(true);
+        expect(buttons.some((b) => b.custom_id === `mkt:offer:${base.listingId}:${componentId}`)).toBe(true);
+        expect(buttons.some((b) => b.custom_id === `mkt:cancel:${base.listingId}:${componentId}`)).toBe(true);
+        // Le pied d'embed distingue les N messages d'un même lot dans le salon.
+        expect(payload.embedFooter).toContain("Objet #");
+        // Page fiche : on reste sur l'annonce (une URL, une seule forme).
+        expect(payload.embedFooter).toContain(shortListingId(base.listingId));
+    });
+
+    it("sans objet : forme historique à 3 segments, aucun segment en trop", () => {
+        const buttons = buttonsOf(buildMarketDiscordPayload(base));
+        expect(buttons.some((b) => b.custom_id === `mkt:reserve:${base.listingId}`)).toBe(true);
+        expect(buttons.every((b) => !b.custom_id || b.custom_id.split(":").length === 3)).toBe(true);
+        expect(buildMarketDiscordPayload(base).embedFooter).not.toContain("Objet #");
+    });
+});
+

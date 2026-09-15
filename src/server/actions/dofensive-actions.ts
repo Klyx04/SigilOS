@@ -23,7 +23,7 @@ import type {
     DofensiveZoneShape,
 } from "@/lib/dofensive-spells";
 import { dofensiveFetch, norm, toSafeId } from "@/lib/dofensive-fetch";
-import { deriveDofensiveMonsterName } from "@/lib/dofensive-boss";
+import { deriveDofensiveMonsterName, pickDofensiveMonsterId } from "@/lib/dofensive-boss";
 import {
     getLocalDofensiveDungeon,
     getLocalDofensiveMap,
@@ -598,7 +598,19 @@ export async function getBossDofensiveSpells(
     opts?: { dofensiveMonsterName?: string | null; dofensiveDungeonName?: string | null }
 ): Promise<ActionResponse<DofensiveSpellCombat[]>> {
     const dungeon = await getDofensiveDungeonForBoss(monsterName, dungeonName, opts);
-    const monsterId = dungeon.success ? toSafeId(dungeon.data?.bossMonsterId) : null;
+    if (!dungeon.success || !dungeon.data) return { success: false, error: "Monstre Dofensive introuvable" };
+
+    // 🐞 FIX « les monstres de salle affichaient les sorts du boss » : on résout l'ID du
+    // monstre DEMANDÉ dans la famille du donjon (`monsters`), au lieu de prendre
+    // systématiquement `bossMonsterId` — sinon « Tambourreau » héritait des sorts de
+    // « Servitude » (onglets du dashboard, overlay et simulation).
+    // Le repli sur le boss reste garanti quand le nom demandé n'est pas dans la famille
+    // (nommage DofusDB ≠ Dofensive) ⇒ aucune régression sur l'entité principale.
+    const monsterId = pickDofensiveMonsterId(
+        dungeon.data.monsters,
+        opts?.dofensiveMonsterName ?? monsterName,
+        dungeon.data.bossMonsterId
+    );
     if (!monsterId) return { success: false, error: "Monstre Dofensive introuvable" };
     return getDofensiveSpells(monsterId, gradeLevel, forceRefresh);
 }

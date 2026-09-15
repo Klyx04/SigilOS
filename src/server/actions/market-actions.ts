@@ -1775,12 +1775,21 @@ export async function updateMarketListing(
              *    reste du module (`syncListingMessage`) : aucune duplication, et
              *    le service reste celui observé par les tests et les crons.
              */
-            await db.marketDiscordMessage.updateMany({
-                where: { listingId: existing.id },
-                data: {
-                    generatedImageStorageKey: `og:${data.dofusDbItemId ?? 0}:${resolvedStats.hash ?? "0"}:${Date.now()}`,
-                },
-            });
+            try {
+                await db.marketDiscordMessage.updateMany({
+                    where: { listingId: existing.id },
+                    data: {
+                        generatedImageStorageKey: `og:${data.dofusDbItemId ?? 0}:${resolvedStats.hash ?? "0"}:${Date.now()}`,
+                    },
+                });
+            } catch (err) {
+                // Jamais bloquant : la traçabilité Discord ne fait pas échouer
+                // l'édition (l'annonce est déjà écrite, l'embed sera resynchronisé).
+                logger.warn("[market] invalidation de la carte impossible après édition", {
+                    listingId: existing.id,
+                    err: String(err),
+                });
+            }
             void syncListingMessage(existing.id).catch((err) => {
                 logger.warn("[market] resynchro Discord différée après édition", {
                     listingId: existing.id,

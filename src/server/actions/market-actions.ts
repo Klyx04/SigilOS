@@ -1714,17 +1714,36 @@ export async function updateMarketListing(
             }
 
             await tx.marketListingComponent.deleteMany({ where: { listingId: existing.id } });
-            if (data.components.length > 0) {
+            /**
+             * 🧺 Lot multiple — les objets viennent de `items[]` (le prix vit sur
+             * l'objet) et **non** de `components[]`, et ils portent leur
+             * `priceKamas`. Sans cette branche, éditer un lot changeait bien le
+             * titre/la description, mais **la liste d'objets et leurs prix
+             * n'étaient jamais enregistrés** (constat user du 15/09/2026).
+             */
+            const componentRows =
+                data.type === "BUNDLE" && data.items.length > 0
+                    ? data.items.map((item, index) => ({
+                          position: index,
+                          dofusDbItemId: item.dofusDbItemId ?? null,
+                          name: item.name,
+                          iconUrl: normalizeItemIconUrl(item.iconUrl ?? null, item.dofusDbItemId ?? null),
+                          quantity: item.quantity,
+                          unitLabel: item.unitLabel ?? null,
+                          priceKamas: item.priceKamas,
+                      }))
+                    : data.components.map((component, index) => ({
+                          position: index,
+                          dofusDbItemId: component.dofusDbItemId ?? null,
+                          name: component.name,
+                          iconUrl: normalizeItemIconUrl(component.iconUrl ?? null, component.dofusDbItemId ?? null),
+                          quantity: component.quantity,
+                          unitLabel: component.unitLabel ?? null,
+                          priceKamas: null,
+                      }));
+            if (componentRows.length > 0) {
                 await tx.marketListingComponent.createMany({
-                    data: data.components.map((component, index) => ({
-                        listingId: existing.id,
-                        position: index,
-                        dofusDbItemId: component.dofusDbItemId ?? null,
-                        name: component.name,
-                        iconUrl: normalizeItemIconUrl(component.iconUrl ?? null, component.dofusDbItemId ?? null),
-                        quantity: component.quantity,
-                        unitLabel: component.unitLabel ?? null,
-                    })),
+                    data: componentRows.map((row) => ({ ...row, listingId: existing.id })),
                 });
             }
         });

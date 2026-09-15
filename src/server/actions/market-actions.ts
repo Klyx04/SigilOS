@@ -32,11 +32,14 @@ import {
     resolveMarketItemPolicy,
 } from "@/lib/market/item-families";
 import { publishListingToDiscord, syncListingMessage } from "@/server/market/discord";
+import { listGuildMembers } from "@/server/discord";
 // BUG-1 — une seule forme d'URL d'icône d'objet (proxy auto-siphon, jamais 404) :
 // normalisée **à l'écriture** et **à la lecture** (annonces déjà en base).
 import { normalizeItemIconUrl } from "@/lib/market/item-image";
 import { writeMarketAuditLog } from "@/server/market/audit";
 import { reserveMarketListingCore, cancelMarketReservationCore } from "@/server/market/reservations";
+import { reserveBundleComponentCore } from "@/server/market/bundle";
+import { notifyMarketSellerActivity } from "@/server/market/notifications";
 import {
     cancelMarketOfferCore,
     createMarketOfferCore,
@@ -947,6 +950,108 @@ export async function reserveMarketListing(
         logger.error("[reserveMarketListing] failed", { err: error });
         return { success: false, error: "Erreur interne" };
     }
+}
+
+/**
+ * 🧺 **Option A (§A4)** — « **Réserver cet objet** » depuis la **fiche SigilOS**
+ * (`/dashboard/<guild>/marche/<listingId>`), exactement comme le fait le bouton du
+ * message Discord par objet.
+ *
+ * Réutilise le moteur partagé `reserveBundleComponentCore()` (§13.4 : aucune règle
+ * dupliquée) : la disponibilité de l'objet est portée par le `WHERE` de l'`updateMany`
+ * (`status: "AVAILABLE"`) ⇒ deux clics simultanés, un seul gagne. Le contexte
+ * acheteur (profil SigilOS) **et** la guilde interne sont résolus côté serveur ;
+ * `listingId`/`componentId` sont bornés par Zod et re-vérifiés par le moteur
+ * (l'objet doit appartenir à l'annonce **et** à la guilde — isolation §16.2).
+ *
+ * Après succès : le vendeur est prévenu (§11.9) et les messages Discord du lot sont
+ * resynchronisés — les deux appels sont **non bloquants** (une panne d'alerte ne
+ * peut pas transformer une réservation déjà commitée en échec affiché).
+ */
+export async function reserveMarketBundleComponent(
+    guildId: string,
+    listingId: string,
+    componentId: string
+): Promise<ActionResponse<{ reservationId: string; priceKamas: number }>> {
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+        const { user, guildConfig } = ctx;
+        if (!user.profileId) return { success: false, error: "Profil introuvable" };
+
+        const parsed = z
+            .object({
+                listingId: z.string().min(1).max(64),
+                componentId: z.string().min(1).max(64),
+            })
+            .safeParse({ listingId, componentId });
+        if (!parsed.success) return { success: false, error: "Objet introuvable" };
+
+        const session = await auth();
+        const outcome = await reserveBundleComponentCore({
+            guildId: guildConfig.id,
+            listingId: parsed.data.listingId,
+            componentId: parsed.data.componentId,
+            buyerProfileId: user.profileId,
+            buyerUserId: session?.user?.id ?? user.id ?? "",
+            reservationHours: guildConfig.marketReservationHours,
+        });
+        if (!outcome.success) return { success: false, error: outcome.error };
+
+        // §11.9 — le vendeur est la cible n°1 (notification + mention dans le fil).
+        try {
+            const listing = await db.marketListing.findFirst({
+                where: { id: parsed.data.listingId, guildId: guildConfig.id },
+                select: {
+                    id: true,
+                    title: true,
+                    userId: true,
+                    profileId: true,
+                    guild: { select: { discordGuildId: true } },
+                },
+            });
+            if (listing) {
+                await notifyMarketSellerActivity({
+                    type: "MARKET_RESERVED",
+                    ownerUserId: listing.userId,
+                    ownerProfileId: listing.profileId,
+                    actorProfileId: user.profileId,
+                    listingId: listing.id,
+                    discordGuildId: listing.guild.discordGuildId,
+                    itemLabel: listing.title,
+                    reservationHours: reservationHoursForLabel(guildConfig),
+                });
+            }
+        } catch (err) {
+            logger.warn("[reserveMarketBundleComponent] alerte vendeur différée", { err: String(err) });
+        }
+
+        // Messages Discord du lot (l'objet réservé passe en « réservé ») — différé.
+        void syncListingMessage(parsed.data.listingId).catch((err) =>
+            logger.warn("[reserveMarketBundleComponent] synchronisation Discord différée", {
+                listingId: parsed.data.listingId,
+                err: String(err),
+            })
+        );
+
+        revalidatePath(`/dashboard/${guildId}/marche`);
+        revalidatePath(`/dashboard/${guildId}/marche/${parsed.data.listingId}`);
+        return {
+            success: true,
+            data: {
+                reservationId: outcome.data.reservationId,
+                priceKamas: outcome.data.priceKamas,
+            },
+        };
+    } catch (error) {
+        logger.error("[reserveMarketBundleComponent] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+/** Durée de réservation lisible transmise aux notifications (§11.2). */
+function reservationHoursForLabel(guildConfig: { marketReservationHours: number }): number {
+    return Math.max(1, guildConfig.marketReservationHours);
 }
 
 /**
@@ -2231,6 +2336,67 @@ export async function getMarketPublishContext(
         };
     } catch (error) {
         logger.error("[getMarketPublishContext] failed", { err: error });
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+/**
+ * 🧺 **§A2 — estimation de l'audience notifiée** (« 👥 X membres seront
+ * notifiés ») : compteur **dédupliqué** (union des rôles cochés), **jamais** une
+ * liste de membres (§13.7 — le créateur n'a pas à voir qui sera ping).
+ *
+ * Garde-fous :
+ *   · lecture seule, même gating que le reste du module (`resolveMarketContext`) ;
+ *   · les rôles transmis sont **intersectés** avec `marketAllowedPingRoleIds` :
+ *     un rôle non autorisé ne peut pas servir à compter (fail-closed) ;
+ *   · comptage borné à **une page Discord** (1000 membres) et annoncé
+ *     `approximate: true` quand la page est pleine — jamais de boucle non bornée ;
+ *   · Discord injoignable ⇒ `available: false` + compteur 0 : l'UI masque
+ *     simplement la ligne d'estimation, la publication reste possible.
+ */
+export async function estimateMarketPingAudience(
+    guildId: string,
+    roleIds: string[]
+): Promise<ActionResponse<{ count: number; approximate: boolean; available: boolean; roleCount: number }>> {
+    try {
+        const ctx = await resolveMarketContext(guildId);
+        if ("error" in ctx) return { success: false, error: ctx.error };
+        const { guildConfig } = ctx;
+
+        const parsed = z.array(z.string().min(1).max(32)).max(25).safeParse(roleIds);
+        if (!parsed.success) return { success: false, error: "Rôles invalides" };
+
+        const allowed = Array.isArray(guildConfig.marketAllowedPingRoleIds)
+            ? (guildConfig.marketAllowedPingRoleIds as string[]).filter((roleId) => roleId !== guildId)
+            : [];
+        const selected = parsed.data.filter((roleId) => allowed.includes(roleId));
+
+        if (selected.length === 0) {
+            return { success: true, data: { count: 0, approximate: false, available: true, roleCount: 0 } };
+        }
+
+        try {
+            const members = await listGuildMembers(guildId, 1000);
+            const wanted = new Set(selected);
+            // Déduplication par **membre** : un membre portant deux rôles cochés
+            // ne compte qu'une fois (le ping le mentionnerait une seule fois).
+            const matched = members.filter((member) => (member.roles ?? []).some((roleId) => wanted.has(roleId)));
+
+            return {
+                success: true,
+                data: {
+                    count: matched.length,
+                    approximate: members.length >= 1000,
+                    available: true,
+                    roleCount: selected.length,
+                },
+            };
+        } catch (error) {
+            logger.warn("[estimateMarketPingAudience] Discord injoignable", { guildId, err: String(error) });
+            return { success: true, data: { count: 0, approximate: false, available: false, roleCount: selected.length } };
+        }
+    } catch (error) {
+        logger.error("[estimateMarketPingAudience] failed", { err: error });
         return { success: false, error: "Erreur interne" };
     }
 }

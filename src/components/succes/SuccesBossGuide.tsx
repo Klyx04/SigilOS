@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Brain, Compass, ExternalLink, Flame, Info, Loader2, MapPin, PictureInPicture2, ScrollText, Search, Shield, Swords, Target, Users, X, Zap, Gem } from "lucide-react";
+import { Brain, Compass, Crown, ExternalLink, Flame, Info, Loader2, MapPin, PictureInPicture2, ScrollText, Search, Shield, Swords, Target, Users, X, Zap, Gem, ArrowRight } from "lucide-react";
 import { useBossOverlay } from "@/hooks/use-boss-overlay";
 import { getDungeonsWithAchievements, getDungeonMonsters, getMonsterStats } from "@/server/actions/game-data-actions";
 import { getLinkedQuests } from "@/server/actions/dofus-quest-actions";
@@ -359,7 +359,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                <Swords className="w-8 h-8 animate-spin mb-4 text-warning" />
+                <Swords className="w-8 h-8 animate-spin mb-4 text-muted-foreground" />
                 <p className="font-medium">Chargement des fiches boss…</p>
             </div>
         );
@@ -425,7 +425,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                 className={cn(
                                     "flex flex-col rounded-2xl border overflow-hidden transition-colors text-left group",
                                     activeBossId === d.id
-                                        ? "border-warning/60 bg-elevated"
+                                        ? "border-border-strong bg-elevated"
                                         : "border-border bg-surface/70 hover:bg-elevated/80 hover:border-border-strong"
                                 )}
                             >
@@ -441,7 +441,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                     </div>
                                 </div>
                                 <div className="p-3 border-t border-border">
-                                    <p className="text-sm font-bold text-foreground leading-tight truncate group-hover:text-warning transition-colors">{d.bossName}</p>
+                                    <p className="text-sm font-bold text-foreground leading-tight truncate group-hover:text-foreground transition-colors">{d.bossName}</p>
                                     <p className="text-xs text-muted-foreground mt-0.5 truncate">{d.name}</p>
                                 </div>
                             </button>
@@ -466,12 +466,12 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                             <div>
                                 <div className="flex items-center gap-2">
                                     <h3 className="text-xl font-bold text-foreground">{activeMonsterName ?? selected.bossName}</h3>
-                                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-warning/10 border border-warning/25 text-warning">
+                                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-border text-muted-foreground">
                                         Niveau {selected.level}
                                     </span>
                                 </div>
                                 <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
-                                    <Compass className="w-3.5 h-3.5 text-warning" />
+                                    <Compass className="w-3.5 h-3.5 opacity-70" />
                                     Donjon : <strong className="text-foreground">{selected.name}</strong>
                                 </p>
                             </div>
@@ -515,8 +515,8 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                         className={cn(
                                             "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors",
                                             isOverlayOpen
-                                                ? "border-amber-500/50 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25"
-                                                : "border-amber-500/30 bg-amber-500/8 text-amber-400/80 hover:bg-amber-500/15 hover:text-amber-300 hover:border-amber-500/50"
+                                                ? "border-border-strong bg-white/[0.08] text-foreground hover:bg-white/[0.12]"
+                                                : "border border-border text-muted-foreground hover:border-border-strong hover:text-foreground"
                                         )}
                                     >
                                         <PictureInPicture2 className="w-3.5 h-3.5" />
@@ -546,7 +546,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                         if (isLoadingCurrent && !currentStats) {
                             return (
                                 <div className="flex items-center justify-center p-6 rounded-2xl bg-surface border border-border gap-3 text-muted-foreground">
-                                    <Loader2 className="w-5 h-5 animate-spin text-warning" />
+                                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                                     <span className="text-xs font-bold">Chargement des caractéristiques de {activeMonsterName ?? selected.bossName}…</span>
                                 </div>
                             );
@@ -559,78 +559,76 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
 
                         return (
                             <div className="space-y-2">
-                                {/* Barre de Vitalité & Résistances rapprochées */}
-                                <div className="flex flex-wrap items-center gap-2 sm:gap-3 py-2 px-1 border-y border-border/40 my-1">
+                                {/* Barre unifiée PV/PA/PM + résistances + grade.
+                                    Avant : 9 « pastilles » bordées (une par valeur, chacune avec sa
+                                    couleur de fond) ⇒ beaucoup de bruit pour une poignée de nombres.
+                                    Une seule barre, trois groupes séparés par des filets : mêmes
+                                    données, mêmes icônes, zéro décoration. La couleur reste sur les
+                                    **icônes** (données de jeu) et sur les valeurs négatives. */}
+                                <div className="my-1 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border bg-surface/40 px-3 py-2.5">
                                     {/* PV / PA / PM */}
-                                    <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
-                                        {/* PV */}
-                                        <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-surface border border-border/70" title="Points de Vie">
-                                            <img src="/assets/module-succes/vitalite.png" alt="PV" className="w-4 h-4 object-contain" />
-                                            <span className="text-sm font-bold text-foreground tabular-nums">
-                                                {g ? g.lifePoints?.toLocaleString("fr-FR") : "-"}
+                                    <div className="flex items-center gap-3">
+                                        <span className="inline-flex items-center gap-1.5" title="Points de Vie">
+                                            <img src="/assets/module-succes/vitalite.png" alt="" className="w-4 h-4 object-contain" />
+                                            <span className="font-mono text-[15px] text-foreground tabular-nums">
+                                                {g ? g.lifePoints?.toLocaleString("fr-FR") : "—"}
                                             </span>
-                                            <span className="text-[11px] font-bold text-muted-foreground">PV</span>
-                                        </div>
+                                            <span className="text-[11px] text-muted-foreground">PV</span>
+                                        </span>
 
-                                        {/* PA */}
-                                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-info/10 border border-info/20" title="Points d'Action">
-                                            <span className="text-sm font-bold text-info tabular-nums">
-                                                {g?.actionPoints ?? "-"}
+                                        <span className="inline-flex items-center gap-1.5" title="Points d'Action">
+                                            <img src="/assets/dofus/stats/pa.png" alt="" className="w-4 h-4 object-contain" />
+                                            <span className="font-mono text-[15px] text-foreground tabular-nums">
+                                                {g?.actionPoints ?? "—"}
                                             </span>
-                                            <span className="text-[11px] font-bold text-info/80">PA</span>
-                                        </div>
+                                            <span className="text-[11px] text-muted-foreground">PA</span>
+                                        </span>
 
-                                        {/* PM */}
-                                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-success/10 border border-success/20" title="Points de Mouvement">
-                                            <span className="text-sm font-bold text-success tabular-nums">
-                                                {g?.movementPoints ?? "-"}
+                                        <span className="inline-flex items-center gap-1.5" title="Points de Mouvement">
+                                            <img src="/assets/dofus/stats/pm.png" alt="" className="w-4 h-4 object-contain" />
+                                            <span className="font-mono text-[15px] text-foreground tabular-nums">
+                                                {g?.movementPoints ?? "—"}
                                             </span>
-                                            <span className="text-[11px] font-bold text-success/80">PM</span>
-                                        </div>
+                                            <span className="text-[11px] text-muted-foreground">PM</span>
+                                        </span>
                                     </div>
 
-                                    {/* Séparateur vertical */}
-                                    <div className="hidden sm:block h-5 w-px bg-border/80 mx-0.5" />
+                                    <span className="h-5 w-px bg-border" />
 
-                                    {/* Résistances élémentaires 5 colonnes */}
-                                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface/70 border border-border/60" title="Résistance Neutre">
-                                            <img src="/assets/module-succes/neutre.png" alt="Neutre" className="w-4 h-4 object-contain" />
-                                            <b className="text-sm font-bold text-foreground tabular-nums">{resists.neutral ?? 0}%</b>
-                                            <span className="text-[11px] font-bold text-muted-foreground hidden sm:inline">Neutre</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-warning/10 border border-warning/20" title="Résistance Terre">
-                                            <img src="/assets/module-succes/terre.png" alt="Terre" className="w-4 h-4 object-contain" />
-                                            <b className="text-sm font-bold text-warning tabular-nums">{resists.earth ?? 0}%</b>
-                                            <span className="text-[11px] font-bold text-warning/80 hidden sm:inline">Terre</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-danger/10 border border-danger/20" title="Résistance Feu">
-                                            <img src="/assets/module-succes/Intelligence.png" alt="Feu" className="w-4 h-4 object-contain" />
-                                            <b className="text-sm font-bold text-danger tabular-nums">{resists.fire ?? 0}%</b>
-                                            <span className="text-[11px] font-bold text-danger/80 hidden sm:inline">Feu</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-info/10 border border-info/20" title="Résistance Eau">
-                                            <img src="/assets/module-succes/eau.png" alt="Eau" className="w-4 h-4 object-contain" />
-                                            <b className="text-sm font-bold text-info tabular-nums">{resists.water ?? 0}%</b>
-                                            <span className="text-[11px] font-bold text-info/80 hidden sm:inline">Eau</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-success/10 border border-success/20" title="Résistance Air">
-                                            <img src="/assets/module-succes/Agility.png" alt="Air" className="w-4 h-4 object-contain" />
-                                            <b className="text-sm font-bold text-success tabular-nums">{resists.air ?? 0}%</b>
-                                            <span className="text-[11px] font-bold text-success/80 hidden sm:inline">Air</span>
-                                        </div>
+                                    {/* Résistances — libellé discret, valeur mono, négatif coloré */}
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                        {(
+                                            [
+                                                { key: "neutral", label: "Neutre", icon: "/assets/module-succes/neutre.png", value: resists.neutral ?? 0 },
+                                                { key: "earth", label: "Terre", icon: "/assets/module-succes/terre.png", value: resists.earth ?? 0 },
+                                                { key: "fire", label: "Feu", icon: "/assets/module-succes/Intelligence.png", value: resists.fire ?? 0 },
+                                                { key: "water", label: "Eau", icon: "/assets/module-succes/eau.png", value: resists.water ?? 0 },
+                                                { key: "air", label: "Air", icon: "/assets/module-succes/Agility.png", value: resists.air ?? 0 },
+                                            ] as const
+                                        ).map(({ key, label, icon, value }) => (
+                                            <span key={key} className="inline-flex items-center gap-1.5" title={`Résistance ${label}`}>
+                                                <img src={icon} alt="" className="w-4 h-4 object-contain" />
+                                                <span className={cn("font-mono text-[13px] tabular-nums", value < 0 ? "text-danger" : "text-foreground/85")}>
+                                                    {value}%
+                                                </span>
+                                                <span className="hidden text-[11px] text-muted-foreground sm:inline">{label}</span>
+                                            </span>
+                                        ))}
                                     </div>
 
-                                    {/* Tag de grade actif avec raccourci vers l'onglet Grades */}
+                                    {/* Raccourci vers l'onglet des paliers (même information, un clic) */}
                                     {grades && grades.length > 1 && (
                                         <button
                                             type="button"
                                             onClick={() => setDetailTab("grades")}
-                                            className="ml-auto px-2 py-1 rounded-lg bg-warning/10 border border-warning/25 text-warning text-[11px] font-bold hover:bg-warning/20 transition-colors flex items-center gap-1"
+                                            className="ml-auto inline-flex items-center gap-1.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
                                             title="Ouvrir l'onglet des grades & paliers"
                                         >
-                                            <Flame className="w-3 h-3" />
-                                            {grades.length === 5 ? `Butin ${4 + gradeIdx}` : `Grade ${1 + gradeIdx}`}
+                                            <Flame className="w-3.5 h-3.5" />
+                                            <span className="font-mono">
+                                                {grades.length === 5 ? `butin ${4 + gradeIdx}` : `grade ${1 + gradeIdx}`}
+                                            </span>
+                                            <ArrowRight className="w-3 h-3" />
                                         </button>
                                     )}
                                 </div>
@@ -655,7 +653,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                         ];
 
                         return (
-                            <div className="flex items-center gap-1.5 p-1 bg-surface border border-border rounded-xl overflow-x-auto no-scrollbar">
+                            <div className="flex items-center gap-1 overflow-x-auto border-b border-border no-scrollbar">
                                 {tabs.map((tab) => {
                                     const Icon = tab.icon;
                                     const isActive = detailTab === tab.id;
@@ -665,13 +663,13 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                             type="button"
                                             onClick={() => setDetailTab(tab.id as any)}
                                             className={cn(
-                                                "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-colors whitespace-nowrap",
+                                                "flex items-center gap-2 border-b-2 -mb-px px-3 py-2 text-xs transition-colors whitespace-nowrap",
                                                 isActive
-                                                    ? "bg-warning/15 text-warning border border-warning/30"
-                                                    : "text-muted-foreground hover:text-foreground hover:bg-elevated/50"
+                                                    ? "border-foreground/60 text-foreground"
+                                                    : "border-transparent text-muted-foreground hover:text-foreground"
                                             )}
                                         >
-                                            <Icon className={cn("w-3.5 h-3.5", isActive ? "text-warning" : "text-muted-foreground")} />
+                                            <Icon className="w-3.5 h-3.5" />
                                             <span>{tab.label}</span>
                                         </button>
                                     );
@@ -684,7 +682,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                     {detailTab === "grades" && (
                         <div className="space-y-4">
                             <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                                <Flame className="w-4 h-4 text-warning" /> Paliers de Grades & Caractéristiques de Combat
+                                <Flame className="w-4 h-4 opacity-70" /> Paliers de Grades & Caractéristiques de Combat
                             </h4>
                             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                                 <Info className="w-3.5 h-3.5" /> Les caractéristiques ci-dessous varient selon le grade sélectionné.
@@ -707,7 +705,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                                     className={cn(
                                                         "p-3.5 rounded-2xl border transition-colors flex flex-col justify-between space-y-3",
                                                         isActive
-                                                            ? "border-warning/50 bg-warning/10"
+                                                            ? "border-border-strong bg-white/[0.06]"
                                                             : "border-border bg-surface"
                                                     )}
                                                 >
@@ -749,7 +747,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                                         className={cn(
                                                             "w-full py-1.5 rounded-xl text-xs font-bold transition-colors",
                                                             isActive
-                                                                ? "bg-warning text-warning-foreground"
+                                                                ? "bg-foreground text-background"
                                                                 : "bg-surface border border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
                                                         )}
                                                     >
@@ -768,7 +766,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                     {detailTab === "family" && (
                         <div className="space-y-3">
                             <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                                <Users className="w-4 h-4 text-warning" /> Monstres accompagnateurs de la salle
+                                <Users className="w-4 h-4 opacity-70" /> Monstres accompagnateurs de la salle
                             </h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                                 {(familyByDungeon[selected.id]?.monsters || []).map((m) => {
@@ -779,7 +777,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                             className={cn(
                                                 "p-3 rounded-2xl border transition-colors flex flex-col justify-between space-y-2.5 group",
                                                 isActive
-                                                    ? "border-warning/50 bg-warning/10"
+                                                    ? "border-border-strong bg-white/[0.06]"
                                                     : "border-border bg-surface hover:border-border-strong"
                                             )}
                                         >
@@ -792,7 +790,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                                     )}
                                                 </div>
                                                 <div className="min-w-0 flex-1">
-                                                    <p className={cn("text-xs font-bold truncate", isActive ? "text-warning font-bold" : "text-foreground")}>
+                                                    <p className={cn("text-xs font-bold truncate", isActive ? "text-foreground" : "text-muted-foreground")}>
                                                         {m.isBoss && "👑 "}{m.name}
                                                     </p>
                                                     <span className="text-[11px] text-muted-foreground block">
@@ -818,7 +816,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                                         selectMonster(selected, m);
                                                         setDetailTab("sim");
                                                     }}
-                                                    className="py-1 px-2.5 rounded-lg bg-warning/15 border border-warning/30 text-warning text-[11px] font-bold hover:bg-warning/25 transition-colors text-center flex items-center gap-1"
+                                                    className="py-1 px-2.5 rounded-lg border border-border text-muted-foreground text-[11px] hover:text-foreground transition-colors text-center flex items-center gap-1"
                                                     title="Simuler la portée de ce monstre"
                                                 >
                                                     <Target className="w-3 h-3" /> Simuler
@@ -847,9 +845,9 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                     <div>
                                         <div className="flex flex-wrap items-center gap-2 mb-4">
                                             <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                                                <Zap className="w-4 h-4 text-warning" /> Mécaniques clés
+                                                <Zap className="w-4 h-4 opacity-70" /> Mécaniques clés
                                             </h4>
-                                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-warning/10 border border-warning/25 text-warning">
+                                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full border border-border text-muted-foreground">
                                                 {spells.length} sorts à anticiper
                                             </span>
                                         </div>
@@ -865,7 +863,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                                                 {spell.imageUrl ? (
                                                                     <MonsterImage src={spell.imageUrl} alt={spell.name} assetType="spells" assetId={spell.id} className="w-full h-full object-contain" />
                                                                 ) : (
-                                                                    <Zap className="w-3.5 h-3.5 text-warning" />
+                                                                    <Zap className="w-3.5 h-3.5 opacity-70" />
                                                                 )}
                                                             </div>
                                                             <div className="min-w-0">
@@ -892,7 +890,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                                             setSelectedSpellId(spell.id);
                                                             setDetailTab("sim");
                                                         }}
-                                                        className="mt-3 text-xs font-bold text-warning hover:text-warning/80 self-start transition-colors flex items-center gap-1"
+                                                        className="mt-3 text-xs font-semibold text-muted-foreground hover:text-foreground self-start transition-colors flex items-center gap-1"
                                                     >
                                                         <Target className="w-3.5 h-3.5" /> Voir la portée
                                                     </button>
@@ -909,7 +907,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                     {detailTab === "overview" && (
                         <div>
                             <div className="flex items-center gap-2 mb-3">
-                                <Zap className="w-4 h-4 text-warning" />
+                                <Zap className="w-4 h-4 opacity-70" />
                                 <h4 className="text-sm font-bold text-foreground">
                                     Tous les sorts ({statsOf(selected)?.spells?.length ?? 0})
                                 </h4>
@@ -925,7 +923,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                                 {spell.imageUrl ? (
                                                     <MonsterImage src={spell.imageUrl} alt={spell.name} assetType="spells" assetId={spell.id} className="w-8 h-8 object-contain rounded-lg bg-background border border-border p-0.5" />
                                                 ) : (
-                                                    <Zap className="w-4 h-4 text-warning" />
+                                                    <Zap className="w-4 h-4 opacity-70" />
                                                 )}
                                                 <div>
                                                     <span className="flex items-center gap-1.5">
@@ -947,7 +945,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                                     setSelectedSpellId(spell.id);
                                                     setDetailTab("sim");
                                                 }}
-                                                className="text-[11px] font-bold px-2 py-1 rounded-md bg-warning/10 border border-warning/20 text-warning hover:bg-warning/20 transition-colors shrink-0"
+                                                className="text-[11px] font-bold px-2 py-1 rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors shrink-0"
                                             >
                                                 Simuler
                                             </button>
@@ -980,7 +978,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                                                         {det.masks.length > 0 && <span className="block text-muted-foreground/80">{det.masks.join(" · ")}</span>}
                                                                         {det.triggers.length > 0 && (
                                                                             <span className="block text-muted-foreground/80 flex items-center gap-1">
-                                                                                <Zap className="w-3 h-3 text-warning shrink-0" />
+                                                                                <Zap className="w-3 h-3 shrink-0 opacity-70" />
                                                                                 {det.triggers.join(" · ")}
                                                                             </span>
                                                                         )}
@@ -993,7 +991,7 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                                         <p className="text-muted-foreground/80">Effets critiques : aucun.</p>
                                                     ) : hasCritical ? (
                                                         <div className="space-y-0.5 pt-1 border-t border-border/60">
-                                                            <span className="block text-[11px] font-bold uppercase tracking-wide text-warning">Effets critiques</span>
+                                                            <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Effets critiques</span>
                                                             <ul className="space-y-0.5">
                                                                 {criticals.map((ce, k) => (
                                                                     <li key={k} className="text-muted-foreground">• {ce}</li>
@@ -1010,20 +1008,19 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                         </div>
                     )}
 
-                    {/* Onglet : Simulation */}
+                    {/* Onglet : Simulation — un seul panneau (la grille porte déjà son
+                        cadre) et une ligne d'entité sobre, sans or décoratif. */}
                     {detailTab === "sim" && (
                         <div className="space-y-3">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div className="flex items-center gap-2">
-                                    <Target className="w-4 h-4 text-warning" />
-                                    <h4 className="text-sm font-bold text-foreground">
-                                        Simulation & Portée des Sorts
-                                    </h4>
-                                </div>
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <h4 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                                    <Target className="w-4 h-4 opacity-70" />
+                                    Simulation &amp; portée des sorts
+                                </h4>
 
                                 {familyByDungeon[selected.id]?.monsters && familyByDungeon[selected.id].monsters.length > 1 && (
-                                    <div className="flex items-center gap-1 bg-background/60 border border-border/80 p-1 rounded-xl overflow-x-auto max-w-full">
-                                        <span className="text-[11px] font-bold text-muted-foreground px-1.5 hidden sm:inline">
+                                    <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-border bg-background/40 p-1">
+                                        <span className="hidden shrink-0 px-1.5 text-[11px] text-muted-foreground sm:inline">
                                             Entité :
                                         </span>
                                         {familyByDungeon[selected.id].monsters.map((m) => {
@@ -1034,16 +1031,16 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                                     type="button"
                                                     onClick={() => selectMonster(selected, m)}
                                                     className={cn(
-                                                        "flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[11px] font-bold transition-colors shrink-0",
+                                                        "flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-[11px] transition-colors",
                                                         isActive
-                                                            ? "bg-warning/20 border border-warning/40 text-warning font-bold"
-                                                            : "bg-surface border border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
+                                                            ? "bg-white/[0.10] text-foreground"
+                                                            : "text-muted-foreground hover:text-foreground"
                                                     )}
                                                 >
                                                     {m.imageUrl && (
-                                                        <MonsterImage src={m.imageUrl} alt={m.name} monsterId={m.id} className="w-3 h-3 object-contain rounded-xs" />
+                                                        <MonsterImage src={m.imageUrl} alt="" monsterId={m.id} className="w-3 h-3 object-contain" />
                                                     )}
-                                                    {m.isBoss && "👑 "}
+                                                    {m.isBoss && <Crown className="h-3 w-3 text-amber-300/80" />}
                                                     {m.name}
                                                 </button>
                                             );
@@ -1071,8 +1068,8 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                     {/* Onglet : Butin */}
                     {detailTab === "loot" && (
                         <div>
-                            <h4 className="text-sm font-bold text-info mb-3 flex items-center gap-1.5">
-                                <Brain className="w-4 h-4" /> Butins notables & Taux de drop
+                            <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-1.5">
+                                <Brain className="w-4 h-4 opacity-70" /> Butins notables &amp; taux de drop
                             </h4>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
                                 {(statsOf(selected)?.drops ?? []).map((drop, idx) => (
@@ -1112,12 +1109,12 @@ export function SuccesBossGuide({ guildId }: { guildId: string }) {
                                         navigator.clipboard.writeText(travelCmd);
                                         toast.success(`Commande ${travelCmd} copiée !`);
                                     }}
-                                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-background border border-border hover:border-warning/50 text-foreground transition-colors group"
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-background border border-border hover:border-border-strong text-foreground transition-colors group"
                                     title="Cliquer pour copier la commande /travel"
                                 >
-                                    <MapPin className="w-3.5 h-3.5 text-warning shrink-0" />
+                                    <MapPin className="w-3.5 h-3.5 shrink-0 opacity-70" />
                                     <span>
-                                        Entrée du donjon : <strong className="text-warning">[{coords.x}, {coords.y}]</strong>
+                                        Entrée du donjon : <strong className="font-mono text-foreground/90">[{coords.x}, {coords.y}]</strong>
                                     </span>
                                     <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-surface border border-border text-muted-foreground font-mono">
                                         {travelCmd}

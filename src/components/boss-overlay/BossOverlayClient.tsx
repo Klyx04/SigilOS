@@ -5,6 +5,7 @@ import {
   Brain,
   ChevronDown,
   ChevronLeft,
+  ChevronRight,
   ChevronUp,
   Compass,
   ExternalLink,
@@ -143,38 +144,39 @@ function MonsterImage({
   );
 }
 
-// ─── ResistBar avec icône officielle Dofus ─────────────────────────────────────
+// ─── ResistBar — lecture « table de données » (label → barre → valeur) ────────
+//
+// Refonte confort joueur (15/09) : la valeur n'est plus un gros nombre coloré mais
+// une **mesure** en fin de ligne (mono, blanc), la barre passe à 3 px et le libellé
+// vient **en premier** — on balaie les 5 lignes verticalement sans chercher où lire.
+// Seules les couleurs **sémantiques** du jeu restent (élément + malus en rose).
 
 function ResistBar({
   label,
   value,
   iconSrc,
-  colorClass,
   barColor,
 }: {
   label: string;
   value: number;
   iconSrc: string;
-  colorClass: string;
   barColor: string;
 }) {
   const isNeg = value < 0;
   const pct = Math.max(0, Math.min(100, Math.abs(value)));
   return (
-    <div className="flex items-center gap-2 text-[11px] py-0.5">
-      <div className="w-5 h-5 flex items-center justify-center shrink-0">
-        <img src={iconSrc} alt={label} className="w-4 h-4 object-contain" />
-      </div>
-      <span className={cn("w-10 text-right font-bold tabular-nums shrink-0", isNeg ? "text-rose-400" : colorClass)}>
-        {value}%
-      </span>
-      <div className="flex-1 h-2 rounded-full bg-white/[0.06] overflow-hidden">
+    <div className="flex items-center gap-2.5 text-[11px]">
+      <img src={iconSrc} alt={label} className="w-3.5 h-3.5 object-contain opacity-90 shrink-0" />
+      <span className="w-[52px] shrink-0 text-white/55">{label}</span>
+      <div className="flex-1 h-[3px] rounded-full bg-white/[0.07] overflow-hidden">
         <div
-          className={cn("h-full rounded-full transition-all duration-300", isNeg ? "bg-rose-500" : barColor)}
+          className={cn("h-full rounded-full", isNeg ? "bg-rose-500/80" : barColor)}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="text-white/40 w-12 text-[10px] font-medium truncate">{label}</span>
+      <span className={cn("w-10 shrink-0 text-right tabular-nums", isNeg ? "text-rose-400" : "text-white/75")}>
+        {value}%
+      </span>
     </div>
   );
 }
@@ -193,10 +195,10 @@ function SpellCard({
   return (
     <div
       className={cn(
-        "rounded-xl border transition-all overflow-hidden",
+        "rounded-lg border transition-colors overflow-hidden",
         isOpen
-          ? "border-amber-500/50 bg-amber-500/[0.06] shadow-md shadow-black/40"
-          : "border-white/[0.07] bg-white/[0.03] hover:border-white/15 hover:bg-white/[0.05]"
+          ? "border-white/[0.12] bg-white/[0.045]"
+          : "border-white/[0.07] bg-white/[0.02] hover:border-white/[0.13] hover:bg-white/[0.04]"
       )}
     >
       <button
@@ -216,32 +218,33 @@ function SpellCard({
               }}
             />
           ) : (
-            <Zap className="w-4 h-4 text-amber-400/40" />
+            <Zap className="w-4 h-4 text-white/25" />
           )}
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[12px] font-bold text-white/90 truncate">{spell.name}</span>
+            <span className="text-[12px] font-medium text-white/90 truncate">{spell.name}</span>
+            {/* PA / PO : texte mono compact (icônes du jeu), plus de pastilles colorées */}
             {spell.apCost !== undefined && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-300 shrink-0">
-                <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-3 h-3 object-contain" />
+              <span className="inline-flex items-center gap-0.5 font-mono text-[10px] text-white/55 shrink-0">
+                <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-3 h-3 object-contain opacity-90" />
                 {spell.apCost}
               </span>
             )}
             {spell.range !== undefined && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-sky-500/15 border border-sky-500/30 text-sky-300 shrink-0">
-                <img src="/assets/dofus/stats/po.png" alt="PO" className="w-3 h-3 object-contain" />
+              <span className="inline-flex items-center gap-0.5 font-mono text-[10px] text-white/55 shrink-0">
+                <img src="/assets/dofus/stats/po.png" alt="PO" className="w-3 h-3 object-contain opacity-90" />
                 {spell.minRange && spell.minRange !== spell.range ? `${spell.minRange}-${spell.range}` : spell.range}
               </span>
             )}
           </div>
           <div className="flex items-center gap-2 text-[10px] text-white/40 mt-0.5">
-            {spell.castInLine && <span className="text-amber-400/70">Ligne</span>}
-            {spell.castInDiagonal && <span className="text-purple-400/70">Diagonale</span>}
-            {spell.castTestLos === false && <span className="text-emerald-400/80 font-semibold">Sans LdV</span>}
+            {spell.castInLine && <span>Ligne</span>}
+            {spell.castInDiagonal && <span>Diagonale</span>}
+            {spell.castTestLos === false && <span className="text-emerald-400/80">Sans LdV</span>}
             {spell.criticalChance !== undefined && spell.criticalChance > 0 && (
-              <span className="text-orange-400/70">{spell.criticalChance}% CC</span>
+              <span>{spell.criticalChance}% CC</span>
             )}
           </div>
         </div>
@@ -249,7 +252,7 @@ function SpellCard({
         <ChevronDown
           className={cn(
             "w-4 h-4 text-white/40 transition-transform duration-200 shrink-0",
-            isOpen && "rotate-180 text-amber-400"
+            isOpen && "rotate-180"
           )}
         />
       </button>
@@ -278,13 +281,13 @@ function SpellCard({
             {spell.minCastInterval !== undefined && spell.minCastInterval > 0 && (
               <div>
                 <span className="text-white/40">Relance : </span>
-                <strong className="text-amber-400 font-semibold">{spell.minCastInterval} tour{spell.minCastInterval > 1 ? "s" : ""}</strong>
+                <strong className="text-white/90 font-medium">{spell.minCastInterval} tour{spell.minCastInterval > 1 ? "s" : ""}</strong>
               </div>
             )}
             {spell.zone && spell.zone.shape !== "Inconnue" && (
               <div className="col-span-2">
                 <span className="text-white/40">Zone : </span>
-                <strong className="text-amber-300 font-semibold">{spell.zone.shape} ({spell.zone.size} case{spell.zone.size > 1 ? "s" : ""})</strong>
+                <strong className="text-white/90 font-medium">{spell.zone.shape} ({spell.zone.size} case{spell.zone.size > 1 ? "s" : ""})</strong>
               </div>
             )}
           </div>
@@ -297,11 +300,11 @@ function SpellCard({
 
           {spell.effects && spell.effects.length > 0 ? (
             <div className="space-y-1">
-              <span className="text-[10px] font-bold text-white/50 uppercase tracking-wider block">Effets</span>
-              <div className="max-h-48 overflow-y-auto space-y-1.5 p-2.5 rounded-lg bg-black/60 border border-white/10 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent]">
+              <span className="text-[10px] font-semibold text-white/40 uppercase tracking-wide block">Effets</span>
+              <div className="max-h-48 overflow-y-auto space-y-1.5 p-2.5 rounded-lg bg-black/40 border border-white/[0.07] overlay-scroll">
                 {spell.effects.map((eff, i) => (
                   <div key={i} className="flex items-start gap-1.5 text-[11px] leading-relaxed text-zinc-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400/70 mt-1.5 shrink-0" />
+                    <span className="w-1 h-1 rounded-full bg-white/25 mt-1.5 shrink-0" />
                     <span className="flex-1">{eff}</span>
                   </div>
                 ))}
@@ -313,11 +316,13 @@ function SpellCard({
 
           {spell.criticalEffects && spell.criticalEffects.length > 0 && (
             <div className="space-y-1">
-              <span className="text-[10px] font-bold text-amber-400/70 uppercase tracking-wider block">Effets Critiques</span>
-              <div className="max-h-36 overflow-y-auto space-y-1.5 p-2 rounded-lg bg-amber-950/20 border border-amber-500/20 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent]">
+              <span className="text-[10px] font-semibold text-white/40 uppercase tracking-wide block">
+                Effets critiques
+              </span>
+              <div className="max-h-36 overflow-y-auto space-y-1.5 p-2 rounded-lg bg-black/40 border border-white/[0.07] overlay-scroll">
                 {spell.criticalEffects.map((eff, i) => (
-                  <div key={i} className="flex items-start gap-1.5 text-[11px] leading-relaxed text-amber-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0" />
+                  <div key={i} className="flex items-start gap-1.5 text-[11px] leading-relaxed text-zinc-200">
+                    <span className="w-1 h-1 rounded-full bg-white/25 mt-1.5 shrink-0" />
                     <span className="flex-1">{eff}</span>
                   </div>
                 ))}
@@ -515,18 +520,21 @@ export function BossOverlayClient({
           </button>
         )}
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
-          <Swords className="w-4 h-4 text-amber-400 shrink-0" />
-          <span className="text-[13px] font-bold text-white/90 truncate">
+          <Swords className="w-4 h-4 text-white/35 shrink-0" />
+          <span className="text-[13px] font-semibold text-white/90 truncate">
             {selected ? (activeMonsterName ?? selected.bossName) : "Bestiaire"}
           </span>
+          {/* Niveau : donnée, pas décoration — mono discret, aucun badge coloré. */}
           {selected && (
-            <span className="ml-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/25 text-amber-400 shrink-0">
-              LVL {selected.level}
-            </span>
+            <span className="ml-1 font-mono text-[10px] text-white/40 shrink-0">niv. {selected.level}</span>
           )}
+          {/* Seul or conservé : la Quête Ocre (or = sémantique Dofus, pas accent d'UI). */}
           {selected?.isOcreQuest && (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 shrink-0" title="Quête de l'Éternelle Moisson (Ocre)">
-              <Sparkles className="w-2.5 h-2.5 text-amber-400" /> Ocre
+            <span
+              className="inline-flex items-center gap-1 text-[10px] text-amber-300/80 shrink-0"
+              title="Boss de la Quête de l'Éternelle Moisson (Ocre)"
+            >
+              <Sparkles className="w-2.5 h-2.5" /> Ocre
             </span>
           )}
         </div>
@@ -548,7 +556,7 @@ export function BossOverlayClient({
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher boss, donjon, monstre…"
               autoFocus
-              className="w-full h-8 pl-8 pr-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-[12px] text-white placeholder:text-white/25 focus:outline-none focus:border-amber-500/40 focus:bg-white/[0.08] transition-colors"
+              className="w-full h-8 pl-8 pr-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-[12px] text-white placeholder:text-white/25 focus:outline-none focus:border-white/25 focus:bg-white/[0.08] transition-colors"
             />
             {search && (
               <button
@@ -560,41 +568,24 @@ export function BossOverlayClient({
             )}
           </div>
 
-          {/* 3 Filtres fonctionnels */}
-          <div className="grid grid-cols-3 gap-1 bg-black/40 p-0.5 rounded-lg border border-white/[0.06]">
-            <button
-              onClick={() => setCatalogFilter("boss")}
-              className={cn(
-                "py-1 text-[10px] font-bold rounded-md transition-all text-center truncate",
-                catalogFilter === "boss"
-                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-xs"
-                  : "text-white/40 hover:text-white/80"
-              )}
-            >
-              👑 Boss Donjons
-            </button>
-            <button
-              onClick={() => setCatalogFilter("monstre")}
-              className={cn(
-                "py-1 text-[10px] font-bold rounded-md transition-all text-center truncate",
-                catalogFilter === "monstre"
-                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-xs"
-                  : "text-white/40 hover:text-white/80"
-              )}
-            >
-              👹 Monstres
-            </button>
-            <button
-              onClick={() => setCatalogFilter("titan")}
-              className={cn(
-                "py-1 text-[10px] font-bold rounded-md transition-all text-center truncate",
-                catalogFilter === "titan"
-                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-xs"
-                  : "text-white/40 hover:text-white/80"
-              )}
-            >
-              👑 Titans
-            </button>
+          {/* Filtres du catalogue : contrôle segmenté unique, état actif neutre */}
+          <div className="grid grid-cols-3 gap-0.5 rounded-lg bg-white/[0.05] p-0.5">
+            {([
+              { id: "boss" as CatalogFilter, label: "Boss" },
+              { id: "monstre" as CatalogFilter, label: "Monstres" },
+              { id: "titan" as CatalogFilter, label: "Titans" },
+            ]).map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => setCatalogFilter(id)}
+                className={cn(
+                  "py-1 text-[10px] rounded-[5px] transition-colors text-center truncate",
+                  catalogFilter === id ? "bg-white/[0.12] text-white" : "text-white/45 hover:text-white/80"
+                )}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -604,8 +595,8 @@ export function BossOverlayClient({
         <div className="shrink-0 bg-[#0d0d12]">
           {/* Hero replié ou déplié */}
           {!isHeroCollapsed ? (
-            <div className="relative flex items-center gap-3 px-3 pt-2.5 pb-2.5 border-b border-white/[0.06]">
-              <div className="w-14 h-14 rounded-xl bg-black/50 border border-white/[0.08] flex items-center justify-center overflow-hidden shrink-0">
+            <div className="relative flex items-start gap-3 px-3 pt-2.5 pb-2.5 border-b border-white/[0.06]">
+              <div className="w-12 h-12 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-center justify-center overflow-hidden shrink-0">
                 {loadingStats ? (
                   <Loader2 className="w-5 h-5 animate-spin text-white/20" />
                 ) : (
@@ -618,27 +609,28 @@ export function BossOverlayClient({
                 )}
               </div>
               <div className="flex-1 min-w-0 pr-6">
-                <p className="text-[11px] text-white/40 flex items-center gap-1 mb-0.5 truncate">
-                  <Compass className="w-3 h-3 text-amber-400/70 shrink-0" />
+                <p className="flex items-center gap-1 text-[11px] text-white/45 truncate">
+                  <Compass className="w-3 h-3 shrink-0 opacity-70" />
                   <span className="truncate">{selected.name}</span>
                 </p>
 
-                {/* Boutons de grades / butins : Butin 4 5 6 7 8 */}
+                {/* Sélecteur de « butin » (5 grades) : **un seul contrôle segmenté**
+                    plutôt que 5 pastilles bordées — moins de bruit, même clic. */}
                 {stats?.grades && stats.grades.length > 1 && (
-                  <div className="flex gap-1 flex-wrap mt-1">
+                  <div className="inline-flex rounded-md bg-white/[0.05] p-0.5 mt-1.5">
                     {stats.grades.map((g, idx) => {
-                      const label = stats.grades!.length === 5 ? `Butin ${4 + idx}` : `Grade ${1 + idx}`;
+                      const label = stats.grades!.length === 5 ? `B${4 + idx}` : `G${1 + idx}`;
                       return (
                         <button
                           key={idx}
                           onClick={() => setActiveGradeIndex(idx)}
                           className={cn(
-                            "text-[9px] font-bold px-1.5 py-0.5 rounded-md border transition-colors",
+                            "min-w-[32px] text-[10px] px-1.5 py-0.5 rounded-[5px] transition-colors",
                             idx === activeGradeIndex
-                              ? "bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-xs"
-                              : "bg-white/5 border-white/10 text-white/40 hover:text-white/70"
+                              ? "bg-white/[0.12] text-white"
+                              : "text-white/45 hover:text-white/75"
                           )}
-                          title={`Grade ${idx + 1} · Niveau ${g.level}`}
+                          title={`Butin ${idx + 4} · Niveau ${g.level}`}
                         >
                           {label}
                         </button>
@@ -647,30 +639,33 @@ export function BossOverlayClient({
                   </div>
                 )}
 
-                {/* Liens externes : Fiche SigilOS (avec favicon) + Dofensive */}
-                <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                {/* Liens externes : liens texte discrets (plus de boutons bordés). */}
+                <div className="flex items-center gap-2 mt-1.5 text-[10px]">
                   <a
                     href={guildId && guildId !== "public" ? `/dashboard/${guildId}/succes?view=boss&dungeon=${selected.id}` : `/boss/${selected.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-[9px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 transition-colors"
+                    className="inline-flex items-center gap-1 text-white/45 hover:text-white/85 transition-colors"
                     title="Ouvrir la fiche complète sur SigilOS"
                   >
-                    <img src="/assets/ui/logo-v2.png" alt="SigilOS" className="w-3 h-3 object-contain" />
+                    <img src="/assets/ui/logo-v2.png" alt="" className="w-3 h-3 object-contain opacity-80" />
                     <span>Fiche SigilOS</span>
                     <ExternalLink className="w-2.5 h-2.5 opacity-60" />
                   </a>
 
                   {selected.dofensiveUrl && (
-                    <a
-                      href={selected.dofensiveUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md bg-white/5 border border-white/10 text-white/40 hover:text-white/70 hover:border-white/20 transition-colors"
-                    >
-                      <span>Dofensive</span>
-                      <ExternalLink className="w-2.5 h-2.5" />
-                    </a>
+                    <>
+                      <span className="text-white/20">·</span>
+                      <a
+                        href={selected.dofensiveUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-white/45 hover:text-white/85 transition-colors"
+                      >
+                        <span>Dofensive</span>
+                        <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+                      </a>
+                    </>
                   )}
                 </div>
               </div>
@@ -697,18 +692,18 @@ export function BossOverlayClient({
                     className="max-h-full max-w-full object-contain"
                   />
                 </div>
-                <span className="font-bold text-white/90 truncate text-[11px]">{selected.bossName}</span>
+                <span className="font-semibold text-white/90 truncate text-[11px]">{selected.bossName}</span>
                 <span className="text-[10px] text-white/40 truncate">· {selected.name}</span>
                 {stats?.grades && stats.grades.length > 1 && (
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 font-bold border border-amber-500/25 shrink-0">
-                    {stats.grades.length === 5 ? `B${4 + activeGradeIndex}` : `G${1 + activeGradeIndex}`}
+                  <span className="font-mono text-[10px] text-white/40 shrink-0">
+                    {stats.grades.length === 5 ? `butin ${4 + activeGradeIndex}` : `grade ${1 + activeGradeIndex}`}
                   </span>
                 )}
               </div>
               <button
                 type="button"
                 onClick={() => setIsHeroCollapsed(false)}
-                className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-400 hover:text-amber-300 px-2 py-0.5 rounded-md bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                className="inline-flex items-center gap-1 text-[10px] text-white/45 hover:text-white/85 transition-colors shrink-0"
                 title="Déplier l'en-tête complet"
               >
                 <span>Déplier</span>
@@ -717,17 +712,17 @@ export function BossOverlayClient({
             </div>
           )}
 
-          {/* Onglets */}
+          {/* Onglets — état actif neutre (clair), plus d'or sous la sélection */}
           <div className="flex border-b border-white/[0.06]">
             {tabs.map(({ id, label, Icon }) => (
               <button
                 key={id}
                 onClick={() => setTab(id)}
                 className={cn(
-                  "flex-1 flex items-center justify-center gap-1 py-2 text-[11px] font-semibold transition-colors border-b-2",
+                  "flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] transition-colors border-b-2 -mb-px",
                   tab === id
-                    ? "border-amber-500 text-amber-400 bg-white/[0.02]"
-                    : "border-transparent text-white/30 hover:text-white/60 hover:bg-white/[0.01]"
+                    ? "border-white/60 text-white"
+                    : "border-transparent text-white/40 hover:text-white/70"
                 )}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -768,37 +763,35 @@ export function BossOverlayClient({
                   <button
                     key={d.id}
                     onClick={() => handleSelectEntry(d)}
-                    className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] hover:border-amber-500/30 transition-all text-center group relative"
+                    className="group flex flex-col items-center gap-1.5 p-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.07] transition-colors text-center relative"
                   >
                     {d.isOcreQuest && (
-                      <span className="absolute top-1.5 right-1.5 flex items-center gap-1 px-1.5 h-4 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[8px] font-bold" title="Boss de la Quête Ocre">
-                        <img src="/module-dofus/Dofus_Ocre.png" alt="Ocre" className="w-3 h-3 object-contain" />
+                      <span className="absolute top-1 right-1.5 flex items-center gap-1 text-[8px] text-amber-300/80" title="Boss de la Quête Ocre">
+                        <img src="/module-dofus/Dofus_Ocre.png" alt="" className="w-3 h-3 object-contain" />
                         Ocre
                       </span>
                     )}
-                    <div className="w-14 h-14 rounded-lg bg-black/40 flex items-center justify-center overflow-hidden">
+                    <div className="w-14 h-14 flex items-center justify-center overflow-hidden">
                       <MonsterImage
                         src={d.imageUrl}
                         alt={d.bossName}
                         monsterId={d.dofusdbId ?? undefined}
-                        className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform"
+                        className="max-h-full max-w-full object-contain"
                       />
                     </div>
                     <div className="min-w-0 w-full">
-                      <p className="text-[11px] font-bold text-white/80 group-hover:text-amber-300 truncate transition-colors leading-tight">
+                      <p className="text-[11px] font-medium text-white/85 truncate leading-tight">
                         {d.bossName}
                       </p>
                       <p className={cn(
                         "text-[9px] truncate",
-                        d.type === "monstre" ? "text-sky-400/70" : "text-white/30"
+                        d.type === "monstre" ? "text-sky-400/60" : "text-white/35"
                       )}>
                         {d.name}
                       </p>
                     </div>
                     {d.level > 0 && (
-                      <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/40">
-                        LVL {d.level}
-                      </span>
+                      <span className="font-mono text-[9px] text-white/35">niv. {d.level}</span>
                     )}
                   </button>
                 ))}
@@ -817,121 +810,94 @@ export function BossOverlayClient({
               </div>
             ) : currentGrade ? (
               <>
-                {/* Bouton pour ouvrir la modale Famille (décharge l'UI principale) */}
+                {/* Famille du donjon : ligne cliquable discrète (plus de cadre + badge) */}
                 {family && family.monsters.length > 0 && (
                   <button
                     type="button"
                     onClick={() => setShowFamilyModal(true)}
-                    className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-amber-500/30 transition-all text-left group"
+                    className="group flex w-full items-center gap-2 px-2.5 py-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] transition-colors text-left"
                   >
-                    <div className="flex items-center gap-2">
-                      <Users className="w-3.5 h-3.5 text-amber-400" />
-                      <span className="text-[11px] font-medium text-white/80 group-hover:text-amber-300 transition-colors">
-                        Famille du donjon ({family.monsters.length} monstres)
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/25">
-                      Voir ↗
+                    <Users className="w-3.5 h-3.5 text-white/40" />
+                    <span className="flex-1 text-[11px] text-white/70 group-hover:text-white/90 transition-colors">
+                      Famille du donjon
+                      <span className="ml-1.5 font-mono text-white/40">{family.monsters.length}</span>
                     </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-white/30 group-hover:text-white/60 transition-colors" />
                   </button>
                 )}
 
-                {/* Caractéristiques principales avec icônes officielles Dofus */}
-                <div className="grid grid-cols-3 gap-1.5">
+                {/* Caractéristiques : une ligne de lecture (icône + valeur + libellé),
+                    séparée par des filets — remplace les 3 cartes à gros nombres colorés. */}
+                <div className="grid grid-cols-3 divide-x divide-white/[0.06] rounded-lg bg-white/[0.03]">
                   {[
-                    {
-                      label: "PV",
-                      value: currentGrade.lifePoints,
-                      iconSrc: "/assets/dofus/stats/pv.png",
-                      textColor: "text-rose-400",
-                    },
-                    {
-                      label: "PA",
-                      value: currentGrade.actionPoints,
-                      iconSrc: "/assets/dofus/stats/pa.png",
-                      textColor: "text-amber-400",
-                    },
-                    {
-                      label: "PM",
-                      value: currentGrade.movementPoints,
-                      iconSrc: "/assets/dofus/stats/pm.png",
-                      textColor: "text-sky-400",
-                    },
-                  ].map(({ label, value, iconSrc, textColor }) => (
-                    <div
-                      key={label}
-                      className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/[0.04] border border-white/[0.06]"
-                    >
-                      <img src={iconSrc} alt={label} className="w-4 h-4 object-contain" />
-                      <span className={cn("text-[13px] font-bold tabular-nums", textColor)}>
+                    { label: "PV", value: currentGrade.lifePoints, iconSrc: "/assets/dofus/stats/pv.png" },
+                    { label: "PA", value: currentGrade.actionPoints, iconSrc: "/assets/dofus/stats/pa.png" },
+                    { label: "PM", value: currentGrade.movementPoints, iconSrc: "/assets/dofus/stats/pm.png" },
+                  ].map(({ label, value, iconSrc }) => (
+                    <div key={label} className="flex items-center justify-center gap-1.5 py-2">
+                      <img src={iconSrc} alt={label} className="w-3.5 h-3.5 object-contain opacity-90" />
+                      <span className="font-mono text-[12px] text-white/90 tabular-nums">
                         {value.toLocaleString("fr-FR")}
                       </span>
-                      <span className="text-[9px] font-semibold text-white/40">{label}</span>
+                      <span className="text-[10px] text-white/40">{label}</span>
                     </div>
                   ))}
                 </div>
 
-                {/* Résistances avec icônes officielles Dofus */}
+                {/* Résistances — 5 lignes, une couleur par élément (donnée de jeu) */}
                 {resists && (
-                  <div className="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.06] space-y-1.5">
-                    <p className="text-[10px] font-bold text-white/50 uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                      <Shield className="w-3 h-3 text-amber-400/70" /> Résistances
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wide flex items-center gap-1.5 mb-2">
+                      <Shield className="w-3 h-3" /> Résistances
                     </p>
                     <ResistBar
                       label="Neutre"
                       value={resists.neutral ?? 0}
                       iconSrc="/assets/dofus/stats/resNeutre.png"
-                      colorClass="text-zinc-300"
                       barColor="bg-zinc-400"
                     />
                     <ResistBar
                       label="Terre"
                       value={resists.earth ?? 0}
                       iconSrc="/assets/dofus/stats/resTerre.png"
-                      colorClass="text-amber-500"
                       barColor="bg-amber-600"
                     />
                     <ResistBar
                       label="Feu"
                       value={resists.fire ?? 0}
                       iconSrc="/assets/dofus/stats/resFeu.png"
-                      colorClass="text-red-400"
                       barColor="bg-red-500"
                     />
                     <ResistBar
                       label="Eau"
                       value={resists.water ?? 0}
                       iconSrc="/assets/dofus/stats/resEau.png"
-                      colorClass="text-sky-400"
                       barColor="bg-sky-500"
                     />
                     <ResistBar
                       label="Air"
                       value={resists.air ?? 0}
                       iconSrc="/assets/dofus/stats/resAir.png"
-                      colorClass="text-emerald-400"
                       barColor="bg-emerald-500"
                     />
                   </div>
                 )}
 
-                {/* Butins par grade actif (dynamique selon Butin 4 5 6 7 8 sélectionné) */}
+                {/* Butins — liste dense : filets fins, taux en mono neutre
+                    (+ mini-barre de lecture). Le taux est une **donnée**, pas un accent. */}
                 {stats?.drops && stats.drops.length > 0 && (
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[10px] font-bold text-white/50 uppercase tracking-wider flex items-center gap-1.5">
-                        <span>Butins</span>
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/25 text-amber-300 font-semibold lowercase">
-                          {stats.grades && stats.grades.length === 5
-                            ? `butin ${4 + activeGradeIndex}`
-                            : `grade ${1 + activeGradeIndex}`}{" "}
-                          {currentGrade ? `(nv. ${currentGrade.level})` : ""}
-                        </span>
-                      </p>
-                      <span className="text-[9px] text-white/40">{stats.drops.length} objet{stats.drops.length > 1 ? "s" : ""}</span>
+                    <div className="flex items-baseline justify-between">
+                      <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wide">Butins</p>
+                      <span className="font-mono text-[10px] text-white/40">
+                        {stats.grades && stats.grades.length === 5
+                          ? `butin ${4 + activeGradeIndex}`
+                          : `grade ${1 + activeGradeIndex}`}
+                        {currentGrade ? ` · niv. ${currentGrade.level}` : ""}
+                      </span>
                     </div>
 
-                    <div className="max-h-60 overflow-y-auto space-y-1 pr-0.5 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent]">
+                    <div className="max-h-60 overflow-y-auto divide-y divide-white/[0.05] overlay-scroll pr-0.5">
                       {stats.drops.map((drop) => {
                         const rawDropPercent =
                           drop.percentByGrade && drop.percentByGrade[activeGradeIndex] !== undefined
@@ -942,11 +908,8 @@ export function BossOverlayClient({
                             ? parseFloat(rawDropPercent.toFixed(3))
                             : parseFloat(Number(rawDropPercent || 0).toFixed(2));
                         return (
-                          <div
-                            key={drop.objectId}
-                            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.05] hover:border-white/10 hover:bg-white/[0.05] transition-colors"
-                          >
-                            <div className="w-7 h-7 rounded-md bg-black/50 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                          <div key={drop.objectId} className="flex items-center gap-2 py-1.5">
+                            <div className="w-6 h-6 flex items-center justify-center overflow-hidden shrink-0">
                               <img
                                 src={`/api/assets-dofus/items/${drop.objectId}?url=${encodeURIComponent(drop.imageUrl)}`}
                                 alt={drop.name}
@@ -957,10 +920,16 @@ export function BossOverlayClient({
                                 }}
                               />
                             </div>
-                            <span className="text-[11px] font-medium text-white/80 flex-1 truncate">{drop.name}</span>
-                            <div className="text-right shrink-0">
-                              <span className="text-[11px] font-bold text-amber-400 tabular-nums">{dropPercent}%</span>
+                            <span className="flex-1 truncate text-[11px] text-white/80">{drop.name}</span>
+                            <div className="h-[3px] w-12 shrink-0 rounded-full bg-white/[0.07] overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-white/40"
+                                style={{ width: `${Math.min(100, dropPercent)}%` }}
+                              />
                             </div>
+                            <span className="w-12 shrink-0 text-right font-mono text-[11px] text-white/70 tabular-nums">
+                              {dropPercent}%
+                            </span>
                           </div>
                         );
                       })}
@@ -1018,26 +987,36 @@ export function BossOverlayClient({
               </div>
             ) : stats?.spells && stats.spells.length > 0 ? (
               <>
-                {/* Bascule « Boss libre » (même libellé que la landing publique) : elle
-                    pilote la grille juste en dessous — un seul état, deux commandes. */}
+                {/* Bascule « Boss libre » — présentée comme un **interrupteur** discret
+                    dans la barre d'outils (plus de gros bouton doré) : état ON = bleu
+                    d'information, jamais d'or (l'or reste réservé au contenu Dofus). */}
                 <button
                   type="button"
                   onClick={() => setFreeBossMove((v) => !v)}
-                  aria-pressed={freeBossMove}
+                  role="switch"
+                  aria-checked={freeBossMove}
                   title={
                     freeBossMove
                       ? "Boss libre actif : cliquez une case marchable de la grille pour déplacer le boss (prévisualisation seule)"
                       : "Boss libre : cliquez une case marchable de la grille pour déplacer le boss et tester les portées"
                   }
-                  className={cn(
-                    "self-start shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-colors",
-                    freeBossMove
-                      ? "bg-amber-500/20 border-amber-400 text-amber-300"
-                      : "bg-white/[0.04] border-white/10 text-white/50 hover:text-white/80 hover:bg-white/[0.08]"
-                  )}
+                  className="self-start shrink-0 inline-flex items-center gap-2 text-[11px] text-white/55 hover:text-white/80 transition-colors"
                 >
-                  <Move className="w-3.5 h-3.5" />
-                  Boss libre : {freeBossMove ? "ON" : "OFF"}
+                  <span
+                    className={cn(
+                      "relative h-[14px] w-[26px] rounded-full transition-colors",
+                      freeBossMove ? "bg-sky-500/70" : "bg-white/[0.12]"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "absolute top-[2px] h-[10px] w-[10px] rounded-full bg-white transition-all",
+                        freeBossMove ? "left-[14px]" : "left-[2px]"
+                      )}
+                    />
+                  </span>
+                  <span>Boss libre{freeBossMove ? " · activé" : ""}</span>
+                  <Move className="w-3 h-3 opacity-60" />
                 </button>
                 <div className="flex-1 min-h-0 flex flex-col">
                   <SpellRangeGrid
@@ -1080,7 +1059,7 @@ export function BossOverlayClient({
         <div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-xs flex flex-col animate-in fade-in duration-150">
           <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/10 bg-[#121218]">
             <div className="flex items-center gap-1.5">
-              <Users className="w-4 h-4 text-amber-400" />
+              <Users className="w-4 h-4 text-white/50" />
               <span className="text-[12px] font-bold text-white">Famille ({family.monsters.length})</span>
             </div>
             <button
@@ -1091,7 +1070,7 @@ export function BossOverlayClient({
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-2.5 space-y-1.5 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent]">
+          <div className="flex-1 overflow-y-auto p-2.5 space-y-1 overlay-scroll">
             {family.monsters.map((m) => {
               const isCurrent = (activeMonsterName === m.name) || (!activeMonsterName && m.name === selected?.bossName);
               return (
@@ -1106,13 +1085,11 @@ export function BossOverlayClient({
                     setShowFamilyModal(false);
                   }}
                   className={cn(
-                    "w-full flex items-center gap-2.5 p-2 rounded-xl border text-left transition-all",
-                    isCurrent
-                      ? "bg-amber-500/15 border-amber-500/50 text-amber-300"
-                      : "bg-white/[0.04] border-white/[0.06] hover:bg-white/[0.08] hover:border-white/15 text-white/80"
+                    "w-full flex items-center gap-2.5 p-2 rounded-lg text-left transition-colors",
+                    isCurrent ? "bg-white/[0.10] text-white" : "hover:bg-white/[0.05] text-white/75"
                   )}
                 >
-                  <div className="w-9 h-9 rounded-lg bg-black/50 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                  <div className="w-9 h-9 flex items-center justify-center overflow-hidden shrink-0">
                     <MonsterImage
                       src={m.imageUrl}
                       alt={m.name}
@@ -1121,14 +1098,10 @@ export function BossOverlayClient({
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-bold truncate">{m.name}</p>
+                    <p className="text-[11px] font-medium truncate">{m.name}</p>
                     <p className="text-[9px] text-white/40">{m.isBoss ? "Gardien du donjon" : "Monstre de salle"}</p>
                   </div>
-                  {m.isBoss && (
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                      Boss
-                    </span>
-                  )}
+                  {m.isBoss && <span className="text-[9px] text-amber-300/80 shrink-0">Boss</span>}
                 </button>
               );
             })}
@@ -1138,9 +1111,9 @@ export function BossOverlayClient({
 
       {/* ── Footer fixe ── */}
       <div className="flex items-center justify-between px-3 py-1.5 border-t border-white/[0.06] shrink-0 bg-[#0d0d12] z-10">
-        <span className="text-[9px] text-white/20 font-medium">SigilOS · Bestiaire</span>
+        <span className="text-[9px] text-white/25">SigilOS · Bestiaire</span>
         {selected && (
-          <span className="text-[9px] text-white/30 font-medium truncate ml-2">
+          <span className="text-[9px] text-white/30 truncate ml-2">
             {activeMonsterName ?? selected.bossName}
           </span>
         )}

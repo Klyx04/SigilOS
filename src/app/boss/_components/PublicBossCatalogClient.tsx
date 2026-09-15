@@ -21,6 +21,7 @@ const LEVEL_RANGES = [
 const TYPE_FILTERS = [
   { label: "Tous", value: "all" },
   { label: "Boss de donjon", value: "boss" },
+  { label: "Fiches Anomalies", value: "anomalie" },
   { label: "Titans", value: "titan" },
 ] as const;
 
@@ -115,7 +116,7 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
     const q = search.trim().toLowerCase();
 
     return bosses.filter((b) => {
-      if (b.type !== "boss" && b.type !== "titan") return false;
+      if (b.type !== "boss" && b.type !== "titan" && b.type !== "anomalie") return false;
       if (selectedType !== "all" && b.type !== selectedType) return false;
       const lvl = b.level ?? 0;
       if (lvl < range.min || lvl > range.max) return false;
@@ -149,7 +150,7 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
           />
         </div>
 
-        {/* Type (Tous / Boss / Titan) */}
+        {/* Type (Tous / Boss / Anomalie / Titan) */}
         <FilterDropdown
           value={selectedType}
           onChange={(v) => setSelectedType(v as TypeFilter)}
@@ -231,6 +232,9 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
                       <span className="font-mono font-semibold text-foreground/90">{boss.level}</span>
                       {boss.type === "titan" && (
                         <span className="uppercase tracking-wide text-[10px] text-warning/90">Titan</span>
+                      )}
+                      {boss.type === "anomalie" && (
+                        <span className="uppercase tracking-wide text-[10px] text-info/90">Anomalie</span>
                       )}
                     </span>
                     <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground group-hover:text-warning transition-colors">

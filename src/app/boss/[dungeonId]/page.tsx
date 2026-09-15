@@ -129,7 +129,7 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
 
       <JsonLd id="json-ld-boss-detail" nonce={nonce} data={jsonLdData} />
 
-      <main className="flex-1 pt-28 pb-20 px-4 sm:px-6 md:px-8 relative z-10 max-w-6xl mx-auto w-full">
+      <main className="boss-detail-shell flex-1 pt-28 pb-20 px-4 sm:px-6 md:px-8 relative z-10 max-w-6xl mx-auto w-full">
         {/* Navigation retour */}
         <div className="mb-6 flex items-center justify-between">
           <Link

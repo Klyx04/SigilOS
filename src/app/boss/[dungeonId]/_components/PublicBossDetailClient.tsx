@@ -451,7 +451,7 @@ export function PublicBossDetailClient({
       {/* ── ONGLETS ──────────────────────────────────────────────────────────
           Onglets **neutres** : l'actif est simplement souligné, plus de pastille
           dorée — la donnée (et non la couleur) porte la hiérarchie. */}
-      <div className="flex items-center gap-1 overflow-x-auto border-b border-border [scrollbar-width:none]">
+      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar border-b border-border">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = detailTab === tab.id;
@@ -474,6 +474,15 @@ export function PublicBossDetailClient({
         })}
       </div>
 
+      {/* ── PANNEAU D'ONGLET ─────────────────────────────────────────────────
+          Hauteur minimale **stable** : sans elle, passer d'un onglet court à
+          l'onglet Simulation (carte isométrique) fait franchir la hauteur du
+          viewport au document ⇒ la barre de défilement apparaît, le contenu
+          centré se décale de ~15 px et l'utilisateur voit « la page bouger ».
+          `min-h` garde la page de la même hauteur d'un onglet à l'autre, et
+          `overflow-anchor: none` empêche le navigateur de « recaler » le
+          défilement quand le panneau change de taille. */}
+      <div className="min-h-[560px] [overflow-anchor:none]">
       {/* ── TAB: SORTS DU BOSS (mécaniques clés) ── */}
       {detailTab === "sorts" && (
         <div className="space-y-4">
@@ -813,6 +822,7 @@ export function PublicBossDetailClient({
           </div>
         </div>
       )}
+      </div>
 
       {/* ── COORDONNÉES (entrée donjon + /travel) ── */}
       {coords && (

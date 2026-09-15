@@ -198,6 +198,7 @@
 - 🛒 **Marché — amorce de la phase de debug** : `src/temp/refonte-marche/AMORCE-DERNIERE-PHASE-DEBUG.md` (+ `AMORCE-DEBUG-A-COLLER.txt`).
 - Demandes ouvertes + annotations : `src/temp/chantier-actif.md`.
 - Plan maître #223 : `src/temp/refonte-long-terme-discord-compatibilite/PLAN-MAITRE-RESILIENCE-DISCORD-LONG-TERME.md` + `sigilos-discord-resilience.md`.
+- 🛰️ **Indépendance totale (fiches boss/monstres, simulation, icônes) — AMORCE PRÊTE (15/09/2026)** : `src/temp/amorces/amorce-2026-09-15-independance-totale.md` — 6 lots (stale-while-offline → TTL par dataset → `local-only` strict → icônes siphonnées + cache durci → siphon **tous les monstres** → fraîcheur visible), 6 décisions à trancher (D1→D6, recos incluses), **critère « test de panne »** (`DOFENSIVE_OFFLINE=1`/`DOFUSDB_OFFLINE=1` : zéro spinner, zéro icône cassée, zéro appel sortant). Contexte : local-first **pas** local-only ⇒ une ligne périmée (> 24 h) déclenche une bascule live silencieuse (c'est l'incident Dofensive down). `src/temp/refonte-siphon/PLAN-REFONTE-SIPHON.md` §5.3 (limiteur anti-ban) s'applique aux lots 4-5.
 - Dernier mémo détaillé : `src/temp/memo-2026-09-14-marche-d49-q15.md` (D49 + Q15) · `src/temp/memo-2026-09-14-marche-embeds-cartes.md` (#657/#659) · archives : `memo-2026-10-06-chantier-fiche-boss.md`.
 
 ## Vérifications globales habituelles

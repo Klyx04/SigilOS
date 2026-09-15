@@ -1767,11 +1767,21 @@ export async function updateMarketListing(
         // objet + jet + horodatage). Sans cela, changer l'objet laissait
         // l'ancienne image PNG dans l'embed (cache par URL côté Discord).
         if (existing.status === "ACTIVE" || existing.status === "RESERVED") {
-            const discordService = await import("@/server/market/discord");
-            // Appel **défensif** (`?.`) : les tests unitaires remplacent ce module
-            // par un double partiel — un service absent ne doit **jamais** faire
-            // échouer l'édition, l'annonce est déjà écrite en base.
-            void discordService.regenerateMarketImage?.(existing.id)?.catch((err) => {
+            /**
+             * 1) **Invalider la carte** : la clé porte l'objet, le jet et
+             *    l'horodatage — sans quoi Discord (cache par URL) réafficherait
+             *    l'ancienne image après un changement d'équipement (retour user).
+             * 2) **Resynchroniser l'embed** par le **même** point d'entrée que le
+             *    reste du module (`syncListingMessage`) : aucune duplication, et
+             *    le service reste celui observé par les tests et les crons.
+             */
+            await db.marketDiscordMessage.updateMany({
+                where: { listingId: existing.id },
+                data: {
+                    generatedImageStorageKey: `og:${data.dofusDbItemId ?? 0}:${resolvedStats.hash ?? "0"}:${Date.now()}`,
+                },
+            });
+            void syncListingMessage(existing.id).catch((err) => {
                 logger.warn("[market] resynchro Discord différée après édition", {
                     listingId: existing.id,
                     err: String(err),

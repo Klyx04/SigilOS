@@ -69,8 +69,19 @@ y est **vide** ⇒ `401` ⇒ *aucune* télémétrie, panneau God « Inconnu ») 
 # 1) une seule fois : le secret de CET environnement (600, root)
 umask 077 && printf '%s' '<CRON_SECRET du conteneur>' > /home/sigiladmin/.sigilos-cron-secret
 
+# ⚠️⚠️ PIÈGE CRON — LE `%` DOIT ÊTRE ÉCRIT `\%` DANS UN FICHIER CRONTAB :
+#    cron coupe la ligne au **premier `%` non échappé**, envoie tout ce qui suit en
+#    **stdin** et n'exécute **pas** la commande (ici bash reçoit une quote non fermée :
+#    `curl … -w "market-expire ` ⇒ erreur de syntaxe, **exit 2**, aucun log, aucune
+#    télémétrie). Les 12 lignes ci-dessous utilisent donc `\%{http_code}`.
+#    Constaté le 15/09/2026 : `sync-dofensive-maps`, `sync-monster-stats`, `check-links`,
+#    `cleanup-inactive-service-requests`, `market-expire`, `ladder-sync` et `status-ping`
+#    étaient dans ce cas ⇒ **seuls logs absents** de `$LOG_DIR` alors que tous les autres
+#    étaient frais. ⇒ salles de donjon jamais siphonnées, panneau God « Inconnu ».
+#    (Collé dans un **shell**, `\%` redevient `%` : les tests manuels restent valides.)
+
 # 2) la tâche (adapter l'URL à l'environnement : beta.sigilos.fr / sigilos.fr)
-*/10 * * * * curl -s -o /dev/null -w "market-expire %{http_code} $(date -Is)\n" \
+*/10 * * * * curl -s -o /dev/null -w "market-expire \%{http_code} $(date -Is)\n" \
   -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
   https://beta.sigilos.fr/api/cron/market-expire >> /home/sigiladmin/SigilOS/logs/market-expire.log 2>&1
 
@@ -78,10 +89,10 @@ umask 077 && printf '%s' '<CRON_SECRET du conteneur>' > /home/sigiladmin/.sigilo
 #    « Inconnu / Aucune exécution » ET **salles de donjon manquantes** dans la
 #    simulation (aucune map siphonnée). Vérifiés le 15/09/2026 : absents de la
 #    crontab déployée alors que leurs URLs sont bien documentées ci-dessus.
-30 3 * * * curl -s -o /dev/null -w "sync-dofensive-maps %{http_code} $(date -Is)\n" \
+30 3 * * * curl -s -o /dev/null -w "sync-dofensive-maps \%{http_code} $(date -Is)\n" \
   -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
   https://beta.sigilos.fr/api/cron/sync-dofensive-maps >> /home/sigiladmin/SigilOS/logs/sync-dofensive-maps.log 2>&1
-45 3 * * * curl -s -o /dev/null -w "sync-monster-stats %{http_code} $(date -Is)\n" \
+45 3 * * * curl -s -o /dev/null -w "sync-monster-stats \%{http_code} $(date -Is)\n" \
   -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
   https://beta.sigilos.fr/api/cron/sync-monster-stats >> /home/sigiladmin/SigilOS/logs/sync-monster-stats.log 2>&1
 ```
@@ -92,19 +103,24 @@ umask 077 && printf '%s' '<CRON_SECRET du conteneur>' > /home/sigiladmin/.sigilo
 annonces de **prod**) avec `> /dev/null` (⇒ **aucun log**, donc invisible dans God). À corriger :
 
 ```bash
-# Marché — la MÊME route, mais sur $APP_URL et avec log (⚠️ jamais d'URL en dur : la
-# télémétrie est écrite dans le Redis de l'environnement appelé)
-*/10 * * * * curl -s -o /dev/null -w "market-expire %{http_code} $(date -Is)\n" \
+# ⚠️ `\%` : obligatoire dans un crontab (cron coupe la ligne au premier `%` non
+#    échappé ⇒ la tâche ne s'exécute pas : erreur de syntaxe bash, exit 2, aucun log).
+#    Marché — la MÊME route, mais sur $APP_URL et avec log (⚠️ jamais d'URL en dur : la
+#    télémétrie est écrite dans le Redis de l'environnement appelé)
+*/10 * * * * curl -s -o /dev/null -w "market-expire \%{http_code} $(date -Is)\n" \
   -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
   "$APP_URL/api/cron/market-expire" >> "$LOG_DIR/market-expire.log" 2>&1
 
 # Ladder Dofus (worker externe, 5 profils/exécution) — toutes les 12 h
-0 */12 * * * curl -s -o /dev/null -w "ladder-sync %{http_code} $(date -Is)\n" \
+# ⚠️ à n'ajouter QUE si `DOFUS_LADDER_WORKER_URL` est configuré dans l'environnement
+#    (sinon la route répond « Worker URL not configured », 500, sans télémétrie)
+0 */12 * * * curl -s -o /dev/null -w "ladder-sync \%{http_code} $(date -Is)\n" \
   -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
   "$APP_URL/api/cron/ladder-sync" >> "$LOG_DIR/ladder-sync.log" 2>&1
 
-# Ping Statut Global (page /status) — toutes les 5 min (HEAD supporté pour UptimeRobot)
-*/5 * * * * curl -s -o /dev/null -w "status-ping %{http_code} $(date -Is)\n" \
+# Ping Statut Global (page /status) — toutes les 5 min (HEAD supporté pour UptimeRobot ;
+# le core « throttle » l'envoi Discord ⇒ pas de spam)
+*/5 * * * * curl -s -o /dev/null -w "status-ping \%{http_code} $(date -Is)\n" \
   -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
   "$APP_URL/api/cron/status-ping" >> "$LOG_DIR/status-ping.log" 2>&1
 ```
@@ -192,15 +208,16 @@ Chaque tâche CRON enregistre automatiquement son état, sa durée et son résum
 2. **Crontab VPS** (3 lignes) — ⚠️ **forme de référence uniquement** (voir le bloc
    « Crontab VPS » du §Module « Marché » ci-dessus) : secret **par fichier** (l'env de `cron` est
    minimal, `$CRON_SECRET` y est **vide** ⇒ 401 silencieux), sortie **redirigée vers le log** lu par
-   God (sinon panneau « Inconnu »), et URL **`$APP_URL`** (jamais `sigilos.fr` en dur : depuis le VPS
-   beta, on appellerait la prod) :
+   God (sinon panneau « Inconnu »), URL **`$APP_URL`** (jamais `sigilos.fr` en dur : depuis le VPS
+   beta, on appellerait la prod) et **`%` échappé en `\%`** (cron coupe la ligne au premier `%` non
+   échappé ⇒ la tâche ne s'exécute **jamais** : erreur de syntaxe bash, exit 2, aucun log) :
    ```
-   */10 * * * * curl -s -o /dev/null -w "market-expire %{http_code} $(date -Is)\n" -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/market-expire" >> "$LOG_DIR/market-expire.log" 2>&1
-   30 3 * * * curl -s -o /dev/null -w "sync-dofensive-maps %{http_code} $(date -Is)\n" -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/sync-dofensive-maps" >> "$LOG_DIR/sync-dofensive-maps.log" 2>&1
-   45 3 * * * curl -s -o /dev/null -w "sync-monster-stats %{http_code} $(date -Is)\n" -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/sync-monster-stats" >> "$LOG_DIR/sync-monster-stats.log" 2>&1
-   0 */12 * * * curl -s -o /dev/null -w "ladder-sync %{http_code} $(date -Is)\n" -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/ladder-sync" >> "$LOG_DIR/ladder-sync.log" 2>&1
-   */5 * * * * curl -s -o /dev/null -w "status-ping %{http_code} $(date -Is)\n" -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/status-ping" >> "$LOG_DIR/status-ping.log" 2>&1
-   15 4 * * 0 curl -s -o /dev/null -w "check-links %{http_code} $(date -Is)\n" -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/check-links" >> "$LOG_DIR/check-links.log" 2>&1
+   */10 * * * * curl -s -o /dev/null -w "market-expire \%{http_code} $(date -Is)\n" -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/market-expire" >> "$LOG_DIR/market-expire.log" 2>&1
+   30 3 * * * curl -s -o /dev/null -w "sync-dofensive-maps \%{http_code} $(date -Is)\n" -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/sync-dofensive-maps" >> "$LOG_DIR/sync-dofensive-maps.log" 2>&1
+   45 3 * * * curl -s -o /dev/null -w "sync-monster-stats \%{http_code} $(date -Is)\n" -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/sync-monster-stats" >> "$LOG_DIR/sync-monster-stats.log" 2>&1
+   0 */12 * * * curl -s -o /dev/null -w "ladder-sync \%{http_code} $(date -Is)\n" -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/ladder-sync" >> "$LOG_DIR/ladder-sync.log" 2>&1
+   */5 * * * * curl -s -o /dev/null -w "status-ping \%{http_code} $(date -Is)\n" -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/status-ping" >> "$LOG_DIR/status-ping.log" 2>&1
+   15 4 * * 0 curl -s -o /dev/null -w "check-links \%{http_code} $(date -Is)\n" -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/check-links" >> "$LOG_DIR/check-links.log" 2>&1
    ```
 3. **Pré-chauffage optionnel (recommandé)** — lance manuellement les 2 syncs une fois (le 1er run de `sync-monster-stats` est lourd : 10-30 min, à faire de nuit) :
    ```

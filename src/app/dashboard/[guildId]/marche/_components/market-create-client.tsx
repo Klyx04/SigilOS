@@ -691,6 +691,24 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
                     kind={kind}
                     onPick={(picked) => {
                         setKind(picked);
+                        // 🧺 Lot multiple — on part directement sur **2 objets**
+                        // (le minimum du lot) : plus besoin de cliquer « Ajouter un
+                        // objet » pour atteindre la borne basse.
+                        if (picked === "BUNDLE") {
+                            setComponents((prev) =>
+                                prev.length >= MARKET_BUNDLE_MIN_ITEMS
+                                    ? prev
+                                    : Array.from({ length: MARKET_BUNDLE_MIN_ITEMS }, (_, index) => ({
+                                          key: `bundle-${index}-nouveau`,
+                                          dofusDbItemId: null,
+                                          name: "",
+                                          iconUrl: null,
+                                          quantity: 1,
+                                          unitLabel: null,
+                                          priceKamas: 0,
+                                      }))
+                            );
+                        }
                         setStep(2);
                     }}
                 />
@@ -864,6 +882,42 @@ export function MarketCreateClient({ guildId, initial = null }: MarketCreateClie
                     acceptsTrade={acceptsTrade}
                     setAcceptsTrade={setAcceptsTrade}
                 />
+            )}
+
+            {/* 🧺 Lot multiple — **vrai récapitulatif** avant publication : un prix
+                par objet, le total, et ce que les membres verront réellement
+                (option A = un message Discord par objet, donc N messages). */}
+            {!isEdit && step === 4 && kind === "BUNDLE" && (
+                <div className="space-y-2 rounded-xl border border-border bg-surface/60 p-4">
+                    <p className="text-sm font-semibold text-foreground">Récapitulatif du lot</p>
+                    <ul className="space-y-1">
+                        {bundleItems.map((entry, index) => (
+                            <li
+                                key={`${index}-${entry.name}`}
+                                className="flex items-center justify-between gap-3 text-sm"
+                            >
+                                <span className="min-w-0 flex-1 truncate text-foreground">
+                                    {index + 1}. {entry.name || "(objet à nommer)"}
+                                    {entry.quantity > 1 ? ` × ${entry.quantity}` : ""}
+                                </span>
+                                <span className="shrink-0 font-medium text-foreground">
+                                    {formatKamas(entry.priceKamas)}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                    <div className="flex items-center justify-between border-t border-border pt-2 text-sm">
+                        <span className="text-muted-foreground">Total du lot</span>
+                        <span className="font-semibold text-foreground">
+                            {formatKamas(computeBundleTotal(bundleItems))}
+                        </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        🧺 {bundleItems.length} objet(s) ⇒{" "}
+                        <strong>{bundleItems.length} message(s) Discord</strong>, un par objet : chacun
+                        peut être réservé et négocié séparément, à son prix.
+                    </p>
+                </div>
             )}
 
             {!isEdit && step === 4 && (

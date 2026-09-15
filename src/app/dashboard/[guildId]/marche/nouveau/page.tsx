@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import fs from "fs";
+import path from "path";
 import { getUserContext } from "@/server/actions/user-actions";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { searchItems } from "@/lib/market/item-catalog";
@@ -39,15 +41,44 @@ export default async function MarketCreatePage({ params }: { params: Promise<{ g
         const url = items[0]?.iconUrl;
         return url ? [url] : [];
     };
+    /**
+     * 🎨 Une famille peut être **vide** en base (ex. cosmétique pas encore
+     * siphonné) : on ne laisse jamais une carte sans vignette — on retombe sur
+     * une autre famille réelle plutôt que sur une icône générique.
+     */
+    const equipmentIcons = firstIcon(equipment.items);
+    const cosmeticIcons = firstIcon(cosmetic.items);
+    const resourceIcons = firstIcon(resources.items);
+    const anyIcon = [...equipmentIcons, ...resourceIcons, ...cosmeticIcons];
+
+    /**
+     * 🎨 **Tes assets priment** (retour user 15/09/2026) : dépose
+     * `equipment.png`, `cosmetic.png`, `resource.png` (et `bundle.png`) dans
+     * `public/assets/dofus/natures/` — ils sont utilisés **dès le rechargement**,
+     * sans toucher au code. À défaut, la vignette est un **objet réel** du
+     * catalogue local de la famille (mêmes artworks Dofus, clés par ankama id).
+     */
+    const localIcon = (name: string): string[] => {
+        const relative = `/assets/dofus/natures/${name}.png`;
+        return fs.existsSync(path.join(process.cwd(), "public", relative)) ? [relative] : [];
+    };
+    const equipmentFinal = [...localIcon("equipment"), ...equipmentIcons];
+    const cosmeticFinal = [...localIcon("cosmetic"), ...cosmeticIcons];
+    const resourceFinal = [...localIcon("resource"), ...resourceIcons];
+    const bundleLocal = localIcon("bundle");
+
     const natureIcons = {
-        EQUIPMENT: firstIcon(equipment.items),
-        COSMETIC: firstIcon(cosmetic.items),
-        RESOURCE: firstIcon(resources.items),
-        BUNDLE: [
-            ...firstIcon(equipment.items),
-            ...firstIcon(resources.items),
-            ...firstIcon(cosmetic.items),
-        ].slice(0, 3),
+        EQUIPMENT: equipmentFinal.length > 0 ? equipmentFinal.slice(0, 1) : anyIcon.slice(0, 1),
+        COSMETIC: cosmeticFinal.length > 0 ? cosmeticFinal.slice(0, 1) : anyIcon.slice(0, 1),
+        RESOURCE: resourceFinal.length > 0 ? resourceFinal.slice(0, 1) : anyIcon.slice(0, 1),
+        BUNDLE:
+            bundleLocal.length > 0
+                ? bundleLocal.slice(0, 1)
+                : [
+                      ...(equipmentFinal.length > 0 ? equipmentFinal.slice(0, 1) : anyIcon.slice(0, 1)),
+                      ...(resourceFinal.length > 0 ? resourceFinal.slice(0, 1) : anyIcon.slice(1, 2)),
+                      ...(cosmeticFinal.length > 0 ? cosmeticFinal.slice(0, 1) : anyIcon.slice(2, 3)),
+                  ].slice(0, 3),
     };
 
     return (

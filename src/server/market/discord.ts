@@ -529,19 +529,29 @@ export async function deleteListingDiscordMessage(listingId: string): Promise<Ma
 /**
  * S3.8 — Régénère la carte de l'annonce puis resynchronise l'embed.
  * La carte est servie à la volée par `/api/og/market/[id]` : on invalide la clé
- * de cache (`statsHash`) et on réécrit l'embed pour pointer la nouvelle version.
+ * de cache et on réécrit l'embed pour pointer la nouvelle version.
+ *
+ * ⚠️ Retour user du 15/09/2026 — « si on change d'objet, l'image de l'embed ne
+ * change pas ». Cause : la clé ne portait que `statsHash`, **identique** quand
+ * seul l'objet (ou le titre, la forge, la description) changeait, et Discord
+ * met en cache par URL ⇒ ancienne carte réaffichée. La clé porte désormais
+ * l'**objet**, le **jet** et l'**horodatage de dernière écriture** : toute
+ * édition produit une clé neuve, donc une carte neuve.
  */
 export async function regenerateMarketImage(listingId: string): Promise<MarketDiscordResult> {
     try {
         const listing = await db.marketListing.findUnique({
             where: { id: listingId },
-            select: { statsHash: true },
+            select: { statsHash: true, updatedAt: true, dofusDbItemId: true },
         });
         if (!listing) return { ok: false, error: "Annonce introuvable" };
 
         await db.marketDiscordMessage.updateMany({
             where: { listingId },
-            data: { generatedImageStorageKey: `og:${listing.statsHash ?? "0"}`, lastSyncedAt: new Date() },
+            data: {
+                generatedImageStorageKey: `og:${listing.dofusDbItemId ?? 0}:${listing.statsHash ?? "0"}:${listing.updatedAt.getTime()}`,
+                lastSyncedAt: new Date(),
+            },
         });
         return syncListingMessage(listingId);
     } catch (error) {

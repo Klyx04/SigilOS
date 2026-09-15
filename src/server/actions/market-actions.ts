@@ -1740,10 +1740,16 @@ export async function updateMarketListing(
         });
 
         // S7.12 — l'annonce peut **déjà être publiée** : l'embed Discord doit
-        // refléter le nouveau titre / prix / jet. Même invariant qu'en S3 :
-        // la resynchronisation n'est **jamais bloquante**.
+        // refléter le nouveau titre / prix / jet / **objet**. Même invariant qu'en
+        // S3 : la resynchronisation n'est **jamais bloquante**.
+        //
+        // Retour user du 15/09/2026 — on passe par `regenerateMarketImage` (et non
+        // `syncListingMessage` seul) : c'est ce qui **invalide la carte** (clé
+        // objet + jet + horodatage). Sans cela, changer l'objet laissait
+        // l'ancienne image PNG dans l'embed (cache par URL côté Discord).
         if (existing.status === "ACTIVE" || existing.status === "RESERVED") {
-            void syncListingMessage(existing.id).catch((err) => {
+            const { regenerateMarketImage } = await import("@/server/market/discord");
+            void regenerateMarketImage(existing.id).catch((err) => {
                 logger.warn("[market] resynchro Discord différée après édition", {
                     listingId: existing.id,
                     err: String(err),

@@ -9,7 +9,6 @@ import {
   Zap,
   Layers,
   Users,
-  ExternalLink,
   ArrowRight,
   Target,
   Flame,
@@ -19,6 +18,7 @@ import {
   Check,
   Info,
   Compass,
+  Crown,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -298,10 +298,14 @@ export function PublicBossDetailClient({
 
   return (
     <div className="space-y-6">
-      {/* ── TOP ACTION / HERO CARD ── */}
-      <div className="rounded-3xl border border-white/10 bg-surface/60 p-6 sm:p-8 backdrop-blur-xl shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div className="flex items-center gap-5">
-          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-background/80 border border-white/15 flex items-center justify-center p-2 shrink-0 shadow-inner overflow-hidden">
+      {/* ── EN-TÊTE : identité, puis actions ────────────────────────────────
+          Avant : carte `rounded-3xl` + `backdrop-blur` + `shadow-2xl`, titre
+          `font-black`, badges dorés et **bouton à dégradé or** — l'œil allait au
+          bouton, pas aux données. Désormais : bloc plat, un seul bouton plein
+          (neutre), liens externes en texte. */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-4 min-w-0">
+          <div className="w-16 h-16 rounded-lg border border-border bg-background/60 flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
             <MonsterImage
               src={currentStats?.imageUrl ?? dungeon.imageUrl}
               alt={activeMonsterName ?? bossName}
@@ -309,153 +313,129 @@ export function PublicBossDetailClient({
               className="max-w-full max-h-full object-contain"
             />
           </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-black uppercase tracking-wider text-amber-400">
-                {isTitan ? "Titan" : "Boss de Donjon"}
-              </span>
-              <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-mono font-bold text-[11px]">
-                Niveau {dungeon.level ?? 200}
-              </span>
-              {isTitan && (
-                <span className="px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/30 text-amber-300 font-black text-[10px] uppercase tracking-wider">
-                  Titan
-                </span>
-              )}
-            </div>
-            <h1 className="text-2xl sm:text-4xl font-black text-foreground font-heading tracking-tight mt-1">
+          <div className="min-w-0">
+            <p className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+              {isTitan ? "Titan" : "Boss de donjon"}
+              <span className="font-mono normal-case">niv. {dungeon.level ?? 200}</span>
+            </p>
+            <h1 className="mt-0.5 truncate text-2xl font-semibold text-foreground sm:text-3xl">
               {activeMonsterName ?? bossName}
             </h1>
-            <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
-              <Compass className="w-3.5 h-3.5 text-amber-400" />
-              Donjon : <strong className="text-foreground">{dungeon.name}</strong>
+            <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Compass className="w-3.5 h-3.5 opacity-70" />
+              Donjon : <span className="text-foreground/90">{dungeon.name}</span>
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 w-full md:w-auto flex-wrap">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <button
             type="button"
             onClick={() => openBossOverlay({ monsterName: activeMonsterName ?? bossName, dungeonName: dungeon.name })}
-            className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-black text-xs uppercase tracking-wider transition-all shadow-xl shadow-amber-500/20"
+            className="inline-flex items-center gap-2 rounded-lg bg-foreground/90 px-4 py-2.5 text-xs font-semibold text-background transition-colors hover:bg-foreground"
             title="Affiche une mini-fenêtre par-dessus votre jeu Dofus"
           >
-            <Sparkles className="w-4 h-4" />
-            <span>Ouvrir l&apos;Overlay en jeu</span>
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Ouvrir l&apos;overlay en jeu</span>
           </button>
           <a
             href={dbLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-3 rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white text-xs font-bold transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
             title="Voir sur DofusDB"
           >
-            <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm" loading="lazy" />
+            <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="h-3.5 w-3.5 rounded-sm" loading="lazy" />
             DofusDB
           </a>
-          {dungeon.dofensiveUrl && (
-            <a
-              href={dungeon.dofensiveUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white border border-white/10 transition-colors"
-              title="Voir sur Dofensive"
-            >
-              <ExternalLink className="w-4 h-4" />
-            </a>
-          )}
         </div>
-      </div>
-
-      {/* ── CONVERSION GUILD BANNER ── */}
-      <div className="p-4 sm:p-5 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-950/30 via-surface to-background flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-400">
-            <Users className="w-3.5 h-3.5" />
-            <span>Préparez ce donjon en guilde</span>
-          </div>
-          <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
-            Créez une session de donjon sur Discord en 1 clic : les membres s&apos;inscrivent avec leur classe, et leurs succès sont validés automatiquement.
-          </p>
-        </div>
-        <Link
-          href="/"
-          className="shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] text-zinc-100 font-bold text-xs border border-white/10 transition-colors"
-        >
-          <span>Créer mon espace guilde</span>
-          <ArrowRight className="w-3.5 h-3.5 text-amber-400" />
-        </Link>
       </div>
 
       {/* ── STATS BAR (PV/PA/PM + résistances, comme le module interne) ── */}
       {isLoadingCurrent ? (
         <div className="flex items-center justify-center p-6 rounded-2xl bg-surface border border-white/10 gap-3 text-muted-foreground">
-          <Loader2 className="w-5 h-5 animate-spin text-amber-400" />
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
           <span className="text-xs font-bold">Chargement des caractéristiques de {activeMonsterName ?? bossName}…</span>
         </div>
       ) : (
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 py-2 px-1 border-y border-white/10">
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-surface border border-white/10" title="Points de Vie">
-              <img src="/assets/module-succes/vitalite.png" alt="PV" className="w-4 h-4 object-contain" />
-              <span className="text-sm font-bold text-foreground tabular-nums">
+        /* ── BARRE DE CARACTÉRISTIQUES UNIFIÉE ───────────────────────────────
+           Avant : 8 « pastilles » encadrées de couleurs différentes (PV, PA, PM,
+           5 résistances, grade) ⇒ beaucoup de bruit pour 9 nombres. Désormais :
+           **une seule barre** à trois groupes séparés par des filets — mêmes
+           données, mêmes icônes, zéro décoration. Les couleurs restent sur les
+           **icônes** (données de jeu) et sur les valeurs négatives. */
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border bg-surface/40 px-3 py-2.5">
+          {/* Vitals */}
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-1.5" title="Points de Vie">
+              <img src="/assets/module-succes/vitalite.png" alt="" className="w-4 h-4 object-contain" />
+              <span className="font-mono text-[15px] text-foreground tabular-nums">
                 {activeGrade ? activeGrade.lifePoints?.toLocaleString("fr-FR") : "—"}
               </span>
-              <span className="text-[11px] font-bold text-muted-foreground">PV</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-500/10 border border-sky-500/20" title="Points d'Action">
-              <span className="text-sm font-bold text-sky-400 tabular-nums">{activeGrade?.actionPoints ?? "—"}</span>
-              <span className="text-[11px] font-bold text-sky-400/80">PA</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20" title="Points de Mouvement">
-              <span className="text-sm font-bold text-emerald-400 tabular-nums">{activeGrade?.movementPoints ?? "—"}</span>
-              <span className="text-[11px] font-bold text-emerald-400/80">PM</span>
-            </div>
+              <span className="text-[11px] text-muted-foreground">PV</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5" title="Points d'Action">
+              <img src="/assets/dofus/stats/pa.png" alt="" className="w-4 h-4 object-contain" />
+              <span className="font-mono text-[15px] text-foreground tabular-nums">{activeGrade?.actionPoints ?? "—"}</span>
+              <span className="text-[11px] text-muted-foreground">PA</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5" title="Points de Mouvement">
+              <img src="/assets/dofus/stats/pm.png" alt="" className="w-4 h-4 object-contain" />
+              <span className="font-mono text-[15px] text-foreground tabular-nums">{activeGrade?.movementPoints ?? "—"}</span>
+              <span className="text-[11px] text-muted-foreground">PM</span>
+            </span>
           </div>
-          <div className="hidden sm:block h-5 w-px bg-white/10 mx-0.5" />
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface/70 border border-white/10" title="Résistance Neutre">
-              <img src="/assets/module-succes/neutre.png" alt="Neutre" className="w-4 h-4 object-contain" />
-              <b className="text-sm font-bold text-foreground tabular-nums">{resists.neutral ?? 0}%</b>
-              <span className="text-[11px] font-bold text-muted-foreground hidden sm:inline">Neutre</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20" title="Résistance Terre">
-              <img src="/assets/module-succes/terre.png" alt="Terre" className="w-4 h-4 object-contain" />
-              <b className="text-sm font-bold text-amber-400 tabular-nums">{resists.earth ?? 0}%</b>
-              <span className="text-[11px] font-bold text-amber-400/80 hidden sm:inline">Terre</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/20" title="Résistance Feu">
-              <img src="/assets/module-succes/Intelligence.png" alt="Feu" className="w-4 h-4 object-contain" />
-              <b className="text-sm font-bold text-red-400 tabular-nums">{resists.fire ?? 0}%</b>
-              <span className="text-[11px] font-bold text-red-400/80 hidden sm:inline">Feu</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-sky-500/10 border border-sky-500/20" title="Résistance Eau">
-              <img src="/assets/module-succes/eau.png" alt="Eau" className="w-4 h-4 object-contain" />
-              <b className="text-sm font-bold text-sky-400 tabular-nums">{resists.water ?? 0}%</b>
-              <span className="text-[11px] font-bold text-sky-400/80 hidden sm:inline">Eau</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20" title="Résistance Air">
-              <img src="/assets/module-succes/Agility.png" alt="Air" className="w-4 h-4 object-contain" />
-              <b className="text-sm font-bold text-emerald-400 tabular-nums">{resists.air ?? 0}%</b>
-              <span className="text-[11px] font-bold text-emerald-400/80 hidden sm:inline">Air</span>
-            </div>
+
+          <span className="h-5 w-px bg-border" />
+
+          {/* Résistances — libellé discret, valeur mono, négatif en rouge */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {(
+              [
+                { key: "neutral", label: "Neutre", icon: "/assets/module-succes/neutre.png", value: resists.neutral ?? 0 },
+                { key: "earth", label: "Terre", icon: "/assets/module-succes/terre.png", value: resists.earth ?? 0 },
+                { key: "fire", label: "Feu", icon: "/assets/module-succes/Intelligence.png", value: resists.fire ?? 0 },
+                { key: "water", label: "Eau", icon: "/assets/module-succes/eau.png", value: resists.water ?? 0 },
+                { key: "air", label: "Air", icon: "/assets/module-succes/Agility.png", value: resists.air ?? 0 },
+              ] as const
+            ).map(({ key, label, icon, value }) => (
+              <span key={key} className="inline-flex items-center gap-1.5" title={`Résistance ${label}`}>
+                <img src={icon} alt="" className="w-4 h-4 object-contain" />
+                <span
+                  className={cn(
+                    "font-mono text-[13px] tabular-nums",
+                    value < 0 ? "text-rose-400" : "text-foreground/85"
+                  )}
+                >
+                  {value}%
+                </span>
+                <span className="hidden text-[11px] text-muted-foreground sm:inline">{label}</span>
+              </span>
+            ))}
           </div>
+
+          {/* Grade / butin : raccourci vers l'onglet des paliers (même information) */}
           {grades.length > 1 && (
             <button
               type="button"
               onClick={() => setDetailTab("grades")}
-              className="ml-auto px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-300 text-[11px] font-bold hover:bg-amber-500/20 transition-colors flex items-center gap-1"
+              className="ml-auto inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
               title="Ouvrir l'onglet des grades & paliers"
             >
-              <Flame className="w-3 h-3" />
-              {grades.length === 5 ? `Butin ${4 + gradeIdx}` : `Grade ${1 + gradeIdx}`}
+              <Flame className="w-3.5 h-3.5" />
+              <span className="font-mono">
+                {grades.length === 5 ? `butin ${4 + gradeIdx}` : `grade ${1 + gradeIdx}`}
+              </span>
+              <ArrowRight className="w-3 h-3" />
             </button>
           )}
         </div>
       )}
 
-      {/* ── TABS NAVIGATION (parité module interne) ── */}
-      <div className="flex items-center gap-1.5 p-1 bg-surface/60 border border-white/10 rounded-xl overflow-x-auto [scrollbar-width:none]">
+      {/* ── ONGLETS ──────────────────────────────────────────────────────────
+          Onglets **neutres** : l'actif est simplement souligné, plus de pastille
+          dorée — la donnée (et non la couleur) porte la hiérarchie. */}
+      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar border-b border-border">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = detailTab === tab.id;
@@ -465,19 +445,28 @@ export function PublicBossDetailClient({
               type="button"
               onClick={() => setDetailTab(tab.id)}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-colors whitespace-nowrap",
+                "flex items-center gap-2 px-3 py-2 text-xs transition-colors whitespace-nowrap border-b-2 -mb-px",
                 isActive
-                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]"
+                  ? "border-foreground/60 text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
               )}
             >
-              <Icon className={cn("w-3.5 h-3.5", isActive ? "text-amber-300" : "text-muted-foreground")} />
+              <Icon className="w-3.5 h-3.5" />
               <span>{tab.label}</span>
             </button>
           );
         })}
       </div>
 
+      {/* ── PANNEAU D'ONGLET ─────────────────────────────────────────────────
+          Hauteur minimale **stable** : sans elle, passer d'un onglet court à
+          l'onglet Simulation (carte isométrique) fait franchir la hauteur du
+          viewport au document ⇒ la barre de défilement apparaît, le contenu
+          centré se décale de ~15 px et l'utilisateur voit « la page bouger ».
+          `min-h` garde la page de la même hauteur d'un onglet à l'autre, et
+          `overflow-anchor: none` empêche le navigateur de « recaler » le
+          défilement quand le panneau change de taille. */}
+      <div className="min-h-[560px] [overflow-anchor:none]">
       {/* ── TAB: SORTS DU BOSS (mécaniques clés) ── */}
       {detailTab === "sorts" && (
         <div className="space-y-4">
@@ -489,9 +478,9 @@ export function PublicBossDetailClient({
             <>
               <div className="flex flex-wrap items-center gap-2">
                 <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                  <Zap className="w-4 h-4 text-amber-400" /> Mécaniques clés
+                  <Zap className="w-4 h-4 opacity-70" /> Mécaniques clés
                 </h4>
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-300">
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full border border-border text-muted-foreground">
                   {spells.length} sorts à anticiper
                 </span>
               </div>
@@ -504,7 +493,7 @@ export function PublicBossDetailClient({
                           {spell.imageUrl ? (
                             <MonsterImage src={spell.imageUrl} alt={spell.name} assetType="spells" assetId={spell.id} className="w-full h-full object-contain" />
                           ) : (
-                            <Zap className="w-3.5 h-3.5 text-amber-400" />
+                            <Zap className="w-3.5 h-3.5 opacity-70" />
                           )}
                         </div>
                         <div className="min-w-0">
@@ -521,7 +510,7 @@ export function PublicBossDetailClient({
                     <button
                       type="button"
                       onClick={() => { setSelectedSpellId(spell.id); setDetailTab("sim"); }}
-                      className="mt-3 text-xs font-bold text-amber-300 hover:text-amber-200 self-start transition-colors flex items-center gap-1"
+                      className="mt-3 text-xs font-semibold text-muted-foreground hover:text-foreground self-start transition-colors flex items-center gap-1"
                     >
                       <Target className="w-3.5 h-3.5" /> Voir la portée
                     </button>
@@ -537,7 +526,7 @@ export function PublicBossDetailClient({
       {detailTab === "overview" && (
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <Zap className="w-4 h-4 text-amber-400" />
+            <Zap className="w-4 h-4 opacity-70" />
             <h4 className="text-sm font-bold text-foreground">Tous les sorts ({spells.length})</h4>
           </div>
           {spells.length === 0 ? (
@@ -551,7 +540,7 @@ export function PublicBossDetailClient({
                       {spell.imageUrl ? (
                         <MonsterImage src={spell.imageUrl} alt={spell.name} assetType="spells" assetId={spell.id} className="w-8 h-8 object-contain rounded-lg bg-background border border-white/10 p-0.5" />
                       ) : (
-                        <Zap className="w-4 h-4 text-amber-400" />
+                        <Zap className="w-4 h-4 opacity-70" />
                       )}
                       <div>
                         <span className="flex items-center gap-1.5">
@@ -568,7 +557,7 @@ export function PublicBossDetailClient({
                     <button
                       type="button"
                       onClick={() => { setSelectedSpellId(spell.id); setDetailTab("sim"); }}
-                      className="text-[11px] font-bold px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-300 hover:bg-amber-500/20 transition-colors shrink-0"
+                      className="text-[11px] font-bold px-2 py-1 rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors shrink-0"
                     >
                       Simuler
                     </button>
@@ -592,7 +581,7 @@ export function PublicBossDetailClient({
                                   {det.masks?.length > 0 && <span className="block text-muted-foreground/80">{det.masks.join(" · ")}</span>}
                                   {det.triggers?.length > 0 && (
                                     <span className="block text-muted-foreground/80 flex items-center gap-1">
-                                      <Zap className="w-3 h-3 text-amber-400 shrink-0" />{det.triggers.join(" · ")}
+                                      <Zap className="w-3 h-3 shrink-0 opacity-70" />{det.triggers.join(" · ")}
                                     </span>
                                   )}
                                 </li>
@@ -604,7 +593,7 @@ export function PublicBossDetailClient({
                           <p className="text-muted-foreground/80">Effets critiques : aucun.</p>
                         ) : criticals.length > 0 ? (
                           <div className="space-y-0.5 pt-1 border-t border-white/10">
-                            <span className="block text-[11px] font-bold uppercase tracking-wide text-amber-300">Effets critiques</span>
+                            <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Effets critiques</span>
                             <ul className="space-y-0.5">
                               {criticals.map((ce: string, k: number) => (
                                 <li key={k} className="text-muted-foreground">• {ce}</li>
@@ -622,17 +611,20 @@ export function PublicBossDetailClient({
         </div>
       )}
 
-      {/* ── TAB: SIMULATION TACTIQUE (avec choix de map, comme l'interne) ── */}
+      {/* ── ONGLET SIMULATION ────────────────────────────────────────────────
+          Un seul panneau (l'ancien empilement enveloppait la grille — qui a déjà
+          son propre cadre — dans une carte `rounded-3xl shadow-2xl` : trois
+          bordures imbriquées). L'entité simulée se choisit dans une ligne sobre. */}
       {detailTab === "sim" && (
         <div className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Target className="w-4 h-4 text-amber-400" />
-              <h4 className="text-sm font-bold text-foreground">Simulation & Portée des Sorts</h4>
-            </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h4 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Target className="w-4 h-4 opacity-70" />
+              Simulation &amp; portée des sorts
+            </h4>
             {hasRoomMonsters && (
-              <div className="flex items-center gap-1 bg-background/60 border border-white/10 p-1 rounded-xl overflow-x-auto max-w-full">
-                <span className="text-[11px] font-bold text-muted-foreground px-1.5 hidden sm:inline">Entité :</span>
+              <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-border bg-background/40 p-1">
+                <span className="hidden shrink-0 px-1.5 text-[11px] text-muted-foreground sm:inline">Entité :</span>
                 {roomMonsters.map((m) => {
                   const isActive = (activeMonsterName ?? bossName) === m.name;
                   return (
@@ -641,14 +633,15 @@ export function PublicBossDetailClient({
                       type="button"
                       onClick={() => selectMonster(m)}
                       className={cn(
-                        "flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[11px] font-bold transition-colors shrink-0",
+                        "flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-[11px] transition-colors",
                         isActive
-                          ? "bg-amber-500/20 border border-amber-500/40 text-amber-300"
-                          : "bg-surface border border-white/10 text-muted-foreground hover:text-foreground"
+                          ? "bg-white/[0.10] text-foreground"
+                          : "text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      {m.imageUrl && <MonsterImage src={m.imageUrl} alt={m.name} monsterId={m.id} className="w-3 h-3 object-contain rounded-xs" />}
-                      {m.isBoss && "👑 "}{m.name}
+                      {m.imageUrl && <MonsterImage src={m.imageUrl} alt="" monsterId={m.id} className="h-3 w-3 object-contain" />}
+                      {m.isBoss && <Crown className="h-3 w-3 text-amber-300/80" />}
+                      {m.name}
                     </button>
                   );
                 })}
@@ -656,25 +649,23 @@ export function PublicBossDetailClient({
             )}
           </div>
           {spells.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-8 text-center">Aucun sort disponible pour la simulation.</p>
+            <p className="py-8 text-center text-xs text-muted-foreground">Aucun sort disponible pour la simulation.</p>
           ) : (
-            <div className="rounded-3xl border border-white/10 bg-surface/50 p-4 sm:p-6 overflow-hidden shadow-2xl">
-              <SpellRangeGrid
-                spells={spells}
-                activeSpellId={selectedSpellId}
-                onSelectSpell={(s) => setSelectedSpellId(s.id)}
-                bossName={resolvedBossName}
-                bossImageUrl={currentStats?.imageUrl ?? dungeon.imageUrl ?? undefined}
-                dungeonMaps={dungeonMaps?.maps}
-                dungeonName={dungeonMaps?.dungeonName ?? dungeon.name}
-                grades={grades.map((g: any) => ({ level: g.level }))}
-                activeGradeIndex={activeGradeIndex ?? (grades.length - 1)}
-                onGradeChange={(idx) => setActiveGradeIndex(idx)}
-                monsters={roomMonsters}
-                entityScale={isTitan ? 4 : 1}
-                allowFreeCasterMove
-              />
-            </div>
+            <SpellRangeGrid
+              spells={spells}
+              activeSpellId={selectedSpellId}
+              onSelectSpell={(s) => setSelectedSpellId(s.id)}
+              bossName={resolvedBossName}
+              bossImageUrl={currentStats?.imageUrl ?? dungeon.imageUrl ?? undefined}
+              dungeonMaps={dungeonMaps?.maps}
+              dungeonName={dungeonMaps?.dungeonName ?? dungeon.name}
+              grades={grades.map((g: any) => ({ level: g.level }))}
+              activeGradeIndex={activeGradeIndex ?? (grades.length - 1)}
+              onGradeChange={(idx) => setActiveGradeIndex(idx)}
+              monsters={roomMonsters}
+              entityScale={isTitan ? 4 : 1}
+              allowFreeCasterMove
+            />
           )}
         </div>
       )}
@@ -683,7 +674,7 @@ export function PublicBossDetailClient({
       {detailTab === "grades" && (
         <div className="space-y-4">
           <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-            <Flame className="w-4 h-4 text-amber-400" /> Paliers de Grades & Caractéristiques de Combat
+            <Flame className="w-4 h-4 opacity-70" /> Paliers de Grades & Caractéristiques de Combat
           </h4>
           <p className="text-xs text-muted-foreground flex items-center gap-1.5">
             <Info className="w-3.5 h-3.5" /> Les caractéristiques ci-dessus varient selon le grade sélectionné.
@@ -694,7 +685,7 @@ export function PublicBossDetailClient({
               const label = grades.length === 5 ? `Butin ${4 + idx}` : `Grade ${idx + 1}`;
               const r = gr.resists || {};
               return (
-                <div key={idx} className={cn("p-3.5 rounded-2xl border transition-colors flex flex-col justify-between space-y-3", isActive ? "border-amber-500/50 bg-amber-500/10" : "border-white/10 bg-surface/60")}>
+                <div key={idx} className={cn("p-3.5 rounded-2xl border transition-colors flex flex-col justify-between space-y-3", isActive ? "border-border-strong bg-white/[0.06]" : "border-white/10 bg-surface/60")}>
                   <div>
                     <div className="flex items-center justify-between gap-1 mb-2">
                       <span className="text-sm font-bold text-foreground">{label}</span>
@@ -721,7 +712,7 @@ export function PublicBossDetailClient({
                   <button
                     type="button"
                     onClick={() => setActiveGradeIndex(idx)}
-                    className={cn("w-full py-1.5 rounded-xl text-xs font-bold transition-colors", isActive ? "bg-amber-500 text-zinc-950" : "bg-surface border border-white/10 text-muted-foreground hover:text-foreground")}
+                    className={cn("w-full py-1.5 rounded-xl text-xs font-bold transition-colors", isActive ? "bg-foreground text-background" : "bg-surface border border-white/10 text-muted-foreground hover:text-foreground")}
                   >
                     {isActive ? "✓ Grade Actif" : "Sélectionner"}
                   </button>
@@ -772,13 +763,13 @@ export function PublicBossDetailClient({
       {detailTab === "family" && (
         <div className="space-y-3">
           <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-            <Users className="w-4 h-4 text-amber-400" /> Monstres accompagnateurs de la salle
+            <Users className="w-4 h-4 opacity-70" /> Monstres accompagnateurs de la salle
           </h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {roomMonsters.map((m) => {
               const isActive = (activeMonsterName ?? bossName) === m.name;
               return (
-                <div key={m.id} className={cn("p-3 rounded-2xl border transition-colors flex flex-col justify-between space-y-2.5", isActive ? "border-amber-500/50 bg-amber-500/10" : "border-white/10 bg-surface/60")}>
+                <div key={m.id} className={cn("p-3 rounded-2xl border transition-colors flex flex-col justify-between space-y-2.5", isActive ? "border-border-strong bg-white/[0.06]" : "border-white/10 bg-surface/60")}>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-background border border-white/10 flex items-center justify-center p-1 shrink-0 overflow-hidden">
                       {m.imageUrl ? (
@@ -788,7 +779,7 @@ export function PublicBossDetailClient({
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className={cn("text-xs font-bold truncate", isActive ? "text-amber-300" : "text-foreground")}>{m.isBoss && "👑 "}{m.name}</p>
+                      <p className={cn("text-xs font-bold truncate", isActive ? "text-foreground" : "text-muted-foreground")}>{m.isBoss && "👑 "}{m.name}</p>
                       <span className="text-[11px] text-muted-foreground block">{m.isBoss ? "Boss principal" : "Monstre de salle"}</span>
                     </div>
                   </div>
@@ -803,7 +794,7 @@ export function PublicBossDetailClient({
                     <button
                       type="button"
                       onClick={() => { selectMonster(m); setDetailTab("sim"); }}
-                      className="py-1 px-2.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[11px] font-bold hover:bg-amber-500/25 transition-colors text-center flex items-center gap-1"
+                      className="py-1 px-2.5 rounded-lg border border-border text-muted-foreground text-[11px] hover:text-foreground transition-colors text-center flex items-center gap-1"
                       title="Simuler la portée de ce monstre"
                     >
                       <Target className="w-3 h-3" /> Simuler
@@ -815,6 +806,7 @@ export function PublicBossDetailClient({
           </div>
         </div>
       )}
+      </div>
 
       {/* ── COORDONNÉES (entrée donjon + /travel) ── */}
       {coords && (
@@ -828,11 +820,11 @@ export function PublicBossDetailClient({
                 window.setTimeout(() => setCopiedTravel(false), 2000);
               }).catch(() => {});
             }}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-background border border-white/10 hover:border-amber-500/50 text-foreground transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-background border border-white/10 hover:border-border-strong text-foreground transition-colors"
             title="Cliquer pour copier la commande /travel"
           >
-            <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span>Entrée du donjon : <strong className="text-amber-300">[{coords.x}, {coords.y}]</strong></span>
+            <MapPin className="w-3.5 h-3.5 shrink-0 opacity-70" />
+            <span>Entrée du donjon : <strong className="font-mono text-foreground/90">[{coords.x}, {coords.y}]</strong></span>
             <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-surface border border-white/10 text-muted-foreground font-mono">{travelCmd}</span>
             {copiedTravel && <Check className="w-3.5 h-3.5 text-emerald-400" />}
           </button>
@@ -841,6 +833,20 @@ export function PublicBossDetailClient({
           </span>
         </div>
       )}
+
+      {/* ── PASSAGE À L'ESPACE GUILDE ────────────────────────────────────────
+          Déplacé ici (bas de fiche) : il interrompait auparavant l'en-tête et les
+          caractéristiques, en pleine lecture des données. Une seule ligne sobre. */}
+      <div className="flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Users className="w-3.5 h-3.5 shrink-0 opacity-70" />
+          Préparez ce donjon en guilde : session Discord, inscriptions par classe et succès validés automatiquement.
+        </p>
+        <Link href="/" className="inline-flex shrink-0 items-center gap-1.5 text-xs text-foreground transition-colors hover:underline">
+          Créer mon espace guilde
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
+      </div>
 
       {/* ── DROP MODAL ── */}
       {selectedDrop && (
@@ -886,16 +892,14 @@ export function PublicBossDetailClient({
         </div>
       )}
 
-      {/* ── LIENS GUIDES COMPLÉMENTAIRES ── */}
+      {/* ── LIENS GUIDES COMPLÉMENTAIRES ──
+          Le libellé « Guides : » n'apparaît que s'il y a réellement un lien
+          sortant à proposer (sinon il resterait orphelin). */}
       <div className="flex flex-wrap items-center gap-2 pt-2">
-        <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-          <Layers className="w-3.5 h-3.5" /> Guides :
-        </span>
-        {dungeon.dofensiveUrl && (
-          <a href={dungeon.dofensiveUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-surface/60 text-foreground text-xs font-bold hover:bg-surface transition-colors">
-            <img src="https://www.google.com/s2/favicons?domain=dofensive.com&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm" loading="lazy" />
-            Dofensive
-          </a>
+        {dungeon.dofuspourlesnoobsUrl && (
+          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            <Layers className="w-3.5 h-3.5" /> Guides :
+          </span>
         )}
         {dungeon.dofuspourlesnoobsUrl && (
           <a href={dungeon.dofuspourlesnoobsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-surface/60 text-foreground text-xs font-bold hover:bg-surface transition-colors">

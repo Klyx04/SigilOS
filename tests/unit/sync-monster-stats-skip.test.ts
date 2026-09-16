@@ -53,6 +53,13 @@ vi.mock("@/lib/anomaly-boss-siphon", () => ({
     syncAnomalyBosses: (...args: any[]) => mockSyncAnomalies(...args),
 }));
 
+// Phase 4 du cron : le siphon des AVIS DE RECHERCHE (DofusDB `monster-races` + Dofensive)
+// est mocké pour la même raison — aucun appel réseau, aucune écriture `Bounty`.
+const mockSyncBounties = vi.fn();
+vi.mock("@/lib/bounty-siphon", () => ({
+    syncBounties: (...args: any[]) => mockSyncBounties(...args),
+}));
+
 vi.mock("@/server/actions/super-admin-actions", () => ({
     isSuperAdmin: vi.fn().mockResolvedValue(true),
     canAccessBrick: vi.fn().mockResolvedValue(true),
@@ -100,6 +107,16 @@ beforeEach(() => {
         imagesSiphoned: 0,
         guardians: [],
         companions: [],
+    });
+    mockSyncBounties.mockResolvedValue({
+        synced: 0,
+        unchanged: 0,
+        errors: [],
+        imagesSiphoned: 0,
+        unproven: 0,
+        perRace: {},
+        defaultMap: 0,
+        entries: [],
     });
     vi.unstubAllGlobals();
 });

@@ -935,7 +935,7 @@ model Zone {
 
 model Bounty {
   id         String   @id @default(cuid())
-  name       String   @unique
+  name       String
   level      Int
   zoneName   String?
   imageUrl   String?
@@ -952,9 +952,29 @@ model Bounty {
   mapUrl     String?
   rewards    Json?    @default("[]")
   position   String?
+  /* ── Chantier « Avis de recherche » (fiches + Succès + overlay) ────────────────
+     Contenu 100 % SIPHONNÉ (DofusDB `monster-races/32|90|127|147|156` + Dofensive
+     `/monsters/{id}`), écrit par la phase 4 du cron `sync-monster-stats` : jamais saisi
+     à la main (règle de la maison). `dofusdbId` = id Ankama/DofusDB, **clé de
+     rattachement** — des homonymes existent (3 × « Ronce ») donc `name` n'est plus
+     unique. `isBountyMonster` marque les 96 avis siphonnés ; les lignes historiques
+     (archimonstres/boss utilisés par la carte du monde) restent à `false` et ne sont
+     jamais servies comme avis. `subareaIds` = sous-zones de traque (worldmap.json) ;
+     `battleMapId`/`battleMapSource` = carte de la simulation (`default` = repli
+     DÉCLARÉ : Dofensive n'expose pas la grille des maps sauvages). */
+  dofusdbId       Int?     @unique
+  slug            String?
+  raceId          Int?
+  raceName        String?
+  subareaIds      Json     @default("[]")
+  isBountyMonster Boolean  @default(false)
+  battleMapId     Int?
+  battleMapSource String?
+  dofusdbSyncedAt DateTime?
 
   @@index([name])
   @@index([zoneName])
+  @@index([isBountyMonster])
 }
 
 /// Catalogue de monstres/boss/archimonstres de Dofus — stockés localement pour la carte.

@@ -1023,10 +1023,20 @@ function dofusdbFicheInit(): RequestInit {
 export async function getMonsterStats(
     monsterName: string,
     dungeonName?: string,
-    forceRefresh = false
+    forceRefresh = false,
+    monsterId?: number
 ): Promise<ActionResponse<any>> {
+    // 🎯 Résolution **par ID** (chantier « Avis de recherche ») : les homonymes existent en jeu
+    // (3 × « Ronce » 3530/3555/3531, plusieurs « Mouchâme »). La recherche se fait sinon par
+    // `name.fr`, qui renvoie TOUJOURS le premier homonyme ⇒ fiche croisée. Un appelant qui
+    // connaît l'id (siphon, fiche d'avis) le passe et obtient la fiche EXACTE.
+    const safeId = Number.isFinite(Number(monsterId)) && Math.floor(Number(monsterId)) > 0
+        ? Math.floor(Number(monsterId))
+        : 0;
     // #138 — évite de re-frapper dofusdb à chaque sélection de donjon (la fiche est statique).
-    const cacheKey = `${monsterName.trim().toLowerCase()}::${(dungeonName ?? "").toLowerCase()}`;
+    const cacheKey = safeId > 0
+        ? `id:${safeId}`
+        : `${monsterName.trim().toLowerCase()}::${(dungeonName ?? "").toLowerCase()}`;
     const cached = monsterStatsCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
         return { success: true, data: cached.data };
@@ -1088,15 +1098,20 @@ export async function getMonsterStats(
     }
 
     try {
-        // Search for the monster - search by name.fr
-        const searchRes = await fetch(
-            `https://api.dofusdb.fr/monsters?name.fr=${encodeURIComponent(monsterName.trim())}&lang=fr&$limit=5`,
-            dofusdbFicheInit()
-        );
-        if (!searchRes.ok) throw new Error("DofusDB search failed");
-        const searchData = await searchRes.json();
+        // Search for the monster - search by name.fr (sauf quand l'id est fourni : résolution exacte)
+        let monsterHeader: any = null;
+        if (safeId > 0) {
+            monsterHeader = { id: safeId };
+        } else {
+            const searchRes = await fetch(
+                `https://api.dofusdb.fr/monsters?name.fr=${encodeURIComponent(monsterName.trim())}&lang=fr&$limit=5`,
+                dofusdbFicheInit()
+            );
+            if (!searchRes.ok) throw new Error("DofusDB search failed");
+            const searchData = await searchRes.json();
 
-        let monsterHeader = searchData.data?.find((m: any) => m.name?.fr?.toLowerCase() === monsterName.toLowerCase().trim()) || searchData.data?.[0];
+            monsterHeader = searchData.data?.find((m: any) => m.name?.fr?.toLowerCase() === monsterName.toLowerCase().trim()) || searchData.data?.[0];
+        }
 
         // Fallback 1: Si non trouvé, chercher par nom de donjon sur DofusDB
         if (!monsterHeader && dungeonName && dungeonName.trim()) {
@@ -1864,7 +1879,7 @@ export async function syncBountiesCompleteFromDofusDb(): Promise<ActionResponse<
                 : null;
             const defaultMechanics = `<p><strong>Zone de traque :</strong> ${subarea || 'Inconnue'}</p><p><strong>Niveau conseillé :</strong> ${level}</p>${spellsList ? `<p><strong>Capacités clés :</strong> ${spellsList}</p>` : ''}<p>Consultez la fiche complète sur DofusPourLesNoobs pour les états d'invulnérabilité et le placement idéal.</p>`;
 
-            const existing = await db.bounty.findUnique({
+            const existing = await db.bounty.findFirst({
                 where: { name: name.trim() }
             });
 

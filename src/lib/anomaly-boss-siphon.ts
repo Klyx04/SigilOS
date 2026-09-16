@@ -199,7 +199,7 @@ function guardianLevel(monster: any): number {
 }
 
 /** Niveaux de sorts DofusDB (`spell-levels?spellId[$in][]=…`) — repli sans Dofensive. */
-async function fetchSpellLevels(spellIds: number[]): Promise<any[]> {
+export async function fetchSpellLevels(spellIds: number[]): Promise<any[]> {
     const ids = spellIds.filter((id) => Number.isFinite(id) && id > 0);
     if (ids.length === 0) return [];
     const query = ids.map((id) => `spellId[$in][]=${id}`).join("&");

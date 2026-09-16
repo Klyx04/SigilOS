@@ -820,6 +820,67 @@ export async function siphonDungeonMonstersDatasetAction(): Promise<ActionRespon
     }
 }
 
+// 🛡️ Fail-closed : super-admin OU sous-god avec la brique « game-data » **ou** la brique
+// ciblée « game-data-bounties » (même règle que `canAccessBounties` dans game-data-actions) :
+// un délégué « avis de recherche » peut siphonner sans avoir tout le module de données.
+async function requireGameDataBounties(): Promise<string | null> {
+    const session = await auth();
+    if (!session?.user?.id) return null;
+
+    if (await isSuperAdmin()) return session.user.id;
+    if (await canAccessBrick("game-data")) return session.user.id;
+    if (await canAccessBrick("game-data-bounties")) return session.user.id;
+
+    return null;
+}
+
+/**
+ * Action d'administration (GOD) — **siphon des avis de recherche**.
+ *
+ * Source de vérité : DofusDB (`monster-races/32|90|127|147|156` = 96 avis) + Dofensive
+ * (`/monsters/{id}` : preuve d'appartenance, zone de traque, sorts de combat). Écrit la ligne
+ * `Bounty` (**par `dofusdbId`**), la fiche `MonsterStat` et les icônes. Idempotent : relançable.
+ */
+export async function siphonBountiesAction(): Promise<ActionResponse<{
+    synced: number;
+    unchanged: number;
+    total: number;
+    unproven: number;
+    images: number;
+    errors: number;
+    perRace: Record<string, number>;
+}>> {
+    const userId = await requireGameDataBounties();
+    if (!userId) return { success: false, error: "Accès refusé" };
+
+    try {
+        const { syncBounties } = await import("@/lib/bounty-siphon");
+        const result = await syncBounties();
+        await logGameDataWrite("siphon-bounties", `synced-${result.synced}`, {
+            total: result.entries.length,
+            unproven: result.unproven,
+            errors: result.errors.length,
+        });
+        revalidatePath('/god/game-data');
+        revalidatePath('/god/game-data/bounties');
+        return {
+            success: true,
+            data: {
+                synced: result.synced,
+                unchanged: result.unchanged,
+                total: result.entries.length,
+                unproven: result.unproven,
+                images: result.imagesSiphoned,
+                errors: result.errors.length,
+                perRace: result.perRace,
+            },
+        };
+    } catch (error: any) {
+        logger.error('[siphonBountiesAction] Error:', error);
+        return { success: false, error: error?.message || 'Erreur lors du siphon des avis de recherche' };
+    }
+}
+
 
 // ===========================
 // DUNGEON ACHIEVEMENTS (Manual management)

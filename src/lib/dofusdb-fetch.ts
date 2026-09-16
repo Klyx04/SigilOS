@@ -15,7 +15,7 @@ const DOFUSDB_HEADERS = {
 };
 
 /** Chemins DofusDB autorisés (lecture). N'accepter que `{collection}/{query}`. */
-const DOFUSDB_PATH_RE = /^\/(?:spells|spell-levels|spell-variants|breeds|items|monsters|classes)\??/;
+const DOFUSDB_PATH_RE = /^\/(?:spells|spell-levels|spell-variants|breeds|items|monsters|monster-races|classes)\??/;
 
 /**
  * Interrupteur de TEST DE PANNE (D6 de l'amorce « indépendance totale »).

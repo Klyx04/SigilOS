@@ -389,7 +389,7 @@ export async function persistMonsterStat(data: any): Promise<void> {
 
 const CONCURRENCY = 4;
 
-async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+export async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
     const results: R[] = [];
     const queue = [...items];
     const workers = Array.from({ length: Math.min(limit, items.length || 1) }, async () => {

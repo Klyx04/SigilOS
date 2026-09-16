@@ -29,7 +29,7 @@ import {
     type SiphonDashboardStats,
     type SiphonInventoryItem,
 } from '@/server/actions/asset-siphon-actions';
-import { siphonDungeonMonstersDatasetAction } from '@/server/actions/game-data-admin-actions';
+import { siphonDungeonMonstersDatasetAction, siphonBountiesAction } from '@/server/actions/game-data-admin-actions';
 import { toast } from 'sonner';
 
 /**
@@ -78,6 +78,7 @@ export function GameDataSiphonPanel() {
     const [logs, setLogs] = useState<string[]>([]);
     const [isSiphoning, setIsSiphoning] = useState(false);
     const [isSiphoningDataset, setIsSiphoningDataset] = useState(false);
+    const [isSiphoningBounties, setIsSiphoningBounties] = useState(false);
     const [progressValue, setProgressValue] = useState(0);
     // Résumé persistant après la fin du run (la barre ne disparaît plus dans le vide)
     const [siphonSummary, setSiphonSummary] = useState<string | null>(null);
@@ -102,6 +103,36 @@ export function GameDataSiphonPanel() {
             toast.error(`Erreur : ${e.message}`);
         } finally {
             setIsSiphoningDataset(false);
+        }
+    };
+
+    /**
+     * Siphon des **avis de recherche** (96 avis) : DofusDB `monster-races/32|90|127|147|156`
+     * + Dofensive `/monsters/{id}` ⇒ lignes `Bounty` (par `dofusdbId`), fiches `MonsterStat`,
+     * sorts de combat, zone de traque et icônes. Idempotent (relançable sans effet de bord).
+     */
+    const handleSiphonBounties = async () => {
+        setIsSiphoningBounties(true);
+        setLogs((prev) => ['🚀 Siphonnage des avis de recherche (DofusDB + Dofensive) en cours...', ...prev]);
+        try {
+            const res = await siphonBountiesAction();
+            if (res.success && res.data) {
+                const data = res.data;
+                const races = Object.entries(data.perRace).map(([id, n]) => `${id}:${n}`).join(' · ');
+                toast.success(`Avis de recherche : ${data.total} avis résolus (${data.synced} écrits, ${data.images} icônes) !`);
+                setLogs((prev) => [
+                    `✅ Avis de recherche : ${data.total} avis (${data.synced} écrits, ${data.unchanged} inchangés, ` +
+                    `${data.unproven} non prouvés, ${data.images} icônes, ${data.errors} erreur(s)) — races ${races}.`,
+                    ...prev
+                ]);
+                await loadData();
+            } else {
+                toast.error(res.error || 'Erreur lors du siphon des avis de recherche');
+            }
+        } catch (e: any) {
+            toast.error(`Erreur : ${e.message}`);
+        } finally {
+            setIsSiphoningBounties(false);
         }
     };
 
@@ -336,6 +367,16 @@ export function GameDataSiphonPanel() {
                     >
                         {isSiphoningDataset ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />}
                         Régénérer le catalogue JSON
+                    </Button>
+
+                    <Button
+                        onClick={handleSiphonBounties}
+                        disabled={isSiphoningBounties || isPending}
+                        className="rounded-xl font-black bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white shadow-lg shadow-rose-950/30 gap-2"
+                        title="Siphonne les 96 avis de recherche (DofusDB monster-races/32|90|127|147|156 + Dofensive /monsters/{id}) : lignes Bounty par dofusdbId, fiches MonsterStat, sorts et icônes"
+                    >
+                        {isSiphoningBounties ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                        Siphonner les avis de recherche
                     </Button>
 
                     <Button

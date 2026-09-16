@@ -364,44 +364,33 @@ async function main() {
                 }
 
                 try {
-                    const existing = await tx.bounty.findUnique({
+                    // `Bounty.name` n'est plus unique (chantier « Avis de recherche » : 3 avis
+                    // homonymes « Ronce » 3530/3555/3531) ⇒ l'upsert par nom n'est plus possible.
+                    const existing = await tx.bounty.findFirst({
                         where: { name: bounty.name }
                     });
 
-                    await tx.bounty.upsert({
-                        where: { name: bounty.name },
-                        update: {
-                            level: bounty.level,
-                            zoneName: bounty.zoneName,
-                            imageUrl: bounty.imageUrl,
-                            reward: bounty.reward,
-                            levelMin: bounty.levelMin,
-                            levelMax: bounty.levelMax,
-                            dpnlUrl: bounty.dpnlUrl,
-                            doplons: bounty.doplons || 0,
-                            rewardType: bounty.rewardType || "Doplon",
-                            milice: bounty.milice,
-                            mechanics: bounty.mechanics,
-                            mapUrl: bounty.mapUrl,
-                            rewards: bounty.rewards || [],
-                        },
-                        create: {
-                            name: bounty.name,
-                            level: bounty.level,
-                            zoneName: bounty.zoneName,
-                            imageUrl: bounty.imageUrl,
-                            reward: bounty.reward,
-                            levelMin: bounty.levelMin,
-                            levelMax: bounty.levelMax,
-                            dpnlUrl: bounty.dpnlUrl,
-                            doplons: bounty.doplons || 0,
-                            rewardType: bounty.rewardType || "Doplon",
-                            milice: bounty.milice,
-                            mechanics: bounty.mechanics,
-                            mapUrl: bounty.mapUrl,
-                            rewards: bounty.rewards || [],
-                        }
-                    });
+                    const bountyData = {
+                        level: bounty.level,
+                        zoneName: bounty.zoneName,
+                        imageUrl: bounty.imageUrl,
+                        reward: bounty.reward,
+                        levelMin: bounty.levelMin,
+                        levelMax: bounty.levelMax,
+                        dpnlUrl: bounty.dpnlUrl,
+                        doplons: bounty.doplons || 0,
+                        rewardType: bounty.rewardType || "Doplon",
+                        milice: bounty.milice,
+                        mechanics: bounty.mechanics,
+                        mapUrl: bounty.mapUrl,
+                        rewards: bounty.rewards || [],
+                    };
+
+                    if (existing) {
+                        await tx.bounty.update({ where: { id: existing.id }, data: bountyData });
+                    } else {
+                        await tx.bounty.create({ data: { name: bounty.name, ...bountyData } });
+                    }
 
                     if (existing) {
                         console.log(`  ✏️  Updated: ${bounty.name}`);

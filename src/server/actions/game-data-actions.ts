@@ -9,6 +9,7 @@ import { withCache } from "@/lib/cache";
 import fs from 'fs';
 import path from 'path';
 import { logger } from "@/lib/logger";
+import { buildBountyBestiaireEntry } from "@/lib/bounty-fiche";
 import { sanitizeHtml } from "@/lib/security";
 import { getLocalMonsterStatAny, persistMonsterStat } from "@/lib/dofensive-sync";
 import { getDofensiveDungeonForBoss } from "@/server/actions/dofensive-actions";
@@ -276,7 +277,8 @@ export interface BestiaireEntry {
     dofensiveMonsterName?: string | null;
     dofensiveDungeonName?: string | null;
     isOcreQuest: boolean;
-    type: 'boss' | 'monstre' | 'titan' | 'anomalie';
+    /* 🎯 `bounty` = avis de recherche (chantier 16/09/2026) : ni donjon, ni titan, ni monstre de salle. */
+    type: 'boss' | 'monstre' | 'titan' | 'anomalie' | 'bounty';
 }
 
 /**
@@ -393,7 +395,30 @@ export async function getBestiaireCatalog(): Promise<ActionResponse<BestiaireEnt
             logger.error('[getBestiaireCatalog] Erreur chargement titans:', { error: String(e) });
         }
 
-        return { success: true, data: [...bossEntries, ...monsterEntries, ...titanEntries] };
+        // 🎯 Avis de recherche (chantier « Avis de recherche ») — contenu 100 % SIPHONNÉ : seules
+        // les lignes marquées `isBountyMonster` sortent ici (les 51 lignes historiques de la table
+        // `Bounty` — archimonstres/boss de la carte du monde — ne sont JAMAIS servies comme avis).
+        let bountyEntries: BestiaireEntry[] = [];
+        try {
+            const bounties = await db.bounty.findMany({
+                where: { isBountyMonster: true },
+                orderBy: [{ level: 'asc' }, { name: 'asc' }],
+                select: {
+                    id: true,
+                    name: true,
+                    level: true,
+                    imageUrl: true,
+                    zoneName: true,
+                    dpnlUrl: true,
+                    dofusdbId: true,
+                },
+            });
+            bountyEntries = bounties.map((b) => buildBountyBestiaireEntry(b as any));
+        } catch (e) {
+            logger.error('[getBestiaireCatalog] Erreur chargement avis de recherche:', { error: String(e) });
+        }
+
+        return { success: true, data: [...bossEntries, ...monsterEntries, ...titanEntries, ...bountyEntries] };
     } catch (error) {
         logger.error('[getBestiaireCatalog] Error:', { error });
         return { success: false, error: 'Erreur lors du chargement du bestiaire' };

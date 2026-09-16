@@ -52,22 +52,19 @@ async function seedBounties() {
             const zoneName = bounty.zone || bounty.zoneName || 'Inconnu';
             const dpnlUrl = bounty.url || bounty.dpnlUrl || null;
 
-            await prisma.bounty.upsert({
-                where: { name: bounty.name },
-                update: {
-                    level: cleanedLevel,
-                    zoneName: zoneName,
-                    imageUrl: imageUrl,
-                    dpnlUrl: dpnlUrl
-                },
-                create: {
-                    name: bounty.name,
-                    level: cleanedLevel,
-                    zoneName: zoneName,
-                    imageUrl: imageUrl,
-                    dpnlUrl: dpnlUrl
-                }
-            });
+            // `Bounty.name` n'est plus unique (avis homonymes « Ronce ») ⇒ findFirst + update/create.
+            const existing = await prisma.bounty.findFirst({ where: { name: bounty.name } });
+            const payload = {
+                level: cleanedLevel,
+                zoneName: zoneName,
+                imageUrl: imageUrl,
+                dpnlUrl: dpnlUrl
+            };
+            if (existing) {
+                await prisma.bounty.update({ where: { id: existing.id }, data: payload });
+            } else {
+                await prisma.bounty.create({ data: { name: bounty.name, ...payload } });
+            }
         }
 
         console.log(`Successfully seeded ${data.length} bounties.`);

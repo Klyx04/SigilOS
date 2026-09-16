@@ -432,12 +432,12 @@ export function PublicBossDetailClient({
                 </strong>
               </span>
             )}
-            {bountyMeta.battleMapFallbackLabel && (
+            {bountyMeta.battleMapLabel && (
               <span
-                className="inline-flex items-center gap-1.5 text-amber-300/90"
-                title="Dofensive n'expose pas la grille d'une carte sauvage : la simulation utilise une carte générique (ce n'est pas la carte réelle du combat)."
+                className="inline-flex items-center gap-1.5 text-muted-foreground"
+                title="Aucune carte de combat n'est exposée pour un avis (Dofensive ne publie que les salles de donjon) : la simulation utilise la grille vide, sans décor trompeur."
               >
-                <Info className="w-3.5 h-3.5" /> Simulation sur {bountyMeta.battleMapFallbackLabel}
+                <Info className="w-3.5 h-3.5" /> Simulation : {bountyMeta.battleMapLabel}
               </span>
             )}
           </div>

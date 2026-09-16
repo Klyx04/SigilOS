@@ -16,14 +16,19 @@
  *     pour que la simulation isométrique fonctionne malgré tout. Le calcul de dégâts
  *     (`src/lib/dofus-monster-damage.ts`) s'applique automatiquement via `mergeDofensiveSpells`.
  *  5. **Carte de simulation** : Dofensive n'expose NI carte NI grille pour un avis (`PreferredMaps`
- *     vide ; les maps sauvages renvoient un stub `Cells: {}`) ⇒ repli **DÉCLARÉ** sur la carte
- *     générique (`battleMapSource: "default"`), comme les gardiens d'anomalie non exposés.
+ *     vide ; les maps sauvages renvoient un stub `Cells: {}`) ⇒ **aucune carte d'emprunt**
+ *     (`battleMapId: null`, `battleMapSource: "none"`) : la simulation tourne sur la **grille
+ *     vide** (« Map vide », cf. `BOUNTY_MAP_EMPTY_LABEL`). Emprunter la carte d'un donjon
+ *     affichait une salle sans rapport avec la traque (constat user du 16/09/2026).
  *  6. **Icônes** = monstre + sorts (DofusDB → WebP disque) : zéro dépendance CDN à l'exécution.
  *  7. **Écriture** = une ligne `Bounty` par avis (**upsert par `dofusdbId`** — des homonymes
  *     existent : 3 × « Ronce ») + une fiche `MonsterStat` (stats DofusDB enrichies, sorts de
  *     combat fusionnés, métadonnées `bounty`). Les champs **curés** de `Bounty`
  *     (`rewards`, `doplons`, `milice`, `rewardType`, `mechanics`, `position`, `dpnlUrl`, `mapUrl`,
  *     `reward`) ne sont **jamais** écrasés par le siphon.
+ *  8. **Exclusions** = un avis **supprimé dans God** entre dans la liste d'exclusion
+ *     (`src/lib/bounty-ignore.ts`) : il n'est ni réécrit ni recréé, et le compte est remonté
+ *     (`ignored`) — une suppression ne doit jamais être annulée par le cron.
  *
  * Idempotent et fail-soft : relançable sans effet de bord, une erreur unitaire n'interrompt pas
  * la passe. Appelé par la phase 4 du cron `sync-monster-stats` et par le bouton God
@@ -33,13 +38,12 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { dofusdbFetch } from "@/lib/dofusdb-fetch";
 import { dofensiveFetch } from "@/lib/dofensive-fetch";
-import { DB_READABLE, mapWithConcurrency, persistMonsterStat, siphonDofensiveMapById } from "@/lib/dofensive-sync";
+import { getIgnoredBountyIds, isIgnoredBounty } from "@/lib/bounty-ignore";
+import { DB_READABLE, mapWithConcurrency, persistMonsterStat } from "@/lib/dofensive-sync";
 import { mergeDofensiveSpells, type DofensiveSpellCombat } from "@/lib/dofensive-spells";
 import { siphonAndCompressImage } from "@/lib/dofus-asset-siphon";
 import { buildCombatSpellsFromDofusDb, fetchSpellLevels } from "@/lib/anomaly-boss-siphon";
 import {
-    BOUNTY_FALLBACK_MAP,
-    BOUNTY_MAP_FALLBACK_LABEL,
     BOUNTY_RACE_IDS,
     bountyCriteriaLabels,
     bountyDofensiveSpellIds,
@@ -88,6 +92,8 @@ export interface BountySyncResult {
     perRace: Record<string, number>;
     /** Avis servis avec la carte de repli (Dofensive n'expose aucune grille). */
     defaultMap: number;
+    /** Avis **exclus volontairement** (supprimés dans God) — non réécrits, non recréés. */
+    ignored: number;
     entries: BountySiphonEntry[];
 }
 
@@ -133,6 +139,7 @@ export async function syncBounties(): Promise<BountySyncResult> {
         unproven: 0,
         perRace: {},
         defaultMap: 0,
+        ignored: 0,
         entries: [],
     };
 
@@ -216,11 +223,18 @@ export async function syncBounties(): Promise<BountySyncResult> {
     }
     result.defaultMap = targets.length;
 
-    // 4. CARTE DE REPLI garantie en base (une seule fois) : la simulation ne peut pas être vide.
-    const fallbackSynced = await siphonDofensiveMapById(BOUNTY_FALLBACK_MAP.id);
+    // 3bis. EXCLUSIONS VOLONTAIRES (God « Supprimer cet avis ») : un avis supprimé ne doit pas
+    //       réapparaître à la passe suivante — la liste d'exclusion fait foi (jamais de résurrection).
+    const ignoredIds = getIgnoredBountyIds();
+    const keptTargets = targets.filter((t) => !isIgnoredBounty(t.id, ignoredIds));
+    result.ignored = targets.length - keptTargets.length;
+
+    // 4. (Plus de « carte d'emprunt » : un avis n'a AUCUNE carte exposée par la source — la
+    //     simulation tourne sur la grille vide, cf. `BOUNTY_MAP_EMPTY_LABEL`. Constat user du
+    //     16/09/2026 : la carte « Abysses du temps » affichait une salle sans rapport avec la traque.)
 
     // 5. SIPHON unitaire : fiche + sorts de combat + ligne `Bounty` + icônes.
-    await mapWithConcurrency(targets, CONCURRENCY, async (target) => {
+    await mapWithConcurrency(keptTargets, CONCURRENCY, async (target) => {
         try {
             const changed = await siphonOneBounty(target, result);
             if (changed) result.synced++;
@@ -249,7 +263,8 @@ export async function syncBounties(): Promise<BountySyncResult> {
     logger.info(
         `[bounty-siphon] ${result.entries.length} avis de recherche résolus ` +
         `(${result.synced} écrits, ${result.unchanged} inchangés, ${result.unproven} non prouvés, ` +
-        `${result.errors.length} erreur(s), ${result.imagesSiphoned} image(s), carte de repli ${fallbackSynced ? "OK" : "indisponible"}).`
+        `${result.ignored} exclu(s), ${result.errors.length} erreur(s), ${result.imagesSiphoned} image(s), ` +
+        `simulation sur grille vide).`
     );
     return result;
 }
@@ -313,10 +328,9 @@ async function siphonOneBounty(target: BountyTarget, result: BountySyncResult): 
             levelMax: target.levelMax,
             dropObjectIds: target.dropObjectIds,
             criteria: target.criteria,
-            battleMapId: target.mapId,
+            /* Aucune carte d'emprunt : `null` + source `none` ⇒ la fiche utilise la grille vide. */
+            battleMapId: target.mapId > 0 ? target.mapId : null,
             battleMapSource: target.mapSource,
-            /* Repli DÉCLARÉ : la carte générique est annoncée comme telle dans la fiche. */
-            battleMapLabel: target.mapSource === "default" ? BOUNTY_MAP_FALLBACK_LABEL : null,
             validated: target.validated,
             source: target.source,
         },
@@ -345,6 +359,10 @@ async function siphonOneBounty(target: BountyTarget, result: BountySyncResult): 
  * l'upsert par nom est impossible). Le siphon n'écrit QUE ses champs : les champs curés
  * (`rewards`, `doplons`, `milice`, `rewardType`, `mechanics`, `position`, `dpnlUrl`, `mapUrl`,
  * `reward`) ne sont jamais écrasés — ils restent la propriété de l'onglet God.
+ *
+ * `battleMapId` / `battleMapSource` sont **siphonnés** : un avis n'ayant aucune carte exposée,
+ * l'écriture vaut `null` / `"none"` (grille vide), ce qui remet aussi à zéro les anciennes
+ * lignes pointant sur la carte d'emprunt « Abysses du temps ».
  */
 async function upsertBountyRow(target: BountyTarget, imageUrl: string | null): Promise<boolean> {
     if (!DB_READABLE) return false;
@@ -374,7 +392,7 @@ async function upsertBountyRow(target: BountyTarget, imageUrl: string | null): P
         raceName: target.raceName,
         subareaIds,
         isBountyMonster: true,
-        battleMapId: target.mapId,
+        battleMapId: target.mapId > 0 ? target.mapId : null,
         battleMapSource: target.mapSource,
         dofusdbSyncedAt: new Date(),
         imageUrl: imageUrl || undefined,
@@ -392,9 +410,10 @@ async function upsertBountyRow(target: BountyTarget, imageUrl: string | null): P
         return true;
     }
 
+    const storedMapId = target.mapId > 0 ? target.mapId : null;
     const changed = existing.level !== target.level
         || existing.raceId !== target.raceId
-        || existing.battleMapId !== target.mapId
+        || existing.battleMapId !== storedMapId
         || existing.battleMapSource !== target.mapSource
         || existing.isBountyMonster !== true
         || (target.subareaName !== null && existing.zoneName !== target.subareaName)

@@ -8,7 +8,7 @@
  * `MonsterStat` (stats/sorts/butin) : aucune donnée n'est inventée ici, tout vient de la base.
  */
 import {
-    BOUNTY_MAP_FALLBACK_LABEL,
+    BOUNTY_MAP_EMPTY_LABEL,
     bountyDofensiveUrl,
     bountyDofusDbUrl,
     bountyRaceName,
@@ -57,8 +57,8 @@ export interface BountyPublicMeta {
     rewardType: string;
     /** Critères de quête RÉELS (siphonnés) — jamais reformulés. */
     criteria: string[];
-    /** Carte de simulation : `null` quand la vraie carte est connue, sinon libellé du repli. */
-    battleMapFallbackLabel: string | null;
+    /** Carte de simulation : `null` quand une grille réelle est disponible, sinon « Map vide ». */
+    battleMapLabel: string | null;
     battleMapId: number | null;
     dofusdbId: number | null;
     dofusdbUrl: string | null;
@@ -101,11 +101,13 @@ export function bountyCriteriaFromStat(stats: unknown): string[] {
     return (Array.isArray(raw) ? raw : []).map((c: unknown) => String(c ?? "").trim()).filter(Boolean);
 }
 
-/** Carte de simulation : repli déclaré (`battleMapSource === "default"`) ou carte réelle. */
-export function bountyBattleMapFallbackLabel(bounty: BountyRowInput): string | null {
-    return String(bounty.battleMapSource ?? "") === "default" ? BOUNTY_MAP_FALLBACK_LABEL : null;
+/**
+ * Carte de simulation d'un avis : `null` si une grille **réelle** est disponible (source
+ * `dofensive`), sinon le libellé « Map vide » (aucun avis n'a de carte exposée par la source).
+ */
+export function bountyBattleMapLabel(bounty: BountyRowInput): string | null {
+    return String(bounty.battleMapSource ?? "") === "dofensive" ? null : BOUNTY_MAP_EMPTY_LABEL;
 }
-
 /** Date de synchronisation exploitable (ISO) — jamais de date inventée. */
 function syncedAtIso(value: Date | string | null | undefined): string | null {
     if (!value) return null;
@@ -137,8 +139,8 @@ export function buildBountyPublicMeta(bounty: BountyRowInput, stats?: unknown): 
         doplons,
         rewardType,
         criteria: bountyCriteriaFromStat(stats),
-        battleMapFallbackLabel: bountyBattleMapFallbackLabel(bounty),
-        battleMapId: Number.isFinite(Number(bounty.battleMapId)) ? Math.floor(Number(bounty.battleMapId)) : null,
+        battleMapLabel: bountyBattleMapLabel(bounty),
+        battleMapId: Number(bounty.battleMapId) > 0 ? Math.floor(Number(bounty.battleMapId)) : null,
         dofusdbId: Number.isFinite(Number(bounty.dofusdbId)) ? Math.floor(Number(bounty.dofusdbId)) : null,
         dofusdbUrl: bountyDofusDbUrl(bounty.dofusdbId),
         dofensiveUrl: bountyDofensiveUrl(bounty.dofusdbId),

@@ -5,7 +5,7 @@ import {
     Search, Save, Info, Sparkles, Coins, ShieldAlert,
     ArrowLeft, Loader2, Edit3, Image as ImageIcon,
     Plus, Trash2, Map as MapIcon, SwatchBook,
-    Layers, Crosshair, ExternalLink, Copy, Check, MapPin
+    Layers, Crosshair, ExternalLink, Copy, Check, MapPin, RotateCcw
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -20,6 +20,7 @@ import { AssetGalleryModal } from "@/components/admin/asset-gallery-modal";
 
 import { getAllBounties } from "@/server/actions/admin-actions";
 import { updateGodBountyRecord, syncBountiesCompleteFromDofusDb } from "@/server/actions/game-data-actions";
+import { deleteBountyAction, getIgnoredBountiesAction, restoreBountyAction } from "@/server/actions/game-data-admin-actions";
 
 const REWARD_TYPES = [
     { id: "Aliton", label: "Alitons", icon: "/assets/avis/aliton.png" },
@@ -38,6 +39,9 @@ export default function GodBountiesPage() {
     const [loading, setLoading] = useState(true);
     const [selectedBounty, setSelectedBounty] = useState<any>(null);
     const [saving, setSaving] = useState(false);
+    /* Avis SUPPRIMÉS (exclus du siphon) : la suppression doit survivre au cron — cf. `bounty-ignore`. */
+    const [ignoredEntries, setIgnoredEntries] = useState<{ dofusdbId: number; name: string | null; deletedAt: string | null }[]>([]);
+    const [deleting, setDeleting] = useState(false);
     const [previewMode, setPreviewMode] = useState(false);
     const [subareaNames, setSubareaNames] = useState<string[]>([]);
     const [zoneSearch, setZoneSearch] = useState('');
@@ -64,6 +68,10 @@ export default function GodBountiesPage() {
             setFilteredBounties(data);
             setLoading(false);
         });
+        /* Avis supprimés (exclusions du siphon) — silencieux : la liste est un confort d'admin. */
+        getIgnoredBountiesAction().then(res => {
+            if (res.success && res.data) setIgnoredEntries(res.data.entries);
+        }).catch(() => {});
     }, []);
 
     useEffect(() => {
@@ -125,6 +133,53 @@ export default function GodBountiesPage() {
     };
 
     const [syncingAll, setSyncingAll] = useState(false);
+
+    /**
+     * Supprime l'avis sélectionné et l'**exclut du siphon** (liste d'exclusion) : sans cela, la
+     * synchronisation suivante le recréerait. Restaurable depuis la liste « Avis supprimés ».
+     */
+    const handleDeleteBounty = async () => {
+        if (!selectedBounty) return;
+        const name = String(selectedBounty.name ?? "");
+        const confirmed = confirm(
+            `Supprimer définitivement « ${name} » ?\n\n` +
+            "Il sera aussi EXCLU du siphon : il ne réapparaîtra pas après la prochaine synchronisation.\n" +
+            "Il reste restaurable en bas de la liste (Avis supprimés)."
+        );
+        if (!confirmed) return;
+
+        setDeleting(true);
+        try {
+            const res = await deleteBountyAction(selectedBounty.id);
+            if (res.success && res.data) {
+                toast.success(`« ${res.data.name} » supprimé (exclu du siphon)`);
+                setIgnoredEntries(res.data.entries);
+                setBounties(prev => prev.filter(b => b.id !== selectedBounty.id));
+                setSelectedBounty(null);
+            } else {
+                toast.error(res.error || "Suppression impossible");
+            }
+        } catch {
+            toast.error("Erreur de connexion");
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    /** Réintègre un avis supprimé : il sort de la liste d'exclusion, le prochain siphon le recrée. */
+    const handleRestoreBounty = async (dofusdbId: number, name: string | null) => {
+        try {
+            const res = await restoreBountyAction(dofusdbId);
+            if (res.success && res.data) {
+                setIgnoredEntries(res.data.entries);
+                toast.success(`« ${name ?? dofusdbId} » réintégré — relancez le siphon pour le recréer`);
+            } else {
+                toast.error(res.error || "Restauration impossible");
+            }
+        } catch {
+            toast.error("Erreur de connexion");
+        }
+    };
 
     const handleSyncAllBounties = async () => {
         if (!confirm("Voulez-vous synchroniser et pré-remplir automatiquement tous les avis de recherche depuis DofusDB & DPNL ?")) return;
@@ -241,6 +296,41 @@ export default function GodBountiesPage() {
                             )}
                         </button>
                     ))}
+
+                    {ignoredEntries.length > 0 && (
+                        <div className="mt-6 pt-5 border-t border-white/5 space-y-3">
+                            <div className="flex items-center gap-2 px-1">
+                                <Trash2 size={12} className="text-red-400/80" />
+                                <span className="text-caption font-black uppercase tracking-widest text-zinc-500 italic">
+                                    Avis supprimés ({ignoredEntries.length})
+                                </span>
+                            </div>
+                            <p className="px-1 text-caption text-zinc-600 leading-relaxed">
+                                Exclus du siphon : ils ne seront pas recréés à la prochaine synchronisation.
+                                « Restaurer » les réintègre (le siphon les réécrit ensuite).
+                            </p>
+                            {ignoredEntries.map(entry => (
+                                <div
+                                    key={entry.dofusdbId}
+                                    className="flex items-center gap-3 p-3 rounded-xl bg-red-500/[0.04] border border-red-500/15"
+                                >
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-caption font-black uppercase italic text-zinc-400 truncate">
+                                            {entry.name || "Avis sans nom"}
+                                        </p>
+                                        <p className="text-caption text-zinc-600 font-mono mt-0.5">#{entry.dofusdbId}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => handleRestoreBounty(entry.dofusdbId, entry.name)}
+                                        title="Réintégrer cet avis (le prochain siphon le recréera)"
+                                        className="shrink-0 flex items-center gap-1.5 px-3 h-8 rounded-lg border border-emerald-500/30 bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/15 text-caption font-black uppercase italic transition-all"
+                                    >
+                                        <RotateCcw size={12} /> Restaurer
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {/* Editor Section */}
@@ -275,6 +365,16 @@ export default function GodBountiesPage() {
                                     </TabsList>
 
                                     <div className="flex items-center gap-4">
+                                        <Button
+                                            variant="outline"
+                                            onClick={handleDeleteBounty}
+                                            disabled={deleting || saving}
+                                            title="Supprime cet avis et l'exclut du siphon (il ne sera pas recréé à la prochaine synchronisation)"
+                                            className="border-red-500/30 bg-red-500/5 hover:bg-red-500/15 text-red-400 hover:text-red-300 font-black uppercase italic h-14 px-6 rounded-2xl transition-all"
+                                        >
+                                            {deleting ? <Loader2 className="animate-spin mr-2" size={18} /> : <Trash2 className="mr-2" size={18} />}
+                                            Supprimer
+                                        </Button>
                                         <Button
                                             onClick={handleSave}
                                             disabled={saving}

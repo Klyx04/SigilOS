@@ -31,6 +31,7 @@ import {
   type DofensiveDungeonInfo,
 } from "@/server/actions/dofensive-actions";
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
+import { getBountyFiche } from "@/server/actions/bounty-actions";
 import { cn } from "@/lib/utils";
 import { SpellData, SpellRangeGrid } from "@/components/succes/SpellRangeGrid";
 import { OverlayPinNotice } from "@/components/overlay-pin-notice";
@@ -80,7 +81,7 @@ interface DungeonFamily {
   monsters: FamilyMember[];
 }
 
-type CatalogFilter = "boss" | "anomalie" | "monstre" | "titan";
+type CatalogFilter = "boss" | "anomalie" | "monstre" | "titan" | "bounty";
 type OverlayTab = "info" | "sorts" | "sim";
 
 // ─── MonsterImage ─────────────────────────────────────────────────────────────
@@ -423,6 +424,28 @@ export function BossOverlayClient({
     setStats(null);
     setDungeonMaps(undefined);
 
+    // 🎯 Avis de recherche : fiche + carte **déjà siphonnées** ⇒ lecture locale uniquement
+    // (`getBountyFiche`), aucune source live appelée (catalogue, sorts, butin, simulation).
+    if (selected.type === "bounty") {
+      setFamily(null);
+      getBountyFiche(selected.id)
+        .then((res) => {
+          if (res.success && res.data) {
+            setStats((res.data.monsterStats ?? null) as MonsterStats | null);
+            setDungeonMaps(res.data.dungeonMaps);
+          } else {
+            setStats(null);
+            setDungeonMaps(null);
+          }
+        })
+        .catch(() => {
+          setStats(null);
+          setDungeonMaps(null);
+        })
+        .finally(() => setLoadingStats(false));
+      return;
+    }
+
     getMonsterStats(target, selected.name)
       .then(async (res) => {
         if (res.success && res.data) {
@@ -461,6 +484,9 @@ export function BossOverlayClient({
       pool = pool.filter((e) => e.type === "monstre");
     } else if (catalogFilter === "titan") {
       pool = pool.filter((e) => e.type === "titan");
+    } else if (catalogFilter === "bounty") {
+      /* 🎯 Avis de recherche — contenu siphonné (DofusDB + Dofensive), catégorie dédiée. */
+      pool = pool.filter((e) => e.type === "bounty");
     }
 
     const q = search.trim().toLowerCase();
@@ -571,10 +597,11 @@ export function BossOverlayClient({
           </div>
 
           {/* Filtres du catalogue : contrôle segmenté unique, état actif neutre */}
-          <div className="grid grid-cols-4 gap-0.5 rounded-lg bg-white/[0.05] p-0.5">
+          <div className="grid grid-cols-5 gap-0.5 rounded-lg bg-white/[0.05] p-0.5">
             {([
               { id: "boss" as CatalogFilter, label: "Boss" },
               { id: "anomalie" as CatalogFilter, label: "Anomalies" },
+              { id: "bounty" as CatalogFilter, label: "Avis" },
               { id: "monstre" as CatalogFilter, label: "Monstres" },
               { id: "titan" as CatalogFilter, label: "Titans" },
             ]).map(({ id, label }) => (
@@ -773,7 +800,7 @@ export function BossOverlayClient({
                       </p>
                       <p className={cn(
                         "text-[9px] truncate",
-                        d.type === "monstre" ? "text-sky-400/60" : "text-white/35"
+                        d.type === "monstre" ? "text-sky-400/60" : d.type === "bounty" ? "text-rose-400/70" : "text-white/35"
                       )}>
                         {d.name}
                       </p>

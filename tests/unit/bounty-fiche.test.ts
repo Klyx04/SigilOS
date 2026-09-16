@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-    bountyBattleMapFallbackLabel,
+    bountyBattleMapLabel,
     bountyCriteriaFromStat,
     bountyRewardLines,
     buildBountyBestiaireEntry,
@@ -17,7 +17,7 @@ import {
     buildBountyPublicMeta,
     type BountyRowInput,
 } from "@/lib/bounty-fiche";
-import { BOUNTY_FALLBACK_MAP, BOUNTY_MAP_FALLBACK_LABEL } from "@/lib/bounty";
+import { BOUNTY_MAP_EMPTY_LABEL } from "@/lib/bounty";
 
 /** Ligne `Bounty` d'un avis réel (Predagob 4834) telle que le siphon l'écrit. */
 const PREDAGOB: BountyRowInput = {
@@ -35,8 +35,8 @@ const PREDAGOB: BountyRowInput = {
     slug: "predagob-4834",
     raceId: 32,
     raceName: "Avis de recherche",
-    battleMapId: BOUNTY_FALLBACK_MAP.id,
-    battleMapSource: "default",
+    battleMapId: null,
+    battleMapSource: "none",
     dofusdbSyncedAt: new Date("2026-09-16T11:05:48.000Z"),
 };
 
@@ -48,9 +48,7 @@ const PREDAGOB_STAT = {
         raceId: 32,
         raceName: "Avis de recherche",
         criteria: ["Ne pas être dans la sous-zone #1", "Avoir l'étape #1 de la quête #2 en cours"],
-        battleMapId: BOUNTY_FALLBACK_MAP.id,
-        battleMapSource: "default",
-        battleMapLabel: BOUNTY_MAP_FALLBACK_LABEL,
+        battleMapSource: "none",
     },
 };
 
@@ -93,10 +91,10 @@ describe("bounty-fiche — entête publique d'un avis", () => {
         expect(bountyCriteriaFromStat({ bounty: { criteria: ["A", null, "  "] } })).toEqual(["A"]);
     });
 
-    it("carte de simulation : le repli est DÉCLARÉ (jamais présenté comme la vraie carte)", () => {
-        expect(bountyBattleMapFallbackLabel(PREDAGOB)).toBe(BOUNTY_MAP_FALLBACK_LABEL);
-        expect(bountyBattleMapFallbackLabel({ ...PREDAGOB, battleMapSource: "dofensive" })).toBeNull();
-        expect(buildBountyPublicMeta(PREDAGOB, PREDAGOB_STAT).battleMapId).toBe(BOUNTY_FALLBACK_MAP.id);
+    it("carte de simulation : GRILLE VIDE (aucune carte d'emprunt pour un avis)", () => {
+        expect(bountyBattleMapLabel(PREDAGOB)).toBe(BOUNTY_MAP_EMPTY_LABEL);
+        expect(bountyBattleMapLabel({ ...PREDAGOB, battleMapSource: "dofensive" })).toBeNull();
+        expect(buildBountyPublicMeta(PREDAGOB, PREDAGOB_STAT).battleMapId).toBeNull();
     });
 
     it("sources et fraîcheur : URLs exactes, date ISO, rien si l'id est absent", () => {

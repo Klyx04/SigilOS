@@ -13,6 +13,7 @@ import { join } from "path";
 
 import { addIgnoredFamily, addIgnoredZone } from "@/server/actions/game-data-actions";
 import { NO_ACHIEVEMENT_CHALLENGE_SLUG, ensureNoAchievementChallengeId } from "@/lib/dungeon-no-achievement";
+import { addIgnoredBounty, getIgnoredBounties, removeIgnoredBounty, type IgnoredBountyEntry } from "@/lib/bounty-ignore";
 
 // --- Types ---
 
@@ -879,6 +880,69 @@ export async function siphonBountiesAction(): Promise<ActionResponse<{
         logger.error('[siphonBountiesAction] Error:', error);
         return { success: false, error: error?.message || 'Erreur lors du siphon des avis de recherche' };
     }
+}
+
+/** Avis de recherche **supprimés** (exclus du siphon) — lecture God. */
+export async function getIgnoredBountiesAction(): Promise<ActionResponse<{ entries: IgnoredBountyEntry[] }>> {
+    const userId = await requireGameDataBounties();
+    if (!userId) return { success: false, error: "Accès refusé" };
+    return { success: true, data: { entries: getIgnoredBounties() } };
+}
+
+/**
+ * Supprime un avis de recherche : la ligne `Bounty` (+ sa fiche `MonsterStat`) est retirée **et**
+ * l'id entre dans la **liste d'exclusion** ⇒ le siphon ne le recrée pas à la passe suivante
+ * (sans cette liste, la suppression serait annulée chaque nuit).
+ */
+export async function deleteBountyAction(bountyId: string): Promise<ActionResponse<{
+    name: string;
+    dofusdbId: number | null;
+    entries: IgnoredBountyEntry[];
+}>> {
+    const userId = await requireGameDataBounties();
+    if (!userId) return { success: false, error: "Accès refusé" };
+    try {
+        const bounty = await db.bounty.findUnique({
+            where: { id: String(bountyId) },
+            select: { id: true, name: true, dofusdbId: true, isBountyMonster: true },
+        });
+        if (!bounty) return { success: false, error: "Avis introuvable" };
+
+        await db.bounty.delete({ where: { id: bounty.id } });
+        if (bounty.dofusdbId) {
+            /* La fiche de combat (sorts/butin/simulation) suit la suppression de l'avis. */
+            await db.monsterStat.deleteMany({ where: { monsterId: bounty.dofusdbId } });
+        }
+        /* Exclusion **uniquement** pour un avis siphonné : une ligne historique (carte du monde)
+           n'est jamais recréée par le siphon, elle n'a pas besoin d'être exclue. */
+        if (bounty.dofusdbId && bounty.isBountyMonster) {
+            addIgnoredBounty(bounty.dofusdbId, bounty.name);
+        }
+
+        await logGameDataWrite("delete-bounty", bounty.name, { dofusdbId: bounty.dofusdbId });
+        revalidatePath('/god/game-data/bounties');
+        revalidatePath('/god/game-data');
+        return {
+            success: true,
+            data: { name: bounty.name, dofusdbId: bounty.dofusdbId ?? null, entries: getIgnoredBounties() },
+        };
+    } catch (error: any) {
+        logger.error('[deleteBountyAction] Error:', error);
+        return { success: false, error: error?.message || 'Erreur lors de la suppression de l\'avis' };
+    }
+}
+
+/** Réintègre un avis supprimé (le prochain siphon le recrée). */
+export async function restoreBountyAction(dofusdbId: number): Promise<ActionResponse<{ entries: IgnoredBountyEntry[] }>> {
+    const userId = await requireGameDataBounties();
+    if (!userId) return { success: false, error: "Accès refusé" };
+    const id = Math.floor(Number(dofusdbId) || 0);
+    if (id <= 0) return { success: false, error: "Identifiant invalide" };
+
+    const entries = removeIgnoredBounty(id);
+    await logGameDataWrite("restore-bounty", `dofusdbId-${id}`);
+    revalidatePath('/god/game-data/bounties');
+    return { success: true, data: { entries } };
 }
 
 

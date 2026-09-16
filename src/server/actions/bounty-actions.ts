@@ -12,7 +12,7 @@
 import { logger } from "@/lib/logger";
 import { db } from "@/lib/prisma";
 import { DB_READABLE, getLocalDofensiveMapAny, getLocalMonsterStatByIdAny } from "@/lib/dofensive-sync";
-import { BOUNTY_FALLBACK_MAP } from "@/lib/bounty";
+import { BOUNTY_MAP_EMPTY_LABEL } from "@/lib/bounty";
 import {
     buildBountyPublicDungeon,
     buildBountyPublicMeta,
@@ -120,10 +120,10 @@ export async function getBountyFiche(idOrSlug: string): Promise<ActionResponse<B
     const stats = statsHit?.data ?? null;
     const meta = buildBountyPublicMeta(bounty, stats);
 
-    const mapRes = await getBountyBattleMap(
-        meta.battleMapId,
-        meta.battleMapFallbackLabel ?? BOUNTY_FALLBACK_MAP.name
-    );
+    // Un avis n'a AUCUNE carte exposée par la source (mesuré) ⇒ `dungeonMaps: null` et la
+    // simulation tourne sur la grille **vide** de `SpellRangeGrid` (« Map vide », 17×17).
+    const usesRealMap = meta.battleMapLabel === null && (meta.battleMapId ?? 0) > 0;
+    const mapRes = usesRealMap ? await getBountyBattleMap(meta.battleMapId, BOUNTY_MAP_EMPTY_LABEL) : null;
 
     return {
         success: true,
@@ -131,7 +131,7 @@ export async function getBountyFiche(idOrSlug: string): Promise<ActionResponse<B
             dungeon: buildBountyPublicDungeon(bounty),
             meta,
             monsterStats: stats,
-            dungeonMaps: mapRes.success ? mapRes.data ?? null : null,
+            dungeonMaps: mapRes?.success ? mapRes.data ?? null : null,
             /* Périmé (ou jamais synchronisé) ⇒ l'UI affiche l'information, jamais un spinner. */
             stale: !!statsHit?.stale || !meta.syncedAt,
         },

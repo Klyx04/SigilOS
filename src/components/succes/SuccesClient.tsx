@@ -9,6 +9,7 @@ import { SuccesBossGuide } from "./SuccesBossGuide";
 import { SuccesQuestsTab } from "./SuccesQuestsTab";
 import { SuccesDefiTab } from "./SuccesDefiTab";
 import { SuccesTitanTab } from "./SuccesTitanTab";
+import { SuccesAvisTab } from "./SuccesAvisTab";
 import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
 
 /** Icône asset (glyphe monochrome blanc Dofus) teintée via mask-image pour suivre la couleur du texte. */
@@ -40,11 +41,11 @@ export function SuccesClient({
     const router = useRouter();
     const searchParams = useSearchParams();
     const rawView = searchParams.get("view");
-    const view: "moi" | "guilde" | "boss" | "anomalies" | "quetes" | "defi" | "titans" =
-        rawView === "guilde" ? "guilde" : rawView === "boss" ? "boss" : rawView === "anomalies" ? "anomalies" : rawView === "quetes" ? "quetes" : rawView === "defi" ? "defi" : rawView === "titans" ? "titans" : "moi";
+    const view: "moi" | "guilde" | "boss" | "anomalies" | "bounties" | "quetes" | "defi" | "titans" =
+        rawView === "guilde" ? "guilde" : rawView === "boss" ? "boss" : rawView === "anomalies" ? "anomalies" : rawView === "bounties" ? "bounties" : rawView === "quetes" ? "quetes" : rawView === "defi" ? "defi" : rawView === "titans" ? "titans" : "moi";
 
     const setView = useCallback(
-        (next: "moi" | "guilde" | "boss" | "anomalies" | "quetes" | "defi" | "titans") => {
+        (next: "moi" | "guilde" | "boss" | "anomalies" | "bounties" | "quetes" | "defi" | "titans") => {
             const params = new URLSearchParams(searchParams.toString());
             params.set("view", next);
             if (next === "guilde") params.delete("dungeon");
@@ -59,6 +60,7 @@ export function SuccesClient({
             { id: "guilde" as const, label: "Succès Commun", sub: "Qui a quoi", icon: "/assets/dofus/icons/guild.png", disabled: !canViewGuildSucces },
             { id: "boss" as const, label: "Fiches Boss", sub: "Sorts & combat", icon: "/assets/dofus/icons/boss.png", disabled: false },
             { id: "anomalies" as const, label: "Fiches Anomalies", sub: "Gardiens des anomalies", icon: "/assets/dofus/icons/hourglass.png", disabled: false },
+            { id: "bounties" as const, label: "Fiches Avis de recherche", sub: "Chasse & primes", icon: "/assets/avis/avitons.png", disabled: false },
             { id: "titans" as const, label: "Fiches Titans", sub: "Événements Krosmiques", icon: "/assets/dofus/game-icons/crown.png", disabled: false },
             { id: "quetes" as const, label: "Quêtes & Succès", sub: "Quêtes de donjons", icon: "/assets/dofus/icons/quests.png", disabled: false },
             { id: "defi" as const, label: "Défi", sub: "Événements & one-shot", icon: "/assets/dofus/icons/challenges.png", disabled: false },
@@ -85,6 +87,8 @@ export function SuccesClient({
                                     ? "succes-view-boss"
                                     : v.id === "anomalies"
                                     ? "succes-view-anomalies"
+                                    : v.id === "bounties"
+                                    ? "succes-view-bounties"
                                     : v.id === "quetes"
                                     ? "succes-view-quetes"
                                     : v.id === "defi"
@@ -115,6 +119,8 @@ export function SuccesClient({
                 <SuccesBossGuide guildId={guildId} />
             ) : view === "anomalies" ? (
                 <SuccesBossGuide guildId={guildId} anomalyOnly />
+            ) : view === "bounties" ? (
+                <SuccesAvisTab guildId={guildId} />
             ) : view === "quetes" ? (
                 <SuccesQuestsTab guildId={guildId} />
             ) : view === "defi" ? (

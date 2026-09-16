@@ -7,8 +7,19 @@
 > Réouvrir l'historique en mode plan = gaspillage de tokens.
 
 ---
+## 🚧 Session 16/09/2026 (suite 3) — **« Avis de recherche » : suppression God persistante + simulation sur GRILLE VIDE ⇒ PR #682**
+> **Demande user** : pouvoir **supprimer des avis** · **retirer la map « Abysses du temps »** des avis (ne garder que la **map vide**).
+> **Suppression** : `src/lib/bounty-ignore.ts` (liste d'exclusion `public/game-data/ignored-bounties.json`) + `deleteBountyAction` / `restoreBountyAction` / `getIgnoredBountiesAction` (branche `game-data-bounties`) + bouton **« Supprimer »** et section **« Avis supprimés (N) » / « Restaurer »** dans `god/game-data/bounties`. Le siphon **saute** les avis exclus (`ignored`) ⇒ une suppression survit au cron.
+> **Map vide** : `BOUNTY_MAP_EMPTY_LABEL` remplace la carte d'emprunt (« Abysses du temps ») — `battleMapId: null` / `battleMapSource: "none"`, `getBountyFiche` ⇒ `dungeonMaps: null` ⇒ simulation sur la grille vide de `SpellRangeGrid` (libellé neutre « Map vide »).
+> **Preuves** : `tsc` **0** · **134/134 fichiers / 1419 tests** · `eslint` **0 erreur** · base live `cartes d'emprunt restantes = 0` · fiche `/boss/gein-3761` **200** (`Abysses` = 0, `Map vide` présent) · **5 avis supprimés par le user non recréés** par une passe complète de siphon.
 ## 🚧 Session 16/09/2026 — **chantier « Avis de recherche » (Lot 1 livré) : siphon des 96 avis + migration ⇒ PR #680**
 ## 🚧 Session 16/09/2026 (suite) — **« Avis de recherche » Lot 2 : fiche publique `/boss` + catalogue ⇒ PR #681**
+## 🚧 Session 16/09/2026 (suite 2) — **« Avis de recherche » Lots 3 & 4 : catégorie overlay + onglet Succès ⇒ PR #682**
+> **Overlay** : chip **« Avis »** (`CatalogFilter` + `"bounty"`, pool filtré, teinte rose) et, pour un avis, fiche + carte lues **localement** (`getBountyFiche`) ⇒ sorts, butin et **simulation** disponibles en PiP.
+> **Succès** : onglet **« Fiches Avis de recherche »** (`?view=bounties`) + `SuccesAvisTab` (liste des 96 avis, fiche à onglets Fiche/Sorts/Simulation/Butin, grades, zone de traque, prime, critères, repli de carte déclaré).
+> **Preuves** : `tsc` **0** · **133/133 fichiers / 1411 tests** · `eslint` **0 erreur**.
+
+
 > **Livré** : `src/lib/bounty-fiche.ts` (pur) · `src/server/actions/bounty-actions.ts` (lecture locale : fiche + carte, **0 réseau**) · **3ᵉ repli** `/boss/[dungeonId]` (Dungeon → Titan → Avis) · bandeau d'entête (zone de traque, `/travel`, milice, prime, critères de chasse, **repli de carte déclaré**, sources + fraîcheur) · `getBestiaireCatalog` : entrées `type: "bounty"` (seules les lignes `isBountyMonster`) · filtre **« Avis de recherche »** du catalogue.
 > **Preuves** : `tsc` **0** · **133/133 fichiers / 1411 tests** · `eslint` **0 erreur** · runtime : `/boss/<id avis>` **200** (Zone de traque + repli annoncé + zone réelle), `/boss` **200** (avis présents dans le SSR).
 

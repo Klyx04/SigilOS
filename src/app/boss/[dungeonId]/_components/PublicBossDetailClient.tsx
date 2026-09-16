@@ -34,6 +34,8 @@ import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { deriveDofensiveMonsterName } from "@/lib/dofensive-boss";
 import { getWorldName } from "@/lib/dofus-assets";
 import { getAnomalyBossBattleMap, getAnomalyBossFamily } from "@/server/actions/anomaly-boss-actions";
+import { getBountyBattleMap } from "@/server/actions/bounty-actions";
+import type { BountyPublicMeta } from "@/lib/bounty-fiche";
 
 interface PublicDungeon {
   id: string;
@@ -48,7 +50,8 @@ interface PublicDungeon {
   /* 🌀 Chantier « boss d'anomalie » — carte de combat + famille siphonnées localement. */
   isAnomalyBoss?: boolean | null;
   anomalyMapId?: number | null;
-  kind?: "boss" | "titan";
+  /* 🎯 Chantier « Avis de recherche » — 3ᵉ type de fiche (ni donjon, ni titan). */
+  kind?: "boss" | "titan" | "bounty";
 }
 
 interface FamilyMember {
@@ -76,6 +79,8 @@ interface PublicBossDetailClientProps {
   monsterStats?: any;
   initialFamily?: DungeonFamily | null;
   initialDungeonMaps?: DofensiveDungeonInfo | null;
+  /** 🎯 Avis de recherche : zone de traque, prime, critères de quête, repli de carte déclaré. */
+  bountyMeta?: BountyPublicMeta | null;
 }
 
 function MonsterImage({
@@ -127,9 +132,13 @@ export function PublicBossDetailClient({
   monsterStats: initialStats,
   initialFamily,
   initialDungeonMaps,
+  bountyMeta,
 }: PublicBossDetailClientProps) {
   const bossName = dungeon.bossName || dungeon.name;
   const isTitan = dungeon.kind === "titan";
+  // 🎯 Avis de recherche : ni donjon ni titan — pas de salle, pas de carte Dofensive, mais une
+  // zone de traque, une prime (curée dans God) et des critères de quête SIPHONNÉS.
+  const isBounty = dungeon.kind === "bounty";
   // 🌀 Boss d'anomalie : Dofensive n'expose pas ces donjons ⇒ carte + famille sont résolues
   // LOCALEMENT (lecteurs dédiés) au lieu du resolver Dofensive standard.
   const isAnomalyBoss = !!dungeon.isAnomalyBoss;
@@ -214,7 +223,7 @@ export function PublicBossDetailClient({
   // 🌀 Anomalie : les « monstres de la salle » viennent du siphon local (co-gardiens + 3
   // accompagnateurs au hasard) et non du donjon Dofensive (inexistant pour une anomalie).
   useEffect(() => {
-    if (familyByDungeon[dungeon.id]) return;
+    if (isBounty || familyByDungeon[dungeon.id]) return;
     let cancelled = false;
     const request = isAnomalyBoss
       ? getAnomalyBossFamily(bossName)
@@ -235,6 +244,9 @@ export function PublicBossDetailClient({
   // publique n'exposait ni sélecteur de « Salle », ni « Placements de départ », ni
   // Placement/Butin (constat user du 15/09/2026).
   useEffect(() => {
+    // 🎯 Avis de recherche : la carte (grille locale ou repli déclaré) est pré-chargée par la
+    // page serveur (`initialDungeonMaps`) — on ne rappelle AUCUNE source ici.
+    if (isBounty) return;
     if (mapsByBoss[activeBossKey] !== undefined) return;
     let cancelled = false;
     const isMain = !activeMonsterName;
@@ -304,7 +316,7 @@ export function PublicBossDetailClient({
 
   const tabs = (
     [
-      { id: "sorts", label: `Sorts du ${isTitan ? "Titan" : "Boss"}`, icon: Zap },
+      { id: "sorts", label: `Sorts du ${isTitan ? "Titan" : isBounty ? "monstre recherché" : "Boss"}`, icon: Zap },
       { id: "overview", label: "Sorts Détaillés", icon: Swords },
       { id: "sim", label: "Simulation Tactique", icon: Target },
       { id: "grades", label: `Grades & Paliers (${grades.length})`, icon: Flame, hidden: grades.length <= 1 },
@@ -341,7 +353,7 @@ export function PublicBossDetailClient({
           </div>
           <div className="min-w-0">
             <p className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
-              {isTitan ? "Titan" : "Boss de donjon"}
+              {isTitan ? "Titan" : isBounty ? bountyMeta?.raceName ?? "Avis de recherche" : "Boss de donjon"}
               <span className="font-mono normal-case">niv. {dungeon.level ?? 200}</span>
             </p>
             <h1 className="mt-0.5 truncate text-2xl font-semibold text-foreground sm:text-3xl">
@@ -349,7 +361,8 @@ export function PublicBossDetailClient({
             </h1>
             <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
               <Compass className="w-3.5 h-3.5 opacity-70" />
-              Donjon : <span className="text-foreground/90">{dungeon.name}</span>
+              {isBounty ? "Zone de traque :" : "Donjon :"}{" "}
+              <span className="text-foreground/90">{dungeon.name}</span>
             </p>
           </div>
         </div>
@@ -376,6 +389,87 @@ export function PublicBossDetailClient({
           </a>
         </div>
       </div>
+
+      {/* ── BANDEAU « AVIS DE RECHERCHE » ─────────────────────────────────────
+          100 % SIPHONNÉ (DofusDB + Dofensive) + champs curés dans God : zone de traque,
+          prime, critères de quête et — quand la grille n'est pas exposée par la source —
+          la mention explicite que la simulation tourne sur une **carte générique**. */}
+      {isBounty && bountyMeta && (
+        <div className="mt-4 grid gap-2.5 rounded-xl border border-border bg-surface/50 p-3.5 text-xs sm:grid-cols-2">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/40 bg-rose-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-rose-300">
+              <Target className="w-3 h-3" /> {bountyMeta.raceName}
+            </span>
+            {bountyMeta.zone && (
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                <Compass className="w-3.5 h-3.5 opacity-70" /> Zone de traque :{" "}
+                <strong className="font-medium text-foreground/90">{bountyMeta.zone}</strong>
+              </span>
+            )}
+            {bountyMeta.travelCommand && (
+              <button
+                type="button"
+                onClick={() => navigator.clipboard.writeText(bountyMeta.travelCommand as string)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-0.5 font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+                title="Copier la commande de trajet"
+              >
+                <MapPin className="w-3 h-3" /> {bountyMeta.travelCommand}
+              </button>
+            )}
+            {bountyMeta.milice && (
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                <Shield className="w-3.5 h-3.5 opacity-70" /> {bountyMeta.milice}
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            {bountyMeta.rewards.length > 0 && (
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                <Gem className="w-3.5 h-3.5 opacity-70" /> Prime :{" "}
+                <strong className="font-medium text-foreground/90">
+                  {bountyMeta.rewards.map((r) => `${r.amount > 0 ? `${r.amount} ` : ""}${r.type}`).join(" + ")}
+                </strong>
+              </span>
+            )}
+            {bountyMeta.battleMapFallbackLabel && (
+              <span
+                className="inline-flex items-center gap-1.5 text-amber-300/90"
+                title="Dofensive n'expose pas la grille d'une carte sauvage : la simulation utilise une carte générique (ce n'est pas la carte réelle du combat)."
+              >
+                <Info className="w-3.5 h-3.5" /> Simulation sur {bountyMeta.battleMapFallbackLabel}
+              </span>
+            )}
+          </div>
+
+          {bountyMeta.criteria.length > 0 && (
+            <p className="sm:col-span-2 text-muted-foreground">
+              <span className="text-foreground/70">Critères de chasse :</span> {bountyMeta.criteria.join(" · ")}
+            </p>
+          )}
+
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground sm:col-span-2">
+            {bountyMeta.dofusdbUrl && (
+              <a href={bountyMeta.dofusdbUrl} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-foreground">
+                Source DofusDB
+              </a>
+            )}
+            {bountyMeta.dofensiveUrl && (
+              <a href={bountyMeta.dofensiveUrl} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-foreground">
+                Source Dofensive
+              </a>
+            )}
+            {bountyMeta.dpnlUrl && (
+              <a href={bountyMeta.dpnlUrl} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-foreground">
+                Dofus Pour Les Noobs
+              </a>
+            )}
+            {bountyMeta.syncedAt && (
+              <span>Données synchronisées le {new Date(bountyMeta.syncedAt).toLocaleDateString("fr-FR")}</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── STATS BAR (PV/PA/PM + résistances, comme le module interne) ── */}
       {isLoadingCurrent ? (

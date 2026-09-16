@@ -12,6 +12,7 @@ import { db } from "@/lib/prisma";
 import { getMonsterStats, getDungeonMonsters } from "@/server/actions/game-data-actions";
 import { getBossDofensiveSpells, getDofensiveDungeonForBoss } from "@/server/actions/dofensive-actions";
 import { getAnomalyBossBattleMap, getAnomalyBossFamily } from "@/server/actions/anomaly-boss-actions";
+import { getBountyFiche } from "@/server/actions/bounty-actions";
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { PublicBossDetailClient, type DungeonFamily } from "./_components/PublicBossDetailClient";
 
@@ -33,15 +34,38 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         where: { id: dungeonId },
         select: { name: true, level: true, imageUrl: true, zone: true },
       });
+  // 🎯 Avis de recherche (3ᵉ repli) : la fiche publique `MonsterStat` est locale, on n'appelle
+  // qu'une lecture SQL pour le titre/description.
+  const bounty = dungeon || titan
+    ? null
+    : await db.bounty.findFirst({
+        where: { isBountyMonster: true, OR: [{ id: dungeonId }, { slug: dungeonId }] },
+        select: { name: true, level: true, imageUrl: true, zoneName: true },
+      });
 
-  if (!dungeon && !titan) {
+  if (!dungeon && !titan && !bounty) {
     return { title: "Boss introuvable — SigilOS" };
   }
 
-  const bossName = dungeon ? dungeon.bossName || dungeon.name : titan!.name;
-  const dungeonLabel = dungeon ? dungeon.name : titan!.zone || "Titan";
-  const level = dungeon ? dungeon.level : titan!.level;
-  const imageUrl = dungeon ? dungeon.imageUrl : titan!.imageUrl;
+  const bossName = dungeon ? dungeon.bossName || dungeon.name : bounty ? bounty.name : titan!.name;
+  const dungeonLabel = dungeon ? dungeon.name : bounty ? bounty.zoneName || "Avis de recherche" : titan!.zone || "Titan";
+  const level = dungeon ? dungeon.level : bounty ? bounty.level : titan!.level;
+  const imageUrl = dungeon ? dungeon.imageUrl : bounty ? bounty.imageUrl : titan!.imageUrl;
+  if (bounty) {
+    return {
+      title: `Avis de recherche ${bossName} (Niveau ${level}) : Sorts, Zone de traque & Simulation | SigilOS`,
+      description: `Fiche tactique de l'avis de recherche ${bossName} (niveau ${level}, zone de traque : ${dungeonLabel}) : sorts du monstre, portées, résistances, butin et simulation isométrique. 100% gratuit.`,
+      alternates: {
+        canonical: `${getAppBaseUrl()}/boss/${dungeonId}`,
+      },
+      openGraph: {
+        title: `${bossName} — Avis de recherche (100% Gratuit) | SigilOS`,
+        description: `Sorts, portées, résistances et zone de traque de ${bossName}. Gratuit et sans compte requis.`,
+        url: `${getAppBaseUrl()}/boss/${dungeonId}`,
+        images: imageUrl ? [{ url: imageUrl }] : [],
+      },
+    };
+  }
   return {
     title: `${bossName} (Niveau ${level}) : Sorts, Portées & Stratégie | SigilOS`,
     description: `Fiche tactique complète pour ${dungeon ? `le boss ${bossName} du donjon ${dungeonLabel}` : `le titan ${bossName} (${dungeonLabel})`}. Simulation isométrique de portée des sorts, résistances et mini-fenêtre overlay détachable par-dessus Dofus. 100% gratuit.`,
@@ -70,39 +94,64 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
     ? null
     : await db.titan.findUnique({ where: { id: dungeonId } });
 
-  if (!dungeon && !titan) {
+  // 🎯 Chantier « Avis de recherche » — **3ᵉ repli** (Dungeon → Titan → Avis), même logique que
+  // les Titans : un avis n'a ni salle ni carte Dofensive, mais il a une fiche SIPHONNÉE
+  // (`Bounty` + `MonsterStat` + carte de repli déclarée) ⇒ **aucun appel réseau** ici.
+  const bountyRes = dungeon || titan ? null : await getBountyFiche(dungeonId);
+  const bounty = bountyRes?.success ? bountyRes.data! : null;
+
+  if (!dungeon && !titan && !bounty) {
     notFound();
   }
 
-  const isTitan = !dungeon && !!titan;
-  const bossName = dungeon ? dungeon.bossName || dungeon.name : titan!.name;
-  const dungeonName = dungeon ? dungeon.name : titan!.mapName || titan!.zone || titan!.name;
+  const isTitan = !dungeon && !bounty && !!titan;
+  const isBounty = !dungeon && !titan && !!bounty;
+  const bossName = dungeon
+    ? dungeon.bossName || dungeon.name
+    : isBounty
+      ? bounty!.dungeon.bossName
+      : titan!.name;
+  const dungeonName = dungeon
+    ? dungeon.name
+    : isBounty
+      ? bounty!.dungeon.name
+      : titan!.mapName || titan!.zone || titan!.name;
   // 🌀 Boss d'anomalie (« Gardiens des anomalies ») : Dofensive n'expose PAS ces donjons.
   // Sans branchement dédié, la landing publique restait sans carte ⇒ ni « Salle », ni
   // « Placements de départ », ni Placement/Butin (constat user du 15/09/2026).
   const isAnomalyBoss = !!dungeon?.isAnomalyBoss;
 
+  // Avis de recherche : tout est déjà siphonné (fiche + carte) ⇒ on ne rappelle AUCUNE source.
   const [statsRes, spellsRes, familyRes, mapsRes] = await Promise.all([
-    getMonsterStats(bossName, dungeonName),
-    getBossDofensiveSpells(bossName, dungeonName),
+    isBounty
+      ? Promise.resolve({ success: true, data: bounty!.monsterStats })
+      : getMonsterStats(bossName, dungeonName),
+    isBounty
+      ? Promise.resolve({ success: false, data: null })
+      : getBossDofensiveSpells(bossName, dungeonName),
     // « Famille » (monstres accompagnateurs) : pour une anomalie = les autres gardiens de la
     // même carte + les monstres de l'anomalie (Briko/Bruto/Gromo), 100 % local (siphon).
-    isAnomalyBoss
-      ? getAnomalyBossFamily(bossName)
-      : getDungeonMonsters(bossName, dungeonName),
-    // Carte de combat : pour une anomalie, résolution locale puis repli map par défaut.
-    isAnomalyBoss
-      ? getAnomalyBossBattleMap(bossName, dungeon!.anomalyMapId)
-      : getDofensiveDungeonForBoss(
-          bossName,
-          dungeonName,
-          dungeon
-            ? {
-                dofensiveMonsterName: dungeon.dofensiveMonsterName,
-                dofensiveDungeonName: dungeon.dofensiveDungeonName,
-              }
-            : undefined
-        ),
+    isBounty
+      ? Promise.resolve({ success: false, data: null })
+      : isAnomalyBoss
+        ? getAnomalyBossFamily(bossName)
+        : getDungeonMonsters(bossName, dungeonName),
+    // Carte de combat : pour une anomalie, résolution locale puis repli map par défaut ;
+    // pour un avis, la grille locale (ou le repli déclaré) fournie par `getBountyFiche`.
+    isBounty
+      ? Promise.resolve({ success: true, data: bounty!.dungeonMaps })
+      : isAnomalyBoss
+        ? getAnomalyBossBattleMap(bossName, dungeon!.anomalyMapId)
+        : getDofensiveDungeonForBoss(
+            bossName,
+            dungeonName,
+            dungeon
+              ? {
+                  dofensiveMonsterName: dungeon.dofensiveMonsterName,
+                  dofensiveDungeonName: dungeon.dofensiveDungeonName,
+                }
+              : undefined
+          ),
   ]);
 
   let monsterStats = statsRes.success ? statsRes.data : null;
@@ -175,20 +224,23 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
                   anomalyMapId: dungeon.anomalyMapId ?? null,
                   kind: "boss" as const,
                 }
-              : {
-                  id: titan!.id,
-                  name: titan!.mapName || titan!.zone || titan!.name,
-                  bossName: titan!.name,
-                  level: titan!.level,
-                  imageUrl: titan!.imageUrl,
-                  dofensiveUrl: titan!.dofensiveUrl,
-                  dofuspourlesnoobsUrl: titan!.dofuspourlesnoobsUrl,
-                  kind: "titan" as const,
-                }
+              : isBounty
+                ? bounty!.dungeon
+                : {
+                    id: titan!.id,
+                    name: titan!.mapName || titan!.zone || titan!.name,
+                    bossName: titan!.name,
+                    level: titan!.level,
+                    imageUrl: titan!.imageUrl,
+                    dofensiveUrl: titan!.dofensiveUrl,
+                    dofuspourlesnoobsUrl: titan!.dofuspourlesnoobsUrl,
+                    kind: "titan" as const,
+                  }
           }
           monsterStats={monsterStats}
           initialFamily={family}
           initialDungeonMaps={dungeonMaps ?? undefined}
+          bountyMeta={bounty?.meta ?? null}
         />
       </main>
 

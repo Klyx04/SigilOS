@@ -23,6 +23,8 @@ const TYPE_FILTERS = [
   { label: "Boss de donjon", value: "boss" },
   { label: "Fiches Anomalies", value: "anomalie" },
   { label: "Titans", value: "titan" },
+  /* 🎯 Avis de recherche (chantier 16/09/2026) : contenu 100 % siphonné (DofusDB + Dofensive). */
+  { label: "Avis de recherche", value: "bounty" },
 ] as const;
 
 type TypeFilter = (typeof TYPE_FILTERS)[number]["value"];
@@ -116,7 +118,7 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
     const q = search.trim().toLowerCase();
 
     return bosses.filter((b) => {
-      if (b.type !== "boss" && b.type !== "titan" && b.type !== "anomalie") return false;
+      if (b.type !== "boss" && b.type !== "titan" && b.type !== "anomalie" && b.type !== "bounty") return false;
       if (selectedType !== "all" && b.type !== selectedType) return false;
       const lvl = b.level ?? 0;
       if (lvl < range.min || lvl > range.max) return false;

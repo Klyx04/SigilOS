@@ -296,6 +296,25 @@ export async function getLocalMonsterStat(monsterName: string): Promise<any | nu
 }
 
 /**
+ * Lit une fiche monstre locale **par ID** (chantier « Avis de recherche ») — `null` si absente.
+ *
+ * Indispensable pour les **homonymes** : 3 avis s'appellent « Ronce » (3530/3555/3531) et la
+ * recherche par nom renvoie toujours le premier ⇒ une fiche résolue par ID est la seule exacte.
+ */
+export async function getLocalMonsterStatByIdAny(monsterId: number): Promise<LocalStaleResult<any> | null> {
+    const id = Math.floor(Number(monsterId) || 0);
+    if (!DB_READABLE || id <= 0) return null;
+    try {
+        const row = await db.monsterStat.findUnique({ where: { monsterId: id } });
+        if (!row) return null;
+        return toStaleResult<any>(row.stats, row.lastSyncedAt);
+    } catch (error) {
+        logger.warn("[dofensive-sync] getLocalMonsterStatByIdAny échec:", { error: String(error) });
+        return null;
+    }
+}
+
+/**
  * Lit les sorts de combat Dofensive d'un monstre SANS contrôle de fraîcheur (Lot 1).
  * `null` si la ligne est absente **ou** si elle ne contient pas de sorts de combat
  * exploitables (un payload DofusDB brut ne suffit pas : la simulation exige `apCost`).

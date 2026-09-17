@@ -1,51 +1,47 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Users, X } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export type OverlayMember = { name: string; avatar?: string; subtitle?: string };
 
 interface RushOverlayMembersModalProps {
   title: string;
   members: OverlayMember[];
+  /** Conservé pour les appelants : l'apparence suit les jetons de thème. */
   isLightMode: boolean;
   onClose: () => void;
 }
 
 /**
  * Modale liste de membres (présence / « je suis ici » / « qui peut aider »).
+ * Même grammaire que les autres modales du rush : rayon 6 px, filets, jetons de
+ * thème — l'overlay pose `.light` sur sa racine en thème clair.
  */
-export function RushOverlayMembersModal({
-  title,
-  members,
-  isLightMode,
-  onClose,
-}: RushOverlayMembersModalProps) {
+export function RushOverlayMembersModal({ title, members, onClose }: RushOverlayMembersModalProps) {
+  // Échap ferme la modale : même comportement que les autres modales du rush.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center p-3">
       <button
         type="button"
         aria-label="Fermer"
         onClick={onClose}
-        className={cn("absolute inset-0 bg-black/60 backdrop-blur-sm", isLightMode && "bg-slate-900/40")}
+        className="absolute inset-0 bg-black/60"
       />
-      <div
-        className={cn(
-          "relative z-10 flex flex-col w-full max-w-[340px] max-h-[70vh] rounded-2xl border overflow-hidden shadow-2xl",
-          isLightMode ? "bg-white border-slate-200" : "bg-[#111419] border-[#2a3646]"
-        )}
-      >
-        <div
-          className={cn(
-            "flex items-center justify-between gap-2 px-4 py-3 border-b shrink-0",
-            isLightMode ? "border-slate-200" : "border-[#28303a]/70"
-          )}
-        >
+      <div className="relative z-10 flex max-h-[70vh] w-full max-w-[21rem] flex-col overflow-hidden rounded-[6px] border border-border-strong bg-elevated">
+        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3.5 py-2.5">
           <div className="flex items-center gap-2">
-            <Users className={cn("w-4 h-4", isLightMode ? "text-[#39bc95]" : "text-[#39bc95]")} />
-            <h2 className={cn("text-sm font-bold font-serif", isLightMode ? "text-slate-900" : "text-[#f2f0e9]")}>{title}</h2>
-            <span className={cn("text-[10px] font-mono font-bold tabular-nums", isLightMode ? "text-slate-400" : "text-[#6e7784]")}>
+            <Users className="h-4 w-4 text-accent" aria-hidden="true" />
+            <h2 className="text-[13px] font-semibold text-foreground">{title}</h2>
+            <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">
               {members.length}
             </span>
           </div>
@@ -53,43 +49,40 @@ export function RushOverlayMembersModal({
             type="button"
             onClick={onClose}
             aria-label="Fermer"
-            className={cn(
-              "p-1.5 rounded-lg transition-colors",
-              isLightMode ? "text-slate-400 hover:text-red-500 hover:bg-red-50" : "text-[#6e7784] hover:text-red-400 hover:bg-[#1c2129]"
-            )}
+            className="rounded-[4px] p-1.5 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
           >
-            <X className="w-4 h-4" />
+            <X className="h-4 w-4" />
           </button>
-        </div>
+        </header>
 
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <div className="flex-1 space-y-1 overflow-y-auto p-2">
           {members.length === 0 ? (
-            <p className={cn("py-10 text-center text-xs", isLightMode ? "text-slate-400" : "text-[#6e7784]")}>
+            <p className="py-8 text-center text-[12px] text-muted-foreground">
               Personne ici pour l'instant.
             </p>
           ) : (
             members.map((m, i) => (
               <div
                 key={`${m.name}-${i}`}
-                className={cn(
-                  "flex items-center gap-2.5 rounded-xl border px-2.5 py-2",
-                  isLightMode ? "bg-slate-50 border-slate-200" : "bg-[#0d1117] border-[#1e2530]"
-                )}
+                className="flex items-center gap-2.5 rounded-[4px] border border-border bg-surface px-2.5 py-2"
               >
                 {m.avatar ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={m.avatar} alt={m.name} className="w-8 h-8 rounded-full object-cover shrink-0" loading="lazy" />
+                  <img
+                    src={m.avatar}
+                    alt={m.name}
+                    className="h-8 w-8 shrink-0 rounded-full object-cover"
+                    loading="lazy"
+                  />
                 ) : (
-                  <span className="w-8 h-8 rounded-full bg-[#39bc95]/20 border border-[#39bc95]/40 text-[#39bc95] flex items-center justify-center text-[11px] font-bold uppercase shrink-0">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-accent/40 bg-accent/15 text-[12px] font-semibold text-accent">
                     {(m.name || "?").charAt(0)}
                   </span>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className={cn("text-[12px] font-semibold truncate", isLightMode ? "text-slate-800" : "text-[#e8e4da]")}>
-                    {m.name}
-                  </p>
+                  <p className="truncate text-[12px] font-semibold text-foreground">{m.name}</p>
                   {m.subtitle && (
-                    <p className={cn("text-[10px] truncate", isLightMode ? "text-slate-500" : "text-[#6e7784]")}>{m.subtitle}</p>
+                    <p className="truncate text-[11px] text-muted-foreground">{m.subtitle}</p>
                   )}
                 </div>
               </div>

@@ -70,30 +70,30 @@ export function QuestItemResourceGrid({
   if (items.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-border bg-surface p-3.5 space-y-3 shadow-inner">
+    <div className="space-y-3 rounded-[4px] border border-border bg-surface p-3">
       {/* En-tête avec filtres Restantes / Toutes */}
       <div className="flex items-center justify-between gap-2 border-b border-border pb-2.5">
         <div className="flex items-center gap-2">
-          <Package className="w-4 h-4 text-warning" />
-          <span className="text-xs font-black uppercase tracking-wider text-foreground">
+          <Package className="w-4 h-4 text-warning" aria-hidden="true" />
+          <span className="text-xs font-semibold text-foreground">
             Ressources requises
           </span>
           {showHeaderMeta && (
-            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-warning/15 text-warning border border-warning/30">
+            <span className="reg-tag border-warning/40 text-warning">
               {remainingCount} restante{remainingCount > 1 ? "s" : ""}
             </span>
           )}
         </div>
 
         {showHeaderMeta && (
-          <div className="flex items-center gap-1 bg-elevated p-0.5 rounded-lg border border-border">
+          <div className="flex items-center gap-1 rounded-[4px] border border-border bg-elevated p-0.5">
           <button
             type="button"
             onClick={() => setFilterMode("remaining")}
             className={cn(
-              "px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-colors",
+              "px-2.5 py-1 rounded-[3px] text-[11px] font-semibold transition-colors",
               filterMode === "remaining"
-                ? "bg-success text-success-foreground shadow-sm"
+                ? "bg-success/15 text-success"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -103,9 +103,9 @@ export function QuestItemResourceGrid({
             type="button"
             onClick={() => setFilterMode("all")}
             className={cn(
-              "px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-colors",
+              "px-2.5 py-1 rounded-[3px] text-[11px] font-semibold transition-colors",
               filterMode === "all"
-                ? "bg-success text-success-foreground shadow-sm"
+                ? "bg-success/15 text-success"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -127,15 +127,15 @@ export function QuestItemResourceGrid({
               key={item.key}
               onClick={() => (item.id && onToggleItem ? onToggleItem(item.id) : handleCopy(item.name))}
               className={cn(
-                "group flex items-center justify-between gap-2.5 p-2 rounded-xl border transition-all cursor-pointer select-none",
+                "group flex cursor-pointer select-none items-center justify-between gap-2.5 rounded-[4px] border p-2 transition-colors",
                 item.isDone
-                  ? "bg-surface/40 border-border opacity-50"
-                  : "bg-elevated/50 hover:bg-elevated border-border hover:border-warning/40 shadow-sm"
+                  ? "border-border bg-surface opacity-60"
+                  : "border-border bg-elevated hover:border-warning/40"
               )}
               title="Cliquer pour copier le nom"
             >
               <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                <div className="w-8 h-8 rounded-lg bg-elevated border border-border flex items-center justify-center shrink-0 p-0.5 overflow-hidden shadow-inner">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-[4px] border border-border bg-background p-0.5">
                   <ResourceImage
                     id={item.id}
                     imageUrl={item.imageUrl}
@@ -162,10 +162,8 @@ export function QuestItemResourceGrid({
               <div className="flex items-center gap-1.5 shrink-0">
                 <span
                   className={cn(
-                    "font-mono font-bold text-xs px-2 py-0.5 rounded-lg border",
-                    item.isDone
-                      ? "bg-surface border-border text-muted-foreground"
-                      : "bg-warning/15 border-warning/30 text-warning"
+                    "reg-mono text-xs font-semibold",
+                    item.isDone ? "text-muted-foreground" : "text-warning"
                   )}
                 >
                   ×{item.count}

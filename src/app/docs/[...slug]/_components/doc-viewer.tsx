@@ -123,28 +123,28 @@ export function DocViewer({
 
     return (
         <div className="flex flex-col xl:flex-row gap-8 xl:gap-10 relative items-start w-full transition-all duration-300">
-            {/* Scroll Progress Bar */}
-            <div className="fixed top-0 left-0 w-full h-1 z-[60] pointer-events-none">
+            {/* Progression de lecture : une barre, à l'accent du thème (pas de dégradé). */}
+            <div className="fixed top-0 left-0 w-full h-0.5 z-[60] pointer-events-none" aria-hidden="true">
                 <div
-                    className="h-full bg-gradient-to-r from-teal-500 via-teal-400 to-teal-300 transition-all duration-150"
+                    className="h-full bg-accent transition-[width] duration-150"
                     style={{ width: `${scrollProgress}%` }}
                 />
             </div>
 
             {/* Article — min-w-0 empêche le débordement sous la TOC droite */}
-            <article className="flex-1 min-w-0 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300 w-full">
-                <header className="mb-8 border-b border-border pb-8">
+            <article className="flex-1 min-w-0 overflow-hidden w-full">
+                <header className="mb-8 border-b border-border pb-6">
                     <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                         <div className="flex items-center gap-4">
                             {breadcrumbs && <DocBreadcrumbs items={breadcrumbs} />}
                         </div>
                     </div>
 
-                    <h1 className="text-4xl md:text-5xl font-black text-foreground font-heading tracking-tight mb-4 text-transparent bg-clip-text bg-gradient-to-r from-foreground to-muted-foreground">
+                    <h1 className="mb-3 text-2xl font-semibold leading-snug text-foreground">
                         {title}
                     </h1>
                     <div className="flex items-center justify-between gap-4 text-sm text-muted-foreground">
-                        <span>Mis à jour le {format(new Date(lastUpdate), "d MMMM yyyy", { locale: fr })}</span>
+                        <span className="reg-mono">Mis à jour le {format(new Date(lastUpdate), "d MMMM yyyy", { locale: fr })}</span>
                     </div>
                 </header>
 
@@ -153,11 +153,8 @@ export function DocViewer({
                     const renderedContent = content.match(EXTENDED_SEPARATOR)
                         ? content.replace(
                             EXTENDED_SEPARATOR,
-                            `<div class="my-12 pt-8 border-t border-teal-500/20 flex items-center gap-3 not-prose">
-                                <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-teal-500/10 border border-teal-500/20 text-xs font-black uppercase tracking-wider text-teal-400">
-                                    📚 Approfondissements & Données Avancées
-                                </span>
-                                <span class="h-px bg-teal-500/20 flex-1"></span>
+                            `<div class="my-12 border-t border-border pt-4">
+                                <p class="text-[11px] font-semibold text-muted-foreground">Approfondissements & données avancées</p>
                             </div>`
                         )
                         : content;
@@ -172,22 +169,19 @@ export function DocViewer({
             {
                 headings.length > 0 && (
                     <aside className="hidden xl:block w-64 shrink-0 sticky top-24 max-h-[calc(100vh-8rem)] overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-white/5">
-                        <div className="space-y-4">
-                            <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground px-2 flex items-center gap-2">
-                                <div className="w-1 h-3 bg-teal-500 rounded-full" />
-                                Sur cette page
-                            </h4>
-                            <nav className="flex flex-col gap-1">
+                        <div className="space-y-3">
+                            <h4 className="px-2 text-[11px] font-semibold text-muted-foreground">Sur cette page</h4>
+                            <nav className="flex flex-col gap-0.5">
                                 {headings.map((heading, i) => (
                                     <a
                                         key={i}
                                         href={`#${heading.id}`}
                                         className={cn(
-                                            "text-sm py-1.5 px-3 rounded-lg border border-transparent transition-all",
+                                            "border-l-2 py-1.5 pl-2.5 pr-2 text-[12px] transition-colors",
                                             activeId === heading.id
-                                                ? "text-teal-400 bg-teal-500/10 font-bold border-teal-500/20"
-                                                : "text-muted-foreground hover:text-foreground hover:bg-surface",
-                                            heading.level === 3 && "ml-4 text-muted-foreground border-l border-border rounded-l-none"
+                                                ? "border-l-accent bg-surface font-semibold text-foreground"
+                                                : "border-l-transparent text-muted-foreground hover:bg-surface hover:text-foreground",
+                                            heading.level === 3 && "ml-4"
                                         )}
                                     >
                                         {heading.text}
@@ -197,33 +191,31 @@ export function DocViewer({
 
                             {/* Lien vers le module associé */}
                             {moduleHref && (
-                                <div className="pt-6 mt-6 border-t border-border">
-                                    <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest mb-3 px-2">Accéder au module</p>
+                                <div className="mt-6 border-t border-border pt-4">
+                                    <p className="mb-2 px-2 text-[11px] font-semibold text-muted-foreground">Accéder au module</p>
                                     <Link
                                         href={moduleHref}
-                                        className="flex items-center gap-3 p-3 rounded-xl bg-teal-500/5 border border-teal-500/15 hover:bg-teal-500/10 hover:border-teal-500/30 transition-all group"
+                                        className="group flex items-center gap-2.5 rounded-[4px] border border-border bg-surface px-3 py-2.5 transition-colors hover:border-border-strong hover:bg-elevated"
                                     >
-                                        <div className="w-8 h-8 rounded-lg bg-teal-500/10 flex items-center justify-center shrink-0 group-hover:bg-teal-500/20 transition-colors">
-                                            <ExternalLink className="w-4 h-4 text-teal-400" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-xs font-bold text-teal-300 group-hover:text-teal-200 transition-colors leading-tight truncate">{moduleRoute?.label}</p>
-                                            <p className="text-[10px] text-muted-foreground mt-0.5">Ouvrir dans le dashboard</p>
-                                        </div>
+                                        <ExternalLink className="h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
+                                        <span className="min-w-0">
+                                            <span className="block truncate text-[13px] font-semibold text-foreground">{moduleRoute?.label}</span>
+                                            <span className="mt-0.5 block text-[11px] text-muted-foreground">Ouvrir dans le tableau de bord</span>
+                                        </span>
                                     </Link>
                                 </div>
                             )}
 
-                            <div className="pt-6 mt-6 border-t border-border">
-                                <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest mb-4 px-2">Besoin d&apos;aide ?</p>
+                            <div className="mt-6 border-t border-border pt-4">
+                                <p className="mb-2 px-2 text-[11px] font-semibold text-muted-foreground">Besoin d&apos;aide ?</p>
                                 <a
                                     href="https://discord.gg/BMVvXpYHEt"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="block p-4 rounded-2xl bg-teal-500/5 border border-teal-500/10 hover:bg-teal-500/10 transition-all group"
+                                    className="block rounded-[4px] border border-border bg-surface px-3 py-2.5 transition-colors hover:border-border-strong hover:bg-elevated"
                                 >
-                                    <p className="text-xs font-bold text-teal-300 mb-1 group-hover:text-foreground">Rejoindre le Discord</p>
-                                    <p className="text-caption text-muted-foreground">Posez vos questions à la communauté.</p>
+                                    <span className="block text-[13px] font-semibold text-foreground">Rejoindre le Discord</span>
+                                    <span className="mt-0.5 block text-[11px] text-muted-foreground">Posez vos questions à la communauté.</span>
                                 </a>
                             </div>
                         </div>

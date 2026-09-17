@@ -4,11 +4,20 @@ import { toast } from "sonner";
  * Upload an image file to the server via /api/upload.
  * Returns the persistent public URL (e.g. /uploads/docs/uuid.webp).
  * Shows a toast on error and returns null.
+ *
+ * @param scope Destination sous `private_uploads/`. `docs` (défaut) reste privé
+ *              (session requise) ; `guides`, `assets` et `landing` sont servis
+ *              PUBLICQUEMENT — à utiliser pour tout visuel affiché sur une page
+ *              publique (guide indexé, landing…).
  */
-export async function uploadImageFile(file: File): Promise<string | null> {
+export async function uploadImageFile(
+    file: File,
+    scope: "docs" | "guides" | "assets" | "landing" = "docs"
+): Promise<string | null> {
     try {
         const formData = new FormData();
         formData.append("file", file);
+        formData.append("scope", scope);
 
         const res = await fetch("/api/upload", {
             method: "POST",

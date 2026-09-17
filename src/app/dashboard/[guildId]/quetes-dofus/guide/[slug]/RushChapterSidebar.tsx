@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { resolveItemImage } from "@/lib/rush-guide-utils";
+import { resolveItemImage, getMetierIconPath } from "@/lib/rush-guide-utils";
 import { copyToClipboard } from "@/lib/clipboard";
 import { ResourceImage } from "@/components/dofus-quests/ResourceImage";
 
@@ -235,17 +235,17 @@ export function RushChapterSidebar({
   return (
     <aside
       className={cn(
-        "flex flex-col gap-3.5 bg-[#121821] backdrop-blur-xl p-4 sm:p-5 rounded-2xl border border-[#2a323d] shadow-xl transition-all",
+        "flex flex-col gap-3.5 bg-surface p-4 rounded-[6px] border border-border",
         className
       )}
     >
       {/* Chapitres */}
-      <div className="flex items-center justify-between border-b border-[#2a323d]/70 pb-3">
+      <div className="flex items-center justify-between border-b border-border pb-2.5">
         <div className="flex items-center gap-2 min-w-0">
-          <Layers className="w-4 h-4 text-[#e6b96b] shrink-0" />
-          <span className="text-xs font-black uppercase tracking-widest text-[#9aa7b4]">Chapitres</span>
+          <Layers className="w-4 h-4 text-muted-foreground shrink-0" />
+          <span className="text-xs font-medium text-foreground">Chapitres</span>
         </div>
-        <span className="text-[10px] font-mono text-[#66707d]">{chapters.length}</span>
+        <span className="text-[11px] font-mono tabular-nums text-muted-foreground">{chapters.length}</span>
       </div>
 
       {/* Rail des chapitres (scrollable) */}
@@ -258,70 +258,69 @@ export function RushChapterSidebar({
           const isDone = allSeq.length > 0 && doneSeq === allSeq.length;
           return (
             <button key={ch.chapter} type="button" onClick={() => handleSelectChapter(ch.chapter)}
-              className={cn("w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl border transition-colors text-left",
-                active ? "bg-[#4fd1a5]/[0.08] border-[#4fd1a5]/25" : "border-transparent hover:bg-white/[0.03]")}>
-              <span className={cn("w-6 h-6 shrink-0 rounded-lg flex items-center justify-center text-[11px] font-bold font-mono border",
-                isDone ? "bg-[#4fd1a5] text-[#06301f] border-transparent" : active ? "bg-[#e6b96b] text-[#231400] border-transparent" : "bg-[#161d27] border-[#2a323d] text-[#9aa7b4]")}>{isDone ? "✓" : ch.chapter}</span>
+              className={cn("w-full flex items-center gap-2.5 px-2 py-1.5 rounded-[4px] border transition-colors text-left",
+                active ? "bg-elevated border-border" : "border-transparent hover:border-border")}>
+              <span className={cn("w-5 h-5 shrink-0 rounded-[3px] flex items-center justify-center text-[11px] font-mono border",
+                isDone ? "border-success text-success" : active ? "border-warning text-warning" : "border-border text-muted-foreground")}>{isDone ? <Check className="w-3 h-3" strokeWidth={2}/> : ch.chapter}</span>
               <span className="flex-1 min-w-0">
-                <span className="block text-xs font-semibold text-[#eef2f6] truncate">{ch.label}</span>
-                <span className="block h-1 rounded-full bg-white/[0.08] mt-1 overflow-hidden"><span className="block h-full bg-[#4fd1a5]" style={{ width: `${pct}%` }}/></span>
+                <span className="block text-xs text-foreground truncate">{ch.label}</span>
+                <span className="block h-[3px] rounded-[2px] bg-elevated mt-1 overflow-hidden"><span className="block h-full rounded-[2px] bg-success" style={{ width: `${pct}%` }}/></span>
               </span>
-              <span className="font-mono text-[10px] text-[#9aa7b4]">{doneSeq}/{allSeq.length}</span>
+              <span className="font-mono tabular-nums text-[11px] text-muted-foreground">{doneSeq}/{allSeq.length}</span>
             </button>
           );
         })}
       </div>
       {/* ─── Progression du Chapitre ─── */}
-      <div className="flex items-center gap-4 bg-[#161d27] p-3.5 rounded-xl border border-[#2a323d]/80">
+      <div className="flex items-center gap-4 bg-elevated p-3 rounded-[6px] border border-border">
         <div className="relative w-12 h-12 shrink-0 flex items-center justify-center">
           <svg className="w-12 h-12 transform -rotate-90" viewBox="0 0 36 36">
             <path
-              className="text-[#272f3a]"
-              strokeWidth="3.5"
+              className="text-border"
+              strokeWidth="5"
               stroke="currentColor"
               fill="none"
               d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
             />
             <path
-              className="text-[#4fd1a5] transition-all duration-500"
+              className="text-success transition-all duration-300"
               strokeDasharray={`${stats.percent}, 100`}
-              strokeWidth="3.5"
-              strokeLinecap="round"
+              strokeWidth="5"
               stroke="currentColor"
               fill="none"
               d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
             />
           </svg>
-          <span className="absolute font-mono font-bold text-xs text-[#eef2f6]">{stats.percent}%</span>
+          <span className="absolute font-mono tabular-nums text-xs text-foreground">{stats.percent}%</span>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#9aa7b4]">Progression</p>
-          <p className="text-sm font-bold text-[#eef2f6] truncate">
+          <p className="text-[11px] text-muted-foreground">Progression</p>
+          <p className="text-sm font-mono tabular-nums text-foreground truncate">
             {stats.completedSequences} / {stats.totalSequences}
-            <span className="text-xs font-normal text-[#9aa7b4] ml-1">quêtes</span>
+            <span className="text-xs font-sans text-muted-foreground ml-1">quêtes</span>
           </p>
-          <p className="text-[11px] text-[#78828f] truncate">{currentChapterLabel}</p>
+          <p className="text-[11px] text-muted-foreground truncate">{currentChapterLabel}</p>
         </div>
       </div>
 
       {/* ─── Donjons & Métiers requis ─── */}
       {(chapterDungeons.length > 0 || chapterMetiers.length > 0) && (
-        <div className="flex flex-col gap-2.5 bg-[#161d27]/60 p-3 rounded-xl border border-[#2a323d]/80">
+        <div className="flex flex-col gap-2.5 bg-elevated p-3 rounded-[6px] border border-border">
             {chapterDungeons.length > 0 && (
               <div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-[#9aa7b4] px-1 mb-1">Donjons à prévoir</p>
-                <div className="flex flex-wrap gap-1.5">
+                <p className="text-[11px] text-muted-foreground mb-1">Donjons à prévoir</p>
+                <div className="flex flex-col gap-1.5">
                   {chapterDungeons.map((d) => (
-                    <span key={d.id || d.name} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#121821] border border-[#2a323d]/70 text-[11px] font-semibold text-[#eef2f6] min-w-0 max-w-full">
-                      <span className="w-4 h-4 rounded bg-[#0c1015] border border-[#2a323d] flex items-center justify-center shrink-0 overflow-hidden">
-                        {d.imageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={d.imageUrl} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <DoorOpen className="w-2.5 h-2.5 text-[#5588cc]" />
-                        )}
-                      </span>
+                    <span key={d.id || d.name} className="inline-flex items-center gap-2 text-xs text-foreground min-w-0 max-w-full">
+                      {d.imageUrl ? (
+                        /* Picto de boss/donjon du jeu, posé NU et LISIBLE (7 = 28 px). */
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={d.imageUrl} alt="" title={d.bossName || d.name} className="w-7 h-7 object-contain shrink-0" />
+                      ) : (
+                        <DoorOpen className="w-5 h-5 text-muted-foreground shrink-0" />
+                      )}
                       <span className="truncate min-w-0">{d.name}</span>
+                      {d.bossName ? <span className="text-[10px] text-muted-foreground truncate shrink-0 max-w-[45%]">{d.bossName}</span> : null}
                     </span>
                   ))}
                 </div>
@@ -329,11 +328,15 @@ export function RushChapterSidebar({
             )}
             {chapterMetiers.length > 0 && (
               <div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-[#9aa7b4] px-1 mb-1">Métiers requis</p>
-                <div className="flex flex-wrap gap-1.5">
+                <p className="text-[11px] text-muted-foreground mb-1">Métiers requis</p>
+                <div className="flex flex-col gap-1.5">
                   {chapterMetiers.map((m) => (
-                    <span key={m.name} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#121821] border border-[#2a323d]/70 text-[11px] font-semibold text-[#eef2f6] min-w-0 max-w-full">
-                      <span className="truncate min-w-0">🔨 {m.name}{m.level ? ` ${m.level}` : ""}</span>
+                    <span key={m.name} className="inline-flex items-center gap-2 text-xs text-foreground min-w-0 max-w-full">
+                      {/* Picto du métier réel (référentiel des 20 métiers), posé NU. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={getMetierIconPath(m.name)} alt="" title={m.name} className="w-5 h-5 object-contain shrink-0" />
+                      <span className="truncate min-w-0">{m.name}</span>
+                      {m.level ? <b className="font-mono font-medium text-muted-foreground shrink-0">{m.level}</b> : null}
                     </span>
                   ))}
                 </div>
@@ -343,28 +346,28 @@ export function RushChapterSidebar({
       )}
 
       {/* ─── Objets & Ressources nécessaires ─── */}
-      <div className="flex flex-col gap-2 bg-[#161d27]/60 p-3.5 rounded-xl border border-[#2a323d]/80 flex-1 min-h-0">
-        <div className="flex flex-col gap-2 border-b border-[#2a323d]/60 pb-2">
+      <div className="flex flex-col gap-2 bg-elevated p-3 rounded-[6px] border border-border flex-1 min-h-0">
+        <div className="flex flex-col gap-2 border-b border-border pb-2">
           <div className="flex items-center gap-1.5 min-w-0">
-            <Package className="w-3.5 h-3.5 text-[#e6b96b] shrink-0" />
-            <h4 className="text-[11px] font-black uppercase tracking-widest text-[#eef2f6] truncate min-w-0 flex-1">
+            <Package className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <h4 className="text-xs text-foreground truncate min-w-0 flex-1">
               Objets requis
             </h4>
-            <span className="font-mono text-[10px] font-bold text-[#e6b96b] shrink-0 whitespace-nowrap">
+            <span className="font-mono tabular-nums text-[11px] text-muted-foreground shrink-0 whitespace-nowrap">
               ({aggregatedItems.length})
             </span>
           </div>
           {aggregatedItems.length > 0 && (
-            <div className="grid grid-cols-2 gap-0.5 p-0.5 rounded-lg bg-[#161d27] border border-[#2a323d]">
+            <div className="grid grid-cols-2 gap-0.5 p-0.5 rounded-[4px] bg-surface border border-border">
               <button
                 onClick={() => setHideCompletedItems(true)}
-                className={cn("px-1.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider transition-colors text-center", hideCompletedItems ? "bg-[#4fd1a5] text-[#06301f]" : "text-[#9aa7b4] hover:text-[#eef2f6]")}
+                className={cn("px-1.5 py-1 rounded-[3px] text-[11px] transition-colors text-center", hideCompletedItems ? "bg-success text-success-foreground" : "text-muted-foreground hover:text-foreground")}
               >
                 Restantes
               </button>
               <button
                 onClick={() => setHideCompletedItems(false)}
-                className={cn("px-1.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider transition-colors text-center", !hideCompletedItems ? "bg-[#4fd1a5] text-[#06301f]" : "text-[#9aa7b4] hover:text-[#eef2f6]")}
+                className={cn("px-1.5 py-1 rounded-[3px] text-[11px] transition-colors text-center", !hideCompletedItems ? "bg-success text-success-foreground" : "text-muted-foreground hover:text-foreground")}
               >
                 Toutes
               </button>
@@ -372,9 +375,9 @@ export function RushChapterSidebar({
           )}
         </div>
         {aggregatedItems.length > 0 && (
-          <div className="flex items-center justify-between text-[10px] text-[#9aa7b4]">
-            <span className="font-bold uppercase tracking-wider">{hideCompletedItems ? "Encore requis" : "Total"}</span>
-            <span className="font-mono font-bold text-[#e6b96b]">{hideCompletedItems ? aggregatedItems.filter((it) => !it.isCompleted).length : aggregatedItems.length}</span>
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>{hideCompletedItems ? "Encore requis" : "Total"}</span>
+            <span className="font-mono tabular-nums text-foreground">{hideCompletedItems ? aggregatedItems.filter((it) => !it.isCompleted).length : aggregatedItems.length}</span>
           </div>
         )}
 
@@ -384,21 +387,18 @@ export function RushChapterSidebar({
               <div
                 key={idx}
                 className={cn(
-                  "flex items-center justify-between gap-2 p-2 rounded-xl border transition-all text-xs",
+                  "flex items-center justify-between gap-2 p-1.5 rounded-[4px] border transition-colors text-xs",
                   item.isCompleted
-                    ? "bg-[#0e1319]/60 border-white/[0.04] opacity-40"
-                    : "bg-[#121821] border-[#2a323d]/80 hover:border-[#3a4550]"
+                    ? "border-border opacity-40"
+                    : "bg-surface border-border hover:border-foreground/20"
                 )}
               >
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   {item.imageUrl ? (
-                    <div className="w-7 h-7 rounded-lg bg-[#0c1015] border border-[#2a323d] flex items-center justify-center shrink-0 overflow-hidden">
-                      <ResourceImage id={item.id} imageUrl={item.imageUrl} alt={item.name} className="w-5.5 h-5.5 object-contain" />
-                    </div>
+                    /* Ressource : asset du jeu posé NU (plus de tuile sous l'icône). */
+                    <ResourceImage id={item.id} imageUrl={item.imageUrl} alt={item.name} className="w-6 h-6 object-contain shrink-0" />
                   ) : (
-                    <div className="w-7 h-7 rounded-lg bg-[#161d27] border border-[#2a323d] flex items-center justify-center shrink-0">
-                      <Package className="w-3.5 h-3.5 text-[#e6b96b]" />
-                    </div>
+                    <Package className="w-4 h-4 text-muted-foreground shrink-0" />
                   )}
                   <div className="min-w-0 flex-1">
                     <button
@@ -407,15 +407,15 @@ export function RushChapterSidebar({
                       title={`Copier le nom « ${item.name} »`}
                       aria-label={`Copier le nom ${item.name}`}
                       className={cn(
-                        "font-semibold truncate text-xs text-left block w-full max-w-full",
-                        item.isCompleted ? "line-through text-zinc-500" : "text-[#eef2f6]",
-                        "hover:text-[#e6b96b] transition-colors cursor-pointer"
+                        "font-medium truncate text-xs text-left block w-full max-w-full",
+                        item.isCompleted ? "line-through text-muted-foreground" : "text-foreground",
+                        "hover:text-success transition-colors cursor-pointer"
                       )}
                     >
                       {item.name}
                     </button>
                     {item.level && (
-                      <span className="text-[10px] text-[#9aa7b4] block">Niv. {item.level}</span>
+                      <span className="text-[10px] font-mono text-muted-foreground block">Niv. {item.level}</span>
                     )}
                   </div>
                 </div>
@@ -423,10 +423,10 @@ export function RushChapterSidebar({
                 <div className="flex items-center gap-2 shrink-0">
                   <span
                     className={cn(
-                      "font-mono font-bold text-xs px-2 py-0.5 rounded-md",
+                      "font-mono tabular-nums text-xs px-1.5 py-0.5 rounded-[3px] border",
                       item.isCompleted
-                        ? "bg-[#121821] text-zinc-600"
-                        : "bg-[#161d27] text-[#eef2f6] border border-[#2a323d]"
+                        ? "border-border text-muted-foreground"
+                        : "border-border text-foreground"
                     )}
                   >
                     {hideCompletedItems

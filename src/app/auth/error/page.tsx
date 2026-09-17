@@ -1,13 +1,40 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Loader2, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
+import { DiscordIcon } from "@/components/shared/icons";
 
+/**
+ * Fiche d'erreur d'authentification — registre.
+ *
+ * Les textes (titres, messages, code `error`) sont inchangés : seule la
+ * présentation revient dans la couche `.reg-*`.
+ *
+ * Ce qui a été retiré volontairement :
+ *  - le wrapper `relative overflow-hidden` et son commentaire « Ambient
+ *    Background Effects » : il n'existait que pour des orbes de fond supprimés ;
+ *  - la carte centrée `bg-zinc-950 border-red-500/20 rounded-3xl p-10` et sa
+ *    tuile d'icône `w-20 h-20 rounded-2xl bg-red-500/10` (icône mise en boîte) ;
+ *  - les deux boutons pleine largeur `h-14 rounded-2xl font-black text-lg` avec
+ *    `active:scale-95`, dont un `bg-indigo-500` codé en dur (hors tokens) et un
+ *    `bg-white text-black` (thème clair) / `bg-zinc-800` (thème sombre) ;
+ *  - les gris `text-zinc-400` / `text-zinc-500` et le `text-white` ;
+ *  - le code de diagnostic en `uppercase tracking-widest text-red-500/50` :
+ *    l'étiquette passe en mono (`.reg-mono`) et la valeur en `--danger`
+ *    (contraste mesuré ≥ 4,5 dans les deux thèmes) ;
+ *  - le `font-sans` de la racine : c'est un utilitaire (couche `utilities`),
+ *    donc prioritaire sur `.registre` (couche `components`) — il réimposait
+ *    Inter et annulait la typographie Source Sans 3 de la page.
+ *
+ * À la place : colonne de lecture `.reg-shell` alignée à gauche, icône de
+ * statut, diagnostic en mono, une seule action principale `.reg-btn-primary` et
+ * l'action secondaire en lien souligné (`.reg-link`) — jamais deux boutons
+ * concurrents.
+ */
 function ErrorContent() {
     const searchParams = useSearchParams();
     const error = searchParams.get("error");
@@ -40,54 +67,43 @@ function ErrorContent() {
     }
 
     return (
-        <div className="relative z-10 max-w-md w-full">
-            <div className="relative bg-zinc-950 border border-red-500/20 rounded-3xl p-10 text-center">
-                <div className="w-20 h-20 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-8">
-                    <ShieldAlert className="w-10 h-10 text-red-500" />
-                </div>
+        <div className="max-w-[34rem]">
+            <h1 className="flex items-center gap-3 text-[clamp(1.6rem,2.8vw,2rem)] font-bold tracking-tight text-foreground">
+                <ShieldAlert className="h-6 w-6 shrink-0 text-danger" aria-hidden="true" />
+                {title}
+            </h1>
 
-                <div className="space-y-4 mb-10">
-                    <h1 className="text-3xl font-black text-white tracking-tighter">{title}</h1>
-                    <p className="text-zinc-400 font-medium leading-relaxed">
-                        {message}
-                    </p>
-                    {error && (
-                        <div className="inline-block px-3 py-1 rounded-md bg-red-500/5 border border-red-500/10">
-                            <p className="text-caption font-mono text-red-500/50 uppercase tracking-widest font-bold">
-                                Diagnostics: {error}
-                            </p>
-                        </div>
-                    )}
-                </div>
+            <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{message}</p>
 
-                <div className="flex flex-col gap-3">
-                    {error === "NoManagedGuild" && (
-                        <Button
-                            asChild
-                            className="w-full h-14 bg-indigo-500 hover:bg-indigo-400 text-white font-black text-lg rounded-2xl transition-colors active:scale-95 border border-indigo-400/50"
-                        >
-                            <a href="https://discord.gg/uX7G6SUDgN" target="_blank" rel="noopener noreferrer">
-                                <svg className="w-6 h-6 mr-3" viewBox="0 0 127.14 96.36" fill="currentColor">
-                                    <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.11,77.11,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.89,105.89,0,0,0,126.6,80.22c2.91-27.55-13.48-51.67-18.9-72.15ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
-                                </svg>
-                                Demande d'accès (Discord)
-                            </a>
-                        </Button>
-                    )}
-                    <Button
-                        asChild
-                        className={`w-full h-14 font-black text-lg rounded-2xl transition-colors active:scale-95 ${
-                            error === "NoManagedGuild"
-                            ? "bg-zinc-800 text-white hover:bg-zinc-700 border border-zinc-700/50"
-                            : "bg-white text-black hover:bg-zinc-200"
-                        }`}
+            {error && (
+                <p className="reg-mono mt-4 text-xs text-muted-foreground">
+                    Diagnostics: <span className="text-danger">{error}</span>
+                </p>
+            )}
+
+            <div className="mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+                {error === "NoManagedGuild" && (
+                    <a
+                        href="https://discord.gg/uX7G6SUDgN"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="reg-btn reg-btn-primary"
                     >
-                        <Link href="/">
-                            <ArrowLeft className="w-5 h-5 mr-3" />
-                            Retour à l'accueil
-                        </Link>
-                    </Button>
-                </div>
+                        <DiscordIcon className="h-4 w-4" />
+                        Demande d'accès (Discord)
+                    </a>
+                )}
+                <Link
+                    href="/"
+                    className={
+                        error === "NoManagedGuild"
+                            ? "reg-link inline-flex items-center gap-2"
+                            : "reg-btn reg-btn-primary"
+                    }
+                >
+                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                    Retour à l'accueil
+                </Link>
             </div>
         </div>
     );
@@ -95,19 +111,20 @@ function ErrorContent() {
 
 export default function AuthErrorPage() {
     return (
-        <div className="min-h-screen bg-black text-white selection:bg-red-500/30 font-sans flex flex-col relative overflow-hidden landing-theme">
-            {/* Ambient Background Effects */}
+        <div className="registre landing-theme min-h-screen flex flex-col bg-background text-foreground selection:bg-danger/30">
             <PublicHeader variant="standard" backHref="/" backLabel="Accueil" />
 
-            <main className="flex-1 flex items-center justify-center p-4 relative z-10 pt-20">
-                <Suspense fallback={
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="w-12 h-12 border-4 border-red-500/20 border-t-red-500 rounded-full animate-spin" />
-                        <p className="text-zinc-500 font-mono text-xs uppercase tracking-widest">Initialisation des diagnostics...</p>
-                    </div>
-                }>
-                    <ErrorContent />
-                </Suspense>
+            <main className="flex-1">
+                <div className="reg-shell py-10 lg:py-16">
+                    <Suspense fallback={
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                            <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
+                            <p className="text-xs">Initialisation des diagnostics...</p>
+                        </div>
+                    }>
+                        <ErrorContent />
+                    </Suspense>
+                </div>
             </main>
 
             <GalacticFooter />

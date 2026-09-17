@@ -8,12 +8,15 @@
 :root {
   --guide-bg: #0a0b10;
   --guide-bg-mission: #050608;
-  --guide-surface: rgba(255, 255, 255, 0.025);
-  --guide-surface-2: rgba(255, 255, 255, 0.05);
-  --guide-border: rgba(255, 255, 255, 0.07);
+  /* Surfaces & filets remontés (16/09) : à 2,5 % et 7 % de blanc, les blocs du
+     guide disparaissaient les uns dans les autres (« tout foncé sur du foncé »).
+     On garde la même famille de teintes, on rend la hiérarchie lisible. */
+  --guide-surface: rgba(255, 255, 255, 0.055);
+  --guide-surface-2: rgba(255, 255, 255, 0.095);
+  --guide-border: rgba(255, 255, 255, 0.14);
   --guide-text: #e4e4e7;
-  --guide-text-dim: #8b8b93;
-  --guide-text-faint: #6b6b74;
+  --guide-text-dim: #9c9ca6;
+  --guide-text-faint: #7f7f8a;
   --guide-gold: #d4a853;
   --guide-gold-soft: rgba(212, 168, 83, 0.12);
   --guide-green: #10b981;
@@ -54,37 +57,37 @@
 }
 
 
-/* Bouton « Sommaire » dans le bandeau (ouvre/ferme la sidebar) — accent indigo bien visible */
+/* Bouton « Sommaire » dans le bandeau (ouvre/ferme la sidebar).
+   Plus d'accent indigo « premium » : c'est un bouton utilitaire, il prend les
+   tokens du guide (surface + filet + texte), sans capitales espacées. */
 .guide-sommaire-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
   padding: 0.45rem 0.75rem;
   border-radius: 0.6rem;
-  background: rgba(139, 92, 246, 0.12);
-  border: 1px solid rgba(139, 92, 246, 0.4);
-  color: #c4b5fd;
-  font-size: 0.72rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  background: var(--guide-surface-2);
+  border: 1px solid var(--guide-border);
+  color: var(--guide-text);
+  font-size: 0.75rem;
+  font-weight: 600;
   cursor: pointer;
   transition: border-color var(--guide-t-fast), color var(--guide-t-fast), background var(--guide-t-fast);
   white-space: nowrap;
 }
 .guide-sommaire-btn:hover {
-  color: #ddd6fe;
-  border-color: rgba(139, 92, 246, 0.65);
-  background: rgba(139, 92, 246, 0.22);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.14);
 }
 .guide-sommaire-kbd {
-  font-size: 0.55rem;
-  font-weight: 900;
+  font-size: 0.6rem;
+  font-weight: 600;
   padding: 0.05rem 0.32rem;
   border-radius: 0.3rem;
-  background: rgba(139, 92, 246, 0.22);
-  border: 1px solid rgba(139, 92, 246, 0.45);
-  color: #ddd6fe;
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid var(--guide-border);
+  color: var(--guide-text-dim);
   line-height: 1.2;
 }
 
@@ -114,7 +117,7 @@
   border: 1px solid rgba(59, 130, 246, 0.5);
   color: #fff;
   font-size: 0.7rem;
-  font-weight: 900;
+  font-weight: 700;
   cursor: pointer;
   transition: border-color var(--guide-t-fast), background var(--guide-t-fast);
   white-space: nowrap;
@@ -342,7 +345,7 @@
 
 .ms-num {
   font-size: 0.65rem;
-  font-weight: 900;
+  font-weight: 700;
   color: #52525b;
   min-width: 14px;
 }
@@ -374,7 +377,7 @@
   padding: 0.1rem 0.4rem;
   border-radius: 2rem;
   font-size: 0.6rem;
-  font-weight: 900;
+  font-weight: 700;
   border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
@@ -391,7 +394,7 @@
 
 .ms-you {
   font-size: 0.55rem;
-  font-weight: 900;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: #fbbf24;
@@ -405,7 +408,7 @@
 
 .ms-optional {
   font-size: 0.55rem;
-  font-weight: 900;
+  font-weight: 700;
   text-transform: uppercase;
   color: var(--guide-gold);
   border: 1px solid rgba(212, 168, 83, 0.3);
@@ -546,7 +549,7 @@
 }
 .guide-hud-pct {
   font-size: 0.72rem;
-  font-weight: 900;
+  font-weight: 700;
   color: var(--guide-gold);
   font-variant-numeric: tabular-nums;
 }
@@ -587,12 +590,12 @@
   background: var(--guide-surface-2);
   color: var(--guide-text-dim);
   font-size: 0.62rem;
-  font-weight: 900;
+  font-weight: 700;
   overflow: hidden;
   flex-shrink: 0;
 }
 .guide-hud-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.guide-hud-presence-count { font-size: 0.66rem; font-weight: 900; color: var(--guide-text-dim); }
+.guide-hud-presence-count { font-size: 0.66rem; font-weight: 700; color: var(--guide-text-dim); }
 .guide-hud-presence-label { font-size: 0.62rem; font-weight: 800; color: var(--guide-text-dim); white-space: nowrap; }
 
 /* ── Présence « en ligne » du bandeau — style Rush Live (13/08) ── */
@@ -618,7 +621,7 @@
 }
 .guide-live-label {
   font-size: 0.58rem;
-  font-weight: 900;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: #34d399;
@@ -656,7 +659,7 @@
   object-fit: cover;
   flex-shrink: 0;
 }
-.guide-live-me { color: #34d399; font-weight: 900; flex-shrink: 0; }
+.guide-live-me { color: #34d399; font-weight: 700; flex-shrink: 0; }
 
 .guide-hud-btn {
   display: inline-flex;
@@ -751,14 +754,14 @@
 }
 .guide-hud-credit-eyebrow {
   font-size: 0.5rem;
-  font-weight: 900;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: #93c5fd;
 }
 .guide-hud-credit-name {
   font-size: 0.72rem;
-  font-weight: 900;
+  font-weight: 700;
   color: #fff;
   white-space: nowrap;
 }
@@ -827,7 +830,7 @@
 .guide-switcher-tag {
   margin-left: auto;
   font-size: 0.58rem;
-  font-weight: 900;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   padding: 0.15rem 0.4rem;
@@ -876,7 +879,7 @@
 
 .step-phase-badge {
   font-size: 0.65rem;
-  font-weight: 900;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: #71717a;
@@ -887,7 +890,7 @@
 
 .step-type-badge {
   font-size: 0.65rem;
-  font-weight: 900;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   padding: 0.3rem 0.6rem;
@@ -897,7 +900,7 @@
 
 .step-optional-badge {
   font-size: 0.65rem;
-  font-weight: 900;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--guide-gold);
@@ -917,7 +920,7 @@
 
 .step-title {
   font-size: 2.5rem;
-  font-weight: 900;
+  font-weight: 700;
   color: #fff;
   line-height: 1.1;
   margin: 0 0 0.5rem 0;
@@ -1004,7 +1007,7 @@
   gap: 0.75rem;
   margin-bottom: 1.5rem;
   font-size: 0.8rem;
-  font-weight: 900;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: #fff;
@@ -1062,7 +1065,7 @@
 
 .sgc-badge {
   font-size: 0.7rem;
-  font-weight: 900;
+  font-weight: 700;
   background: color-mix(in srgb, var(--sgc-color) 20%, transparent);
   color: var(--sgc-color);
   padding: 0.4rem 0.6rem;
@@ -1298,7 +1301,7 @@
 
 .sgc-step-num {
   font-size: 0.8rem;
-  font-weight: 900;
+  font-weight: 700;
   color: #52525b;
   min-width: 20px;
 }
@@ -1383,7 +1386,7 @@
 .guide-ref-link {
   cursor: pointer;
   color: #3b82f6;
-  font-weight: 900;
+  font-weight: 700;
   background: rgba(59, 130, 246, 0.1);
   padding: 0.1rem 0.4rem;
   border-radius: 0.4rem;
@@ -1764,7 +1767,7 @@
   align-items: center;
   gap: 0.75rem;
   font-size: 1.1rem;
-  font-weight: 900;
+  font-weight: 700;
   color: #fff;
   margin-bottom: 1.5rem;
 }
@@ -2031,8 +2034,8 @@
   background: rgba(244, 63, 94, 0.02) !important;
 }
 .ganymade-step-text li.tag-dungeon {
-  border-left-color: #8b5cf6 !important;
-  background: rgba(139, 92, 246, 0.02) !important;
+  border-left-color: #d4a853 !important;
+  background: rgba(212, 168, 83, 0.02) !important;
 }
 .ganymade-step-text li.tag-resource,
 .ganymade-step-text li.tag-resources {
@@ -2066,7 +2069,7 @@
 .ganymade-step-text li.tag-monsters:hover { box-shadow: 0 4px 10px rgba(249, 115, 22, 0.06); }
 .ganymade-step-text li.tag-boss:hover,
 .ganymade-step-text li.tag-bosses:hover { box-shadow: 0 4px 10px rgba(244, 63, 94, 0.06); }
-.ganymade-step-text li.tag-dungeon:hover { box-shadow: 0 4px 10px rgba(139, 92, 246, 0.06); }
+.ganymade-step-text li.tag-dungeon:hover { box-shadow: 0 4px 10px rgba(212, 168, 83, 0.06); }
 .ganymade-step-text li.tag-resource:hover,
 .ganymade-step-text li.tag-resources:hover { box-shadow: 0 4px 10px rgba(52, 211, 153, 0.06); }
 
@@ -2158,7 +2161,7 @@
 }
 
 .subguide-tab-btn .tab-num {
-  font-weight: 900 !important;
+  font-weight: 700 !important;
   font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -2416,7 +2419,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 900;
+  font-weight: 700;
   font-size: 0.75rem;
   color: #60a5fa;
   background: rgba(59, 130, 246, 0.05);
@@ -2604,7 +2607,7 @@
 }
 .toc-title-label {
   font-size: 0.6rem;
-  font-weight: 900;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--guide-gold);
@@ -2747,7 +2750,7 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   border: 1px solid rgba(59,130,246,0.3);
   color: #60a5fa;
   font-size: 0.66rem;
-  font-weight: 900;
+  font-weight: 700;
   cursor: pointer;
   transition: border-color var(--guide-t-fast), background var(--guide-t-fast);
   width: fit-content;
@@ -2762,7 +2765,7 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   display: inline-flex; align-items: center; justify-content: center;
   background: #1e2430;
   color: #93c5fd;
-  font-size: 0.6rem; font-weight: 900;
+  font-size: 0.6rem; font-weight: 700;
   margin-left: -6px;
 }
 .sgc-step-presence-avatar:first-child { margin-left: 0; }
@@ -2773,7 +2776,7 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   border: 2px solid #12141a;
   background: rgba(59,130,246,0.15);
   color: #93c5fd;
-  font-size: 0.58rem; font-weight: 900;
+  font-size: 0.58rem; font-weight: 700;
   display: inline-flex; align-items: center; justify-content: center;
   margin-left: -6px;
 }
@@ -2859,7 +2862,7 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   border: 1px solid rgba(59, 130, 246, 0.35);
   color: #93c5fd;
   font-size: inherit;
-  font-weight: 900;
+  font-weight: 700;
   cursor: pointer;
   line-height: 1.3;
   transition: border-color var(--guide-t-fast), background var(--guide-t-fast), color var(--guide-t-fast);
@@ -2873,7 +2876,7 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   border: 1px solid rgba(59, 130, 246, 0.6);
   color: #fff;
   font-size: inherit;
-  font-weight: 900;
+  font-weight: 700;
   text-align: center;
   outline: none;
 }
@@ -2922,14 +2925,14 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
 .guide-hero-back-icon { color: var(--guide-green); }
 .guide-hero-eyebrow {
   font-size: 0.65rem;
-  font-weight: 900;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.16em;
   color: var(--guide-green);
 }
 .guide-hero-name {
   font-size: 1.9rem;
-  font-weight: 900;
+  font-weight: 700;
   color: #fff;
   line-height: 1.15;
   letter-spacing: -0.01em;
@@ -2984,7 +2987,7 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
 .guide-hero-card-icon.progress { background: var(--guide-green-soft); border-color: rgba(16,185,129,0.3); }
 .guide-hero-card-label {
   font-size: 0.6rem;
-  font-weight: 900;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--guide-text-faint);
@@ -2998,7 +3001,7 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   display: inline-flex;
   align-items: center;
   font-size: 0.6rem;
-  font-weight: 900;
+  font-weight: 700;
   color: var(--guide-gold);
   background: var(--guide-gold-soft);
   border: 1px solid rgba(212,168,83,0.25);
@@ -3070,7 +3073,7 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   border-color: var(--guide-border);
   color: #fff;
   font-size: 0.72rem;
-  font-weight: 900;
+  font-weight: 700;
   cursor: pointer;
   overflow: hidden;
 }
@@ -3165,7 +3168,7 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   border-color: rgba(245,158,11,0.35);
   color: #fbbf24;
 }
-.ocre-tab-count { font-size: 0.6rem; font-weight: 900; opacity: 0.7; }
+.ocre-tab-count { font-size: 0.6rem; font-weight: 700; opacity: 0.7; }
 
 /* ── Édition Alignement / Ordre (modale) ── */
 .guide-hero-card-clickable {
@@ -3276,7 +3279,7 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
   align-items: center;
   justify-content: center;
   font-size: 0.7rem;
-  font-weight: 900;
+  font-weight: 700;
   color: var(--guide-text-dim);
 }
 .ocre-row-name { font-size: 0.76rem; font-weight: 800; color: #e4e4e7; }
@@ -3284,7 +3287,7 @@ body.guide-fullscreen .guide-shell.toc-pinned .toc-rail { height: 100dvh; }
 .ocre-state {
   flex-shrink: 0;
   font-size: 0.62rem;
-  font-weight: 900;
+  font-weight: 700;
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
   white-space: nowrap;

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
-import { Bug, X, Send } from "lucide-react";
+import React, { useEffect, useState, useTransition } from "react";
+import { Bug, X, Send, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { submitQuestFeedbackAction } from "@/server/actions/feedback-actions";
@@ -13,6 +13,7 @@ interface RushOverlayFeedbackPanelProps {
   targetSlug?: string;
   /** Étape/position calculée pré-remplie dans le retour */
   context?: string;
+  /** Conservé pour les appelants : l'apparence suit les jetons de thème. */
   isLightMode: boolean;
   onClose: () => void;
 }
@@ -22,18 +23,30 @@ interface RushOverlayFeedbackPanelProps {
  * Même action serveur que la modale dashboard (`submitQuestFeedbackAction`),
  * mais rendu en `fixed` dans le viewport de l'overlay — jamais dans la
  * fenêtre principale. Compact par construction (overlay souvent étroit).
+ *
+ * Apparence : jetons de thème uniquement (l'overlay pose `.light` sur sa racine
+ * en thème clair), rayon 6 px, filets, casse normale. Les emoji des catégories
+ * viennent de `FEEDBACK_LABELS`, partagé avec le formulaire du dashboard.
  */
 export function RushOverlayFeedbackPanel({
   guildId,
   sourcePage,
   targetSlug,
   context,
-  isLightMode,
   onClose,
 }: RushOverlayFeedbackPanelProps) {
   const [selectedType, setSelectedType] = useState<FeedbackType | null>(null);
   const [description, setDescription] = useState("");
   const [isPending, startTransition] = useTransition();
+
+  // Échap ferme le panneau : même comportement que les autres modales du rush.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const handleSubmit = () => {
     if (!selectedType) return toast.error("Choisis une catégorie.");
@@ -61,15 +74,12 @@ export function RushOverlayFeedbackPanel({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5">
-      {/* Backdrop */}
+      {/* Fond */}
       <button
         type="button"
         aria-label="Fermer le formulaire de retour"
         onClick={onClose}
-        className={cn(
-          "absolute inset-0",
-          isLightMode ? "bg-slate-900/40" : "bg-black/60 backdrop-blur-sm"
-        )}
+        className="absolute inset-0 bg-black/70"
       />
 
       {/* Panneau */}
@@ -77,65 +87,36 @@ export function RushOverlayFeedbackPanel({
         role="dialog"
         aria-modal="true"
         aria-label="Faire un retour"
-        className={cn(
-          "relative z-10 flex flex-col w-full max-w-[400px] max-h-[92vh] rounded-2xl border overflow-hidden shadow-2xl",
-          isLightMode ? "bg-white border-slate-200" : "bg-[#111419] border-[#2a3646]"
-        )}
+        className="relative z-10 flex max-h-[92vh] w-full max-w-[25rem] flex-col overflow-hidden rounded-[6px] border border-border-strong bg-elevated"
       >
-        {/* Header */}
-        <div
-          className={cn(
-            "flex items-center gap-2.5 px-4 py-3 border-b shrink-0",
-            isLightMode ? "border-slate-200" : "border-[#28303a]/70"
-          )}
-        >
-          <span
-            className={cn(
-              "w-7 h-7 rounded-lg flex items-center justify-center border shrink-0",
-              isLightMode ? "bg-red-50 border-red-200 text-red-500" : "bg-red-500/10 border-red-500/20 text-red-400"
-            )}
-          >
-            <Bug className="w-4 h-4" />
+        {/* En-tête */}
+        <header className="flex shrink-0 items-center gap-2.5 border-b border-border px-3.5 py-2.5">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-[4px] border border-danger/25 bg-danger/10 text-danger">
+            <Bug className="h-4 w-4" aria-hidden="true" />
           </span>
-          <h2 className={cn("text-sm font-bold flex-1 min-w-0 truncate", isLightMode ? "text-slate-900" : "text-[#f2f0e9]")}>
-            Faire un retour
-          </h2>
+          <h2 className="min-w-0 flex-1 truncate text-[13px] font-semibold text-foreground">Faire un retour</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Fermer"
-            className={cn(
-              "p-1.5 rounded-lg transition-colors",
-              isLightMode
-                ? "text-slate-400 hover:text-red-500 hover:bg-red-50"
-                : "text-[#6e7784] hover:text-red-400 hover:bg-[#1c2129]"
-            )}
+            className="rounded-[4px] p-1.5 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
           >
-            <X className="w-4 h-4" />
+            <X className="h-4 w-4" />
           </button>
-        </div>
+        </header>
 
         {/* Corps scrollable */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-          <p className={cn("text-[11px] leading-relaxed", isLightMode ? "text-slate-500" : "text-[#6e7784]")}>
+        <div className="flex-1 space-y-3 overflow-y-auto px-3.5 py-3">
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
             Ton retour est transmis directement à l'équipe (tracker interne + Discord). Choisis une catégorie :
           </p>
 
           {context && (
-            <div
-              className={cn(
-                "flex items-start gap-2 rounded-xl border px-3 py-2",
-                isLightMode ? "bg-slate-50 border-slate-200" : "bg-[#181c22] border-[#28303a]"
-              )}
-            >
-              <span className="text-sm leading-none" aria-hidden="true">📍</span>
+            <div className="flex items-start gap-2 rounded-[4px] border border-border bg-surface px-3 py-2">
+              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
               <div className="min-w-0">
-                <p className={cn("text-[9px] font-black uppercase tracking-widest", isLightMode ? "text-slate-400" : "text-[#6e7784]")}>
-                  Position
-                </p>
-                <p className={cn("text-[11px] font-medium break-words", isLightMode ? "text-slate-700" : "text-[#c4cad2]")}>
-                  {context}
-                </p>
+                <p className="text-[11px] text-muted-foreground">Position</p>
+                <p className="break-words text-[11px] font-medium text-foreground">{context}</p>
               </div>
             </div>
           )}
@@ -152,18 +133,14 @@ export function RushOverlayFeedbackPanel({
                   onClick={() => setSelectedType(type)}
                   aria-pressed={selected}
                   className={cn(
-                    "flex items-center gap-2.5 px-3 py-2 rounded-xl border text-left transition-all",
+                    "flex items-center gap-2.5 rounded-[4px] border px-3 py-2 text-left transition-colors",
                     selected
-                      ? isLightMode
-                        ? "border-amber-400 bg-amber-50 text-slate-900"
-                        : "border-[#d5a94e]/50 bg-[#d5a94e]/10 text-[#f2f0e9]"
-                      : isLightMode
-                        ? "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
-                        : "border-[#28303a] bg-[#0d1117] text-[#e8e4da] hover:border-[#3a4550]"
+                      ? "border-warning/50 bg-warning/10 text-foreground"
+                      : "border-border bg-surface text-foreground hover:border-border-strong hover:bg-elevated"
                   )}
                 >
-                  <span className="text-sm shrink-0" aria-hidden="true">{meta.emoji}</span>
-                  <span className="text-[11px] font-semibold leading-tight">{meta.label}</span>
+                  <span className="shrink-0 text-sm" aria-hidden="true">{meta.emoji}</span>
+                  <span className="text-[11px] font-medium leading-tight">{meta.label}</span>
                 </button>
               );
             })}
@@ -171,10 +148,7 @@ export function RushOverlayFeedbackPanel({
 
           {/* Description */}
           <div className="space-y-1.5">
-            <label
-              htmlFor="overlay-feedback-desc"
-              className={cn("text-[9px] font-black uppercase tracking-widest", isLightMode ? "text-slate-400" : "text-[#6e7784]")}
-            >
+            <label htmlFor="overlay-feedback-desc" className="text-[11px] text-muted-foreground">
               Description
             </label>
             <textarea
@@ -183,34 +157,19 @@ export function RushOverlayFeedbackPanel({
               onChange={(e) => setDescription(e.target.value.slice(0, 2000))}
               placeholder="Explique brièvement ton problème ou ton idée…"
               rows={4}
-              className={cn(
-                "w-full rounded-xl border px-3 py-2 text-xs outline-none resize-none",
-                isLightMode
-                  ? "bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-amber-400"
-                  : "bg-[#0d1117] border-[#28303a] text-[#f2f0e9] placeholder:text-[#6e7784] focus:border-[#d5a94e]/50"
-              )}
+              className="w-full resize-none rounded-[4px] border border-border bg-surface px-3 py-2 text-xs text-foreground outline-none placeholder:text-subtle-foreground focus:border-warning/50"
             />
-            <p className={cn("text-[10px] text-right tabular-nums", isLightMode ? "text-slate-400" : "text-[#6e7784]")}>
-              {description.length}/2000
-            </p>
+            <p className="text-right text-[11px] tabular-nums text-muted-foreground">{description.length}/2000</p>
           </div>
         </div>
 
-        {/* Footer */}
-        <div
-          className={cn(
-            "flex gap-2 px-4 py-3 border-t shrink-0",
-            isLightMode ? "border-slate-200 bg-slate-50/60" : "border-[#28303a]/70 bg-[#0d1117]/60"
-          )}
-        >
+        {/* Pied */}
+        <div className="flex shrink-0 gap-2 border-t border-border bg-background/60 px-3.5 py-3">
           <button
             type="button"
             onClick={onClose}
             disabled={isPending}
-            className={cn(
-              "flex-1 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-colors",
-              isLightMode ? "text-slate-500 hover:text-slate-800 hover:bg-slate-100" : "text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1c2129]"
-            )}
+            className="flex-1 rounded-[4px] py-2 text-[12px] font-semibold text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
           >
             Annuler
           </button>
@@ -218,9 +177,9 @@ export function RushOverlayFeedbackPanel({
             type="button"
             onClick={handleSubmit}
             disabled={isPending || !selectedType || !description.trim()}
-            className="flex-[2] py-2 rounded-xl bg-[#39bc95] hover:bg-[#2b9f7d] disabled:opacity-40 disabled:cursor-not-allowed text-[#06251b] text-[11px] font-black uppercase tracking-widest transition-colors inline-flex items-center justify-center gap-1.5"
+            className="inline-flex flex-[2] items-center justify-center gap-1.5 rounded-[4px] bg-accent py-2 text-[12px] font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <Send className="w-3.5 h-3.5" />
+            <Send className="h-3.5 w-3.5" aria-hidden="true" />
             {isPending ? "Envoi…" : "Envoyer"}
           </button>
         </div>

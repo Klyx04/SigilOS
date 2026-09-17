@@ -1,12 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Plus, Loader2 } from "lucide-react";
 import { onboardGuild } from "@/server/actions/admin-actions";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner"; // Assuming sonner or use a simple alert if not available
 import { buildDiscordBotInviteUrl } from "@/lib/discord-permissions";
 
@@ -113,54 +110,56 @@ export function GuildSetupCard({ guild, clientId, autoDeploy }: { guild: GuildPr
         return () => window.removeEventListener("message", handleMessage);
     }, []);
 
+    // Ligne de liste (pas une carte) : ce composant vit dans la liste
+    // « Déploiement » d'un panneau `.reg-panel`, aux côtés des guildes actives
+    // et des serveurs en attente. Le cadre en pointillés sur fond noir faisait
+    // doublon avec le panneau qui l'accueille.
     return (
-        <Card className="bg-black/20 border-border border-dashed hover:border-border-strong transition-all cursor-default">
-            <CardContent className="p-6 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4 overflow-hidden">
-                    <Avatar className="h-12 w-12 border-2 border-border grayscale opacity-70">
-                        <AvatarImage src={guild.icon || ""} alt={guild.name} />
-                        <AvatarFallback className="bg-muted text-muted-foreground">
-                            {guild.name.substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 overflow-hidden opacity-70">
-                        <h3 className="font-bold truncate text-foreground">
-                            {guild.name}
-                        </h3>
-                        <p className="text-xs text-muted-foreground">
-                            {needsInvite
-                                ? "Bot absent - Invitation requise"
-                                : loading ? "Activation en cours…" : "Prêt pour déploiement"}
-                        </p>
-                    </div>
-                </div>
+        <div className="reg-row grid-cols-[auto_minmax(0,1fr)_auto] px-4">
+            <Avatar className="h-10 w-10 rounded-md border border-border opacity-70">
+                <AvatarImage src={guild.icon || ""} alt={guild.name} />
+                <AvatarFallback className="bg-muted text-muted-foreground text-xs font-semibold">
+                    {guild.name.substring(0, 2).toUpperCase()}
+                </AvatarFallback>
+            </Avatar>
 
-                <div className="flex flex-col gap-2 shrink-0">
-                    <Button
-                        size="sm"
-                        variant={needsInvite ? "secondary" : "outline"}
-                        className={needsInvite
-                            ? "bg-info/20 text-info hover:bg-info/40"
-                            : "border-primary/20 hover:bg-primary/10 hover:text-primary transition-colors"
-                        }
-                        onClick={handleSetup}
-                        disabled={loading}
-                    >
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
-                        {loading ? "..." : (needsInvite ? "Inviter le Bot" : "Déployer")}
-                    </Button>
-                    {needsInvite && inviteStarted && !loading && (
-                        <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-xs text-muted-foreground hover:text-foreground"
-                            onClick={() => window.location.reload()}
-                        >
-                            J&apos;ai invité le bot, vérifier
-                        </Button>
+            <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-foreground truncate">{guild.name}</h3>
+                <p className="reg-mono mt-1 text-xs text-muted-foreground">
+                    {needsInvite
+                        ? "Bot absent — invitation requise"
+                        : loading
+                          ? "Activation en cours…"
+                          : "Prêt pour déploiement"}
+                </p>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-3">
+                <button
+                    type="button"
+                    onClick={handleSetup}
+                    disabled={loading}
+                    className="reg-btn reg-btn-primary min-h-9 px-3.5 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                    {loading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                        <Plus className="h-4 w-4" aria-hidden="true" />
                     )}
-                </div>
-            </CardContent>
-        </Card>
+                    <span>{loading ? "Activation…" : needsInvite ? "Inviter le bot" : "Déployer"}</span>
+                </button>
+
+                {needsInvite && inviteStarted && !loading && (
+                    <button
+                        type="button"
+                        onClick={() => window.location.reload()}
+                        className="reg-link-quiet text-xs"
+                    >
+                        J&apos;ai invité le bot, vérifier
+                    </button>
+                )}
+            </div>
+        </div>
     );
 }
+

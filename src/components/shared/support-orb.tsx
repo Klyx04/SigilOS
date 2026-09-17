@@ -1,54 +1,53 @@
 "use client";
 
-import { Heart, Coffee, ExternalLink } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { usePathname } from "next/navigation";
-
 /**
- * SupportOrb component
- * A crisp, professional SaaS dashboard widget to encourage donations on Ko-fi.
- * Clean, sharp design without over-the-top AI effects or heavy blurs.
+ * Accès au soutien (Ko-fi) — version registre.
+ *
+ * Ce qui a été retiré volontairement (audit UI/UX anti-slop) :
+ *  - la carte `rounded-2xl backdrop-blur-xl shadow-2xl shadow-black/70` posée
+ *    en bas à droite : le gabarit « widget SaaS » flottant ;
+ *  - le cœur dans une tuile teintée émeraude — un pictogramme dans un carré
+ *    coloré, motif explicitement visé par l'audit ;
+ *  - les libellés en capitales `font-black` sur deux lignes (SOUTENIR SIGILOS /
+ *    Donation Ko-fi) et la double couleur vert + ambre qui se disputaient l'œil
+ *    pour une seule action ;
+ *  - les micro-animations (`hover:scale`, `translate-x`, `fill` animé) qui ne
+ *    transmettent aucun état.
+ *
+ * Ce qui reste : un lien unique, une ligne, une icône reconnaissable (le café
+ * = « buy me a coffee »), et la même destination Ko-fi.
+ *
+ * Portée : le soutien vit d'abord dans le pied de page. Cet accès flottant
+ * n'existe que dans les espaces connectés — il est masqué sur les routes
+ * publiques « registre » et en vue plein écran (règles
+ * `body.*-fullscreen .support-orb`). La classe `support-orb` est donc conservée.
  */
+
+import { Coffee } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { isPublicRoute } from "@/lib/public-routes";
+
+const SUPPORT_URL = "https://ko-fi.com/wylan";
+
 export function SupportOrb() {
     const pathname = usePathname();
     // Masqué sur les routes overlay et worldmap/mini-jeux pour ne pas couvrir les contrôles de jeu
     if (pathname?.startsWith("/overlay") || pathname?.includes("/worldmap") || pathname?.includes("/mini-jeux")) return null;
-
-    const stripeLink = "https://ko-fi.com/wylan";
+    // Masqué sur les pages publiques : le soutien y est dans le pied de page.
+    if (isPublicRoute(pathname)) return null;
 
     return (
-        <div className="support-orb fixed bottom-6 right-6 z-[100]">
+        <div className="support-orb fixed bottom-4 right-4 z-[100]">
             <a
-                href={stripeLink}
+                href={SUPPORT_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={cn(
-                    "group flex items-center gap-3 px-4 py-2.5 rounded-2xl",
-                    "bg-card/95 dark:bg-[#0b1220]/95 backdrop-blur-xl border border-emerald-500/30 hover:border-emerald-500/70",
-                    "shadow-lg shadow-black/10 dark:shadow-2xl dark:shadow-black/70 hover:shadow-emerald-500/15",
-                    "transition-all duration-200 ease-out cursor-pointer hover:bg-card active:scale-[0.98]"
-                )}
+                aria-label="Soutenir SigilOS — ouvre Ko-fi dans un nouvel onglet"
+                className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-xs font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
             >
-                {/* Clean Icon Container with vibrant Emerald Heart */}
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/25 group-hover:border-emerald-500/50 transition-colors">
-                    <Heart className="w-4 h-4 text-emerald-600 dark:text-emerald-400 fill-emerald-500/30 group-hover:fill-emerald-500 group-hover:scale-110 transition-all" />
-                </div>
-
-                {/* Text Block */}
-                <div className="flex flex-col text-left">
-                    <span className="text-caption font-black text-foreground uppercase tracking-wider leading-none">
-                        Soutenir <span className="text-emerald-600 dark:text-emerald-400 font-black">SigilOS</span>
-                    </span>
-                    <span className="text-caption font-bold text-muted-foreground mt-1 flex items-center gap-1.5 leading-none">
-                        <Coffee className="w-3 h-3 text-amber-500 dark:text-amber-400 shrink-0" />
-                        <span className="text-amber-600/90 dark:text-amber-400/90">Donation Ko-fi</span>
-                    </span>
-                </div>
-
-                {/* CTA Arrow */}
-                <div className="pl-2 border-l border-border/80 dark:border-border flex items-center">
-                    <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
-                </div>
+                <Coffee className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Soutenir SigilOS</span>
+                <span aria-hidden="true">↗</span>
             </a>
         </div>
     );

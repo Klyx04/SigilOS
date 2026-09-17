@@ -1,7 +1,13 @@
-import Script from "next/script";
-
 /**
- * Composant JsonLd — injecte un bloc JSON-LD (schema.org) dans le <head>.
+ * Composant JsonLd — rend un bloc JSON-LD (schema.org) directement dans le HTML servi.
+ *
+ * Pourquoi un `<script>` rendu par le serveur et non `next/script` : `next/script`
+ * injecte la balise côté client, après hydratation. Relevé d'audit (16/09/2026) :
+ * 0 balise `ld+json` dans la réponse du serveur, 1 seule dans le DOM après JS.
+ * Googlebot exécute le JS et voyait donc le balisage, mais tout ce qui lit la
+ * source (Bing, aperçus de partage, outils d'audit SEO) ne voyait rien. Le JSON-LD
+ * n'est pas du JavaScript exécutable : le rendu direct est la recommandation
+ * Next.js et rend le balisage lisible par tous les consommateurs.
  *
  * Sécurité : les données passées ici sont des objets JS contrôlés côté serveur
  * (metadata, config, contenu éditorial), sérialisés en JSON via JSON.stringify.
@@ -21,7 +27,7 @@ export function JsonLd({
     nonce?: string;
 }) {
     return (
-        <Script
+        <script
             id={id}
             type="application/ld+json"
             nonce={nonce}

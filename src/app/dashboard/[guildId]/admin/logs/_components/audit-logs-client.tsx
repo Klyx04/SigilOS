@@ -85,8 +85,49 @@ const ACTION_LABELS: Record<string, string> = {
     USER_GDPR_DELETE: "🗑️ Suppression RGPD",
 };
 
-const ACTION_OPTIONS = [
-    { value: "all", label: "Toutes les actions" },
+/**
+ * Libellés sobres pour les acteurs automatiques.
+ * L'historique contient des noms techniques ("Internal Sync Bot", "SYSTEM"...),
+ * on les affiche en langage courant côté guilde — jamais de tech (cron, BullMQ, webhook...).
+ */
+const ACTOR_LABELS: Record<string, string> = {
+    "Discord Gateway Bot": "Bot SigilOS",
+    "Gateway Bot": "Bot SigilOS",
+    "Internal Sync Bot": "Vérification auto",
+    "Admin Sync": "Vérification auto",
+    "Sync System": "Vérification auto",
+    "SYSTEM": "SigilOS",
+};
+
+function formatActorName(name: string): string {
+    return ACTOR_LABELS[name] ?? name;
+}
+
+/**
+ * Libellés sobres pour les motifs stockés en BDD.
+ * Les anciens logs contiennent des codes (BANNED_AFTER_LEAVE...) : on les traduit.
+ * Un code inconnu (MAJUSCULES + underscore) est masqué plutôt qu'exposé brut.
+ */
+const REASON_LABELS: Record<string, string> = {
+    "BANNED_FROM_DISCORD": "Banni sur Discord",
+    "BANNED_AFTER_LEAVE": "Banni sur Discord après son départ",
+    "UNBANNED_ON_DISCORD": "Débanni sur Discord",
+    "BANNED (Discord)": "Banni sur le serveur Discord",
+    "LEFT_GUILD": "A quitté le serveur",
+    "MEMBER_BANNED": "Exclu",
+    "MEMBER_ARCHIVED": "Archivé",
+    "SYNC (Détection automatique)": "Vérification automatique",
+    "SYNC (Ban après départ)": "Vérification automatique",
+};
+
+function formatReason(reason: unknown): string | null {
+    if (typeof reason !== "string" || reason.trim() === "") return null;
+    if (REASON_LABELS[reason]) return REASON_LABELS[reason];
+    if (/^[A-Z0-9_()/.\- ]+$/.test(reason) && reason.includes("_")) return null;
+    return reason;
+}
+
+const ACTION_OPTIONS = [    { value: "all", label: "Toutes les actions" },
     { value: "SECURITY_ALERT", label: "🚨 Alertes de Sécurité" },
     { value: "RBAC_UPDATE", label: "Permissions modifiées" },
     { value: "MISSION_CREATED,MISSION_DELETED,MISSION_VALIDATED,MISSION_REJECTED", label: "⚔️ Missions" },
@@ -118,7 +159,22 @@ type AuditMetadata = {
     discordId?: string;
     guildName?: string;
     message?: string;
+    // Exécutant réel Discord (staff, membre lui-même, bot tiers) — langage courant uniquement.
+    executorId?: string;
+    executorTag?: string;
+    executorIsBot?: boolean;
+    executorIsSelf?: boolean;
 };
+
+/**
+ * « par qui » en langage courant : lui-même, un robot tiers, ou un membre du staff.
+ * Rien si inconnu (journal d'audit illisible) — on n'invente jamais un auteur.
+ */
+function formatExecutor(meta: AuditMetadata): string | null {
+    if (meta.executorIsSelf) return "par le membre lui-même";
+    if (!meta.executorTag) return null;
+    return meta.executorIsBot ? `par le robot ${meta.executorTag}` : `par ${meta.executorTag}`;
+}
 
 // ... (inside component render)
 
@@ -448,7 +504,7 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <User className="h-4 w-4 text-muted-foreground shrink-0" />
                                                 <span className="font-semibold text-foreground">
-                                                    {log.actorName}
+                                                    {formatActorName(log.actorName)}
                                                 </span>
                                                 <Badge
                                                     variant="outline"
@@ -499,9 +555,12 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                                         {(metadata as any).source === "discord_button" ? "Discord" : "Dashboard"}
                                                                     </Badge>
                                                                 )}
-                                                                {(metadata as any).reason && (
-                                                                    <span className="text-xs opacity-70 italic">({(metadata as any).reason})</span>
-                                                                )}
+                                                                {(() => {
+                                                                    const reasonLabel = formatReason((metadata as any).reason);
+                                                                    return reasonLabel ? (
+                                                                        <span className="text-xs opacity-70 italic">({reasonLabel})</span>
+                                                                    ) : null;
+                                                                })()}
                                                             </div>
 
                                                             {(metadata as any).changeDetail && (
@@ -509,6 +568,15 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                                                                     {(metadata as any).changeDetail}
                                                                 </div>
                                                             )}
+
+                                                            {(() => {
+                                                                const executorLabel = formatExecutor(metadata);
+                                                                return executorLabel ? (
+                                                                    <div className="text-xs text-muted-foreground">
+                                                                        {executorLabel}
+                                                                    </div>
+                                                                ) : null;
+                                                            })()}
 
                                                             {(metadata as any).points !== undefined && (
                                                                 <div className="flex items-center gap-3">

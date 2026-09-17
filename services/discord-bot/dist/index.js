@@ -7,9 +7,10 @@
  * Events handled:
  * - GUILD_CREATE: Bot added to server → Auto-whitelist in AllowedGuild
  * - GUILD_DELETE: Bot removed → Soft-delete GuildConfig + archive profiles
- * - GUILD_MEMBER_REMOVE: Member left/kicked → Archive UserProfile
+ * - GUILD_MEMBER_REMOVE: Member left/kicked → Archive UserProfile (12 mois, BANNED si ban)
+ * - GUILD_BAN_ADD: Ban manuel ou bot tiers → ACTIVE/ARCHIVED vers BANNED
  */
-import { Client, GatewayIntentBits, Events, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ChannelType, Partials } from 'discord.js';
+import { Client, GatewayIntentBits, Events, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ChannelType, Partials, AuditLogEvent } from 'discord.js';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 // SECURITY FIX (F-23): Use the canonical DATABASE_URL env var like the rest of the
@@ -46,6 +47,40 @@ const db = new PrismaClient({ adapter });
 function safeChannelLabel(name) {
     return !name || name === "___hidden___" ? "Salon masqué" : name;
 }
+/**
+ * Exécutant réel d'une action Discord (staff, membre lui-même, bot tiers).
+ * Lit le journal d'audit du serveur. THROW en cas d'erreur technique (permission
+ * « Voir le journal d'audit » manquante, réseau) pour que l'appelant distingue
+ * « vérifié, personne » (null) de « vérification impossible » (throw).
+ * Fenêtre courte (10 min) : l'event vient de se produire, sinon on ne conclut pas.
+ */
+async function findGuildExecutor(guild, type, targetId, maxAgeMs = 10 * 60 * 1000) {
+    const logs = await guild.fetchAuditLogs({ type, limit: 5 });
+    const entry = logs.entries.find((e) => {
+        const t = e.target;
+        return t?.id === targetId;
+    });
+    if (!entry?.executor)
+        return null;
+    if (Date.now() - entry.createdTimestamp > maxAgeMs)
+        return null;
+    const ex = entry.executor;
+    return { id: ex.id, tag: ex.tag ?? ex.username ?? "Membre Discord", isBot: !!ex.bot };
+}
+/** Champs `metadata` d'audit pour tracer l'exécutant (même forme que les syncs). */
+function executorMeta(ex, targetId) {
+    if (!ex)
+        return {};
+    const meta = {
+        executorId: ex.id,
+        executorTag: ex.tag,
+    };
+    if (ex.isBot)
+        meta.executorIsBot = true;
+    if (ex.id === targetId)
+        meta.executorIsSelf = true;
+    return meta;
+}
 // #223 P2 — Intents privilégiés (doc stabilité long terme) :
 //  - GuildMembers : synchro des membres (GuildMemberAdd/Remove/Update) + roster.
 //  - MessageContent : suivi des messages (Ladder Discord) + contenu des embeds
@@ -57,12 +92,15 @@ const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildModeration,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.GuildVoiceStates,
         GatewayIntentBits.GuildMessageReactions,
         GatewayIntentBits.MessageContent,
         // SECURITY FIX (F-24): GuildMessageTyping removed — least privilege.
         // The bot must not need the right to read every keystroke/typing event.
+        // #1 validé : GuildModeration (non-privilégié) requis pour GuildBanAdd/Remove
+        // (ban manuel ou via bot tiers, y compris après un départ).
     ],
     // Partials.GuildMember : indispensable pour que GuildMemberRemove fire
     // même pour les membres qui n'étaient pas dans le cache (bot redémarré).
@@ -117,28 +155,41 @@ client.on(Events.GuildCreate, async (guild) => {
             where: { discordGuildId: guild.id },
         });
         if (!existing) {
-            // Auto-add to whitelist but ACTIVE = FALSE by default
-            // This requires manual approval by a super-admin in the GOD Dashboard
+            // Modèle A (acquisition ouverte) : le bot rejoint = guilde déployable
+            // immédiatement, sans validation humaine. Le kill-switch God
+            // (PlatformConfig.autoOnboardingEnabled=false) repose sur le portail
+            // (la guilde n'apparaît pas en pending) — ce handler reste permissif
+            // par construction, la gate étant côté portail + onboardGuild.
+            // Le staff garde ban / gel / expulsion a posteriori (+ notif ci-dessous).
+            const platformCfg = await db.platformConfig.findUnique({
+                where: { id: "singleton" },
+                select: { autoOnboardingEnabled: true },
+            }).catch(() => null);
+            const autoOnboardingOn = platformCfg?.autoOnboardingEnabled !== false;
             await db.allowedGuild.create({
                 data: {
                     discordGuildId: guild.id,
                     name: guild.name,
                     tier: 'BETA',
-                    isActive: false, // 🔒 Security: Manual activation required
+                    isActive: autoOnboardingOn,
                     addedBy: 'SYSTEM_GATEWAY',
-                    notes: `Auto-detected via Gateway bot on ${new Date().toISOString()}. Activation required.`,
+                    notes: autoOnboardingOn
+                        ? `Auto-déployable via Gateway bot on ${new Date().toISOString()}.`
+                        : `Auto-detected via Gateway bot on ${new Date().toISOString()} (auto-onboarding OFF — activation God requise).`,
                 },
             });
-            console.log(`[Discord Bot] ✅ Auto-whitelisted: ${guild.name}`);
-            // 🔔 NOTIFY GOD — New guild detected, needs manual whitelist approval
+            console.log(`[Discord Bot] ✅ Auto-whitelisted: ${guild.name} (active=${autoOnboardingOn})`);
+            // 🔔 NOTIFY GOD — Nouveau serveur détecté (info ; action seulement si abus)
             try {
                 // 1. Create DB notification
                 await db.godNotification.create({
                     data: {
-                        title: "🚨 Nouveau serveur non-whitelisté",
-                        message: `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`) qui n'est pas dans la whitelist.\nAction requise : approuver ou rejeter depuis le GOD Dashboard.`,
+                        title: autoOnboardingOn ? "🟢 Nouveau serveur (auto-actif)" : "🚨 Nouveau serveur non-whitelisté",
+                        message: autoOnboardingOn
+                            ? `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`) — actif immédiatement (modèle ouvert). Ban/gel possibles depuis le GOD Dashboard en cas d'abus.`
+                            : `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`) qui n'est pas dans la whitelist.\nAction requise : approuver ou rejeter depuis le GOD Dashboard.`,
                         type: "SYSTEM",
-                        success: false,
+                        success: autoOnboardingOn,
                         metadata: {
                             discordGuildId: guild.id,
                             guildName: guild.name,
@@ -186,7 +237,7 @@ client.on(Events.GuildCreate, async (guild) => {
                 data: {
                     guildId: guildConfig.id,
                     actorUserId: 'SYSTEM',
-                    actorName: 'Discord Gateway Bot',
+                    actorName: 'Bot SigilOS',
                     action: 'WEBHOOK_GUILD_CREATE',
                     targetType: 'GUILD',
                     targetId: guildConfig.id,
@@ -214,29 +265,30 @@ client.on(Events.GuildCreate, async (guild) => {
                     console.log(`[Discord Bot] Cannot send welcome embed to ${safeChannelLabel(targetChannel.name)} in ${guild.name} — missing permissions`);
                     return;
                 }
+                const baseUrl = (process.env.SIGILOS_BASE_URL || "https://beta.sigilos.fr").replace(/\/$/, "");
                 const welcomeEmbed = new EmbedBuilder()
                     .setTitle('🏰 SigilOS est arrivé sur votre serveur')
-                    .setDescription('Le bot est installé. Suivez ces étapes pour activer votre guilde.')
+                    .setDescription("Le bot est installé. L'admin du serveur peut activer la guilde en 1 minute.")
                     .setColor(0x10b981)
                     .addFields({
                     name: 'Étape 1 — Se connecter',
-                    value: 'Rendez-vous sur **[beta.sigilos.fr](https://beta.sigilos.fr)** et connectez-vous avec votre compte Discord (le compte administrateur du serveur).',
+                    value: `Rendez-vous sur **[le dashboard](${baseUrl}/dashboard)** et connectez-vous avec votre compte Discord (le compte administrateur du serveur).`,
                     inline: false,
                 }, {
                     name: 'Étape 2 — Déployer',
-                    value: 'Sur le Dashboard, trouvez la carte de votre serveur et cliquez sur **"Déployer"**.\nCela enregistre votre guilde dans SigilOS et déverrouille toutes les fonctionnalités.',
+                    value: 'Sur le portail, votre serveur apparaît dans **« Déploiement »** : cliquez sur **"Déployer"** (ou laissez l\'activation automatique faire son office).\nCela crée votre guilde dans SigilOS et déverrouille le panneau d\'administration.',
                     inline: false,
                 }, {
-                    name: 'Étape 3 — Configurer les permissions',
-                    value: 'Depuis les **Paramètres** de votre guilde sur le Dashboard, associez vos rôles Discord aux permissions SigilOS (qui peut valider des missions, accéder au ladder, etc.).',
+                    name: 'Étape 3 — Configurer les accès',
+                    value: 'Depuis le panneau **Supervision** de votre guilde, associez vos rôles Discord aux permissions SigilOS (qui peut valider des missions, accéder au ladder, etc.).',
                     inline: false,
                 })
-                    .setFooter({ text: 'SigilOS · Beta — Si problème, contactez le développeur.' })
+                    .setFooter({ text: 'SigilOS · Beta — Si problème, contactez le staff via le dashboard.' })
                     .setTimestamp();
                 const row = new ActionRowBuilder()
                     .addComponents(new ButtonBuilder()
                     .setLabel('Ouvrir le Dashboard')
-                    .setURL('https://beta.sigilos.fr/dashboard')
+                    .setURL(`${baseUrl}/dashboard`)
                     .setStyle(ButtonStyle.Link));
                 await targetChannel.send({ embeds: [welcomeEmbed], components: [row] });
                 console.log(`[Discord Bot] ✉️ Welcome message sent to ${safeChannelLabel(targetChannel.name)} in ${guild.name}`);
@@ -250,6 +302,134 @@ client.on(Events.GuildCreate, async (guild) => {
         console.error(`[Discord Bot] Error handling GUILD_CREATE:`, error);
     }
 });
+/**
+ * Succession du propriétaire SigilOS au départ Discord (leave/kick, pas seulement
+ * purge/archive/ban — voir handleGuildOwnerSuccession côté web).
+ * Priorité 1 : owner Discord live avec profil ACTIF. Priorité 2 : membre ACTIF
+ * le plus ancien (hors partant). Écrit TOUJOURS un UUID interne (normalise les
+ * ownerId snowflakes hérités de l'onboarding). Échec silencieux (log) : le filet
+ * P2 (cron orphelin) + le God prennent le relais. Jamais d'auto-élévation
+ * hors de ces deux règles.
+ */
+async function maybeSuccessionOnLeave(guildInternalId, guildName, discordGuildId, leaverDiscordId, leaverUserId, liveDiscordOwnerId) {
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { id: guildInternalId },
+            select: { id: true, ownerId: true, lifecycleNotifyChannelId: true, systemNotifyChannelId: true },
+        });
+        if (!guildConfig?.ownerId)
+            return;
+        const storedOwner = guildConfig.ownerId;
+        const leaverIsOwner = storedOwner === leaverUserId || (leaverDiscordId && storedOwner === leaverDiscordId);
+        if (!leaverIsOwner) {
+            // Normalisation paresseuse : snowflake résolvable → UUID interne.
+            if (/^\d{17,20}$/.test(storedOwner)) {
+                const ownerAccount = await db.account.findFirst({
+                    where: { provider: 'discord', providerAccountId: storedOwner },
+                    select: { userId: true },
+                });
+                if (ownerAccount?.userId) {
+                    const ownerProfile = await db.userProfile.findFirst({
+                        where: { userId: ownerAccount.userId, guildId: guildInternalId, status: 'ACTIVE' },
+                        select: { id: true },
+                    });
+                    if (ownerProfile) {
+                        await db.guildConfig.update({
+                            where: { id: guildInternalId },
+                            data: { ownerId: ownerAccount.userId },
+                        });
+                    }
+                }
+            }
+            return;
+        }
+        let newOwnerUserId = null;
+        let newOwnerName = 'Membre';
+        let successionReason = 'AUTOMATIC_SUCCESSION';
+        // Priorité 1 : owner Discord live avec profil ACTIF
+        if (liveDiscordOwnerId && liveDiscordOwnerId !== leaverDiscordId) {
+            const discordOwnerAccount = await db.account.findFirst({
+                where: { provider: 'discord', providerAccountId: liveDiscordOwnerId },
+                select: { userId: true },
+            });
+            if (discordOwnerAccount?.userId) {
+                const discordOwnerProfile = await db.userProfile.findFirst({
+                    where: { userId: discordOwnerAccount.userId, guildId: guildInternalId, status: 'ACTIVE' },
+                    select: { userId: true, pseudoDofus: true, discordNickname: true },
+                });
+                if (discordOwnerProfile) {
+                    newOwnerUserId = discordOwnerProfile.userId;
+                    newOwnerName = discordOwnerProfile.pseudoDofus || discordOwnerProfile.discordNickname || 'Discord Owner';
+                    successionReason = 'DISCORD_SERVER_OWNER_INHERITANCE';
+                }
+            }
+        }
+        // Priorité 2 : membre ACTIF le plus ancien (hors partant)
+        if (!newOwnerUserId) {
+            const senior = await db.userProfile.findFirst({
+                where: {
+                    guildId: guildInternalId,
+                    status: 'ACTIVE',
+                    userId: { not: leaverUserId || undefined },
+                },
+                orderBy: { createdAt: 'asc' },
+                select: { userId: true, pseudoDofus: true, discordNickname: true },
+            });
+            if (senior) {
+                newOwnerUserId = senior.userId;
+                newOwnerName = senior.pseudoDofus || senior.discordNickname || 'Senior Member';
+                successionReason = 'SENIOR_MEMBER_SUCCESSION';
+            }
+        }
+        if (!newOwnerUserId) {
+            console.log(`[GuildSuccession] ⚠️ Aucun successeur pour ${guildName} — filet orphelin (cron/P2).`);
+            return;
+        }
+        await db.guildConfig.update({
+            where: { id: guildInternalId },
+            data: { ownerId: newOwnerUserId },
+        });
+        await db.auditLog.create({
+            data: {
+                guildId: guildInternalId,
+                actorUserId: 'SYSTEM',
+                actorName: 'Succession Automatique (départ Discord)',
+                action: 'GUILD_CONFIG_UPDATED',
+                targetType: 'GUILD',
+                targetId: guildInternalId,
+                metadata: { actionDetail: 'AUTOMATIC_OWNERSHIP_SUCCESSION', reason: successionReason, previousOwnerId: storedOwner, newOwnerId: newOwnerUserId, newOwnerName },
+            },
+        }).catch((e) => console.error('[GuildSuccession] audit failed:', e));
+        await db.godNotification.create({
+            data: {
+                title: '🛡️ Succession Automatique Effectuée',
+                message: `Guilde: **${guildName}**\nNouveau propriétaire: **${newOwnerName}**\nMotif: **${successionReason}** (départ Discord de l'ancien owner)`,
+                type: 'SYSTEM',
+                success: true,
+                metadata: { guildId: guildInternalId, newOwnerUserId, successionReason },
+            },
+        }).catch((e) => console.error('[GuildSuccession] god notif failed:', e));
+        const staffChannelId = guildConfig.lifecycleNotifyChannelId || guildConfig.systemNotifyChannelId;
+        if (staffChannelId) {
+            const channel = await client.channels.fetch(staffChannelId).catch(() => null);
+            if (channel && channel.isTextBased() && 'send' in channel) {
+                await channel.send({
+                    embeds: [{
+                            title: '🛡️ Succession Automatique de Propriété',
+                            description: `L'ancien propriétaire a quitté Discord : la propriété de **${guildName}** a été transmise à **${newOwnerName}**.\n\n📋 Motif : ${successionReason === 'DISCORD_SERVER_OWNER_INHERITANCE' ? "Propriétaire légitime du serveur Discord" : "Membre actif le plus ancien"}`,
+                            color: 0x3b82f6,
+                            timestamp: new Date().toISOString(),
+                            footer: { text: 'SigilOS • Fail-Safe Protection' },
+                        }],
+                }).catch((e) => console.error('[GuildSuccession] staff alert failed:', e));
+            }
+        }
+        console.log(`[GuildSuccession] ✅ ${guildName} → ${newOwnerName} (${successionReason})`);
+    }
+    catch (e) {
+        console.error('[GuildSuccession] succession on leave failed:', e);
+    }
+}
 // ========================
 // Event: Guild Delete (Bot Removed)
 // ========================
@@ -291,7 +471,7 @@ client.on(Events.GuildDelete, async (guild) => {
             data: {
                 guildId: guildConfig.id,
                 actorUserId: 'SYSTEM',
-                actorName: 'Discord Gateway Bot',
+                actorName: 'Bot SigilOS',
                 action: 'WEBHOOK_GUILD_DELETE',
                 targetType: 'GUILD',
                 targetId: guildConfig.id,
@@ -355,7 +535,7 @@ client.on(Events.GuildMemberAdd, async (member) => {
                 data: {
                     guildId: guildConfig.id,
                     actorUserId: 'SYSTEM',
-                    actorName: 'Discord Gateway Bot',
+                    actorName: 'Bot SigilOS',
                     action: 'WEBHOOK_MEMBER_ADD',
                     targetType: 'PROFILE',
                     targetId: member.user.id,
@@ -390,7 +570,7 @@ client.on(Events.GuildMemberRemove, async (member) => {
         });
         if (!guildConfig)
             return;
-        // Find user account
+        // Find user account (peut être absent : owner snowflake sans profil SigilOS)
         const account = await db.account.findFirst({
             where: {
                 provider: 'discord',
@@ -398,9 +578,76 @@ client.on(Events.GuildMemberRemove, async (member) => {
             },
             select: { userId: true },
         });
+        // P0 — succession AVANT tout return : même sans profil, le partant peut
+        // être l'owner stocké (snowflake d'onboarding). Vérification cheap.
+        const liveOwner = await member.guild.fetchOwner().then(o => o.id).catch(() => member.guild.ownerId ?? null);
+        const ownerCheck = await db.guildConfig.findUnique({
+            where: { id: guildConfig.id },
+            select: { ownerId: true },
+        });
+        if (ownerCheck?.ownerId && (ownerCheck.ownerId === member.user.id || (account && ownerCheck.ownerId === account.userId))) {
+            await maybeSuccessionOnLeave(guildConfig.id, member.guild.name, member.guild.id, member.user.id, account?.userId ?? null, liveOwner);
+        }
         if (!account)
             return;
-        // Archive profile (30 days grace before hard delete)
+        // #1 validé : un ban direct émet aussi GuildMemberRemove → ne pas le
+        // classer LEFT. Check best-effort de la ban-list (échec = on reste en LEFT,
+        // GuildBanAdd + sync corrigeront en BANNED).
+        let isBan = false;
+        try {
+            await member.guild.bans.fetch(member.user.id);
+            isBan = true;
+        }
+        catch {
+            isBan = false;
+        }
+        if (isBan) {
+            const twelveMonths = new Date();
+            twelveMonths.setFullYear(twelveMonths.getFullYear() + 1);
+            await db.userProfile.updateMany({
+                where: {
+                    userId: account.userId,
+                    guildId: guildConfig.id,
+                    status: { in: ['ACTIVE', 'ARCHIVED'] },
+                },
+                data: {
+                    status: 'BANNED',
+                    archivedAt: new Date(),
+                    archiveReason: 'BANNED',
+                    scheduledDeletion: null,
+                },
+            });
+            await db.guildMemberBan.upsert({
+                where: { guildId_discordId: { guildId: guildConfig.id, discordId: member.user.id } },
+                create: {
+                    guildId: guildConfig.id,
+                    discordId: member.user.id,
+                    reason: 'Banni sur le serveur Discord',
+                    bannedBy: 'SYSTEM',
+                    bannedByName: 'Bot SigilOS',
+                    memberName: serverNickname,
+                },
+                update: { reason: 'Banni sur le serveur Discord', liftedAt: null, liftedBy: null, liftedByName: null, memberName: serverNickname },
+            }).catch(() => null);
+            await db.auditLog.create({
+                data: {
+                    guildId: guildConfig.id,
+                    actorUserId: 'SYSTEM',
+                    actorName: 'Bot SigilOS',
+                    action: 'WEBHOOK_MEMBER_REMOVE',
+                    targetType: 'PROFILE',
+                    targetId: member.user.id,
+                    oldValue: {},
+                    newValue: { status: 'BANNED', archiveReason: 'BANNED' },
+                    metadata: { discordUserId: member.user.id, username: member.user.tag, serverNickname, changeDetail: 'Ban Discord détecté au départ', reason: 'Banni sur Discord' },
+                },
+            }).catch(() => null);
+            console.log(`[Discord Bot] ✅ Banned profile for ${serverNickname} (${member.user.tag})`);
+            return;
+        }
+        // Archive profile (#6 validé : 12 mois, aligné sur le sync — plus 30 jours)
+        const twelveMonthsFromNow = new Date();
+        twelveMonthsFromNow.setFullYear(twelveMonthsFromNow.getFullYear() + 1);
         const result = await db.userProfile.updateMany({
             where: {
                 userId: account.userId,
@@ -411,16 +658,27 @@ client.on(Events.GuildMemberRemove, async (member) => {
                 status: 'ARCHIVED',
                 archivedAt: new Date(),
                 archiveReason: 'LEFT',
-                scheduledDeletion: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                scheduledDeletion: twelveMonthsFromNow,
             },
         });
         if (result.count > 0) {
+            // Exécutant réel : exclusion par un staff/bot, ou départ volontaire.
+            // « lui-même » uniquement si le journal a bien été lu (checked).
+            let kickEx = null;
+            let kickAuditChecked = false;
+            try {
+                kickEx = await findGuildExecutor(member.guild, AuditLogEvent.MemberKick, member.user.id);
+                kickAuditChecked = true;
+            }
+            catch {
+                kickAuditChecked = false;
+            }
             // Log audit
             await db.auditLog.create({
                 data: {
                     guildId: guildConfig.id,
                     actorUserId: 'SYSTEM',
-                    actorName: 'Discord Gateway Bot',
+                    actorName: 'Bot SigilOS',
                     action: 'WEBHOOK_MEMBER_REMOVE',
                     targetType: 'PROFILE',
                     targetId: member.user.id,
@@ -430,8 +688,13 @@ client.on(Events.GuildMemberRemove, async (member) => {
                         discordUserId: member.user.id,
                         username: member.user.tag,
                         serverNickname,
-                        changeDetail: 'Départ du serveur Discord',
-                        reason: 'A quitté le serveur Discord',
+                        changeDetail: kickEx ? 'Retiré du serveur' : 'Départ du serveur Discord',
+                        reason: kickEx ? 'Exclu du serveur' : 'A quitté le serveur',
+                        ...(kickEx
+                            ? executorMeta(kickEx, member.user.id)
+                            : kickAuditChecked
+                                ? { executorId: member.user.id, executorIsSelf: true }
+                                : {}),
                     },
                 },
             });
@@ -453,7 +716,7 @@ client.on(Events.GuildMemberRemove, async (member) => {
                                     fields: [
                                         { name: 'Nom Discord', value: `@${member.nickname || member.user.displayName || member.user.username}`, inline: true },
                                         { name: 'Nouveau Statut', value: '**Archivé**', inline: true },
-                                        { name: 'Action effectuée par', value: '🤖 Bot Gateway (automatique)', inline: false },
+                                        { name: 'Action effectuée par', value: '🤖 SigilOS (automatique)', inline: false },
                                         { name: 'Rétention des données', value: 'Profil archivé 12 mois', inline: false },
                                         { name: 'Guilde', value: guildFull.name || member.guild.name, inline: false },
                                     ],
@@ -473,6 +736,144 @@ client.on(Events.GuildMemberRemove, async (member) => {
     }
     catch (error) {
         console.error(`[Discord Bot] Error handling GUILD_MEMBER_REMOVE:`, error);
+    }
+});
+// ========================
+// Event: Guild Ban Add (#1 validé — ban manuel ou via bot tiers,
+// y compris APRÈS un départ : promotion ACTIVE/ARCHIVED → BANNED)
+// ========================
+client.on(Events.GuildBanAdd, async (ban) => {
+    const bannedUser = ban.user;
+    console.log(`[Discord Bot] 🔨 Ban: ${bannedUser.tag} (${bannedUser.id}) from ${ban.guild.name}`);
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: ban.guild.id },
+            select: { id: true },
+        });
+        if (!guildConfig)
+            return;
+        const account = await db.account.findFirst({
+            where: { provider: 'discord', providerAccountId: bannedUser.id },
+            select: { userId: true },
+        });
+        if (!account)
+            return;
+        const result = await db.userProfile.updateMany({
+            where: {
+                userId: account.userId,
+                guildId: guildConfig.id,
+                status: { in: ['ACTIVE', 'ARCHIVED'] },
+            },
+            data: {
+                status: 'BANNED',
+                archivedAt: new Date(),
+                archiveReason: 'BANNED',
+                scheduledDeletion: null,
+            },
+        });
+        if (result.count > 0) {
+            // Exécutant réel du ban (staff, ou bot tiers).
+            const banEx = await findGuildExecutor(ban.guild, AuditLogEvent.MemberBanAdd, bannedUser.id).catch(() => null);
+            await db.guildMemberBan.upsert({
+                where: { guildId_discordId: { guildId: guildConfig.id, discordId: bannedUser.id } },
+                create: {
+                    guildId: guildConfig.id,
+                    discordId: bannedUser.id,
+                    reason: ban.reason ?? 'Banni sur le serveur Discord',
+                    bannedBy: 'SYSTEM',
+                    bannedByName: 'Bot SigilOS',
+                    memberName: bannedUser.username ?? null,
+                },
+                update: { reason: ban.reason ?? 'Banni sur le serveur Discord', liftedAt: null, liftedBy: null, liftedByName: null },
+            }).catch(() => null);
+            await db.auditLog.create({
+                data: {
+                    guildId: guildConfig.id,
+                    actorUserId: 'SYSTEM',
+                    actorName: 'Bot SigilOS',
+                    action: 'WEBHOOK_MEMBER_REMOVE',
+                    targetType: 'PROFILE',
+                    targetId: bannedUser.id,
+                    oldValue: {},
+                    newValue: { status: 'BANNED', archiveReason: 'BANNED' },
+                    metadata: {
+                        discordUserId: bannedUser.id,
+                        username: bannedUser.tag,
+                        changeDetail: 'Banni sur le serveur Discord',
+                        reason: ban.reason ?? 'Banni sur Discord',
+                        ...executorMeta(banEx, bannedUser.id),
+                    },
+                },
+            }).catch(() => null);
+            console.log(`[Discord Bot] ✅ Banned profile for ${bannedUser.tag} (GuildBanAdd)`);
+        }
+    }
+    catch (error) {
+        console.error(`[Discord Bot] Error handling GUILD_BAN_ADD:`, error);
+    }
+});
+// ========================
+// Event: Guild Ban Remove (déban Discord → ACTIVE direct, sans étape staff.
+// Si le mec est déjà de retour sur le serveur : ACTIVE immédiat.
+// Sinon (cas normal : unban ne ré-invite pas) : ARCHIVED/LEFT auto-réactivable,
+// donc dès qu'il rejoint via invite, GuildMemberAdd le passe ACTIVE sans staff)
+// ========================
+client.on(Events.GuildBanRemove, async (ban) => {
+    const unbannedUser = ban.user;
+    console.log(`[Discord Bot] 🔓 Unban: ${unbannedUser.tag} (${unbannedUser.id}) from ${ban.guild.name}`);
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: ban.guild.id },
+            select: { id: true },
+        });
+        if (!guildConfig)
+            return;
+        const account = await db.account.findFirst({
+            where: { provider: 'discord', providerAccountId: unbannedUser.id },
+            select: { userId: true },
+        });
+        if (!account)
+            return;
+        // De retour sur le serveur ? (edge : unban + réinvite ultra rapide)
+        const isBack = await ban.guild.members.fetch(unbannedUser.id).then(() => true).catch(() => false);
+        const result = isBack
+            ? await db.userProfile.updateMany({
+                where: { userId: account.userId, guildId: guildConfig.id, status: 'BANNED' },
+                data: { status: 'ACTIVE', archivedAt: null, archiveReason: null, scheduledDeletion: null },
+            })
+            : await db.userProfile.updateMany({
+                where: { userId: account.userId, guildId: guildConfig.id, status: 'BANNED' },
+                data: (() => {
+                    const twelveMonths = new Date();
+                    twelveMonths.setFullYear(twelveMonths.getFullYear() + 1);
+                    return { status: 'ARCHIVED', archivedAt: new Date(), archiveReason: 'LEFT', scheduledDeletion: twelveMonths };
+                })(),
+            });
+        if (result.count > 0) {
+            // Exécutant réel du déban (staff, ou bot tiers).
+            const unbanEx = await findGuildExecutor(ban.guild, AuditLogEvent.MemberBanRemove, unbannedUser.id).catch(() => null);
+            await db.guildMemberBan.updateMany({
+                where: { guildId: guildConfig.id, discordId: unbannedUser.id, liftedAt: null },
+                data: { liftedAt: new Date(), liftedBy: 'SYSTEM', liftedByName: 'Bot SigilOS' },
+            }).catch(() => null);
+            await db.auditLog.create({
+                data: {
+                    guildId: guildConfig.id,
+                    actorUserId: 'SYSTEM',
+                    actorName: 'Bot SigilOS',
+                    action: 'WEBHOOK_MEMBER_REMOVE',
+                    targetType: 'PROFILE',
+                    targetId: unbannedUser.id,
+                    oldValue: { status: 'BANNED' },
+                    newValue: isBack ? { status: 'ACTIVE' } : { status: 'ARCHIVED', archiveReason: 'LEFT' },
+                    metadata: { discordUserId: unbannedUser.id, username: unbannedUser.tag, changeDetail: isBack ? 'De retour sur le serveur après son déban' : 'Débanni sur Discord — réactivé dès son retour sur le serveur', reason: 'Débanni sur Discord', ...executorMeta(unbanEx, unbannedUser.id) },
+                },
+            }).catch(() => null);
+            console.log(`[Discord Bot] ✅ Unbanned profile for ${unbannedUser.tag} (→ ${isBack ? 'ACTIVE' : 'ARCHIVED auto'})`);
+        }
+    }
+    catch (error) {
+        console.error(`[Discord Bot] Error handling GUILD_BAN_REMOVE:`, error);
     }
 });
 // ========================
@@ -497,8 +898,7 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
         // Si le surnom a changé, mettre à jour le cache UserProfile
         if (nickChanged) {
             console.log(`[Discord Bot] ✏️ Nickname changed: ${newMember.user.tag} (${oldNick} -> ${newNick})`);
-            await db.userProfile.updateMany({
-                where: {
+            await db.userProfile.updateMany({ where: {
                     user: {
                         accounts: {
                             some: {
@@ -512,11 +912,12 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
                 data: { discordNickname: newMember.nickname || newMember.user.username }
             });
             // Log audit
+            const nickEx = await findGuildExecutor(newMember.guild, AuditLogEvent.MemberUpdate, newMember.user.id).catch(() => null);
             await db.auditLog.create({
                 data: {
                     guildId: guildConfig.id,
                     actorUserId: 'SYSTEM',
-                    actorName: 'Discord Gateway Bot',
+                    actorName: 'Bot SigilOS',
                     action: 'WEBHOOK_MEMBER_UPDATE',
                     targetType: 'PROFILE',
                     targetId: newMember.user.id,
@@ -530,6 +931,7 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
                         oldServerNickname: oldNick,
                         changeDetail: `Surnom serveur : "${oldNick}" ➔ "${newNick}"`,
                         reason: 'Modification de surnom sur le serveur Discord',
+                        ...executorMeta(nickEx, newMember.user.id),
                     },
                 },
             });
@@ -545,11 +947,12 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
                 parts.push(`-${removedNames.join(', -')}`);
             const changeDetail = `Rôles Discord : ${parts.join(' | ')}`;
             console.log(`[Discord Bot] 🛡️ Roles changed for ${newNick} (${newMember.user.tag}): ${changeDetail}`);
+            const rolesEx = await findGuildExecutor(newMember.guild, AuditLogEvent.MemberRoleUpdate, newMember.user.id).catch(() => null);
             await db.auditLog.create({
                 data: {
                     guildId: guildConfig.id,
                     actorUserId: 'SYSTEM',
-                    actorName: 'Discord Gateway Bot',
+                    actorName: 'Bot SigilOS',
                     action: 'WEBHOOK_MEMBER_UPDATE',
                     targetType: 'PROFILE',
                     targetId: newMember.user.id,
@@ -562,6 +965,7 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
                         serverNickname: newNick,
                         changeDetail,
                         reason: 'Attribution ou retrait de rôles Discord',
+                        ...executorMeta(rolesEx, newMember.user.id),
                     },
                 },
             });

@@ -49,7 +49,7 @@ export default async function PublicBossCatalogPage() {
   ];
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col bg-zinc-950 font-sans selection:bg-amber-500/30 landing-theme text-foreground">
+    <div className="registre relative min-h-screen w-full flex flex-col bg-background font-sans selection:bg-warning/30 landing-theme text-foreground">
       <PublicHeader user={session?.user} activePage="boss" isMember={userContext.isMember} />
 
       <JsonLd id="json-ld-boss" nonce={nonce} data={jsonLdData} />

@@ -626,6 +626,21 @@ export async function reintegrateMember(guildId: string, profileId: string): Pro
         if (!profile) return { success: false, error: "Profil membre introuvable" };
         const discordId = profile.user?.accounts?.[0]?.providerAccountId;
 
+        // #4 validé : pas de réintégration SigilOS tant que le ban Discord est actif.
+        // Sinon on affiche ACTIVE alors que le mec ne peut même pas revenir sur le serveur.
+        if (discordId) {
+            try {
+                const { fetchGuildBans } = await import("@/server/discord");
+                const bans = await fetchGuildBans(guildId);
+                if (bans.some((b) => b.user.id === discordId)) {
+                    return { success: false, error: "Toujours banni sur Discord — débannis-le d'abord sur Discord avant de le réintégrer." };
+                }
+            } catch (err) {
+                logger.error("[reintegrateMember] Vérification ban Discord impossible:", err);
+                return { success: false, error: "Vérification du ban Discord impossible — réessaie plus tard." };
+            }
+        }
+
         await db.$transaction(async (tx) => {
             await tx.userProfile.update({
                 where: { id: profile.id },

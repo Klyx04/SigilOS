@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Server, ShieldCheck, Loader2, CheckCircle2, ArrowRight, Rocket, Puzzle, BookOpen, Swords } from "lucide-react";
+import { getDofusServerImage } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
 import { completeMandatoryOnboarding } from "@/server/actions/admin-actions";
 
@@ -111,13 +112,28 @@ export function OnboardingBlockerModal({
                                         type="button"
                                         onClick={() => setServerId(s.id)}
                                         className={cn(
-                                            "w-full flex items-center gap-3 p-3.5 rounded-xl border text-left transition-all",
+                                            "w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all",
                                             serverId === s.id
                                                 ? "border-success/50 bg-success/10 text-foreground"
                                                 : "border-border bg-black/20 text-muted-foreground hover:text-foreground hover:border-border-strong"
                                         )}
                                     >
-                                        <Server className={cn("w-4 h-4 shrink-0", serverId === s.id ? "text-success" : "")} />
+                                        {(() => {
+                                            const img = getDofusServerImage(s.id || s.name);
+                                            return img ? (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img
+                                                    src={img}
+                                                    alt=""
+                                                    loading="lazy"
+                                                    decoding="async"
+                                                    draggable={false}
+                                                    className="w-9 h-9 rounded-lg object-cover shrink-0 border border-black/30"
+                                                />
+                                            ) : (
+                                                <Server className={cn("w-4 h-4 shrink-0", serverId === s.id ? "text-success" : "")} />
+                                            );
+                                        })()}
                                         <span className="flex-1 min-w-0">
                                             <span className="block text-sm font-bold truncate">{s.name}</span>
                                             <span className="block text-caption text-muted-foreground">{s.group}</span>

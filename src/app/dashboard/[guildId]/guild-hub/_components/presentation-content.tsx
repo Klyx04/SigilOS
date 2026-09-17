@@ -8,6 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { GuildPresentation } from "@/server/actions/presentation-actions";
+import { getDofusServerImage } from "@/lib/dofus-assets";
 
 export default function PresentationContent({ 
     guild, 
@@ -97,8 +98,23 @@ export default function PresentationContent({
                             {/* Meta Info */}
                             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
                                 {guild.server && (
-                                    <div className="flex items-center gap-1.5">
-                                        <Server className="w-4 h-4" />
+                                    <div className="flex items-center gap-2">
+                                        {(() => {
+                                            const img = getDofusServerImage(guild.server);
+                                            return img ? (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img
+                                                    src={img}
+                                                    alt=""
+                                                    loading="lazy"
+                                                    decoding="async"
+                                                    draggable={false}
+                                                    className="w-6 h-6 rounded-md object-cover border border-black/30"
+                                                />
+                                            ) : (
+                                                <Server className="w-4 h-4" />
+                                            );
+                                        })()}
                                         <span>{guild.server}</span>
                                     </div>
                                 )}

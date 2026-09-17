@@ -2,6 +2,8 @@
 // DOFUS GAME DATA - Centralized Assets for Profile Module
 // =============================================================================
 
+import { DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
+
 // -----------------------------------------------------------------------------
 // CLASSES
 // -----------------------------------------------------------------------------
@@ -41,8 +43,45 @@ export function getClass(id: string) {
 }
 
 // -----------------------------------------------------------------------------
-// JOBS (MÉTIERS)
+// SERVEURS Dofus Unity
 // -----------------------------------------------------------------------------
+// Vignettes des 13 serveurs officiels (`public/assets/dofus/servers/*.webp`).
+// Miroir du pattern classes : jamais d'URL écrite à la main, toujours passer
+// par `getDofusServerImage()` (retourne `null` si inconnu → fallback icône).
+export const DOFUS_SERVER_IMAGE_BASE = "/assets/dofus/servers";
+
+/** "Hell Mina" → "hell-mina", "Tal Kasha" → "tal-kasha" (noms de fichiers). */
+export function dofusServerSlug(name: string): string {
+    return name
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[\s_]+/g, "-");
+}
+
+/**
+ * Résout la vignette d'un serveur Dofus Unity depuis son nom ("Draconiros")
+ * ou son id ("295" / 295). Retourne `null` pour un nom inconnu (serveur
+ * Metamob non-Unity, Temporis, futur serveur…) : l'appelant affiche alors
+ * son fallback (icône `Server`, texte seul).
+ */
+export function getDofusServerImage(nameOrId: string | number | null | undefined): string | null {
+    if (nameOrId === null || nameOrId === undefined) return null;
+    const key = String(nameOrId).trim().toLowerCase();
+    if (!key) return null;
+    let resolvedName: string | null = null;
+    for (const group of Object.values(DOFUS_UNITY_SERVERS)) {
+        const found = (group as ReadonlyArray<{ name: string; id: number }>).find(
+            (s) => String(s.id) === key || s.name.toLowerCase() === key
+        );
+        if (found) {
+            resolvedName = found.name;
+            break;
+        }
+    }
+    if (!resolvedName) return null;
+    return `${DOFUS_SERVER_IMAGE_BASE}/${dofusServerSlug(resolvedName)}.webp`;
+}
 
 export const JOB_CATEGORIES = {
     RECOLTE: "Récolte",

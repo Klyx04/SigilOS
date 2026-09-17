@@ -5,6 +5,7 @@
 // =============================================================================
 
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { getDofusServerImage } from "@/lib/dofus-assets";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -293,6 +294,17 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                                     <ArrowRightLeft className="h-3 w-3 opacity-0 group-hover/link:opacity-100 transition-all -rotate-45" />
                                 </a>
                                 <span className="opacity-40">•</span>
+                                {getDofusServerImage(data.questInfo.serverName) && (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                        src={getDofusServerImage(data.questInfo.serverName)!}
+                                        alt=""
+                                        loading="lazy"
+                                        decoding="async"
+                                        draggable={false}
+                                        className="h-5 w-5 rounded object-cover border border-black/30"
+                                    />
+                                )}
                                 <span>{data.questInfo.serverName}</span>
                                 <Badge variant="outline" className="ml-2 border-warning/30 text-warning text-caption h-5 px-1.5">
                                     Unity

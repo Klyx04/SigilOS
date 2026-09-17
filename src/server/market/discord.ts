@@ -35,6 +35,7 @@ import { normalizeItemIconUrl } from "@/lib/market/item-image";
 // elle ne fait pas basculer l'embed en « carte ». Même règle que le serveur.
 import { isStatBearingStatRow } from "@/lib/market/effects";
 import { buildMarketDashboardUrl } from "@/lib/market/discord-interactions";
+import { getDofusServerImage } from "@/lib/dofus-assets";
 import { resolveMarketForumTags } from "@/lib/market/forum-tags";
 import { countPendingMarketOffers } from "@/server/market/counters";
 
@@ -226,6 +227,11 @@ function buildPayload(
     const { listing, offersCount, reservationBuyer } = loaded;
     const forumMode = listing.guild.marketChannelKind === MARKET_CHANNEL_KIND_FORUM;
 
+    // Vignette du serveur de la guilde pour le footer Discord (URL absolue
+    // exigée par Discord ; `null` si serveur inconnu → logo par défaut).
+    const serverImagePath = getDofusServerImage(listing.guild.dofusServerName ?? null);
+    const serverImageUrl = serverImagePath ? `${getAppBaseUrl()}${serverImagePath}` : null;
+
     const exoLabels = listing.stats
         .filter((stat) => stat.origin === "EXO")
         .map((stat) => stat.label);
@@ -236,6 +242,7 @@ function buildPayload(
         status: listing.status as MarketDiscordStatus,
         sellerName: listing.profile?.pseudoDofus || listing.profile?.user?.name || "Membre",
         serverName: listing.guild.dofusServerName ?? null,
+        serverImageUrl,
         itemName: listing.itemName,
         itemLevel: listing.itemLevel,
         itemTypeName: listing.itemTypeName,
@@ -365,6 +372,7 @@ export async function publishListingToDiscord(
                 embedColor: built.embedColor,
                 embedDescription: built.embedDescription,
                 embedFooter: built.embedFooter,
+                embedFooterIconUrl: built.embedFooterIconUrl,
                 embedThumbnail: built.embedThumbnail,
                 fields: built.fields,
                 components: built.components,
@@ -379,6 +387,7 @@ export async function publishListingToDiscord(
                 embedColor: built.embedColor,
                 embedDescription: built.embedDescription,
                 embedFooter: built.embedFooter,
+                embedFooterIconUrl: built.embedFooterIconUrl,
                 embedImage: built.embedImage,
                 fields: built.fields,
                 components: built.components,
@@ -506,6 +515,7 @@ export async function syncBundleComponentMessages(listingId: string): Promise<Ma
                 embedColor: componentBuilt.embedColor,
                 embedDescription: componentBuilt.embedDescription,
                 embedFooter: componentBuilt.embedFooter,
+                embedFooterIconUrl: componentBuilt.embedFooterIconUrl,
                 embedImage: componentBuilt.embedImage,
                 embedThumbnail: componentBuilt.embedThumbnail,
                 fields: componentBuilt.fields,
@@ -604,6 +614,7 @@ export async function syncListingMessage(listingId: string): Promise<MarketDisco
             embedColor: built.embedColor,
             embedDescription: built.embedDescription,
             embedFooter: built.embedFooter,
+            embedFooterIconUrl: built.embedFooterIconUrl,
             embedImage: built.embedImage,
             embedThumbnail: built.embedThumbnail,
             fields: built.fields,

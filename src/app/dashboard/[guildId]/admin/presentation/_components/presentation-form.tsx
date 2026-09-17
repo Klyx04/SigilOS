@@ -24,6 +24,7 @@ import {
     DOFUS_UNITY_SERVERS,
     AVAILABLE_ACTIVITIES,
 } from "@/lib/presentation-constants";
+import { getDofusServerImage } from "@/lib/dofus-assets";
 import {
     Save,
     Eye,
@@ -139,6 +140,42 @@ const SectionHeader = ({ title, icon: Icon, section, color = "text-info", onSave
         </Button>
     </div>
 );
+
+// Bouton de choix de serveur avec sa vignette officielle (assets du jeu).
+// Un seul composant pour les 5 catégories (la couleur "sélectionné" varie).
+const ServerPickButton = ({ name, selected, selectedClass, onPick }: {
+    name: string;
+    selected: boolean;
+    selectedClass: string;
+    onPick: () => void;
+}) => {
+    const img = getDofusServerImage(name);
+    return (
+        <button
+            type="button"
+            onClick={onPick}
+            className={cn(
+                "relative px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 border flex items-center gap-2.5 text-left min-w-0",
+                selected
+                    ? selectedClass
+                    : "bg-surface/40 border-border text-muted-foreground hover:border-border hover:bg-surface"
+            )}
+        >
+            {img && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                    src={img}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    draggable={false}
+                    className="w-9 h-9 rounded-lg object-cover shrink-0 relative z-10 border border-black/30"
+                />
+            )}
+            <span className="relative z-10 truncate">{name}</span>
+        </button>
+    );
+};
 
 export function PresentationForm({ guildId }: Props) {
     const [isPending, startTransition] = useTransition();
@@ -578,19 +615,13 @@ export function PresentationForm({ guildId }: Props) {
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                                     {DOFUS_UNITY_SERVERS.epique.map((s) => (
-                                        <button
+                                        <ServerPickButton
                                             key={s.name}
-                                            type="button"
-                                            onClick={() => setServer(s.name)}
-                                            className={cn(
-                                                "relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
-                                                server === s.name
-                                                    ? "bg-success/10 border-success text-success "
-                                                    : "bg-surface/40 border-border text-muted-foreground hover:border-border hover:bg-surface"
-                                            )}
-                                        >
-                                            <span className="relative z-10">{s.name}</span>
-                                        </button>
+                                            name={s.name}
+                                            selected={server === s.name}
+                                            selectedClass="bg-success/10 border-success text-success"
+                                            onPick={() => setServer(s.name)}
+                                        />
                                     ))}
                                 </div>
                             </div>
@@ -603,19 +634,13 @@ export function PresentationForm({ guildId }: Props) {
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                                     {DOFUS_UNITY_SERVERS.monocompte.map((s) => (
-                                        <button
+                                        <ServerPickButton
                                             key={s.name}
-                                            type="button"
-                                            onClick={() => setServer(s.name)}
-                                            className={cn(
-                                                "relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
-                                                server === s.name
-                                                    ? "bg-warning/10 border-warning text-warning "
-                                                    : "bg-surface/40 border-border text-muted-foreground hover:border-border hover:bg-surface"
-                                            )}
-                                        >
-                                            <span className="relative z-10">{s.name}</span>
-                                        </button>
+                                            name={s.name}
+                                            selected={server === s.name}
+                                            selectedClass="bg-warning/10 border-warning text-warning"
+                                            onPick={() => setServer(s.name)}
+                                        />
                                     ))}
                                 </div>
                             </div>
@@ -628,19 +653,13 @@ export function PresentationForm({ guildId }: Props) {
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                                     {DOFUS_UNITY_SERVERS.classique.map((s) => (
-                                        <button
+                                        <ServerPickButton
                                             key={s.name}
-                                            type="button"
-                                            onClick={() => setServer(s.name)}
-                                            className={cn(
-                                                "relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
-                                                server === s.name
-                                                    ? "bg-surface border-border text-foreground "
-                                                    : "bg-surface/40 border-border text-muted-foreground hover:border-border hover:bg-surface"
-                                            )}
-                                        >
-                                            <span className="relative z-10">{s.name}</span>
-                                        </button>
+                                            name={s.name}
+                                            selected={server === s.name}
+                                            selectedClass="bg-surface border-border text-foreground"
+                                            onPick={() => setServer(s.name)}
+                                        />
                                     ))}
                                 </div>
                             </div>
@@ -653,19 +672,13 @@ export function PresentationForm({ guildId }: Props) {
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                                     {DOFUS_UNITY_SERVERS.pionnierMono.map((s) => (
-                                        <button
+                                        <ServerPickButton
                                             key={s.name}
-                                            type="button"
-                                            onClick={() => setServer(s.name)}
-                                            className={cn(
-                                                "relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
-                                                server === s.name
-                                                    ? "bg-info/10 border-info text-info "
-                                                    : "bg-surface/40 border-border text-muted-foreground hover:border-border hover:bg-surface"
-                                            )}
-                                        >
-                                            <span className="relative z-10">{s.name}</span>
-                                        </button>
+                                            name={s.name}
+                                            selected={server === s.name}
+                                            selectedClass="bg-info/10 border-info text-info"
+                                            onPick={() => setServer(s.name)}
+                                        />
                                     ))}
                                 </div>
                             </div>
@@ -678,27 +691,33 @@ export function PresentationForm({ guildId }: Props) {
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                                     {DOFUS_UNITY_SERVERS.pionnier.map((s) => (
-                                        <button
+                                        <ServerPickButton
                                             key={s.name}
-                                            type="button"
-                                            onClick={() => setServer(s.name)}
-                                            className={cn(
-                                                "relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
-                                                server === s.name
-                                                    ? "bg-info/10 border-info text-info "
-                                                    : "bg-surface/40 border-border text-muted-foreground hover:border-border hover:bg-surface"
-                                            )}
-                                        >
-                                            <span className="relative z-10">{s.name}</span>
-                                        </button>
+                                            name={s.name}
+                                            selected={server === s.name}
+                                            selectedClass="bg-info/10 border-info text-info"
+                                            onPick={() => setServer(s.name)}
+                                        />
                                     ))}
                                 </div>
                             </div>
 
                             {server && (
                                 <div className="flex items-center justify-between pt-2">
-                                    <p className="text-sm text-muted-foreground">
-                                        Serveur sélectionné : <span className="text-foreground font-medium">{server}</span>
+                                    <p className="text-sm text-muted-foreground flex items-center gap-2.5">
+                                        Serveur sélectionné :
+                                        {getDofusServerImage(server) && (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img
+                                                src={getDofusServerImage(server)!}
+                                                alt=""
+                                                loading="lazy"
+                                                decoding="async"
+                                                draggable={false}
+                                                className="w-7 h-7 rounded-lg object-cover border border-black/30"
+                                            />
+                                        )}
+                                        <span className="text-foreground font-medium">{server}</span>
                                     </p>
                                     <Button
                                         variant="ghost"

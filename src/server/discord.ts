@@ -801,6 +801,8 @@ interface SendChannelMessageOptions {
     embedTitle?: string;
     embedColor?: number;
     embedFooter?: string;
+    /** Surcharge l'icône logo par défaut du footer (ex: vignette du serveur Dofus). URL absolue. */
+    embedFooterIconUrl?: string;
     embedUrl?: string;           // Makes the title clickable
     embedThumbnail?: string;     // Small image on the right
     embedImage?: string;         // Large image at bottom
@@ -896,7 +898,7 @@ export async function sendChannelMessage(
         const appUrl = getAppBaseUrl();
         const displayUrl = appUrl.replace(/^https?:\/\//, "");
         const footerText = options.embedFooter ?? `SigilOS · Pas encore sur le Dashboard ? → ${displayUrl}`;
-        embed.footer = { text: footerText, icon_url: `${appUrl}/assets/ui/logo-v2.png` };
+        embed.footer = { text: footerText, icon_url: options.embedFooterIconUrl ?? `${appUrl}/assets/ui/logo-v2.png` };
 
         // Author section
         if (options.embedAuthor) {
@@ -1047,7 +1049,7 @@ export async function updateChannelMessage(
         const appUrl = getAppBaseUrl();
         const displayUrl = appUrl.replace(/^https?:\/\//, "");
         const updateFooterText = options.embedFooter ?? `SigilOS · Pas encore sur le Dashboard ? → ${displayUrl}`;
-        embed.footer = { text: updateFooterText, icon_url: `${appUrl}/assets/ui/logo-v2.png` };
+        embed.footer = { text: updateFooterText, icon_url: options.embedFooterIconUrl ?? `${appUrl}/assets/ui/logo-v2.png` };
 
         if (options.embedAuthor) embed.author = { name: options.embedAuthor.name, icon_url: options.embedAuthor.iconUrl };
         if (options.embedThumbnail) embed.thumbnail = { url: options.embedThumbnail };
@@ -1275,7 +1277,9 @@ export async function createForumPost(
             title: options.embedTitle,
             color: options.embedColor ?? 0x9333ea,
             timestamp: new Date().toISOString(),
-            footer: { text: options.embedFooter ?? "SigilOS · sigilos.fr" }
+            footer: options.embedFooterIconUrl
+                ? { text: options.embedFooter ?? "SigilOS · sigilos.fr", icon_url: options.embedFooterIconUrl }
+                : { text: options.embedFooter ?? "SigilOS · sigilos.fr" }
         };
 
         if (options.embedDescription) embed.description = sanitizeMentions(options.embedDescription);

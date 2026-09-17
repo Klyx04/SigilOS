@@ -35,6 +35,12 @@ export function ResourceImage({
     setSrc(primary);
   }, [primary]);
 
+  // Une `<img src="">` fait avertir React (« le navigateur peut re-télécharger
+  // toute la page ») et n'apporte rien : quand aucune source n'est résolue, on ne
+  // rend RIEN — la plaque d'icône garde son fond. C'était la source de 14 erreurs
+  // console sur la page publique du guide.
+  if (!src) return null;
+
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img

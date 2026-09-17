@@ -6,6 +6,7 @@ import { PrivateGuildView } from "./_components/private-guild-view";
 import { getAppBaseUrl } from "@/lib/utils";
 import { getGuildSlug } from "@/lib/presentation-constants";
 import { headers } from "next/headers";
+import { JsonLd } from "@/components/shared/json-ld";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -125,12 +126,7 @@ export default async function GuildPresentationPage({ params }: Props) {
 
     return (
         <>
-            <script
-                type="application/ld+json"
-                nonce={nonce}
-                // nosemgrep
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
-            />
+            <JsonLd id="json-ld-guild" nonce={nonce} data={jsonLd} />
             <GuildPublicView guild={guild} foundedYear={foundedYear} isMember={userContext.isMember} user={session?.user} />
         </>
     );

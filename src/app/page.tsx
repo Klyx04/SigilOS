@@ -1,23 +1,38 @@
-import { NebulaClientWrapper } from "@/components/layout/nebula-client-wrapper";
-import Script from "next/script";
-import { GalacticFooter } from "@/components/layout/galactic-footer";
-import { DofusHeroSection } from "@/components/landing/dofus-hero-section";
-import { ProblemSolution } from "@/components/landing/problem-solution";
-import { ProductStory } from "@/components/landing/product-story";
-import { ThreePillars } from "@/components/landing/three-pillars";
-import { auth } from "@/auth";
-import { getPublicGuildShowcase } from "@/server/actions/presentation-actions";
-import { GuildShowcaseSection } from "@/components/landing/guild-showcase-section";
-import { PublicHeader } from "@/components/layout/public-header";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { HowItWorks } from "@/components/landing/how-it-works";
-import { ToolsBentoShowcase } from "@/components/landing/tools-bento-showcase";
-import { FaqSection } from "@/components/landing/faq-section";
-import { getPublicLandingScreens } from "@/server/actions/landing-screen-actions";
+import { auth } from "@/auth";
 import { getAppBaseUrl } from "@/lib/utils";
+import { LANDING_FAQ } from "@/lib/landing-faq";
+import { findPublicScreen, firstPublicScreen } from "@/lib/landing-utils";
+import { getPublicGuildShowcase } from "@/server/actions/presentation-actions";
+import { getPublicLandingScreens } from "@/server/actions/landing-screen-actions";
+import { PublicHeader } from "@/components/layout/public-header";
+import { GalacticFooter } from "@/components/layout/galactic-footer";
+import { JsonLd } from "@/components/shared/json-ld";
+import { LandingHero } from "@/components/landing/registre/hero";
+import { LandingTools } from "@/components/landing/registre/tools";
+import { LandingWorkflow } from "@/components/landing/registre/workflow";
+import { LandingGuide } from "@/components/landing/registre/guide";
+import { LandingProof } from "@/components/landing/registre/proof";
+import { LandingSetup } from "@/components/landing/registre/setup";
 
-export const revalidate = 3600; // ISR 1h — page d'accueil publique (contenu stable), accélère le chargement & la performance SEO
+/**
+ * Landing publique — refonte « registre » (anti-AI-slop).
+ *
+ * Six blocs, dans l'ordre du parcours visiteur :
+ *   1. Hero 5/7 — ce que c'est, pour qui, une seule action principale.
+ *   2. Outils ouverts — quatre raccourcis, accessibles sans compte.
+ *   3. Une sortie de bout en bout — le vrai enchaînement Discord → SigilOS.
+ *   4. Le guide en jeu — les captures produit du God, légendées.
+ *   5. Preuve communautaire — la guilde réelle, ses chiffres, son journal.
+ *   6. Mise en route + questions utiles.
+ *
+ * Ont disparu : le bento marketing, le tableau « sans / avec », les trois
+ * piliers, la séquence 01/02/03 en cartes, la preuve sociale au pluriel et la
+ * capsule de pied de page flottante.
+ */
+
+export const revalidate = 3600; // ISR 1h — page d'accueil publique (contenu stable), accéléra le chargement & le SEO
 
 const baseUrl = getAppBaseUrl();
 
@@ -30,7 +45,8 @@ const jsonLd = {
       "applicationCategory": "GameApplication",
       "operatingSystem": "Web",
       "url": baseUrl,
-      "description": "SigilOS réunit quêtes, sorties, membres et progression Dofus dans un espace partagé, relié à Discord. Gratuit pour les guildes.",
+      "description":
+        "SigilOS est le tableau de bord d'une guilde Dofus relié à Discord : sorties, quêtes, membres et progression au même endroit.",
       "offers": {
         "@type": "Offer",
         "price": "0",
@@ -43,51 +59,15 @@ const jsonLd = {
       },
     },
     {
+      // Balisage aligné sur la FAQ réellement affichée (source : src/lib/landing-faq.ts).
       "@type": "FAQPage",
-      "mainEntity": [
-        {
-          "@type": "Question",
-          "name": "Comment se connecter à SigilOS ?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Uniquement via votre compte Discord (OAuth2). Il n'existe ni compte ni mot de passe SigilOS : vous vous connectez à Discord, puis vous accédez aux guildes où vous êtes membre ou administrateur."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Combien ça coûte ?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "C'est 100% gratuit et sans publicité pour toutes les guildes Dofus."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Comment créer l'espace de ma guilde ?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Si vous êtes administrateur Discord de votre serveur de guilde, vous pouvez installer SigilOS immédiatement en autonomie en 1 clic. Un accompagnement manuel par ticket Discord reste également disponible."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Demandez-vous mon mot de passe Ankama ou mon e-mail ?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Non, jamais. Vous connectez uniquement votre compte Discord. SigilOS ne demande aucun mot de passe de jeu et ne collecte aucune adresse e-mail."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Comment intégrer les archimonstres (Ocre) ?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Ajoutez votre pseudo Dofus et votre clé API Metamob en lecture seule. SigilOS synchronise vos captures pour que toute la guilde s'entraide sur la quête du Dofus Ocre."
-          }
-        }
-      ]
-    }
-  ]
+      "mainEntity": LANDING_FAQ.map((item) => ({
+        "@type": "Question",
+        "name": item.q,
+        "acceptedAnswer": { "@type": "Answer", "text": item.a },
+      })),
+    },
+  ],
 };
 
 export default async function Home({
@@ -95,21 +75,14 @@ export default async function Home({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const [session, info] = await Promise.all([auth(), searchParams]);
+  const [session, params] = await Promise.all([auth(), searchParams]);
 
   const { getUserContext } = await import("@/server/actions/user-actions");
-
   const userContext = await getUserContext();
 
-  // Landing v3 — showcase mini-dashboards par guilde (stats réelles, cache Redis 5 min)
-  const showcaseGuilds = await getPublicGuildShowcase(6);
-
-  // 🖼️ #140 — screens de la landing pilotés par le God (fallback captures par défaut)
-  const productScreensRes = await getPublicLandingScreens("product-story");
-  const productScreens = (productScreensRes.success && productScreensRes.data) ? productScreensRes.data : [];
-
-  if (info.error) {
-    redirect(`/auth/error?error=${info.error}`);
+  const authError = typeof params?.error === "string" ? params.error : undefined;
+  if (authError) {
+    redirect(`/auth/error?error=${authError}`);
   }
 
   // Un membre connecté disposant d'au moins une guilde accessible ou éligible au déploiement
@@ -122,59 +95,64 @@ export default async function Home({
     }
   }
 
+  // Données réelles de la page : guilde(s) publique(s) + captures pilotées par le God (#140).
+  const [showcaseGuilds, productScreensRes, heroScreensRes] = await Promise.all([
+    getPublicGuildShowcase(6),
+    getPublicLandingScreens("product-story"),
+    getPublicLandingScreens("hero"),
+  ]);
+
+  const productScreens = productScreensRes.success && productScreensRes.data ? productScreensRes.data : [];
+  const heroScreens = heroScreensRes.success && heroScreensRes.data ? heroScreensRes.data : [];
+
+  const heroScreen = firstPublicScreen(heroScreens[0]);
+  const workflowScreen = findPublicScreen(productScreens, /sortie|groupe|event|événement|calendrier/i);
+  const topGuild =
+    [...showcaseGuilds].sort((a, b) => (b.memberCount || 0) - (a.memberCount || 0))[0] ?? null;
+
   const clientId = process.env.DISCORD_CLIENT_ID || process.env.AUTH_DISCORD_ID || "";
   const { getPlatformConfig } = await import("@/server/actions/god-roadmap-actions");
   const platformRes = await getPlatformConfig().catch(() => null);
   const autoOnboardingOn =
-    (platformRes?.success ? (platformRes.data as any)?.autoOnboardingEnabled : undefined) !== false;
+    (platformRes?.success ? (platformRes.data as { autoOnboardingEnabled?: boolean } | undefined)?.autoOnboardingEnabled : undefined) !==
+    false;
 
   // [AUDIT 2026] Retrieve nonce for inline scripts
   const headersList = await headers();
-  const nonce = headersList.get('x-nonce') ?? '';
+  const nonce = headersList.get("x-nonce") ?? "";
 
   return (
-    <NebulaClientWrapper>
-      <Script
-        id="json-ld"
-        type="application/ld+json"
-        nonce={nonce}
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
-      />
-      <div className="min-h-screen landing-theme bg-background text-foreground selection:bg-success/30 font-sans flex flex-col overflow-x-hidden">
+    <>
+      <JsonLd id="json-ld" nonce={nonce} data={jsonLd} />
+
+      <div className="registre min-h-screen bg-background text-foreground flex flex-col overflow-x-hidden">
+        <a className="reg-skip" href="#contenu">
+          Aller au contenu
+        </a>
 
         <PublicHeader user={session?.user} variant="hero" isMember={userContext.isMember} />
 
-        <main className="flex-1 w-full relative z-10 flex flex-col">
+        <main id="contenu" className="flex-1 w-full">
+          <LandingHero
+            screen={heroScreen}
+            guild={topGuild}
+            clientId={clientId}
+            autoOnboardingOn={autoOnboardingOn}
+          />
 
-          {/* Hero — Dofus Unity Immersive */}
-          <DofusHeroSection clientId={clientId} autoOnboardingOn={autoOnboardingOn} isConnected={!!session?.user} />
+          <LandingTools />
 
-          {/* Outils & Overlay Compagnon Bento Showcase (Gratuit / Sans Inscription) */}
-          <ToolsBentoShowcase clientId={clientId} />
+          <LandingWorkflow screen={workflowScreen} />
 
-          {/* Problème / solution */}
-          <ProblemSolution />
+          <LandingGuide screens={productScreens} />
 
-          {/* Démo produit narrative */}
-          <ProductStory screens={productScreens} />
+          <LandingProof guilds={showcaseGuilds} />
 
-          {/* Showcase mini-dashboards par guilde (landing v3) */}
-          {showcaseGuilds.length > 0 && <GuildShowcaseSection guilds={showcaseGuilds} />}
-
-          {/* Trois piliers */}
-          <ThreePillars />
-
-          {/* Comment ça marche */}
-          <HowItWorks />
-
-          {/* FAQ courte — rassure avant le footer, renvoie vers /legal/faq */}
-          <FaqSection />
-
+          <LandingSetup clientId={clientId} autoOnboardingOn={autoOnboardingOn} />
         </main>
 
-        {/* Floating pill footer — compact, moderne */}
-        <GalacticFooter variant="compact" isMember={userContext.isMember} />
+        <GalacticFooter isMember={userContext.isMember} />
       </div>
-    </NebulaClientWrapper>
+    </>
   );
 }

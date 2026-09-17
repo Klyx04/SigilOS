@@ -787,17 +787,18 @@ export async function syncGuildMembers(discordGuildId: string) {
     }
 
     try {
-        const { listGuildMembers, fetchGuildBans } = await import("@/server/discord");
+        const { listGuildMembers, fetchGuildBans, fetchAuditExecutor, executorMetadata, DISCORD_AUDIT_ACTIONS } = await import("@/server/discord");
 
         // 1. Fetch current members from Discord
         const discordMembers = await listGuildMembers(discordGuildId);
         const discordUserIds = new Set(discordMembers.map(m => m.user.id));
 
         // 2. Fetch all profiles for this guild with their Discord Accounts
+        // #1 validé : inclut ARCHIVED pour détecter un ban Discord APRÈS le départ.
         const profiles = await db.userProfile.findMany({
             where: {
                 guild: { discordGuildId },
-                status: "ACTIVE"
+                status: { in: ["ACTIVE", "ARCHIVED"] }
             },
             include: {
                 user: {
@@ -826,7 +827,15 @@ export async function syncGuildMembers(discordGuildId: string) {
                 // Check if they are banned or just left
                 const isBanned = bannedUserIds.has(discordId);
 
+                // #1 validé : déjà ARCHIVED et pas banni → on ne touche à rien
+                // (évite de reset la rétention 12 mois à chaque sync).
+                if (!isBanned && (profile as { status?: string }).status === "ARCHIVED") {
+                    continue;
+                }
+
                 if (isBanned) {
+                    // Exécutant réel du ban (staff ou bot tiers).
+                    const banExOld = await fetchAuditExecutor(discordGuildId, DISCORD_AUDIT_ACTIONS.BAN_ADD, discordId).catch(() => null);
                     await db.userProfile.update({
                         where: { id: profile.id },
                         data: {
@@ -859,13 +868,13 @@ export async function syncGuildMembers(discordGuildId: string) {
                             create: {
                                 guildId: profile.guildId,
                                 discordId,
-                                reason: "BANNED (Discord)",
+                                reason: "Banni sur le serveur Discord",
                                 bannedBy: "SYSTEM",
-                                bannedByName: "Sync System",
+                                bannedByName: "Vérification auto",
                                 memberName
                             },
                             update: {
-                                reason: "BANNED (Discord)",
+                                reason: "Banni sur le serveur Discord",
                                 liftedAt: null,
                                 liftedBy: null,
                                 liftedByName: null,
@@ -880,7 +889,7 @@ export async function syncGuildMembers(discordGuildId: string) {
                     await closeMemberPublishedContent(discordGuildId, profile.id, profile.userId, "BANNED (Discord)");
 
                     // 🔔 Lifecycle Notification
-                    await sendLifecycleNotification(discordGuildId, profile, "BANNED", "SYNC (Détection automatique)");
+                    await sendLifecycleNotification(discordGuildId, profile, "BANNED", "Vérification automatique");
 
                     // 📝 AUDIT LOG Departure (Banned)
                     try {
@@ -888,19 +897,31 @@ export async function syncGuildMembers(discordGuildId: string) {
                         await log({
                             guildId: discordGuildId,
                             actorUserId: "SYSTEM",
-                            actorName: "Sync System",
+                            actorName: "Vérification auto",
                             action: "MEMBER_BANNED" as any,
                             targetType: "PROFILE",
                             targetId: profile.id,
                             metadata: { 
                                 description: profile.pseudoDofus || profile.discordNickname || "Inconnu",
-                                reason: "Bannissement Discord détecté lors de la synchro"
+                                reason: "Banni sur Discord",
+                                ...executorMetadata(banExOld, discordId)
                             }
                         });
                     } catch (e) { logger.error("[Lifecycle Sync] Audit failed", e); }
 
                     bannedCount++;
                 } else {
+                    // Auteur réel : exclu par un staff/bot ou parti de lui-même.
+                    // « lui-même » uniquement si le journal a bien été lu (checked).
+                    let kickExOld = null;
+                    let kickCheckedOld = false;
+                    try {
+                        kickExOld = await fetchAuditExecutor(discordGuildId, DISCORD_AUDIT_ACTIONS.KICK, discordId);
+                        kickCheckedOld = true;
+                    } catch {
+                        kickCheckedOld = false;
+                    }
+                    const kickedOld = kickExOld && kickExOld.userId !== discordId ? kickExOld : null;
                     const twelveMonthsFromNow = new Date();
                     twelveMonthsFromNow.setFullYear(twelveMonthsFromNow.getFullYear() + 1);
 
@@ -918,7 +939,7 @@ export async function syncGuildMembers(discordGuildId: string) {
                     await closeMemberPublishedContent(discordGuildId, profile.id, profile.userId, "LEFT");
 
                     // 🔔 Lifecycle Notification
-                    await sendLifecycleNotification(discordGuildId, profile, "LEFT", "SYNC (Détection automatique)");
+                    await sendLifecycleNotification(discordGuildId, profile, "LEFT", "Vérification automatique");
 
                     // 📝 AUDIT LOG Departure (Left)
                     try {
@@ -926,13 +947,18 @@ export async function syncGuildMembers(discordGuildId: string) {
                         await log({
                             guildId: discordGuildId,
                             actorUserId: "SYSTEM",
-                            actorName: "Sync System",
+                            actorName: "Vérification auto",
                             action: "MEMBER_LEFT" as any,
                             targetType: "PROFILE",
                             targetId: profile.id,
                             metadata: { 
                                 description: profile.pseudoDofus || profile.discordNickname || "Inconnu",
-                                reason: "Départ Discord détecté lors de la synchro"
+                                reason: kickedOld ? "Exclu du serveur" : "A quitté le serveur",
+                                ...(kickedOld
+                                    ? executorMetadata(kickedOld, discordId)
+                                    : kickCheckedOld
+                                      ? { executorId: discordId, executorIsSelf: true }
+                                      : {})
                             }
                         });
                     } catch (e) { logger.error("[Lifecycle Sync] Audit failed", e); }

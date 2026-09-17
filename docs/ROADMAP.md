@@ -7,6 +7,21 @@
 > Réouvrir l'historique en mode plan = gaspillage de tokens.
 
 ---
+## 🧭 Session 17/09/2026 (suite) — **Guide Sylvestre : pagination par chapitre, progression locale par personnage, sommaire replié + cohérence logs/bans + sondages** · branche `feat/refonte-landing-anti-slop` ✅ *PR vers `dev`*
+> Même chantier que le bloc du 16/09 ci-dessous. **Détail complet** : `.agents/workflows/activeContext.md` (bloc « Session 17/09/2026 (suite) ») · fiche `src/temp/refonte_landing/REPRISE-LANDING-ANTI-SLOP.md` **§12.7 → §12.9**.
+> **Agent** : pagination **une vue = un chapitre** (interne **et** public ; 1 seul panneau rendu au lieu de 59 ; pager haut/bas + sommaire repliable ; ancres `#bloc-…` partageables et **ISR intacte**) · **progression locale par personnage** (classe + pseudo + serveur facultatifs, icônes de classe du jeu, clés `sigil_guest_<slug>_c_<pseudo>-<idServeur>_…`, adoption à la 1ʳᵉ déclaration, overlay réaligné) · **sommaire public replié** (678 px → **40 px**) · 🐛 **« bugs de polices partout » = double encodage de `globals.css`** (452 chaînes réparées, `Discord â†—` → `Discord ↗`) + garde-fou d'encodage dans `CONTEXT.md`.
+> **Utilisateur** : cohérence **logs / cycle de vie / bans Discord** (intents `GuildModeration`, `ARCHIVED` banni ⇒ `BANNED`, hygiène de compte `DEAUTHORIZED`, réintégration bloquée si ban actif, **libellés humains** et traduction des anciens codes dans l'écran des logs) · **sondages** (`poll-detail` : options mémoïsées, barres `scaleX`, votants datés).
+> **Vérifs** : `tsc` **0** · `eslint` **0 erreur** · `vitest` **138 fichiers / 1469 tests** · `next build` **OK**.
+> **Reste** : 3 arbitrages user (numérotation des chapitres, « Tout valider » par chapitre côté interne, dégradés/ombres des modales) · 1 image de bloc sur 60 en base · code mort (`DofusProgressStrip.tsx`, `split-implementation.ts`).
+
+## 🧭 Session 16/09/2026 (branche `feat/refonte-landing-anti-slop`) — **Refonte anti-AI-slop de la landing & des pages publiques** ⏳ *non commité*
+> **Point d'entrée (session neuve)** : `src/temp/amorces/amorce-2026-09-16-refonte-landing-anti-slop.md` (amorce autonome + prompt à coller) · **fiche de reprise unique** : `src/temp/refonte_landing/REPRISE-LANDING-ANTI-SLOP.md` (direction, couche `.reg-*`, fait, **backlog chiffré par page**, pièges, protocole) · journal détaillé : `src/temp/memo-2026-09-16-refonte-landing-anti-slop.md`.
+> **Direction** : « montrer davantage SigilOS, montrer moins la landing » — *registre vivant d'une guilde Dofus* (mat, dense, sémantique) ; on ne redessine pas, **on retire**.
+> ✅ **Fait (23 fixes, 0 → 23)** : socle typo + 3 blocs `@layer components` · en-tête public · pied de page · **landing refaite en 6 blocs** (10 composants `landing/*` supprimés) · pages légales · `/dashboard` + `GuildSetupCard` + `NoGuildMessage` · **🐞 footer qui écrasait l'espace de guilde** · interface guides (+ `DocContent`) · Ko-fi · bouton « Tableau de bord » · `/login` · `AccessRequestModal` · `/almanax` (+ `[date]`) · **assets Dofus des 4 outils** · `/carte-du-monde` · **`/guilds/[guildId]` (+ 2 🐞 de rendu)** · `/guilds` (annuaire) · `/changelog` · landing (emblème + capitales) · `/guides/rush-sylvestre` + modales + `/status` + 🐞 jeton cyclique `--accent` · **quêtes du rush + 6 modales** (🐞 Échap) + favicons **locaux** (`public/assets/brands/`) · **`/docs`** + 106 lignes mortes de `doc-meta.ts` + 🐞 callouts blancs-sur-blanc · **`/almanax` : FAQ affichée (source unique) + JSON-LD servi par le serveur**.
+> **Preuves** : `tsc` **0** · `eslint` **0 erreur** · `vitest tests/unit` **1348/1348** (128 fichiers) · sondes `fetch` **sans JS** : `ld+json` présent dans la source des 13 pages concernées, **0 écart** question balisée / question affichée, contraste ≥ 4,5 en sombre **et** clair.
+> ⏳ **Reste** : `/auth/error` (8) + `/auth/signout` (5) → **guide interne** (`RushTimelineClient` + `guide-styles.css`) → **2 guides publics** (13 classes sombres en dur, ratio **1,81** en clair) → coquille de l'overlay → favicons tierces (~22 emplacements) → `.landing-theme` / `UnifiedModuleHeader` / recadrages God → **commit + PR vers `dev`**.
+
+
 ## 🚧 Session 16/09/2026 (suite 3) — **« Avis de recherche » : suppression God persistante + simulation sur GRILLE VIDE ⇒ PR #682**
 > **Demande user** : pouvoir **supprimer des avis** · **retirer la map « Abysses du temps »** des avis (ne garder que la **map vide**).
 > **Suppression** : `src/lib/bounty-ignore.ts` (liste d'exclusion `public/game-data/ignored-bounties.json`) + `deleteBountyAction` / `restoreBountyAction` / `getIgnoredBountiesAction` (branche `game-data-bounties`) + bouton **« Supprimer »** et section **« Avis supprimés (N) » / « Restaurer »** dans `god/game-data/bounties`. Le siphon **saute** les avis exclus (`ignored`) ⇒ une suppression survit au cron.
@@ -457,7 +472,7 @@
   qui porte déjà stats réelles + GameDataInterface + EventZoneManager) · galerie des modales (succès/boss) enrichie
   (**recherche** + **suppression d'image**, nouveau `DELETE /api/god/list-local-images` fail-closed anti path-traversal) ·
   onglets aérés (rangée unique qui défile, padding/gap élargis) · onglet Quêtes clarifié (« Import initial » vs « Synchronisation »).
-  Vérifs : **test:run 340/340** · **tsc 0** · **eslint 0 erreur** · **build OK**. Mémo : `src/temp/memo-2026-08-27-game-data.md`.
+  Vérifs : **test:run 340/340** · **tsc 0** · **eslint 0 erreur** · **build OK**. Mémo : `src/temp/archive/memos/memo-2026-08-27-game-data.md`.
   ⚪ RESTE (optionnel) : « Archis & Boss » = onglet (tab) **et** route standalone `/god/game-data/archimonstres` (2 views du même module) ·
   2 galeries d'assets parallèles (`LocalImagePicker` vs `AssetGalleryModal`) à unifier · `EventZoneManager` à ne monter qu'une fois ·
   déploiement = re-build app.
@@ -474,13 +489,13 @@
 
 - 📌 **Galerie de Stuff — classe « Inconnu » + limite 30 + filtres responsive (27/08)** (`feat/chantier-2026-08-27-galerie-stuff-classe`, PR #561 → dev) :
   **🐛 Fini le « INCONNU »** : `processDofusbookRawData` ne produit plus un faux « Inconnu » ni un `classId` par défaut (1) quand Dofusbook ne renvoie pas de `character_class` (builds partagés / réponses partielles) — `classId`→0 + `className`→vide, et la modale `DofusbookPreview` préfère le `classId` (choisi/déduit) dès que `className` est absent ou « Inconnu » (fallback `getClassName(guessedClassId)`). → **classe correcte pour n'importe quelle classe**, ajout multi-classes OK (aucune restriction implicite). · **Limite perso 20→30** (`builds-card.tsx` compteur + seuil, `UpdateDofusBookLinksSchema.max(30)`). · **UI** : contraste dark modale (en-têtes `text-foreground/30`→`/70`, rangées `bg-black/*`→`bg-surface/60`) + popovers filtres Tags avancés / Classe en **largeur responsive** `w-[min(...,calc(100vw-2rem))]` (plus de sortie d'écran).
-  Vérifs : **test:run 359/359** · **tsc 0** · **lint 0 erreur** · **build OK** (+ test `tests/unit/dofusbook-utils.test.ts`). Mémo : `src/temp/memo-2026-08-27-galerie-stuff-classe.md`.
+  Vérifs : **test:run 359/359** · **tsc 0** · **lint 0 erreur** · **build OK** (+ test `tests/unit/dofusbook-utils.test.ts`). Mémo : `src/temp/archive/memos/memo-2026-08-27-galerie-stuff-classe.md`.
 - 📌 **Doubles boss & module Défi (27/08, ONE SHOT A+B+C+D)** (`feat/chantier-2026-08-27-double-boss-defi`, depuis `feat/chantier-2026-08-27-game-data-ui`, PR → dev) :
   **A — Correctif doubles boss + dropdown map** : cause racine = `bossName` « Comte + Klime » ne matche pas le monstre Dofensive → `shownMaps` affichait toutes les maps. Fix = dissociation **affichage / résolution** : `name`/`bossName` restent « Comte et X », + 2 champs optionnels `Dungeon.dofensiveMonsterName` (`Klime`…) + `Dungeon.dofensiveDungeonName` (« Donjon du Comte Harebourg ») → `resolveDofensiveDungeonDirect` cible la bonne « Balcon » (et lève l'ambiguïté vs les donjons **solo** homonymes). `SpellRangeGrid` ne retombe plus sur toutes les maps. Script `scripts/fix-double-boss-resolution.ts` (idempotent, préserve les donjons solo) + seed MAJ. · **Robustesse (post-beta)** : helper partagé `src/lib/dofensive-boss.ts` (`deriveDofensiveMonsterName` / `resolveMonsterKey`) dérive le monstre d'un `bossName` « X et Y » (« Comte et Klime » → « Klime ») quand `dofensiveMonsterName` est **vide en base** → `SuccesBossGuide` et `getDofensiveDungeonForBoss` résolvent la bonne « Balcon » même avec des données incomplètes. ·
   **B — Donjon sans succès** : toggle « Donjon sans succès » (`Dungeon.isNoAchievement`) → pseudo-succès « Donjon validé » (challenge `donjon-valide`) relié au donjon → cochable dans « Mes Succès ». ·
   **C — Sources communautaires** : déplacé dans les `actions` du `UnifiedModuleHeader` (`succes/page.tsx`). ·
   **D — Module « Défi »** : modèle dédié `Defi` + `UserDefiProgress` + `DjSearchMode`=DEFI ; onglet « Défi » God (`DefiManager`) et `/succes` (`SuccesDefiTab`) ; 3ᵉ mode DJ (pièce, embed, clôture → `applyDefiValidation`), filtres/cartes/détail/close ; type image `defi` whitelisté.
-  Vérifs : **test:run 344/344** · **tsc 0** · **build OK** · eslint 0 erreur. Mémo : `src/temp/memo-2026-08-27-double-boss-defi.md`.
+  Vérifs : **test:run 344/344** · **tsc 0** · **build OK** · eslint 0 erreur. Mémo : `src/temp/archive/memos/memo-2026-08-27-double-boss-defi.md`.
   ⚠️ **Migration** `20261006000000_add_defi_double_boss_resolution` (SQL manuel) — la base locale est en **drift** (`add_inter_guild`), ne pas faire `migrate dev` (reset), utiliser **`prisma migrate deploy`** en CI/prod. Merger **d'abord** la PR game-data-ui → dev (fichiers communs). ⚪ RESTE (non fait) : multi-défis DJ, annuaire « qui a fait / pas fait » par membre (compteur simple).
   ✨ **Modale Défi enrichie** : fenêtre d'événement (`isPermanent`/`startDate`/`endDate` sur `Defi`, migration `20261007000000_add_defi_event_schedule`) — toggle « Dispo en perpétuel » (défaut) ou dates début/fin (`datetime-local` + validation end>=start) ; **slug auto-généré** depuis le nom (`src/lib/defi-slug.ts`, module pur) ; **Zone en combobox** zones siphonnées (`searchZones`) ; **Boss en combobox** monstres Dofensive siphonnés (`searchMonstersForDefi`, plus de texte libre) ; fix **galerie** `game-data/defis` fail-soft (la route `list-local-images` crée le dossier au lieu de lever `ENOENT`).
 - **#223 — Résilience Discord long terme** (point dur **16/11/2026**)
@@ -500,7 +515,7 @@
   recherche Ressources : partie **dofusbook retirée** (dofusdb seul) · recette craft sans « Copier la liste » ni copie/quantité (nom seul) ·
   WS `/socket.io/*` : **fix CORS même-origine** (400 → temps réel OK) · bloc **« Tarifs Forgemagie » retiré** de la carte Métiers du profil ·
   **Sigil Bomb** : volume son appliqué, décompte 3s synchronisé, mort subite **pré-avertie** (~3 échanges) + nouveau réglage (on/off + nb d'échanges).
-  Vérifs : tsc 0 · eslint 0 · **340/340**. Mémo : `src/temp/memo-2026-08-26-fixes-console-ui-sigil-bomb.md`.
+  Vérifs : tsc 0 · eslint 0 · **340/340**. Mémo : `src/temp/archive/memos/memo-2026-08-26-fixes-console-ui-sigil-bomb.md`.
 
 
 ## 🟠 Bloc B — UX / Perf (valeur immédiate)

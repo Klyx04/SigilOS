@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isPublicLandingLabel } from "@/lib/landing-utils";
-import { groupIntoTabs } from "@/components/landing/product-story";
+import { isPublicLandingLabel, groupPublicScreens, findPublicScreen } from "@/lib/landing-utils";
 import type { PublicLandingScreen } from "@/server/actions/landing-screen-actions";
 
 function screen(id: string, label: string): PublicLandingScreen {
@@ -25,18 +24,30 @@ describe("landing — garde-fou des libellés God", () => {
         expect(isPublicLandingLabel("ab")).toBe(false);
     });
 
-    it("groupIntoTabs ne sort jamais un onglet de test", () => {
-        const tabs = groupIntoTabs([
+    it("groupPublicScreens ne sort jamais un groupe de test", () => {
+        const groups = groupPublicScreens([
             screen("1", "Guides"),
             screen("2", "test1"),
             screen("3", "Progression"),
         ]);
-        expect(tabs.map((t) => t.label)).toEqual(["Guides", "Progression"]);
+        expect(groups.map((g) => g.label)).toEqual(["Guides", "Progression"]);
     });
 
-    it("groupIntoTabs regroupe toujours par libellé partagé", () => {
-        const tabs = groupIntoTabs([screen("1", "Guides"), screen("2", "Guides")]);
-        expect(tabs).toHaveLength(1);
-        expect(tabs[0].images).toHaveLength(2);
+    it("groupPublicScreens regroupe toujours par libellé partagé", () => {
+        const groups = groupPublicScreens([screen("1", "Guides"), screen("2", "Guides")]);
+        expect(groups).toHaveLength(1);
+        expect(groups[0].images).toHaveLength(2);
+    });
+
+    it("findPublicScreen retient la première capture dont le libellé correspond", () => {
+        const screens = [screen("1", "Guides"), screen("2", "Sorties & groupes")];
+        expect(findPublicScreen(screens, /sortie|groupe/i)?.id).toBe("2");
+        expect(findPublicScreen(screens, /almanax/i)).toBeNull();
+    });
+
+    it("findPublicScreen ignore un écran sans image (God en cours d'upload)", () => {
+        const broken = { ...screen("9", "Sorties"), imageUrl: "" };
+        expect(findPublicScreen([broken], /sorties/i)).toBeNull();
     });
 });
+

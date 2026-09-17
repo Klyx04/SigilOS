@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { existsSync, statSync } from "node:fs";
+import path from "node:path";
 import {
   parseCoordinates,
   getSequenceCoord,
@@ -9,6 +11,7 @@ import {
   getMetierIconPath,
   resolveItemImage,
   getItemImageFallback,
+  RUSH_ACTIVITY_TAG_CONFIG,
 } from "@/lib/rush-guide-utils";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 
@@ -258,7 +261,45 @@ describe("rush-guide-utils", () => {
     it("normalise le nom de métier pour le chemin d'icône", () => {
       expect(getMetierIconPath("Façonneur")).toBe("/assets/rush-sylvestre/faconneur.png");
       expect(getMetierIconPath("Bûcheron")).toBe("/assets/rush-sylvestre/bucheron.png");
-      expect(getMetierIconPath()).toBe("/assets/rush-sylvestre/faconneur.png");
+      // Sans nom : picto générique « professions » du référentiel partagé.
+      expect(getMetierIconPath()).toBe("/assets/dofus-ui/pictos/metier.png");
+    });
+  });
+
+  describe("RUSH_ACTIVITY_TAG_CONFIG — pictos réellement servis", () => {
+    const entrees = Object.entries(RUSH_ACTIVITY_TAG_CONFIG);
+
+    it("chaque picto référencé existe dans public/ (aucun 404 silencieux)", () => {
+      const manquants = entrees
+        .filter(([, cfg]) => cfg.imagePath.startsWith("/"))
+        .filter(
+          ([, cfg]) =>
+            !existsSync(path.join(process.cwd(), "public", cfg.imagePath.replace(/^\//, "")))
+        )
+        .map(([type, cfg]) => `${type} → ${cfg.imagePath}`);
+      expect(manquants).toEqual([]);
+    });
+
+    it("reste dans le registre picto : moins de 64 Ko (jamais d'illustration)", () => {
+      const trop_lourds = entrees
+        .filter(([, cfg]) => cfg.imagePath.startsWith("/"))
+        .map(([type, cfg]) => [
+          type,
+          cfg.imagePath,
+          statSync(path.join(process.cwd(), "public", cfg.imagePath.replace(/^\//, ""))).size,
+        ] as const)
+        .filter(([, , taille]) => taille > 64 * 1024)
+        .map(([type, , taille]) => `${type} (${Math.round(taille / 1024)} Ko)`);
+      expect(trop_lourds).toEqual([]);
+    });
+
+    it("les pictos d'activité viennent tous du même dossier importé", () => {
+      const hors_dossier = entrees
+        .filter(([, cfg]) => cfg.imagePath.startsWith("/assets/"))
+        .filter(([, cfg]) => !cfg.imagePath.startsWith("/assets/dofus-ui/pictos/"))
+        .map(([type, cfg]) => `${type} → ${cfg.imagePath}`);
+      // Exception assumée : le solveur est un service externe (dofusdb).
+      expect(hors_dossier).toEqual(["solver → /assets/icons/dofusdb.png"]);
     });
   });
 

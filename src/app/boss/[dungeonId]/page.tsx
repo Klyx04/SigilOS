@@ -185,7 +185,7 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
   ];
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col bg-zinc-950 font-sans selection:bg-amber-500/30 landing-theme text-foreground">
+    <div className="registre relative min-h-screen w-full flex flex-col bg-background font-sans selection:bg-success/30 landing-theme text-foreground">
       <PublicHeader user={session?.user} activePage="boss" isMember={userContext.isMember} />
 
       <JsonLd id="json-ld-boss-detail" nonce={nonce} data={jsonLdData} />

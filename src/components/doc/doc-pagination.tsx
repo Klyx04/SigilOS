@@ -12,18 +12,19 @@ export function DocPagination({ prev, next }: { prev?: PageLink | null, next?: P
     if (!prev && !next) return null;
 
     return (
-        <div className="flex flex-col sm:flex-row gap-4 pt-12 mt-12 border-t border-border">
+        <nav
+            className="mt-10 flex flex-col gap-3 border-t border-border pt-6 sm:flex-row"
+            aria-label="Navigation dans la documentation"
+        >
             {prev ? (
                 <Link
                     href={`/docs/${prev.slug}`}
-                    className="flex-1 group flex flex-col items-start gap-2 p-6 rounded-2xl border border-border bg-surface hover:bg-surface hover:border-border transition-all"
+                    className="group flex flex-1 items-start gap-3 rounded-[4px] border border-border bg-surface p-4 transition-colors hover:border-border-strong hover:bg-elevated"
                 >
-                    <span className="flex items-center gap-1 text-xs font-black uppercase tracking-widest text-muted-foreground group-hover:text-info transition-colors">
-                        <ChevronLeft className="w-3 h-3" />
-                        Précédent
-                    </span>
-                    <span className="text-lg font-bold text-foreground group-hover:text-foreground transition-colors">
-                        {prev.title}
+                    <ChevronLeft className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <span className="min-w-0">
+                        <span className="block text-[11px] text-muted-foreground">Précédent</span>
+                        <span className="mt-0.5 block truncate text-[14px] font-semibold text-foreground">{prev.title}</span>
                     </span>
                 </Link>
             ) : (
@@ -33,19 +34,17 @@ export function DocPagination({ prev, next }: { prev?: PageLink | null, next?: P
             {next ? (
                 <Link
                     href={`/docs/${next.slug}`}
-                    className="flex-1 group flex flex-col items-end gap-2 p-6 rounded-2xl border border-border bg-surface hover:bg-surface hover:border-border transition-all text-right"
+                    className="group flex flex-1 items-start gap-3 rounded-[4px] border border-border bg-surface p-4 transition-colors hover:border-border-strong hover:bg-elevated"
                 >
-                    <span className="flex items-center gap-1 text-xs font-black uppercase tracking-widest text-muted-foreground group-hover:text-info transition-colors">
-                        Suivant
-                        <ChevronRight className="w-3 h-3" />
-                    </span>
-                    <span className="text-lg font-bold text-foreground group-hover:text-foreground transition-colors">
-                        {next.title}
+                    <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <span className="min-w-0">
+                        <span className="block text-[11px] text-muted-foreground">Suivant</span>
+                        <span className="mt-0.5 block truncate text-[14px] font-semibold text-foreground">{next.title}</span>
                     </span>
                 </Link>
             ) : (
                 <div className="flex-1" />
             )}
-        </div>
+        </nav>
     );
 }

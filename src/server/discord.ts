@@ -439,6 +439,76 @@ export async function fetchGuildBans(guildId: string) {
     }>;
 }
 
+/**
+ * Exécutant réel d'une action Discord (qui a banni/exclu/renommé : staff, membre
+ * lui-même ou bot tiers). Lit le journal d'audit du serveur — best-effort :
+ * `null` si permission manquante, aucune entrée, ou entrée trop ancienne.
+ * Jamais exposé tel quel : l'UI des guildes traduit/masque (pas de tech).
+ */
+export type DiscordAuditExecutor = { userId: string; username: string; isBot: boolean };
+
+/** action_type du journal d'audit Discord : 20 exclusion, 22 ban, 23 déban, 24 pseudo, 25 rôles. */
+export const DISCORD_AUDIT_ACTIONS = { KICK: 20, BAN_ADD: 22, BAN_REMOVE: 23, MEMBER_UPDATE: 24, ROLE_UPDATE: 25 } as const;
+
+function snowflakeAgeMs(id: string): number | null {
+    try {
+        const ts = Number((BigInt(id) >> 22n) + 1420070400000n);
+        if (!Number.isFinite(ts)) return null;
+        return Date.now() - ts;
+    } catch {
+        return null;
+    }
+}
+
+export async function fetchAuditExecutor(
+    guildId: string,
+    actionType: number,
+    targetId: string,
+    maxAgeMs = 7 * 24 * 60 * 60 * 1000
+): Promise<DiscordAuditExecutor | null> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return null;
+    if (!/^\d{15,21}$/.test(guildId) || !/^\d{15,21}$/.test(targetId)) return null;
+    if (!Number.isInteger(actionType) || actionType < 1 || actionType > 200) return null;
+    // Erreur technique (réseau, 403 sans la permission « Voir le journal d'audit ») :
+    // on THROW pour que l'appelant distingue « vérifié, personne » (null) de
+    // « vérification impossible » (throw) — jamais de fausse attribution.
+    const res = await fetchWithRetry(
+        `/api/v10/guilds/${guildId}/audit-logs?action_type=${actionType}&limit=10`,
+        { headers: { Authorization: `Bot ${token}` } }
+    );
+    if (!res.ok) throw new Error(`Journal d'audit indisponible (${res.status})`);
+    const data = (await res.json()) as {
+        audit_log_entries?: Array<{ id: string; target_id: string | null; user_id: string | null }>;
+        users?: Array<{ id: string; username: string; bot?: boolean }>;
+    };
+    const entries = (data.audit_log_entries ?? []).filter((e) => e.target_id === targetId);
+    if (entries.length === 0) return null;
+    entries.sort((a, b) => (a.id < b.id ? 1 : -1));
+    const entry = entries[0];
+    const age = snowflakeAgeMs(entry.id);
+    if (age === null || age < 0 || age > maxAgeMs) return null;
+    if (!entry.user_id) return null;
+    const user = (data.users ?? []).find((u) => u.id === entry.user_id);
+    if (!user) return null;
+    return { userId: user.id, username: user.username, isBot: !!user.bot };
+}
+
+/** Champs `metadata` d'audit pour tracer l'exécutant (famille bot + syncs, même forme). */
+export function executorMetadata(
+    exec: DiscordAuditExecutor | { userId: string; username: string; isBot: boolean } | null,
+    targetDiscordId?: string
+): { executorId?: string; executorTag?: string; executorIsBot?: boolean; executorIsSelf?: boolean } {
+    if (!exec) return {};
+    const meta: { executorId?: string; executorTag?: string; executorIsBot?: boolean; executorIsSelf?: boolean } = {
+        executorId: exec.userId,
+        executorTag: exec.username,
+    };
+    if (exec.isBot) meta.executorIsBot = true;
+    if (targetDiscordId && exec.userId === targetDiscordId) meta.executorIsSelf = true;
+    return meta;
+}
+
 export async function verifyGuildAccessibility(guildId: string): Promise<boolean> {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) return false;

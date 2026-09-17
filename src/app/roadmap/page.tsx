@@ -62,7 +62,7 @@ export default async function PublicRoadmapPage() {
     }, {} as Record<string, RoadmapItem[]>);
 
     return (
-        <div className="relative min-h-screen w-full flex flex-col bg-background font-sans selection:bg-warning/30 landing-theme">
+        <div className="registre landing-theme relative min-h-screen w-full flex flex-col bg-background font-sans selection:bg-success/30">
 
             <PublicHeader user={session?.user} activePage="roadmap" isMember={userContext.isMember} />
 

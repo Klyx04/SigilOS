@@ -2968,6 +2968,9 @@ export async function upsertRushMilestone(data: {
   chapterLabel: string;
   label: string;
   description?: string;
+  /** Image du bloc — disponible pour TOUS les types (immersion : elle se loge à
+   *  droite du bloc côté membre, servie nue, sans cadre). */
+  imageUrl?: string | null;
   accentColor?: string;
   isOptional?: boolean;
   order?: number;
@@ -3002,6 +3005,7 @@ export async function upsertRushMilestone(data: {
         chapterLabel,
         title: data.label,
         description: data.description,
+        imageUrl: data.imageUrl ?? null,
         accentColor,
         isOptional: data.isOptional ?? false,
         order: data.order ?? 0,
@@ -3026,6 +3030,7 @@ export async function upsertRushMilestone(data: {
         chapterLabel,
         title: data.label,
         description: data.description,
+        imageUrl: data.imageUrl ?? null,
         accentColor,
         isOptional: data.isOptional ?? false,
         order: data.order ?? maxOrder,

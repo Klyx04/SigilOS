@@ -324,6 +324,16 @@ export default async function DashboardLayout({
                                         {children}
                                     </Suspense>
                                 </div>
+
+                                {/* Pied de page compact — DANS la zone scrollable.
+                                    Placé en frère de la colonne principale, il devenait
+                                    un élément du `flex` racine (row) : il volait la largeur
+                                    du contenu et empilait le footer public dans l'espace de
+                                    guilde. Ici, il défile avec le contenu et reste masqué en
+                                    vue plein écran (règle `body.*-fullscreen .dashboard-footer`). */}
+                                <div className="dashboard-footer mt-10">
+                                    <GalacticFooterGate />
+                                </div>
                             </div>
                         </div>
                     </main>
@@ -361,10 +371,7 @@ export default async function DashboardLayout({
                     <OnboardingNextStepsModal guildId={guildId} />
                 )}
 
-                {/* 4. FLOATING FOOTER (Compact version) - hidden in game view */}
-                <div className="dashboard-footer">
-                    <GalacticFooterGate />
-                </div>
+                {/* 4. Pied de page compact — rendu dans la zone scrollable (voir plus haut) */}
 
                 {/* Forced Onboarding Wizard (Missing character pseudo, class or preferred activities) */}
                 {!user.isAdmin && (user.hasPseudoIssue || !user.classe || !user.hasPreferredActivities) && (

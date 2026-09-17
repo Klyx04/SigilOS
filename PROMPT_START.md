@@ -20,7 +20,7 @@
 📖 Ouvre l'historique SEULEMENT si nécessaire (jamais en plan mode par défaut) :
 - Contexte complet (point d'entrée/étape de chaque session) : @/CONTEXT.md.
 - Historique annoté complet (toutes demandes depuis 2026) : `src/temp/archive/contexte/chantier-historique-complet-2026-08-21.md`.
-- Mémo/amorce #223 résilience Discord : `src/temp/memo-2026-08-21-resilience-discord.md`
+- Mémo/amorce #223 résilience Discord : `src/temp/archive/memos/memo-2026-08-21-resilience-discord.md`
   + `src/temp/prompt-next-chantier-2026-08-21-resilience-discord.md` (à ouvrir si la session touche Discord).
 
 🔒 Exigences systématiques (état de l'art) :
@@ -111,4 +111,4 @@ vérifier l'impact multi-tenant (guildId), jamais de breaking sans rollback poss
 
 *— Bonus : cette fiche vit à la racine (`PROMPT_START.md`) et est volontairement courte. Le vrai contenu détaillé est dans CONTEXT.md, RULES.md, SECURITY.md, MAINTENANCE.md, docs/SEO_REPRISE.md et la mémo de session `src/temp/memo-*.md`.*
 
-> ⚠️ **Tours admin** : toute modif des tutos → lire d'abord `src/temp/memo-2026-08-08-tours-admin.md` (phases, `data-tour` stables, maintenance).
+> ⚠️ **Tours admin** : toute modif des tutos → lire d'abord `src/temp/archive/memos/memo-2026-08-08-tours-admin.md` (phases, `data-tour` stables, maintenance).

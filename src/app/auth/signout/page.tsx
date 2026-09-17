@@ -4,9 +4,31 @@ import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { LogOut, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { AutoSignOut } from "./_components/auto-sign-out";
 
+/**
+ * Confirmation de déconnexion — registre.
+ *
+ * Les textes sont inchangés ; seule la présentation revient dans la couche
+ * `.reg-*`.
+ *
+ * Ce qui a été retiré volontairement :
+ *  - la carte centrée `bg-zinc-950 rounded-3xl border-white/10 p-10` (fond noir
+ *    en dur, thème clair cassé) et sa tuile d'icône `w-20 h-20 rounded-2xl
+ *    bg-white/5` ;
+ *  - le `text-white` du titre, le `text-zinc-400` du paragraphe, le
+ *    `text-emerald-400` codé en dur de l'icône et le `text-zinc-500
+ *    hover:bg-white/5` de l'action secondaire ;
+ *  - les deux boutons pleine largeur `h-14 rounded-2xl font-black text-lg`
+ *    (`bg-white text-black`, `active:scale-95`, `transition-all`), et la
+ *    propriété `shadow` implicite des `Button` du design system ;
+ *  - le `w-full min-h-[300px] flex flex-col items-center justify-center` de la
+ *    carte : il n'existait que pour centrer deux boutons côte à côte.
+ *
+ * À la place : colonne de lecture `.reg-shell` alignée à gauche, une seule
+ * action principale `.reg-btn-primary` (le `<form>` reste la frontière serveur
+ * qui appelle `signOut`) et l'action secondaire en lien souligné `.reg-link`.
+ */
 export default async function SignOutPage({
     searchParams
 }: {
@@ -24,53 +46,42 @@ export default async function SignOutPage({
     const isAutoSignOut = reason === "token_expired";
 
     return (
-        <div className="min-h-screen bg-black text-white selection:bg-accent-teal/30 font-sans flex flex-col relative overflow-hidden landing-theme">
+        <div className="registre landing-theme min-h-screen flex flex-col bg-background text-foreground selection:bg-success/30">
             <PublicHeader user={session.user} variant="standard" backHref="/" backLabel="Retour" />
 
-            <main className="flex-1 flex items-center justify-center p-4 relative z-10 pt-20">
-                <div className="max-w-md w-full">
-                    <div className="relative bg-zinc-950 border border-white/10 rounded-3xl p-10 text-center overflow-hidden min-h-[300px] flex flex-col items-center justify-center">
+            <main className="flex-1">
+                <div className="reg-shell py-10 lg:py-16">
+                    <div className="max-w-[34rem]">
                         {isAutoSignOut ? (
                             <AutoSignOut redirectTo="/login?info=session_expired" />
                         ) : (
                             <>
-                                <div className="w-20 h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-8">
-                                    <LogOut className="w-10 h-10 text-emerald-400" />
-                                </div>
-
-                                <h1 className="text-3xl font-black text-white mb-4 tracking-tighter">
+                                <h1 className="flex items-center gap-3 text-[clamp(1.6rem,2.8vw,2rem)] font-bold tracking-tight text-foreground">
+                                    <LogOut className="h-6 w-6 shrink-0 text-muted-foreground" aria-hidden="true" />
                                     Confirmation de déconnexion
                                 </h1>
-                                <p className="text-zinc-400 font-medium mb-10 leading-relaxed text-lg">
+                                <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
                                     Êtes-vous sûr de vouloir quitter votre session SigilOS ? Tous vos accès sécurisés seront réinitialisés.
                                 </p>
 
-                                <div className="flex flex-col gap-4 w-full">
-                                    <form
-                                        action={async () => {
-                                            "use server";
-                                            await signOut({ redirectTo: "/" });
-                                        }}
-                                    >
-                                        <Button
-                                            type="submit"
-                                            className="w-full h-14 bg-white text-black hover:bg-zinc-200 font-black text-lg rounded-2xl transition-colors active:scale-95"
-                                        >
-                                            Se déconnecter
-                                        </Button>
-                                    </form>
+                                <form
+                                    className="mt-6"
+                                    action={async () => {
+                                        "use server";
+                                        await signOut({ redirectTo: "/" });
+                                    }}
+                                >
+                                    <button type="submit" className="reg-btn reg-btn-primary">
+                                        Se déconnecter
+                                    </button>
+                                </form>
 
-                                    <Button
-                                        asChild
-                                        variant="ghost"
-                                        className="w-full h-14 text-zinc-500 hover:text-white hover:bg-white/5 font-bold rounded-2xl transition-all"
-                                    >
-                                        <Link href="/dashboard" className="flex items-center justify-center gap-2">
-                                            <ArrowLeft className="w-4 h-4" />
-                                            Annuler et retourner au QG
-                                        </Link>
-                                    </Button>
-                                </div>
+                                <p className="mt-5">
+                                    <Link href="/dashboard" className="reg-link inline-flex items-center gap-2">
+                                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                                        Annuler et retourner au QG
+                                    </Link>
+                                </p>
                             </>
                         )}
                     </div>

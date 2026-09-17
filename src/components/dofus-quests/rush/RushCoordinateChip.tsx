@@ -54,18 +54,19 @@ export function RushCoordinateChip({
       title={`Cliquer pour copier ${parsed.travelCommand}`}
       aria-label={`Copier la commande ${parsed.travelCommand}`}
       className={cn(
-        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-mono text-[11px] font-bold transition-all duration-150 cursor-pointer select-none",
-        "bg-elevated hover:bg-elevated text-muted-foreground hover:text-foreground border border-border hover:border-info/30 shadow-sm",
-        "focus-visible:outline-2 focus-visible:outline-info focus-visible:outline-offset-1",
+        "inline-flex cursor-pointer select-none items-center gap-1.5 rounded-[3px] border border-border bg-surface px-1.5 py-0.5",
+        "font-mono text-[11px] font-semibold tabular-nums text-muted-foreground transition-colors",
+        "hover:border-border-strong hover:text-foreground",
+        "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
         className
       )}
     >
-      {showIcon && <MapPin className="w-3 h-3 text-muted-foreground shrink-0" />}
+      {showIcon && <MapPin className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />}
       <span>{parsed.raw}</span>
       {copied ? (
-        <Check className="w-3 h-3 text-success shrink-0 animate-in zoom-in-50 duration-150" />
+        <Check className="h-3 w-3 shrink-0 text-success" aria-hidden="true" />
       ) : (
-        <Copy className="w-3 h-3 text-muted-foreground/60 shrink-0" />
+        <Copy className="h-3 w-3 shrink-0 text-subtle-foreground" aria-hidden="true" />
       )}
     </button>
   );

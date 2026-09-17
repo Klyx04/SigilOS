@@ -51,7 +51,13 @@ export function getItemImageFallback(id?: string | number | null, imageUrl?: str
 }
 
 /**
- * Métadonnées graphiques des tags d'activité Rush Sylvestre
+ * Métadonnées graphiques des tags d'activité Rush Sylvestre.
+ *
+ * Pictos : ce sont les pictos RÉELS du jeu (art Ankama coloré), importés par
+ * `src/temp/refonte-guide-sylvestre/import-dofus-pictos.mjs` vers
+ * `public/assets/dofus-ui/pictos/`. Les masques blancs de `icons_assets_*` sont
+ * volontairement écartés : invisibles en thème clair. `imagePath` est la source
+ * unique — vue publique, overlay et GOD le lisent ici.
  */
 export const RUSH_ACTIVITY_TAG_CONFIG: Record<
   string,
@@ -60,52 +66,57 @@ export const RUSH_ACTIVITY_TAG_CONFIG: Record<
   combat_tactique: {
     label: "Combat Tactique",
     color: "#ef4444",
-    imagePath: "/assets/rush-sylvestre/combat-tactique.png",
+    imagePath: "/assets/dofus-ui/pictos/combat-tactique.png",
   },
   combat_vagues: {
     label: "Combat à vagues",
     color: "#3b82f6",
-    imagePath: "/assets/rush-sylvestre/combat-vagues.png",
+    imagePath: "/assets/dofus-ui/pictos/combat-vagues.png",
   },
   songes: {
     label: "Songes",
     color: "#8b5cf6",
-    imagePath: "/assets/rush-sylvestre/songes.png",
+    imagePath: "/assets/dofus-ui/pictos/songes.png",
   },
   combat_solo: {
     label: "Combat Solo",
     color: "#f43f5e",
-    imagePath: "/assets/rush-sylvestre/combat-solo.png",
+    imagePath: "/assets/dofus-ui/pictos/combat-solo.png",
   },
   combat_plusieurs: {
     label: "Combat à plusieurs",
     color: "#a855f7",
-    imagePath: "/assets/rush-sylvestre/combat-plusieurs.png",
+    imagePath: "/assets/dofus-ui/pictos/combat-plusieurs.png",
   },
   plusieurs_personnes: {
     label: "Multi joueurs",
     color: "#10b981",
-    imagePath: "/assets/rush-sylvestre/plusieurs-personnes.png",
+    imagePath: "/assets/dofus-ui/pictos/plusieurs-personnes.png",
   },
   contrainte_horaire: {
     label: "Horaire Spécifique",
     color: "#f59e0b",
-    imagePath: "/assets/rush-sylvestre/contrainte-horaire.png",
+    imagePath: "/assets/dofus-ui/pictos/contrainte-horaire.png",
   },
   donjon: {
     label: "Donjon requis",
     color: "#3b82f6",
-    imagePath: "/assets/rush-sylvestre/donjon.png",
+    imagePath: "/assets/dofus-ui/pictos/donjon.png",
   },
   sort: {
     label: "Sort requis",
     color: "#ec4899",
-    imagePath: "/assets/rush-sylvestre/sort.png",
+    imagePath: "/assets/dofus-ui/pictos/sort.png",
   },
   metier: {
     label: "Métier requis",
     color: "#eab308",
-    imagePath: "/assets/rush-sylvestre/faconneur.png",
+    imagePath: "/assets/dofus-ui/pictos/metier.png",
+  },
+  quest_group: {
+    label: "À faire ensemble",
+    color: "#f59e0b",
+    imagePath: "/assets/dofus-ui/pictos/plusieurs-personnes.png",
   },
   solver: {
     label: "Solver",
@@ -115,10 +126,14 @@ export const RUSH_ACTIVITY_TAG_CONFIG: Record<
 };
 
 /**
- * Normalise le chemin d'icône pour un métier donné
+ * Normalise le chemin d'icône pour un métier donné.
+ * Les pictos de métier (art Ankama 64×64, un par profession) vivent dans
+ * `public/assets/rush-sylvestre/` ; sans nom, on retombe sur le picto générique
+ * « professions » du référentiel partagé (haches croisées), pas sur un métier
+ * particulier.
  */
 export function getMetierIconPath(metierName?: string): string {
-  if (!metierName) return "/assets/rush-sylvestre/faconneur.png";
+  if (!metierName) return RUSH_ACTIVITY_TAG_CONFIG.metier.imagePath;
   const normalized = metierName
     .toLowerCase()
     .normalize("NFD")

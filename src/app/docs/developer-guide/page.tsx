@@ -81,13 +81,13 @@ export default function DevGuidePage() {
         <div className="max-w-4xl">
             <DocContent content={DEV_GUIDE_CONTENT} />
 
-            <div className="not-prose flex gap-4 mt-8">
-                <button className="px-6 py-3 bg-info/20 border border-info/30 text-info rounded-2xl font-bold hover:bg-info/30 transition-all ">
+            <div className="not-prose mt-8 flex flex-wrap gap-3">
+                <button className="rounded-[4px] border border-info/30 bg-info/10 px-4 py-2 text-[13px] font-semibold text-info transition-colors hover:bg-info/20">
                     Bouton Exemple
                 </button>
-                <div className="px-6 py-3 bg-surface text-muted-foreground rounded-2xl border border-border font-bold">
+                <span className="rounded-[4px] border border-border bg-surface px-4 py-2 text-[13px] text-muted-foreground">
                     Badge Elite
-                </div>
+                </span>
             </div>
         </div>
     );

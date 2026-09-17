@@ -4,12 +4,26 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import {
-  Maximize2,
-  ExternalLink,
-  Map as MapIcon,
-  ChevronRight,
-} from "lucide-react";
+import { Maximize2, ExternalLink } from "lucide-react";
+
+/**
+ * Carte du monde — page publique (registre).
+ *
+ * Ce qui a été retiré : le badge pilule « 🗺 DOFUS UNITY — 100% GRATUIT », le
+ * titre en `font-black` avec « Dofus Unity » en dégradé `bg-clip-text`, l'orbe
+ * `blur-[120px]`, les calques de dégradés de fond, les six cartes `rounded-2xl`
+ * à ombre, les tuiles d'icônes `bg-black/50 border-white/10` et les boutons
+ * `bg-gradient-to-r … shadow-lg active:scale-95`.
+ *
+ * Ce qui a été conservé, volontairement : les assets Dofus. Un asset du jeu
+ * n'est pas du décor — c'est une référence au produit (zaap, boss, récolte,
+ * carte au trésor) et il porte de l'information. Ils vivent désormais en colonne
+ * « Repère » d'un tableau, à côté du libellé qui les explique (`alt` vide : ils
+ * illustrent un texte déjà écrit).
+ *
+ * Aperçu Astrub : gardé, avec sa légende sous l'image au lieu d'un badge
+ * superposé, et sans voile noir au survol.
+ */
 
 // Chargement dynamique (Leaflet ne peut pas être SSR)
 const MapViewer = dynamic(
@@ -104,181 +118,176 @@ export function WorldmapLandingPublicClient({
     );
   }
 
-  // Mode landing SEO
+  // Mode page publique
   return (
-    <div className="relative overflow-hidden">
-      {/* Gradient de fond décoratif */}
-      <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 via-transparent to-emerald-500/5 pointer-events-none" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[400px] bg-teal-500/5 rounded-full blur-[120px] pointer-events-none" />
-
-      {/* Hero */}
-      <section className="relative px-4 pt-16 pb-10 md:pt-24 md:pb-16 max-w-7xl mx-auto">
-        <div className="flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
-          {/* Texte hero */}
-          <div className="flex-1 flex flex-col gap-6 text-center lg:text-left">
-            <div className="inline-flex items-center gap-2 self-center lg:self-start px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-xs font-bold uppercase tracking-widest">
-              <MapIcon className="h-3.5 w-3.5" />
-              Dofus Unity — 100% Gratuit
-            </div>
-
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-foreground leading-[1.1]">
-              Carte du Monde{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-400">
-                Dofus Unity
-              </span>{" "}
-              Interactive
-            </h1>
-
-            <p className="text-base md:text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto lg:mx-0">
-              Naviguez sur tous les mondes du jeu en tuiles haute définition. Retrouvez instantanément
-              zaaps, donjons, archimonstres, ressources à récolter et passages secrets — sans compte, sans
-              inscription.
-            </p>
-
-            {/* CTA */}
-            <div className="flex flex-col sm:flex-row items-center gap-3 justify-center lg:justify-start">
-              <button
-                id="btn-open-fullscreen"
-                onClick={() => setShowMap(true)}
-                className="inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-bold px-6 py-3.5 text-base hover:from-teal-400 hover:to-emerald-400 transition-all shadow-lg shadow-teal-500/25 active:scale-95 cursor-pointer"
+    <>
+      <section className="reg-section reg-section-tight" aria-labelledby="carte-titre">
+        <div className="reg-shell">
+          <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] lg:items-start lg:gap-12">
+            <div>
+              <h1
+                id="carte-titre"
+                className="max-w-[30ch] text-[clamp(1.75rem,3.2vw,2.5rem)] font-bold leading-[1.12] tracking-tight text-foreground"
               >
-                <Maximize2 className="h-5 w-5" />
-                Ouvrir la carte en plein écran
-              </button>
-              <button
-                id="btn-open-overlay"
-                onClick={handleOpenOverlay}
-                className="inline-flex items-center gap-2.5 rounded-xl bg-surface border border-border hover:border-border-strong text-foreground font-semibold px-5 py-3.5 text-base transition-all active:scale-95 cursor-pointer"
-              >
-                <ExternalLink className="h-5 w-5 text-sky-400" />
-                Ouvrir l&apos;overlay
-              </button>
-            </div>
+                Carte du monde Dofus Unity interactive
+              </h1>
+              <p className="mt-4 max-w-[62ch] text-base text-muted-foreground leading-relaxed">
+                Naviguez sur tous les mondes du jeu en tuiles haute définition. Retrouvez instantanément
+                zaaps, donjons, archimonstres, ressources à récolter et passages secrets — sans compte, sans
+                inscription.
+              </p>
 
-            <p className="text-xs text-muted-foreground/60">
-              La croix ferme le plein écran et vous ramène ici. L&apos;overlay s&apos;ouvre dans une petite fenêtre indépendante.
-            </p>
-          </div>
-
-          {/* Aperçu HD */}
-          <div className="w-full lg:w-[48%] xl:w-[52%] shrink-0">
-            <div
-              className="relative rounded-2xl overflow-hidden border border-border shadow-2xl cursor-pointer group"
-              onClick={() => setShowMap(true)}
-              title="Cliquer pour ouvrir la carte interactive"
-            >
-              <Image
-                src="/assets/worldmap/astrub-apercu.webp"
-                alt="Aperçu HD de la carte du monde Dofus Unity — la cité d'Astrub"
-                width={900}
-                height={540}
-                priority
-                className="w-full object-cover aspect-[5/3] group-hover:scale-[1.02] transition-transform duration-500"
-              />
-              {/* Overlay au survol */}
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-500 text-white font-bold text-sm shadow-lg">
-                  <Maximize2 className="h-4 w-4" />
-                  Ouvrir la carte interactive
-                </span>
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                <button
+                  id="btn-open-fullscreen"
+                  type="button"
+                  onClick={() => setShowMap(true)}
+                  className="reg-btn reg-btn-primary"
+                >
+                  <Maximize2 className="h-4 w-4" aria-hidden="true" />
+                  Ouvrir la carte en plein écran
+                </button>
+                <button
+                  id="btn-open-overlay"
+                  type="button"
+                  onClick={handleOpenOverlay}
+                  className="reg-btn reg-btn-secondary"
+                >
+                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                  Ouvrir l&apos;overlay
+                </button>
               </div>
-              <span className="absolute left-3 bottom-3 px-2.5 py-1 rounded-lg text-xs font-semibold bg-black/70 text-zinc-100 border border-white/10">
-                Astrub — tuiles HD
-              </span>
+
+              <p className="mt-4 text-xs text-muted-foreground">
+                La croix ferme le plein écran et vous ramène ici. L&apos;overlay s&apos;ouvre dans une petite fenêtre indépendante.
+              </p>
             </div>
+
+            {/* Aperçu HD — asset conservé, légende sous l'image au lieu d'un badge superposé. */}
+            <figure className="m-0">
+              <button
+                type="button"
+                onClick={() => setShowMap(true)}
+                className="reg-screen block w-full cursor-pointer"
+                aria-label="Ouvrir la carte interactive depuis l'aperçu d'Astrub"
+              >
+                <Image
+                  src="/assets/worldmap/astrub-apercu.webp"
+                  alt="Aperçu HD de la carte du monde Dofus Unity — la cité d'Astrub"
+                  width={900}
+                  height={540}
+                  priority
+                  className="aspect-[5/3] w-full object-cover"
+                />
+              </button>
+              <figcaption className="mt-2 text-xs text-muted-foreground">Astrub — tuiles HD</figcaption>
+            </figure>
           </div>
         </div>
       </section>
 
-      {/* Grille de fonctionnalités */}
-      <section className="px-4 py-12 md:py-16 max-w-7xl mx-auto">
-        <div className="text-center mb-10">
-          <h2 className="text-2xl md:text-3xl font-black text-foreground tracking-tight mb-3">
+      {/* Couches de la carte — un tableau, pas une grille de cartes. */}
+      <section className="reg-section" aria-labelledby="carte-couches-titre">
+        <div className="reg-shell">
+          <h2
+            id="carte-couches-titre"
+            className="text-[clamp(1.25rem,2vw,1.5rem)] font-bold tracking-tight text-foreground"
+          >
             Tout ce dont vous avez besoin
           </h2>
-          <p className="text-muted-foreground max-w-xl mx-auto text-sm md:text-base">
+          <p className="mt-3 max-w-[68ch] text-sm text-muted-foreground leading-relaxed">
             Une carte complète, interactive et en haute définition, disponible gratuitement pour tous les
             joueurs Dofus Unity.
           </p>
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
-          {FEATURES.map((f) => (
-            <div
-              key={f.title}
-              className="group rounded-2xl border border-border/80 bg-surface/50 p-6 flex flex-col gap-4 hover:border-teal-500/40 hover:bg-surface/80 transition-all shadow-md"
-            >
-              <div className="flex items-center justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-black/50 border border-white/10 flex items-center justify-center p-2 shrink-0 group-hover:border-teal-500/40 group-hover:bg-teal-500/10 transition-all shadow-inner">
-                  <img
-                    src={f.image}
-                    alt={f.title}
-                    className="w-8 h-8 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] group-hover:scale-110 transition-transform duration-300"
-                  />
-                </div>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-muted-foreground group-hover:text-teal-300 group-hover:border-teal-500/30 transition-colors">
-                  {f.tag}
-                </span>
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-foreground mb-1.5 group-hover:text-teal-400 transition-colors">
-                  {f.title}
-                </h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {f.text}
-                </p>
-              </div>
-            </div>
-          ))}
+          <div className="mt-8 overflow-x-auto">
+            <table className="reg-table">
+              <thead>
+                <tr>
+                  <th scope="col" className="w-[16rem]">Repère</th>
+                  <th scope="col" className="hidden w-[11rem] sm:table-cell">Couche</th>
+                  <th scope="col">Ce que la carte montre</th>
+                </tr>
+              </thead>
+              <tbody>
+                {FEATURES.map((feature) => (
+                  <tr key={feature.title}>
+                    <th
+                      scope="row"
+                      className="border-b border-border py-[0.85rem] pr-4 text-left align-top text-sm font-semibold normal-case tracking-normal text-foreground"
+                    >
+                      <span className="flex items-start gap-3">
+                        <Image
+                          src={feature.image}
+                          alt=""
+                          width={22}
+                          height={22}
+                          aria-hidden="true"
+                          className="mt-0.5 h-[22px] w-[22px] shrink-0 object-contain"
+                        />
+                        <span>{feature.title}</span>
+                      </span>
+                    </th>
+                    <td className="hidden text-xs text-muted-foreground sm:table-cell">{feature.tag}</td>
+                    <td className="text-sm text-muted-foreground">{feature.text}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 
       {/* CTA bas de page */}
-      <section className="px-4 py-12 max-w-4xl mx-auto text-center">
-        <div className="rounded-2xl border border-border bg-card/60 p-8 md:p-12 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-emerald-500/5 pointer-events-none" />
-          <h2 className="text-xl md:text-2xl font-black text-foreground mb-3 relative">
-            Prêt à explorer le monde des Douze ?
-          </h2>
-          <p className="text-muted-foreground text-sm mb-6 relative max-w-md mx-auto">
-            La carte est entièrement gratuite. Pas de compte requis. Ouvrez-la directement ou en overlay
-            par-dessus votre client de jeu.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 relative">
-            <button
-              id="btn-open-fullscreen-bottom"
-              onClick={() => setShowMap(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-bold px-6 py-3 text-sm hover:from-teal-400 hover:to-emerald-400 transition-all shadow-lg shadow-teal-500/25 active:scale-95 cursor-pointer"
+      <section className="reg-section reg-section-tight" aria-labelledby="carte-cta-titre">
+        <div className="reg-shell">
+          <div className="reg-panel p-6 md:p-8">
+            <h2
+              id="carte-cta-titre"
+              className="text-[clamp(1.25rem,2vw,1.5rem)] font-bold tracking-tight text-foreground"
             >
-              <Maximize2 className="h-4 w-4" />
-              Ouvrir en plein écran
-            </button>
-            <button
-              id="btn-open-overlay-bottom"
-              onClick={handleOpenOverlay}
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface hover:border-border-strong text-foreground font-semibold px-5 py-3 text-sm transition-all active:scale-95 cursor-pointer"
-            >
-              <ExternalLink className="h-4 w-4 text-sky-400" />
-              Overlay détachable
-            </button>
+              Prêt à explorer le monde des Douze ?
+            </h2>
+            <p className="mt-3 max-w-[62ch] text-sm text-muted-foreground leading-relaxed">
+              La carte est entièrement gratuite. Pas de compte requis. Ouvrez-la directement ou en overlay
+              par-dessus votre client de jeu.
+            </p>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <button
+                id="btn-open-fullscreen-bottom"
+                type="button"
+                onClick={() => setShowMap(true)}
+                className="reg-btn reg-btn-primary"
+              >
+                <Maximize2 className="h-4 w-4" aria-hidden="true" />
+                Ouvrir en plein écran
+              </button>
+              <button
+                id="btn-open-overlay-bottom"
+                type="button"
+                onClick={handleOpenOverlay}
+                className="reg-btn reg-btn-secondary"
+              >
+                <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                Overlay détachable
+              </button>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Lien SigilOS */}
-      <section className="px-4 pb-10 max-w-4xl mx-auto text-center">
-        <p className="text-xs text-muted-foreground/60">
-          Vous êtes chef de guilde Dofus Unity ?{" "}
-          <Link
-            href="/guilds"
-            className="text-teal-400 hover:text-teal-300 inline-flex items-center gap-1 font-semibold transition-colors"
-          >
-            Rejoignez SigilOS
-            <ChevronRight className="h-3 w-3" />
-          </Link>{" "}
-          pour accéder au suivi de succès, dungeon finder, calendrier de guilde et bien plus.
-        </p>
+      <section className="pb-12">
+        <div className="reg-shell">
+          <p className="text-xs text-muted-foreground">
+            Vous êtes chef de guilde Dofus Unity ?{" "}
+            <Link href="/guilds" className="reg-link">
+              Rejoignez SigilOS
+            </Link>{" "}
+            pour accéder au suivi de succès, dungeon finder, calendrier de guilde et bien plus.
+          </p>
+        </div>
       </section>
-    </div>
+    </>
   );
 }

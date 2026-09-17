@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { JsonLd } from "@/components/shared/json-ld";
-import { AuroraBackground } from "@/components/ui/aurora-background";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { auth } from "@/auth";
@@ -78,17 +77,11 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
     const nonce = headersList.get('x-nonce') ?? '';
 
     return (
-        <div className="relative min-h-screen w-full flex flex-col bg-zinc-950 font-sans selection:bg-teal-500/30 landing-theme">
-            <AuroraBackground className="fixed inset-0 z-0 pointer-events-none opacity-30" />
-            <div className="fixed inset-0 z-0 pointer-events-none">
-                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/10 rounded-full blur-[120px] animate-pulse-slow" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-500/10 rounded-full blur-[100px] animate-pulse-slow delay-1000" />
-            </div>
-
+        <div className="registre min-h-screen w-full flex flex-col bg-background text-foreground">
             <PublicHeader user={session?.user} activePage="guides" isMember={userContext.isMember} />
 
-            <main className="flex-1 pt-32 pb-16 relative z-10">
-                <div className="max-w-4xl mx-auto px-4 sm:px-6">
+            <main className="flex-1">
+                <div className="reg-shell py-10 lg:py-14">
                     <JsonLd
                         id="json-ld-guide-article"
                         nonce={nonce}
@@ -116,36 +109,37 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
                         ]}
                     />
 
-                    <div className="mb-6">
-                        <Link href="/guides" className="inline-flex items-center gap-2 text-xs font-bold text-zinc-400 hover:text-zinc-100 transition-colors bg-zinc-900/60 border border-zinc-800 px-3.5 py-1.5 rounded-full backdrop-blur-md">
+                    <nav aria-label="Fil d'Ariane" className="mb-6">
+                        <Link href="/guides" className="reg-link-quiet text-sm">
                             ← Tous les guides
                         </Link>
-                    </div>
+                    </nav>
 
                     <article>
-                        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-zinc-900/90 via-zinc-950/80 to-zinc-900/90 border border-white/10 p-8 sm:p-10 mb-10 shadow-2xl backdrop-blur-xl">
-                            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-transparent to-amber-500/10 pointer-events-none" />
-                            <div className="relative z-10">
-                                <div className="flex flex-wrap items-center gap-2 mb-4">
-                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-widest">
-                                        {meta.category ?? "Guide"}
-                                    </span>
-                                    {meta.readingTime && (
-                                        <span className="text-xs font-medium text-zinc-400 bg-white/5 border border-white/10 px-2.5 py-1 rounded-full">
-                                            ⏱️ {meta.readingTime} de lecture
-                                        </span>
-                                    )}
-                                </div>
-                                <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight">
-                                    {meta.title}
-                                </h1>
-                                <div className="flex items-center gap-2 mt-4 text-xs font-medium text-zinc-400">
-                                    Mis à jour le {new Date(meta.updatedAt).toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" })}
-                                </div>
-                            </div>
-                        </div>
+                        <header>
+                            <p className="reg-eyebrow">{meta.category ?? "Guide"}</p>
+                            <h1 className="mt-3 max-w-[38ch] text-[clamp(1.75rem,3.2vw,2.4rem)] font-bold leading-[1.12] tracking-tight text-foreground">
+                                {meta.title}
+                            </h1>
+                            <p className="reg-mono mt-3 text-xs text-muted-foreground">
+                                {meta.readingTime ? `${meta.readingTime} de lecture · ` : ""}
+                                Mis à jour le{" "}
+                                {new Date(meta.updatedAt).toLocaleDateString("fr-FR", {
+                                    year: "numeric",
+                                    month: "long",
+                                    day: "numeric",
+                                })}
+                            </p>
+                            {meta.description && (
+                                <p className="mt-4 max-w-[68ch] text-sm text-muted-foreground leading-relaxed">
+                                    {meta.description}
+                                </p>
+                            )}
+                        </header>
 
-                        <DocContent content={content.body} />
+                        <div className="mt-10 max-w-[74ch]">
+                            <DocContent content={content.body} />
+                        </div>
                     </article>
                 </div>
             </main>

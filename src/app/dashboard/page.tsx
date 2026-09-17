@@ -2,83 +2,29 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/prisma";
 import Link from "next/link";
-import { ChevronRight, Shield, PlusCircle, LayoutDashboard, Crown, Star, Hourglass } from "lucide-react";
+import { ChevronRight, PlusCircle, Hourglass } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { GuildSetupCard } from "@/components/guild-setup-card";
 import { NoGuildMessage } from "@/components/no-guild-message";
-import { GlassPanel } from "@/components/ui/glass-panel";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { PublicHeader } from "@/components/layout/public-header";
-import { loginWithDiscord } from "@/server/actions/auth-actions";
-import Image from "next/image";
-
-type GuildData = {
-    id: string;
-    name: string;
-    icon: string | null;
-    isAdmin: boolean;
-};
-
-import { unstable_cache } from "next/cache";
-
 import { getGuildsSeparated } from "@/server/actions/user-actions";
 
 export default async function GuildSelectorPage() {
     const session = await auth();
-    // Non connecté → page de connexion sobre (bouton Discord + rappel CGU),
-    // au lieu d'un retour silencieux vers la landing. Le reste du routing
-    // est inchangé : 1 guilde → redirect direct, N → choix, 0 → NoGuildMessage.
+
+    // Visiteur non connecté : cette route n'a plus d'écran dédié. L'ancien
+    // « Bon retour » faisait doublon avec le bouton Connexion de l'en-tête.
+    // Le bouton « Tableau de bord » de l'en-tête déclenche directement
+    // l'authentification Discord et revient ici une fois connecté ; un accès
+    // direct sans session repart donc vers la landing.
     if (!session?.user?.id) {
-        return (
-            <div className="relative min-h-screen w-full overflow-hidden flex flex-col bg-background font-sans landing-theme">
-                <PublicHeader user={undefined} dashboardHref="/dashboard" isMember={false} clientId="" />
-                <main className="flex-1 flex flex-col items-center justify-center p-4 relative z-10 pt-24 pb-24">
-                    <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-8 text-center space-y-6">
-                        <div className="mx-auto w-16 h-16 relative">
-                            <Image
-                                src="/assets/ui/logo-v2.png"
-                                alt="SigilOS"
-                                fill
-                                className="object-contain"
-                                priority
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                                Bon retour
-                            </h1>
-                            <p className="text-sm text-muted-foreground leading-relaxed">
-                                Connecte-toi pour accéder à ton tableau de bord.
-                            </p>
-                        </div>
-                        <form action={loginWithDiscord}>
-                            <button
-                                type="submit"
-                                className="w-full inline-flex items-center justify-center gap-2.5 h-12 px-6 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-sm cursor-pointer"
-                            >
-                                Se connecter avec Discord
-                            </button>
-                        </form>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                            En te connectant, tu acceptes nos{" "}
-                            <Link href="/legal/cgu" className="underline underline-offset-2 hover:text-foreground">
-                                Conditions d&apos;Utilisation
-                            </Link>{" "}
-                            et notre{" "}
-                            <Link href="/legal/privacy" className="underline underline-offset-2 hover:text-foreground">
-                                Politique de Confidentialité
-                            </Link>
-                            .
-                        </p>
-                    </div>
-                </main>
-                <GalacticFooter isMember={false} />
-            </div>
-        );
+        redirect("/");
     }
 
     const { active, pending, awaiting, rateLimited, needsReconnect } = await getGuildsSeparated();
+
     const clientId = process.env.DISCORD_CLIENT_ID || process.env.AUTH_DISCORD_ID || "";
     const platformCfg = await db.platformConfig.findUnique({
         where: { id: "singleton" },
@@ -101,7 +47,7 @@ export default async function GuildSelectorPage() {
     const isEmpty = active.length === 0 && pending.length === 0 && awaiting.length === 0;
 
     return (
-        <div className="relative min-h-screen w-full overflow-hidden flex flex-col bg-background font-sans selection:bg-accent-teal/30 landing-theme">
+        <div className="registre min-h-screen flex flex-col bg-background text-foreground">
             <PublicHeader 
                 user={session.user} 
                 dashboardHref="/dashboard" 
@@ -109,144 +55,126 @@ export default async function GuildSelectorPage() {
                 clientId={clientId}
             />
 
-            <main className="flex-1 flex flex-col items-center justify-center p-4 relative z-10 pt-24 pb-24">
+            <main className="flex-1">
 
                 {isEmpty ? (
-                    <NoGuildMessage rateLimited={rateLimited} needsReconnect={needsReconnect} autoOnboardingOn={autoOnboardingOn} />
+                    <div className="reg-shell py-10 lg:py-14">
+                        <NoGuildMessage rateLimited={rateLimited} needsReconnect={needsReconnect} autoOnboardingOn={autoOnboardingOn} />
+                    </div>
                 ) : (
-                    <div className="relative z-10 max-w-5xl w-full space-y-12 animate-in fade-in slide-in-from-bottom-5 duration-300">
+                    <div className="reg-shell py-10 lg:py-14 space-y-10">
 
-                        {/* Hero Section */}
-                        <div className="text-center space-y-4">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-success/10 border border-success/20 text-caption font-bold uppercase tracking-widest text-success">
-                                <LayoutDashboard className="w-3.5 h-3.5 text-success" />
-                                <span>Portail Unifié</span>
-                            </div>
-                            <h1 className="text-4xl md:text-6xl font-black tracking-tight text-foreground mb-2 font-heading">
-                                Votre <span className="text-success">QG Galactique</span>
+                        {/* En-tête de page — gauche-aligné, sans badge ni titre centré */}
+                        <header>
+                            <p className="reg-eyebrow">Portail de guilde</p>
+                            <h1 className="mt-3 text-[clamp(1.6rem,2.8vw,2rem)] font-bold tracking-tight text-foreground">
+                                Vos guildes
                             </h1>
-                            <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed font-medium">
+                            <p className="mt-3 max-w-[62ch] text-sm text-muted-foreground leading-relaxed">
                                 Accédez à vos guildes actives ou déployez SigilOS si votre serveur est autorisé.
                             </p>
-                        </div>
+                        </header>
 
                         <div className={cn(
-                            "grid gap-8",
-                            (pending.length > 0 || awaiting.length > 0) ? "lg:grid-cols-12" : "lg:grid-cols-1"
+                            "grid gap-10",
+                            (pending.length > 0 || awaiting.length > 0) ? "lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]" : "grid-cols-1"
                         )}>
 
-                            {/* ACTIVE GUILDS COLUMN */}
-                            <div className={cn(
-                                "space-y-6",
-                                (pending.length > 0 || awaiting.length > 0) ? "lg:col-span-7" : "lg:col-span-12"
-                            )}>
-                                <div className="flex items-center justify-between">
-                                    <h2 className="text-xl font-bold text-foreground flex items-center gap-3">
-                                        <div className="p-2 rounded-lg bg-success/10 border border-success/20">
-                                            <Shield className="w-5 h-5 text-success" />
-                                        </div>
-                                        Guildes Actives
+                            {/* Guildes actives */}
+                            <section aria-labelledby="guildes-actives">
+                                <div className="flex items-baseline justify-between gap-4">
+                                    <h2 id="guildes-actives" className="reg-eyebrow">
+                                        Guildes actives
                                     </h2>
-                                    <span className="text-xs font-medium px-2 py-1 rounded-md bg-surface border border-border text-muted-foreground">
-                                        {active.length} disponible{active.length > 1 ? 's' : ''}
+                                    <span className="reg-mono text-xs text-muted-foreground">
+                                        {active.length} disponible{active.length > 1 ? "s" : ""}
                                     </span>
                                 </div>
 
                                 {active.length > 0 ? (
-                                    <div className="grid gap-4">
+                                    <div className="reg-panel mt-3">
                                         {active.map((guild) => (
-                                            <Link key={guild.id} href={`/dashboard/${guild.id}`} className="group block">
-                                                <GlassPanel className="p-0 hover:border-info/50">
-                                                    <div className="p-5 flex items-center gap-5">
-                                                        <div className="relative">
-                                                            <Avatar className="h-14 w-14 rounded-2xl border-2 border-border group-hover:border-info/50 transition-colors">
-                                                                <AvatarImage src={guild.icon || ""} alt={guild.name} className="object-cover" />
-                                                                <AvatarFallback className="bg-elevated text-muted-foreground font-bold rounded-2xl">
-                                                                    {guild.name.substring(0, 2).toUpperCase()}
-                                                                </AvatarFallback>
-                                                            </Avatar>
-                                                            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-surface rounded-full flex items-center justify-center border border-border">
-                                                                <div className="w-2.5 h-2.5 rounded-full bg-success"></div>
+                                            <Link
+                                                key={guild.id}
+                                                href={`/dashboard/${guild.id}`}
+                                                className="reg-row grid-cols-[auto_minmax(0,1fr)_auto] px-4 hover:bg-muted"
+                                            >
+                                                <Avatar className="h-11 w-11 rounded-md border border-border">
+                                                    <AvatarImage src={guild.icon || ""} alt={guild.name} className="object-cover" />
+                                                    <AvatarFallback className="bg-muted text-muted-foreground text-xs font-semibold">
+                                                        {guild.name.substring(0, 2).toUpperCase()}
+                                                    </AvatarFallback>
+                                                </Avatar>
+
+                                                <div className="min-w-0">
+                                                    <h3 className="text-sm font-semibold text-foreground truncate">
+                                                        {guild.name}
+                                                    </h3>
+                                                    <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                                                        <span className="inline-flex items-center gap-1.5">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-success" aria-hidden="true" />
+                                                            Opérationnel
+                                                        </span>
+                                                        <span className={cn("truncate", guild.isAdmin ? "text-foreground" : guild.hasAccess ? "text-muted-foreground" : "text-warning")}>
+                                                            {guild.accessLabel}
+                                                        </span>
+                                                    </p>
+                                                    {(() => {
+                                                        const sig = (pilotSignals as Record<string, { locks: number; hasOpenClaim: boolean; frozen: boolean }>)[guild.id];
+                                                        if (!sig || (!sig.locks && !sig.hasOpenClaim && !sig.frozen)) return null;
+                                                        return (
+                                                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                                                                {sig.locks > 0 && (
+                                                                    <Link href={`/dashboard/${guild.id}/admin/modules`} className="reg-tag text-info">
+                                                                        {sig.locks} verrou{sig.locks > 1 ? "x" : ""} staff
+                                                                    </Link>
+                                                                )}
+                                                                {sig.hasOpenClaim && (
+                                                                    <Link href={`/dashboard/${guild.id}`} className="reg-tag text-warning">
+                                                                        récupération en cours
+                                                                    </Link>
+                                                                )}
+                                                                {sig.frozen && (
+                                                                    <span className="reg-tag text-danger">
+                                                                        gelée — voir file d&apos;attente
+                                                                    </span>
+                                                                )}
                                                             </div>
-                                                        </div>
+                                                        );
+                                                    })()}
+                                                </div>
 
-                                                        <div className="flex-1 min-w-0">
-                                                            <h3 className="text-lg font-bold text-foreground group-hover:text-info transition-colors truncate">
-                                                                {guild.name}
-                                                            </h3>
-                                                            <p className="text-sm text-muted-foreground flex items-center gap-2 mt-0.5">
-                                                                <span className="text-success font-medium text-xs uppercase tracking-wider">Opérationnel</span>
-                                                                <span className="w-1 h-1 rounded-full bg-muted"></span>
-                                                                <span className={cn("truncate", guild.isAdmin ? "text-info" : guild.hasAccess ? "text-muted-foreground" : "text-warning")}>
-                                                                    {guild.accessLabel}
-                                                                </span>
-                                                            </p>
-                                                            {(() => {
-                                                                const sig = (pilotSignals as Record<string, { locks: number; hasOpenClaim: boolean; frozen: boolean }>)[guild.id];
-                                                                if (!sig || (!sig.locks && !sig.hasOpenClaim && !sig.frozen)) return null;
-                                                                return (
-                                                                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                                                                        {sig.locks > 0 && (
-                                                                            <Link href={`/dashboard/${guild.id}/admin/modules`} className="text-caption font-bold px-1.5 py-0.5 rounded-md bg-info/10 border border-info/30 text-info hover:bg-info/20">
-                                                                                🔒 {sig.locks} verrou{sig.locks > 1 ? "x" : ""} staff
-                                                                            </Link>
-                                                                        )}
-                                                                        {sig.hasOpenClaim && (
-                                                                            <Link href={`/dashboard/${guild.id}`} className="text-caption font-bold px-1.5 py-0.5 rounded-md bg-warning/10 border border-warning/30 text-warning hover:bg-warning/20">
-                                                                                🏚️ récupération en cours
-                                                                            </Link>
-                                                                        )}
-                                                                        {sig.frozen && (
-                                                                            <span className="text-caption font-bold px-1.5 py-0.5 rounded-md bg-danger/10 border border-danger/30 text-danger">
-                                                                                ❄️ gelée — voir file d&apos;attente
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                );
-                                                            })()}
-                                                        </div>
-
-                                                        <div className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-info group-hover:text-info-foreground transition-all duration-300">
-                                                            <ChevronRight className="w-5 h-5" />
-                                                        </div>
-                                                    </div>
-                                                </GlassPanel>
+                                                <ChevronRight className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
                                             </Link>
                                         ))}
                                     </div>
                                 ) : (
-                                    <GlassPanel className="p-8 text-center border-dashed border-border">
-                                        <p className="text-muted-foreground italic">Aucune guilde active trouvée.</p>
-                                    </GlassPanel>
+                                    <div className="reg-panel mt-3 p-6">
+                                        <p className="text-sm text-muted-foreground">Aucune guilde active.</p>
+                                    </div>
                                 )}
-                            </div>
+                            </section>
 
-                            {/* RIGHT COLUMN — Déploiement et/ou file d'attente staff */}
+                            {/* Colonne droite — déploiement et file d'attente staff */}
                             {(pending.length > 0 || awaiting.length > 0) && (
-                                <div className="lg:col-span-5 space-y-8">
-                            {/* PENDING GUILDS COLUMN - Only show if there are pending guilds */}
+                                <div className="space-y-10">
+                            {/* Déploiement */}
                             {pending.length > 0 && (
-                                <div className="space-y-6">
-                                    <div className="flex items-center justify-between">
-                                        <h2 className="text-xl font-bold text-foreground flex items-center gap-3">
-                                            <div className="p-2 rounded-lg bg-warning/10 border border-warning/20">
-                                                <PlusCircle className="w-5 h-5 text-warning" />
-                                            </div>
+                                <section aria-labelledby="deploiement">
+                                    <div className="flex items-baseline justify-between gap-4">
+                                        <h2 id="deploiement" className="reg-eyebrow flex items-center gap-2">
+                                            <PlusCircle className="w-3.5 h-3.5 text-warning" aria-hidden="true" />
                                             Déploiement
                                         </h2>
-                                        <span className="text-xs font-medium px-2 py-1 rounded-md bg-surface border border-border text-muted-foreground">
-                                            Admin requis
-                                        </span>
+                                        <span className="reg-mono text-xs text-muted-foreground">Admin requis</span>
                                     </div>
 
-                                    <GlassPanel className="min-h-[200px] border-border bg-surface">
-                                        <div className="p-4 border-b border-border bg-elevated rounded-t-xl mb-2">
-                                            <p className="text-xs text-muted-foreground leading-relaxed">
-                                                Les serveurs ci-dessous sont éligibles pour l&apos;installation de SigilOS car vous y disposez des droits d&apos;administrateur.
-                                            </p>
-                                        </div>
+                                    <div className="reg-panel mt-3">
+                                        <p className="border-b border-border p-4 text-xs text-muted-foreground leading-relaxed">
+                                            Les serveurs ci-dessous sont éligibles pour l&apos;installation de SigilOS car vous y disposez des droits d&apos;administrateur.
+                                        </p>
 
-                                        <div className="p-2 space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar">
+                                        <div className="max-h-[400px] space-y-2 overflow-y-auto custom-scrollbar p-2">
                                             {pending.map((guild) => (
                                                 <GuildSetupCard
                                                     key={guild.id}
@@ -259,50 +187,44 @@ export default async function GuildSelectorPage() {
                                                 />
                                             ))}
                                         </div>
-                                    </GlassPanel>
-                                </div>
+                                    </div>
+                                </section>
                             )}
 
-                            {/* AWAITING COLUMN — serveurs gelés/file God : visibles, jamais fantômes */}
+                            {/* En attente de validation staff */}
                             {awaiting.length > 0 && (
-                                <div className="space-y-6">
-                                    <div className="flex items-center justify-between">
-                                        <h2 className="text-xl font-bold text-foreground flex items-center gap-3">
-                                            <div className="p-2 rounded-lg bg-info/10 border border-info/20">
-                                                <Hourglass className="w-5 h-5 text-info" />
-                                            </div>
+                                <section aria-labelledby="en-attente">
+                                    <div className="flex items-baseline justify-between gap-4">
+                                        <h2 id="en-attente" className="reg-eyebrow flex items-center gap-2">
+                                            <Hourglass className="w-3.5 h-3.5 text-info" aria-hidden="true" />
                                             En attente
                                         </h2>
-                                        <span className="text-xs font-medium px-2 py-1 rounded-md bg-surface border border-border text-muted-foreground">
-                                            Validation staff
-                                        </span>
+                                        <span className="reg-mono text-xs text-muted-foreground">Validation staff</span>
                                     </div>
 
-                                    <GlassPanel className="min-h-[200px] border-border bg-surface">
-                                        <div className="p-4 border-b border-border bg-elevated rounded-t-xl mb-2">
-                                            <p className="text-xs text-muted-foreground leading-relaxed">
-                                                Le bot est installé sur ces serveurs. L&apos;équipe SigilOS valide les nouvelles guildes — elles apparaîtront ici dès l&apos;approbation, sans rien réinstaller.
-                                            </p>
-                                        </div>
+                                    <div className="reg-panel mt-3">
+                                        <p className="border-b border-border p-4 text-xs text-muted-foreground leading-relaxed">
+                                            Le bot est installé sur ces serveurs. L&apos;équipe SigilOS valide les nouvelles guildes — elles apparaîtront ici dès l&apos;approbation, sans rien réinstaller.
+                                        </p>
 
-                                        <div className="p-2 space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar">
+                                        <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
                                             {awaiting.map((guild) => (
-                                                <div key={guild.id} className="p-4 rounded-xl border border-dashed border-border bg-black/20 flex items-center gap-4">
-                                                    <Avatar className="h-12 w-12 rounded-2xl border border-border grayscale opacity-70">
+                                                <div key={guild.id} className="reg-row grid-cols-[auto_minmax(0,1fr)] px-4">
+                                                    <Avatar className="h-10 w-10 rounded-md border border-border opacity-70">
                                                         <AvatarImage src={guild.icon || ""} alt={guild.name} />
-                                                        <AvatarFallback className="bg-muted text-muted-foreground font-bold rounded-2xl">
+                                                        <AvatarFallback className="bg-muted text-muted-foreground text-xs font-semibold">
                                                             {guild.name.substring(0, 2).toUpperCase()}
                                                         </AvatarFallback>
                                                     </Avatar>
-                                                    <div className="flex-1 min-w-0">
-                                                        <h3 className="font-bold truncate text-foreground">{guild.name}</h3>
-                                                        <p className="text-xs text-info font-medium">En attente de validation — rien à réinstaller</p>
+                                                    <div className="min-w-0">
+                                                        <h3 className="text-sm font-semibold text-foreground truncate">{guild.name}</h3>
+                                                        <p className="reg-mono mt-1 text-xs text-info">En attente de validation — rien à réinstaller</p>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
-                                    </GlassPanel>
-                                </div>
+                                    </div>
+                                </section>
                             )}
                                 </div>
                             )}

@@ -52,38 +52,38 @@ export function QuestHelpersSection({ guildId, seq }: { guildId: string; seq: Ru
 
   return (
     <div>
-      <p className="mb-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground flex items-center gap-1.5">
-        <Handshake className="w-3 h-3" /> Qui peut aider
+      <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+        <Handshake className="h-3 w-3" aria-hidden="true" /> Qui peut aider
       </p>
       {loading ? (
         <div className="flex items-center gap-2 text-caption text-muted-foreground">
-          <Loader2 className="w-3 h-3 animate-spin" /> Recherche des membres…
+          <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" /> Recherche des membres…
         </div>
       ) : helpers.length === 0 ? (
         <p className="text-caption text-muted-foreground">Aucun membre ne correspond pour l'instant.</p>
       ) : (
         <div className="space-y-1">
           {helpers.map((h) => (
-            <div key={h.profile.profileId} className="flex items-center gap-2.5 rounded-lg border border-border bg-surface px-2.5 py-1.5">
+            <div key={h.profile.profileId} className="flex items-center gap-2.5 rounded-[4px] border border-border bg-surface px-2.5 py-1.5">
               {h.profile.avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={h.profile.avatar} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
+                <img src={h.profile.avatar} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" />
               ) : (
-                <span className="w-6 h-6 rounded-full bg-elevated flex items-center justify-center text-[10px] font-black text-muted-foreground shrink-0">
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-elevated text-[10px] font-semibold text-muted-foreground">
                   {(h.profile.name || "?").charAt(0).toUpperCase()}
                 </span>
               )}
               <div className="min-w-0">
-                <p className="text-xs font-bold text-foreground truncate">
+                <p className="truncate text-xs font-semibold text-foreground">
                   {h.profile.name || "Membre"}
                   {h.uncertain && (
-                    <span className="ml-1.5 text-[9px] font-bold text-warning bg-warning/10 border border-warning/30 px-1 py-0.5 rounded align-middle">
+                    <span className="ml-1.5 rounded-[3px] border border-warning/40 bg-warning/10 px-1 py-0.5 align-middle text-[11px] font-medium text-warning">
                       à confirmer
                     </span>
                   )}
                 </p>
                 {h.reasons.length > 0 && (
-                  <p className="text-[10px] text-muted-foreground leading-snug truncate">{h.reasons.join(" · ")}</p>
+                  <p className="truncate text-[11px] leading-snug text-muted-foreground">{h.reasons.join(" · ")}</p>
                 )}
               </div>
             </div>

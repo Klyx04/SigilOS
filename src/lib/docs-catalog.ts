@@ -752,6 +752,25 @@ C'est la valeur du marché FM. SigilOS ne peut pas lire ton inventaire : il éti
     <li><strong>Clé API Metamob de Guilde :</strong> Permet d'alimenter le matching global des archimonstres.</li>
     <li><strong>Serveur Officiel :</strong> Sélectionnez votre serveur de jeu (Imagiro, Orukam, Tal Kasha, Draconiros, etc.) pour calibrer les requêtes Ladder.</li>
 </ul>
+
+<figure class="my-6">
+    <div class="flex flex-wrap items-center gap-2">
+        <img src="/assets/dofus/servers/draconiros.webp" alt="Draconiros" title="Draconiros" class="w-12 h-12 rounded-[10px] object-cover" loading="lazy" />
+        <img src="/assets/dofus/servers/ombre.webp" alt="Ombre" title="Ombre" class="w-12 h-12 rounded-[10px] object-cover" loading="lazy" />
+        <img src="/assets/dofus/servers/tal-kasha.webp" alt="Tal Kasha" title="Tal Kasha" class="w-12 h-12 rounded-[10px] object-cover" loading="lazy" />
+        <img src="/assets/dofus/servers/imagiro.webp" alt="Imagiro" title="Imagiro" class="w-12 h-12 rounded-[10px] object-cover" loading="lazy" />
+        <img src="/assets/dofus/servers/orukam.webp" alt="Orukam" title="Orukam" class="w-12 h-12 rounded-[10px] object-cover" loading="lazy" />
+        <img src="/assets/dofus/servers/tylezia.webp" alt="Tylezia" title="Tylezia" class="w-12 h-12 rounded-[10px] object-cover" loading="lazy" />
+        <img src="/assets/dofus/servers/hell-mina.webp" alt="Hell Mina" title="Hell Mina" class="w-12 h-12 rounded-[10px] object-cover" loading="lazy" />
+        <img src="/assets/dofus/servers/dakal.webp" alt="Dakal" title="Dakal" class="w-12 h-12 rounded-[10px] object-cover" loading="lazy" />
+        <img src="/assets/dofus/servers/mikhal.webp" alt="Mikhal" title="Mikhal" class="w-12 h-12 rounded-[10px] object-cover" loading="lazy" />
+        <img src="/assets/dofus/servers/kourial.webp" alt="Kourial" title="Kourial" class="w-12 h-12 rounded-[10px] object-cover" loading="lazy" />
+        <img src="/assets/dofus/servers/rafal.webp" alt="Rafal" title="Rafal" class="w-12 h-12 rounded-[10px] object-cover" loading="lazy" />
+        <img src="/assets/dofus/servers/brial.webp" alt="Brial" title="Brial" class="w-12 h-12 rounded-[10px] object-cover" loading="lazy" />
+        <img src="/assets/dofus/servers/salar.webp" alt="Salar" title="Salar" class="w-12 h-12 rounded-[10px] object-cover" loading="lazy" />
+    </div>
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Les 13 serveurs Dofus Unity sélectionnables : Épique, Monocompte, Classiques et Pionniers.</figcaption>
+</figure>
         `
     },
     {

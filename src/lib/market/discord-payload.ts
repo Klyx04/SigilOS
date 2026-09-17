@@ -64,6 +64,12 @@ export type MarketDiscordPayloadInput = {
     /** Pseudo Dofus du vendeur (jamais l'ID Discord, jamais de mention publique). */
     sellerName: string;
     serverName?: string | null;
+    /**
+     * URL **absolue** de la vignette du serveur (calculée côté serveur via
+     * `getDofusServerImage`, `null` si serveur inconnu) : posée en
+     * `footer.icon_url` de l'embed Discord.
+     */
+    serverImageUrl?: string | null;
     itemName?: string | null;
     itemLevel?: number | null;
     itemTypeName?: string | null;
@@ -142,6 +148,8 @@ export type MarketDiscordPayload = {
     embedDescription: string;
     embedColor: number;
     embedFooter: string;
+    /** Icône du footer (vignette du serveur). Absent ⇒ logo SigilOS par défaut. */
+    embedFooterIconUrl?: string;
     embedImage?: string;
     embedThumbnail?: string;
     fields: MarketDiscordField[];
@@ -303,6 +311,7 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
         status,
         sellerName,
         serverName,
+        serverImageUrl,
         itemName,
         itemLevel,
         itemTypeName,
@@ -459,6 +468,7 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
         embedFooter: componentId
             ? `SigilOS Market • Annonce #${shortListingId(listingId)} • Objet #${shortListingId(componentId)}`
             : `SigilOS Market • Annonce #${shortListingId(listingId)}`,
+        embedFooterIconUrl: serverImageUrl ?? undefined,
         /**
          * BUG-4 (constat beta) — la **miniature est toujours renseignée** quand
          * une icône exploitable existe (objet, sinon 1ᵉʳ composant du lot) :

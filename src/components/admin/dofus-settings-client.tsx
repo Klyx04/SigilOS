@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { MapViewer } from "@/components/worldmap/map-viewer";
 import { DOFUS_WORLDS } from "@/lib/dofus-assets";
+import { getDofusServerImage } from "@/lib/dofus-assets";
 
 interface DofusSettingsClientProps {
     guildId: string;
@@ -231,6 +232,7 @@ export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
                                     <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
                                         {servers.map((server) => {
                                             const isSelected = serverId === server.id.toString();
+                                            const serverImg = getDofusServerImage(server.id);
                                             return (
                                                 <button
                                                     key={server.id}
@@ -242,12 +244,24 @@ export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
                                                             : "bg-surface/40 border-border hover:border-border hover:bg-elevated/40"
                                                     )}
                                                 >
-                                                    <div className={cn(
-                                                        "w-7 h-7 rounded-md flex items-center justify-center shrink-0",
-                                                        isSelected ? "bg-info/20 text-info" : "bg-surface text-muted-foreground"
-                                                    )}>
-                                                        <Server className="w-3.5 h-3.5" />
-                                                    </div>
+                                                    {serverImg ? (
+                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                        <img
+                                                            src={serverImg}
+                                                            alt=""
+                                                            loading="lazy"
+                                                            decoding="async"
+                                                            draggable={false}
+                                                            className="w-9 h-9 rounded-lg object-cover shrink-0 border border-black/30"
+                                                        />
+                                                    ) : (
+                                                        <div className={cn(
+                                                            "w-7 h-7 rounded-md flex items-center justify-center shrink-0",
+                                                            isSelected ? "bg-info/20 text-info" : "bg-surface text-muted-foreground"
+                                                        )}>
+                                                            <Server className="w-3.5 h-3.5" />
+                                                        </div>
+                                                    )}
                                                     <div className="min-w-0 pr-2">
                                                         <p className={cn(
                                                             "text-xs font-bold truncate tracking-tight",

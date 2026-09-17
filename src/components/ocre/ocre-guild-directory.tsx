@@ -24,6 +24,7 @@ import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import Image from "next/image";
 import { getDisplayName } from "@/lib/display-name";
+import { getDofusServerImage } from "@/lib/dofus-assets";
 
 
 interface OcreGuildDirectoryProps {
@@ -252,7 +253,21 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
                                             {hasSnapshot ? (
                                                 <>
                                                     <div className="flex items-center justify-between text-caption">
-                                                        <span className="text-muted-foreground">
+                                                        <span className="text-muted-foreground inline-flex items-center gap-1.5">
+                                                            {/* Vignette Unity seulement si le nom Metamob matche
+                                                                un serveur connu (helper null-safe : Temporis,
+                                                                Rétro… restent en texte seul). */}
+                                                            {member.serverName && getDofusServerImage(member.serverName) && (
+                                                                // eslint-disable-next-line @next/next/no-img-element
+                                                                <img
+                                                                    src={getDofusServerImage(member.serverName)!}
+                                                                    alt=""
+                                                                    loading="lazy"
+                                                                    decoding="async"
+                                                                    draggable={false}
+                                                                    className="h-4 w-4 rounded object-cover border border-black/30"
+                                                                />
+                                                            )}
                                                             {member.serverName || "Serveur"}
                                                             <span className="opacity-30 mx-1.5">•</span>
                                                             Étape {member.currentStep ?? 0}

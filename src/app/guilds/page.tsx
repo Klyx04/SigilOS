@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { GuildEmblem } from "@/components/guild/guild-emblem";
+import { getDofusServerImage } from "@/lib/dofus-assets";
 import { auth } from "@/auth";
 
 import { getAppBaseUrl } from "@/lib/utils";
@@ -124,7 +125,24 @@ export default async function GuildsDirectoryPage() {
                                                         </span>
                                                     </th>
                                                     <td className="hidden align-middle text-sm text-muted-foreground sm:table-cell">
-                                                        {guild.server ?? "—"}
+                                                        {guild.server ? (
+                                                            <span className="inline-flex items-center gap-2">
+                                                                {getDofusServerImage(guild.server) && (
+                                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                                    <img
+                                                                        src={getDofusServerImage(guild.server)!}
+                                                                        alt=""
+                                                                        loading="lazy"
+                                                                        decoding="async"
+                                                                        draggable={false}
+                                                                        className="h-5 w-5 rounded object-cover border border-black/30"
+                                                                    />
+                                                                )}
+                                                                {guild.server}
+                                                            </span>
+                                                        ) : (
+                                                            "—"
+                                                        )}
                                                     </td>
                                                     <td className="hidden align-middle sm:table-cell">
                                                         <span

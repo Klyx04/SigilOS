@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { RushMilestone, RushSequence, RushDungeonRef } from "@/types/rush-guide-types";
 import { getClass, DOFUS_CLASSES } from "@/lib/dofus-assets";
+import { getDofusServerImage } from "@/lib/dofus-assets";
 import { DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
 import {
   type GuestCharacter,
@@ -870,6 +871,18 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                 />
               ) : (
                 <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              )}
+              {character.serverId && getDofusServerImage(character.serverId) && (
+                // Vignette du serveur déclaré (assets du jeu, WebP).
+                <img
+                  src={getDofusServerImage(character.serverId)!}
+                  alt=""
+                  title={guestServerLabel(character.serverId) ?? ""}
+                  loading="lazy"
+                  decoding="async"
+                  draggable={false}
+                  className="h-7 w-7 shrink-0 rounded-[3px] border border-border object-cover"
+                />
               )}
               <span className="text-xs font-semibold text-foreground">{characterLabel}</span>
               <span className="text-[11px] text-muted-foreground">

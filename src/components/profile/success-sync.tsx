@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
 import { getClass } from "@/lib/dofus-assets";
+import { getDofusServerImage } from "@/lib/dofus-assets";
 
 interface SuccessSyncProps {
     guildId: string;
@@ -322,7 +323,18 @@ export function SuccessSync({
                                     <div className="flex flex-col gap-0.5">
                                         <div className="flex items-center gap-2.5">
                                             <span className="text-base font-bold text-foreground tracking-tight">Lien Ladder Officiel</span>
-                                            <span className="px-2 py-0.5 rounded-md bg-elevated text-caption font-black text-foreground border border-border uppercase tracking-wider">
+                                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-elevated text-caption font-black text-foreground border border-border uppercase tracking-wider">
+                                                {getDofusServerImage(serverId) && (
+                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                    <img
+                                                        src={getDofusServerImage(serverId)!}
+                                                        alt=""
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                        draggable={false}
+                                                        className="w-4 h-4 rounded object-cover"
+                                                    />
+                                                )}
                                                 {serverName}
                                             </span>
                                         </div>
@@ -426,7 +438,18 @@ export function SuccessSync({
                                             {/* Visual Connector with Centered Server */}
                                             <div className="flex-1 mx-6 flex items-center justify-center gap-3">
                                                 <div className="border-b border-dashed border-border flex-1" />
-                                                <span className="font-mono text-caption font-bold text-muted-foreground uppercase tracking-widest text-center">
+                                                <span className="inline-flex items-center gap-2 font-mono text-caption font-bold text-muted-foreground uppercase tracking-widest text-center">
+                                                    {getDofusServerImage(serverId) && (
+                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                        <img
+                                                            src={getDofusServerImage(serverId)!}
+                                                            alt=""
+                                                            loading="lazy"
+                                                            decoding="async"
+                                                            draggable={false}
+                                                            className="w-5 h-5 rounded object-cover"
+                                                        />
+                                                    )}
                                                     SERVEUR {serverName}
                                                 </span>
                                                 <div className="border-b border-dashed border-border flex-1" />

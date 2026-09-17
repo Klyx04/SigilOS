@@ -17,6 +17,7 @@ import {
     Star,
 } from "lucide-react";
 import { AVAILABLE_ACTIVITIES } from "@/lib/presentation-constants";
+import { getDofusServerImage } from "@/lib/dofus-assets";
 import type { GuildPresentation } from "@/server/actions/presentation-actions";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
@@ -127,7 +128,22 @@ export function GuildPublicView({ guild, foundedYear, isMember, user }: Props) {
                         <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
                             {guild.server && (
                                 <span className="inline-flex items-center gap-2">
-                                    <Server className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                                    {(() => {
+                                        const img = getDofusServerImage(guild.server);
+                                        return img ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img
+                                                src={img}
+                                                alt=""
+                                                loading="lazy"
+                                                decoding="async"
+                                                draggable={false}
+                                                className="h-6 w-6 rounded-md object-cover border border-black/30"
+                                            />
+                                        ) : (
+                                            <Server className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                                        );
+                                    })()}
                                     <span className="text-muted-foreground">Serveur</span>
                                     <span className="font-semibold text-foreground">{guild.server}</span>
                                 </span>

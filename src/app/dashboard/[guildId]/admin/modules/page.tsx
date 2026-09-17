@@ -35,8 +35,15 @@ export default async function AdminModulesPage({ params }: Props) {
         where: { discordGuildId: guildId },
         select: { rolesMapping: true }
     });
-    const rolesMapping = (guild?.rolesMapping as Record<string, string[]>) || {};
-    const isRbacConfigured = Array.isArray(rolesMapping["dashboard:login"]) && rolesMapping["dashboard:login"].length > 0;
+    // FIX (rapport beta onboarding) : le test historique lisait
+    // `rolesMapping["dashboard:login"]` — une clé qui n'existe jamais (le format
+    // réel est `{ [roleId]: ["dashboard:login", …] }`) → le bandeau ne partait
+    // jamais, même RBAC configuré. Helper unique (exclut @everyone, fail-closed).
+    const { isRbacConfigured } = await import("@/lib/onboarding-gating");
+    const rbacConfigured = isRbacConfigured(
+        (guild?.rolesMapping as Record<string, string[]>) || {},
+        guildId
+    );
 
     return (
         <div className="space-y-6 pb-12">
@@ -58,7 +65,7 @@ export default async function AdminModulesPage({ params }: Props) {
                 showPilotage={true}
             />
 
-            {!isRbacConfigured && (
+            {!rbacConfigured && (
                 <div className="p-4 rounded-xl border border-warning/20 bg-warning/10 flex items-start gap-4 animate-in fade-in slide-in-from-top-4">
                     <ShieldAlert className="w-5 h-5 text-warning shrink-0 mt-0.5" />
                     <div className="space-y-2 flex-1">

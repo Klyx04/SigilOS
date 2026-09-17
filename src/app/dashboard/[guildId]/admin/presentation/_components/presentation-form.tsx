@@ -193,6 +193,9 @@ export function PresentationForm({ guildId }: Props) {
     const [recruiting, setRecruiting] = useState(false);
     const [recruitmentRequirements, setRecruitmentRequirements] = useState("");
     const [server, setServer] = useState("");
+    // `true` quand le serveur affiché est hérité de la config guilde
+    // (l'admin n'a jamais fait de choix présentation explicite).
+    const [serverInherited, setServerInherited] = useState(false);
     const [bannerType, setBannerType] = useState<"discord" | "custom">("discord");
     const [bannerUrl, setBannerUrl] = useState<string | null>(null);
     const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -237,6 +240,7 @@ export function PresentationForm({ guildId }: Props) {
                 setRecruiting(d.recruiting);
                 setRecruitmentRequirements(d.recruitmentRequirements || "");
                 setServer(d.server || "");
+                setServerInherited(!d.serverExplicit && !!d.guildServerName);
                 setBannerType(d.bannerType || "discord");
                 setBannerUrl(d.bannerUrl);
                 setPhotoUrl(d.photoUrl);
@@ -620,7 +624,7 @@ export function PresentationForm({ guildId }: Props) {
                                             name={s.name}
                                             selected={server === s.name}
                                             selectedClass="bg-success/10 border-success text-success"
-                                            onPick={() => setServer(s.name)}
+                                            onPick={() => { setServer(s.name); setServerInherited(false); }}
                                         />
                                     ))}
                                 </div>
@@ -639,7 +643,7 @@ export function PresentationForm({ guildId }: Props) {
                                             name={s.name}
                                             selected={server === s.name}
                                             selectedClass="bg-warning/10 border-warning text-warning"
-                                            onPick={() => setServer(s.name)}
+                                            onPick={() => { setServer(s.name); setServerInherited(false); }}
                                         />
                                     ))}
                                 </div>
@@ -658,7 +662,7 @@ export function PresentationForm({ guildId }: Props) {
                                             name={s.name}
                                             selected={server === s.name}
                                             selectedClass="bg-surface border-border text-foreground"
-                                            onPick={() => setServer(s.name)}
+                                            onPick={() => { setServer(s.name); setServerInherited(false); }}
                                         />
                                     ))}
                                 </div>
@@ -677,7 +681,7 @@ export function PresentationForm({ guildId }: Props) {
                                             name={s.name}
                                             selected={server === s.name}
                                             selectedClass="bg-info/10 border-info text-info"
-                                            onPick={() => setServer(s.name)}
+                                            onPick={() => { setServer(s.name); setServerInherited(false); }}
                                         />
                                     ))}
                                 </div>
@@ -696,7 +700,7 @@ export function PresentationForm({ guildId }: Props) {
                                             name={s.name}
                                             selected={server === s.name}
                                             selectedClass="bg-info/10 border-info text-info"
-                                            onPick={() => setServer(s.name)}
+                                            onPick={() => { setServer(s.name); setServerInherited(false); }}
                                         />
                                     ))}
                                 </div>
@@ -718,11 +722,16 @@ export function PresentationForm({ guildId }: Props) {
                                             />
                                         )}
                                         <span className="text-foreground font-medium">{server}</span>
+                                        {serverInherited && (
+                                            <span className="text-caption font-bold uppercase tracking-wider text-muted-foreground">
+                                                · hérité de la config guilde
+                                            </span>
+                                        )}
                                     </p>
                                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        onClick={() => setServer("")}
+                                        onClick={() => { setServer(""); setServerInherited(false); }}
                                         className="text-muted-foreground hover:text-foreground"
                                     >
                                         <X className="w-4 h-4 mr-1" />

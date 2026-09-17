@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Server, ShieldCheck, Loader2, CheckCircle2, ArrowRight, Rocket, Puzzle, BookOpen, Swords } from "lucide-react";
 import { getDofusServerImage } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
@@ -35,7 +34,6 @@ export function OnboardingBlockerModal({
     servers: OnboardingServerOption[];
     roles: OnboardingRoleOption[];
 }) {
-    const router = useRouter();
     const [step, setStep] = useState<1 | 2>(1);
     const [serverId, setServerId] = useState("");
     const [roleId, setRoleId] = useState("");
@@ -44,6 +42,9 @@ export function OnboardingBlockerModal({
     const [isPending, startTransition] = useTransition();
 
     const submit = () => {
+        // Garde anti-double-clic : sans elle, deux `completeMandatoryOnboarding`
+        // concurrents partent (rate-limit "Too many requests" + états incohérents).
+        if (isPending || done) return;
         setError(null);
         if (!serverId || !roleId) {
             setError("Choisissez un serveur puis un rôle pour continuer.");
@@ -60,10 +61,11 @@ export function OnboardingBlockerModal({
     };
 
     const finish = () => {
-        // Pas de reload() ici : il annulerait la navigation des liens.
-        // Le refresh invalide le layout serveur → la modale disparaît.
-        router.refresh();
-        router.push(`/dashboard/${guildId}`);
+        // Navigation DURE (pas `router.refresh()` + `router.push()` simultanés :
+        // les deux transitions concurrentes pouvaient avorter et laisser la page
+        // sur un écran noir/suspendu — seul un F5 réparait). Le rechargement
+        // complet purge aussi les états clients (tour, modales, suspense).
+        window.location.href = `/dashboard/${guildId}`;
     };
 
     return (

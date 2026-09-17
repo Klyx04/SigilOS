@@ -215,9 +215,20 @@ export async function hardDeleteGuild(guildId: string) {
             await db.allowedGuild.deleteMany({
                 where: { discordGuildId: guildConfig.discordGuildId }
             });
-            // Éviction immédiate (cf. softDeleteGuild) : sinon les membres
-            // restent dans le dashboard jusqu'à expiration des caches.
-            await purgeGuildCaches(guildConfig.discordGuildId);
+        // Éviction immédiate (cf. softDeleteGuild) : sinon les membres
+        // restent dans le dashboard jusqu'à expiration des caches.
+        await purgeGuildCaches(guildConfig.discordGuildId);
+
+        // 4. Expulser le bot du serveur Discord (best-effort, comme le ban) :
+        // sans ça, le portail re-provisionne silencieusement la guilde au
+        // retour de l'owner (le bot étant toujours sur le serveur) et le hard
+        // delete semble n'avoir rien fait. Un échec n'annule jamais le delete.
+        try {
+            const { leaveGuild } = await import("@/server/discord");
+            await leaveGuild(guildConfig.discordGuildId);
+        } catch (botErr) {
+            logger.warn(`[GOD] hardDeleteGuild: bot leave failed for ${guildConfig.discordGuildId}`, { botErr });
+        }
         }
 
         // 🔔 NOTIFY GOD

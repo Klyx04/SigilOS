@@ -5,7 +5,8 @@
  *   - la liste vient des 5 RACES `monster-races` (le drapeau `isBounty` est faux pour 14/96) ;
  *   - la preuve d'appartenance vient de Dofensive (`Race.Name` / `Family.Id` 27) ;
  *   - l'upsert `Bounty` se fait par `dofusdbId` (3 homonymes « Ronce » ⇒ jamais par nom) ;
- *   - la carte de simulation est un **repli déclaré** (Dofensive n'expose aucune grille d'avis) ;
+ *   - la carte de simulation est la **grille vide** (Dofensive n'expose aucune grille d'avis) ;
+ *   - un avis **supprimé dans God** (liste d'exclusion) n'est jamais recréé ;
  *   - panne DofusDB ⇒ aucune écriture ; panne Dofensive ⇒ liste conservée (`validated:false`).
  *
  * Aucun réseau, aucune base : `dofusdbFetch` / `dofensiveFetch` / `db` sont mockés.
@@ -13,8 +14,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-    BOUNTY_FALLBACK_MAP,
-    BOUNTY_MAP_FALLBACK_LABEL,
+    BOUNTY_MAP_EMPTY_LABEL,
     BOUNTY_RACE_IDS,
     bountyCriteriaLabels,
     bountyDofensiveSpellIds,
@@ -84,8 +84,14 @@ vi.mock("@/server/actions/dofensive-actions", () => ({
     getDofensiveSpells: (...args: any[]) => mockGetDofensiveSpells(...args),
 }));
 
-const { syncBounties } = await import("@/lib/bounty-siphon");
+/* Liste d'exclusion « avis supprimés dans God » (module fs) : pilotée par le test. */
+const mockIgnoredBountyIds = vi.fn();
+vi.mock("@/lib/bounty-ignore", () => ({
+    getIgnoredBountyIds: (...args: any[]) => mockIgnoredBountyIds(...args),
+    isIgnoredBounty: (id: number, ignored?: number[]) => (ignored ?? mockIgnoredBountyIds()).includes(id),
+}));
 
+const { syncBounties } = await import("@/lib/bounty-siphon");
 // ─── Fixtures ──────────────────────────────────────────────────────────────────
 const PREDAGOB = {
     id: 4834,
@@ -123,6 +129,7 @@ const PREDAGOB_META = {
 
 beforeEach(() => {
     vi.clearAllMocks();
+    mockIgnoredBountyIds.mockReturnValue([]);
     mockDofusDbFetch.mockResolvedValue([]);
     mockDofensiveFetch.mockResolvedValue(null);
     mockFindUniqueBounty.mockResolvedValue(null);
@@ -176,12 +183,11 @@ describe("bounty.ts — helpers purs (aucun réseau)", () => {
         expect(bountyLevelRange([])).toEqual({ min: null, max: null });
     });
 
-    it("carte de simulation : repli DÉCLARÉ (Dofensive n'expose aucune grille d'avis)", () => {
-        expect(pickBountyBattleMap(null)).toEqual({ id: BOUNTY_FALLBACK_MAP.id, source: "default" });
-        expect(pickBountyBattleMap(0)).toEqual({ id: 196089348, source: "default" });
+    it("carte de simulation : GRILLE VIDE par défaut (aucune carte d'emprunt pour un avis)", () => {
+        expect(pickBountyBattleMap(null)).toEqual({ id: 0, source: "none" });
+        expect(pickBountyBattleMap(0)).toEqual({ id: 0, source: "none" });
         expect(pickBountyBattleMap(95870721)).toEqual({ id: 95870721, source: "dofensive" });
-        expect(BOUNTY_FALLBACK_MAP.name).toBe("Abysses du temps");
-        expect(BOUNTY_MAP_FALLBACK_LABEL).toBe("Carte de chasse générique");
+        expect(BOUNTY_MAP_EMPTY_LABEL).toBe("Map vide");
     });
 
     it("sorts Dofensive : Spells[] + sort d'ouverture du grade 1 (Predagob = 8586/8589/8590/8591)", () => {
@@ -278,8 +284,8 @@ describe("syncBounties — liste, preuve, écriture", () => {
             raceName: "Avis de recherche",
             subareaId: 883,
             subareaName: "Nimotopia",
-            mapId: BOUNTY_FALLBACK_MAP.id,
-            mapSource: "default",
+            mapId: 0,
+            mapSource: "none",
             validated: true,
         });
 
@@ -291,9 +297,8 @@ describe("syncBounties — liste, preuve, écriture", () => {
         expect(payload.preferredMaps).toEqual([]);           // jamais de carte inventée
         expect(payload.bounty).toMatchObject({
             raceId: 32,
-            battleMapId: BOUNTY_FALLBACK_MAP.id,
-            battleMapSource: "default",
-            battleMapLabel: BOUNTY_MAP_FALLBACK_LABEL,
+            battleMapId: null,
+            battleMapSource: "none",
             levelMin: 190,
             levelMax: 190,
             validated: true,
@@ -342,8 +347,8 @@ describe("syncBounties — liste, preuve, écriture", () => {
         expect(created.find((d) => d.dofusdbId === 3555).slug).toBe("ronce-3555");
         for (const d of created) {
             expect(d.isBountyMonster).toBe(true);
-            expect(d.battleMapId).toBe(BOUNTY_FALLBACK_MAP.id);
-            expect(d.battleMapSource).toBe("default");
+            expect(d.battleMapId).toBeNull();
+            expect(d.battleMapSource).toBe("none");
             expect(d.dofusdbSyncedAt).toBeInstanceOf(Date);
         }
         expect(res.synced).toBe(4);
@@ -372,7 +377,7 @@ describe("syncBounties — liste, preuve, écriture", () => {
         const res = await syncBounties();
 
         expect(res.entries).toHaveLength(1);
-        expect(res.entries[0]).toMatchObject({ id: 4834, validated: false, mapSource: "default" });
+        expect(res.entries[0]).toMatchObject({ id: 4834, validated: false, mapSource: "none" });
         expect(mockPersist.mock.calls[0][0].bounty.source).toBe("DOFUSDB");
         expect(mockPersist.mock.calls[0][0].bounty.validated).toBe(false);
     });
@@ -389,10 +394,23 @@ describe("syncBounties — liste, preuve, écriture", () => {
         expect(mockPersist).not.toHaveBeenCalled();
     });
 
-    it("la carte de repli de la simulation est siphonnée (idempotente côté sync)", async () => {
+    it("AUCUNE carte n'est siphonnée pour les avis (simulation sur grille vide)", async () => {
         standardSources();
         await syncBounties();
-        expect(mockSiphonMap).toHaveBeenCalledWith(BOUNTY_FALLBACK_MAP.id);
+        expect(mockSiphonMap).not.toHaveBeenCalled();
+    });
+
+    it("un avis SUPPRIMÉ dans God (liste d'exclusion) n'est ni écrit ni recréé", async () => {
+        standardSources();
+        mockIgnoredBountyIds.mockReturnValue([4834]);
+
+        const res = await syncBounties();
+
+        expect(res.ignored).toBe(1);                       // compté, donc jamais silencieux
+        expect(res.entries).toEqual([]);
+        expect(mockCreateBounty).not.toHaveBeenCalled();
+        expect(mockUpdateBounty).not.toHaveBeenCalled();
+        expect(mockPersist).not.toHaveBeenCalled();
     });
 
     it("idempotent : une ligne identique n'est pas comptée comme modifiée", async () => {
@@ -404,8 +422,8 @@ describe("syncBounties — liste, preuve, écriture", () => {
             raceId: 32,
             subareaIds: [883],
             isBountyMonster: true,
-            battleMapId: BOUNTY_FALLBACK_MAP.id,
-            battleMapSource: "default",
+            battleMapId: null,
+            battleMapSource: "none",
         });
 
         const res = await syncBounties();

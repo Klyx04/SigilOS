@@ -13,9 +13,8 @@
  * Mesures de référence (sondes `src/temp/_probe-bounties-gap.mjs` + `_probe-bounty-list.mjs`) :
  * 96 avis (38 + 21 + 15 + 19 + 3, 0 doublon) · niveaux **1 → 1600** · 81 sous-zones ·
  * 15 avis sans sous-zone · 5 sans sort · **maps sauvages non exposées par Dofensive**
- * (grille `Cells` = stub) ⇒ carte de simulation = **repli déclaré**, jamais une carte inventée.
+ * (grille `Cells` = stub) ⇒ carte de simulation = **grille vide**, jamais une carte inventée.
  */
-import { DEFAULT_ANOMALY_MAP } from "@/lib/anomaly-boss";
 
 /** Races DofusDB « Avis de recherche » (ordre = source, stable d'un siphon à l'autre). */
 export const BOUNTY_RACE_IDS = [32, 90, 127, 147, 156] as const;
@@ -37,20 +36,18 @@ export const BOUNTY_FAMILY_NAME = "Cr\u00e9atures de qu\u00eate";
 const BOUNTY_LABEL = "avis de recherche";
 
 /**
- * Carte de combat de la **simulation** d'un avis.
+ * Carte de combat de la **simulation** d'un avis : **aucune**.
  *
- * Dofensive n'expose **aucune** carte pour un avis (`PreferredMaps: []`, `Dungeons: []`) et la
+ * Dofensive n'expose NI carte NI grille pour un avis (`PreferredMaps: []`, `Dungeons: []`) et la
  * grille d'une map **sauvage** (sous-zone) renvoie un stub (`Name: null`, `Cells: {}`) — mesuré.
- * On emprunte donc la carte générique déjà siphonnée et **en base** (la même que les anomalies
- * temporelles), en l'annonçant comme telle côté UI (`BOUNTY_MAP_FALLBACK_LABEL`).
+ * Emprunter une carte générique (« Abysses du temps ») affichait une **salle sans rapport** avec la
+ * traque (constat user du 16/09/2026) ⇒ la simulation tourne désormais sur la **grille vide** de
+ * `SpellRangeGrid` (« Map vide », 17×17, placements libres) : aucun décor trompeur.
  */
-export const BOUNTY_FALLBACK_MAP = { id: DEFAULT_ANOMALY_MAP.id, name: DEFAULT_ANOMALY_MAP.name } as const;
+export const BOUNTY_MAP_EMPTY_LABEL = "Map vide";
 
-/** Libellé produit quand la simulation utilise la carte de repli (jamais présenté comme la vraie). */
-export const BOUNTY_MAP_FALLBACK_LABEL = "Carte de chasse générique";
-
-/** Origine de la carte de simulation d'un avis. */
-export type BountyMapSource = "default" | "dofensive";
+/** Origine de la carte de simulation d'un avis : `dofensive` (grille réelle) ou `none` (grille vide). */
+export type BountyMapSource = "none" | "dofensive";
 
 /** Une sous-zone DofusDB/Dofensive (`subareas` / `Subareas`). */
 export interface BountySubarea {
@@ -144,10 +141,13 @@ export function bountyLevel(grades: unknown, fallback = 1): number {
     return max ?? fallback;
 }
 
-/** Carte de simulation d'un avis : la carte siphonnée si elle existe, sinon le repli DÉCLARÉ. */
+/**
+ * Carte de simulation d'un avis : la grille Dofensive **si elle existe**, sinon **grille vide**
+ * (id `0`, source `none`) — jamais une carte d'emprunt sans rapport avec la zone de traque.
+ */
 export function pickBountyBattleMap(mapId: number | null | undefined): { id: number; source: BountyMapSource } {
     const id = Math.floor(Number(mapId) || 0);
-    return id > 0 ? { id, source: "dofensive" } : { id: BOUNTY_FALLBACK_MAP.id, source: "default" };
+    return id > 0 ? { id, source: "dofensive" } : { id: 0, source: "none" };
 }
 
 /** URL publique DofusDB d'un avis (référence de source, affichée dans God et la fiche). */

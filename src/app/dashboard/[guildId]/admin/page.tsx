@@ -274,11 +274,12 @@ export default async function AdminPage({
     });
     const isDofusConfigured = !!guild?.dofusServerId;
 
-    // 🔒 FIX: rolesMapping keys are Discord Role IDs, NOT permission IDs.
-    // Check by scanning permission arrays for DASHBOARD_LOGIN.
-    const rolesMapping = (guild?.rolesMapping as Record<string, string[]>) || {};
-    const isRbacConfigured = Object.values(rolesMapping).some(perms =>
-        Array.isArray(perms) && perms.includes("dashboard:login")
+    // Helper unique (fail-closed : @everyone exclu), cohérent getting-started
+    // + /admin/modules — le test inline historique divergeait (pas d'exclusion).
+    const { isRbacConfigured } = await import("@/lib/onboarding-gating");
+    const rbacConfigured = isRbacConfigured(
+        (guild?.rolesMapping as Record<string, string[]>) || {},
+        guildId
     );
 
     const sections = buildSections(guildId);
@@ -367,7 +368,7 @@ export default async function AdminPage({
                                     if (card.title === "Paramètres Généraux" && !isDofusConfigured) {
                                         warningBadge = "Config. Requise";
                                     }
-                                    if (card.title === "Rôles & Permissions" && !isRbacConfigured) {
+                                    if (card.title === "Rôles & Permissions" && !rbacConfigured) {
                                         warningBadge = "Rôle Requis";
                                     }
 

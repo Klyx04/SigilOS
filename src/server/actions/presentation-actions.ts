@@ -202,6 +202,7 @@ export async function getPublicGuilds(): Promise<PublicGuildSummary[]> {
                 presentationRecruiting: true,
                 presentationBannerType: true,
                 presentationBannerUrl: true,
+                dofusServerName: true,
             },
             orderBy: { name: "asc" },
         });
@@ -211,7 +212,7 @@ export async function getPublicGuilds(): Promise<PublicGuildSummary[]> {
             discordGuildId: g.discordGuildId,
             name: g.name,
             iconUrl: g.iconUrl,
-            server: g.presentationServer,
+            server: g.presentationServer || (g as any).dofusServerName || null,
             isRecruiting: g.presentationRecruiting,
             bannerType: g.presentationBannerType as any,
             bannerUrl: g.presentationBannerUrl ? g.presentationBannerUrl.replace(/^\/uploads\//, "/api/storage/") : null,
@@ -304,6 +305,8 @@ export async function getGuildPresentation(
             presentationMinSuccesses: true,
             presentationFoundedDate: true,
             presentationMemberCount: true,
+            dofusServerId: true,
+            dofusServerName: true,
         },
     });
 
@@ -335,11 +338,13 @@ export async function getGuildPresentation(
                 presentationDiscordReq: true,
                 presentationMinLevel: true,
                 presentationMinSuccesses: true,
-                presentationFoundedDate: true,
-                presentationMemberCount: true,
-            },
-        });
-        const decoded = decodeURIComponent(guildId).trim().toLowerCase();
+            presentationFoundedDate: true,
+            presentationMemberCount: true,
+            dofusServerId: true,
+            dofusServerName: true,
+        },
+    });
+    const decoded = decodeURIComponent(guildId).trim().toLowerCase();
         guild = candidates.find(g => getGuildSlug(g).toLowerCase() === decoded) || null;
     }
 
@@ -367,7 +372,9 @@ export async function getGuildPresentation(
         discord: g.presentationDiscord,
         isRecruiting: g.presentationRecruiting,
         recruitmentRequirements: g.presentationRecruitReq,
-        server: g.presentationServer,
+        // Héritage : jamais de serveur vide à l'affichage quand la guilde a
+        // un serveur de jeu configuré (l'admin n'a plus à le re-choisir).
+        server: g.presentationServer || (g as any).dofusServerName || null,
         bannerType: g.presentationBannerType,
         bannerUrl: g.presentationBannerUrl ? g.presentationBannerUrl.replace(/^\/uploads\//, "/api/storage/") : null,
         photoUrl: g.presentationPhotoUrl ? g.presentationPhotoUrl.replace(/^\/uploads\//, "/api/storage/") : null,
@@ -685,7 +692,17 @@ export async function deletePresentationImage(
  */
 export async function getAdminPresentationData(guildId: string): Promise<{
     success: boolean;
-    data?: PresentationUpdateData & { bannerUrl: string | null; photoUrl: string | null };
+    data?: PresentationUpdateData & {
+        bannerUrl: string | null;
+        photoUrl: string | null;
+        /** Serveur de jeu de la guilde (config onboarding) — pré-remplit le
+            choix présentation quand `presentationServer` est vide. */
+        guildServerId: string | null;
+        guildServerName: string | null;
+        /** `true` si l'admin a explicitement choisi un serveur de présentation
+            (sinon `server` est hérité de la config guilde). */
+        serverExplicit: boolean;
+    };
     error?: string;
 }> {
     const user = await getUserContext(guildId);
@@ -720,6 +737,10 @@ export async function getAdminPresentationData(guildId: string): Promise<{
             presentationMinSuccesses: true,
             presentationFoundedDate: true,
             presentationMemberCount: true,
+            // Serveur de la guilde (onboarding) : pré-remplit le choix
+            // présentation pour ne jamais le redemander à l'admin.
+            dofusServerId: true,
+            dofusServerName: true,
             // presentationIsActive: true, // If I needed to check active status
         },
     });
@@ -730,6 +751,7 @@ export async function getAdminPresentationData(guildId: string): Promise<{
 
     // Force cast to any to bypass stale Prisma types
     const d = guild as any;
+    const { resolveDofusServerName } = await import("@/lib/presentation-constants");
 
     return {
         success: true,
@@ -743,7 +765,17 @@ export async function getAdminPresentationData(guildId: string): Promise<{
             discord: d.presentationDiscord,
             recruiting: d.presentationRecruiting,
             recruitmentRequirements: d.presentationRecruitReq,
-            server: d.presentationServer,
+            // Héritage : la présentation affiche le serveur de la guilde sauf
+            // choix explicite différent de l'admin. Jamais le libellé
+            // générique ("le serveur configuré…") quand rien n'est configuré.
+            server: d.presentationServer
+                || ((d.dofusServerId || d.dofusServerName) ? resolveDofusServerName(d.dofusServerName, d.dofusServerId) : null)
+                || null,
+            guildServerId: d.dofusServerId ?? null,
+            guildServerName: (d.dofusServerId || d.dofusServerName)
+                ? resolveDofusServerName(d.dofusServerName, d.dofusServerId)
+                : null,
+            serverExplicit: !!d.presentationServer,
             bannerType: (d.presentationBannerType as "discord" | "custom") || "discord",
             bannerUrl: d.presentationBannerUrl ? d.presentationBannerUrl.replace(/^\/uploads\//, "/api/storage/") : null,
             photoUrl: d.presentationPhotoUrl ? d.presentationPhotoUrl.replace(/^\/uploads\//, "/api/storage/") : null,

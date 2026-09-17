@@ -374,7 +374,11 @@ export default async function DashboardLayout({
                 {/* 4. Pied de page compact — rendu dans la zone scrollable (voir plus haut) */}
 
                 {/* Forced Onboarding Wizard (Missing character pseudo, class or preferred activities) */}
-                {!user.isAdmin && (user.hasPseudoIssue || !user.classe || !user.hasPreferredActivities) && (
+                {/* Rapport beta onboarding : les ADMINS le voient aussi (avant, le
+                    `!user.isAdmin` dispensait l'owner de valider son pseudo/classe
+                    comme chaque nouveau). Gate sur `isOnboardingComplete` pour ne
+                    jamais empiler ce wizard avec la modale bloquante obligatoire. */}
+                {user.isOnboardingComplete && (user.hasPseudoIssue || !user.classe || !user.hasPreferredActivities) && (
                     <OnboardingWizard
                         guildId={guildId}
                         userName={user.name || "Aventurier"}

@@ -11,7 +11,6 @@ import {
     type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 import { JsonLd } from "@/components/shared/json-ld";
 
@@ -122,88 +121,64 @@ export default async function FAQPage() {
     return (
         <>
             <JsonLd id="json-ld-faq" nonce={nonce} data={faqJsonLd} />
-            <div className="min-h-screen bg-background text-foreground">
-                <div className="mx-auto max-w-[1100px] px-4 sm:px-6 lg:px-8 py-14 md:py-20">
-                    {/* Hero */}
-                    <div className="max-w-2xl mb-14">
-                        <p className="text-caption font-semibold uppercase tracking-[0.14em] text-success mb-4">
-                            FAQ & Aide
-                        </p>
-                        <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-foreground mb-4">
-                            Vos questions, nos réponses.
-                        </h1>
-                        <p className="text-muted-foreground text-[15px] leading-relaxed">
-                            Tout ce qu&apos;il faut savoir pour démarrer et utiliser SigilOS au quotidien :
-                            accès, permissions, modules, Discord, données et sécurité.
-                        </p>
-                    </div>
 
-                    {/* Sommaire */}
-                    <nav aria-label="Sommaire de la FAQ" className="mb-14 flex flex-wrap gap-3">
-                        {FAQ_SECTIONS.map((section) => (
-                            <Link
-                                key={section.id}
-                                href={`/legal/faq#${section.id}`}
-                                className="inline-flex items-center gap-2 px-4 h-10 rounded-xl border border-border bg-surface text-sm font-medium text-foreground hover:border-success/40 transition-colors"
-                            >
-                                <section.icon className="w-4 h-4 text-success" aria-hidden="true" />
-                                {section.title}
-                            </Link>
-                        ))}
-                    </nav>
+            <header className="max-w-2xl">
+                <p className="reg-eyebrow">FAQ &amp; aide</p>
+                <h1 className="mt-3 text-[clamp(1.6rem,2.8vw,2rem)] font-bold tracking-tight text-foreground">
+                    Vos questions, nos réponses.
+                </h1>
+                <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+                    Tout ce qu&apos;il faut savoir pour démarrer et utiliser SigilOS au quotidien :
+                    accès, permissions, modules, Discord, données et sécurité.
+                </p>
+            </header>
 
-                    {/* Sections */}
-                    <div className="space-y-14">
-                        {FAQ_SECTIONS.map((section) => (
-                            <section key={section.id} id={section.id} className="scroll-mt-24">
-                                <div className="flex items-center gap-3 mb-5">
-                                    <div className="w-10 h-10 rounded-xl bg-success/10 border border-success/20 flex items-center justify-center">
-                                        <section.icon className="w-5 h-5 text-success" aria-hidden="true" />
-                                    </div>
-                                    <h2 className="text-xl md:text-2xl font-bold text-foreground tracking-tight">
-                                        {section.title}
-                                    </h2>
-                                </div>
-                                <Accordion type="single" collapsible className="w-full space-y-4">
-                                    {section.items.map((item, idx) => (
-                                        <AccordionItem
-                                            key={`${section.id}-${idx}`}
-                                            value={`${section.id}-${idx}`}
-                                            className="border border-border bg-surface/30 rounded-xl px-4 overflow-hidden shadow-sm data-[state=open]:border-success/40 transition-colors"
-                                        >
-                                            <AccordionTrigger className="hover:no-underline py-4 text-sm font-semibold text-foreground/90 hover:text-foreground">
-                                                {item.q}
-                                            </AccordionTrigger>
-                                            <AccordionContent className="text-muted-foreground leading-relaxed text-sm pb-4">
-                                                {item.a}
-                                            </AccordionContent>
-                                        </AccordionItem>
-                                    ))}
-                                </Accordion>
-                            </section>
-                        ))}
-                    </div>
+            {/* Sommaire — liens textuels, pas de pastilles bordées */}
+            <nav aria-label="Sommaire de la FAQ" className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+                {FAQ_SECTIONS.map((section) => (
+                    <Link key={section.id} href={`/legal/faq#${section.id}`} className="reg-link-quiet">
+                        {section.title}
+                    </Link>
+                ))}
+            </nav>
 
-                    {/* CTA support */}
-                    <div className="mt-16 rounded-3xl border border-border bg-surface px-6 py-10 md:p-12 text-center">
-                        <h2 className="text-xl md:text-2xl font-bold text-foreground mb-3">
-                            Vous n&apos;avez pas trouvé votre réponse ?
-                        </h2>
-                        <p className="text-muted-foreground text-[15px] max-w-md mx-auto mb-6 leading-relaxed">
-                            Posez votre question sur le serveur Discord officiel : la communauté et
-                            l&apos;équipe du projet vous répondent rapidement.
-                        </p>
-                        <a
-                            href="https://discord.gg/uX7G6SUDgN"
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-2 h-12 px-6 rounded-xl bg-success hover:bg-success text-success-foreground font-bold text-sm transition-colors"
-                        >
-                            Rejoindre le Discord SigilOS
-                        </a>
-                    </div>
-                </div>
+            {/* Sections — accordéons natifs (aucun cadre autour de chaque question) */}
+            <div className="mt-12 space-y-12">
+                {FAQ_SECTIONS.map((section) => (
+                    <section key={section.id} id={section.id} className="scroll-mt-24">
+                        <div className="flex items-center gap-2.5">
+                            <section.icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                            <h2 className="text-base font-bold text-foreground tracking-tight">{section.title}</h2>
+                        </div>
+                        <div className="reg-faq mt-3">
+                            {section.items.map((item, idx) => (
+                                <details key={`${section.id}-${idx}`}>
+                                    <summary>{item.q}</summary>
+                                    <p>{item.a}</p>
+                                </details>
+                            ))}
+                        </div>
+                    </section>
+                ))}
+            </div>
+
+            {/* CTA support — un panneau, une action */}
+            <div className="reg-panel mt-14 p-6 md:p-8">
+                <h2 className="text-base font-bold text-foreground">Vous n&apos;avez pas trouvé votre réponse ?</h2>
+                <p className="mt-2 max-w-xl text-sm text-muted-foreground leading-relaxed">
+                    Posez votre question sur le serveur Discord officiel : la communauté et
+                    l&apos;équipe du projet vous répondent rapidement.
+                </p>
+                <a
+                    href="https://discord.gg/uX7G6SUDgN"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="reg-btn reg-btn-primary mt-5"
+                >
+                    Rejoindre le Discord SigilOS
+                </a>
             </div>
         </>
     );
 }
+

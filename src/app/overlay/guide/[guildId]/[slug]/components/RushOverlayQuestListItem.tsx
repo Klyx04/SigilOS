@@ -1,7 +1,7 @@
 "use client";
 
 import React, { memo } from "react";
-import { Check, Flag, BookmarkCheck, Lock, Info, DoorOpen } from "lucide-react";
+import { Check, Flag, BookmarkCheck, Lock, Info, DoorOpen, Package, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSequenceCoord, getItemTags, isDungeonSequence } from "./overlay-utils";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
@@ -12,6 +12,7 @@ interface RushOverlayQuestListItemProps {
   seq: RushSequence;
   isDone: boolean;
   isBookmarked: boolean;
+  /** Conservé pour les appelants : l'apparence suit les jetons de thème. */
   isLightMode: boolean;
   onToggle: () => void;
   onBookmark: () => void;
@@ -28,15 +29,21 @@ interface RushOverlayQuestListItemProps {
 }
 
 /**
- * Ligne compacte d'une quête dans la liste.
- * Montre : checkbox · icône · titre · coord · badge DJ · compteur ressources · repère · chevron
- * Tout le détail va dans le panneau accordéon (RushOverlayQuestPanel).
+ * Ligne compacte d'une quête dans la liste de l'overlay.
+ *
+ * Hiérarchie : case de validation · titre (lien vers la soluce) · étiquettes
+ * d'information (alignement, coordonnées, donjon, ressources, repères) · deux
+ * actions (poser un repère, ouvrir les détails).
+ *
+ * Toutes les couleurs viennent des jetons de thème : l'overlay pose `.light` sur
+ * sa racine en thème clair, donc le même rendu sert les deux thèmes sans palette
+ * codée en dur (`#13161b`, `slate-*`) ni ombre portée — un halo doré sur une
+ * carte de quête n'aidait pas à la lire dans une fenêtre de jeu.
  */
 export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   seq,
   isDone,
   isBookmarked,
-  isLightMode,
   onToggle,
   onBookmark,
   onOpenDetail,
@@ -61,31 +68,33 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   // Lien externe prioritaire : DofusPourLesNoobs, sinon DofusDB.
   const externalUrl = seq.dofuspourlesnoobsUrl || seq.dofusdbUrl || null;
   const externalLabel = seq.dofuspourlesnoobsUrl ? "DofusPourLesNoobs" : "DofusDB";
+  /**
+   * Étiquette d'information : filet 1 px, rayon 3 px, texte atténué. La couleur
+   * ne sert qu'à qualifier (ocre = donnée de jeu, rouge = verrou), jamais à
+   * décorer : « Alignement », « Donjon », « ressources » se lisent en neutre.
+   */
+  const chip = "inline-flex items-center gap-1 rounded-[3px] border border-border bg-surface px-1.5 py-0.5 text-[11px] text-muted-foreground";
 
   return (
     <div
       id={`overlay-seq-${seq.id}`}
       className={cn(
-        "rounded-xl border transition-all overflow-hidden",
+        "overflow-hidden rounded-[4px] border transition-colors",
         // Priorité à « validé » : seul un repère posé sur une quête NON validée
         // déclenche la couleur dorée. Une quête validée reprend son style « done »
         // (le repère, s'il existait, a été retiré à la validation).
+        // Le repère se signale par un filet gauche (3 px) et une teinte, jamais
+        // par un halo : c'est lisible dans une fenêtre de jeu réduite.
         isDone
-          ? isLightMode
-            ? "bg-slate-100/60 border-slate-200 opacity-60"
-            : "bg-[#0e1014]/50 border-[#1e2530]/50 opacity-55"
+          ? "border-border bg-surface opacity-60"
           : isBookmarked
-          ? isLightMode
-            ? "bg-amber-100 border-amber-400 border-l-[3px] border-l-amber-500"
-            : "bg-[#26200e] border-[#d5a94e]/60 border-l-[3px] border-l-[#d5a94e] shadow-[0_0_16px_rgba(213,169,78,0.14)]"
-          : isLightMode
-          ? "bg-white border-slate-200 hover:border-slate-300"
-          : "bg-[#13161b] hover:bg-[#161c22] border-[#1e2530] hover:border-[#2a3646]"
+          ? "border-warning/40 border-l-[3px] border-l-warning bg-warning/10"
+          : "border-border bg-surface hover:border-border-strong hover:bg-elevated"
       )}
     >
       {/* Ligne principale */}
       <div className="flex items-center gap-2 px-2.5 py-2">
-        {/* Checkbox */}
+        {/* Case de validation — cercle plein quand la quête est faite */}
         <button
           type="button"
           onClick={(e) => {
@@ -95,26 +104,26 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           disabled={isLocked}
           aria-label={isDone ? "Décocher la quête" : isLocked ? "Quête verrouillée par un prérequis" : "Marquer comme terminée"}
           className={cn(
-            "shrink-0 focus-visible:outline-2 focus-visible:outline-[#39bc95] focus-visible:outline-offset-1 rounded",
+            "shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
             isLocked && "cursor-not-allowed"
           )}
         >
-          <div
+          <span
             className={cn(
-              "w-4 h-4 rounded-md border flex items-center justify-center transition-all",
+              "grid h-4 w-4 place-items-center rounded-full border transition-colors",
               isDone
-                ? "bg-[#39bc95] border-[#39bc95] text-black"
+                ? "border-accent bg-accent text-accent-foreground"
                 : isLocked
-                ? isLightMode
-                  ? "border-slate-200 bg-slate-100 text-slate-400"
-                  : "border-[#2a3646] bg-[#0b0e12] text-[#5c6771]"
-                : isLightMode
-                ? "border-slate-300 bg-white hover:border-[#39bc95]"
-                : "border-[#3a4d60] bg-[#0f1419] hover:border-[#39bc95]"
+                ? "border-border bg-background text-subtle-foreground"
+                : "border-border-strong bg-background hover:border-accent"
             )}
           >
-            {isDone ? <Check className="w-2.5 h-2.5 stroke-[3]" /> : isLocked ? <Lock className="w-2.5 h-2.5 stroke-[2.5]" /> : null}
-          </div>
+            {isDone ? (
+              <Check className="h-2.5 w-2.5 stroke-[3]" aria-hidden="true" />
+            ) : isLocked ? (
+              <Lock className="h-2.5 w-2.5 stroke-[2.5]" aria-hidden="true" />
+            ) : null}
+          </span>
         </button>
 
         {/* Titre + 2e ligne — clic sur le titre = ouvrir la fiche externe (DPLN/DofusDB) */}
@@ -127,12 +136,8 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
               onClick={(e) => e.stopPropagation()}
               title={`Ouvrir la fiche sur ${externalLabel}`}
               className={cn(
-                "block w-full text-left text-xs font-semibold leading-tight truncate transition-colors hover:underline",
-                isDone
-                  ? "line-through opacity-50"
-                  : isLightMode
-                  ? "text-slate-900 hover:text-[#d5a94e]"
-                  : "text-[#e8e4da] hover:text-[#d5a94e]"
+                "block w-full truncate text-left text-[13px] font-semibold leading-tight text-foreground transition-colors hover:text-accent hover:underline",
+                isDone && "line-through opacity-50"
               )}
             >
               {name}
@@ -146,12 +151,8 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
               }}
               title="Voir les détails"
               className={cn(
-                "block w-full text-left text-xs font-semibold leading-tight truncate transition-colors cursor-pointer",
-                isDone
-                  ? "line-through opacity-50"
-                  : isLightMode
-                  ? "text-slate-900 hover:text-[#d5a94e]"
-                  : "text-[#e8e4da] hover:text-[#d5a94e]"
+                "block w-full cursor-pointer truncate text-left text-[13px] font-semibold leading-tight text-foreground transition-colors hover:text-accent hover:underline",
+                isDone && "line-through opacity-50"
               )}
             >
               {name}
@@ -162,64 +163,31 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           {(parsedCoord || hasDungeon || itemTags.length > 0 || bookmarkers.length > 0 || alignmentSet) && (
             <div className="flex flex-wrap items-center gap-1 mt-1">
               {alignmentSet && alignLabel && (
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1 h-[18px] px-1.5 rounded text-[9px] font-bold",
-                    isLightMode
-                      ? "bg-indigo-100 text-indigo-700"
-                      : "bg-[#2a2160]/80 text-[#a5b4fc]"
-                  )}
-                  title={`Quête d'alignement → ${alignLabel} ${alignmentSet.level}`}
-                >
+                <span className={chip} title={`Quête d'alignement → ${alignLabel} ${alignmentSet.level}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={alignmentSet.camp === "brakmarien" ? "/ordres/brakmar.png" : "/ordres/bonta.png"}
                     alt=""
-                    className="w-3 h-3 object-contain"
+                    className="h-3 w-3 shrink-0 object-contain"
                   />
                   Alignement {alignLabel} {alignmentSet.level}
                 </span>
               )}
               {parsedCoord && (
-                <span
-                  className={cn(
-                    "inline-flex items-center h-[18px] rounded",
-                    isLightMode
-                      ? "bg-blue-100 text-blue-600"
-                      : "bg-[#1a2d4a]/80 text-[#7baeff]"
-                  )}
-                  title={`Position : ${parsedCoord.raw}`}
-                >
-                  <RushCoordinateChip
-                    coordText={`[${parsedCoord.x},${parsedCoord.y}]`}
-                    className="h-[18px] px-1.5 rounded text-[9px] font-bold tabular-nums bg-transparent border-0 shadow-none"
-                  />
-                </span>
+                <RushCoordinateChip
+                  coordText={`[${parsedCoord.x},${parsedCoord.y}]`}
+                  className="text-[11px]"
+                />
               )}
               {hasDungeon && (
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1 h-[18px] px-1.5 rounded text-[9px] font-bold",
-                    isLightMode
-                      ? "bg-blue-100 text-blue-600"
-                      : "bg-[#1a2d4a]/80 text-[#7baeff]"
-                  )}
-                  title="Donjon requis"
-                >
-                  <DoorOpen className="w-3 h-3" /> DJ
+                <span className={cn(chip, "border-warning/40 text-warning")} title="Donjon requis">
+                  <DoorOpen className="h-3 w-3" aria-hidden="true" />
+                  Donjon
                 </span>
               )}
               {itemTags.length > 0 && (
-                <span
-                  className={cn(
-                    "inline-flex items-center h-[18px] px-1.5 rounded text-[9px] font-bold",
-                    isLightMode
-                      ? "bg-amber-100 text-amber-700"
-                      : "bg-[#2a2210]/80 text-[#d5a94e]"
-                  )}
-                  title={`${itemTags.length} ressource${itemTags.length > 1 ? "s" : ""} à prévoir`}
-                >
-                  📦 {itemTags.length}
+                <span className={chip} title={`${itemTags.length} ressource${itemTags.length > 1 ? "s" : ""} à prévoir`}>
+                  <Package className="h-3 w-3" aria-hidden="true" />×{itemTags.length}
                 </span>
               )}
               {!isDone && bookmarkers.length > 0 && (
@@ -231,12 +199,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                   }}
                   title={bookmarkers.map((b) => b.name).join(", ")}
                   aria-label={`En attente ici : ${bookmarkers.map((b) => b.name).join(", ")}`}
-                  className={cn(
-                    "inline-flex items-center h-[18px] px-1.5 rounded text-[9px] font-bold border transition-colors",
-                    isLightMode
-                      ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
-                      : "bg-[#2a2210]/80 border-[#d5a94e]/30 text-[#d5a94e] hover:bg-[#3a2a0e]/80"
-                  )}
+                  className={cn(chip, "border-warning/40 text-warning transition-colors hover:bg-warning/10")}
                 >
                   <span className="flex items-center -space-x-1">
                     {bookmarkers.slice(0, 3).map((b, i) =>
@@ -247,39 +210,35 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                           src={b.avatar}
                           alt={b.name}
                           loading="lazy"
-                          className="w-4 h-4 rounded-full border border-[#d5a94e]/40 object-cover"
+                          className="h-4 w-4 rounded-full border border-warning/40 object-cover"
                         />
                       ) : (
                         <span
                           key={i}
-                          className="w-4 h-4 rounded-full border border-[#d5a94e]/40 bg-[#d5a94e]/20 text-[#d5a94e] flex items-center justify-center text-[8px] font-bold uppercase"
+                          className="grid h-4 w-4 place-items-center rounded-full border border-warning/40 bg-warning/20 text-[9px] font-semibold text-warning"
                         >
                           {b.name.charAt(0) || "?"}
                         </span>
                       )
                     )}
                   </span>
-                  <span className="ml-0.5">📍 {bookmarkers.length}</span>
+                  <Users className="h-3 w-3" aria-hidden="true" />
+                  {bookmarkers.length}
                 </button>
               )}
             </div>
           )}
           {isLocked && prereqs.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1 mt-1">
-              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[#e2726f]">
-                <Lock className="w-2.5 h-2.5" /> À terminer avant :
+            <div className="mt-1 flex flex-wrap items-center gap-1">
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-danger">
+                <Lock className="h-3 w-3" aria-hidden="true" /> À terminer avant :
               </span>
               {prereqs.map((p) => (
                 <button
                   key={p.seqId}
                   type="button"
                   onClick={() => onGoToPrereq?.(p.seqId, p.milestoneId)}
-                  className={cn(
-                    "text-[9px] px-1.5 py-0.5 rounded font-semibold transition-colors",
-                    isLightMode
-                      ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
-                      : "bg-[#3a2a0e]/80 text-[#d5a94e] hover:bg-[#4b3512]"
-                  )}
+                  className="rounded-[3px] border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-[11px] font-medium text-warning transition-colors hover:bg-warning/20"
                   title={`Aller à : ${p.name}`}
                 >
                   {p.name}
@@ -300,18 +259,20 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           aria-label={isDone ? "Quête déjà validée" : isBookmarked ? "Retirer le repère" : isLocked ? "Repère indisponible (prérequis)" : "Poser le repère ici"}
           title={isDone ? "Quête déjà validée — repère désactivé" : isBookmarked ? "Repère posé ici" : isLocked ? "Repère indisponible (prérequis non terminés)" : "Je suis ici"}
           className={cn(
-            "p-1 rounded-lg transition-colors shrink-0",
-            (isLocked || isDone) && "opacity-40 cursor-not-allowed",
+            "shrink-0 rounded-[3px] p-1 transition-colors",
+            (isLocked || isDone) && "cursor-not-allowed opacity-40",
             isBookmarked && !isDone
-              ? isLightMode
-                ? "text-amber-600 bg-amber-100"
-                : "text-[#d5a94e] bg-[#d5a94e]/10"
-              : isLightMode
-              ? "text-slate-300 hover:text-amber-500"
-              : "text-[#8b95a0] hover:text-[#d5a94e]"
+              ? "bg-warning/15 text-warning"
+              : "text-muted-foreground hover:bg-warning/10 hover:text-warning"
           )}
         >
-          {isBookmarked && !isDone ? <BookmarkCheck className="w-3.5 h-3.5" /> : isLocked ? <Lock className="w-3.5 h-3.5" /> : <Flag className="w-3.5 h-3.5" />}
+          {isBookmarked && !isDone ? (
+            <BookmarkCheck className="h-3.5 w-3.5" aria-hidden="true" />
+          ) : isLocked ? (
+            <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+          ) : (
+            <Flag className="h-3.5 w-3.5" aria-hidden="true" />
+          )}
         </button>
 
         {/* Accordéon */}
@@ -323,14 +284,9 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           }}
           aria-label="Détails"
           title="Voir tous les détails (donjons, ressources, conseils)"
-          className={cn(
-            "p-1 rounded-lg transition-colors shrink-0 flex items-center gap-0.5",
-            isLightMode
-              ? "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-              : "text-[#8b95a0] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
-          )}
+          className="flex shrink-0 items-center gap-0.5 rounded-[3px] p-1 text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground"
         >
-          <Info className="w-3.5 h-3.5" />
+          <Info className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
       </div>
     </div>

@@ -1,45 +1,52 @@
 "use client";
 
-import { useRef } from "react";
-import Image from "next/image";
 import Link from "next/link";
-import { motion, useScroll, useTransform, useSpring } from "framer-motion";
+import Image from "next/image";
 import {
     Users,
     Calendar,
     Server,
     MessageCircle,
-    UserPlus,
-    ArrowLeft,
     Swords,
     Sparkles,
-    Castle,
     Coins,
     Theater,
     Target,
     Shield,
-    Globe,
-    Image as ImageIcon,
     Crown,
     Star,
-    LayoutDashboard
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { AVAILABLE_ACTIVITIES } from "@/lib/presentation-constants";
 import type { GuildPresentation } from "@/server/actions/presentation-actions";
-import { AuroraBackground } from "@/components/ui/aurora-background";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
+import { GuildEmblem } from "@/components/guild/guild-emblem";
 import type { User } from "next-auth";
 
-// Activity icons mapping
+/**
+ * Profil public d'une guilde — registre (refonte anti-slop).
+ *
+ * 🐞 Deux bugs d'affichage corrigés ici :
+ *  1. L'en-tête public était rendu APRÈS le bandeau de 40–50vh, avec un `-mt-32`
+ *     qui remontait l'identité dessous : la barre collante se posait au milieu
+ *     de la page et masquait le nom de la guilde. Le bandeau vit maintenant dans
+ *     le flux, sous l'en-tête.
+ *  2. L'icône de guilde (URL Discord) pouvait ne pas se charger : il restait un
+ *     carré noir sans repli. `GuildEmblem` affiche les initiales dans ce cas.
+ *
+ * Ce qui a été retiré : `AuroraBackground` + dégradé radial, parallaxe
+ * `framer-motion`, cartes `rounded-2xl` à ombre portée, tuiles d'icônes teintées
+ * (`bg-warning/10`, `yellow-500`, `pink-400`), pastilles d'activités et libellés
+ * en capitales espacées.
+ */
+
 const ACTIVITY_ICONS: Record<string, React.ReactNode> = {
-    "economie": <Coins className="w-4 h-4" />,
-    "pvm": <Swords className="w-4 h-4" />,
-    "roleplay": <Theater className="w-4 h-4" />,
-    "kolizeum": <Target className="w-4 h-4" />,
-    "percepteur": <Shield className="w-4 h-4" />,
-    "raids": <Swords className="w-4 h-4" />,
+    "economie": <Coins className="h-3.5 w-3.5" aria-hidden="true" />,
+    "pvm": <Swords className="h-3.5 w-3.5" aria-hidden="true" />,
+    "roleplay": <Theater className="h-3.5 w-3.5" aria-hidden="true" />,
+    "kolizeum": <Target className="h-3.5 w-3.5" aria-hidden="true" />,
+    "percepteur": <Shield className="h-3.5 w-3.5" aria-hidden="true" />,
+    "raids": <Swords className="h-3.5 w-3.5" aria-hidden="true" />,
 };
 
 const getActivityLabel = (id: string) => {
@@ -55,346 +62,232 @@ type Props = {
     user?: User;
 };
 
-// Animation Variants
-const fadeIn = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-        opacity: 1,
-        y: 0,
-        transition: { duration: 0.6, ease: "easeOut" as const }
-    }
-};
-
-const staggerContainer = {
-    hidden: { opacity: 0 },
-    visible: {
-        opacity: 1,
-        transition: {
-            staggerChildren: 0.1
-        }
-    }
-};
-
-const scaleIn = {
-    hidden: { opacity: 0, scale: 0.9 },
-    visible: {
-        opacity: 1,
-        scale: 1,
-        transition: { type: "spring" as const, bounce: 0.4 }
-    }
-};
-
 export function GuildPublicView({ guild, foundedYear, isMember, user }: Props) {
-    const headerRef = useRef<HTMLElement>(null);
-    const { scrollY } = useScroll();
-
-    // Use the actual founded date or fallback to current year
-    // Use strict manual date
     const foundedDate = guild.foundedDate ? new Date(guild.foundedDate) : null;
 
-    // Parallax effect for banner
-    const bannerY = useTransform(scrollY, [0, 500], [0, 150]);
-    const bannerOpacity = useTransform(scrollY, [0, 300], [1, 0.4]);
-    const textY = useTransform(scrollY, [0, 500], [0, 100]); // Slower parallax for text
+    // Un seul état-major, trois rôles : fondateur, co-leaders, bras droits.
+    const roster = [
+        ...(guild.founder ? [{ pseudo: guild.founder, role: "Fondateur", lead: true }] : []),
+        ...(guild.coLeaders ?? []).map((pseudo) => ({ pseudo, role: "Co-leader", lead: false })),
+        ...(guild.team ?? []).map((pseudo) => ({ pseudo, role: "Bras droit", lead: false })),
+    ];
 
     return (
-        <div className="relative min-h-screen bg-background text-foreground selection:bg-accent-teal/30 font-sans flex flex-col overflow-x-hidden">
-            {/* Ambient Background Layer (2026 Standard) - Fixed container prevents double scrollbar from Aurora's -inset overflow */}
-            <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-                <div className="w-full h-full opacity-5 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.03),transparent_70%)]" />
-                <AuroraBackground className="w-full h-full opacity-5 saturate-100 blur-3xl scale-125" />
-            </div>
+        <div className="registre min-h-screen bg-background text-foreground font-sans flex flex-col">
+            <PublicHeader
+                activePage="annuaire"
+                backHref="/guilds"
+                backLabel="Annuaire"
+                isMember={isMember}
+                user={user}
+            />
 
-            {/* Hero Image / Banner */}
-            <div className="relative h-[40vh] md:h-[50vh] min-h-[350px] overflow-hidden">
-                <motion.div
-                    style={{ y: bannerY, opacity: bannerOpacity }}
-                    className="absolute inset-0 z-0"
-                >
-                    {guild.bannerType === "custom" && guild.bannerUrl ? (
-                        <Image
-                            src={guild.bannerUrl}
-                            alt={`${guild.name} banner`}
-                            fill
-                            className="object-cover"
-                            priority
-                            unoptimized={true}
-                        />
-                    ) : (
-                        <div className="absolute inset-0 bg-background" />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent z-10" />
-                </motion.div>
-            </div>
-
-            {/* Sticky Header Nav (Consistent with Directory) */}
-            <PublicHeader backHref="/guilds" backLabel="Annuaire" isMember={isMember} user={user} />
-
-            {/* Guild Header Content (Overlapping Hero) — le badge membre est intégré
-                ici (1er bloc du conteneur) pour ne plus empiéter sur la présentation (#83). */}
-            <div className="relative z-20 -mt-32 md:-mt-40 max-w-7xl mx-auto px-6 md:px-8 pb-12">
-                {isMember && (
-                    <div className="mb-6">
-                        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-xl bg-success/10 border border-success/30 backdrop-blur-md">
-                            <div className="flex items-center gap-3">
-                                <span className="relative flex h-2.5 w-2.5 shrink-0">
-                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-success" />
-                                </span>
-                                <p className="text-sm font-semibold text-success">
-                                    Vous êtes membre de cette guilde
-                                </p>
-                            </div>
-                            <Link href={`/dashboard/${guild.discordGuildId}`}>
-                                <Button className="h-9 px-4 bg-success hover:bg-success text-success-foreground font-bold text-sm rounded-lg transition-colors flex items-center gap-2">
-                                    <LayoutDashboard className="w-4 h-4" />
-                                    Ouvrir le Dashboard
-                                </Button>
-                            </Link>
-                        </div>
-                    </div>
-                )}
-                <div className="flex flex-col md:flex-row items-end gap-8">
-                    {/* Guild Icon */}
-                    <motion.div
-                        initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                        animate={{ scale: 1, opacity: 1, y: 0 }}
-                        className="relative w-32 h-32 md:w-48 md:h-48 rounded-3xl bg-surface border-4 border-background shadow-2xl overflow-hidden shrink-0"
-                    >
-                        {guild.iconUrl ? (
-                            <Image
-                                src={guild.iconUrl}
-                                alt={`${guild.name} icon`}
-                                fill
-                                className="object-cover"
-                                unoptimized={true}
-                            />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-4xl bg-elevated text-muted-foreground">
-                                {guild.name.charAt(0)}
-                            </div>
-                        )}
-                    </motion.div>
-
-                    <div className="flex-1 space-y-4 pb-2">
-                        <motion.div
-                            initial="hidden"
-                            animate="visible"
-                            variants={staggerContainer}
-                            className="space-y-2"
-                        >
-                            <motion.div variants={fadeIn} className="flex flex-wrap items-center gap-3">
-                                {guild.server && (
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-elevated text-foreground text-xs font-bold uppercase tracking-wider border border-border backdrop-blur-md">
-                                        <Server className="w-3 h-3" />
-                                        {guild.server}
-                                    </span>
-                                )}
-                                {guild.foundedDate && (
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-surface/50 text-muted-foreground text-xs font-medium border border-border backdrop-blur-md">
-                                        <Calendar className="w-3 h-3" />
-                                        Fondée le {new Date(guild.foundedDate).toLocaleDateString("fr-FR", { year: 'numeric', month: 'long', day: 'numeric' })}
-                                    </span>
-                                )}
-                            </motion.div>
-
-                            <motion.h1 variants={fadeIn} className="text-4xl md:text-6xl font-black text-foreground tracking-tight drop-shadow-xl">
-                                {guild.name}
-                            </motion.h1>
-
-                            <motion.div variants={fadeIn} className="flex flex-wrap gap-2 pt-1">
-                                {guild.activities?.map((activity) => (
-                                    <span key={activity} className="inline-flex items-center gap-1.5 px-3 py-1 bg-surface rounded-full border border-border text-xs font-medium text-foreground">
-                                        {ACTIVITY_ICONS[activity] || <Sparkles className="w-3.5 h-3.5" />}
-                                        {getActivityLabel(activity)}
-                                    </span>
-                                ))}
-                            </motion.div>
-                        </motion.div>
+            {/* Statut de membre — une ligne, pas une carte en verre. */}
+            {isMember && (
+                <div className="border-b border-border bg-surface">
+                    <div className="reg-shell flex flex-wrap items-center justify-between gap-3 py-3">
+                        <p className="text-sm font-semibold text-foreground">
+                            Vous êtes membre de cette guilde
+                        </p>
+                        <Link href={`/dashboard/${guild.discordGuildId}`} className="reg-link text-sm">
+                            Ouvrir le Dashboard
+                        </Link>
                     </div>
                 </div>
-            </div>
+            )}
 
-            {/* Main Content Grid */}
-            <main className="max-w-7xl mx-auto px-6 md:px-8 pb-24 relative z-20">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
+            {/* Bandeau de la guilde : donnée réelle (image envoyée par la guilde),
+                posé dans le flux — plus de hero en `h-[50vh]` ni de dégradé noir. */}
+            {guild.bannerType === "custom" && guild.bannerUrl && (
+                <div className="reg-shell pt-6">
+                    <div className="reg-screen">
+                        <Image
+                            src={guild.bannerUrl}
+                            alt={`Bandeau de la guilde ${guild.name}`}
+                            width={1600}
+                            height={600}
+                            priority
+                            unoptimized
+                            className="aspect-[8/3] w-full object-cover"
+                        />
+                    </div>
+                </div>
+            )}
 
-                    {/* Left Column (Main Info) */}
-                    <div className="lg:col-span-2 space-y-12">
+            {/* Identité de la guilde : emblème, nom, faits vérifiables. */}
+            <section className="reg-section reg-section-tight" aria-label="Identité de la guilde">
+                <div className="reg-shell flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-8">
+                    <GuildEmblem src={guild.iconUrl} name={guild.name} size={96} priority />
 
-                        {/* Team Section */}
-                        {(guild.founder || (guild.coLeaders?.length ?? 0) > 0 || (guild.team?.length ?? 0) > 0) && (
-                            <section className="space-y-6">
-                                <h2 className="text-2xl font-bold text-foreground flex items-center gap-3">
-                                    <div className="p-2 rounded-lg bg-surface text-info border border-border">
-                                        <Users className="w-5 h-5" />
-                                    </div>
-                                    État-Major
-                                </h2>
+                    <div className="min-w-0">
+                        <h1 className="text-[clamp(1.75rem,3.6vw,2.5rem)] font-bold leading-[1.12] tracking-tight text-foreground">
+                            {guild.name}
+                        </h1>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {/* Founder Card */}
-                                    {guild.founder && (
-                                        <div className="md:col-span-2 bg-surface/50 border border-warning/20 rounded-xl p-5 flex items-center gap-4 relative overflow-hidden group">
-                                            <div className="absolute inset-0 bg-gradient-to-r from-warning/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                            <div className="w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center border border-warning/20 text-warning shrink-0">
-                                                <Crown className="w-6 h-6" />
-                                            </div>
-                                            <div>
-                                                <p className="text-caption font-bold text-warning uppercase tracking-widest">Fondateur</p>
-                                                <p className="text-xl font-bold text-foreground">{guild.founder}</p>
-                                            </div>
-                                        </div>
-                                    )}
+                        <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+                            {guild.server && (
+                                <span className="inline-flex items-center gap-2">
+                                    <Server className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                                    <span className="text-muted-foreground">Serveur</span>
+                                    <span className="font-semibold text-foreground">{guild.server}</span>
+                                </span>
+                            )}
+                            <span className="inline-flex items-center gap-2">
+                                <Calendar className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                                <span className="text-muted-foreground">Fondée en</span>
+                                <span className="reg-mono font-semibold text-foreground">{foundedYear}</span>
+                            </span>
+                            {guild.memberCount !== null && guild.memberCount !== undefined && (
+                                <span className="inline-flex items-center gap-2">
+                                    <Users className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                                    <span className="text-muted-foreground">Membres</span>
+                                    <span className="reg-mono font-semibold text-foreground">{guild.memberCount} / 350</span>
+                                </span>
+                            )}
+                        </div>
 
-                                    {/* Co-leaders */}
-                                    {(guild.coLeaders ?? []).map((pseudo, idx) => (
-                                        <div key={idx} className="bg-surface/30 border border-border rounded-xl p-4 flex items-center gap-3 hover:bg-surface/50 transition-colors">
-                                            <div className="w-8 h-8 rounded-full bg-yellow-500/10 flex items-center justify-center text-yellow-500 border border-yellow-500/10">
-                                                <Star className="w-4 h-4" />
-                                            </div>
-                                            <div>
-                                                <p className="text-caption font-bold text-muted-foreground uppercase">Co-Leader</p>
-                                                <p className="font-medium text-foreground">{pseudo}</p>
-                                            </div>
-                                        </div>
+                        {(guild.activities?.length ?? 0) > 0 && (
+                            <ul className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2">
+                                {guild.activities?.map((activity) => (
+                                    <li key={activity} className="inline-flex items-center gap-1.5 text-sm text-foreground">
+                                        <span className="text-muted-foreground">
+                                            {ACTIVITY_ICONS[activity] || <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />}
+                                        </span>
+                                        {getActivityLabel(activity)}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                </div>
+            </section>
+
+            <main className="reg-shell pb-16">
+                <div className="grid grid-cols-1 gap-10 lg:grid-cols-3 lg:gap-12">
+
+                    {/* Colonne principale : état-major, manifeste, galerie. */}
+                    <div className="space-y-12 lg:col-span-2">
+
+                        {roster.length > 0 && (
+                            <section aria-labelledby="etat-major-titre">
+                                <h2 id="etat-major-titre" className="reg-eyebrow">État-Major</h2>
+                                <ul className="mt-4 border-t border-border">
+                                    {roster.map((member, index) => (
+                                        <li
+                                            key={`${member.role}-${member.pseudo}-${index}`}
+                                            className="flex items-center justify-between gap-4 border-b border-border py-3"
+                                        >
+                                            <span className="inline-flex min-w-0 items-center gap-2">
+                                                {member.lead
+                                                    ? <Crown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                                                    : <Star className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
+                                                <span className="truncate font-semibold text-foreground">{member.pseudo}</span>
+                                            </span>
+                                            <span className="shrink-0 text-xs text-muted-foreground">{member.role}</span>
+                                        </li>
                                     ))}
-
-                                    {/* Team */}
-                                    {(guild.team ?? []).map((pseudo, idx) => (
-                                        <div key={idx} className="bg-surface/30 border border-border rounded-xl p-4 flex items-center gap-3 hover:bg-surface/50 transition-colors">
-                                            <div className="w-8 h-8 rounded-full bg-info/10 flex items-center justify-center text-info border border-info/10">
-                                                <Shield className="w-4 h-4" />
-                                            </div>
-                                            <div>
-                                                <p className="text-caption font-bold text-muted-foreground uppercase">Bras Droit</p>
-                                                <p className="font-medium text-foreground">{pseudo}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                                </ul>
                             </section>
                         )}
 
-                        {/* History / Description */}
                         {guild.history && (
-                            <section className="space-y-6">
-                                <h2 className="text-2xl font-bold text-foreground flex items-center gap-3">
-                                    <div className="p-2 rounded-lg bg-surface text-info border border-border">
-                                        <Globe className="w-5 h-5" />
-                                    </div>
-                                    Manifeste
-                                </h2>
-                                <div className="bg-surface/30 border border-border rounded-2xl p-8 leading-relaxed text-foreground text-lg">
-                                    <p className="whitespace-pre-wrap break-words">{guild.history}</p>
+                            <section aria-labelledby="manifeste-titre">
+                                <h2 id="manifeste-titre" className="reg-eyebrow">Manifeste</h2>
+                                <div className="mt-4 border-l-2 border-border-strong pl-5">
+                                    <p className="whitespace-pre-wrap break-words text-[0.9375rem] leading-relaxed text-foreground">
+                                        {guild.history}
+                                    </p>
                                 </div>
                             </section>
                         )}
 
-                        {/* Guild Photo */}
                         {guild.photoUrl && (
-                            <section className="space-y-6">
-                                <h2 className="text-2xl font-bold text-foreground flex items-center gap-3">
-                                    <div className="p-2 rounded-lg bg-surface text-pink-400 border border-border">
-                                        <ImageIcon className="w-5 h-5" />
+                            <section aria-labelledby="galerie-titre">
+                                <h2 id="galerie-titre" className="reg-eyebrow">Galerie</h2>
+                                <figure className="mt-4">
+                                    <div className="reg-screen">
+                                        <Image
+                                            src={guild.photoUrl}
+                                            alt={`Photo de la guilde ${guild.name}`}
+                                            width={1600}
+                                            height={900}
+                                            unoptimized
+                                            className="aspect-video w-full object-cover"
+                                        />
                                     </div>
-                                    Galerie
-                                </h2>
-                                <div className="rounded-2xl border border-border overflow-hidden aspect-video relative group">
-                                    <Image
-                                        src={guild.photoUrl}
-                                        alt={`Photo de la guilde ${guild.name}`}
-                                        fill
-                                        className="object-cover transition-transform duration-300 group-"
-                                        unoptimized={true}
-                                    />
-                                </div>
+                                </figure>
                             </section>
                         )}
                     </div>
 
-                    {/* Right Column (Sidebar - Recruitment) */}
-                    <aside className="space-y-8">
-                        <div className="sticky top-24 space-y-6">
-                            <div className="bg-surface/80 backdrop-blur-md border border-border rounded-2xl p-6 shadow-xl">
-                                <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-                                    <Swords className="w-5 h-5 text-info" />
-                                    Centre de Recrutement
-                                </h3>
+                    {/* Colonne latérale : le recrutement, en données brutes. */}
+                    <aside aria-labelledby="recrutement-titre">
+                        <div className="reg-panel p-6 lg:sticky lg:top-24">
+                            <h2 id="recrutement-titre" className="reg-eyebrow">Centre de Recrutement</h2>
 
-                                <div className="space-y-6">
-                                    {/* Founded Date */}
-                                    {guild.foundedDate && (
-                                        <div className="flex items-center justify-between p-4 rounded-xl border bg-warning/5 border-warning/20">
-                                            <span className="text-sm font-medium text-muted-foreground">Fondation</span>
-                                            <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-warning">
-                                                <Calendar className="w-4 h-4" />
-                                                {new Date(guild.foundedDate).toLocaleDateString("fr-FR", { year: 'numeric', month: 'long', day: 'numeric' })}
-                                            </span>
-                                        </div>
-                                    )}
-
-                                    {/* Member Count */}
-                                    {guild.memberCount !== null && guild.memberCount !== undefined && (
-                                        <div className="flex items-center justify-between p-4 rounded-xl border bg-info/5 border-info/20">
-                                            <span className="text-sm font-medium text-muted-foreground">Membres</span>
-                                            <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-info">
-                                                <Users className="w-4 h-4" />
-                                                {guild.memberCount} / 350
-                                            </span>
-                                        </div>
-                                    )}
-
-                                    {/* Status */}
-                                    <div className={`flex items-center justify-between p-4 rounded-xl border ${guild.isRecruiting
-                                        ? "bg-success/5 border-success/20"
-                                        : "bg-danger/5 border-danger/20"
-                                        }`}>
-                                        <span className="text-sm font-medium text-muted-foreground">Statut</span>
-                                        <span className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider ${guild.isRecruiting ? "text-success" : "text-danger"
-                                            }`}>
-                                            <span className={`w-2 h-2 rounded-full ${guild.isRecruiting ? "bg-success animate-pulse" : "bg-danger"}`} />
+                            <dl className="mt-4">
+                                <div className="flex items-center justify-between gap-4 border-b border-border py-3 last:border-b-0">
+                                    <dt className="text-sm text-muted-foreground">Statut</dt>
+                                    <dd>
+                                        <span className={guild.isRecruiting ? "reg-tag reg-tag-accent" : "reg-tag text-muted-foreground"}>
                                             {guild.isRecruiting ? "Ouvert" : "Fermé"}
                                         </span>
-                                    </div>
-
-                                    {guild.isRecruiting && (
-                                        <>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                {guild.minLevel && (
-                                                    <div className="p-3 bg-surface rounded-xl border border-border text-center">
-                                                        <p className="text-caption text-muted-foreground uppercase tracking-wider font-bold mb-1">Niveau Min</p>
-                                                        <p className="text-xl font-bold text-foreground">{guild.minLevel}</p>
-                                                    </div>
-                                                )}
-                                                {guild.minSuccesses && (
-                                                    <div className="p-3 bg-surface rounded-xl border border-border text-center">
-                                                        <p className="text-caption text-muted-foreground uppercase tracking-wider font-bold mb-1">Succès Min</p>
-                                                        <p className="text-xl font-bold text-foreground">{guild.minSuccesses}</p>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {guild.recruitmentRequirements && (
-                                                <div className="space-y-2">
-                                                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Pré-requis</p>
-                                                    <div className="text-sm text-foreground p-4 bg-surface rounded-xl border border-border leading-relaxed">
-                                                        {guild.recruitmentRequirements}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </>
-                                    )}
-
-                                    {guild.discord && (
-                                        <Link href={guild.discord} target="_blank" className="block pt-2">
-                                            <Button className="w-full h-12 bg-info hover:bg-info text-info-foreground font-bold rounded-xl shadow-lg shadow-indigo-500/20 transition-all hover:scale-[1.02] flex items-center gap-2">
-                                                <MessageCircle className="w-5 h-5" />
-                                                Rejoindre le Discord
-                                            </Button>
-                                        </Link>
-                                    )}
+                                    </dd>
                                 </div>
-                            </div>
+
+                                {guild.memberCount !== null && guild.memberCount !== undefined && (
+                                    <div className="flex items-center justify-between gap-4 border-b border-border py-3 last:border-b-0">
+                                        <dt className="text-sm text-muted-foreground">Membres</dt>
+                                        <dd className="reg-mono text-sm font-semibold text-foreground">
+                                            {guild.memberCount} / 350
+                                        </dd>
+                                    </div>
+                                )}
+
+                                {foundedDate && (
+                                    <div className="flex items-center justify-between gap-4 border-b border-border py-3 last:border-b-0">
+                                        <dt className="text-sm text-muted-foreground">Fondation</dt>
+                                        <dd className="reg-mono text-sm text-foreground">
+                                            {foundedDate.toLocaleDateString("fr-FR", { year: 'numeric', month: 'long', day: 'numeric' })}
+                                        </dd>
+                                    </div>
+                                )}
+
+                                {guild.isRecruiting && guild.minLevel && (
+                                    <div className="flex items-center justify-between gap-4 border-b border-border py-3 last:border-b-0">
+                                        <dt className="text-sm text-muted-foreground">Niveau minimum</dt>
+                                        <dd className="reg-mono text-sm font-semibold text-foreground">{guild.minLevel}</dd>
+                                    </div>
+                                )}
+
+                                {guild.isRecruiting && guild.minSuccesses && (
+                                    <div className="flex items-center justify-between gap-4 border-b border-border py-3 last:border-b-0">
+                                        <dt className="text-sm text-muted-foreground">Succès minimum</dt>
+                                        <dd className="reg-mono text-sm font-semibold text-foreground">{guild.minSuccesses}</dd>
+                                    </div>
+                                )}
+                            </dl>
+
+                            {guild.isRecruiting && guild.recruitmentRequirements && (
+                                <div className="pt-4">
+                                    <p className="text-xs text-muted-foreground">Pré-requis</p>
+                                    <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
+                                        {guild.recruitmentRequirements}
+                                    </p>
+                                </div>
+                            )}
+
+                            {guild.discord && (
+                                <Link
+                                    href={guild.discord}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="reg-btn reg-btn-primary mt-6 w-full"
+                                >
+                                    <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                                    Rejoindre le Discord
+                                </Link>
+                            )}
                         </div>
                     </aside>
                 </div>

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist_Mono, Space_Grotesk, Inter, Cinzel } from "next/font/google";
+import { Geist_Mono, Space_Grotesk, Inter, Cinzel, Source_Sans_3, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
@@ -26,6 +26,25 @@ const cinzel = Cinzel({
   variable: "--font-cinzel",
   subsets: ["latin"],
   weight: ["400", "700", "900"],
+});
+
+/* ── §REFONTE LANDING — typographie « registre » (public uniquement) ────────
+   Source Sans 3 (texte, documentaire) + IBM Plex Mono (dates, heures,
+   versions, chiffres, statuts, coordonnées). Ces deux familles ne sont
+   appliquées qu'à l'intérieur du scope `.registre` (landing + pages
+   publiques) : le dashboard et le God gardent Space Grotesk / Inter. */
+const sourceSans = Source_Sans_3({
+  variable: "--font-source-sans",
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+  display: "swap",
+});
+
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
+  subsets: ["latin"],
+  weight: ["500", "600"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -111,7 +130,7 @@ export default async function RootLayout({
 
   return (
     <html lang="fr" suppressHydrationWarning>
-      <body suppressHydrationWarning className={`${spaceGrotesk.variable} ${geistMono.variable} ${inter.variable} ${cinzel.variable} antialiased`}>
+      <body suppressHydrationWarning className={`${spaceGrotesk.variable} ${geistMono.variable} ${inter.variable} ${cinzel.variable} ${sourceSans.variable} ${plexMono.variable} antialiased`}>
         <ThemeProvider forcedTheme={forcedTheme} nonce={nonce}>
           <AuthProvider session={session}>
             <TooltipProvider>

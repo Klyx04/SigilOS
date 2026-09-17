@@ -35,7 +35,7 @@ import {
 } from "@/server/actions/optimized-guide-actions";
 import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB } from "@/server/actions/dofus-search-actions";
 import { DOFUS_WORLDS, DOFUS_JOBS } from "@/lib/dofus-assets";
-import { resolveRushSeqIcon, getGuideMetiersRequires } from "@/lib/rush-guide-utils";
+import { resolveRushSeqIcon, getGuideMetiersRequires, RUSH_ACTIVITY_TAG_CONFIG } from "@/lib/rush-guide-utils";
 import { resolveRushUIConfig, type RushUIConfig } from "@/lib/rush-ui-config";
 import { uploadImageFile } from "@/components/editor/utils/image-upload";
 import { isSafeImageUrl, safeImageUrl } from "@/lib/security";
@@ -91,6 +91,8 @@ type Milestone = {
   title: string;
   description: string | null;
   accentColor: string | null;
+  /** Image du bloc — TOUS les types. Rendu : nue, à droite du bloc, sans cadre. */
+  imageUrl?: string | null;
   isOptional: boolean;
   order: number;
   tips?: string | null;
@@ -156,20 +158,42 @@ const DOFUS_LIST = [
 ];
 
 // ─── Activity Tags ────────────────────────────────────────────────────────────
-const ACTIVITY_TAGS: { type: ActivityTagType; imagePath: string; label: string; color: string; hasName?: boolean; hasLevel?: boolean; hasUrl?: boolean }[] = [
-  { type: "combat_tactique",    imagePath: "/assets/rush-sylvestre/combat-tactique.png",    label: "Combat Tactique", color: "#ef4444" },
-  { type: "combat_vagues",      imagePath: "/assets/rush-sylvestre/combat-vagues.png",      label: "Combat à vagues",          color: "#3b82f6" },
-  { type: "songes",             imagePath: "/assets/rush-sylvestre/songes.png",             label: "Songes",          color: "#8b5cf6" },
-  { type: "combat_solo",        imagePath: "/assets/rush-sylvestre/combat-solo.png",        label: "Combat Solo",     color: "#f43f5e" },
-  { type: "combat_plusieurs",   imagePath: "/assets/rush-sylvestre/combat-plusieurs.png",   label: "Combat à plusieurs",    color: "#a855f7" },
-  { type: "contrainte_horaire", imagePath: "/assets/rush-sylvestre/contrainte-horaire.png", label: "Horaire Spec.",   color: "#f59e0b", hasName: true },
-  { type: "donjon",             imagePath: "/assets/rush-sylvestre/donjon.png",             label: "Donjon requis",   color: "#3b82f6" },
-  { type: "plusieurs_personnes",imagePath: "/assets/rush-sylvestre/plusieurs-personnes.png",label: "Multi joueurs",   color: "#10b981" },
-  { type: "sort",               imagePath: "/assets/rush-sylvestre/sort.png",               label: "Sort requis",     color: "#ec4899" },
-  { type: "metier",             imagePath: "/assets/rush-sylvestre/faconneur.png",          label: "Métier requis",   color: "#eab308", hasName: true, hasLevel: true },
-  { type: "solver",             imagePath: "/assets/icons/dofusdb.png",                            label: "Solver requis",   color: "#10b981", hasUrl: true },
-  { type: "quest_group",        imagePath: "/assets/rush-sylvestre/plusieurs-personnes.png",      label: "À faire ensemble", color: "#f59e0b", hasName: true },
+// Picto, libellé et couleur viennent du référentiel partagé
+// (`RUSH_ACTIVITY_TAG_CONFIG` → `public/assets/dofus-ui/pictos/`) : une seule
+// vérité avec la vue publique et l'overlay. Ici on ne déclare que ce qui est
+// propre à l'éditeur GOD (champs de saisie complémentaires).
+type ActivityTagDef = {
+  type: ActivityTagType;
+  hasName?: boolean;
+  hasLevel?: boolean;
+  hasUrl?: boolean;
+};
+
+const ACTIVITY_TAG_DEFS: ActivityTagDef[] = [
+  { type: "combat_tactique" },
+  { type: "combat_vagues" },
+  { type: "songes" },
+  { type: "combat_solo" },
+  { type: "combat_plusieurs" },
+  { type: "contrainte_horaire", hasName: true },
+  { type: "donjon" },
+  { type: "plusieurs_personnes" },
+  { type: "sort" },
+  { type: "metier", hasName: true, hasLevel: true },
+  { type: "solver", hasUrl: true },
+  { type: "quest_group", hasName: true },
 ];
+
+const ACTIVITY_TAGS: { type: ActivityTagType; imagePath: string; label: string; color: string; hasName?: boolean; hasLevel?: boolean; hasUrl?: boolean }[] =
+  ACTIVITY_TAG_DEFS.map((def) => {
+    const cfg = RUSH_ACTIVITY_TAG_CONFIG[def.type];
+    return {
+      ...def,
+      imagePath: cfg?.imagePath ?? "/assets/icons/dofusdb.png",
+      label: cfg?.label ?? def.type,
+      color: cfg?.color ?? "#94a3b8",
+    };
+  });
 
 function getMilestoneTypeInfo(type?: MilestoneType) {
   return MILESTONE_TYPES.find(t => t.value === type) ?? MILESTONE_TYPES[0];
@@ -428,6 +452,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
           tips: m.tips ?? undefined,
           dofusId: m.dofusId,
           type: m.type,
+          imageUrl: m.imageUrl ?? null,
         });
         toast.success("Étape sauvegardée ✓");
         setEditingMilestone(null);
@@ -1216,6 +1241,43 @@ function MilestoneRow({
               className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-amber-300/80 focus:outline-none focus:border-amber-500/30 resize-none"
               placeholder="💡 Tips / Conseils pour ce bloc" rows={2}
             />
+            {/* Image du bloc — disponible pour TOUS les types de bloc (Quêtes, Prérequis,
+                Alignement, Dofus, Succès, Zone, Donjon, Conseil/Tips, Séparateur, Obtention
+                Dofus). Elle se loge à DROITE du bloc côté membre, servie NUE : pas de cadre,
+                pas de tuile, un fondu l'amène dans la ligne. Upload (R2) ou URL manuelle.
+                ⚠️ Scope `guides` : l'image du bloc doit rester visible par un visiteur
+                ANONYME (guide public indexé) — `docs` est réservé aux pièces privées. */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-caption text-zinc-500 uppercase tracking-wider shrink-0">Image du bloc</span>
+              <input
+                value={editingData?.imageUrl ?? ""}
+                onChange={e => onEditChange({ imageUrl: e.target.value })}
+                className="flex-1 min-w-[160px] bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-emerald-500/50"
+                placeholder="URL de l'image (ex. /module-dofus/Dofus_Pourpre.png)"
+              />
+              <label className="cursor-pointer px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-caption flex items-center gap-1">
+                Importer
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    const url = await uploadImageFile(f, "guides");
+                    if (url) { onEditChange({ imageUrl: url }); toast.success("Image importée ✓"); }
+                    else toast.error("Upload impossible");
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              {editingData?.imageUrl ? (
+                <button type="button" onClick={() => onEditChange({ imageUrl: "" })} title="Retirer l'image"
+                  className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              ) : null}
+            </div>
             {/* Dofus selector si type DOFUS */}
             {editingData?.type === "DOFUS" && (
               <div className="flex flex-wrap gap-1.5">

@@ -16,7 +16,7 @@ import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
 import { logger } from "@/lib/logger";
 import { createAuditLog } from "./audit-actions";
-import { fetchGuildBans, fetchAllGuildMembers } from "@/server/discord";
+import { fetchGuildBans, fetchAllGuildMembers, fetchAuditExecutor, executorMetadata, DISCORD_AUDIT_ACTIONS } from "@/server/discord";
 import { sendLifecycleNotification } from "./lifecycle-actions";
 import { isGuildUnavailableError } from "@/lib/discord-guild-errors";
 
@@ -113,6 +113,8 @@ export async function syncMembershipStatus(
                 
                 if (isBannedOnDiscord) {
                     // Member was BANNED on Discord - Archive with BANNED status
+                    // Exécutant réel du ban (staff ou bot tiers), pas le cliqueur du sync.
+                    const banEx = await fetchAuditExecutor(discordGuildId, DISCORD_AUDIT_ACTIONS.BAN_ADD, discordUserId).catch(() => null);
                     await db.userProfile.update({
                         where: { id: profile.id },
                         data: {
@@ -125,15 +127,27 @@ export async function syncMembershipStatus(
 
                     await createAuditLog({
                         guildId: discordGuildId,
-                        actorUserId: ctx.id || "SYSTEM",
-                        actorName: ctx.name || "Admin Sync",
+                        actorUserId: "SYSTEM",
+                        actorName: "Vérification auto",
                         action: "PROFILE_ARCHIVED",
                         targetType: "PROFILE",
                         targetId: profile.id,
-                        metadata: { description: profile.discordNickname || profile.userId, reason: "BANNED_FROM_DISCORD" }
+                        metadata: { description: profile.discordNickname || profile.userId, reason: "Banni sur Discord", ...executorMetadata(banEx, discordUserId) }
                     });
                 } else {
                     // Member LEFT Discord - Archive for 12 months (Retention policy)
+                    // Auteur réel : exclu par un staff/bot (journal d'audit) ou parti de lui-même.
+                    // « lui-même » uniquement si le journal a bien été lu (checked) : sans
+                    // permission d'audit on n'accuse personne (aucune mention « par »).
+                    let kickEx = null;
+                    let kickAuditChecked = false;
+                    try {
+                        kickEx = await fetchAuditExecutor(discordGuildId, DISCORD_AUDIT_ACTIONS.KICK, discordUserId);
+                        kickAuditChecked = true;
+                    } catch {
+                        kickAuditChecked = false;
+                    }
+                    const kicked = kickEx && kickEx.userId !== discordUserId ? kickEx : null;
                     const twelveMonthsFromNow = new Date();
                     twelveMonthsFromNow.setFullYear(twelveMonthsFromNow.getFullYear() + 1);
 
@@ -150,18 +164,48 @@ export async function syncMembershipStatus(
                     // 📝 Audit Log Archival (Sync)
                     await createAuditLog({
                         guildId: discordGuildId,
-                        actorUserId: ctx.id || "SYSTEM",
-                        actorName: ctx.name || "Admin Sync",
+                        actorUserId: "SYSTEM",
+                        actorName: "Vérification auto",
                         action: "PROFILE_ARCHIVED",
                         targetType: "PROFILE",
                         targetId: profile.id,
                         metadata: { 
                             description: profile.discordNickname || profile.userId, 
-                            reason: "LEFT_GUILD",
-                            retention: "12_MONTHS"
+                            reason: kicked ? "Exclu du serveur" : "A quitté le serveur",
+                            retention: "12_MONTHS",
+                            ...(kicked
+                                ? executorMetadata(kicked, discordUserId)
+                                : kickAuditChecked
+                                  ? { executorId: discordUserId, executorIsSelf: true }
+                                  : {})
                         }
                     });
                 }
+                result.archived++;
+            }
+            else if (profile.status === "ARCHIVED" && !isInGuild && bannedUserIds.has(discordUserId)) {
+                // Banni Discord APRÈS le départ → promotion ARCHIVED → BANNED.
+                // Exécutant réel du ban (staff ou bot tiers), pas le cliqueur du sync.
+                const banEx2 = await fetchAuditExecutor(discordGuildId, DISCORD_AUDIT_ACTIONS.BAN_ADD, discordUserId).catch(() => null);
+                await db.userProfile.update({
+                    where: { id: profile.id },
+                    data: {
+                        status: "BANNED",
+                        archivedAt: new Date(),
+                        archiveReason: "BANNED",
+                        scheduledDeletion: null // No automatic deletion for bans
+                    }
+                });
+
+                await createAuditLog({
+                    guildId: discordGuildId,
+                    actorUserId: "SYSTEM",
+                    actorName: "Vérification auto",
+                    action: "PROFILE_ARCHIVED",
+                    targetType: "PROFILE",
+                    targetId: profile.id,
+                    metadata: { description: profile.discordNickname || profile.userId, reason: "Banni sur Discord après son départ", ...executorMetadata(banEx2, discordUserId) }
+                });
                 result.archived++;
             }
             else if (
@@ -186,16 +230,67 @@ export async function syncMembershipStatus(
                 // 📝 Audit Log Reactivation (Sync)
                 await createAuditLog({
                     guildId: discordGuildId,
-                    actorUserId: ctx.id || "SYSTEM",
-                    actorName: ctx.name || "Admin Sync",
+                    actorUserId: "SYSTEM",
+                    actorName: "Vérification auto",
                     action: "PROFILE_REACTIVATED",
                     targetType: "PROFILE",
                     targetId: profile.id,
-                    metadata: { description: profile.discordNickname || profile.userId }
+                    metadata: { description: profile.discordNickname || profile.userId, reason: "De retour sur le serveur", executorId: discordUserId, executorIsSelf: true }
                 });
                 result.reactivated++;
             }
-            // Note: BANNED profiles are never reactivated by sync
+            else if (profile.status === "BANNED" && !isInGuild && !bannedUserIds.has(discordUserId)) {
+                // Déban Discord sans retour → BANNED → ARCHIVED (réactivé auto au retour, sans staff).
+                const unbanEx = await fetchAuditExecutor(discordGuildId, DISCORD_AUDIT_ACTIONS.BAN_REMOVE, discordUserId).catch(() => null);
+                const twelveMonthsFromNow = new Date();
+                twelveMonthsFromNow.setFullYear(twelveMonthsFromNow.getFullYear() + 1);
+                await db.userProfile.update({
+                    where: { id: profile.id },
+                    data: {
+                        status: "ARCHIVED",
+                        archivedAt: new Date(),
+                        archiveReason: "LEFT",
+                        scheduledDeletion: twelveMonthsFromNow
+                    }
+                });
+                await db.guildMemberBan.updateMany({
+                    where: { guildId: (profile as { guildId?: string }).guildId ?? "", discordId: discordUserId, liftedAt: null },
+                    data: { liftedAt: new Date(), liftedBy: "SYSTEM", liftedByName: "Vérification auto" }
+                }).catch(() => null);
+                await createAuditLog({
+                    guildId: discordGuildId,
+                    actorUserId: "SYSTEM",
+                    actorName: "Vérification auto",
+                    action: "PROFILE_REACTIVATED",
+                    targetType: "PROFILE",
+                    targetId: profile.id,
+                    metadata: { description: profile.discordNickname || profile.userId, reason: "Débanni sur Discord", ...executorMetadata(unbanEx, discordUserId) }
+                });
+                result.reactivated++;
+            }
+            else if (profile.status === "BANNED" && isInGuild && !bannedUserIds.has(discordUserId)) {
+                // Déban partout → ACTIVE direct, sans étape staff (débanni + de retour = actif).
+                const unbanEx2 = await fetchAuditExecutor(discordGuildId, DISCORD_AUDIT_ACTIONS.BAN_REMOVE, discordUserId).catch(() => null);
+                await db.userProfile.update({
+                    where: { id: profile.id },
+                    data: { status: "ACTIVE", archivedAt: null, archiveReason: null, scheduledDeletion: null }
+                });
+                await db.guildMemberBan.updateMany({
+                    where: { guildId: (profile as { guildId?: string }).guildId ?? "", discordId: discordUserId, liftedAt: null },
+                    data: { liftedAt: new Date(), liftedBy: "SYSTEM", liftedByName: "Vérification auto" }
+                }).catch(() => null);
+                await createAuditLog({
+                    guildId: discordGuildId,
+                    actorUserId: "SYSTEM",
+                    actorName: "Vérification auto",
+                    action: "PROFILE_REACTIVATED",
+                    targetType: "PROFILE",
+                    targetId: profile.id,
+                    metadata: { description: profile.discordNickname || profile.userId, reason: "Débanni sur Discord", ...executorMetadata(unbanEx2, discordUserId) }
+                });
+                result.reactivated++;
+            }
+            // Note: BANNED + hors guilde + toujours banni → on ne touche à rien
         }
 
         result.details = {
@@ -311,6 +406,8 @@ async function syncMembershipStatusInternal(discordGuildId: string): Promise<Syn
                 const isBannedOnDiscord = bannedUserIds.has(discordUserId);
 
                 if (isBannedOnDiscord) {
+                    // Exécutant réel du ban (staff ou bot tiers).
+                    const banExCron = await fetchAuditExecutor(discordGuildId, DISCORD_AUDIT_ACTIONS.BAN_ADD, discordUserId).catch(() => null);
                     await db.userProfile.update({
                         where: { id: profile.id },
                         data: {
@@ -322,18 +419,28 @@ async function syncMembershipStatusInternal(discordGuildId: string): Promise<Syn
                     });
 
                     // 🔔 Lifecycle notification (embed Discord)
-                    await sendLifecycleNotification(discordGuildId, profile, "BANNED", "SYNC (Détection automatique)").catch(() => null);
+                    await sendLifecycleNotification(discordGuildId, profile, "BANNED", "Vérification automatique").catch(() => null);
 
                     await createAuditLog({
                         guildId: discordGuildId,
                         actorUserId: "SYSTEM",
-                        actorName: "Internal Sync Bot",
+                        actorName: "Vérification auto",
                         action: "PROFILE_ARCHIVED",
                         targetType: "PROFILE",
                         targetId: profile.id,
-                        metadata: { description: profile.discordNickname || profile.userId, reason: "BANNED_FROM_DISCORD" }
+                        metadata: { description: profile.discordNickname || profile.userId, reason: "Banni sur Discord", ...executorMetadata(banExCron, discordUserId) }
                     });
                 } else {
+                    // Auteur réel : exclu par un staff/bot ou parti de lui-même (cf. manuel).
+                    let kickExCron = null;
+                    let kickAuditCheckedCron = false;
+                    try {
+                        kickExCron = await fetchAuditExecutor(discordGuildId, DISCORD_AUDIT_ACTIONS.KICK, discordUserId);
+                        kickAuditCheckedCron = true;
+                    } catch {
+                        kickAuditCheckedCron = false;
+                    }
+                    const kickedCron = kickExCron && kickExCron.userId !== discordUserId ? kickExCron : null;
                     const twelveMonthsFromNow = new Date();
                     twelveMonthsFromNow.setFullYear(twelveMonthsFromNow.getFullYear() + 1);
 
@@ -348,23 +455,53 @@ async function syncMembershipStatusInternal(discordGuildId: string): Promise<Syn
                     });
 
                     // 🔔 Lifecycle notification (embed Discord)
-                    await sendLifecycleNotification(discordGuildId, profile, "LEFT", "SYNC (Détection automatique)").catch(() => null);
+                    await sendLifecycleNotification(discordGuildId, profile, "LEFT", "Vérification automatique").catch(() => null);
 
                     // 📝 Audit Log (Internal/Cron)
                     await createAuditLog({
                         guildId: discordGuildId,
                         actorUserId: "SYSTEM",
-                        actorName: "Internal Sync Bot",
+                        actorName: "Vérification auto",
                         action: "PROFILE_ARCHIVED",
                         targetType: "PROFILE",
                         targetId: profile.id,
                         metadata: { 
                             description: profile.discordNickname || profile.userId, 
-                            reason: "LEFT_GUILD",
-                            retention: "12_MONTHS"
+                            reason: kickedCron ? "Exclu du serveur" : "A quitté le serveur",
+                            retention: "12_MONTHS",
+                            ...(kickedCron
+                                ? executorMetadata(kickedCron, discordUserId)
+                                : kickAuditCheckedCron
+                                  ? { executorId: discordUserId, executorIsSelf: true }
+                                  : {})
                         }
                     });
                 }
+                result.archived++;
+            } else if (profile.status === "ARCHIVED" && !isInGuild && bannedUserIds.has(discordUserId)) {
+                // Banni Discord APRÈS le départ → promotion ARCHIVED → BANNED.
+                const banExCron2 = await fetchAuditExecutor(discordGuildId, DISCORD_AUDIT_ACTIONS.BAN_ADD, discordUserId).catch(() => null);
+                await db.userProfile.update({
+                    where: { id: profile.id },
+                    data: {
+                        status: "BANNED",
+                        archivedAt: new Date(),
+                        archiveReason: "BANNED",
+                        scheduledDeletion: null
+                    }
+                });
+
+                await sendLifecycleNotification(discordGuildId, profile, "BANNED", "Vérification automatique").catch(() => null);
+
+                await createAuditLog({
+                    guildId: discordGuildId,
+                    actorUserId: "SYSTEM",
+                    actorName: "Vérification auto",
+                    action: "PROFILE_ARCHIVED",
+                    targetType: "PROFILE",
+                    targetId: profile.id,
+                    metadata: { description: profile.discordNickname || profile.userId, reason: "Banni sur Discord après son départ", ...executorMetadata(banExCron2, discordUserId) }
+                });
                 result.archived++;
             } else if (
                 profile.status === "ARCHIVED" &&
@@ -386,11 +523,60 @@ async function syncMembershipStatusInternal(discordGuildId: string): Promise<Syn
                 await createAuditLog({
                     guildId: discordGuildId,
                     actorUserId: "SYSTEM",
-                    actorName: "Internal Sync Bot",
+                    actorName: "Vérification auto",
                     action: "PROFILE_REACTIVATED",
                     targetType: "PROFILE",
                     targetId: profile.id,
-                    metadata: { description: profile.discordNickname || profile.userId }
+                    metadata: { description: profile.discordNickname || profile.userId, reason: "De retour sur le serveur", executorId: discordUserId, executorIsSelf: true }
+                });
+                result.reactivated++;
+            } else if (profile.status === "BANNED" && !isInGuild && !bannedUserIds.has(discordUserId)) {
+                // Déban Discord sans retour → BANNED → ARCHIVED (réactivé auto au retour, sans staff).
+                const unbanExCron = await fetchAuditExecutor(discordGuildId, DISCORD_AUDIT_ACTIONS.BAN_REMOVE, discordUserId).catch(() => null);
+                const twelveMonthsFromNow = new Date();
+                twelveMonthsFromNow.setFullYear(twelveMonthsFromNow.getFullYear() + 1);
+                await db.userProfile.update({
+                    where: { id: profile.id },
+                    data: {
+                        status: "ARCHIVED",
+                        archivedAt: new Date(),
+                        archiveReason: "LEFT",
+                        scheduledDeletion: twelveMonthsFromNow
+                    }
+                });
+                await db.guildMemberBan.updateMany({
+                    where: { guildId: (profile as { guildId?: string }).guildId ?? "", discordId: discordUserId, liftedAt: null },
+                    data: { liftedAt: new Date(), liftedBy: "SYSTEM", liftedByName: "Vérification auto" }
+                }).catch(() => null);
+                await createAuditLog({
+                    guildId: discordGuildId,
+                    actorUserId: "SYSTEM",
+                    actorName: "Vérification auto",
+                    action: "PROFILE_REACTIVATED",
+                    targetType: "PROFILE",
+                    targetId: profile.id,
+                    metadata: { description: profile.discordNickname || profile.userId, reason: "Débanni sur Discord", ...executorMetadata(unbanExCron, discordUserId) }
+                });
+                result.reactivated++;
+            } else if (profile.status === "BANNED" && isInGuild && !bannedUserIds.has(discordUserId)) {
+                // Déban partout → ACTIVE direct, sans étape staff.
+                const unbanExCron2 = await fetchAuditExecutor(discordGuildId, DISCORD_AUDIT_ACTIONS.BAN_REMOVE, discordUserId).catch(() => null);
+                await db.userProfile.update({
+                    where: { id: profile.id },
+                    data: { status: "ACTIVE", archivedAt: null, archiveReason: null, scheduledDeletion: null }
+                });
+                await db.guildMemberBan.updateMany({
+                    where: { guildId: (profile as { guildId?: string }).guildId ?? "", discordId: discordUserId, liftedAt: null },
+                    data: { liftedAt: new Date(), liftedBy: "SYSTEM", liftedByName: "Vérification auto" }
+                }).catch(() => null);
+                await createAuditLog({
+                    guildId: discordGuildId,
+                    actorUserId: "SYSTEM",
+                    actorName: "Vérification auto",
+                    action: "PROFILE_REACTIVATED",
+                    targetType: "PROFILE",
+                    targetId: profile.id,
+                    metadata: { description: profile.discordNickname || profile.userId, reason: "Débanni sur Discord", ...executorMetadata(unbanExCron2, discordUserId) }
                 });
                 result.reactivated++;
             }

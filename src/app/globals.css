@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* ── Feuille de LA vue de guide partagée (public ↔ guilde) ─────────────────
+   Elle est importée ICI, avec les autres classes du registre, et non depuis le
+   composant : un chunk CSS par composant peut ne pas être présent au premier
+   rendu (page servie avec l'ancien chunk → vue à l'état brut, tout empilé en
+   texte nu). Une seule feuille = une seule requête, aucun décalage. */
+@import "../components/dofus-quests/rush/rush-guide-view.css";
+
 /* Dark mode basé sur la classe .dark (next-themes pose la classe sur <html>).
    Sans ce @custom-variant, les variantes dark:* suivraient prefers-color-scheme
    (défaut Tailwind v4) au lieu du toggle applicatif. */
@@ -220,11 +227,745 @@ html:has(.boss-detail-shell) {
   --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ── §PAGES PUBLIQUES — portée `.landing-theme` ──────────────────────────────
+   🐞 Corrigé le 16/09/2026. Ce bloc déclarait `--accent: var(--accent)` **et**
+   `--primary: var(--accent)`. Une propriété personnalisée qui se référence
+   elle-même est *invalide à la valeur calculée* (cycle, spec CSS Variables) :
+   `--accent` ne retombait donc pas sur la valeur de `:root`, il devenait
+   **vide** à l'intérieur de la portée. Toute règle de la forme
+   `background: var(--accent)` était alors ignorée — le bouton « Connexion » de
+   l'en-tête public gardait son `color: var(--accent-foreground)` (presque noir
+   en thème sombre, presque blanc en thème clair) sur un fond **transparent**,
+   sa bordure retombant sur `currentColor` : bouton illisible sur toutes les
+   pages publiques. `--primary` subissait la même invalidité (il dérivait de
+   `--accent`).
+
+   Les deux lignes cycliques sont retirées : `--accent` et `--primary`
+   reprennent la valeur de `:root` (le vert SigilOS, `--guild-hue: 155`).
+
+   `--background` / `--foreground` sont conservés : `--sigil-bg` et `--sigil-fg`
+   sont déjà substitués au niveau `:root`, donc `var(--sigil-bg)` est ici une
+   couleur concrète — pas de cycle. */
 .landing-theme {
   --background: var(--sigil-bg);
   --foreground: var(--sigil-fg);
-  --primary: var(--accent);
-  --accent: var(--accent);
+}
+
+/* ── §REFONTE LANDING — couche « registre » (public) ─────────────────────────
+   Direction : *registre vivant d'une guilde Dofus* — mat, dense, sémantique.
+   Règles de la couche (audit UI/UX anti-slop, 13/09/2026) :
+     1. Le contenu décide du composant (une sortie ≠ une carte marketing).
+     2. Rayons serrés 3/4/6 px ; pilule réservée à un statut court.
+     3. Bordure utilisée pour séparer ou signaler une zone interactive.
+     4. Pas d'ombre floue, pas de gradient décoratif, pas de glow.
+     5. Le vert porte l'action et l'état positif, l'ocre une donnée de jeu.
+     6. Le mono est réservé aux dates, heures, versions, chiffres, statuts.
+   Le scope `.registre` remplace la typographie héritée (Inter / Space Grotesk)
+   par Source Sans 3 + IBM Plex Mono, SANS toucher au dashboard ni au God. */
+@layer components {
+  .registre {
+    font-family: var(--font-source-sans), system-ui, -apple-system, sans-serif;
+    --radius-sm: 3px;
+    --radius-md: 4px;
+    --radius-lg: 6px;
+  }
+
+  html:has(.registre) {
+    scroll-padding-top: 4.5rem;
+  }
+
+  /* Données de jeu : dates, heures, versions, compteurs, coordonnées, statuts. */
+  .registre .reg-mono,
+  .registre time,
+  .registre .reg-eyebrow,
+  .registre .reg-count,
+  .registre .reg-metric {
+    font-family: var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Lien d'évitement — visible uniquement au focus clavier. */
+  .reg-skip {
+    position: fixed;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 100;
+    transform: translateY(-160%);
+    padding: 0.6rem 0.9rem;
+    background: var(--accent);
+    color: var(--accent-foreground);
+    border-radius: var(--radius-md);
+    font-weight: 700;
+    font-size: 0.875rem;
+  }
+  .reg-skip:focus-visible {
+    transform: none;
+  }
+
+  /* Conteneur de lecture : 1120 px, largeur de ligne 55–70 caractères. */
+  .reg-shell {
+    width: min(100% - 2.5rem, 1120px);
+    margin-inline: auto;
+  }
+  @media (max-width: 640px) {
+    .reg-shell {
+      width: min(100% - 1.75rem, 1120px);
+    }
+  }
+
+  .reg-section {
+    padding-block: clamp(3.5rem, 6vw, 5.5rem);
+    border-bottom: 1px solid var(--border);
+  }
+  .reg-section-tight {
+    padding-block: clamp(2.5rem, 4vw, 3.5rem);
+  }
+
+  /* Métadonnée de section : petite, en mono, en accent, jamais décorative. */
+  .reg-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  /* Panneau : se distingue par un niveau de surface et un trait net. */
+  .reg-panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+  }
+  .reg-panel-strong {
+    border-color: var(--border-strong);
+  }
+
+  .reg-btn {
+    min-height: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1rem;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    font-size: 0.9375rem;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+  }
+  .reg-btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-foreground);
+  }
+  .reg-btn-primary:hover {
+    background: color-mix(in oklab, var(--accent) 86%, var(--foreground));
+  }
+  .reg-btn-secondary {
+    background: transparent;
+    color: var(--foreground);
+  }
+  .reg-btn-secondary:hover {
+    background: var(--surface);
+  }
+
+  /* Lien texte : l'action secondaire reste un lien, pas un second bouton. */
+  .reg-link {
+    color: var(--accent);
+    font-weight: 700;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.28em;
+  }
+  .reg-link:hover {
+    color: var(--foreground);
+  }
+  .reg-link-quiet {
+    color: var(--muted-foreground);
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.28em;
+  }
+  .reg-link-quiet:hover {
+    color: var(--foreground);
+  }
+  .reg-external::after {
+    content: " ↗";
+    font-weight: 400;
+  }
+
+  /* Étiquette de statut court (« Bêta », « Recrute ») — pas de pilule ailleurs. */
+  .reg-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.15rem 0.45rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: var(--foreground);
+  }
+  .reg-tag-accent {
+    border-color: color-mix(in oklab, var(--accent) 45%, transparent);
+    color: var(--accent);
+    background: color-mix(in oklab, var(--accent) 10%, transparent);
+  }
+
+  /* Compteur de place (« 6 / 8 ») : mono, encadré, jamais en pilule. */
+  .reg-count {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid color-mix(in oklab, var(--accent) 45%, transparent);
+    border-radius: var(--radius-sm);
+    color: var(--accent);
+    font-size: 0.8125rem;
+    white-space: nowrap;
+  }
+}
+
+/* ── §REFONTE LANDING — couche « registre » (suite) ─────────────────────── */
+@layer components {
+  /* Barre de progression collective (progression = barre, pas carte). */
+  .reg-progress {
+    height: 0.375rem;
+    background: var(--muted);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .reg-progress > span {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+  }
+
+  /* Liste de raccourcis (outils ouverts) : séparateurs, pas de bento. */
+  .reg-row {
+    display: grid;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    padding-block: 0.9rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .reg-row:last-child {
+    border-bottom: 0;
+  }
+
+  /* FAQ compacte : filet supérieur, aucun cadre autour de chaque question. */
+  .reg-faq {
+    border-top: 1px solid var(--border-strong);
+  }
+  .reg-faq > details {
+    border-bottom: 1px solid var(--border);
+  }
+  .reg-faq summary {
+    min-height: 3.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    cursor: pointer;
+    list-style: none;
+    font-weight: 600;
+    font-size: 0.9375rem;
+  }
+  .reg-faq summary::-webkit-details-marker {
+    display: none;
+  }
+  .reg-faq summary::after {
+    content: "+";
+    flex-shrink: 0;
+    color: var(--accent);
+    font-family: var(--font-plex-mono), ui-monospace, monospace;
+    font-weight: 600;
+  }
+  .reg-faq details[open] summary::after {
+    content: "−";
+  }
+  .reg-faq details > p {
+    padding: 0 2rem 1rem 0;
+    color: var(--muted-foreground);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+  }
+
+  /* Séquence de mise en route : trois lignes, pas trois cartes. */
+  .reg-step {
+    display: grid;
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+    gap: 1rem;
+    padding-block: 0.9rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .reg-step:last-child {
+    border-bottom: 0;
+  }
+
+  /* Écran produit : panneau net, jamais réduit ni assombri. */
+  .reg-screen {
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .reg-screen img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  /* Tableau de données (outils ouverts, faits vérifiables). */
+  .reg-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+  }
+  .reg-table th {
+    padding: 0.5rem 1rem 0.5rem 0;
+    border-bottom: 1px solid var(--border-strong);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+  .reg-table td {
+    padding: 0.85rem 1rem 0.85rem 0;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .reg-table tr:last-child td {
+    border-bottom: 0;
+  }
+}
+
+/* ── §REFONTE LANDING — document légal / aide (registre) ─────────────────
+   Remplace `prose prose-invert` : forcer le rendu sombre cassait le thème
+   clair, et les titres en capitales espacées donnaient une allure de gabarit
+   généré. Ici, une seule classe porte la typographie du document. */
+@layer components {
+  .reg-doc {
+    color: var(--muted-foreground);
+    font-size: 0.9375rem;
+    line-height: 1.7;
+  }
+  .reg-doc > * + * {
+    margin-top: 0.75rem;
+  }
+  .reg-doc h2 {
+    margin-top: 2.25rem;
+    font-size: 1.0625rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--foreground);
+  }
+  .reg-doc h3 {
+    margin-top: 1.75rem;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--foreground);
+  }
+  .reg-doc strong {
+    font-weight: 600;
+    color: var(--foreground);
+  }
+  .reg-doc em {
+    font-style: italic;
+  }
+  .reg-doc ul,
+  .reg-doc ol {
+    padding-left: 0;
+    list-style: none;
+  }
+  .reg-doc ol {
+    padding-left: 1.35rem;
+    list-style: decimal;
+  }
+  .reg-doc ul > li {
+    position: relative;
+    padding-left: 1.1rem;
+    margin-top: 0.5rem;
+  }
+  .reg-doc ul > li::before {
+    content: "–";
+    position: absolute;
+    left: 0;
+    color: var(--subtle-foreground);
+  }
+  .reg-doc a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.28em;
+  }
+  .reg-doc a:hover {
+    color: var(--foreground);
+  }
+  .reg-doc hr {
+    margin-block: 2rem;
+    border: 0;
+    border-top: 1px solid var(--border);
+  }
+  .reg-doc blockquote {
+    padding-left: 1rem;
+    border-left: 2px solid var(--border-strong);
+    color: var(--subtle-foreground);
+  }
+  .reg-doc code {
+    padding: 0.1rem 0.3rem;
+    border-radius: var(--radius-sm);
+    background: var(--muted);
+    font-family: var(--font-plex-mono), ui-monospace, monospace;
+    font-size: 0.875em;
+    color: var(--foreground);
+  }
+
+  /* Encadré : met en avant une règle, pas une décoration. */
+  .reg-callout {
+    display: flex;
+    gap: 0.9rem;
+    padding: 1rem 1.15rem;
+    border: 1px solid var(--border-strong);
+    border-left-width: 3px;
+    border-radius: var(--radius-md);
+    background: var(--surface);
+  }
+  .reg-callout-accent {
+    border-left-color: var(--accent);
+  }
+  .reg-callout h3 {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--foreground);
+  }
+  .reg-callout p {
+    margin-top: 0.35rem;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--muted-foreground);
+  }
+}
+
+/* ── §REFONTE LANDING — contenu HTML rendu (guides, docs, changelog) ───────
+   Remplace la chaîne `doc-preview-content prose prose-zinc dark:prose-invert`
+   et sa soixantaine d'overrides utilitaires qui imposaient : titres de section
+   en teal, H3 en ambre, puces de liste teal/ambre, callouts
+   `rounded-2xl border-l-[6px] backdrop-blur-xl shadow-2xl` avec `hover:scale`,
+   tableaux `bg-zinc-800/80` codés en dur, titres de callout en capitales
+   noires. Ici, tout passe par les tokens du thème : le rendu suit le mode
+   clair comme le mode sombre.
+   Usage : `class="reg-doc reg-content"` (reg-doc fournit la typographie de
+   base, reg-content le balisage riche). */
+@layer components {
+  .reg-content > * + * {
+    margin-top: 1.1rem;
+  }
+
+  .reg-content h1 {
+    margin-top: 2.5rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    color: var(--foreground);
+  }
+  .reg-content h2 {
+    margin-top: 2.75rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    color: var(--foreground);
+  }
+  .reg-content h3 {
+    margin-top: 2rem;
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: var(--foreground);
+  }
+  .reg-content h4 {
+    margin-top: 1.5rem;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--foreground);
+  }
+
+  .reg-content p {
+    line-height: 1.7;
+  }
+
+  .reg-content ul {
+    list-style: none;
+    padding-left: 0;
+  }
+  .reg-content ul > li {
+    position: relative;
+    margin-top: 0.5rem;
+    padding-left: 1.1rem;
+  }
+  .reg-content ul > li::before {
+    content: "–";
+    position: absolute;
+    left: 0;
+    color: var(--subtle-foreground);
+  }
+  .reg-content ol {
+    padding-left: 1.35rem;
+    list-style: decimal;
+  }
+  .reg-content ol > li {
+    margin-top: 0.5rem;
+  }
+  .reg-content li > ul,
+  .reg-content li > ol {
+    margin-top: 0.4rem;
+  }
+
+  .reg-content strong {
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  .reg-content a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.28em;
+  }
+  .reg-content a:hover {
+    color: var(--foreground);
+  }
+
+  .reg-content code {
+    padding: 0.1rem 0.3rem;
+    border-radius: var(--radius-sm);
+    background: var(--muted);
+    font-family: var(--font-plex-mono), ui-monospace, monospace;
+    font-size: 0.85em;
+    color: var(--foreground);
+  }
+  .reg-content pre {
+    position: relative;
+    margin-block: 1.75rem;
+    padding: 1rem 1.15rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--muted);
+    overflow-x: auto;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+  }
+  .reg-content pre code {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--foreground);
+    font-size: inherit;
+  }
+
+  .reg-content blockquote {
+    padding-left: 1rem;
+    border-left: 2px solid var(--border-strong);
+    color: var(--subtle-foreground);
+  }
+
+  .reg-content hr {
+    margin-block: 2.25rem;
+    border: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .reg-content img {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+}
+
+/* ── §REFONTE LANDING — contenu HTML rendu (suite : tableaux, encadrés, étapes) ── */
+@layer components {
+  .reg-content table {
+    width: 100%;
+    margin-block: 1.75rem;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.875rem;
+  }
+  .reg-content thead th {
+    padding: 0.5rem 0.9rem 0.5rem 0;
+    border-bottom: 1px solid var(--border-strong);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+  .reg-content tbody td {
+    padding: 0.75rem 0.9rem 0.75rem 0;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    color: var(--muted-foreground);
+  }
+  .reg-content tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .reg-content td img {
+    margin: 0;
+    display: inline-block;
+  }
+
+  .reg-content details {
+    margin-block: 1.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .reg-content summary {
+    padding-block: 0.85rem;
+    cursor: pointer;
+    list-style: none;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+  .reg-content summary::-webkit-details-marker {
+    display: none;
+  }
+  .reg-content details > div {
+    padding-bottom: 1rem;
+  }
+
+  /* Encadrés éditoriaux produits par les guides (```info, ```tip, ```warning…) */
+  .reg-content .callout {
+    margin-block: 1.75rem;
+    padding: 1rem 1.15rem;
+    border: 1px solid var(--border-strong);
+    border-left-width: 3px;
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--muted-foreground);
+  }
+  .reg-content .callout > * + * {
+    margin-top: 0.6rem;
+  }
+  .reg-content .callout-info,
+  .reg-content .callout-abstract,
+  .reg-content .callout-question {
+    border-left-color: var(--info);
+  }
+  .reg-content .callout-tip,
+  .reg-content .callout-success,
+  .reg-content .callout-todo {
+    border-left-color: var(--success);
+  }
+  .reg-content .callout-warning {
+    border-left-color: var(--warning);
+  }
+  .reg-content .callout-caution,
+  .reg-content .callout-danger,
+  .reg-content .callout-error,
+  .reg-content .callout-bug {
+    border-left-color: var(--danger);
+  }
+  .reg-content .callout-important {
+    border-left-color: var(--accent);
+  }
+  .reg-content .callout-note {
+    border-left-color: var(--border-strong);
+  }
+  .reg-content .callout strong {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--foreground);
+  }
+  .reg-content .callout-icon {
+    color: var(--subtle-foreground);
+  }
+
+  /* Étapes numérotées (listes `.steps` des tutoriels) */
+  .reg-content .steps {
+    list-style: none;
+    padding-left: 0;
+  }
+  .reg-content .step-item {
+    position: relative;
+    margin-top: 1.25rem;
+    padding-left: 2.5rem;
+  }
+  .reg-content .step-item::before {
+    content: none;
+  }
+  .reg-content .step-number {
+    position: absolute;
+    left: 0;
+    top: 0.1rem;
+    display: grid;
+    place-items: center;
+    width: 1.65rem;
+    height: 1.65rem;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-plex-mono), ui-monospace, monospace;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+  }
+
+  /* Images de guide + légende */
+  .reg-content .guide-image-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    margin-block: 2rem;
+  }
+  .reg-content .guide-image {
+    width: auto;
+    max-height: 420px;
+    background: var(--surface);
+  }
+  .reg-content .guide-caption {
+    font-size: 0.8125rem;
+    color: var(--subtle-foreground);
+    text-align: center;
+  }
+
+  /* Bouton « copier » injecté sur les blocs de code */
+  .reg-content .copy-button {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    padding: 0.35rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--muted-foreground);
+    opacity: 0;
+    transition: opacity 150ms ease, color 150ms ease;
+  }
+  .reg-content pre:hover .copy-button,
+  .reg-content .copy-button:focus-visible {
+    opacity: 1;
+  }
+  .reg-content .copy-button:hover {
+    color: var(--foreground);
+  }
+
+  /* Lien d'ancrage des titres */
+  .reg-content .anchor-link {
+    margin-left: 0.5rem;
+    color: var(--subtle-foreground);
+    opacity: 0;
+    transition: opacity 150ms ease;
+  }
+  .reg-content :is(h2, h3, h4):hover .anchor-link,
+  .reg-content .anchor-link:focus-visible {
+    opacity: 1;
+  }
 }
 
 @layer utilities {
@@ -508,72 +1249,14 @@ html:has(.boss-detail-shell) {
   padding: 0 !important;
 }
 
-/* Callouts / Alerts - Global SaaS Standards */
-.callout {
-  margin: 2rem 0 !important;
-  padding: 1.5rem !important;
-  border-radius: 0.75rem !important;
-  border-left-width: 4px !important;
-  background-color: rgba(255, 255, 255, 0.03) !important;
-  backdrop-filter: blur(4px) !important;
-}
-
-.callout-info {
-  background-color: rgba(59, 130, 246, 0.1) !important;
-  border-color: #3b82f6 !important;
-}
-
-.callout-tip {
-  background-color: rgba(16, 185, 129, 0.1) !important;
-  border-color: #10b981 !important;
-}
-
-.callout-success {
-  background-color: rgba(16, 185, 129, 0.1) !important;
-  border-color: #10b981 !important;
-}
-
-.callout-warning {
-  background-color: rgba(245, 158, 11, 0.1) !important;
-  border-color: #f59e0b !important;
-}
-
-.callout-important {
-  background-color: rgba(16, 185, 129, 0.1) !important;
-  border-color: #10b981 !important;
-}
-
-.callout-caution,
-.callout-danger,
-.callout-error {
-  background-color: rgba(239, 68, 68, 0.1) !important;
-  border-color: #ef4444 !important;
-}
-
-.callout-abstract {
-  background-color: rgba(6, 182, 212, 0.1) !important;
-  border-color: #06b6d4 !important;
-}
-
-.callout-question {
-  background-color: rgba(99, 102, 241, 0.1) !important;
-  border-color: #6366f1 !important;
-}
-
-.callout-bug {
-  background-color: rgba(244, 63, 94, 0.1) !important;
-  border-color: #f43f5e !important;
-}
-
-.callout-todo {
-  background-color: rgba(20, 184, 166, 0.1) !important;
-  border-color: #14b8a6 !important;
-}
-
-.callout-note {
-  background-color: rgba(255, 255, 255, 0.05) !important;
-  border-color: #71717a !important;
-}
+/* 🐞 16/09/2026 — bloc « Callouts / Alerts - Global SaaS Standards » supprimé.
+   Il visait `.callout*` en global, hors layer et en `!important`, avec du blanc
+   codé en dur : il écrasait donc `.reg-content .callout*` (registre, layer
+   `components`) ET les variantes utilitaires du changelog. En thème clair, le
+   titre du callout s'affichait blanc sur fond clair (ratio mesuré 1,12).
+   Désormais : le contenu (guides, docs, changelog) est peint par
+   `.reg-content .callout*` ci-dessus ; l'éditeur Tiptap garde son habillage via
+   `.editor-callout` (voir plus bas). */
 
 /* Editor Specifics */
 .editor-callout {
@@ -581,38 +1264,71 @@ html:has(.boss-detail-shell) {
   border-radius: 0.75rem;
   padding: 1.5rem !important;
   margin: 2rem 0;
-  border-left: 4px solid;
-  transition: all 0.2s;
+  border-left: 4px solid var(--border-strong);
+  background-color: var(--surface);
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+/* Type de callout de l'éditeur — tokens du thème, plus de hex en dur. */
+.editor-callout.callout-info,
+.editor-callout.callout-abstract,
+.editor-callout.callout-question {
+  border-color: var(--info);
+  background-color: color-mix(in oklab, var(--info) 10%, transparent);
+}
+
+.editor-callout.callout-tip,
+.editor-callout.callout-success,
+.editor-callout.callout-todo {
+  border-color: var(--success);
+  background-color: color-mix(in oklab, var(--success) 10%, transparent);
+}
+
+.editor-callout.callout-warning {
+  border-color: var(--warning);
+  background-color: color-mix(in oklab, var(--warning) 10%, transparent);
+}
+
+.editor-callout.callout-caution,
+.editor-callout.callout-danger,
+.editor-callout.callout-error,
+.editor-callout.callout-bug {
+  border-color: var(--danger);
+  background-color: color-mix(in oklab, var(--danger) 10%, transparent);
+}
+
+.editor-callout.callout-important {
+  border-color: var(--accent);
+  background-color: color-mix(in oklab, var(--accent) 10%, transparent);
+}
+
+.editor-callout.callout-note {
+  border-color: var(--border-strong);
+  background-color: var(--elevated);
 }
 
 .editor-callout:hover {
-  background-color: rgba(255, 255, 255, 0.05) !important;
+  background-color: color-mix(in oklab, var(--elevated) 90%, var(--foreground));
 }
 
-.callout-label-wrapper {
+.editor-callout .callout-label-wrapper {
   margin-bottom: 0.5rem;
   user-select: none;
 }
 
-.callout-label-wrapper strong {
+.editor-callout .callout-label-wrapper strong {
   font-size: 0.7rem;
-  letter-spacing: 0.1rem;
-  color: white;
-  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: var(--foreground);
+  font-weight: 600;
 }
 
-.callout p {
-  margin: 0 !important;
+.editor-callout p {
+  margin: 0;
 }
 
-.callout strong {
-  color: white !important;
-  font-weight: 800 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.1em !important;
-  font-size: 0.75rem !important;
-  margin-bottom: 0.5rem !important;
-  display: block !important;
+.editor-callout .callout-content > * + * {
+  margin-top: 0.5rem;
 }
 
 /* --- High-End Sonner Toasts --- */

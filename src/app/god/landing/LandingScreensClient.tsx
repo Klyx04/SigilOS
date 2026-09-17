@@ -25,9 +25,11 @@ interface ScreenRow {
 /**
  * 🖼️ #140 — Interface God : uploader / supprimer / réordonner / masquer les screens
  * de la landing à la volée.
- * - Section « product-story » : UN screen = UN onglet (le `label` devient le nom de
- *   l'onglet : « Guides », « Sorties & groupes », « Progression »…).
- * - Section « hero » : 1 seule image (la 1ʳᵉ active remplace la capture du haut de page).
+ * - Section « product-story » : UN screen = UNE figure légendée sur la landing
+ *   (le `label` devient le titre de la figure : « Guides », « Sorties & groupes »…).
+ *   La refonte a supprimé les onglets : plusieurs screens partageant un libellé
+ *   s'affichent à la suite dans la même figure.
+ * - Section « hero » : 1 seule image (la 1ʳᵉ active) affichée dans le premier bloc.
  */
 type LandingSection = "product-story" | "hero";
 
@@ -131,7 +133,7 @@ export function LandingScreensClient() {
                                 section === s ? "bg-info/20 text-info border border-info/30" : "text-muted-foreground hover:text-foreground border border-transparent"
                             )}
                         >
-                            {s === "product-story" ? "🏞️ Onglets Produit" : "🖼️ Image du hero"}
+                            {s === "product-story" ? "🏞️ Figurés du parcours" : "🖼️ Premier bloc"}
                         </button>
                     ))}
                 </div>

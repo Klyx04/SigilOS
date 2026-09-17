@@ -170,7 +170,7 @@ export function getSequenceIcons(seq: RushSequence): SequenceIcon[] {
   }
 
   if (out.length === 0 && isDungeonSequence(seq)) {
-    out.push({ src: "/assets/rush-sylvestre/donjon.png", alt: "Donjon" });
+    out.push({ src: RUSH_ACTIVITY_TAG_CONFIG.donjon.imagePath, alt: "Donjon" });
   }
 
   return out;
@@ -302,13 +302,12 @@ export function getTagBadgeIcon(tag: { type: string; name?: string | null }): st
   if (label.includes("brakmar")) return "/ordres/brakmar.png";
   if (label.includes("bonta")) return "/ordres/bonta.png";
   if (tag.type === "metier") return getMetierIconPath(tag.name || "");
-  if (tag.type === "sort") return "/assets/rush-sylvestre/sort.png";
-  if (tag.type === "donjon" || tag.type === "ocre_dungeon") return "/assets/nav/boss.png";
-  if (tag.type === "contrainte_horaire") return "/assets/dofus/game-icons/pin-clock.png";
-  if (tag.type === "solver") return "/assets/icons/dofusdb.png";
-  if (tag.type === "songes") return "/assets/nav/infinite.png";
-  if (tag.type === "combat_plusieurs" || tag.type === "plusieurs_personnes")
-    return "/assets/rush-sylvestre/plusieurs-personnes.png";
-  if (tag.type.startsWith("combat_")) return "/assets/dofus/game-icons/crossed-swords.png";
+  // Pictos d'activité : une seule vérité, le référentiel partagé (pictos du jeu
+  // colorés, lisibles en clair comme en sombre). `ocre_dungeon` est un alias
+  // de donjon côté data.
+  const cfg = RUSH_ACTIVITY_TAG_CONFIG[tag.type === "ocre_dungeon" ? "donjon" : tag.type];
+  if (cfg) return cfg.imagePath;
+  // Type de combat non répertorié : plutôt que rien, l'épée croisée de référence.
+  if (tag.type.startsWith("combat_")) return RUSH_ACTIVITY_TAG_CONFIG.combat_plusieurs.imagePath;
   return null;
 }

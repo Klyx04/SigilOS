@@ -68,6 +68,13 @@ type Props = {
   /** Mode invité / démo sans compte ni guilde */
   isGuest?: boolean;
   /**
+   * Préfixe des trois clés de progression invité. La page publique le calcule en
+   * fonction du PERSONNAGE déclaré (classe + pseudo + serveur) ; l'overlay ne
+   * devine rien : il lit exactement le même emplacement (voir `@/lib/guest-progress`).
+   * Par défaut : `sigil_guest_<slug>_` (progression sans personnage).
+   */
+  guestStoragePrefix?: string;
+  /**
    * Faux quand la fenêtre est la popup `about:blank` de secours (navigateur sans
    * Document PiP, ex. Opera GX) → bandeau "fenêtre non épinglée". Vrai par défaut
    * (vraie PiP toujours-au-dessus, ou page overlay directe).
@@ -84,6 +91,7 @@ export default function GuideOverlayClient({
   character,
   onClose,
   isGuest = false,
+  guestStoragePrefix,
   pinned = true,
 }: Props) {
   const effectiveAltPseudo = altPseudo ?? undefined;
@@ -186,7 +194,9 @@ export default function GuideOverlayClient({
   }, [onClose]);
 
   // ─── Progression Locale Optimiste / Guest LocalStorage ───────────────────────
-  const storagePrefix = `sigil_guest_${guide.slug}_`;
+  // Le préfixe vient de l'appelant quand il est fourni (page publique : progression
+  // PAR PERSONNAGE), sinon on retombe sur l'emplacement historique sans personnage.
+  const storagePrefix = guestStoragePrefix || `sigil_guest_${guide.slug}_`;
 
   const [completedIds, setCompletedIds] = useState<Set<string>>(() => {
     if (isGuest && typeof window !== "undefined") {
@@ -245,7 +255,9 @@ export default function GuideOverlayClient({
   // ─── Synchro dashboard ↔ overlay (BroadcastChannel, même navigateur) ─────
   // Aligne « ce qui est coché » entre la fenêtre du module et l'overlay.
   useGuideProgressSync(
-    isGuest ? `guest:${guide.slug}` : guildId,
+    // Invité : canal par PERSONNAGE (même identifiant que la page publique, qui
+    // transmet son préfixe) ; membre : canal de guilde habituel.
+    isGuest ? storagePrefix : guildId,
     guide.slug,
     { completedIds, completedStepsByMs, bookmarksByMs },
     { setCompletedIds, setCompletedStepsByMs, setBookmarksByMs }
@@ -834,9 +846,14 @@ export default function GuideOverlayClient({
   // épingler / réduire) diffèrent selon le contexte.
 
   return (
+    // `.light` bascule les jetons de thème pour tout le sous-arbre : les
+    // composants du rush (carte de quête, modales détails/donjon/badges) ne se
+    // peignent qu'avec `--surface`, `--border`, `--accent`… et suivent donc le
+    // thème sans variante claire codée en dur. Sans cette classe, `<html>` porte
+    // `.dark` et une modale sortie de l'arbre (portail) resterait sombre.
     <div
       ref={rootRef}
-      className={`relative flex flex-col h-screen overflow-hidden select-none transition-colors ${
+      className={`relative flex flex-col h-screen overflow-hidden select-none transition-colors ${isLightMode ? "light" : ""} ${
         isLightMode ? "bg-[#f8fafc] text-[#0f172a]" : "bg-[#090b0e] text-[#f2f0e9]"
       }`}
       style={{ fontFamily: "Inter, system-ui, sans-serif" }}

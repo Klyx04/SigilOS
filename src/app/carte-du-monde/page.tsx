@@ -93,7 +93,7 @@ export default async function CarteduMondePage({ searchParams }: Props) {
   return (
     <>
       <JsonLd id="json-ld-carte-du-monde" data={jsonLdData} nonce={nonce} />
-      <div className="min-h-screen flex flex-col bg-background">
+      <div className="registre min-h-screen flex flex-col bg-background text-foreground">
         <PublicHeader
           activePage="carte-du-monde"
           user={user ? { name: user.name ?? undefined, image: user.image ?? undefined } : undefined}

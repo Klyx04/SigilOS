@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Sparkles, BookOpen, Clock, ShieldCheck, HelpCircle } from "lucide-react";
+import { Clock, ShieldCheck } from "lucide-react";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { JsonLd } from "@/components/shared/json-ld";
@@ -93,106 +93,93 @@ export default async function PublicRushSylvestrePage() {
   ];
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col bg-zinc-950 font-sans selection:bg-emerald-500/30 landing-theme text-foreground">
+    <div className="registre min-h-screen w-full flex flex-col bg-background text-foreground">
       <PublicHeader user={session?.user} activePage="guides" isMember={userContext.isMember} />
 
       <JsonLd id="json-ld-rush-sylvestre" nonce={nonce} data={jsonLdData} />
 
-      <main className="flex-1 pt-28 pb-20 px-4 sm:px-6 md:px-8 relative z-10 max-w-6xl mx-auto w-full">
-        {/* Navigation retour */}
-        <div className="mb-6 flex items-center justify-between">
-          <Link
-            href="/guides"
-            className="inline-flex items-center gap-2 text-xs font-bold text-zinc-400 hover:text-zinc-100 transition-colors bg-surface/60 border border-border px-3.5 py-1.5 rounded-full backdrop-blur-md"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Tous les guides
-          </Link>
+      <main className="flex-1">
+        <div className="reg-shell py-10 lg:py-14">
+          <nav aria-label="Fil d'Ariane" className="mb-6">
+            <Link href="/guides" className="reg-link-quiet text-sm">
+              ← Tous les guides
+            </Link>
+          </nav>
 
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-wider">
-              ✨ 100% Gratuit · Sans Inscription
-            </span>
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.06] border border-white/10 text-zinc-300 text-xs font-black uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400" /> Guide Interactif & Overlay
-            </span>
-          </div>
-        </div>
-
-        {/* Hero Header */}
-        <div className="relative rounded-3xl bg-gradient-to-br from-emerald-950/40 via-surface to-background border border-emerald-500/20 p-6 sm:p-10 mb-8 overflow-hidden shadow-2xl backdrop-blur-xl">
-          <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none -mr-20 -mt-20" />
-
-          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="space-y-3 max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] font-bold text-emerald-300">
-                <span>Accès libre et sans compte · Progression sauvegardée localement</span>
-              </div>
-              <h1 className="text-3xl sm:text-5xl font-black text-foreground tracking-tight font-heading">
+          <header className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+            <div className="max-w-[62ch]">
+              <p className="reg-eyebrow">Rush Sylvestre · guide interactif</p>
+              <h1 className="mt-3 text-[clamp(1.75rem,3.2vw,2.4rem)] font-bold leading-[1.12] tracking-tight text-foreground">
                 Guide Rush Sylvestre — Dofus Unity
               </h1>
-              <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                Le parcours le plus optimisé pour obtenir le Dofus Sylvestre : quêtes ordonnées, coordonnées /travel copiables en 1 clic et mini-fenêtre détachable toujours par-dessus votre jeu Dofus.
+              <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
+                Le parcours le plus optimisé pour obtenir le Dofus Sylvestre : quêtes ordonnées, coordonnées /travel
+                copiables en 1 clic et mini-fenêtre détachable toujours par-dessus votre jeu Dofus.
               </p>
-              <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-1">
-                <span className="flex items-center gap-1.5 font-semibold">
-                  <Clock className="w-4 h-4 text-emerald-400" /> ~370 étapes optimisées
+              <p className="reg-mono mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5" aria-hidden="true" />~370 étapes optimisées
                 </span>
-                <span className="flex items-center gap-1.5 font-semibold">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" /> 100% Gratuit & Sauvegarde locale
+                <span className="inline-flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />Gratuit · sauvegarde locale
                 </span>
-              </div>
+              </p>
             </div>
 
-            <div className="shrink-0 w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-background/50 border border-emerald-500/30 flex items-center justify-center p-4 shadow-2xl shadow-emerald-500/10 backdrop-blur-md">
+            <div className="h-24 w-24 shrink-0 sm:h-28 sm:w-28">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={guide.imageUrl || "/module-dofus/Dofus_Sylvestre.png"}
                 alt="Dofus Sylvestre"
-                className="w-full h-full object-contain drop-shadow-xl"
+                className="h-full w-full object-contain"
+                width={112}
+                height={112}
               />
             </div>
-          </div>
-        </div>
+          </header>
 
         {/* Client Interactive Guide & Overlay Launcher */}
-        <PublicRushGuideClient guide={guide} milestones={milestones} />
+        <div className="mt-10">
+          <PublicRushGuideClient guide={guide} milestones={milestones} />
+        </div>
 
-        {/* Educational SEO Section */}
-        <section className="mt-16 rounded-3xl border border-border bg-surface/40 p-6 sm:p-10 space-y-6">
-          <h2 className="text-xl sm:text-2xl font-black text-foreground flex items-center gap-2.5">
-            <HelpCircle className="w-5 h-5 text-emerald-400" /> Questions Fréquentes sur le Dofus Sylvestre
+        {/* Questions fréquentes — accordéons natifs, mêmes textes */}
+        <section aria-labelledby="faq-rush" className="mt-14 border-t border-border pt-10">
+          <h2 id="faq-rush" className="reg-eyebrow">
+            Questions fréquentes sur le Dofus Sylvestre
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs sm:text-sm text-muted-foreground leading-relaxed">
-            <div className="space-y-2 rounded-2xl bg-background/50 border border-border p-5">
-              <h3 className="font-bold text-foreground text-sm">Comment fonctionne la mini-fenêtre Overlay en jeu ?</h3>
+          <div className="reg-faq mt-4">
+            <details>
+              <summary>Comment fonctionne la mini-fenêtre Overlay en jeu ?</summary>
               <p>
-                L'Overlay en jeu ouvre une petite fenêtre toujours au premier plan directement par-dessus votre jeu Dofus. Vous pouvez cocher vos étapes, voir vos objectifs et copier les coordonnées /travel en 1 clic sans jamais alt-tab.
+                L&apos;Overlay en jeu ouvre une petite fenêtre toujours au premier plan directement par-dessus votre jeu Dofus. Vous pouvez cocher vos étapes, voir vos objectifs et copier les coordonnées /travel en 1 clic sans jamais alt-tab.
               </p>
-            </div>
+            </details>
 
-            <div className="space-y-2 rounded-2xl bg-background/50 border border-border p-5">
-              <h3 className="font-bold text-foreground text-sm">Ma progression est-elle sauvegardée sans compte ?</h3>
+            <details>
+              <summary>Ma progression est-elle sauvegardée sans compte ?</summary>
               <p>
-                Oui ! Toutes vos étapes cochées et vos repères sont automatiquement mémorisés dans le stockage local de votre navigateur. Si vous connectez plus tard votre compte Discord, vous pourrez synchroniser vos données avec votre guilde.
+                Oui. Toutes vos étapes cochées et vos repères sont automatiquement mémorisés dans le stockage local de votre navigateur. Si vous connectez plus tard votre compte Discord, vous pourrez synchroniser vos données avec votre guilde.
               </p>
-            </div>
+            </details>
 
-            <div className="space-y-2 rounded-2xl bg-background/50 border border-border p-5">
-              <h3 className="font-bold text-foreground text-sm">Quels sont les prérequis pour le Dofus Sylvestre ?</h3>
+            <details>
+              <summary>Quels sont les prérequis pour le Dofus Sylvestre ?</summary>
               <p>
-                Le Dofus Sylvestre nécessite d'accomplir une vaste série de quêtes sur le continent d'Amakna, Frigost, les dimensions divines et l'archipel de Pandala, ainsi que certains niveaux de métiers pour confectionner des objets de quête.
+                Le Dofus Sylvestre nécessite d&apos;accomplir une vaste série de quêtes sur le continent d&apos;Amakna, Frigost, les dimensions divines et l&apos;archipel de Pandala, ainsi que certains niveaux de métiers pour confectionner des objets de quête.
               </p>
-            </div>
+            </details>
 
-            <div className="space-y-2 rounded-2xl bg-background/50 border border-border p-5">
-              <h3 className="font-bold text-foreground text-sm">Comment jouer ce guide avec ma guilde ?</h3>
+            <details>
+              <summary>Comment jouer ce guide avec ma guilde ?</summary>
               <p>
-                En créant un espace de guilde gratuit sur SigilOS, vous débloquez la vue collective : vous voyez en temps réel sur quelle étape se trouve chaque membre et pouvez lancer des alertes d'entraide pour les donjons et crafts.
+                En créant un espace de guilde gratuit sur SigilOS, vous débloquez la vue collective : vous voyez en temps réel sur quelle étape se trouve chaque membre et pouvez lancer des alertes d&apos;entraide pour les donjons et crafts.
               </p>
-            </div>
+            </details>
           </div>
         </section>
+        </div>
       </main>
 
       <GalacticFooter isMember={userContext.isMember} />

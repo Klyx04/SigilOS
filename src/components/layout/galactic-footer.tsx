@@ -1,215 +1,283 @@
 "use client";
 
+/**
+ * Pied de page public — registre (refonte anti-slop).
+ *
+ * Ce qui a été retiré volontairement :
+ *  - la capsule flottante centrée qui se cachait au scroll (composant
+ *    démonstratif qui rivalisait avec les actions produit) ;
+ *  - les libellés tout en capitales `font-black uppercase tracking-widest` ;
+ *  - la mention « Système Opérationnel » dupliquée en deux endroits.
+ *
+ * Ce qui le remplace : un pied de page statique en colonnes de texte, une
+ * ligne de statut réellement mesurée (`/api/health`), le lien de soutien
+ * (Ko-fi) rangé ici plutôt qu'en pastille flottante, et les liens légaux.
+ */
+
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
+import { loginWithDiscord } from "@/server/actions/auth-actions";
 
 type SystemStatus = "online" | "degraded" | "offline";
 
 interface GalacticFooterProps {
+    /** Conservé pour compatibilité d'appel ; le pied de page est désormais identique partout. */
     variant?: "standard" | "compact";
     isMember?: boolean;
 }
 
-export function GalacticFooter({ variant = "compact", isMember: _isMember = false }: GalacticFooterProps) {
+/** « Tableau de bord » est rendu à part : il déclenche la connexion sans session. */
+const PLATFORM_LINKS = [
+    { label: "Annuaire des guildes", href: "/guilds" },
+    { label: "Guides", href: "/guides" },
+    { label: "Journal des mises à jour", href: "/changelog" },
+    { label: "Feuille de route", href: "/roadmap" },
+];
+
+const TOOL_LINKS = [
+    { label: "Rush Sylvestre", href: "/guides/rush-sylvestre" },
+    { label: "Fiches boss & donjons", href: "/boss" },
+    { label: "Almanax", href: "/almanax" },
+    { label: "Carte du monde", href: "/carte-du-monde" },
+];
+
+const LEGAL_LINKS = [
+    { label: "CGU", href: "/legal/cgu" },
+    { label: "Confidentialité", href: "/legal/privacy" },
+    { label: "Mentions légales", href: "/legal/mentions" },
+    { label: "FAQ", href: "/legal/faq" },
+];
+
+const SUPPORT_URL = "https://ko-fi.com/wylan";
+
+/** Serveur Discord d'entraide — seule invitation publique connue. */
+const DISCORD_INVITE_URL = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || "https://discord.gg/uX7G6SUDgN";
+
+export function GalacticFooter({ variant = "standard", isMember: _isMember = false }: GalacticFooterProps) {
     const [systemStatus, setSystemStatus] = useState<SystemStatus>("online");
     const [mounted, setMounted] = useState(false);
-    const [isVisible, setIsVisible] = useState(true);
-
-    useEffect(() => {
-        if (variant !== "compact") return;
-        
-        let lastScroll = 0;
-        let ticking = false;
-
-        const handleScroll = (e: Event) => {
-            const target = e.target as HTMLElement;
-            if (!target || typeof target.scrollTop !== "number") return;
-            
-            const currentScroll = target.scrollTop;
-            
-            if (!ticking) {
-                window.requestAnimationFrame(() => {
-                    if (currentScroll > lastScroll && currentScroll > 80) {
-                        setIsVisible(false);
-                    } else {
-                        setIsVisible(true);
-                    }
-                    lastScroll = currentScroll;
-                    ticking = false;
-                });
-                ticking = true;
-            }
-        };
-
-        window.addEventListener("scroll", handleScroll, true);
-        return () => window.removeEventListener("scroll", handleScroll, true);
-    }, [variant]);
+    // La session est fournie par le SessionProvider du layout racine : aucune
+    // requête supplémentaire, `useSession` lit simplement le contexte.
+    const { status } = useSession();
+    const isAuthenticated = status === "authenticated";
 
     useEffect(() => {
         setMounted(true);
+        let cancelled = false;
         const checkHealth = async () => {
             try {
-                const res = await fetch('/api/health');
-                if (res.ok) {
-                    const data = await res.json();
-                    setSystemStatus(data.status === "healthy" ? "online" : data.status === "degraded" ? "degraded" : "offline");
-                } else {
+                const res = await fetch("/api/health");
+                if (cancelled) return;
+                if (!res.ok) {
                     setSystemStatus("offline");
+                    return;
                 }
+                const data = await res.json();
+                setSystemStatus(
+                    data.status === "healthy" ? "online" : data.status === "degraded" ? "degraded" : "offline",
+                );
             } catch {
-                setSystemStatus("offline");
+                if (!cancelled) setSystemStatus("offline");
             }
         };
         checkHealth();
         const interval = setInterval(checkHealth, 60000);
-        return () => clearInterval(interval);
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+        };
     }, []);
 
-    if (!mounted) return null;
+    const statusLabel =
+        systemStatus === "online" ? "Service opérationnel" : systemStatus === "degraded" ? "Service dégradé" : "Service indisponible";
 
-    const isCompact = variant === "compact";
+    const statusDot = (
+        <span
+            aria-hidden="true"
+            className={cn(
+                "w-1.5 h-1.5 rounded-full",
+                systemStatus === "online" ? "bg-success" : systemStatus === "degraded" ? "bg-warning" : "bg-danger",
+            )}
+        />
+    );
 
-    if (isCompact) return (
-            <div className={cn(
-                "fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-full max-w-4xl px-4 pointer-events-none transition-all duration-300 ease-in-out transform",
-                isVisible ? "translate-y-0 opacity-100" : "translate-y-16 opacity-0 pointer-events-none"
-            )}>
-                <footer className="w-full relative rounded-xl border border-border bg-background/90 backdrop-blur-md py-2.5 px-4 sm:px-6 pointer-events-auto shadow-lg transition-all">
-                    <div className="flex items-center justify-between gap-4 relative z-10">
-                        
-                        {/* 1. BRAND & LEGAL */}
-                        <div className="flex items-center gap-4">
-                            <Link href="/" className="flex items-center gap-2 group/brand shrink-0">
-                                <span className="font-bold tracking-tight text-foreground uppercase text-xs">Sigil<span className="text-success">OS</span></span>
-                            </Link>
+    /* ── Variant compact ──────────────────────────────────────────────────────
+       Une seule ligne, **dans le flux** (plus de capsule `fixed` centrée qui se
+       cachait au scroll). C'est la forme attendue par les coques applicatives
+       (espace de guilde, docs) : le parent décide de la largeur, et le bloc se
+       place normalement à la fin de la zone scrollable. Aucune classe `.reg-*`
+       ici : ces coques gardent la typographie du dashboard (Monospace Geist). */
+    if (variant === "compact") {
+        return (
+            <div className="border-t border-border pt-4">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
+                    <span className="font-semibold text-foreground">
+                        SigilOS
+                        <span className="font-mono font-normal text-muted-foreground"> · v2.2 · bêta</span>
+                    </span>
 
-                            <div className="h-3 w-px bg-surface hidden sm:block" />
-
-                            <nav className="hidden sm:flex items-center gap-4 text-caption font-medium text-muted-foreground">
-                                <Link href="/legal/cgu" className="hover:text-foreground transition-colors">CGU</Link>
-                                <Link href="/legal/privacy" className="hover:text-foreground transition-colors">Confidentialité</Link>
-                                <Link href="/legal/mentions" className="hover:text-foreground transition-colors">Mentions</Link>
-                            </nav>
-                        </div>
-
-                        {/* 2. SYSTEM STATUS (Simple Dot) */}
-                        <Link
-                            href="/status"
-                            className="flex items-center gap-2 px-3 py-1 rounded-lg bg-surface hover:bg-surface transition-colors shrink-0"
-                        >
-                            <div className={cn(
-                                "w-1.5 h-1.5 rounded-full",
-                                systemStatus === "online" ? "bg-success" : 
-                                systemStatus === "degraded" ? "bg-warning" : 
-                                "bg-danger"
-                            )}></div>
-                            <span className="text-caption font-semibold text-foreground">
-                                {systemStatus === "online" ? "Système Opérationnel" : "Maintenance"}
-                            </span>
+                    <nav aria-label="Informations légales" className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                        <Link href="/changelog" className="text-muted-foreground hover:text-foreground transition-colors">
+                            Journal
                         </Link>
-
-                        {/* 3. DISCORD SIGILOS */}
-                        <Link
-                            href="https://discord.gg/uX7G6SUDgN"
+                        <Link href="/legal/cgu" className="text-muted-foreground hover:text-foreground transition-colors">
+                            CGU
+                        </Link>
+                        <Link href="/legal/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
+                            Confidentialité
+                        </Link>
+                        <Link href="/legal/mentions" className="text-muted-foreground hover:text-foreground transition-colors">
+                            Mentions
+                        </Link>
+                        <Link href="/legal/faq" className="text-muted-foreground hover:text-foreground transition-colors">
+                            Aide
+                        </Link>
+                        <a
+                            href={SUPPORT_URL}
                             target="_blank"
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface hover:bg-[#5865F2] hover:text-foreground transition-colors shrink-0 text-xs font-semibold"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground hover:text-foreground transition-colors"
                         >
-                            <svg className="w-4 h-4" viewBox="0 0 127.14 96.36" fill="currentColor">
-                                <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.11,77.11,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.89,105.89,0,0,0,126.6,80.22c2.91-27.55-13.48-51.67-18.9-72.15ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
-                            </svg>
-                            Discord SigilOS
-                        </Link>
-                    </div>
-                </footer>
+                            Soutenir
+                        </a>
+                    </nav>
+
+                    <Link
+                        href="/status"
+                        className="ml-auto inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                        {statusDot}
+                        <span className="font-mono">{mounted ? statusLabel : "État du service"}</span>
+                    </Link>
+                </div>
             </div>
         );
+    }
 
-    // STANDARD FULL FOOTER
     return (
-        <footer className="w-full bg-background border-t border-border pt-16 pb-10 mt-auto relative">
-            <div className="max-w-7xl mx-auto px-8 relative z-10">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-16 mb-20">
-                    {/* Brand Meta */}
-                    <div className="space-y-6 flex flex-col items-start">
-                         <Link href="/" className="flex items-center gap-4 group">
-                            <div className="relative w-9 h-9">
-                                <Image
-                                    src="/assets/ui/logo-v2.png"
-                                    alt="SigilOS"
-                                    fill
-                                    className="object-contain"
-                                />
-                            </div>
-                            <span className="text-lg font-bold tracking-tight text-foreground">
-                                Sigil<span className="text-success">OS</span>
-                            </span>
+        <footer className="w-full border-t border-border bg-background mt-auto">
+            <div className="reg-shell py-12">
+                <div className="grid gap-10 md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]">
+                    {/* Marque */}
+                    <div>
+                        <Link href="/" className="flex items-center gap-2" aria-label="SigilOS, accueil">
+                            <Image src="/assets/ui/logo-v2.png" alt="" width={26} height={26} className="object-contain" />
+                            <span className="text-base font-bold tracking-tight text-foreground">SigilOS</span>
                         </Link>
-                        <p className="text-muted-foreground text-sm font-medium leading-relaxed max-w-[280px]">
-                            Organisez votre guilde Dofus : sorties, membres, guides et progression dans un espace partagé, relié à Discord.
+                        <p className="mt-3 max-w-[26rem] text-sm text-muted-foreground leading-relaxed">
+                            Tableau de bord de guilde Dofus relié à Discord : sorties, quêtes, membres et progression au
+                            même endroit. Gratuit, sans accès au compte Ankama.
                         </p>
+                        <p className="mt-4 reg-mono text-xs text-muted-foreground">Bêta ouverte · v2.2</p>
                     </div>
 
-                    {/* Resources */}
-                    <div className="space-y-6">
-                        <h4 className="text-foreground text-caption font-black uppercase tracking-widest">Plateforme</h4>
-                        <nav className="flex flex-col gap-4">
-                            <Link href="/guilds" className="text-muted-foreground hover:text-foreground transition-colors text-xs font-bold uppercase tracking-widest">Annuaire de Guildes</Link>
-                            <Link href="/changelog" className="text-muted-foreground hover:text-foreground transition-colors text-xs font-bold uppercase tracking-widest">Mises à jour</Link>
-                            <Link href="/docs" className="text-muted-foreground hover:text-foreground transition-colors text-xs font-bold uppercase tracking-widest">Guides & Wikis</Link>
-                        </nav>
-                    </div>
+                    {/* Plateforme */}
+                    <nav aria-label="Plateforme">
+                        <h2 className="reg-eyebrow">Plateforme</h2>
+                        <ul className="mt-3 space-y-2 text-sm">
+                            {/* Sans session : on démarre la connexion Discord au lieu d'envoyer
+                                vers /dashboard, qui n'a plus d'écran pour les visiteurs. */}
+                            <li>
+                                {isAuthenticated ? (
+                                    <Link
+                                        href="/dashboard"
+                                        className="text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        Tableau de bord
+                                    </Link>
+                                ) : (
+                                    <form action={loginWithDiscord}>
+                                        <button
+                                            type="submit"
+                                            className="text-left text-muted-foreground hover:text-foreground transition-colors"
+                                        >
+                                            Tableau de bord
+                                        </button>
+                                    </form>
+                                )}
+                            </li>
+                            {PLATFORM_LINKS.map((link) => (
+                                <li key={link.href}>
+                                    <Link href={link.href} className="text-muted-foreground hover:text-foreground transition-colors">
+                                        {link.label}
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    </nav>
 
-                    {/* Status Badge & Discord */}
-                    <div className="space-y-6">
-                        <h4 className="text-foreground text-caption font-black uppercase tracking-widest">Système</h4>
-                        <div className="flex flex-col gap-4 items-start">
-                            <Link href="/status" className="inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-surface/40 border border-border hover:border-success/20 transition-colors">
-                                <div className={cn(
-                                    "w-1.5 h-1.5 rounded-full",
-                                    systemStatus === "online" ? "bg-success" :
-                                        systemStatus === "degraded" ? "bg-warning" : "bg-danger"
-                                )} />
-                                <div className="flex flex-col">
-                                    <span className={cn(
-                                        "text-caption font-black uppercase tracking-widest",
-                                        systemStatus === "online" ? "text-success" : "text-foreground"
-                                    )}>
-                                        {systemStatus === "online" ? "Système Opérationnel" : "Maintenance"}
-                                    </span>
-                                </div>
-                            </Link>
-                            <Link
-                                href="https://discord.gg/uX7G6SUDgN"
-                                target="_blank"
-                                className="flex items-center gap-3 text-success hover:text-foreground transition-colors text-caption font-black uppercase tracking-widest group"
-                            >
-                                <div className="p-2 rounded-lg bg-success/10 border border-success/20 group-hover:bg-success group-hover:text-success-foreground transition-colors">
-                                    <svg className="w-3.5 h-3.5" viewBox="0 0 127.14 96.36" fill="currentColor">
-                                        <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.11,77.11,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.89,105.89,0,0,0,126.6,80.22c2.91-27.55-13.48-51.67-18.9-72.15ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
-                                    </svg>
-                                </div>
-                                Discord SigilOS
-                            </Link>
-                        </div>
+                    {/* Outils */}
+                    <nav aria-label="Outils ouverts">
+                        <h2 className="reg-eyebrow">Outils ouverts</h2>
+                        <ul className="mt-3 space-y-2 text-sm">
+                            {TOOL_LINKS.map((link) => (
+                                <li key={link.href}>
+                                    <Link href={link.href} className="text-muted-foreground hover:text-foreground transition-colors">
+                                        {link.label}
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    </nav>
+
+                    {/* Système */}
+                    <div>
+                        <h2 className="reg-eyebrow">Système</h2>
+                        <ul className="mt-3 space-y-2 text-sm">
+                            <li>
+                                <Link
+                                    href="/status"
+                                    className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                    {statusDot}
+                                    {mounted ? statusLabel : "État du service"}
+                                </Link>
+                            </li>
+                            <li>
+                                <a
+                                    href={DISCORD_INVITE_URL}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-muted-foreground hover:text-foreground transition-colors reg-external"
+                                >
+                                    Serveur Discord
+                                </a>
+                            </li>
+                            <li>
+                                <a
+                                    href={SUPPORT_URL}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-muted-foreground hover:text-foreground transition-colors reg-external"
+                                >
+                                    Soutenir SigilOS
+                                </a>
+                            </li>
+                        </ul>
                     </div>
                 </div>
 
-                {/* Bottom Bar: Legal & Credits */}
-                <div className="pt-8 border-t border-border flex flex-col lg:flex-row justify-between items-center gap-8">
-                    <div className="flex flex-col gap-4 text-center lg:text-left w-full lg:w-auto">
-                        <div className="flex flex-wrap justify-center lg:justify-start gap-x-6 gap-y-2 text-caption font-black text-muted-foreground uppercase tracking-[0.2em]">
-                            <Link href="/legal/cgu" className="hover:text-foreground transition-colors">CGU</Link>
-                            <Link href="/legal/privacy" className="hover:text-foreground transition-colors">Confidentialité</Link>
-                            <Link href="/legal/mentions" className="hover:text-foreground transition-colors">Mentions</Link>
-                            <Link href="/legal/faq" className="hover:text-foreground transition-colors">FAQ</Link>
-                        </div>
-                        <p className="text-muted-foreground text-caption font-medium leading-relaxed max-w-xl opacity-60">
-                            SigilOS est une plateforme indépendante. Dofus est une marque déposée d'Ankama Games. Données & ressources complémentaires par DofusDB (LPNC-IA 1.0) et Ganymède.
-                            Tous droits réservés. © 2026 Sigil Project.
-                        </p>
-                    </div>
+                {/* Mentions */}
+                <div className="mt-10 pt-6 border-t border-border flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <p className="max-w-[46rem] text-xs text-muted-foreground leading-relaxed">
+                        Projet communautaire indépendant, sans affiliation avec Ankama. DOFUS est une marque déposée
+                        d&apos;Ankama Games. Données complémentaires par DofusDB (LPNC-IA 1.0) et Ganymède. © 2026 Sigil
+                        Project.
+                    </p>
+                    <nav aria-label="Informations légales" className="flex flex-wrap gap-x-5 gap-y-2 text-xs">
+                        {LEGAL_LINKS.map((link) => (
+                            <Link
+                                key={link.href}
+                                href={link.href}
+                                className="text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                                {link.label}
+                            </Link>
+                        ))}
+                    </nav>
                 </div>
             </div>
         </footer>

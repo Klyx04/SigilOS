@@ -9,7 +9,19 @@ import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { JsonLd } from "@/components/shared/json-ld";
 import { auth } from "@/auth";
-import { Calendar, Sparkles, Coins, Gift, ArrowRight, ShieldCheck, HelpCircle } from "lucide-react";
+import { Coins, Gift, ArrowRight } from "lucide-react";
+
+/**
+ * Page publique `/almanax/[date]` — registre.
+ *
+ * Retiré volontairement (fiche de reprise §1.3) : la carte `rounded-3xl
+ * bg-surface/70`, les libellés `font-bold uppercase tracking-widest`, la tuile
+ * d'icône `rounded-xl bg-warning/15` du bonus, les deux cartes imbriquées
+ * `rounded-2xl bg-background` et la flèche verte de la note de source.
+ * Remplacé par `reg-shell` + `reg-eyebrow`, un `reg-panel` à filets, un
+ * `reg-callout` pour la donnée indisponible et des liens `reg-link-quiet`
+ * pour les jours précédent/suivant. Données et textes inchangés.
+ */
 
 export const revalidate = 3600; // Cache ISR 1h
 
@@ -112,112 +124,106 @@ export default async function AlmanaxDatePage({
         : null;
 
     return (
-        <div className="relative min-h-screen landing-theme bg-background text-foreground selection:bg-accent-teal/30 font-sans flex flex-col">
+        <div className="registre relative min-h-screen landing-theme bg-background text-foreground selection:bg-success/30 font-sans flex flex-col">
             <PublicHeader user={session?.user} activePage="almanax" isMember={userContext.isMember} />
 
             {jsonLd && <JsonLd id={`json-ld-almanax-${date}`} nonce={nonce} data={[jsonLd]} />}
 
-            <main className="flex-1 w-full relative z-10">
-                <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10 sm:py-14">
+            <main className="flex-1">
+                <div className="reg-shell py-10 lg:py-14">
                     {/* Fil d'Ariane */}
-                    <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6 flex-wrap" aria-label="Fil d'Ariane">
-                        <Link href="/" className="hover:text-foreground transition-colors">Accueil</Link>
+                    <nav className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground" aria-label="Fil d'Ariane">
+                        <Link href="/" className="reg-link-quiet">Accueil</Link>
                         <span aria-hidden>›</span>
-                        <Link href="/almanax" className="hover:text-foreground transition-colors">Almanax</Link>
+                        <Link href="/almanax" className="reg-link-quiet">Almanax</Link>
                         <span aria-hidden>›</span>
                         <span className="text-foreground capitalize">{formatFr(parsed)}</span>
                     </nav>
 
-                    <div className="rounded-3xl border border-border bg-surface/70 p-6 sm:p-8">
-                        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                            <Calendar className="w-4 h-4" /> Almanax Dofus
-                        </p>
-                        <h1 className="text-2xl sm:text-3xl font-black text-foreground mt-2 capitalize">
+                    {/* En-tête — gauche-aligné, sans libellé en capitales espacées */}
+                    <header className="mt-8">
+                        <p className="reg-eyebrow">Almanax Dofus</p>
+                        <h1 className="mt-3 text-[clamp(1.6rem,2.8vw,2rem)] font-bold tracking-tight text-foreground capitalize">
                             Offrande du {formatFr(parsed)}
                         </h1>
+                    </header>
 
-                        {item ? (
-                            <div className="mt-6 space-y-5">
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 rounded-2xl bg-background border border-border">
-                                    {item.tribute.item.image_urls?.icon ? (
-                                        <Image
-                                            src={item.tribute.item.image_urls.icon}
-                                            alt={item.tribute.item.name}
-                                            width={72}
-                                            height={72}
-                                            className="w-16 h-16 sm:w-18 sm:h-18 object-contain shrink-0"
-                                            unoptimized
-                                        />
-                                    ) : (
-                                        <div className="w-16 h-16 rounded-xl bg-elevated border border-border flex items-center justify-center shrink-0">
-                                            <Gift className="w-7 h-7 text-muted-foreground/50" />
-                                        </div>
+                    {item ? (
+                        <section className="reg-panel mt-6">
+                            {/* Offrande requise */}
+                            <div className="flex items-start gap-4 border-b border-border px-4 py-5 sm:px-6">
+                                {item.tribute.item.image_urls?.icon ? (
+                                    <Image
+                                        src={item.tribute.item.image_urls.icon}
+                                        alt={item.tribute.item.name}
+                                        width={64}
+                                        height={64}
+                                        className="h-16 w-16 shrink-0 object-contain"
+                                        unoptimized
+                                    />
+                                ) : (
+                                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md border border-border bg-muted">
+                                        <Gift className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+                                    </div>
+                                )}
+                                <div className="min-w-0">
+                                    <p className="text-xs text-muted-foreground">Offrande requise</p>
+                                    <p className="mt-0.5 text-lg font-semibold text-foreground">
+                                        {item.tribute.item.name} <span className="reg-mono text-accent">x{item.tribute.quantity}</span>
+                                    </p>
+                                    {typeof item.reward_kamas === "number" && (
+                                        <p className="reg-mono mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                                            <Coins className="h-3.5 w-3.5" aria-hidden="true" />
+                                            {item.reward_kamas.toLocaleString("fr-FR")} kamas offerts
+                                        </p>
                                     )}
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Offrande requise</p>
-                                        <p className="text-lg font-black text-foreground mt-1">
-                                            {item.tribute.item.name} <span className="text-accent">x{item.tribute.quantity}</span>
-                                        </p>
-                                        {typeof item.reward_kamas === "number" && (
-                                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
-                                                <Coins className="w-3.5 h-3.5" /> {item.reward_kamas.toLocaleString("fr-FR")} kamas offerts
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 rounded-2xl bg-background border border-border">
-                                    <div className="w-12 h-12 rounded-xl bg-warning/15 border border-warning/30 text-warning flex items-center justify-center shrink-0">
-                                        <Sparkles className="w-5 h-5" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
-                                            Bonus du Meryde
-                                        </p>
-                                        <p className="text-base font-bold text-foreground mt-1">{item.bonus.description}</p>
-                                        {item.bonus.type?.name && (
-                                            <p className="text-xs text-muted-foreground mt-0.5">Type : {item.bonus.type.name}</p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                                    <Link
-                                        href={`/almanax/${prevKey}`}
-                                        className="inline-flex items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors"
-                                    >
-                                        <ArrowRight className="w-4 h-4 rotate-180" /> Jour précédent
-                                    </Link>
-                                    <Link
-                                        href={`/almanax/${nextKey}`}
-                                        className="inline-flex items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors"
-                                    >
-                                        Jour suivant <ArrowRight className="w-4 h-4" />
-                                    </Link>
                                 </div>
                             </div>
-                        ) : (
-                            <div className="mt-6 p-5 rounded-2xl bg-background border border-border">
-                                <p className="text-sm text-foreground">
-                                    La donnée Almanax pour cette date n'est pas encore disponible (prévision sur 30 jours).
-                                </p>
+
+                            {/* Bonus du Méryde (donnée de jeu) */}
+                            <div className="border-t border-border px-4 py-5 sm:px-6">
+                                <p className="text-xs text-muted-foreground">Bonus du Meryde</p>
+                                <p className="mt-1 text-sm font-semibold text-foreground">{item.bonus.description}</p>
+                                {item.bonus.type?.name && (
+                                    <p className="mt-1 text-xs text-muted-foreground">Type : {item.bonus.type.name}</p>
+                                )}
+                            </div>
+
+                            {/* Navigation entre les jours — liens, pas de boutons */}
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-4 sm:px-6">
                                 <Link
-                                    href="/almanax"
-                                    className="inline-flex items-center gap-2 mt-4 text-sm font-bold text-accent hover:underline"
+                                    href={`/almanax/${prevKey}`}
+                                    className="reg-link-quiet inline-flex items-center gap-1.5 text-sm"
                                 >
-                                    Voir l&apos;Almanax d&apos;aujourd&apos;hui <ArrowRight className="w-4 h-4" />
+                                    <ArrowRight className="h-4 w-4 rotate-180" aria-hidden="true" /> Jour précédent
+                                </Link>
+                                <Link
+                                    href={`/almanax/${nextKey}`}
+                                    className="reg-link-quiet inline-flex items-center gap-1.5 text-sm"
+                                >
+                                    Jour suivant <ArrowRight className="h-4 w-4" aria-hidden="true" />
                                 </Link>
                             </div>
-                        )}
-
-                        <div className="mt-6 flex items-start gap-2.5 text-xs text-muted-foreground border-t border-border pt-5">
-                            <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-success" />
-                            <p>
-                                Les données Almanax sont fournies par l&apos;API communautaire DofusDB (dofusdu.de). Les offrandes
-                                changent chaque jour à minuit (heure de Paris). En cas de doute, vérifiez dans le jeu via le Temple de l&apos;Almanax.
-                            </p>
+                        </section>
+                    ) : (
+                        <div className="reg-callout mt-6 border-warning/40">
+                            <div>
+                                <p>
+                                    La donnée Almanax pour cette date n'est pas encore disponible (prévision sur 30 jours).
+                                </p>
+                                <p className="mt-3">
+                                    <Link href="/almanax" className="reg-link inline-flex items-center gap-1.5 text-sm">
+                                        Voir l&apos;Almanax d&apos;aujourd&apos;hui <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                                    </Link>
+                                </p>
+                            </div>
                         </div>
-                    </div>
+                    )}
+
+                    <p className="mt-8 max-w-[70ch] border-t border-border pt-5 text-xs text-muted-foreground leading-relaxed">
+                        Les données Almanax sont fournies par l&apos;API communautaire DofusDB (dofusdu.de). Les offrandes
+                        changent chaque jour à minuit (heure de Paris). En cas de doute, vérifiez dans le jeu via le Temple de l&apos;Almanax.
+                    </p>
                 </div>
             </main>
 

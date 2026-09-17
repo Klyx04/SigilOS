@@ -145,21 +145,22 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
   if (dofusStats.length === 0) return null;
 
   return (
-    <div className="p-4 rounded-2xl bg-[#12161b] border border-[#28303a] shadow-lg">
+    <div className="p-4 rounded-[6px] bg-surface border border-border">
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-[#39bc95]" />
-            <span className="text-xs font-bold font-serif uppercase tracking-widest text-[#f2f0e9]">
+            <Users className="w-4 h-4 text-muted-foreground" />
+            <span className="text-xs font-medium text-foreground">
               Progression Guilde par Dofus
             </span>
           </div>
-          <span className="text-xs font-mono font-bold text-[#39bc95]">
+          <span className="text-xs font-mono tabular-nums text-muted-foreground">
             {totalMembers} membre{totalMembers > 1 ? "s" : ""}
           </span>
         </div>
 
-        {/* Dofus cards — horizontal scroll, compact */}
+        {/* Dofus — un asset du jeu se pose NU : pas de tuile teintée, pas de bordure,
+            pas d'échelle au survol. La couleur ne sert qu'à l'état (filtre actif / terminé). */}
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent -mx-1 px-1">
           {dofusStats.map((d) => {
             const isAllDone = d.completedMilestones === d.totalMilestones && d.totalMilestones > 0;
@@ -169,11 +170,9 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
               <button
                 key={d.id}
                 onClick={() => onFilterChange(isActive ? null : d.id)}
-                className="relative flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all text-center group cursor-pointer hover:scale-[1.02] active:scale-[0.98] shrink-0 w-[78px] bg-[#181e25] border-[#28303a] hover:border-[#384352]"
-                style={{
-                  borderColor: isActive ? "#4fd1a5" : isAllDone ? `${d.color}60` : undefined,
-                  background: isActive ? "#4fd1a514" : isAllDone ? `${d.color}10` : undefined,
-                }}
+                className={`relative flex flex-col items-center gap-1 p-1.5 text-center cursor-pointer shrink-0 w-[78px] rounded-[4px] border transition-colors ${
+                  isActive ? "border-success" : "border-transparent hover:border-border"
+                }`}
                 title={isActive ? `${d.label} — filtre actif, cliquer pour annuler` : `${d.label} — ${d.pct}% — cliquer pour filtrer`}
               >
                 {/* Dofus icon */}
@@ -181,27 +180,27 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
                 <img
                   src={d.imageUrl}
                   alt={d.label}
-                  className="w-7 h-7 object-contain drop-shadow-md group-hover:scale-105 transition-transform"
+                  className="w-7 h-7 object-contain"
                 />
 
-                {/* Label — truncated */}
-                <span className="text-[10px] font-black uppercase tracking-wider truncate max-w-full leading-tight font-serif" style={{ color: d.color }}>
+                {/* Label — casse normale, la couleur dit « terminé » */}
+                <span className={`text-[11px] truncate max-w-full leading-tight ${isAllDone ? "text-success" : "text-muted-foreground"}`}>
                   {d.label}
                 </span>
 
-                {/* Mini progress bar */}
-                <div className="w-full h-1 bg-[#242b35] rounded-full overflow-hidden">
+                {/* Barre de progression — donnée, donc filet + aplat plat */}
+                <div className="w-full h-1 bg-elevated rounded-[2px] overflow-hidden">
                   <div
-                    className="h-full rounded-full transition-all duration-300"
+                    className="h-full rounded-[2px] transition-all duration-300"
                     style={{
                       width: `${d.pct}%`,
-                      background: `linear-gradient(90deg, ${d.color}, ${d.color}99)`,
+                      background: isAllDone ? "var(--success)" : d.color,
                     }}
                   />
                 </div>
 
                 {/* Percentage compact */}
-                <span className="text-[10px] font-mono font-bold text-[#929aa5]">
+                <span className="text-[10px] font-mono tabular-nums text-muted-foreground">
                   {d.pct}%
                 </span>
               </button>
@@ -225,17 +224,17 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
             : sel.membersInProgress.slice(0, MEMBERS_CUTOFF);
           const hiddenCount = sel.membersInProgress.length - visibleMembers.length;
           return (
-            <div className="space-y-1.5 pt-3 mt-1 border-t border-[#28303a]/60">
-              <p className="text-caption font-black uppercase tracking-widest text-zinc-500">
+            <div className="space-y-1.5 pt-3 mt-1 border-t border-border">
+              <p className="text-caption font-medium text-zinc-500">
                 Membres — {sel.label} ({sel.membersInProgress.length})
               </p>
               <div className="max-h-[220px] overflow-y-auto custom-scrollbar space-y-1.5 pr-0.5">
                 {visibleMembers.map((m) => (
                   <div
                     key={m.profileId}
-                    className="flex items-center gap-3 p-2 rounded-xl bg-[#181e25] border border-[#28303a]/60"
+                    className="flex items-center gap-3 p-2 rounded-[4px] bg-[#181e25] border border-border"
                   >
-                    <div className="w-7 h-7 rounded-full bg-[#242b35] border border-[#384352] flex items-center justify-center text-caption font-black text-zinc-300 overflow-hidden shrink-0">
+                    <div className="w-7 h-7 rounded-full bg-elevated border border-[#384352] flex items-center justify-center text-caption font-semibold text-zinc-300 overflow-hidden shrink-0">
                       {m.userAvatar ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" />
@@ -246,11 +245,11 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-xs font-bold text-white truncate">{m.userName}</p>
-                        <span className="text-caption font-mono font-black shrink-0" style={{ color: sel.color }}>
+                        <span className="text-caption font-mono font-semibold shrink-0" style={{ color: sel.color }}>
                           {m.pct}%
                         </span>
                       </div>
-                      <div className="h-1 bg-[#242b35] rounded-full overflow-hidden mt-1">
+                      <div className="h-1 bg-elevated rounded-full overflow-hidden mt-1">
                         <div
                           className="h-full rounded-full transition-all duration-300"
                           style={{ width: `${m.pct}%`, background: sel.color }}
@@ -267,7 +266,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
                 <button
                   type="button"
                   onClick={() => setShowAllMembers((v) => !v)}
-                  className="w-full py-1.5 rounded-lg text-caption font-bold text-[#9aa7b4] hover:text-[#eef2f6] hover:bg-white/[0.04] transition-colors"
+                  className="w-full py-1.5 rounded-lg text-caption font-bold text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors"
                 >
                   {showAllMembers ? "Réduire la liste" : `Afficher les ${hiddenCount} autres membres`}
                 </button>

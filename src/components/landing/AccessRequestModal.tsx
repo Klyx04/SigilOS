@@ -1,7 +1,6 @@
 "use client";
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { loginWithDiscord } from "@/server/actions/auth-actions";
 import { buildDiscordBotInviteUrl } from "@/lib/discord-permissions";
 
@@ -43,12 +42,10 @@ export function AccessRequestModal({ open, onClose, autoOnboardingOn = true, cli
 
     return (
         <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
-            <DialogContent className="max-w-lg bg-surface border-border text-foreground rounded-2xl p-6 md:p-8">
+            <DialogContent className="reg-panel max-w-lg border-border p-6 text-foreground md:p-8">
                 <DialogHeader className="text-left space-y-2">
-                    <p className="text-sm font-semibold text-success">
-                        Créer l&apos;espace de ta guilde
-                    </p>
-                    <DialogTitle className="text-xl md:text-2xl font-bold tracking-tight">
+                    <p className="reg-eyebrow">Créer l&apos;espace de ta guilde</p>
+                    <DialogTitle className="text-lg font-bold tracking-tight md:text-xl">
                         Deux façons de commencer
                     </DialogTitle>
                     <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
@@ -56,33 +53,30 @@ export function AccessRequestModal({ open, onClose, autoOnboardingOn = true, cli
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-4 my-2">
+                <div className="my-2 space-y-4">
                     {/* Option 1 : autonome (masquée si kill-switch God OFF) */}
                     {autoOnboardingOn && (
-                    <div className="p-5 rounded-2xl bg-background border border-border space-y-3">
-                        <p className="text-sm font-bold text-foreground">
-                            En autonomie <span className="font-medium text-muted-foreground">· immédiat et gratuit</span>
+                    <div className="rounded-md border border-border bg-background p-5">
+                        <p className="text-sm font-semibold text-foreground">
+                            En autonomie <span className="font-normal text-muted-foreground">· immédiat et gratuit</span>
                         </p>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
+                        <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
                             Chef de guilde ou admin Discord ? Ajoute le bot
                             à ton serveur en 1 clic.
                         </p>
-                        <Button
-                            onClick={addBotDirect}
-                            className="w-full h-11 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm rounded-xl"
-                        >
-                            <DiscordIcon className="w-4 h-4 mr-2" />
+                        <button type="button" onClick={addBotDirect} className="reg-btn reg-btn-primary mt-4 w-full">
+                            <DiscordIcon className="w-4 h-4" aria-hidden="true" />
                             Ajouter le bot à mon serveur
-                        </Button>
+                        </button>
                     </div>
                     )}
 
                     {/* Option 2 : accompagné */}
-                    <div className="p-5 rounded-2xl bg-background border border-border space-y-3">
-                        <p className="text-sm font-bold text-foreground">
-                            Accompagné <span className="font-medium text-muted-foreground">· aide perso</span>
+                    <div className="rounded-md border border-border bg-background p-5">
+                        <p className="text-sm font-semibold text-foreground">
+                            Accompagné <span className="font-normal text-muted-foreground">· aide personnelle</span>
                         </p>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
+                        <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
                             Une question avant de te lancer, ou besoin d&apos;aide
                             pour installer ? Ouvre un ticket, je t&apos;accompagne.
                         </p>
@@ -90,18 +84,18 @@ export function AccessRequestModal({ open, onClose, autoOnboardingOn = true, cli
                             href={discordInvite}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center justify-center gap-2 w-full h-11 rounded-xl bg-elevated hover:bg-muted border border-border text-foreground font-bold text-sm transition-colors"
+                            className="reg-btn reg-btn-secondary mt-4 w-full"
                         >
-                            <DiscordIcon className="w-4 h-4" />
+                            <DiscordIcon className="w-4 h-4" aria-hidden="true" />
                             Ouvrir un ticket sur Discord
                         </a>
                     </div>
                 </div>
 
-                <div className="text-center pt-1 border-t border-border">
+                <div className="border-t border-border pt-3 text-center">
                     <p className="text-xs text-muted-foreground">
                         Déjà membre d&apos;une guilde active ?{" "}
-                        <button onClick={onClose} className="text-success hover:underline font-semibold">
+                        <button type="button" onClick={onClose} className="reg-link text-xs">
                             Ferme et connecte-toi
                         </button>.
                     </p>
@@ -110,3 +104,4 @@ export function AccessRequestModal({ open, onClose, autoOnboardingOn = true, cli
         </Dialog>
     );
 }
+

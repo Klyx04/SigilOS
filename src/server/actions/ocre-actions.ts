@@ -1033,7 +1033,7 @@ export async function getProfileMatchingArchis(
             db.userProfile.findFirst({
                 where: {
                     id: targetProfileId,
-                    guild: { discordGuildId: guildId } // ðŸ‘ˆ CRITICAL: MUST BE IN SAME GUILD
+                    guild: { discordGuildId: guildId } // 👈 CRITICAL: MUST BE IN SAME GUILD
                 },
                 include: { user: true }
             })

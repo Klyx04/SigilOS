@@ -8,6 +8,7 @@ import type { TagClassification } from "./overlay-utils";
 
 interface RushOverlayTagSectionProps {
   tags: TagClassification;
+  /** Conservé pour les appelants : l'apparence suit les jetons de thème. */
   isLightMode?: boolean;
   className?: string;
 }
@@ -17,12 +18,12 @@ interface RushOverlayTagSectionProps {
  * A (nature) — affichés directement, max 4.
  * B (conditions) — section repliable courte.
  * C (outils) — masqués, accessible via "Détails utiles".
+ *
+ * Un badge est une étiquette, pas une décoration : rayon 3 px, filet 1 px,
+ * surface du thème. Les étiquettes portent des icônes de jeu (`RushTagBadge`
+ * résout l'icône officielle) — c'est l'immersion, sans couleur ajoutée.
  */
-export function RushOverlayTagSection({
-  tags,
-  isLightMode = false,
-  className,
-}: RushOverlayTagSectionProps) {
+export function RushOverlayTagSection({ tags, className }: RushOverlayTagSectionProps) {
   const [showConditions, setShowConditions] = useState(false);
   const [showTools, setShowTools] = useState(false);
 
@@ -41,14 +42,7 @@ export function RushOverlayTagSection({
             <RushTagBadge key={i} tag={tag} size="sm" />
           ))}
           {tags.nature.length > 4 && (
-            <span
-              className={cn(
-                "inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold border",
-                isLightMode
-                  ? "bg-slate-100 border-slate-200 text-slate-500"
-                  : "bg-muted border-border text-muted-foreground"
-              )}
-            >
+            <span className="inline-flex items-center rounded-[3px] border border-border bg-surface px-1.5 py-0.5 text-[11px] text-muted-foreground">
               +{tags.nature.length - 4}
             </span>
           )}
@@ -61,24 +55,19 @@ export function RushOverlayTagSection({
           <button
             type="button"
             onClick={() => setShowConditions((v) => !v)}
-            className={cn(
-              "flex items-center gap-1 text-[10px] font-semibold transition-colors",
-              isLightMode
-                ? "text-slate-500 hover:text-slate-700"
-                : "text-muted-foreground hover:text-foreground"
-            )}
+            className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
             aria-expanded={showConditions}
           >
             {showConditions ? (
-              <ChevronUp className="w-3 h-3" />
+              <ChevronUp className="h-3 w-3" aria-hidden="true" />
             ) : (
-              <ChevronDown className="w-3 h-3" />
+              <ChevronDown className="h-3 w-3" aria-hidden="true" />
             )}
             {tags.condition.length} condition{tags.condition.length > 1 ? "s" : ""}
           </button>
 
           {showConditions && (
-            <div className="flex flex-wrap gap-1 mt-1.5">
+            <div className="mt-1.5 flex flex-wrap gap-1">
               {tags.condition.map((tag, i) => (
                 <RushTagBadge key={i} tag={tag} size="sm" />
               ))}
@@ -93,24 +82,19 @@ export function RushOverlayTagSection({
           <button
             type="button"
             onClick={() => setShowTools((v) => !v)}
-            className={cn(
-              "flex items-center gap-1 text-[10px] font-semibold transition-colors",
-              isLightMode
-                ? "text-slate-400 hover:text-slate-600"
-                : "text-muted-foreground/70 hover:text-muted-foreground"
-            )}
+            className="flex items-center gap-1 text-[11px] font-semibold text-subtle-foreground transition-colors hover:text-muted-foreground"
             aria-expanded={showTools}
           >
             {showTools ? (
-              <ChevronUp className="w-3 h-3" />
+              <ChevronUp className="h-3 w-3" aria-hidden="true" />
             ) : (
-              <ChevronDown className="w-3 h-3" />
+              <ChevronDown className="h-3 w-3" aria-hidden="true" />
             )}
             Détails utiles
           </button>
 
           {showTools && (
-            <div className="flex flex-wrap gap-1 mt-1.5">
+            <div className="mt-1.5 flex flex-wrap gap-1">
               {tags.tool.map((tag, i) => (
                 <RushTagBadge key={i} tag={tag} size="sm" />
               ))}

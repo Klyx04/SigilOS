@@ -182,6 +182,80 @@ export async function POST(request: NextRequest) {
 
             let result;
 
+            // Menu « Choisir ma classe… » (String Select, component_type 3) — coexiste
+            // avec les boutons S'inscrire / Se désinscrire : choisir une classe =
+            // s'inscrire avec cette classe, ou mettre à jour la sienne si déjà inscrit.
+            // custom_id : dj:class:<postId>[:idx] | songes:class:<runId> | calendar:class:<eventId>
+            if (action === "class") {
+                const chosen = (payload.data?.values?.[0] || "").toString();
+                const matched = VALID_CLASSES.find((c) => c.toLowerCase() === chosen.toLowerCase());
+                if (!matched) {
+                    return ephemeralDiscordMessage("❌ Classe inconnue. Choisis une classe dans la liste.");
+                }
+
+                if (prefix === "dj") {
+                    const djKey = `dj:${member.user.id}:${entityId}`;
+                    const waitSecs = getRateLimitRemaining(djKey, 3, 30_000);
+                    if (waitSecs > 0) {
+                        return ephemeralDiscordMessage(`⏳ Doucement ! Réessaie dans **${waitSecs}s**.`);
+                    }
+                    const post = await (db as any).djSearchPost.findUnique({
+                        where: { id: entityId },
+                        select: { id: true, status: true, guildId: true },
+                    });
+                    if (!post) return ephemeralDiscordMessage("❌ Ce groupe n'existe plus ou a expiré.");
+                    if (post.status !== "OPEN" && post.status !== "FULL") {
+                        return ephemeralDiscordMessage("❌ Ce groupe est fermé.");
+                    }
+                    const profile = await db.userProfile.findFirst({
+                        where: { userId: account!.userId, guildId: post.guildId },
+                    });
+                    if (!profile) {
+                        return ephemeralDiscordMessage("❌ Tu n'es pas membre de cette guilde sur SigilOS.");
+                    }
+                    const { updateDjParticipantClass, internalJoinDjPost } = await import("@/server/actions/dungeon-finder-actions");
+                    const upd = await updateDjParticipantClass(guild_id, entityId, profile.id, dungeonIndex, matched);
+                    if (!upd.success) return ephemeralDiscordMessage(`❌ ${upd.error || "Impossible de changer de classe."}`);
+                    if (upd.data?.updated) {
+                        return ephemeralDiscordMessage(`✅ Ta classe est maintenant **${matched}** !`);
+                    }
+                    const res = await internalJoinDjPost(entityId, profile.id, account!.userId, dungeonIndex, matched, "");
+                    if (!res.success) return ephemeralDiscordMessage(`❌ ${res.error || "Impossible de rejoindre le groupe."}`);
+                    const wasWaitlisted = (res as any).data?.waitlisted;
+                    return ephemeralDiscordMessage(wasWaitlisted
+                        ? `⏳ Tu es en **file d'attente** ! Classe : **${matched}**. Le créateur sera notifié.`
+                        : `✅ Tu as rejoint le groupe ! Classe : **${matched}**\nRetrouve les détails sur le site.`);
+                }
+
+                if (prefix === "songes") {
+                    const { updateRunCandidateClass, processRunJoin } = await import("@/server/songes-service");
+                    const upd = await updateRunCandidateClass(guild_id, entityId, account!.userId, matched);
+                    if (!upd.success) return ephemeralDiscordMessage(`❌ ${upd.error || "Erreur inconnue"}`);
+                    if (upd.updated) {
+                        return ephemeralDiscordMessage(`✅ Ta classe est maintenant **${matched}** !`);
+                    }
+                    const res = await processRunJoin(guild_id, entityId, account!.userId, matched, "Inscription via le menu classe Discord");
+                    if (res?.success) {
+                        return ephemeralDiscordMessage(`✅ Candidature envoyée ! Classe : **${matched}**\n\nLe leader de la run sera notifié.`);
+                    }
+                    return ephemeralDiscordMessage(`❌ ${res?.error || "Erreur inconnue"}`);
+                }
+
+                if (prefix === "calendar") {
+                    const { updateRegistrationClass, processRegistration } = await import("@/server/calendar-service");
+                    const { buildCalendarInteractionFeedback } = await import("@/lib/calendar-interaction-feedback");
+                    const upd = await updateRegistrationClass(guild_id, entityId, account!.userId, matched);
+                    if (!upd.success) return ephemeralDiscordMessage(`❌ ${upd.error || "Erreur inconnue"}`);
+                    if (upd.updated) {
+                        return ephemeralDiscordMessage(`✅ Ta classe est maintenant **${matched}** !`);
+                    }
+                    const outcome = await processRegistration(guild_id, entityId, account!.userId, { classe: matched });
+                    return ephemeralDiscordMessage(buildCalendarInteractionFeedback("join", outcome));
+                }
+
+                return ephemeralDiscordMessage("❌ Menu non pris en charge ici.");
+            }
+
             if (prefix === "calendar") {
                 // Inscriptions aux événements. Deux garanties tenues ici (constat beta du
                 // 18/09/2026) :

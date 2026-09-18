@@ -10,6 +10,7 @@ import { updateChannelMessage, sendChannelMessage, fetchChannel, createForumPost
 import { getAppBaseUrl } from "@/lib/utils";
 import { getDofusWeek } from "@/lib/date-utils";
 import { resolveEventImageFile } from "@/lib/calendar-event-images";
+import { buildClassDispatchFields, buildClassSelectRow, type DispatchEntry } from "@/server/discord-class-dispatch";
 
 // Les visuels (génériques + dédiés par type de raid) vivent dans
 // `src/lib/calendar-event-images.ts` : même source pour l'embed Discord et les
@@ -341,6 +342,48 @@ export async function processUnregistration(guildId: string, eventId: string, us
     };
 }
 
+/**
+ * Met à jour la classe d'une inscription EXISTANTE (menu select Discord).
+ * Retourne `{ updated: false }` si le membre n'est pas inscrit : l'appelant
+ * bascule alors sur `processRegistration` (avec la classe choisie).
+ * Un simple changement de classe ne consomme pas la fenêtre d'anti-spam.
+ */
+export async function updateRegistrationClass(
+    guildId: string,
+    eventId: string,
+    userId: string,
+    classe: string
+): Promise<{ success: boolean; error?: string; updated?: boolean }> {
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { id: true },
+    });
+    if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+    const event = await db.guildEvent.findUnique({
+        where: { id: eventId, guildId: guildConfig.id },
+        select: { id: true, status: true, discordMessageId: true, discordChannelId: true },
+    });
+    if (!event) return { success: false, error: "Événement introuvable" };
+    if (event.status !== "PUBLISHED") return { success: false, error: "Inscriptions fermées" };
+
+    const mine = await db.eventParticipant.findFirst({
+        where: { eventId, userId },
+    });
+    if (!mine) return { success: true, updated: false };
+
+    await db.eventParticipant.update({
+        where: { id: mine.id },
+        data: { classe: classe.trim().slice(0, 30) },
+    });
+
+    if (event.discordMessageId && event.discordChannelId) {
+        await refreshEmbedWithinDeadline(guildId, eventId);
+    }
+    revalidatePath(`/dashboard/${guildId}/calendar`);
+    return { success: true, updated: true };
+}
+
 export async function publishDiscordEvent(guildId: string, eventId: string) {
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -459,9 +502,15 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
             return `• ${name} ${classe}`;
         };
 
-        const registeredList = registered.length > 0
-            ? registered.map(formatParticipant).join("\n")
-            : "*Aucun inscrit*";
+        // Dispatch par classe : UN field inline PAR classe représentée (grille 3 colonnes).
+        const dispatchEntries: DispatchEntry[] = registered.map((p: any) => {
+            const name = p.user.profiles[0]?.discordNickname || p.user.name || "Inconnu";
+            return { line: `• ${name}`, classe: p.classe ?? null };
+        });
+        const inscritsFields = buildClassDispatchFields(dispatchEntries, {
+            emptyField: { name: `✅ Inscrits (${registered.length})`, value: "*Aucun inscrit*" },
+            maxGroups: 14,
+        });
 
         const reserveList = reserve.length > 0
             ? reserve.map(formatParticipant).join("\n")
@@ -505,7 +554,7 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
         }
 
         fields.push(
-            { name: `✅ Inscrits (${registered.length})`, value: registeredList, inline: true },
+            ...inscritsFields,
             { name: `⏳ File d'attente (${reserve.length})`, value: reserveList + reserveNote, inline: true },
         );
 
@@ -516,7 +565,10 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
                     { type: 2, style: 1, label: "S'inscrire", emoji: { name: "✅" }, custom_id: `calendar:join:${event.id}` },
                     { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `calendar:leave:${event.id}` }
                 ]
-            }
+            },
+            // Menu classe en PLUS des boutons : choisir une classe = s'inscrire avec
+            // cette classe (ou mettre à jour la sienne si déjà inscrit).
+            buildClassSelectRow(`calendar:class:${event.id}`, "Choisir ma classe pour cet événement…"),
         ];
 
         const messageOptions = {
@@ -664,9 +716,15 @@ export async function refreshDiscordEventEmbed(guildId: string, eventId: string)
             return `• ${name} ${classe}`;
         };
 
-        const registeredList = registered.length > 0
-            ? registered.map(formatParticipant).join("\n")
-            : "*Aucun inscrit*";
+        // Dispatch par classe : UN field inline PAR classe représentée (grille 3 colonnes).
+        const dispatchEntries: DispatchEntry[] = registered.map((p: any) => {
+            const name = p.user.profiles[0]?.discordNickname || p.user.name || "Inconnu";
+            return { line: `• ${name}`, classe: p.classe ?? null };
+        });
+        const inscritsFields = buildClassDispatchFields(dispatchEntries, {
+            emptyField: { name: `✅ Inscrits (${registered.length})`, value: "*Aucun inscrit*" },
+            maxGroups: 14,
+        });
 
         const reserveList = reserve.length > 0
             ? reserve.map(formatParticipant).join("\n")
@@ -716,7 +774,7 @@ export async function refreshDiscordEventEmbed(guildId: string, eventId: string)
         }
 
         fields.push(
-            { name: `✅ Inscrits (${registered.length})`, value: registeredList, inline: true },
+            ...inscritsFields,
             { name: `⏳ File d'attente (${reserve.length})`, value: reserveList + reserveNote, inline: true },
         );
 
@@ -727,7 +785,10 @@ export async function refreshDiscordEventEmbed(guildId: string, eventId: string)
                     { type: 2, style: 1, label: "S'inscrire", emoji: { name: "✅" }, custom_id: `calendar:join:${event.id}` },
                     { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `calendar:leave:${event.id}` }
                 ]
-            }
+            },
+            // Menu classe en PLUS des boutons : choisir une classe = s'inscrire avec
+            // cette classe (ou mettre à jour la sienne si déjà inscrit).
+            buildClassSelectRow(`calendar:class:${event.id}`, "Choisir ma classe pour cet événement…"),
         ];
 
         const synced = await updateChannelMessage(

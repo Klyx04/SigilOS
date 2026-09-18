@@ -31,6 +31,18 @@ function codeOnly(source: string): string {
 const ROUTE_CODE = codeOnly(readFileSync(ROUTE, "utf8"));
 const SERVICE_CODE = codeOnly(readFileSync(SERVICE, "utf8"));
 
+/**
+ * Corps d'une fonction exportée du service : du `export async function <nom>`
+ * jusqu'au prochain `export`. Permet de verrouiller UN parcours précis sans
+ * compter les appels des autres appelants (ex: le menu classe Discord).
+ */
+function serviceFunction(name: string): string {
+    const start = SERVICE_CODE.indexOf(`export async function ${name}`);
+    expect(start, `fonction \`${name}\` introuvable dans le service`).toBeGreaterThan(-1);
+    const next = SERVICE_CODE.indexOf("\nexport ", start + 1);
+    return SERVICE_CODE.slice(start, next === -1 ? undefined : next);
+}
+
 /** Corps de la branche `calendar` (boutons d'inscription) de la route. */
 function calendarBranch(): string {
     const start = ROUTE_CODE.indexOf('if (prefix === "calendar")');
@@ -152,8 +164,15 @@ describe("Service calendrier — anti-spam et rafraîchissement de l'embed", () 
     });
 
     it("**attend** le PATCH de l'embed avant de rendre l'issue (join ET leave)", () => {
-        const awaited = SERVICE_CODE.match(/await refreshEmbedWithinDeadline\(guildId, eventId\)/g) ?? [];
-        expect(awaited.length, "les deux parcours d'inscription doivent attendre le PATCH").toBe(2);
+        // Portée limitée aux deux parcours d'inscription : le menu classe Discord
+        // (`updateRegistrationClass`) attend lui aussi son PATCH, mais ce n'est pas
+        // ce que ce test verrouille.
+        expect(serviceFunction("processRegistration"), "l'inscription doit attendre le PATCH").toMatch(
+            /await refreshEmbedWithinDeadline\(guildId, eventId\)/
+        );
+        expect(serviceFunction("processUnregistration"), "la désinscription doit attendre le PATCH").toMatch(
+            /await refreshEmbedWithinDeadline\(guildId, eventId\)/
+        );
         expect(SERVICE_CODE, "plus de rafraîchissement d'embed lancé à l'aveugle").not.toMatch(
             /updateDiscordEventEmbed\(guildId, eventId\)\.catch/
         );

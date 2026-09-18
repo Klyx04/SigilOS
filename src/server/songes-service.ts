@@ -2,6 +2,7 @@ import { db } from "@/lib/prisma";
 import { sendChannelMessage, updateChannelMessage, validateChannelBelongsToGuild, fetchChannel, createForumPost } from "@/server/discord";
 import { getAppBaseUrl } from "@/lib/utils";
 import { createNotification } from "@/server/actions/notification-actions";
+import { buildClassDispatchFields, buildClassSelectRow, type DispatchEntry } from "@/server/discord-class-dispatch";
 
 // ============================================
 // CONSTANTS
@@ -102,24 +103,26 @@ async function buildRunEmbedData(guildId: string, runId: string) {
     // Get leader more info
     const leaderProfile = await getUserProfileData(run.leaderId, guildConfig.id);
 
-    // Get member details for list
-    const memberLines: string[] = [];
+    // Get member details for list — dispatch par classe (UN field inline PAR classe).
+    const teamEntries: DispatchEntry[] = [];
     for (const m of run.members) {
         const p = await getUserProfileData(m.userId, guildConfig.id);
         const reqClass = run.joinRequests.find(r => r.userId === m.userId)?.classe;
         const displayClass = reqClass || p.classe;
-        const classTag = displayClass ? `[${displayClass}] ` : "";
-        
+
         // Add stuff info if available
         let stuffInfo = "";
         const memberStuff = m as any;
         if (memberStuff.linkedStuffId && memberStuff.linkedStuffUrl) {
             stuffInfo = ` 🛡️ [${memberStuff.linkedStuffName || "Stuff"}](${memberStuff.linkedStuffUrl})`;
         }
-        
-        memberLines.push(`• ${classTag}**${p.name}**${stuffInfo}`);
+
+        teamEntries.push({ line: `• **${p.name}**${stuffInfo}`, classe: displayClass });
     }
-    const membersList = memberLines.length > 0 ? memberLines.join("\n") : "*Aucun membre*";
+    const teamFields = buildClassDispatchFields(teamEntries, {
+        emptyField: { name: `✅ Équipe (${run.members.length})`, value: "*Aucun membre*" },
+        maxGroups: 15,
+    });
 
     // Get waitlist details
     const waitlistLines: string[] = [];
@@ -154,7 +157,7 @@ async function buildRunEmbedData(guildId: string, runId: string) {
         }] : []),
         ...(epreuveMeta ? [{ name: "🏆 Épreuve de Songe", value: `${epreuveMeta.icon} **${epreuveMeta.label}**\n*Pas de butin ni d'expérience*`, inline: false }] : []),
         { name: "🎯 Objectifs", value: objectivesStr, inline: false },
-        { name: `✅ Équipe (${run.members.length})`, value: membersList, inline: true },
+        ...teamFields,
         { name: `⏳ File d'attente (${run.waitlist.length})`, value: waitlistList, inline: true },
         { name: "🔗 Dashboard", value: `[📋 Voir la Run](${dashboardUrl})`, inline: false },
     ];
@@ -194,6 +197,9 @@ async function buildRunEmbedData(guildId: string, runId: string) {
                 },
             ],
         },
+        // Menu classe en PLUS des boutons : postuler avec cette classe (ou changer
+        // la sienne si déjà candidat / membre).
+        buildClassSelectRow(`songes:class:${run.id}`, "Choisir ma classe pour cette run…"),
     ] : [];
 
     return {
@@ -605,6 +611,71 @@ export async function processRunJoin(guildId: string, runId: string, userId: str
         return { success: true };
     } catch (error) {
         console.error("[Songes Service] processRunJoin Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+/**
+ * Met à jour la classe d'un candidat/membre EXISTANT (menu select Discord).
+ * - Candidature PENDING → classe de la demande mise à jour.
+ * - Membre → classe de sa demande (ACCEPTED…) mise à jour si elle existe,
+ *   sinon classe du profil (repli d'affichage de l'embed).
+ * Retourne `{ updated: false }` si ni membre ni candidat : l'appelant bascule
+ * alors sur `processRunJoin` (nouvelle candidature avec cette classe).
+ */
+export async function updateRunCandidateClass(
+    guildId: string,
+    runId: string,
+    userId: string,
+    classe: string
+): Promise<{ success: boolean; error?: string; updated?: boolean }> {
+    try {
+        const guildConfig = await getGuildConfig(guildId);
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        const run = await db.dreamRun.findFirst({
+            where: { id: runId, guildId },
+            include: { members: { select: { userId: true } } },
+        });
+        if (!run) return { success: false, error: "Run non trouvée" };
+        if (run.status !== "RECRUITING" && run.status !== "IN_PROGRESS") {
+            return { success: false, error: "Cette run n'accepte plus de candidatures" };
+        }
+        if (run.leaderId === userId) {
+            return { success: false, error: "Tu es le leader de cette run !" };
+        }
+
+        const cleanClasse = classe.trim().slice(0, 30);
+        const isMember = run.members.some((m) => m.userId === userId);
+
+        const latestRequest = await db.dreamJoinRequest.findFirst({
+            where: { runId: run.id, userId },
+            orderBy: { createdAt: "desc" },
+        });
+
+        if (latestRequest) {
+            if (latestRequest.status !== "PENDING" && !isMember) {
+                // Demande traitée (refusée…) et pas membre → nouvelle candidature.
+                return { success: true, updated: false };
+            }
+            await db.dreamJoinRequest.update({
+                where: { id: latestRequest.id },
+                data: { classe: cleanClasse },
+            });
+        } else if (isMember) {
+            // Membre sans demande (ajouté à la main) → repli profil (affiché par l'embed).
+            await db.userProfile.updateMany({
+                where: { userId, guildId: guildConfig.id },
+                data: { classe: cleanClasse },
+            });
+        } else {
+            return { success: true, updated: false };
+        }
+
+        await updateDiscordRunEmbed(guildId, runId).catch(() => { });
+        return { success: true, updated: true };
+    } catch (error) {
+        console.error("[Songes Service] updateRunCandidateClass Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }

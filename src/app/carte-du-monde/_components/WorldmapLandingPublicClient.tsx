@@ -5,70 +5,13 @@ import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { Maximize2, ExternalLink } from "lucide-react";
-
-/**
- * Carte du monde — page publique (registre).
- *
- * Ce qui a été retiré : le badge pilule « 🗺 DOFUS UNITY — 100% GRATUIT », le
- * titre en `font-black` avec « Dofus Unity » en dégradé `bg-clip-text`, l'orbe
- * `blur-[120px]`, les calques de dégradés de fond, les six cartes `rounded-2xl`
- * à ombre, les tuiles d'icônes `bg-black/50 border-white/10` et les boutons
- * `bg-gradient-to-r … shadow-lg active:scale-95`.
- *
- * Ce qui a été conservé, volontairement : les assets Dofus. Un asset du jeu
- * n'est pas du décor — c'est une référence au produit (zaap, boss, récolte,
- * carte au trésor) et il porte de l'information. Ils vivent désormais en colonne
- * « Repère » d'un tableau, à côté du libellé qui les explique (`alt` vide : ils
- * illustrent un texte déjà écrit).
- *
- * Aperçu Astrub : gardé, avec sa légende sous l'image au lieu d'un badge
- * superposé, et sans voile noir au survol.
- */
+import { useI18n } from "@/lib/i18n/client";
 
 // Chargement dynamique (Leaflet ne peut pas être SSR)
 const MapViewer = dynamic(
   () => import("@/components/worldmap/map-viewer").then((m) => m.MapViewer),
   { ssr: false }
 );
-
-const FEATURES = [
-  {
-    image: "/assets/worldmap/map-monde.png",
-    tag: "Monde des Douze",
-    title: "Tous les Mondes",
-    text: "Le monde des Douze complet, en tuiles HD navigables. Astrub, les Frigosts, Enurado…",
-  },
-  {
-    image: "/assets/dofus/map-layers/icon-zaap-color.png",
-    tag: "Téléportations",
-    title: "Zaaps",
-    text: "Chaque zaap positionné avec ses destinations exactes pour optimiser vos voyages.",
-  },
-  {
-    image: "/assets/dofus/map-layers/icon-boss.png",
-    tag: "Donjons & Boss",
-    title: "Donjons & Boss",
-    text: "Localisation de chaque donjon, son boss et les succès associés. Quête Ocre incluse.",
-  },
-  {
-    image: "/assets/icons/ocre.png",
-    tag: "Éternelle Moisson",
-    title: "Archimonstres",
-    text: "Position exacte map par map. Suivez les avis de recherche de chaque zone.",
-  },
-  {
-    image: "/assets/dofus/map-layers/icon-harvest-gold.png",
-    tag: "Métiers",
-    title: "Ressources & Récolte",
-    text: "Localisation des spots par métier : bûcheron, mineur, alchimiste, pêcheur…",
-  },
-  {
-    image: "/assets/dofus/game-icons/treasure-map.png",
-    tag: "Navigation",
-    title: "Recherche Instantanée",
-    text: "Tapez un nom de zone, la carte se centre automatiquement sur la bonne map.",
-  },
-];
 
 interface Props {
   isPlay: boolean;
@@ -85,7 +28,47 @@ export function WorldmapLandingPublicClient({
   initialZoom,
   initialWorldId,
 }: Props) {
+  const { t, locale } = useI18n();
   const [showMap, setShowMap] = useState(isPlay);
+
+  const features = [
+    {
+      image: "/assets/worldmap/map-monde.png",
+      tag: t.worldmapPage.features.allWorldsTag,
+      title: t.worldmapPage.features.allWorldsTitle,
+      text: t.worldmapPage.features.allWorldsDesc,
+    },
+    {
+      image: "/assets/dofus/map-layers/icon-zaap-color.png",
+      tag: t.worldmapPage.features.zaapsTag,
+      title: t.worldmapPage.features.zaapsTitle,
+      text: t.worldmapPage.features.zaapsDesc,
+    },
+    {
+      image: "/assets/dofus/map-layers/icon-boss.png",
+      tag: t.worldmapPage.features.dungeonsTag,
+      title: t.worldmapPage.features.dungeonsTitle,
+      text: t.worldmapPage.features.dungeonsDesc,
+    },
+    {
+      image: "/assets/icons/ocre.png",
+      tag: t.worldmapPage.features.archisTag,
+      title: t.worldmapPage.features.archisTitle,
+      text: t.worldmapPage.features.archisDesc,
+    },
+    {
+      image: "/assets/dofus/map-layers/icon-harvest-gold.png",
+      tag: t.worldmapPage.features.harvestTag,
+      title: t.worldmapPage.features.harvestTitle,
+      text: t.worldmapPage.features.harvestDesc,
+    },
+    {
+      image: "/assets/dofus/game-icons/treasure-map.png",
+      tag: t.worldmapPage.features.searchTag,
+      title: t.worldmapPage.features.searchTitle,
+      text: t.worldmapPage.features.searchDesc,
+    },
+  ];
 
   const handleOpenOverlay = () => {
     const width = 560;
@@ -129,12 +112,10 @@ export function WorldmapLandingPublicClient({
                 id="carte-titre"
                 className="max-w-[30ch] text-[clamp(1.75rem,3.2vw,2.5rem)] font-bold leading-[1.12] tracking-tight text-foreground"
               >
-                Carte du monde Dofus Unity interactive
+                {t.worldmapPage.title}
               </h1>
               <p className="mt-4 max-w-[62ch] text-base text-muted-foreground leading-relaxed">
-                Naviguez sur tous les mondes du jeu en tuiles haute définition. Retrouvez instantanément
-                zaaps, donjons, archimonstres, ressources à récolter et passages secrets — sans compte, sans
-                inscription.
+                {t.worldmapPage.subtitle}
               </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -142,75 +123,80 @@ export function WorldmapLandingPublicClient({
                   id="btn-open-fullscreen"
                   type="button"
                   onClick={() => setShowMap(true)}
-                  className="reg-btn reg-btn-primary"
+                  className="reg-btn reg-btn-primary cursor-pointer"
                 >
                   <Maximize2 className="h-4 w-4" aria-hidden="true" />
-                  Ouvrir la carte en plein écran
+                  {t.worldmapPage.openFullscreen}
                 </button>
                 <button
                   id="btn-open-overlay"
                   type="button"
                   onClick={handleOpenOverlay}
-                  className="reg-btn reg-btn-secondary"
+                  className="reg-btn reg-btn-secondary cursor-pointer"
                 >
                   <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                  Ouvrir l&apos;overlay
+                  {t.worldmapPage.openOverlay}
                 </button>
               </div>
 
               <p className="mt-4 text-xs text-muted-foreground">
-                La croix ferme le plein écran et vous ramène ici. L&apos;overlay s&apos;ouvre dans une petite fenêtre indépendante.
+                {locale === "en"
+                  ? "The cross button closes fullscreen and returns here. The overlay opens in a detached mini-window over your game."
+                  : "La croix ferme le plein écran et vous ramène ici. L'overlay s'ouvre dans une petite fenêtre indépendante."}
               </p>
             </div>
 
-            {/* Aperçu HD — asset conservé, légende sous l'image au lieu d'un badge superposé. */}
+            {/* Aperçu HD */}
             <figure className="m-0">
               <button
                 type="button"
                 onClick={() => setShowMap(true)}
                 className="reg-screen block w-full cursor-pointer"
-                aria-label="Ouvrir la carte interactive depuis l'aperçu d'Astrub"
+                aria-label={locale === "en" ? "Open interactive map from Astrub preview" : "Ouvrir la carte interactive depuis l'aperçu d'Astrub"}
               >
                 <Image
                   src="/assets/worldmap/astrub-apercu.webp"
-                  alt="Aperçu HD de la carte du monde Dofus Unity — la cité d'Astrub"
+                  alt={t.worldmapPage.astrubPreviewCaption}
                   width={900}
                   height={540}
                   priority
                   className="aspect-[5/3] w-full object-cover"
                 />
               </button>
-              <figcaption className="mt-2 text-xs text-muted-foreground">Astrub — tuiles HD</figcaption>
+              <figcaption className="mt-2 text-xs text-muted-foreground">
+                {t.worldmapPage.astrubPreviewCaption}
+              </figcaption>
             </figure>
           </div>
         </div>
       </section>
 
-      {/* Couches de la carte — un tableau, pas une grille de cartes. */}
+      {/* Couches de la carte */}
       <section className="reg-section" aria-labelledby="carte-couches-titre">
         <div className="reg-shell">
           <h2
             id="carte-couches-titre"
             className="text-[clamp(1.25rem,2vw,1.5rem)] font-bold tracking-tight text-foreground"
           >
-            Tout ce dont vous avez besoin
+            {t.worldmapPage.featuresTitle}
           </h2>
           <p className="mt-3 max-w-[68ch] text-sm text-muted-foreground leading-relaxed">
-            Une carte complète, interactive et en haute définition, disponible gratuitement pour tous les
-            joueurs Dofus Unity.
+            {locale === "en"
+              ? "A complete, high-definition interactive map, accessible free of charge to all Dofus Unity players."
+              : "Une carte complète, interactive et en haute définition, disponible gratuitement pour tous les joueurs Dofus Unity."}
           </p>
 
           <div className="mt-8 overflow-x-auto">
             <table className="reg-table">
               <thead>
                 <tr>
-                  <th scope="col" className="w-[16rem]">Repère</th>
-                  <th scope="col" className="hidden w-[11rem] sm:table-cell">Couche</th>
-                  <th scope="col">Ce que la carte montre</th>
+                  <th scope="col" className="w-[16rem]">{t.worldmapPage.repereCol}</th>
+                  <th scope="col" className="hidden w-[11rem] sm:table-cell">{t.worldmapPage.featureCol}</th>
+                  <th scope="col">{t.worldmapPage.descriptionCol}</th>
                 </tr>
               </thead>
               <tbody>
-                {FEATURES.map((feature) => (
+                {features.map((feature) => (
                   <tr key={feature.title}>
                     <th
                       scope="row"
@@ -246,30 +232,31 @@ export function WorldmapLandingPublicClient({
               id="carte-cta-titre"
               className="text-[clamp(1.25rem,2vw,1.5rem)] font-bold tracking-tight text-foreground"
             >
-              Prêt à explorer le monde des Douze ?
+              {locale === "en" ? "Ready to explore the World of Twelve?" : "Prêt à explorer le monde des Douze ?"}
             </h2>
             <p className="mt-3 max-w-[62ch] text-sm text-muted-foreground leading-relaxed">
-              La carte est entièrement gratuite. Pas de compte requis. Ouvrez-la directement ou en overlay
-              par-dessus votre client de jeu.
+              {locale === "en"
+                ? "The map is completely free. No account required. Open it directly or in overlay over your game client."
+                : "La carte est entièrement gratuite. Pas de compte requis. Ouvrez-la directement ou en overlay par-dessus votre client de jeu."}
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <button
                 id="btn-open-fullscreen-bottom"
                 type="button"
                 onClick={() => setShowMap(true)}
-                className="reg-btn reg-btn-primary"
+                className="reg-btn reg-btn-primary cursor-pointer"
               >
                 <Maximize2 className="h-4 w-4" aria-hidden="true" />
-                Ouvrir en plein écran
+                {t.worldmapPage.openFullscreen}
               </button>
               <button
                 id="btn-open-overlay-bottom"
                 type="button"
                 onClick={handleOpenOverlay}
-                className="reg-btn reg-btn-secondary"
+                className="reg-btn reg-btn-secondary cursor-pointer"
               >
                 <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                Overlay détachable
+                {t.worldmapPage.openOverlay}
               </button>
             </div>
           </div>
@@ -280,11 +267,13 @@ export function WorldmapLandingPublicClient({
       <section className="pb-12">
         <div className="reg-shell">
           <p className="text-xs text-muted-foreground">
-            Vous êtes chef de guilde Dofus Unity ?{" "}
+            {locale === "en" ? "Are you a Dofus Unity guild leader? " : "Vous êtes chef de guilde Dofus Unity ? "}
             <Link href="/guilds" className="reg-link">
-              Rejoignez SigilOS
+              {locale === "en" ? "Join SigilOS" : "Rejoignez SigilOS"}
             </Link>{" "}
-            pour accéder au suivi de succès, dungeon finder, calendrier de guilde et bien plus.
+            {locale === "en"
+              ? "to access achievement tracking, dungeon finder, guild calendar and much more."
+              : "pour accéder au suivi de succès, dungeon finder, calendrier de guilde et bien plus."}
           </p>
         </div>
       </section>

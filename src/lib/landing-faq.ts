@@ -34,4 +34,8 @@ export const LANDING_FAQ: LandingFaqItem[] = [
         q: "Comment intégrer les archimonstres (Dofus Ocre) ?",
         a: "Chaque membre ajoute son pseudo Dofus et sa clé API Metamob en lecture seule. SigilOS synchronise les captures pour que la guilde s'entraide sur la quête de l'Ocre.",
     },
+    {
+        q: "D'où vient le nom SigilOS ?",
+        a: "Un hommage à la quête « Qui nous protège du Protecteur ? » où l'on doit réunir les Sigils des 12 Protecteurs des mois (Jiva, Djaul, Silvosse...) pour reforger le bouclier Ménologium. On a combiné ces sceaux qui régissent le calendrier du Krosmoz avec « OS » (Operating System) : l'outil qui veille sur l'agenda de votre guilde pour vous protéger du chaos organisationnel.",
+    },
 ];

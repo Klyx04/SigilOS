@@ -1935,22 +1935,17 @@ model GameCharacteristic {
   @@index([keyword])
 }
 
-/// 🖼️ #140 — Screens de la landing pilotés par le God (upload/suppression à la volée).
-/// `section` = emplacement sur la landing (ex. "product-story"). `sortOrder` = ordre d'affichage.
-model LandingScreen {
-  id        String   @id @default(cuid())
-  section   String   @default("product-story")
-  label     String?
-  title     String?
-  description String?
-  imageUrl  String
-  alt       String?
-  sortOrder Int      @default(0)
-  enabled   Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([section, enabled, sortOrder])
+/// 📖 Cache persistant des sorts de classes (19 lignes max, une par classe).
+/// Remplace le seul cache Redis 24 h de `getClassSpells` : les sorts (tous grades
+/// + lignes de dégâts `zoneDescr`) survivent au restart/expire Redis. Le grade
+/// par défaut reste sélectionné à la LECTURE selon le niveau du perso
+/// (`applyCharLevelToSpells`) : une seule ligne par classe suffit.
+model ClassSpellbook {
+  classId    Int      @id                       // 1-19 (ordre Dofusbook)
+  className  String                             // « Huppermage »
+  spells     Json                               // ClassSpellDamage[] canonique (grade niv. 200 + tous grades)
+  spellCount Int      @default(0)
+  updatedAt  DateTime @updatedAt
 }
 
 model ServiceListing {
@@ -2483,6 +2478,12 @@ model DofusQuestEntry {
   localImageUrl      String?
   externalRef        String?
   weight             Int                        @default(1)
+  /// Succès imbriqués : QUEST (quête jouable) | ACHIEVEMENT (succès conteneur d'objectifs).
+  entryKind          String                     @default("QUEST")
+  /// Id de l'entrée parente quand cette entrée est un objectif d'un autre succès.
+  /// Pas de FK volontaire : une section est purgée/re-seedée en bloc (`deleteMany`),
+  /// l'intégrité (même section, anti-cycle, cascade) est tenue par les Server Actions God.
+  parentEntryId      String?
   dungeonsRequired   Json?
   positions          Json?                      @default("[]")
   dofusdbUrl         String?
@@ -2494,6 +2495,7 @@ model DofusQuestEntry {
 
   @@index([chainId])
   @@index([chainId, stepOrder])
+  @@index([parentEntryId])
 }
 
 /// Progression d'un joueur sur un Dofus spécifique (obtenu ou non)

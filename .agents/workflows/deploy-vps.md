@@ -69,11 +69,22 @@ imprime la cause probable. Il ne modifie rien.
 | Symptôme | Cause réelle | Correctif |
 |---|---|---|
 | `git pull` refuse / « local changes would be overwritten » | fichier curé modifié sur le serveur | `git pull --autostash` (déjà dans `deploy-cd.sh`) |
+| Le deploy s'arrête à l'étape **1.5 « Vérification du tag »** | le tag n'a jamais été publié par la CI | regarder **Build & Push** dans Actions, relancer après le vert |
 | `no space left on device` pendant le pull | disque plein | `sudo docker system prune -af --volumes` |
 | `denied` / `unauthorized` / `403` | token GHCR expiré | rafraîchir le secret `GHCR_TOKEN` puis re-relancer **Build & Push** |
 | `manifest unknown` / `not found` | tag jamais publié (CI rouge) | attendre/relancer **Build & Push**, vérifier le nom du tag |
 | Pull OK mais conteneur qui redémarre en boucle | variable d'env manquante / migration | `sudo docker logs --tail 80 sigilos-beta-app-1` · `npx prisma migrate deploy` |
 | Migration bloquée (`P3009`) | migration échouée en base | `npx prisma migrate resolve --rolled-back <nom>` puis relancer |
+
+### Vérifier un tag sans rien déployer
+
+```bash
+./scripts/deploy-cd.sh list beta da4ec40   # ✓ publié / ✗ absent, image par image
+```
+
+C'est le réflexe à avoir **avant un rollback** ou un deploy pinné : le script
+s'arrête désormais à l'étape 1.5 si le tag manque, **avant** de toucher aux
+conteneurs (le déploiement n'est donc jamais à moitié appliqué).
 
 ## Après le deploy
 

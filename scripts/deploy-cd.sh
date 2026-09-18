@@ -196,21 +196,43 @@ git_fetch() {
         "public/game-data/dungeon-monsters.json"
     )
     # À l'inverse `ignored-monsters.json` est CURÉ à la main (God) : l'écraser ferait
-    # perdre les exclusions configurées sur CE serveur ⇒ on le laisse tel quel et on
-    # compte sur `git pull --autostash` pour le remettre en place après le pull.
+    # perdre les exclusions configurées sur CE serveur. Il est donc sauvegardé hors
+    # de l'arbre le temps du pull, puis restauré (voir plus bas).
     local PRESERVED=(
         "public/game-data/ignored-monsters.json"
     )
+
+    # ── Bits `assume-unchanged` / `skip-worktree` : le piège qui bloque un pull ──
+    # Posés à la main pour ne plus voir un fichier dans `git status`, ils rendent git
+    # AVEUGLE sur son contenu : `git stash` répond « No local changes to save » et le
+    # merge refuse pourtant de l'écraser (« Your local changes would be overwritten by
+    # merge — Aborting »). `--autostash` n'a alors RIEN à stasher ⇒ aucune protection.
+    # Constat beta du 18/09/2026 : c'est exactement ce qui bloquait le deploy.
     local f
+    for f in "${GENERATED[@]}" "${PRESERVED[@]}"; do
+        [[ -f "$f" ]] || continue
+        if git ls-files -v -- "$f" 2>/dev/null | grep -qE '^[a-z]|^S'; then
+            dim "  → $f : bit assume-unchanged/skip-worktree levé (git le croyait « propre »)"
+            git update-index --no-assume-unchanged --no-skip-worktree -- "$f" 2>/dev/null || true
+        fi
+    done
+
     for f in "${GENERATED[@]}"; do
         if [[ -f "$f" ]] && ! git diff --quiet -- "$f" 2>/dev/null; then
             dim "  → artefact régénéré : $f (restauration de la version du dépôt)"
             git checkout -- "$f"
         fi
     done
+
+    # Données curées : copie hors de l'arbre, version du dépôt remise pour que le pull
+    # soit propre, puis restauration — c'est la curation du serveur qui fait foi.
+    local PRESERVE_DIR=""
     for f in "${PRESERVED[@]}"; do
         if [[ -f "$f" ]] && ! git diff --quiet -- "$f" 2>/dev/null; then
-            dim "  → donnée locale conservée : $f (stash automatique du pull)"
+            [[ -n "$PRESERVE_DIR" ]] || PRESERVE_DIR="$(mktemp -d)"
+            cp "$f" "$PRESERVE_DIR/$(basename "$f")"
+            dim "  → donnée locale conservée : $f (mise de côté hors de l'arbre)"
+            git checkout -- "$f" 2>/dev/null || true
         fi
     done
 
@@ -220,8 +242,8 @@ git_fetch() {
         printf '%s\n' "$DIRTY" | sed 's/^/     /' | head -10
         dim "  → Pour rétablir à la main : git checkout -- <fichier>   (ou   git stash)"
     fi
-    # `--autostash` : les modifications locales (dont les listes curées côté serveur)
-    # sont mises de côté, le pull passe, puis elles sont réappliquées. Un conflit de
+    # `--autostash` reste la ceinture de sécurité pour tout autre fichier modifié à la
+    # main sur le serveur : mise de côté, pull, ré-application. Un conflit de
     # ré-application laisse le stash intact (aucune perte) et l'affiche ci-dessous.
     if git pull --autostash origin "$BRANCH" >/tmp/sigilos-pull.log 2>&1; then
         ok "Code source à jour (branche $BRANCH, $(git log -1 --oneline 2>/dev/null || echo '?'))."
@@ -233,6 +255,16 @@ git_fetch() {
         fi
     fi
     rm -f /tmp/sigilos-pull.log
+
+    # Restauration des données curées (elles écrasent la version du dépôt).
+    if [[ -n "$PRESERVE_DIR" ]]; then
+        for f in "${PRESERVED[@]}"; do
+            [[ -f "$PRESERVE_DIR/$(basename "$f")" ]] || continue
+            cp "$PRESERVE_DIR/$(basename "$f")" "$f"
+            dim "  → donnée locale restaurée : $f"
+        done
+        rm -rf "$PRESERVE_DIR"
+    fi
 }
 
 # -----------------------------------------------------------------------------

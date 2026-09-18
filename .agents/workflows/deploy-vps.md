@@ -40,18 +40,41 @@ Les listes God (`public/game-data/ignored-monsters.json`, etc.) sont **modifiée
 le serveur** : elles sont donc toujours « sales » pour git.
 
 ```bash
-# deploy-cd.sh le fait déjà pour toi (git pull --autostash) :
+# Le script le fait tout seul (sauvegarde hors de l'arbre → pull → restauration) :
 ./scripts/deploy-cd.sh beta
 ```
 
-Si tu veux le faire à la main (ou si un autostash a été interrompu) :
+### ⚠️ Le piège qui a bloqué la beta le 18/09/2026
+
+Certains fichiers curés portent les bits **`assume-unchanged` / `skip-worktree`**
+(posés à la main pour ne plus voir le bruit dans `git status`). Git devient alors
+**aveugle** sur leur contenu :
+
+```
+git ls-files -v public/game-data/ignored-monsters.json   → h (minuscule) ou S
+git status --porcelain                                    → VIDE (git les croit propres)
+git stash push -- <fichier>                               → "No local changes to save"
+git pull --autostash origin dev                           → "Your local changes … would be overwritten by merge"
+```
+
+⇒ `--autostash` **ne protège pas** dans ce cas (il n'y a rien à stasher). Le
+correctif est intégré à `git_fetch` (levée du bit, sauvegarde hors de l'arbre,
+pull, restauration de la curation). **Déblocage manuel une seule fois** :
 
 ```bash
-git stash push -- public/game-data/ignored-monsters.json
-git pull
-git stash pop
-# Conflit attendu ? Le serveur fait foi pour ces fichiers :
-git checkout --theirs -- public/game-data/ignored-monsters.json && git stash drop
+cd ~/SigilOS
+F=public/game-data/ignored-monsters.json
+
+git ls-files -v "$F"                                        # h / S = le piège
+git update-index --no-assume-unchanged --no-skip-worktree -- "$F"
+
+cp "$F" /tmp/ignored-monsters.SAUVEGARDE.json                # curation serveur
+git checkout -- "$F"                                        # version du dépôt
+git pull origin dev                                         # passe (fast-forward)
+cp /tmp/ignored-monsters.SAUVEGARDE.json "$F"                # curation restaurée
+
+git rev-parse --short HEAD                                  # le commit attendu
+grep -c autostash scripts/deploy-cd.sh                      # ≥ 2 → correctif en place
 ```
 
 ## Diagnostic — un seul outil
@@ -68,7 +91,8 @@ imprime la cause probable. Il ne modifie rien.
 
 | Symptôme | Cause réelle | Correctif |
 |---|---|---|
-| `git pull` refuse / « local changes would be overwritten » | fichier curé modifié sur le serveur | `git pull --autostash` (déjà dans `deploy-cd.sh`) |
+| `git pull` refuse / « local changes would be overwritten » | fichier curé modifié sur le serveur | géré par `git_fetch` (sauvegarde hors arbre → pull → restauration) |
+| `git stash push` répond « No local changes to save » **puis** le merge refuse | bits `assume-unchanged` / `skip-worktree` → git aveugle | `git update-index --no-assume-unchanged --no-skip-worktree -- <fichier>` (voir juste au-dessus) |
 | Le deploy s'arrête à l'étape **1.5 « Vérification du tag »** | le tag n'a jamais été publié par la CI | regarder **Build & Push** dans Actions, relancer après le vert |
 | `no space left on device` pendant le pull | disque plein | `sudo docker system prune -af --volumes` |
 | `denied` / `unauthorized` / `403` | token GHCR expiré | rafraîchir le secret `GHCR_TOKEN` puis re-relancer **Build & Push** |

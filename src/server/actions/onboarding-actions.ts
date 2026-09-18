@@ -57,6 +57,16 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
     const { isRbacConfigured: isRbacExcludingEveryone } = await import("@/lib/onboarding-gating");
     const isRbacConfigured = isRbacExcludingEveryone(rolesMapping, guild.discordGuildId);
 
+    // Rapport beta onboarding : si le module missions est DÉSACTIVÉ, l'étape
+    // "Premières Missions" pointait vers /missions/manage qui rend
+    // <AccessDenied/> même pour l'owner (applyModule = false quand OFF) — mur
+    // "Accès Restreint" incompréhensible. Le CTA mène donc à l'activation du
+    // module d'abord, à la gestion ensuite.
+    const modulesState = (guild.modules as Record<string, boolean> | null) || null;
+    // Sans ligne modules en BDD, getGuildModules retombe sur DEFAULT_MODULES
+    // (tout OFF sauf admin) — même règle ici pour rester cohérent.
+    const missionsModuleOn = modulesState ? modulesState.missions !== false : false;
+
     const steps: OnboardingProgress["steps"] = [
         {
             id: "dofus",
@@ -109,11 +119,15 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
         {
             id: "missions",
             title: "Premières Missions",
-            description: "Lancez l'activité en publiant des missions hebdomadaires pour vos membres.",
+            description: missionsModuleOn
+                ? "Lancez l'activité en publiant des missions hebdomadaires pour vos membres."
+                : "Activez d'abord le module Missions, puis publiez vos premières missions.",
             status: guild._count.missions > 0 ? "COMPLETED" : "TO_DO",
             mandatory: false,
             points: 15,
-            href: `/dashboard/${guildId}/missions/manage`,
+            href: missionsModuleOn
+                ? `/dashboard/${guildId}/missions/manage`
+                : `/dashboard/${guildId}/admin/modules`,
         },
     ];
 

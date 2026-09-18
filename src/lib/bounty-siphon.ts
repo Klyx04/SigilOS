@@ -129,8 +129,12 @@ function bountySubareasOf(meta: any, monster: any): BountySubarea[] {
 /**
  * Siphonne **les 96 avis de recherche** (5 races DofusDB) : fiche `MonsterStat`, ligne `Bounty`,
  * sorts de combat, zone de traque, carte de repli, icônes. Idempotent et fail-soft.
+ *
+ * @param raceIds Restreint la passe aux races listées (siphon par étape côté
+ * God : journal temps réel + appels courts anti-timeout). Absent = les 5 races
+ * (cron + compat).
  */
-export async function syncBounties(): Promise<BountySyncResult> {
+export async function syncBounties(raceIds?: readonly number[]): Promise<BountySyncResult> {
     const result: BountySyncResult = {
         synced: 0,
         unchanged: 0,
@@ -147,8 +151,9 @@ export async function syncBounties(): Promise<BountySyncResult> {
     //    `$limit` est plafonné à 50 par l'API et la race la plus fournie en compte 38 : une page
     //    suffit. Si une race atteignait le plafond, on le SIGNALE (jamais de troncature muette) :
     //    `$skip` n'est pas fiable (mesuré : la réponse renvoie `skip: 0` quel que soit le paramètre).
+    const wantedRaces = raceIds && raceIds.length > 0 ? raceIds : BOUNTY_RACE_IDS;
     const byId = new Map<number, any>();
-    for (const raceId of BOUNTY_RACE_IDS) {
+    for (const raceId of wantedRaces) {
         const list = await dofusdbFetch<any[]>(`/monsters?race=${raceId}&lang=fr&$limit=50`);
         if (!Array.isArray(list) || list.length === 0) {
             result.errors.push(`DofusDB monsters?race=${raceId} indisponible`);

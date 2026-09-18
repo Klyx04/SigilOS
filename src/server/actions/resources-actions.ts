@@ -47,8 +47,9 @@ export interface AlmanaxItem {
 
 // ─── Almanax (7 prochains jours) ─────────────────────────────────────────────
 
-export async function getUpcomingAlmanax(): Promise<AlmanaxItem[]> {
-    const url = "https://api.dofusdu.de/dofus3/v1/fr/almanax?timezone=Europe/Paris&range%5Bsize%5D=30";
+export async function getUpcomingAlmanax(locale: string = "fr"): Promise<AlmanaxItem[]> {
+    const lang = locale === "en" ? "en" : "fr";
+    const url = `https://api.dofusdu.de/dofus3/v1/${lang}/almanax?timezone=Europe/Paris&range%5Bsize%5D=30`;
 
     // 1. Direct fetch
     try {

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DO_TAGS } from "@/lib/dofus-tags";
+import { TagWithIcons } from "@/components/gallery/gallery-filters";
 import type { DofusBookLink } from "./builds-card";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -362,7 +363,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                                                         : `${tag.className} opacity-75 saturate-75 hover:opacity-100 hover:saturate-100`
                                                             )}
                                                         >
-                                                            {tag.label}
+                                                            <TagWithIcons tag={tag} size={13} />
                                                             {isSelected && <Check className="w-2.5 h-2.5 ml-0.5 shrink-0" />}
                                                         </button>
                                                     );
@@ -381,8 +382,8 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                         {tags.map(tid => {
                                             const tag = DO_TAGS.find(t => t.id === tid);
                                             return tag ? (
-                                                <span key={tid} className={cn("px-2 py-0.5 text-caption rounded-md border font-semibold", tag.className)}>
-                                                    {tag.label}
+                                                <span key={tid} className={cn("px-2 py-0.5 text-caption rounded-md border font-semibold inline-flex", tag.className)}>
+                                                    <TagWithIcons tag={tag} size={12} />
                                                 </span>
                                             ) : null;
                                         })}

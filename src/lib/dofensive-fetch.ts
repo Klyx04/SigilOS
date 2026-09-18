@@ -23,7 +23,7 @@ const DOFENSIVE_HEADERS = {
 // sélecteur de salle, liste de sorts). On ne construit JAMAIS d'URL avec une valeur
 // non validée : allowlist stricte des chemins Dofensive + ID entier strictement positif.
 const DOFENSIVE_PATH_RE =
-    /^\/?(?:dungeons\/preview\?lang=fr|maps\/\d+\?lang=fr|monsters\/\d+\?lang=fr|spells\/\d+\?lang=fr)$/;
+    /^\/?(?:dungeons\/preview\?lang=(?:fr|en)|maps\/\d+\?lang=(?:fr|en)|monsters\/\d+\?lang=(?:fr|en)|spells\/\d+\?lang=(?:fr|en))$/;
 
 /** Convertit un ID Dofensive en entier strictement positif, ou `null` si invalide (anti-SSRF). */
 export function toSafeId(value: number | string | null | undefined): number | null {

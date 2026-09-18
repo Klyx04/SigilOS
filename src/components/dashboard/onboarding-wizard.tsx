@@ -1,16 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { 
-    Sparkles, 
-    Sword, 
-    Check, 
-    AlertTriangle, 
-    Loader2, 
-    Compass, 
+import {
+    Check,
+    AlertTriangle,
+    Loader2,
     ArrowRight,
-    User
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -168,245 +163,234 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                 ? requireActivities ? [2, 3] : [2]
                 : requireActivities ? [1, 2, 3] : [1, 2];
 
-    return (
-        <AnimatePresence>
-            {isOpen && (
-                <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
-                    {/* Backdrop (Forced: cannot click outside) */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-black/95 backdrop-blur-md"
-                    />
+    if (!isOpen) return null;
 
-                    {/* Modal Content */}
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="relative w-full max-w-xl bg-surface rounded-3xl border border-border overflow-hidden"
-                    >
-                        <div className="relative z-10 p-6 sm:p-10 flex flex-col items-center text-center space-y-6">
-                            {/* Step indicators — nombre de points = étapes du flux (pseudo/classe + activités) */}
-                            <div className="flex items-center gap-3">
-                                {flowSteps.map(s => (
-                                    <div key={s} className={cn("w-2 h-2 rounded-full transition-colors duration-200", step === s ? "bg-primary" : "bg-elevated")} />
-                                ))}
+    return (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
+            {/* Backdrop (Forced: cannot click outside) */}
+            <div className="absolute inset-0 bg-black/95" aria-hidden="true" />
+
+            <div className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto bg-surface rounded-xl border border-border animate-in fade-in zoom-in-95 duration-200">
+                <div className="p-6 sm:p-10 space-y-6">
+                    {/* Step indicators — nombre de points = étapes du flux (pseudo/classe + activités) */}
+                    <div className="flex items-center gap-2" aria-hidden="true">
+                        {flowSteps.map(s => (
+                            <div key={s} className={cn("h-1 flex-1 rounded-full", step >= s ? "bg-success" : "bg-elevated")} />
+                        ))}
+                    </div>
+
+                    {step === 1 && (
+                        <div className="space-y-6 animate-in fade-in duration-200">
+                            <div className="flex items-start gap-4">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src="/assets/dofus/modules/character.png"
+                                    alt=""
+                                    width={56}
+                                    height={56}
+                                    draggable={false}
+                                    className="w-14 h-14 shrink-0 object-contain"
+                                />
+                                <div className="space-y-1.5 pt-1">
+                                    <p className="text-xs font-medium text-muted-foreground">Bienvenue, {userName}</p>
+                                    <h2 className="text-2xl font-bold text-foreground tracking-tight">
+                                        Identifie ton personnage
+                                    </h2>
+                                    <p className="text-sm text-muted-foreground leading-relaxed">
+                                        Renseigne ton pseudo exact en jeu. Le site l'utilisera pour synchroniser tes succès et ton activité sur le Ladder !
+                                    </p>
+                                </div>
                             </div>
 
-                            {step === 1 && (
-                                <motion.div 
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    className="w-full space-y-6"
+                            <form onSubmit={handlePseudoSubmit} className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-medium text-muted-foreground pl-1">Pseudo Dofus exact</label>
+                                    <Input
+                                        placeholder="Ex: Dark-Iop"
+                                        value={pseudo}
+                                        onChange={(e) => setPseudo(e.target.value)}
+                                        className="bg-elevated border-border h-12 text-sm rounded-lg focus-visible:ring-0 focus-visible:border-border-strong text-foreground"
+                                        disabled={loading}
+                                        autoFocus
+                                    />
+                                </div>
+
+                                {error && (
+                                    <div className="flex items-start gap-2.5 p-3 rounded-lg bg-danger/10 border border-danger/20 text-danger text-xs">
+                                        <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                                        <span>{error}</span>
+                                    </div>
+                                )}
+
+                                <Button
+                                    type="submit"
+                                    className="w-full h-12 text-sm font-semibold rounded-lg gap-2"
+                                    disabled={loading}
                                 >
-                                    <div className="space-y-2">
-                                        <div className="relative w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary flex items-center justify-center">
-                                            <User className="w-8 h-8 text-foreground" />
-                                            <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-warning" />
-                                        </div>
-                                        <h2 className="text-2xl font-black text-foreground tracking-tight uppercase italic">
-                                            Identifie ton <span className="text-primary">Personnage</span>
-                                        </h2>
-                                        <p className="text-muted-foreground text-xs font-semibold leading-relaxed max-w-sm mx-auto">
-                                            Renseigne ton pseudo exact en jeu. Le site l'utilisera pour synchroniser tes succès et ton activité sur le Ladder !
-                                        </p>
-                                    </div>
-
-                                    <form onSubmit={handlePseudoSubmit} className="space-y-4 text-left max-w-md mx-auto">
-                                        <div className="space-y-2">
-                                            <label className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground pl-1">Pseudo Dofus Exact</label>
-                                            <Input
-                                                placeholder="Ex: Dark-Iop"
-                                                value={pseudo}
-                                                onChange={(e) => setPseudo(e.target.value)}
-                                                className="bg-muted/50 border-border h-12 text-sm font-medium rounded-xl focus-visible:ring-violet-500/30 text-foreground"
-                                                disabled={loading}
-                                                autoFocus
-                                            />
-                                        </div>
-
-                                        {error && (
-                                            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-danger/10 border border-danger/20 text-danger text-xs font-medium">
-                                                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                                                <span>{error}</span>
-                                            </div>
-                                        )}
-
-                                        <Button
-                                            type="submit"
-                                            className="w-full h-12 bg-primary hover:bg-primary/90 font-black uppercase tracking-widest text-xs rounded-xl transition-colors active:scale-95 text-primary-foreground gap-2"
-                                            disabled={loading}
-                                        >
-                                            {loading ? (
-                                                <>
-                                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                                    Validation avec le Ladder...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    Continuer
-                                                    <ArrowRight className="w-4 h-4" />
-                                                </>
-                                            )}
-                                        </Button>
-                                    </form>
-                                </motion.div>
-                            )}
-
-                            {step === 2 && (
-                                <motion.div 
-                                    initial={{ opacity: 0, x: 10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    className="w-full space-y-6"
-                                >
-                                    <div className="space-y-2">
-                                        <div className="relative w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary flex items-center justify-center">
-                                            <Sword className="w-8 h-8 text-foreground" />
-                                        </div>
-                                        <h2 className="text-2xl font-black text-foreground tracking-tight uppercase italic">
-                                            Choisis ta <span className="text-violet-400">Classe</span>
-                                        </h2>
-                                        <p className="text-muted-foreground text-xs font-semibold leading-relaxed max-w-sm mx-auto">
-                                            Sélectionne la classe de ton personnage principal pour compléter ton badge de guilde.
-                                        </p>
-                                    </div>
-
-                                    {/* Grid of classes */}
-                                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-[240px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/10 w-full text-center">
-                                        {DOFUS_CLASSES.map((cls) => {
-                                            const isSelected = selectedClass === cls.id;
-                                            return (
-                                                <button
-                                                    key={cls.id}
-                                                    type="button"
-                                                    onClick={() => setSelectedClass(cls.id)}
-                                                    className={cn(
-                                                        "flex flex-col items-center justify-center p-2 rounded-xl border transition-all relative group",
-                                                        isSelected 
-                                                            ? "bg-violet-500/20 border-violet-500 " 
-                                                            : "bg-surface border-border hover:bg-surface hover:border-border-strong"
-                                                    )}
-                                                >
-                                                    <div className="w-10 h-10 relative flex items-center justify-center">
-                                                        <img src={cls.icon} alt={cls.name} className="w-8 h-8 object-contain" />
-                                                    </div>
-                                                    <span className="text-caption font-black uppercase tracking-tight text-muted-foreground mt-1 truncate w-full group-hover:text-foreground transition-colors">{cls.name}</span>
-                                                    {isSelected && (
-                                                        <div className="absolute -top-1 -right-1 bg-primary rounded-full p-0.5">
-                                                            <Check className="w-2.5 h-2.5 text-foreground" />
-                                                        </div>
-                                                    )}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-
-                                    <div className="flex gap-3 max-w-md mx-auto w-full">
-                                        {initialStep === 1 && (
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={() => setStep(1)}
-                                                className="h-12 border-border bg-surface hover:bg-surface text-xs font-black uppercase tracking-widest rounded-xl transition-all"
-                                                disabled={loading}
-                                            >
-                                                Retour
-                                            </Button>
-                                        )}
-                                        <Button
-                                            type="button"
-                                            onClick={handleClassSubmit}
-                                            className="flex-1 h-12 bg-primary hover:bg-primary/90 font-black uppercase tracking-widest text-xs rounded-xl transition-colors active:scale-95 text-primary-foreground gap-2"
-                                            disabled={loading || !selectedClass}
-                                        >
-                                            {loading ? (
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                            ) : (
-                                                "Terminer"
-                                            )}
-                                        </Button>
-                                    </div>
-                                </motion.div>
-                            )}
-
-                            {step === 3 && (
-                                <motion.div
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    className="w-full space-y-6"
-                                >
-                                    <div className="space-y-2">
-                                        <div className="relative w-16 h-16 mx-auto mb-4 rounded-2xl bg-success flex items-center justify-center">
-                                            <Compass className="w-8 h-8 text-foreground" />
-                                            <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-warning" />
-                                        </div>
-                                        <h2 className="text-2xl font-black text-foreground tracking-tight uppercase italic">
-                                            Activités <span className="text-success">& Contenu préféré</span>
-                                        </h2>
-                                        <p className="text-muted-foreground text-xs font-semibold leading-relaxed max-w-sm mx-auto">
-                                            Coche au moins une activité pour indiquer tes préférences à la guilde. Tu pourras les modifier plus tard depuis ton profil.
-                                        </p>
-                                    </div>
-
-                                    <div className="flex flex-wrap justify-center gap-2 max-h-[42vh] overflow-y-auto custom-scrollbar">
-                                        {PREFERRED_ACTIVITIES.map(act => {
-                                            const isSelected = selectedActivities.includes(act.id);
-                                            return (
-                                                <button
-                                                    key={act.id}
-                                                    type="button"
-                                                    onClick={() => toggleActivity(act.id)}
-                                                    className={cn(
-                                                        "flex items-center gap-2 px-3.5 py-2.5 rounded-xl border text-xs font-bold transition-all duration-150",
-                                                        isSelected
-                                                            ? act.color
-                                                            : "bg-surface border-border hover:bg-surface hover:border-border-strong text-muted-foreground"
-                                                    )}
-                                                >
-                                                    <span className="text-base leading-none">{act.icon}</span>
-                                                    <span>{act.label}</span>
-                                                    {isSelected && <Check className="w-3.5 h-3.5" />}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-
-                                    <div className="flex gap-3 max-w-md mx-auto w-full">
-                                        {initialStep !== 3 && (
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={() => setStep(2)}
-                                                className="h-12 border-border bg-surface hover:bg-surface text-xs font-black uppercase tracking-widest rounded-xl transition-all"
-                                                disabled={loading}
-                                            >
-                                                Retour
-                                            </Button>
-                                        )}
-                                        <Button
-                                            type="button"
-                                            onClick={handleActivitiesSubmit}
-                                            className="flex-1 h-12 bg-success hover:bg-success font-black uppercase tracking-widest text-xs rounded-xl transition-all active:scale-95 text-success-foreground gap-2"
-                                            disabled={loading || selectedActivities.length === 0}
-                                        >
-                                            {loading ? (
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                            ) : (
-                                                "Terminer"
-                                            )}
-                                        </Button>
-                                    </div>
-                                </motion.div>
-                            )}
+                                    {loading ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            Validation avec le Ladder...
+                                        </>
+                                    ) : (
+                                        <>
+                                            Continuer
+                                            <ArrowRight className="w-4 h-4" />
+                                        </>
+                                    )}
+                                </Button>
+                            </form>
                         </div>
+                    )}
 
-                        {/* Bottom decorative bar */}
-                        <div className="absolute bottom-0 left-0 w-full h-1 bg-info" />
-                    </motion.div>
+                    {step === 2 && (
+                        <div className="space-y-6 animate-in fade-in duration-200">
+                            <div className="space-y-1.5">
+                                <p className="text-xs font-medium text-muted-foreground">Personnage principal</p>
+                                <h2 className="text-2xl font-bold text-foreground tracking-tight">
+                                    Choisis ta classe
+                                </h2>
+                                <p className="text-sm text-muted-foreground leading-relaxed">
+                                    Sélectionne la classe de ton personnage principal pour compléter ton badge de guilde.
+                                </p>
+                            </div>
+
+                            {/* Grid of classes — assets réels du jeu */}
+                            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-[240px] overflow-y-auto pr-1 w-full">
+                                {DOFUS_CLASSES.map((cls) => {
+                                    const isSelected = selectedClass === cls.id;
+                                    return (
+                                        <button
+                                            key={cls.id}
+                                            type="button"
+                                            onClick={() => setSelectedClass(cls.id)}
+                                            aria-pressed={isSelected}
+                                            title={cls.name}
+                                            className={cn(
+                                                "flex flex-col items-center justify-center p-2 rounded-lg border transition-colors relative",
+                                                isSelected
+                                                    ? "border-success bg-success/5"
+                                                    : "border-border hover:border-border-strong"
+                                            )}
+                                        >
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src={cls.icon} alt={cls.name} loading="lazy" className="w-8 h-8 object-contain" />
+                                            <span className={cn(
+                                                "text-[11px] font-medium mt-1 truncate w-full",
+                                                isSelected ? "text-foreground" : "text-muted-foreground"
+                                            )}>{cls.name}</span>
+                                            {isSelected && (
+                                                <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-success flex items-center justify-center">
+                                                    <Check className="w-2.5 h-2.5 text-success-foreground" />
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="flex gap-3 w-full">
+                                {initialStep === 1 && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setStep(1)}
+                                        className="h-12 rounded-lg text-sm"
+                                        disabled={loading}
+                                    >
+                                        Retour
+                                    </Button>
+                                )}
+                                <Button
+                                    type="button"
+                                    onClick={handleClassSubmit}
+                                    className="flex-1 h-12 text-sm font-semibold rounded-lg gap-2"
+                                    disabled={loading || !selectedClass}
+                                >
+                                    {loading ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        "Terminer"
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {step === 3 && (
+                        <div className="space-y-6 animate-in fade-in duration-200">
+                            <div className="space-y-1.5">
+                                <p className="text-xs font-medium text-muted-foreground">Tes préférences</p>
+                                <h2 className="text-2xl font-bold text-foreground tracking-tight">
+                                    Activités et contenu préféré
+                                </h2>
+                                <p className="text-sm text-muted-foreground leading-relaxed">
+                                    Coche au moins une activité pour indiquer tes préférences à la guilde. Tu pourras les modifier plus tard depuis ton profil.
+                                </p>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 max-h-[42vh] overflow-y-auto">
+                                {PREFERRED_ACTIVITIES.map(act => {
+                                    const isSelected = selectedActivities.includes(act.id);
+                                    return (
+                                        <button
+                                            key={act.id}
+                                            type="button"
+                                            onClick={() => toggleActivity(act.id)}
+                                            aria-pressed={isSelected}
+                                            className={cn(
+                                                "flex items-center gap-2.5 pl-1.5 pr-3 py-1.5 rounded-lg border text-xs font-medium transition-colors select-none",
+                                                isSelected
+                                                    ? "border-success bg-success/5 text-foreground"
+                                                    : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground"
+                                            )}
+                                        >
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                                src={act.image}
+                                                alt=""
+                                                width={28}
+                                                height={28}
+                                                loading="lazy"
+                                                draggable={false}
+                                                className="w-7 h-7 shrink-0 object-contain"
+                                            />
+                                            <span>{act.label}</span>
+                                            {isSelected && <Check className="w-3.5 h-3.5 text-success shrink-0" />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="flex gap-3 w-full">
+                                {initialStep !== 3 && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setStep(2)}
+                                        className="h-12 rounded-lg text-sm"
+                                        disabled={loading}
+                                    >
+                                        Retour
+                                    </Button>
+                                )}
+                                <Button
+                                    type="button"
+                                    onClick={handleActivitiesSubmit}
+                                    className="flex-1 h-12 text-sm font-semibold rounded-lg gap-2"
+                                    disabled={loading || selectedActivities.length === 0}
+                                >
+                                    {loading ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        "Terminer"
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </div>
-            )}
-        </AnimatePresence>
+            </div>
+        </div>
     );
 }

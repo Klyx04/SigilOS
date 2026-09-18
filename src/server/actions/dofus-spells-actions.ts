@@ -9,10 +9,11 @@
  */
 
 import { logger } from "@/lib/logger";
-import { withCache } from "@/lib/cache";
+import { db } from "@/lib/prisma";
 import { dofusdbFetch } from "@/lib/dofusdb-fetch";
 import { getClassName } from "@/lib/dofusbook-utils";
 import {
+    applyCharLevelToSpells,
     spellDamageFromEffect,
     type SpellBaseDamage,
 } from "@/lib/dofus-spells";
@@ -46,6 +47,10 @@ export interface ClassSpellDamage {
     maxCastPerTurn: number;
     maxCastPerTarget: number;
     minCastInterval: number;
+    /** Contraintes de lancer DofusDB (`spell-levels`) : ligne / diagonale / LdV. */
+    castInLine?: boolean;
+    castInDiagonal?: boolean;
+    castTestLos?: boolean;
     zone: { shape: string; size: number; range: number } | null;
     grade: number;
     minPlayerLevel?: number;
@@ -71,6 +76,10 @@ export interface ClassSpellGrade {
     maxCastPerTurn: number;
     maxCastPerTarget: number;
     minCastInterval: number;
+    /** Contraintes de lancer DofusDB (`spell-levels`) : ligne / diagonale / LdV. */
+    castInLine: boolean;
+    castInDiagonal: boolean;
+    castTestLos: boolean;
     zone: { shape: string; size: number; range: number } | null;
     damages: SpellBaseDamage[];
     /** Jet de dégâts en coup critique (criticalEffect DofusDB), pour le calcul réel du crit. */
@@ -126,6 +135,11 @@ function gradeFromLevel(level: any): ClassSpellGrade {
         maxCastPerTurn: Number(level.maxCastPerTurn ?? level.maxCastsPerTurn ?? 0),
         maxCastPerTarget: Number(level.maxCastPerTarget ?? level.maxCastsPerTarget ?? 0),
         minCastInterval: Number(level.minCastInterval ?? 0),
+        // Contraintes de lancer (champs réels `spell-levels`, vérifiés en live :
+        // `castInLine`/`castInDiagonal`/`castTestLos` ; LdV vraie par défaut).
+        castInLine: Boolean(level.castInLine),
+        castInDiagonal: Boolean(level.castInDiagonal),
+        castTestLos: level.castTestLos !== false,
         zone: pz && typeof pz === "object"
             ? { shape: String(pz.type || pz.shape || "Cercle"), size: Number(pz.size ?? 0), range: Number(pz.range ?? range) }
             : null,
@@ -154,27 +168,35 @@ function normalizeSpell(spell: any): ClassSpellDamage | null {
     };
 }
 
+/** Fraîcheur du cache DB des sorts de classes (les données DofusDB sont quasi statiques). */
+const CLASS_SPELLS_TTL_MS = 24 * 60 * 60 * 1000;
+
+/** Lecture du grimoire persisté (`ClassSpellbook`), `null` si absent/illisible. */
+async function readSpellbook(classId: number): Promise<{ spells: ClassSpellDamage[]; updatedAt: Date } | null> {
+    try {
+        const row = await db.classSpellbook.findUnique({ where: { classId } });
+        if (!row || !Array.isArray(row.spells)) return null;
+        return { spells: row.spells as unknown as ClassSpellDamage[], updatedAt: row.updatedAt };
+    } catch {
+        // Table absente (migration non jouée) ou DB injoignable → repli réseau.
+        return null;
+    }
+}
+
 /**
- * Récupère tous les sorts d'une classe (sorts de base + variantes) via DofusDB.
+ * Récupère tous les sorts d'une classe (sorts de base + variantes) via DofusDB,
+ * forme CANONIQUE (grade par défaut niv. 200, tous grades inclus — indépendante
+ * du niveau demandé, donc stockable telle quelle en base).
  *
  * 1. `/breeds` → trouve le breedId selon le nom de la classe.
  * 2. `/spell-variants?breedId={id}&$limit=50&lang=fr` → récupère les 22 paires (44 sorts).
  * 3. `/spell-levels` → récupère tous les niveaux de sort par batchs de 40 (contourne le limit de 50 de DofusDB).
- * 4. Normalise chaque sort avec tous ses grades et pré-sélectionne le grade adapté au niveau du personnage.
- * Cache 24 h.
+ * 4. Normalise chaque sort avec tous ses grades.
  */
-export async function getClassSpells(classId: number, charLevel: number = 200): Promise<ActionResponse<ClassSpellsResponse>> {
-    if (!Number.isInteger(classId) || classId < 1 || classId > 19) {
-        return { success: false, error: "Classe invalide" };
-    }
-
+export async function fetchClassSpellsFull(classId: number): Promise<ClassSpellDamage[]> {
     const className = getClassName(classId) || "";
-
+    const charLevel = 200;
     try {
-        const spells = await withCache<ClassSpellDamage[]>(
-            `dofusbook:class-spells:v4:${classId}:lvl${charLevel}`,
-            86400,
-            async () => {
                 // 1. Trouve la classe dans /breeds
                 const breeds = (await dofusdbFetch<any[]>("/breeds?$limit=22&lang=fr")) || [];
                 if (breeds.length === 0) return [];
@@ -300,26 +322,78 @@ export async function getClassSpells(classId: number, charLevel: number = 200): 
                 });
 
                 return out;
-            }
-        );
+    } catch (err) {
+        logger.error("[fetchClassSpellsFull] Erreur:", { error: String(err), classId });
+        throw err;
+    }
+}
 
-        // Tri par variantPairId puis sorts de base d'abord
-        spells.sort((a, b) => {
-            if ((a.variantPairId || 0) !== (b.variantPairId || 0)) {
-                return (a.variantPairId || 0) - (b.variantPairId || 0);
-            }
-            if (a.isVariant !== b.isVariant) {
-                return a.isVariant ? 1 : -1;
-            }
-            return a.id - b.id;
-        });
+/** Tri stable du grimoire : paires de variantes puis sorts de base d'abord. */
+function sortSpells(spells: ClassSpellDamage[]): ClassSpellDamage[] {
+    return [...spells].sort((a, b) => {
+        if ((a.variantPairId || 0) !== (b.variantPairId || 0)) {
+            return (a.variantPairId || 0) - (b.variantPairId || 0);
+        }
+        if (a.isVariant !== b.isVariant) {
+            return a.isVariant ? 1 : -1;
+        }
+        return a.id - b.id;
+    });
+}
 
+/**
+ * Récupère tous les sorts d'une classe (sorts de base + variantes) pour un
+ * niveau de personnage, en appliquant le grade par défaut adapté.
+ *
+ * Lecture : `ClassSpellbook` (DB, fraîcheur 24 h) → réseau DofusDB (persisté) →
+ * repli stale (ligne périmée servie si DofusDB tombe). Le grade par défaut est
+ * re-dérivé à la lecture (`applyCharLevelToSpells`) : une seule ligne par classe.
+ */
+export async function getClassSpells(classId: number, charLevel: number = 200): Promise<ActionResponse<ClassSpellsResponse>> {
+    if (!Number.isInteger(classId) || classId < 1 || classId > 19) {
+        return { success: false, error: "Classe invalide" };
+    }
+
+    const className = getClassName(classId) || "";
+    const level = Number.isFinite(charLevel) && charLevel > 0 ? Math.floor(charLevel) : 200;
+
+    const stored = await readSpellbook(classId);
+    if (stored && stored.spells.length > 0) {
+        const age = Date.now() - new Date(stored.updatedAt).getTime();
+        if (age <= CLASS_SPELLS_TTL_MS) {
+            return {
+                success: true,
+                data: { classId, className, spells: sortSpells(applyCharLevelToSpells(stored.spells, level)), fromCache: true },
+            };
+        }
+    }
+
+    try {
+        const full = await fetchClassSpellsFull(classId);
+        if (full.length > 0) {
+            try {
+                await db.classSpellbook.upsert({
+                    where: { classId },
+                    create: { classId, className, spells: full as unknown as object, spellCount: full.length },
+                    update: { className, spells: full as unknown as object, spellCount: full.length },
+                });
+            } catch {
+                // Persistance optionnelle : la réponse reste servie même sans DB.
+            }
+        }
         return {
             success: true,
-            data: { classId, className, spells, fromCache: spells.length > 0 },
+            data: { classId, className, spells: sortSpells(applyCharLevelToSpells(full, level)), fromCache: false },
         };
     } catch (err) {
         logger.error("[getClassSpells] Erreur:", { error: String(err) });
+        if (stored && stored.spells.length > 0) {
+            logger.warn(`[getClassSpells] Repli stale pour la classe ${classId}`);
+            return {
+                success: true,
+                data: { classId, className, spells: sortSpells(applyCharLevelToSpells(stored.spells, level)), fromCache: true },
+            };
+        }
         return { success: false, error: "Impossible de charger les sorts de cette classe" };
     }
 }

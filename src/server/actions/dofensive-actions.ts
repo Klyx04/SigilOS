@@ -521,7 +521,8 @@ function flattenEffectLines(details: DofensiveSpellEffect[]): string[] {
 export async function getDofensiveSpells(
     monsterId: number,
     gradeLevel?: number,
-    forceRefresh = false
+    forceRefresh = false,
+    locale: "fr" | "en" = "fr"
 ): Promise<ActionResponse<DofensiveSpellCombat[]>> {
     const id = toSafeId(monsterId);
     if (!id) return { success: false, error: "ID de monstre invalide" };
@@ -531,7 +532,7 @@ export async function getDofensiveSpells(
     // (elle est alors servie datée via `stale`/`syncedAt`). Un changement de grade explicite
     // (gradeLevel) garde le fetch live (données par grade) ; `forceRefresh` (crons de sync)
     // re-fetch TOUJOURS la source.
-    if (gradeLevel === undefined && !forceRefresh) {
+    if (gradeLevel === undefined && !forceRefresh && locale === "fr") {
         try {
             const local = await getLocalDofensiveSpellsAny(id);
             if (local) return localStaleResponse(local);
@@ -540,7 +541,7 @@ export async function getDofensiveSpells(
         }
     }
 
-    const monRaw = await dofensiveFetch<any>(`/monsters/${id}?lang=fr`, `dofensive-monster-${id}`);
+    const monRaw = await dofensiveFetch<any>(`/monsters/${id}?lang=${locale}`, `dofensive-monster-${id}-${locale}`);
     const mon = Array.isArray(monRaw) ? monRaw[0] : monRaw;
 
     // 🎯 Calcul de dégâts (parité Dofensive « Activer le calcul de dégâts ») : les jets du
@@ -566,7 +567,7 @@ export async function getDofensiveSpells(
 
     const results: (DofensiveSpellCombat | null)[] = await Promise.all(
         spellIds.map(async (sid): Promise<DofensiveSpellCombat | null> => {
-            const raw = await dofensiveFetch<any>(`/spells/${sid}?lang=fr`, `dofensive-spell-${sid}`);
+            const raw = await dofensiveFetch<any>(`/spells/${sid}?lang=${locale}`, `dofensive-spell-${sid}-${locale}`);
             const spell = Array.isArray(raw) ? raw[0] : raw;
             if (!spell) return null;
             const levels: any[] = Array.isArray(spell.Levels) ? spell.Levels : [];
@@ -625,7 +626,8 @@ export async function getBossDofensiveSpells(
     dungeonName?: string,
     gradeLevel?: number,
     forceRefresh = false,
-    opts?: { dofensiveMonsterName?: string | null; dofensiveDungeonName?: string | null }
+    opts?: { dofensiveMonsterName?: string | null; dofensiveDungeonName?: string | null },
+    locale: "fr" | "en" = "fr"
 ): Promise<ActionResponse<DofensiveSpellCombat[]>> {
     const dungeon = await getDofensiveDungeonForBoss(monsterName, dungeonName, opts);
     if (!dungeon.success || !dungeon.data) {
@@ -650,6 +652,6 @@ export async function getBossDofensiveSpells(
         dungeon.data.bossMonsterId
     );
     if (!monsterId) return { success: false, error: "Monstre Dofensive introuvable" };
-    return getDofensiveSpells(monsterId, gradeLevel, forceRefresh);
+    return getDofensiveSpells(monsterId, gradeLevel, forceRefresh, locale);
 }
 

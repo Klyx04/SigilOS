@@ -20,6 +20,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { loginWithDiscord } from "@/server/actions/auth-actions";
+import { useI18n } from "@/lib/i18n/client";
 
 type SystemStatus = "online" | "degraded" | "offline";
 
@@ -31,6 +32,7 @@ interface GalacticFooterProps {
 
 /** « Tableau de bord » est rendu à part : il déclenche la connexion sans session. */
 const PLATFORM_LINKS = [
+    { label: "Modules de guilde", href: "/modules" },
     { label: "Annuaire des guildes", href: "/guilds" },
     { label: "Guides", href: "/guides" },
     { label: "Journal des mises à jour", href: "/changelog" },
@@ -57,12 +59,35 @@ const SUPPORT_URL = "https://ko-fi.com/wylan";
 const DISCORD_INVITE_URL = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || "https://discord.gg/uX7G6SUDgN";
 
 export function GalacticFooter({ variant = "standard", isMember: _isMember = false }: GalacticFooterProps) {
+    const { t } = useI18n();
     const [systemStatus, setSystemStatus] = useState<SystemStatus>("online");
     const [mounted, setMounted] = useState(false);
     // La session est fournie par le SessionProvider du layout racine : aucune
     // requête supplémentaire, `useSession` lit simplement le contexte.
     const { status } = useSession();
     const isAuthenticated = status === "authenticated";
+
+    const platformLinks = [
+        { label: t.footer.modules, href: "/modules" },
+        { label: t.footer.guildsDir, href: "/guilds" },
+        { label: t.footer.guides, href: "/guides" },
+        { label: t.footer.changelog, href: "/changelog" },
+        { label: t.footer.roadmap, href: "/roadmap" },
+    ];
+
+    const toolLinks = [
+        { label: t.tools.rushTitle, href: "/guides/rush-sylvestre" },
+        { label: t.tools.bossTitle, href: "/boss" },
+        { label: t.tools.almanaxTitle, href: "/almanax" },
+        { label: t.tools.worldmapTitle, href: "/carte-du-monde" },
+    ];
+
+    const legalLinks = [
+        { label: t.footer.cgu, href: "/legal/cgu" },
+        { label: t.footer.privacy, href: "/legal/privacy" },
+        { label: t.footer.mentions, href: "/legal/mentions" },
+        { label: t.footer.faq, href: "/legal/faq" },
+    ];
 
     useEffect(() => {
         setMounted(true);
@@ -92,7 +117,7 @@ export function GalacticFooter({ variant = "standard", isMember: _isMember = fal
     }, []);
 
     const statusLabel =
-        systemStatus === "online" ? "Service opérationnel" : systemStatus === "degraded" ? "Service dégradé" : "Service indisponible";
+        systemStatus === "online" ? t.footer.statusOnline : systemStatus === "degraded" ? t.footer.statusDegraded : t.footer.statusOffline;
 
     const statusDot = (
         <span
@@ -121,19 +146,19 @@ export function GalacticFooter({ variant = "standard", isMember: _isMember = fal
 
                     <nav aria-label="Informations légales" className="flex flex-wrap items-center gap-x-4 gap-y-1">
                         <Link href="/changelog" className="text-muted-foreground hover:text-foreground transition-colors">
-                            Journal
+                            {t.footer.changelog}
                         </Link>
                         <Link href="/legal/cgu" className="text-muted-foreground hover:text-foreground transition-colors">
-                            CGU
+                            {t.footer.cgu}
                         </Link>
                         <Link href="/legal/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
-                            Confidentialité
+                            {t.footer.privacy}
                         </Link>
                         <Link href="/legal/mentions" className="text-muted-foreground hover:text-foreground transition-colors">
-                            Mentions
+                            {t.footer.mentions}
                         </Link>
                         <Link href="/legal/faq" className="text-muted-foreground hover:text-foreground transition-colors">
-                            Aide
+                            {t.footer.faq}
                         </Link>
                         <a
                             href={SUPPORT_URL}
@@ -141,7 +166,7 @@ export function GalacticFooter({ variant = "standard", isMember: _isMember = fal
                             rel="noopener noreferrer"
                             className="text-muted-foreground hover:text-foreground transition-colors"
                         >
-                            Soutenir
+                            {t.footer.supportProject}
                         </a>
                     </nav>
 
@@ -150,7 +175,7 @@ export function GalacticFooter({ variant = "standard", isMember: _isMember = fal
                         className="ml-auto inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
                     >
                         {statusDot}
-                        <span className="font-mono">{mounted ? statusLabel : "État du service"}</span>
+                        <span className="font-mono">{mounted ? statusLabel : t.footer.statusChecking}</span>
                     </Link>
                 </div>
             </div>
@@ -168,15 +193,14 @@ export function GalacticFooter({ variant = "standard", isMember: _isMember = fal
                             <span className="text-base font-bold tracking-tight text-foreground">SigilOS</span>
                         </Link>
                         <p className="mt-3 max-w-[26rem] text-sm text-muted-foreground leading-relaxed">
-                            Tableau de bord de guilde Dofus relié à Discord : sorties, quêtes, membres et progression au
-                            même endroit. Gratuit, sans accès au compte Ankama.
+                            {t.footer.headline} {t.footer.subline}
                         </p>
                         <p className="mt-4 reg-mono text-xs text-muted-foreground">Bêta ouverte · v2.2</p>
                     </div>
 
                     {/* Plateforme */}
-                    <nav aria-label="Plateforme">
-                        <h2 className="reg-eyebrow">Plateforme</h2>
+                    <nav aria-label={t.footer.platform}>
+                        <h2 className="reg-eyebrow">{t.footer.platform}</h2>
                         <ul className="mt-3 space-y-2 text-sm">
                             {/* Sans session : on démarre la connexion Discord au lieu d'envoyer
                                 vers /dashboard, qui n'a plus d'écran pour les visiteurs. */}
@@ -186,7 +210,7 @@ export function GalacticFooter({ variant = "standard", isMember: _isMember = fal
                                         href="/dashboard"
                                         className="text-muted-foreground hover:text-foreground transition-colors"
                                     >
-                                        Tableau de bord
+                                        {t.nav.dashboard}
                                     </Link>
                                 ) : (
                                     <form action={loginWithDiscord}>
@@ -194,12 +218,12 @@ export function GalacticFooter({ variant = "standard", isMember: _isMember = fal
                                             type="submit"
                                             className="text-left text-muted-foreground hover:text-foreground transition-colors"
                                         >
-                                            Tableau de bord
+                                            {t.nav.dashboard}
                                         </button>
                                     </form>
                                 )}
                             </li>
-                            {PLATFORM_LINKS.map((link) => (
+                            {platformLinks.map((link) => (
                                 <li key={link.href}>
                                     <Link href={link.href} className="text-muted-foreground hover:text-foreground transition-colors">
                                         {link.label}
@@ -210,10 +234,10 @@ export function GalacticFooter({ variant = "standard", isMember: _isMember = fal
                     </nav>
 
                     {/* Outils */}
-                    <nav aria-label="Outils ouverts">
-                        <h2 className="reg-eyebrow">Outils ouverts</h2>
+                    <nav aria-label={t.footer.tools}>
+                        <h2 className="reg-eyebrow">{t.footer.tools}</h2>
                         <ul className="mt-3 space-y-2 text-sm">
-                            {TOOL_LINKS.map((link) => (
+                            {toolLinks.map((link) => (
                                 <li key={link.href}>
                                     <Link href={link.href} className="text-muted-foreground hover:text-foreground transition-colors">
                                         {link.label}
@@ -233,7 +257,7 @@ export function GalacticFooter({ variant = "standard", isMember: _isMember = fal
                                     className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
                                 >
                                     {statusDot}
-                                    {mounted ? statusLabel : "État du service"}
+                                    <span className="font-mono">{mounted ? statusLabel : t.footer.statusChecking}</span>
                                 </Link>
                             </li>
                             <li>
@@ -243,7 +267,7 @@ export function GalacticFooter({ variant = "standard", isMember: _isMember = fal
                                     rel="noopener noreferrer"
                                     className="text-muted-foreground hover:text-foreground transition-colors reg-external"
                                 >
-                                    Serveur Discord
+                                    {t.footer.joinDiscord}
                                 </a>
                             </li>
                             <li>
@@ -253,7 +277,7 @@ export function GalacticFooter({ variant = "standard", isMember: _isMember = fal
                                     rel="noopener noreferrer"
                                     className="text-muted-foreground hover:text-foreground transition-colors reg-external"
                                 >
-                                    Soutenir SigilOS
+                                    {t.footer.supportProject}
                                 </a>
                             </li>
                         </ul>
@@ -263,12 +287,10 @@ export function GalacticFooter({ variant = "standard", isMember: _isMember = fal
                 {/* Mentions */}
                 <div className="mt-10 pt-6 border-t border-border flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <p className="max-w-[46rem] text-xs text-muted-foreground leading-relaxed">
-                        Projet communautaire indépendant, sans affiliation avec Ankama. DOFUS est une marque déposée
-                        d&apos;Ankama Games. Données complémentaires par DofusDB (LPNC-IA 1.0) et Ganymède. © 2026 Sigil
-                        Project.
+                        {t.footer.copyright}
                     </p>
                     <nav aria-label="Informations légales" className="flex flex-wrap gap-x-5 gap-y-2 text-xs">
-                        {LEGAL_LINKS.map((link) => (
+                        {legalLinks.map((link) => (
                             <Link
                                 key={link.href}
                                 href={link.href}

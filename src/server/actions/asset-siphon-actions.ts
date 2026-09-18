@@ -18,6 +18,8 @@ import { getMonsterStats } from '@/server/actions/game-data-actions';
 import { persistMonsterStat } from '@/lib/dofensive-sync';
 import { bossMatchKey } from '@/lib/data-health';
 import { deriveDofensiveMonsterName, resolveMonsterKey } from '@/lib/dofensive-boss';
+import { fetchClassSpellsFull } from '@/server/actions/dofus-spells-actions';
+import { getClassName } from '@/lib/dofusbook-utils';
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -37,6 +39,9 @@ export interface SiphonDashboardStats {
     /** Donjons avec fiche < 24 h (vrai numérateur de couverture, cf. dry-run). */
     freshDungeons: number;
     totalDofensiveMapsInDb: number;
+    /** Grimoires de classes persistés (`ClassSpellbook`, 19 max). */
+    classSpellbooksWarmed: number;
+    classSpellsStored: number;
     storage: {
         monstersCount: number;
         monstersSizeBytes: number;
@@ -72,10 +77,17 @@ const FRESH_MS = 24 * 60 * 60 * 1000;
 
 export async function getSiphonDashboardStats(): Promise<ActionResponse<SiphonDashboardStats>> {
     try {
-        const [dungeons, statsRows, totalDofensiveMapsInDb] = await Promise.all([
+        const [dungeons, statsRows, totalDofensiveMapsInDb, spellbooks] = await Promise.all([
             db.dungeon.findMany({ select: { bossName: true, name: true } }),
             db.monsterStat.findMany({ select: { monsterName: true, lastSyncedAt: true } }),
             db.dofensiveMap.count(),
+            (async () => {
+                try {
+                    return await db.classSpellbook.findMany({ select: { classId: true, spellCount: true } });
+                } catch {
+                    return []; // table absente (migration non jouée) → couverture 0, pas d'erreur.
+                }
+            })(),
         ]);
 
         const storageStats = getAssetStorageStats();
@@ -101,6 +113,8 @@ export async function getSiphonDashboardStats(): Promise<ActionResponse<SiphonDa
                 totalMonsterStatsInDb: statsRows.length,
                 freshDungeons,
                 totalDofensiveMapsInDb,
+                classSpellbooksWarmed: spellbooks.length,
+                classSpellsStored: spellbooks.reduce((n, r) => n + (r.spellCount || 0), 0),
                 storage: {
                     monstersCount: storageStats.monsters.count,
                     monstersSizeBytes: storageStats.monsters.sizeBytes,
@@ -337,4 +351,80 @@ export async function triggerBatchAssetSiphonAction(
         success: true,
         data: { siphoned, skipped, errors, details },
     };
+}
+
+export interface ClassSpellbookWarmResult {
+    classId: number;
+    className: string;
+    spells: number;
+    grades: number;
+    iconsSiphoned: number;
+    iconsSkipped: number;
+    iconsFailed: number;
+}
+
+/**
+ * 🔥 Pré-chauffe le grimoire d'UNE classe (lots 1+2 : persistance DB + icônes disque).
+ *
+ * Un appel = une classe (~44 sorts) : le panneau God boucle 1→19 avec progression
+ * (même pattern que les avis race par race — un appel de 19 classes d'un coup
+ * dépasserait les timeouts). Idempotent : sorts re-fetchés + upsertés, icônes
+ * déjà sur disque sautées sans appel réseau (`siphonAndCompressImage`).
+ */
+export async function warmClassSpellbook(classId: number): Promise<ActionResponse<ClassSpellbookWarmResult>> {
+    if (!(await canManageSiphon())) {
+        return { success: false, error: 'Non autorisé' };
+    }
+    if (!Number.isInteger(classId) || classId < 1 || classId > 19) {
+        return { success: false, error: 'Classe invalide (1-19)' };
+    }
+
+    const className = getClassName(classId) || `Classe ${classId}`;
+    try {
+        const full = await fetchClassSpellsFull(classId);
+        if (full.length === 0) {
+            return { success: false, error: `Aucun sort récupéré pour ${className} (DofusDB injoignable ?)` };
+        }
+
+        await db.classSpellbook.upsert({
+            where: { classId },
+            create: { classId, className, spells: full as unknown as object, spellCount: full.length },
+            update: { className, spells: full as unknown as object, spellCount: full.length },
+        });
+
+        let iconsSiphoned = 0;
+        let iconsSkipped = 0;
+        let iconsFailed = 0;
+        for (const sp of full) {
+            if (!sp.imageUrl) {
+                iconsSkipped++;
+                continue;
+            }
+            try {
+                // `success` = présent sur disque (déjà siphonné → 0 réseau, ou téléchargé).
+                const res = await siphonAndCompressImage(sp.imageUrl, 'spells', sp.id);
+                if (res.success) iconsSiphoned++;
+                else iconsFailed++;
+            } catch {
+                iconsFailed++;
+            }
+        }
+
+        logger.info(`[warmClassSpellbook] ${className}: ${full.length} sorts persistés, icônes OK=${iconsSiphoned} KO=${iconsFailed}.`);
+        return {
+            success: true,
+            data: {
+                classId,
+                className,
+                spells: full.length,
+                grades: full.reduce((n, s) => n + (s.grades?.length ?? 0), 0),
+                iconsSiphoned,
+                iconsSkipped,
+                iconsFailed,
+            },
+        };
+    } catch (error: any) {
+        logger.error('[warmClassSpellbook] Error:', { error: error?.message, classId });
+        return { success: false, error: `Warm impossible pour ${className}` };
+    }
 }

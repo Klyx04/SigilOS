@@ -1457,6 +1457,10 @@ export function TourProvider({
 
     const isAdmin = !!user?.isAdmin;
     const isOnboardingComplete = !!user?.isOnboardingComplete;
+    // Séquence première arrivée : le tour auto des modules attend que la
+    // modale de bienvenue ait été vue/fermée (sinon tour + modale s'empilent,
+    // même niveau z-120). `hasSeenWelcome` vient du contexte (profil).
+    const hasSeenWelcome = !!user?.hasSeenWelcome;
     // Flag serveur : true uniquement pour le TOUT PREMIER admin (non-God) de la guilde,
     // posé de façon atomique côté serveur (user-actions.ts). Un God ne reçoit jamais ce flag.
     const isFirstAdminForGuild = !!user?.isFirstAdminForGuild;
@@ -1588,6 +1592,10 @@ export function TourProvider({
         if (isSuperAdmin) return;
         // Guilde pas encore configurée → redirection gérée par la page dashboard
         if (!isOnboardingComplete) return;
+        // Bienvenue pas encore vue → elle pop en finale sur l'accueil ; le tour
+        // attend le prochain passage (la clé `seen` n'est posée qu'au démarrage
+        // effectif ci-dessous, donc pas de perte).
+        if (!hasSeenWelcome) return;
         // On ne pop que sur le Dashboard admin (pas sur les sous-pages)
         if (pathname !== `/dashboard/${guildId}`) return;
 
@@ -1603,7 +1611,7 @@ export function TourProvider({
         setIsActive(true);
         localStorage.setItem(`sigilos-tour-phase-${guildId}`, phase);
         localStorage.setItem(`sigilos-tour-step-${guildId}`, "1");
-    }, [isAdmin, isOnboardingComplete, pathname, guildId]);
+    }, [isAdmin, isOnboardingComplete, hasSeenWelcome, pathname, guildId]);
 
     // Load member tour state (profile/dashboard)
     useEffect(() => {

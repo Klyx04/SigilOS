@@ -31,7 +31,7 @@ import {
     marketListingKindForFamily,
     resolveMarketItemPolicy,
 } from "@/lib/market/item-families";
-import { publishListingToDiscord, syncListingMessage } from "@/server/market/discord";
+import { publishListingToDiscord, syncListingMessage, deleteListingDiscordMessage } from "@/server/market/discord";
 import { listGuildMembers } from "@/server/discord";
 // BUG-1 — une seule forme d'URL d'icône d'objet (proxy auto-siphon, jamais 404) :
 // normalisée **à l'écriture** et **à la lecture** (annonces déjà en base).
@@ -2205,8 +2205,19 @@ export async function deleteMarketListing(
         });
 
         revalidatePath(`/dashboard/${guildId}/marche`);
-        void syncListingMessage(existing.id).catch((err) =>
-            logger.warn("[market] synchronisation Discord différée", { listingId: existing.id, err: String(err) })
+        /**
+         * S5.1 — une annonce **supprimée** quitte le salon : on appelle le
+         * nettoyage Discord (`deleteListingDiscordMessage`) et non une simple
+         * resynchronisation.
+         *
+         * Constat beta (18/09/2026) : « la suppression d'une vente ne supprime
+         * pas le post du forum » — cette action passait par `syncListingMessage`
+         * qui, l'annonce portant `deletedAt`, court-circuite en `skipped` : le
+         * message (ou le fil de forum) restait en place **définitivement** (le
+         * cron J+20 ne scanne que les annonces ACTIVE/RESERVED expirées).
+         */
+        void deleteListingDiscordMessage(existing.id).catch((err) =>
+            logger.warn("[market] nettoyage Discord différé", { listingId: existing.id, err: String(err) })
         );
         return { success: true };
     } catch (error) {
@@ -2357,7 +2368,16 @@ export async function getMarketPublishContext(
 export async function estimateMarketPingAudience(
     guildId: string,
     roleIds: string[]
-): Promise<ActionResponse<{ count: number; approximate: boolean; available: boolean; roleCount: number }>> {
+): Promise<
+    ActionResponse<{
+        count: number;
+        approximate: boolean;
+        available: boolean;
+        roleCount: number;
+        /** Détail par rôle coché (compteur **par rôle**, non dédupliqué). */
+        perRole: Record<string, number>;
+    }>
+> {
     try {
         const ctx = await resolveMarketContext(guildId);
         if ("error" in ctx) return { success: false, error: ctx.error };
@@ -2372,15 +2392,31 @@ export async function estimateMarketPingAudience(
         const selected = parsed.data.filter((roleId) => allowed.includes(roleId));
 
         if (selected.length === 0) {
-            return { success: true, data: { count: 0, approximate: false, available: true, roleCount: 0 } };
+            return {
+                success: true,
+                data: { count: 0, approximate: false, available: true, roleCount: 0, perRole: {} },
+            };
         }
 
         try {
-            const members = await listGuildMembers(guildId, 1000);
+            /**
+             * ⚠️ Compteur d'**humains** : un bot qui porte le rôle ne doit pas
+             * gonfler l'estimation (il ne « reçoit » pas la notification).
+             * Le cast est nécessaire : `user.bot` existe côté API Discord mais
+             * n'est pas modélisé dans le type de `listGuildMembers`.
+             */
+            const members = (await listGuildMembers(guildId, 1000)).filter(
+                (member) => !(member.user as { bot?: boolean } | undefined)?.bot
+            );
             const wanted = new Set(selected);
             // Déduplication par **membre** : un membre portant deux rôles cochés
             // ne compte qu'une fois (le ping le mentionnerait une seule fois).
             const matched = members.filter((member) => (member.roles ?? []).some((roleId) => wanted.has(roleId)));
+
+            const perRole: Record<string, number> = {};
+            for (const roleId of selected) {
+                perRole[roleId] = members.filter((member) => (member.roles ?? []).includes(roleId)).length;
+            }
 
             return {
                 success: true,
@@ -2389,11 +2425,15 @@ export async function estimateMarketPingAudience(
                     approximate: members.length >= 1000,
                     available: true,
                     roleCount: selected.length,
+                    perRole,
                 },
             };
         } catch (error) {
             logger.warn("[estimateMarketPingAudience] Discord injoignable", { guildId, err: String(error) });
-            return { success: true, data: { count: 0, approximate: false, available: false, roleCount: selected.length } };
+            return {
+                success: true,
+                data: { count: 0, approximate: false, available: false, roleCount: selected.length, perRole: {} },
+            };
         }
     } catch (error) {
         logger.error("[estimateMarketPingAudience] failed", { err: error });

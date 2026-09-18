@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
-import { getUnreadNotifications, getAllNotifications, markAsRead, markAllAsRead } from "@/server/actions/notification-actions";
+import { getAllNotifications, markAllAsRead, deleteNotification } from "@/server/actions/notification-actions";
 import { replyToServiceRequestAction } from "@/server/actions/service-actions";
 import { NotificationType, NotificationCategory } from "@prisma/client";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Bell, CheckCircle2, Info, AlertTriangle, Shield, X, Check, Target, Trophy, Flame, Calendar, PieChart, ShieldCheck, Swords, Gem, MessageSquare, Loader2, Eye, EyeOff, Filter, Store } from "lucide-react";
+import { Bell, CheckCircle2, Info, AlertTriangle, Shield, X, Check, MessageSquare, Loader2, Eye, EyeOff, Filter } from "lucide-react";
+import { CategoryIcon } from "@/components/notifications/notification-bell";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -100,12 +101,19 @@ export default function NotificationsPage() {
         loadNotifications();
     }, []);
 
+    /** ✕ d'une carte : suppression définitive (retire la ligne dans toutes les vues). */
     const handleDismiss = async (id: string) => {
-        setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+        const previous = notifications;
+        setNotifications((prev) => prev.filter((n) => n.id !== id));
         try {
-            await markAsRead(id, guildId);
+            const res = await deleteNotification(id, guildId);
+            if (!res.success) {
+                setNotifications(previous);
+                toast.error(res.error || "Suppression impossible");
+            }
         } catch (error) {
-            toast.error("Erreur lors de la mise à jour");
+            setNotifications(previous);
+            toast.error("Erreur lors de la suppression");
         }
     };
 
@@ -123,20 +131,10 @@ export default function NotificationsPage() {
         }
     };
 
-    const getIcon = (category: NotificationCategory) => {
-        switch (category) {
-            case "MISSION": return <Target className="w-5 h-5 text-info" />;
-            case "SUCCESS": return <Trophy className="w-5 h-5 text-warning" />;
-            case "SONGES": return <Flame className="w-5 h-5 text-success" />;
-            case "EVENT": return <Calendar className="w-5 h-5 text-info" />;
-            case "POLL": return <PieChart className="w-5 h-5 text-warning" />;
-            case "ADMIN_ALERT": return <ShieldCheck className="w-5 h-5 text-danger" />;
-            case "DONJONS": return <Swords className="w-5 h-5 text-info" />;
-            case "OCRE": return <Gem className="w-5 h-5 text-success" />;
-            case "MARKET": return <Store className="w-5 h-5 text-primary" />;
-            default: return <Bell className="w-5 h-5 text-muted-foreground" />;
-        }
-    };
+    /** Icône de catégorie : vrai asset du jeu (même map que la fenêtre). */
+    const getIcon = (category: NotificationCategory) => (
+        <CategoryIcon category={String(category)} size={22} />
+    );
 
     const getCategoryLabel = (category: NotificationCategory) => {
         switch (category) {
@@ -237,8 +235,8 @@ export default function NotificationsPage() {
                 ))}
             </div>
 
-            {/* Category Filter Tabs (ALWAYS VISIBLE - Responsive Wrap) */}
-            <div className="flex flex-wrap items-center gap-1.5 mb-6 p-2 bg-surface/30 border border-border rounded-2xl">
+            {/* Filtres catégories : retour à la ligne partout (jamais coupés sur mobile) */}
+            <div className="flex flex-wrap items-center gap-1.5 mb-6 p-2 bg-surface/30 border border-border rounded-[4px]">
                 {categories.map((cat) => {
                     const count = cat.id === "ALL"
                         ? statusFiltered.length
@@ -249,15 +247,16 @@ export default function NotificationsPage() {
                             key={cat.id}
                             onClick={() => setActiveTab(cat.id)}
                             className={cn(
-                                "flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors border",
+                                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] text-xs font-bold transition-colors border cursor-pointer",
                                 activeTab === cat.id
                                     ? "bg-info/15 text-info border-info/30"
                                     : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
                             )}
                         >
-                            {cat.label}
+                            <CategoryIcon category={cat.id} size={14} />
+                            <span className="whitespace-nowrap">{cat.label}</span>
                             <span className={cn(
-                                "min-w-[20px] text-center px-1.5 py-0.5 rounded-md text-caption font-black tabular-nums",
+                                "min-w-[20px] text-center px-1.5 py-0.5 rounded-[4px] text-caption font-black tabular-nums",
                                 activeTab === cat.id ? "bg-info/20 text-info" : "bg-muted/30 text-muted-foreground"
                             )}>
                                 {count}
@@ -277,8 +276,9 @@ export default function NotificationsPage() {
                 </div>
             ) : filteredNotifications.length === 0 ? (
                 <Card className="flex flex-col items-center justify-center py-20 bg-surface/30 border-border border-dashed">
-                    <div className="h-16 w-16 rounded-full bg-elevated/50 flex items-center justify-center mb-4 border border-border">
-                        <CheckCircle2 className="w-8 h-8 text-success/50" />
+                    <div className="h-16 w-16 rounded-[4px] bg-elevated/50 flex items-center justify-center mb-4 border border-border overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/assets/dofus/game-icons/bell-off.png" alt="" aria-hidden="true" width={40} height={40} loading="lazy" className="object-contain opacity-80" />
                     </div>
                     <p className="text-muted-foreground font-medium">
                         {activeTab === "ALL"
@@ -300,7 +300,7 @@ export default function NotificationsPage() {
                     {filteredNotifications.map((notif) => (
                         <div
                             key={notif.id}
-                            className="group relative flex items-start gap-4 p-4 rounded-xl bg-surface border border-border hover:border-border-strong hover:bg-elevated/30 transition-all duration-200 shadow-xs"
+                            className="group relative flex items-start gap-4 p-4 rounded-[4px] bg-surface border border-border hover:border-border-strong hover:bg-elevated/30 transition-colors shadow-xs"
                         >
                             {/* Category-colored border-left hint */}
                             <div className={cn(
@@ -317,8 +317,8 @@ export default function NotificationsPage() {
                                 notif.category === "SYSTEM" && "bg-muted",
                             )} />
 
-                            {/* Icon Box */}
-                            <div className="shrink-0 h-10 w-10 rounded-lg bg-background border border-border flex items-center justify-center">
+                            {/* Icon Box : asset du jeu */}
+                            <div className="shrink-0 h-10 w-10 rounded-[4px] bg-elevated border border-border flex items-center justify-center overflow-hidden">
                                 {getIcon(notif.category)}
                             </div>
 
@@ -369,14 +369,15 @@ export default function NotificationsPage() {
                                 })()}
                             </div>
 
-                            {/* Actions (Hover) */}
-                            <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {/* Supprimer : toujours visible au tactile, au survol sur desktop */}
+                            <div className="absolute right-2 top-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity">
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-surface rounded-full"
+                                    className="h-8 w-8 text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-[4px]"
                                     onClick={() => handleDismiss(notif.id)}
-                                    title="Marquer comme lu"
+                                    title="Supprimer cette notification"
+                                    aria-label="Supprimer cette notification"
                                 >
                                     <X className="h-4 w-4" />
                                 </Button>

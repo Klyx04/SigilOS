@@ -8,11 +8,12 @@ import { detectMimeType, validateMagicBytes, MAX_FILE_SIZE, ALLOWED_MIME_TYPES }
 
 /**
  * Dossiers de destination autorisés sous `private_uploads/`.
- * ⚠️ `guides`, `assets` et `landing` sont exposés PUBLIQUEMENT par
+ * ⚠️ `guides` et `assets` sont exposés PUBLIQUEMENT par
  * `/api/storage/*` (cf. isPublicPresentationAsset) : n'y écrire que des visuels
- * publics (images de guides indexés, assets de site).
+ * publics (images de guides indexés, assets de site). Le scope `landing` a existé
+ * pour la feature #140 : il a été retiré le 17/09/2026 avec le pilotage God.
  */
-const ALLOWED_UPLOAD_SCOPES = new Set(["docs", "guides", "assets", "landing"]);
+const ALLOWED_UPLOAD_SCOPES = new Set(["docs", "guides", "assets"]);
 
 export async function POST(req: NextRequest) {
     const session = await auth();
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
         //    `guides`     : images de guides → servies PUBLIQUEMENT (le guide Rush
         //                   Sylvestre est indexé, un visiteur anonyme doit voir
         //                   l'image : `/api/storage/docs/*` exige une session).
-        //    `assets` / `landing` : assets publics du site.
+        //    `assets` : assets publics du site.
         const rawScope = String(formData.get("scope") ?? "docs").trim().toLowerCase();
         const scope = ALLOWED_UPLOAD_SCOPES.has(rawScope) ? rawScope : "docs";
 

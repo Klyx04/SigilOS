@@ -107,7 +107,7 @@ export async function getDofusbookPreview(url: string, force: boolean = false): 
     const id = await getDofusbookId(url);
     if (!id) return { success: false, error: "Identifiant Dofusbook introuvable" };
 
-    const cacheKey = `sigilos:dofusbook:v11:${id}`;
+    const cacheKey = `sigilos:dofusbook:v12:${id}`;
 
     try {
         // 1. Redis cache — skip if items were empty (cached during a CF block)

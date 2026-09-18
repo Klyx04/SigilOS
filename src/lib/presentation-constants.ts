@@ -67,6 +67,28 @@ export const AVAILABLE_ACTIVITIES = [
 ] as const;
 
 /**
+ * Vignettes du jeu pour chaque activité (assets déjà dans `public/assets`,
+ * jamais d'URL écrite à la main — passer par cette table).
+ */
+export const ACTIVITY_ASSETS: Record<string, string> = {
+    economie: "/assets/dofus/modules/kamas.png",
+    pvm: "/assets/dofus/icons/crossedSwords.png",
+    roleplay: "/assets/dofus/modules/social.png",
+    kolizeum: "/assets/dofus/modules/kolizeum.png",
+    percepteur: "/assets/dofus/modules/chest.png",
+    raids: "/assets/dofus/icons/boss.png",
+};
+
+/** Couronne du meneur dans l'état-major (asset du jeu). */
+export const FOUNDER_CROWN_ASSET = "/assets/dofus/icons/crown.png";
+
+/** Parchemin du manifeste (asset du jeu). */
+export const MANIFESTO_ASSET = "/assets/dofus/icons/parchment.png";
+
+/** Blason de guilde pour les en-têtes recrutement / état-major. */
+export const GUILD_BLASON_ASSET = "/assets/dofus/icons/guild.png";
+
+/**
  * Construit un slug d'URL propre pour une guilde.
  * - Normalise les accents via NFD (é→e, ô→o, ç→c…)
  * - Remplace les espaces/caractères spéciaux par des tirets

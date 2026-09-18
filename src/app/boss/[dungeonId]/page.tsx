@@ -43,38 +43,53 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         select: { name: true, level: true, imageUrl: true, zoneName: true },
       });
 
+  const { getServerI18n } = await import("@/lib/i18n/server");
+  const { t, locale } = await getServerI18n();
+
   if (!dungeon && !titan && !bounty) {
-    return { title: "Boss introuvable — SigilOS" };
+    return { title: locale === "en" ? "Boss not found — SigilOS" : "Boss introuvable — SigilOS" };
   }
 
   const bossName = dungeon ? dungeon.bossName || dungeon.name : bounty ? bounty.name : titan!.name;
-  const dungeonLabel = dungeon ? dungeon.name : bounty ? bounty.zoneName || "Avis de recherche" : titan!.zone || "Titan";
+  const dungeonLabel = dungeon ? dungeon.name : bounty ? bounty.zoneName || (locale === "en" ? "Wanted Bounty" : "Avis de recherche") : titan!.zone || "Titan";
   const level = dungeon ? dungeon.level : bounty ? bounty.level : titan!.level;
   const imageUrl = dungeon ? dungeon.imageUrl : bounty ? bounty.imageUrl : titan!.imageUrl;
   if (bounty) {
     return {
-      title: `Avis de recherche ${bossName} (Niveau ${level}) : Sorts, Zone de traque & Simulation | SigilOS`,
-      description: `Fiche tactique de l'avis de recherche ${bossName} (niveau ${level}, zone de traque : ${dungeonLabel}) : sorts du monstre, portées, résistances, butin et simulation isométrique. 100% gratuit.`,
+      title: locale === "en"
+        ? `${bossName} (${t.bossPage.levelShort} ${level}) Wanted Bounty: Spells, Hunt Zone & Simulation | SigilOS`
+        : `Avis de recherche ${bossName} (Niveau ${level}) : Sorts, Zone de traque & Simulation | SigilOS`,
+      description: locale === "en"
+        ? `Tactical guide for wanted bounty ${bossName} (${t.bossPage.levelShort.toLowerCase()} ${level}, hunt zone: ${dungeonLabel}): monster spells, ranges, resistances, loot and isometric simulation. 100% free.`
+        : `Fiche tactique de l'avis de recherche ${bossName} (niveau ${level}, zone de traque : ${dungeonLabel}) : sorts du monstre, portées, résistances, butin et simulation isométrique. 100% gratuit.`,
       alternates: {
         canonical: `${getAppBaseUrl()}/boss/${dungeonId}`,
       },
       openGraph: {
-        title: `${bossName} — Avis de recherche (100% Gratuit) | SigilOS`,
-        description: `Sorts, portées, résistances et zone de traque de ${bossName}. Gratuit et sans compte requis.`,
+        title: locale === "en" ? `${bossName} — Wanted Bounty (100% Free) | SigilOS` : `${bossName} — Avis de recherche (100% Gratuit) | SigilOS`,
+        description: locale === "en"
+          ? `Spells, ranges, resistances and hunt zone for ${bossName}. Free, no account required.`
+          : `Sorts, portées, résistances et zone de traque de ${bossName}. Gratuit et sans compte requis.`,
         url: `${getAppBaseUrl()}/boss/${dungeonId}`,
         images: imageUrl ? [{ url: imageUrl }] : [],
       },
     };
   }
   return {
-    title: `${bossName} (Niveau ${level}) : Sorts, Portées & Stratégie | SigilOS`,
-    description: `Fiche tactique complète pour ${dungeon ? `le boss ${bossName} du donjon ${dungeonLabel}` : `le titan ${bossName} (${dungeonLabel})`}. Simulation isométrique de portée des sorts, résistances et mini-fenêtre overlay détachable par-dessus Dofus. 100% gratuit.`,
+    title: locale === "en"
+      ? `${bossName} (${t.bossPage.levelShort} ${level}): Spells, Ranges & Strategy | SigilOS`
+      : `${bossName} (Niveau ${level}) : Sorts, Portées & Stratégie | SigilOS`,
+    description: locale === "en"
+      ? `Complete tactical sheet for ${dungeon ? `boss ${bossName} from dungeon ${dungeonLabel}` : `titan ${bossName} (${dungeonLabel})`}. Isometric spell range simulation, resistances and detachable in-game overlay over Dofus. 100% free.`
+      : `Fiche tactique complète pour ${dungeon ? `le boss ${bossName} du donjon ${dungeonLabel}` : `le titan ${bossName} (${dungeonLabel})`}. Simulation isométrique de portée des sorts, résistances et mini-fenêtre overlay détachable par-dessus Dofus. 100% gratuit.`,
     alternates: {
       canonical: `${getAppBaseUrl()}/boss/${dungeonId}`,
     },
     openGraph: {
-      title: `${bossName} — Fiche Boss & Donjon (100% Gratuit) | SigilOS`,
-      description: `Sorts, portées, résistances et compo de salle pour ${bossName}. Gratuit et sans compte requis.`,
+      title: locale === "en" ? `${bossName} — Boss & Dungeon Sheet (100% Free) | SigilOS` : `${bossName} — Fiche Boss & Donjon (100% Gratuit) | SigilOS`,
+      description: locale === "en"
+        ? `Spells, ranges, resistances and room monsters for ${bossName}. Free, no account required.`
+        : `Sorts, portées, résistances et compo de salle pour ${bossName}. Gratuit et sans compte requis.`,
       url: `${getAppBaseUrl()}/boss/${dungeonId}`,
       images: imageUrl ? [{ url: imageUrl }] : [],
     },
@@ -85,7 +100,8 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
   const { dungeonId } = await params;
   const session = await auth();
   const { getUserContext } = await import("@/server/actions/user-actions");
-  const userContext = await getUserContext();
+  const { getServerI18n } = await import("@/lib/i18n/server");
+  const [userContext, { t, locale }] = await Promise.all([getUserContext(), getServerI18n()]);
 
   const dungeon = await db.dungeon.findUnique({
     where: { id: dungeonId },
@@ -125,10 +141,10 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
   const [statsRes, spellsRes, familyRes, mapsRes] = await Promise.all([
     isBounty
       ? Promise.resolve({ success: true, data: bounty!.monsterStats })
-      : getMonsterStats(bossName, dungeonName),
+      : getMonsterStats(bossName, dungeonName, false, undefined, locale),
     isBounty
       ? Promise.resolve({ success: false, data: null })
-      : getBossDofensiveSpells(bossName, dungeonName),
+      : getBossDofensiveSpells(bossName, dungeonName, undefined, false, undefined, locale),
     // « Famille » (monstres accompagnateurs) : pour une anomalie = les autres gardiens de la
     // même carte + les monstres de l'anomalie (Briko/Bruto/Gromo), 100 % local (siphon).
     isBounty
@@ -172,8 +188,8 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
       itemListElement: [
-        { "@type": "ListItem", position: 1, name: "Accueil", item: getAppBaseUrl() },
-        { "@type": "ListItem", position: 2, name: "Fiches Boss", item: `${getAppBaseUrl()}/boss` },
+        { "@type": "ListItem", position: 1, name: t.bossPage.backHome, item: getAppBaseUrl() },
+        { "@type": "ListItem", position: 2, name: t.bossPage.breadcrumbBoss, item: `${getAppBaseUrl()}/boss` },
         {
           "@type": "ListItem",
           position: 3,
@@ -198,11 +214,11 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
             className="inline-flex items-center gap-2 text-xs font-bold text-zinc-400 hover:text-zinc-100 transition-colors bg-surface/60 border border-border px-3.5 py-1.5 rounded-full backdrop-blur-md"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            Tous les boss & donjons
+            {locale === "en" ? "All bosses & dungeons" : "Tous les boss & donjons"}
           </Link>
 
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-border bg-surface/60 text-muted-foreground text-[11px] uppercase tracking-wider">
-            <Swords className="w-3.5 h-3.5" /> Simulation tactique
+            <Swords className="w-3.5 h-3.5" /> {locale === "en" ? "Tactical simulation" : "Simulation tactique"}
           </span>
         </div>
 

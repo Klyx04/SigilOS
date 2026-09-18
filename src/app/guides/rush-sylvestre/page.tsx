@@ -10,6 +10,7 @@ import { auth } from "@/auth";
 import { getAppBaseUrl } from "@/lib/utils";
 import { getPublicGuideDetail } from "@/server/actions/optimized-guide-actions";
 import { PublicRushGuideClient } from "./_components/PublicRushGuideClient";
+import { getServerI18n } from "@/lib/i18n/server";
 
 export const revalidate = 3600; // Cache ISR 1h pour indexation Google rapide
 
@@ -46,7 +47,7 @@ export const metadata: Metadata = {
 export default async function PublicRushSylvestrePage() {
   const session = await auth();
   const { getUserContext } = await import("@/server/actions/user-actions");
-  const userContext = await getUserContext();
+  const [userContext, { t, locale }] = await Promise.all([getUserContext(), getServerI18n()]);
 
   const guideRes = await getPublicGuideDetail("rush-sylvestre");
   if (!guideRes.success || !guideRes.guide) {
@@ -66,12 +67,12 @@ export default async function PublicRushSylvestrePage() {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
       itemListElement: [
-        { "@type": "ListItem", position: 1, name: "Accueil", item: getAppBaseUrl() },
-        { "@type": "ListItem", position: 2, name: "Guides Dofus", item: `${getAppBaseUrl()}/guides` },
+        { "@type": "ListItem", position: 1, name: t.almanaxPage.breadcrumbHome, item: getAppBaseUrl() },
+        { "@type": "ListItem", position: 2, name: t.rushGuide.breadcrumbGuides, item: `${getAppBaseUrl()}/guides` },
         {
           "@type": "ListItem",
           position: 3,
-          name: "Guide Rush Sylvestre",
+          name: t.rushGuide.breadcrumbRush,
           item: `${getAppBaseUrl()}/guides/rush-sylvestre`,
         },
       ],
@@ -79,8 +80,8 @@ export default async function PublicRushSylvestrePage() {
     {
       "@context": "https://schema.org",
       "@type": "HowTo",
-      name: "Comment obtenir le Dofus Sylvestre sur Dofus Unity",
-      description: "Guide complet étape par étape pour accomplir les quêtes et obtenir le Dofus Sylvestre.",
+      name: locale === "en" ? "How to obtain the Sylvan Dofus in Dofus Unity" : "Comment obtenir le Dofus Sylvestre sur Dofus Unity",
+      description: locale === "en" ? "Complete step-by-step guide to complete quests and obtain the Sylvan Dofus." : "Guide complet étape par étape pour accomplir les quêtes et obtenir le Dofus Sylvestre.",
       image: `${getAppBaseUrl()}/module-dofus/Dofus_Sylvestre.png`,
       totalTime: "PT24H",
       step: milestones.slice(0, 15).map((ms, idx) => ({
@@ -102,26 +103,29 @@ export default async function PublicRushSylvestrePage() {
         <div className="reg-shell py-10 lg:py-14">
           <nav aria-label="Fil d'Ariane" className="mb-6">
             <Link href="/guides" className="reg-link-quiet text-sm">
-              ← Tous les guides
+              ← {t.rushGuide.breadcrumbGuides}
             </Link>
           </nav>
 
           <header className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
             <div className="max-w-[62ch]">
-              <p className="reg-eyebrow">Rush Sylvestre · guide interactif</p>
+              <p className="reg-eyebrow">
+                {locale === "en" ? "Sylvan Rush · Interactive Guide" : "Rush Sylvestre · guide interactif"}
+              </p>
               <h1 className="mt-3 text-[clamp(1.75rem,3.2vw,2.4rem)] font-bold leading-[1.12] tracking-tight text-foreground">
-                Guide Rush Sylvestre — Dofus Unity
+                {t.rushGuide.title}
               </h1>
               <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
-                Le parcours le plus optimisé pour obtenir le Dofus Sylvestre : quêtes ordonnées, coordonnées /travel
-                copiables en 1 clic et mini-fenêtre détachable toujours par-dessus votre jeu Dofus.
+                {t.rushGuide.subtitle}
               </p>
               <p className="reg-mono mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5" aria-hidden="true" />~370 étapes optimisées
+                  <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                  {locale === "en" ? "~370 optimized steps" : "~370 étapes optimisées"}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />Gratuit · sauvegarde locale
+                  <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                  {locale === "en" ? "Free · Local autosave" : "Gratuit · sauvegarde locale"}
                 </span>
               </p>
             </div>
@@ -138,47 +142,71 @@ export default async function PublicRushSylvestrePage() {
             </div>
           </header>
 
-        {/* Client Interactive Guide & Overlay Launcher */}
-        <div className="mt-10">
-          <PublicRushGuideClient guide={guide} milestones={milestones} />
-        </div>
-
-        {/* Questions fréquentes — accordéons natifs, mêmes textes */}
-        <section aria-labelledby="faq-rush" className="mt-14 border-t border-border pt-10">
-          <h2 id="faq-rush" className="reg-eyebrow">
-            Questions fréquentes sur le Dofus Sylvestre
-          </h2>
-
-          <div className="reg-faq mt-4">
-            <details>
-              <summary>Comment fonctionne la mini-fenêtre Overlay en jeu ?</summary>
-              <p>
-                L&apos;Overlay en jeu ouvre une petite fenêtre toujours au premier plan directement par-dessus votre jeu Dofus. Vous pouvez cocher vos étapes, voir vos objectifs et copier les coordonnées /travel en 1 clic sans jamais alt-tab.
-              </p>
-            </details>
-
-            <details>
-              <summary>Ma progression est-elle sauvegardée sans compte ?</summary>
-              <p>
-                Oui. Toutes vos étapes cochées et vos repères sont automatiquement mémorisés dans le stockage local de votre navigateur. Si vous connectez plus tard votre compte Discord, vous pourrez synchroniser vos données avec votre guilde.
-              </p>
-            </details>
-
-            <details>
-              <summary>Quels sont les prérequis pour le Dofus Sylvestre ?</summary>
-              <p>
-                Le Dofus Sylvestre nécessite d&apos;accomplir une vaste série de quêtes sur le continent d&apos;Amakna, Frigost, les dimensions divines et l&apos;archipel de Pandala, ainsi que certains niveaux de métiers pour confectionner des objets de quête.
-              </p>
-            </details>
-
-            <details>
-              <summary>Comment jouer ce guide avec ma guilde ?</summary>
-              <p>
-                En créant un espace de guilde gratuit sur SigilOS, vous débloquez la vue collective : vous voyez en temps réel sur quelle étape se trouve chaque membre et pouvez lancer des alertes d&apos;entraide pour les donjons et crafts.
-              </p>
-            </details>
+          {/* Client Interactive Guide & Overlay Launcher */}
+          <div className="mt-10">
+            <PublicRushGuideClient guide={guide} milestones={milestones} />
           </div>
-        </section>
+
+          {/* Questions fréquentes */}
+          <section aria-labelledby="faq-rush" className="mt-14 border-t border-border pt-10">
+            <h2 id="faq-rush" className="reg-eyebrow">
+              {locale === "en" ? "Frequently Asked Questions about Sylvan Dofus" : "Questions fréquentes sur le Dofus Sylvestre"}
+            </h2>
+
+            <div className="reg-faq mt-4">
+              <details>
+                <summary>
+                  {locale === "en"
+                    ? "How does the In-Game Overlay work?"
+                    : "Comment fonctionne la mini-fenêtre Overlay en jeu ?"}
+                </summary>
+                <p>
+                  {locale === "en"
+                    ? "The In-Game Overlay opens a compact always-on-top window directly over your Dofus game. You can check off steps, view objectives, and copy /travel coordinates in 1 click without ever alt-tabbing."
+                    : "L'Overlay en jeu ouvre une petite fenêtre toujours au premier plan directement par-dessus votre jeu Dofus. Vous pouvez cocher vos étapes, voir vos objectifs et copier les coordonnées /travel en 1 clic sans jamais alt-tab."}
+                </p>
+              </details>
+
+              <details>
+                <summary>
+                  {locale === "en"
+                    ? "Is my progress saved without an account?"
+                    : "Ma progression est-elle sauvegardée sans compte ?"}
+                </summary>
+                <p>
+                  {locale === "en"
+                    ? "Yes. All your completed steps and markers are automatically saved in your browser's local storage. If you later connect your Discord account, you can synchronize your progress with your guild."
+                    : "Oui. Toutes vos étapes cochées et vos repères sont automatiquement mémorisés dans le stockage local de votre navigateur. Si vous connectez plus tard votre compte Discord, vous pourrez synchroniser vos données avec votre guilde."}
+                </p>
+              </details>
+
+              <details>
+                <summary>
+                  {locale === "en"
+                    ? "What are the prerequisites for the Sylvan Dofus?"
+                    : "Quels sont les prérequis pour le Dofus Sylvestre ?"}
+                </summary>
+                <p>
+                  {locale === "en"
+                    ? "The Sylvan Dofus requires completing a long quest series spanning Amakna, Frigost, Divine Dimensions, and the Pandala archipelago, as well as several profession crafting levels."
+                    : "Le Dofus Sylvestre nécessite d'accomplir une vaste série de quêtes sur le continent d'Amakna, Frigost, les dimensions divines et l'archipel de Pandala, ainsi que certains niveaux de métiers pour confectionner des objets de quête."}
+                </p>
+              </details>
+
+              <details>
+                <summary>
+                  {locale === "en"
+                    ? "How do I use this guide with my guild?"
+                    : "Comment jouer ce guide avec ma guilde ?"}
+                </summary>
+                <p>
+                  {locale === "en"
+                    ? "By creating a free guild space on SigilOS, you unlock the collective view: you can see each member's current step in real-time and coordinate dungeon groups and crafting requests."
+                    : "En créant un espace de guilde gratuit sur SigilOS, vous débloquez la vue collective : vous voyez en temps réel sur quelle étape se trouve chaque membre et pouvez lancer des alertes d'entraide pour les donjons et crafts."}
+                </p>
+              </details>
+            </div>
+          </section>
         </div>
       </main>
 

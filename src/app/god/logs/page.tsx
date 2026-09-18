@@ -3,6 +3,7 @@ import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { redirect } from "next/navigation";
 import { getGlobalAuditLogs } from "@/server/actions/audit-actions";
 import { getRecentAccessAttempts } from "@/server/actions/super-admin-actions";
+import { listGodMarketAuditLogs, listGodMarketGuilds } from "@/server/actions/god-market-actions";
 import { Shield } from "lucide-react";
 import { LogsTabs } from "./logs-tabs";
 
@@ -12,6 +13,14 @@ export default async function GodLogsPage() {
 
     const { data } = await getGlobalAuditLogs({ limit: 50 });
     const attemptsRes = await getRecentAccessAttempts(50);
+
+    // 🧭 Onglet « Marché » (déplacé depuis God → Marché, décision user 18/09/2026) :
+    // journal d'audit du module + guildes **internes** pour le filtre. Les deux
+    // lectures sont gardées super-admin côté action (fail-closed).
+    const [marketLogsRes, marketGuildsRes] = await Promise.all([
+        listGodMarketAuditLogs({ limit: 50 }),
+        listGodMarketGuilds(),
+    ]);
 
     // 🧹 Maintenance: Trigger background cleanup of old platform logs (30d retention)
     const { cleanupGlobalAuditLogs } = await import("@/server/actions/audit-actions");
@@ -29,7 +38,8 @@ export default async function GodLogsPage() {
                     Audit Logs
                 </h1>
                 <p className="text-zinc-500 max-w-2xl font-medium">
-                    Historique complet des actions administratives et des événements de sécurité sur l'ensemble de la plateforme.
+                    Historique complet des actions administratives et des événements de sécurité sur l'ensemble de la
+                    plateforme, y compris le journal d'audit du Marché (annonces, réservations, offres, signalements).
                 </p>
             </div>
 
@@ -39,6 +49,8 @@ export default async function GodLogsPage() {
                     attemptsTotal={attemptsRes.data?.total || 0}
                     initialLogs={data?.logs || []}
                     initialTotal={data?.total || 0}
+                    marketLogs={marketLogsRes.success ? marketLogsRes.data : []}
+                    marketGuilds={marketGuildsRes.success ? marketGuildsRes.data : []}
                 />
             </Suspense>
         </div>

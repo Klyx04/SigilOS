@@ -206,6 +206,44 @@ export async function markAsRead(notificationId: string, guildId?: string) {
     }
 }
 
+/**
+ * Supprime définitivement une notification (bouton ✕ du centre).
+ * Scopée comme les lectures : propriétaire + guilde (fail-closed).
+ */
+export async function deleteNotification(
+    notificationId: string,
+    guildId?: string
+): Promise<{ success: boolean; error?: string }> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    if (guildId) {
+        const ctx = await getUserContext(guildId);
+        if (!ctx.isMember) {
+            logger.warn(`[Notification] Blocked delete for user ${session.user.id} on unauthorized guild ${guildId}`);
+            return { success: false, error: "Forbidden: Member access required" };
+        }
+    }
+
+    try {
+        const internalGuildId = await resolveInternalGuildId(guildId);
+        const res = await db.notification.deleteMany({
+            where: {
+                id: notificationId,
+                userId: session.user.id,
+                ...buildGuildScopeFilter(internalGuildId),
+            },
+        });
+        if (res.count === 0) return { success: false, error: "Notification introuvable" };
+        invalidateUnreadCache(session.user.id, guildId);
+        revalidatePath("/");
+        return { success: true };
+    } catch (error) {
+        logger.error("Delete Notification Error:", error);
+        return { success: false, error: "Suppression impossible" };
+    }
+}
+
 export async function markAllAsRead(guildId?: string) {
     const session = await auth();
     if (!session?.user?.id) return;

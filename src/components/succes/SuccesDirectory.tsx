@@ -452,24 +452,6 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
                                                 Guide DPNL
                                             </a>
                                         )}
-                                        {selectedDungeon.dofensiveUrl && (
-                                            <a
-                                                href={selectedDungeon.dofensiveUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-2 px-3 py-2 min-h-11 rounded-xl border border-border bg-surface text-xs font-bold text-foreground hover:bg-elevated transition-colors"
-                                            >
-                                                <img
-                                                    src="https://www.google.com/s2/favicons?domain=dofensive.com&sz=32"
-                                                    alt=""
-                                                    className="w-3.5 h-3.5 rounded-sm shrink-0"
-                                                    onError={(e) => {
-                                                        (e.target as HTMLImageElement).style.display = "none";
-                                                    }}
-                                                />
-                                                Dofensive
-                                            </a>
-                                        )}
                                         <Link
                                             href={`/dashboard/${guildId}/donjons-et-quetes?dungeonId=${selectedDungeon.id}${
                                                 expandedAchievementId ? `&achievementId=${expandedAchievementId}` : ""

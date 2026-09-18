@@ -287,6 +287,30 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
         [canEdit, selectedDungeon, completedIds, guildId]
     );
 
+    // ── Une seule bascule par contexte : l'état décide du sens du bouton ────────
+    /** Tous les succès du donjon ouvert sont-ils déjà cochés ? */
+    const selectedAllDone = useMemo(
+        () =>
+            !!selectedDungeon &&
+            selectedDungeon.achievements.length > 0 &&
+            selectedDungeon.achievements.every((a) => completedIds.has(a.id)),
+        [selectedDungeon, completedIds]
+    );
+
+    /** Donjons de la tranche de niveau sélectionnée (portée réelle du bouton « tranche »). */
+    const bracketDungeons = useMemo(
+        () => dungeons.filter((d) => d.level >= minLevel && d.level <= maxLevel),
+        [dungeons, minLevel, maxLevel]
+    );
+    /** Toute la tranche de niveau est-elle déjà validée ? */
+    const bracketAllDone = useMemo(
+        () =>
+            bracketDungeons.some((d) => d.achievements.length > 0) &&
+            bracketDungeons.every((d) => d.achievements.every((a) => completedIds.has(a.id))),
+        [bracketDungeons, completedIds]
+    );
+    const bracketLabel = minLevel === 1 && maxLevel === 1000 ? "du jeu" : `Niv. ${minLevel}-${maxLevel === 1000 ? "200+" : maxLevel}`;
+
     const doneCount = useMemo(
         () => dungeons.reduce((acc, d) => acc + d.achievements.filter((a) => completedIds.has(a.id)).length, 0),
         [dungeons, completedIds]
@@ -409,7 +433,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                             setAnomalyOnly(next);
                             updateParam("anomaly", next ? "1" : null);
                         }}
-                        title="N'afficher que les fiches d'anomalie (gardiens des anomalies temporelles)"
+                        title="N'afficher que les boss d'anomalie (gardiens des anomalies temporelles)"
                         className={cn(
                             "inline-flex items-center gap-1.5 px-2.5 h-9 rounded-xl border text-xs font-bold transition-colors shrink-0",
                             anomalyOnly
@@ -418,7 +442,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                         )}
                     >
                         <img src="/assets/missions/ano1.png" alt="" aria-hidden className="w-3.5 h-3.5 object-contain" />
-                        Fiches Anomalies
+                        Boss d&apos;anomalie
                     </button>
                     {/* Niveau — un seul contrôle compact (remplace les 5 puces de tranche) */}
                     <Select
@@ -445,29 +469,33 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                         </SelectContent>
                     </Select>
 
-                    {/* Validation globale de la tranche sélectionnée */}
+                    {/* Une seule bascule pour la tranche : valider ↔ décocher, selon l'état réel */}
                     {canEdit && (
-                        <div className="flex items-center gap-1 shrink-0 pl-1 border-l border-border">
-                            <button
-                                type="button"
-                                disabled={bracketLoading}
-                                onClick={() => handleToggleLevelBracket("validate")}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 h-9 rounded-xl bg-success/10 border border-success/30 hover:bg-success/20 text-success text-xs font-black transition-all disabled:opacity-50"
-                                title={`Valider tous les succès ${minLevel === 1 && maxLevel === 1000 ? "du jeu" : `Niv. ${minLevel}-${maxLevel === 1000 ? "200+" : maxLevel}`}`}
-                            >
-                                {bracketLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCheck className="w-3.5 h-3.5" />}
-                                <span>Valider la tranche</span>
-                            </button>
-                            <button
-                                type="button"
-                                disabled={bracketLoading}
-                                onClick={() => handleToggleLevelBracket("unvalidate")}
-                                className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-surface/70 border border-border hover:border-danger/30 hover:text-danger text-muted-foreground text-xs font-bold transition-all disabled:opacity-50"
-                                title={`Décocher tous les succès ${minLevel === 1 && maxLevel === 1000 ? "du jeu" : `Niv. ${minLevel}-${maxLevel === 1000 ? "200+" : maxLevel}`}`}
-                            >
+                        <button
+                            type="button"
+                            disabled={bracketLoading}
+                            onClick={() => handleToggleLevelBracket(bracketAllDone ? "unvalidate" : "validate")}
+                            className={cn(
+                                "inline-flex items-center gap-1.5 px-3 h-9 rounded-xl border text-xs font-black transition-all shrink-0 disabled:opacity-50",
+                                bracketAllDone
+                                    ? "bg-surface/70 border-border text-muted-foreground hover:text-danger hover:border-danger/30"
+                                    : "bg-success/10 border-success/30 hover:bg-success/20 text-success"
+                            )}
+                            title={
+                                bracketAllDone
+                                    ? `Décocher tous les succès ${bracketLabel}`
+                                    : `Valider tous les succès ${bracketLabel}`
+                            }
+                        >
+                            {bracketLoading ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : bracketAllDone ? (
                                 <RotateCcw className="w-3.5 h-3.5" />
-                            </button>
-                        </div>
+                            ) : (
+                                <CheckCheck className="w-3.5 h-3.5" />
+                            )}
+                            <span>{bracketAllDone ? "Décocher la tranche" : "Valider la tranche"}</span>
+                        </button>
                     )}
                 </div>
             </div>
@@ -612,23 +640,6 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                                 Guide DPNL
                                             </a>
                                         )}
-                                        {selectedDungeon.dofensiveUrl && (
-                                            <a
-                                                href={selectedDungeon.dofensiveUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-2 px-3.5 py-2.5 min-h-11 rounded-xl border border-border bg-surface text-foreground text-xs font-bold hover:bg-elevated transition-colors"
-                                                title="Guide Dofensive"
-                                            >
-                                                <img
-                                                    src="https://www.google.com/s2/favicons?domain=dofensive.com&sz=32"
-                                                    alt=""
-                                                    className="w-4 h-4 rounded-sm"
-                                                    loading="lazy"
-                                                />
-                                                Dofensive
-                                            </a>
-                                        )}
                                         <Link
                                             href={`/dashboard/${guildId}/donjons-et-quetes?dungeonId=${selectedDungeon.id}`}
                                             className="inline-flex items-center gap-2 px-4 py-2.5 min-h-11 rounded-xl border border-info/30 bg-info/10 text-info text-xs font-bold uppercase tracking-wide hover:bg-info/20 transition-colors"
@@ -643,21 +654,21 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                         <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                                             Succès — {selectedDungeon.achievements.filter((a) => completedIds.has(a.id)).length}/{selectedDungeon.achievements.length}
                                         </p>
-                                        {canEdit && (
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={() => toggleAll(false)}
-                                                    className="px-3 py-2 min-h-11 rounded-lg border border-border text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
-                                                >
-                                                    Décocher tout
-                                                </button>
-                                                <button
-                                                    onClick={() => toggleAll(true)}
-                                                    className="px-3 py-2 min-h-11 rounded-lg bg-warning/15 border border-warning/40 text-warning text-xs font-black uppercase tracking-wide hover:bg-warning/25 transition-colors"
-                                                >
-                                                    Tout cocher
-                                                </button>
-                                            </div>
+                                        {canEdit && selectedDungeon.achievements.length > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleAll(!selectedAllDone)}
+                                                title={selectedAllDone ? "Décocher les succès de ce donjon" : "Valider les succès de ce donjon"}
+                                                className={cn(
+                                                    "inline-flex items-center gap-1.5 px-3 py-2 min-h-11 rounded-xl border text-xs font-black uppercase tracking-wide transition-colors shrink-0",
+                                                    selectedAllDone
+                                                        ? "border-border bg-surface text-muted-foreground hover:text-danger hover:border-danger/30"
+                                                        : "border-warning/40 bg-warning/15 text-warning hover:bg-warning/25"
+                                                )}
+                                            >
+                                                {selectedAllDone ? <RotateCcw className="w-3.5 h-3.5" /> : <CheckCheck className="w-3.5 h-3.5" />}
+                                                {selectedAllDone ? "Tout décocher" : "Tout cocher"}
+                                            </button>
                                         )}
                                     </div>
                                     <div className="h-2 rounded-full bg-background border border-border overflow-hidden">

@@ -20,8 +20,11 @@ import {
   Compass,
   Crown,
   X,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/client";
 import { SpellRangeGrid } from "@/components/succes/SpellRangeGrid";
 import { useBossOverlay } from "@/hooks/use-boss-overlay";
 import { getMonsterStats, getDungeonMonsters } from "@/server/actions/game-data-actions";
@@ -162,6 +165,11 @@ export function PublicBossDetailClient({
   );
   const [selectedDrop, setSelectedDrop] = useState<any>(null);
   const [copiedTravel, setCopiedTravel] = useState(false);
+  const [expandedSpells, setExpandedSpells] = useState<Record<number, boolean>>({});
+
+  const toggleSpellExpanded = (id: number) => {
+    setExpandedSpells((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const entityKey = activeMonsterName ? `${dungeon.id}::${activeMonsterName}` : dungeon.id;
   const currentStats = statsByKey[entityKey];
@@ -194,13 +202,13 @@ export function PublicBossDetailClient({
     let cancelled = false;
     setLoadingByKey((p) => ({ ...p, [entityKey]: true }));
     const target = activeMonsterName ?? bossName;
-    getMonsterStats(target, dungeon.name)
+    getMonsterStats(target, dungeon.name, false, undefined, locale)
       .then(async (res) => {
         if (cancelled) return;
         if (res.success && res.data) {
           let data = res.data;
           try {
-            const dRes = await getBossDofensiveSpells(target, dungeon.name);
+            const dRes = await getBossDofensiveSpells(target, dungeon.name, undefined, false, undefined, locale);
             if (!cancelled && dRes.success && dRes.data) {
               data = { ...data, spells: mergeDofensiveSpells(data.spells ?? [], dRes.data) };
             }
@@ -289,7 +297,8 @@ export function PublicBossDetailClient({
             dofensiveMonsterName: dungeon.dofensiveMonsterName,
             dofensiveDungeonName: dungeon.dofensiveDungeonName,
           }
-        : undefined
+        : undefined,
+      locale
     )
       .then((res) => {
         if (cancelled || !res.success || !res.data) return;
@@ -314,33 +323,31 @@ export function PublicBossDetailClient({
     setSelectedSpellId(undefined);
   };
 
+  const { t, locale } = useI18n();
+
   const tabs = (
     [
-      { id: "sorts", label: `Sorts du ${isTitan ? "Titan" : isBounty ? "monstre recherché" : "Boss"}`, icon: Zap },
-      { id: "overview", label: "Sorts Détaillés", icon: Swords },
-      { id: "sim", label: "Simulation Tactique", icon: Target },
-      { id: "grades", label: `Grades & Paliers (${grades.length})`, icon: Flame, hidden: grades.length <= 1 },
-      { id: "loot", label: "Butin & Drops", icon: Gem },
-      { id: "family", label: `Monstres de la salle (${roomMonsters.length})`, icon: Users, hidden: !hasRoomMonsters },
-    ] as { id: DetailTab; label: string; icon: any; hidden?: boolean }[]
+      { id: "sorts", label: locale === "en" ? `${isTitan ? "Titan" : isBounty ? "Bounty Monster" : "Boss"} Spells` : `Sorts du ${isTitan ? "Titan" : isBounty ? "monstre recherché" : "Boss"}`, asset: "/assets/dofus/modules/spells.png" },
+      { id: "overview", label: locale === "en" ? "Detailed Spells" : "Sorts Détaillés", asset: "/assets/dofus/icons/crossedSwords.png" },
+      { id: "sim", label: locale === "en" ? "Tactical Simulation" : "Simulation Tactique", asset: "/assets/dofus/modules/map.png" },
+      { id: "grades", label: locale === "en" ? `Grades & Tiers (${grades.length})` : `Grades & Paliers (${grades.length})`, asset: "/assets/dofus/modules/character.png", hidden: grades.length <= 1 },
+      { id: "loot", label: locale === "en" ? "Loot & Drops" : "Butin & Drops", asset: "/assets/dofus/modules/chest.png" },
+      { id: "family", label: locale === "en" ? `Room Monsters (${roomMonsters.length})` : `Monstres de la salle (${roomMonsters.length})`, asset: "/assets/dofus/modules/party.png", hidden: !hasRoomMonsters },
+    ] as { id: DetailTab; label: string; asset: string; hidden?: boolean }[]
   ).filter((t) => !t.hidden);
 
   const resists = activeGrade?.resists || {};
   const coords = currentStats?.coordinates as { x: number; y: number; worldMapId?: number } | null | undefined;
   const travelCmd = coords ? `/travel ${coords.x} ${coords.y}` : null;
   const dbLink = currentStats?.id
-    ? `https://dofusdb.fr/fr/database/monster/${currentStats.id}`
-    : `https://dofusdb.fr/fr/database/monsters?search=${encodeURIComponent(activeMonsterName ?? bossName)}`;
+    ? `https://dofusdb.fr/${locale === "en" ? "en" : "fr"}/database/monster/${currentStats.id}`
+    : `https://dofusdb.fr/${locale === "en" ? "en" : "fr"}/database/monsters?search=${encodeURIComponent(activeMonsterName ?? bossName)}`;
   const resolvedBossName =
     dungeon.dofensiveMonsterName ?? (activeMonsterName ?? deriveDofensiveMonsterName(bossName) ?? bossName);
 
   return (
     <div className="space-y-6">
-      {/* ── EN-TÊTE : identité, puis actions ────────────────────────────────
-          Avant : carte `rounded-3xl` + `backdrop-blur` + `shadow-2xl`, titre
-          `font-black`, badges dorés et **bouton à dégradé or** — l'œil allait au
-          bouton, pas aux données. Désormais : bloc plat, un seul bouton plein
-          (neutre), liens externes en texte. */}
+      {/* ── EN-TÊTE : identité, puis actions ── */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-4 min-w-0">
           <div className="w-16 h-16 rounded-lg border border-border bg-background/60 flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
@@ -353,15 +360,15 @@ export function PublicBossDetailClient({
           </div>
           <div className="min-w-0">
             <p className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
-              {isTitan ? "Titan" : isBounty ? bountyMeta?.raceName ?? "Avis de recherche" : "Boss de donjon"}
-              <span className="font-mono normal-case">niv. {dungeon.level ?? 200}</span>
+              {isTitan ? "Titan" : isBounty ? (bountyMeta?.raceName ?? (locale === "en" ? "Wanted Bounty" : "Avis de recherche")) : (locale === "en" ? "Dungeon Boss" : "Boss de donjon")}
+              <span className="font-mono normal-case">{t.bossPage.levelShort} {dungeon.level ?? 200}</span>
             </p>
             <h1 className="mt-0.5 truncate text-2xl font-semibold text-foreground sm:text-3xl">
               {activeMonsterName ?? bossName}
             </h1>
             <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
               <Compass className="w-3.5 h-3.5 opacity-70" />
-              {isBounty ? "Zone de traque :" : "Donjon :"}{" "}
+              {isBounty ? (locale === "en" ? "Hunt Zone:" : "Zone de traque :") : (locale === "en" ? "Dungeon:" : "Donjon :")}{" "}
               <span className="text-foreground/90">{dungeon.name}</span>
             </p>
           </div>
@@ -372,10 +379,10 @@ export function PublicBossDetailClient({
             type="button"
             onClick={() => openBossOverlay({ monsterName: activeMonsterName ?? bossName, dungeonName: dungeon.name })}
             className="inline-flex items-center gap-2 rounded-lg bg-foreground/90 px-4 py-2.5 text-xs font-semibold text-background transition-colors hover:bg-foreground"
-            title="Affiche une mini-fenêtre par-dessus votre jeu Dofus"
+            title={locale === "en" ? "Displays a detachable mini-window over your Dofus game" : "Affiche une mini-fenêtre par-dessus votre jeu Dofus"}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Ouvrir l&apos;overlay en jeu</span>
+            <span>{t.bossPage.overlayButton}</span>
           </button>
           <a
             href={dbLink}
@@ -487,39 +494,39 @@ export function PublicBossDetailClient({
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border bg-surface/40 px-3 py-2.5">
           {/* Vitals */}
           <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5" title="Points de Vie">
-              <img src="/assets/module-succes/vitalite.png" alt="" className="w-4 h-4 object-contain" />
+            <span className="inline-flex items-center gap-1.5" title={t.bossPage.stats.hp}>
+              <img src="/assets/dofus/stats/pv.png" alt="" className="w-4 h-4 object-contain" />
               <span className="font-mono text-[15px] text-foreground tabular-nums">
-                {activeGrade ? activeGrade.lifePoints?.toLocaleString("fr-FR") : "—"}
+                {activeGrade ? activeGrade.lifePoints?.toLocaleString(locale === "en" ? "en-US" : "fr-FR") : "—"}
               </span>
-              <span className="text-[11px] text-muted-foreground">PV</span>
+              <span className="text-[11px] text-muted-foreground font-mono">{t.bossPage.stats.hp === "Points de vie" ? "PV" : "HP"}</span>
             </span>
-            <span className="inline-flex items-center gap-1.5" title="Points d'Action">
+            <span className="inline-flex items-center gap-1.5" title={t.bossPage.stats.ap}>
               <img src="/assets/dofus/stats/pa.png" alt="" className="w-4 h-4 object-contain" />
               <span className="font-mono text-[15px] text-foreground tabular-nums">{activeGrade?.actionPoints ?? "—"}</span>
-              <span className="text-[11px] text-muted-foreground">PA</span>
+              <span className="text-[11px] text-muted-foreground font-mono">{t.bossPage.stats.ap}</span>
             </span>
-            <span className="inline-flex items-center gap-1.5" title="Points de Mouvement">
+            <span className="inline-flex items-center gap-1.5" title={t.bossPage.stats.mp}>
               <img src="/assets/dofus/stats/pm.png" alt="" className="w-4 h-4 object-contain" />
               <span className="font-mono text-[15px] text-foreground tabular-nums">{activeGrade?.movementPoints ?? "—"}</span>
-              <span className="text-[11px] text-muted-foreground">PM</span>
+              <span className="text-[11px] text-muted-foreground font-mono">{t.bossPage.stats.mp}</span>
             </span>
           </div>
 
           <span className="h-5 w-px bg-border" />
 
-          {/* Résistances — libellé discret, valeur mono, négatif en rouge */}
+          {/* Résistances — vrais assets Dofus res*.png, libellé discret, valeur mono, négatif en rouge */}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             {(
               [
-                { key: "neutral", label: "Neutre", icon: "/assets/module-succes/neutre.png", value: resists.neutral ?? 0 },
-                { key: "earth", label: "Terre", icon: "/assets/module-succes/terre.png", value: resists.earth ?? 0 },
-                { key: "fire", label: "Feu", icon: "/assets/module-succes/Intelligence.png", value: resists.fire ?? 0 },
-                { key: "water", label: "Eau", icon: "/assets/module-succes/eau.png", value: resists.water ?? 0 },
-                { key: "air", label: "Air", icon: "/assets/module-succes/Agility.png", value: resists.air ?? 0 },
+                { key: "neutral", label: t.bossPage.stats.neutral, icon: "/assets/dofus/stats/resNeutre.png", value: resists.neutral ?? 0 },
+                { key: "earth", label: t.bossPage.stats.earth, icon: "/assets/dofus/stats/resTerre.png", value: resists.earth ?? 0 },
+                { key: "fire", label: t.bossPage.stats.fire, icon: "/assets/dofus/stats/resFeu.png", value: resists.fire ?? 0 },
+                { key: "water", label: t.bossPage.stats.water, icon: "/assets/dofus/stats/resEau.png", value: resists.water ?? 0 },
+                { key: "air", label: t.bossPage.stats.air, icon: "/assets/dofus/stats/resAir.png", value: resists.air ?? 0 },
               ] as const
             ).map(({ key, label, icon, value }) => (
-              <span key={key} className="inline-flex items-center gap-1.5" title={`Résistance ${label}`}>
+              <span key={key} className="inline-flex items-center gap-1.5" title={`${label} %`}>
                 <img src={icon} alt="" className="w-4 h-4 object-contain" />
                 <span
                   className={cn(
@@ -534,17 +541,17 @@ export function PublicBossDetailClient({
             ))}
           </div>
 
-          {/* Grade / butin : raccourci vers l'onglet des paliers (même information) */}
+          {/* Grade / butin : raccourci vers l'onglet des paliers */}
           {grades.length > 1 && (
             <button
               type="button"
               onClick={() => setDetailTab("grades")}
-              className="ml-auto inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-              title="Ouvrir l'onglet des grades & paliers"
+              className="ml-auto inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title={locale === "en" ? "Open grades & tiers tab" : "Ouvrir l'onglet des grades & paliers"}
             >
               <Flame className="w-3.5 h-3.5" />
               <span className="font-mono">
-                {grades.length === 5 ? `butin ${4 + gradeIdx}` : `grade ${1 + gradeIdx}`}
+                {grades.length === 5 ? `${locale === "en" ? "loot" : "butin"} ${4 + gradeIdx}` : `${locale === "en" ? "grade" : "grade"} ${1 + gradeIdx}`}
               </span>
               <ArrowRight className="w-3 h-3" />
             </button>
@@ -552,12 +559,9 @@ export function PublicBossDetailClient({
         </div>
       )}
 
-      {/* ── ONGLETS ──────────────────────────────────────────────────────────
-          Onglets **neutres** : l'actif est simplement souligné, plus de pastille
-          dorée — la donnée (et non la couleur) porte la hiérarchie. */}
+      {/* ── ONGLETS ────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-1 overflow-x-auto no-scrollbar border-b border-border">
         {tabs.map((tab) => {
-          const Icon = tab.icon;
           const isActive = detailTab === tab.id;
           return (
             <button
@@ -565,74 +569,76 @@ export function PublicBossDetailClient({
               type="button"
               onClick={() => setDetailTab(tab.id)}
               className={cn(
-                "flex items-center gap-2 px-3 py-2 text-xs transition-colors whitespace-nowrap border-b-2 -mb-px",
+                "flex items-center gap-2 px-3 py-2 text-xs transition-colors whitespace-nowrap border-b-2 -mb-px cursor-pointer",
                 isActive
                   ? "border-foreground/60 text-foreground"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               )}
             >
-              <Icon className="w-3.5 h-3.5" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={tab.asset} alt="" className={cn("w-4 h-4 object-contain", !isActive && "opacity-60")} />
               <span>{tab.label}</span>
             </button>
           );
         })}
       </div>
 
-      {/* ── PANNEAU D'ONGLET ─────────────────────────────────────────────────
-          Hauteur minimale **stable** : sans elle, passer d'un onglet court à
-          l'onglet Simulation (carte isométrique) fait franchir la hauteur du
-          viewport au document ⇒ la barre de défilement apparaît, le contenu
-          centré se décale de ~15 px et l'utilisateur voit « la page bouger ».
-          `min-h` garde la page de la même hauteur d'un onglet à l'autre, et
-          `overflow-anchor: none` empêche le navigateur de « recaler » le
-          défilement quand le panneau change de taille. */}
+      {/* ── PANNEAU D'ONGLET ───────────────────────────────────────────────── */}
       <div className="min-h-[560px] [overflow-anchor:none]">
       {/* ── TAB: SORTS DU BOSS (mécaniques clés) ── */}
       {detailTab === "sorts" && (
         <div className="space-y-4">
           {spells.length === 0 ? (
             <p className="text-xs text-muted-foreground py-8 text-center">
-              Aucun sort répertorié pour cette entité.
+              {t.bossPage.noSpellsFound}
             </p>
           ) : (
             <>
               <div className="flex flex-wrap items-center gap-2">
                 <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                  <Zap className="w-4 h-4 opacity-70" /> Mécaniques clés
+                  <Zap className="w-4 h-4 opacity-70" /> {t.bossPage.keyMechanics}
                 </h4>
                 <span className="text-[11px] font-bold px-2 py-0.5 rounded-full border border-border text-muted-foreground">
-                  {spells.length} sorts à anticiper
+                  {t.bossPage.spellsToAnticipate.replace("{count}", String(spells.length))}
                 </span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {spells.slice(0, 6).map((spell: any) => (
-                  <div key={spell.id} className="rounded-2xl bg-surface/60 border border-white/10 p-3.5 flex flex-col justify-between">
+                  <div key={spell.id} className="rounded-xl bg-surface/50 border border-border/70 p-3.5 flex flex-col justify-between hover:border-border transition-colors">
                     <div>
                       <div className="flex items-center gap-2.5 mb-2">
-                        <div className="w-8 h-8 rounded-xl bg-background border border-white/10 flex items-center justify-center p-0.5 shrink-0 overflow-hidden">
+                        <div className="w-9 h-9 rounded-lg bg-background border border-border flex items-center justify-center p-0.5 shrink-0 overflow-hidden shadow-xs">
                           {spell.imageUrl ? (
                             <MonsterImage src={spell.imageUrl} alt={spell.name} assetType="spells" assetId={spell.id} className="w-full h-full object-contain" />
                           ) : (
-                            <Zap className="w-3.5 h-3.5 opacity-70" />
+                            <Zap className="w-4 h-4 opacity-70" />
                           )}
                         </div>
-                        <div className="min-w-0">
-                          <h5 className="text-sm font-bold text-foreground truncate">{spell.name}</h5>
-                          <span className="text-[11px] font-bold text-muted-foreground block">
-                            {spell.apCost || 0} PA · {spell.minRange === spell.range ? `${spell.range} PO` : `${spell.minRange ?? 0}-${spell.range ?? 0} PO`}
+                        <div className="min-w-0 flex-1">
+                          <h5 className="text-sm font-bold text-foreground truncate">{locale === "en" ? (spell.nameEn || spell.name) : spell.name}</h5>
+                          <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                            <span className="inline-flex items-center gap-0.5">
+                              <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-3 h-3 object-contain inline" />
+                              {spell.apCost || 0}
+                            </span>
+                            <span>·</span>
+                            <span className="inline-flex items-center gap-0.5">
+                              <img src="/assets/dofus/stats/po.png" alt="PO" className="w-3 h-3 object-contain inline" />
+                              {spell.minRange === spell.range ? `${spell.range}` : `${spell.minRange ?? 0}-${spell.range ?? 0}`}
+                            </span>
                           </span>
                         </div>
                       </div>
-                      <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                        {spell.effectDetails?.[0]?.label ?? (Array.isArray(spell.effects) ? spell.effects[0] : null) ?? spell.description ?? "Effet de combat."}
+                      <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed mt-1">
+                        {spell.effectDetails?.[0]?.label ?? (Array.isArray(spell.effects) ? spell.effects[0] : null) ?? spell.description ?? (locale === "en" ? "Combat effect." : "Effet de combat.")}
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => { setSelectedSpellId(spell.id); setDetailTab("sim"); }}
-                      className="mt-3 text-xs font-semibold text-muted-foreground hover:text-foreground self-start transition-colors flex items-center gap-1"
+                      className="mt-3 text-xs font-semibold text-muted-foreground hover:text-foreground self-start transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
-                      <Target className="w-3.5 h-3.5" /> Voir la portée
+                      <Target className="w-3.5 h-3.5" /> {t.bossPage.viewRange}
                     </button>
                   </div>
                 ))}
@@ -647,57 +653,82 @@ export function PublicBossDetailClient({
         <div>
           <div className="flex items-center gap-2 mb-3">
             <Zap className="w-4 h-4 opacity-70" />
-            <h4 className="text-sm font-bold text-foreground">Tous les sorts ({spells.length})</h4>
+            <h4 className="text-sm font-bold text-foreground">
+              {t.bossPage.allSpellsTitle.replace("{count}", String(spells.length))}
+            </h4>
           </div>
           {spells.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-8 text-center">Aucun sort détaillé répertorié pour ce boss.</p>
+            <p className="text-xs text-muted-foreground py-8 text-center">{t.bossPage.noSpellsDetailed}</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
-              {spells.map((spell: any) => (
-                <div key={spell.id} className="p-3.5 rounded-xl bg-surface/60 border border-white/10 flex flex-col space-y-2.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2.5">
-                      {spell.imageUrl ? (
-                        <MonsterImage src={spell.imageUrl} alt={spell.name} assetType="spells" assetId={spell.id} className="w-8 h-8 object-contain rounded-lg bg-background border border-white/10 p-0.5" />
-                      ) : (
-                        <Zap className="w-4 h-4 opacity-70" />
-                      )}
-                      <div>
-                        <span className="flex items-center gap-1.5">
-                          <span className="block text-sm font-bold text-foreground">{spell.name}</span>
-                          {spell.grade !== undefined && (
-                            <span className="text-[11px] font-bold text-muted-foreground bg-background border border-white/10 px-1 py-px rounded">Niv. {spell.grade}</span>
-                          )}
-                        </span>
-                        <span className="text-[11px] font-bold text-muted-foreground">
-                          {spell.apCost || 0} PA · {spell.minRange === spell.range ? `${spell.range} PO` : `${spell.minRange ?? 0}-${spell.range ?? 0} PO`}
-                        </span>
-                      </div>
+              {spells.map((spell: any) => {
+                const isExpanded = !!expandedSpells[spell.id];
+                const details = spell.effectDetails?.length > 0
+                  ? spell.effectDetails
+                  : (Array.isArray(spell.effects) ? spell.effects.slice(0, 20).map((e: string) => ({ label: e, duration: null, triggers: [] as string[], masks: [] as string[] })) : []);
+                const criticals = Array.isArray(spell.criticalEffects) ? spell.criticalEffects : [];
+                const hasBody = details.length > 0 || spell.description || criticals.length > 0 || spell.hasCriticalEffects === false;
+
+                return (
+                  <div key={spell.id} className="p-3.5 rounded-xl bg-surface/50 border border-border/70 flex flex-col space-y-2 hover:border-border transition-colors">
+                    <div className="flex items-start justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => hasBody && toggleSpellExpanded(spell.id)}
+                        className={cn("flex items-center gap-2.5 text-left flex-1 min-w-0", hasBody && "cursor-pointer group")}
+                        title={hasBody ? (isExpanded ? (locale === "en" ? "Collapse details" : "Replier les détails") : (locale === "en" ? "Expand details" : "Déplier les détails")) : undefined}
+                      >
+                        {spell.imageUrl ? (
+                          <MonsterImage src={spell.imageUrl} alt={spell.name} assetType="spells" assetId={spell.id} className="w-8 h-8 object-contain rounded-lg bg-background border border-border p-0.5 shrink-0" />
+                        ) : (
+                          <Zap className="w-4 h-4 opacity-70 shrink-0" />
+                        )}
+                        <div className="min-w-0">
+                          <span className="flex items-center gap-1.5">
+                            <span className="block text-sm font-bold text-foreground truncate group-hover:text-warning transition-colors">
+                              {locale === "en" ? (spell.nameEn || spell.name) : spell.name}
+                            </span>
+                            {spell.grade !== undefined && (
+                              <span className="text-[11px] font-mono text-muted-foreground bg-background border border-border px-1 py-px rounded shrink-0">
+                                {t.bossPage.levelShort} {spell.grade}
+                              </span>
+                            )}
+                            {hasBody && (
+                              <span className="text-muted-foreground group-hover:text-foreground transition-colors ml-0.5">
+                                {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                              </span>
+                            )}
+                          </span>
+                          <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-3 h-3 object-contain inline" />
+                            <span>{spell.apCost || 0}</span>
+                            <span>·</span>
+                            <img src="/assets/dofus/stats/po.png" alt="PO" className="w-3 h-3 object-contain inline" />
+                            <span>{spell.minRange === spell.range ? `${spell.range}` : `${spell.minRange ?? 0}-${spell.range ?? 0}`}</span>
+                          </span>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedSpellId(spell.id); setDetailTab("sim"); }}
+                        className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors shrink-0 cursor-pointer"
+                      >
+                        {t.bossPage.simulateSpell}
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => { setSelectedSpellId(spell.id); setDetailTab("sim"); }}
-                      className="text-[11px] font-bold px-2 py-1 rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                    >
-                      Simuler
-                    </button>
-                  </div>
-                  {(() => {
-                    const details = spell.effectDetails?.length > 0
-                      ? spell.effectDetails
-                      : (Array.isArray(spell.effects) ? spell.effects.slice(0, 20).map((e: string) => ({ label: e, duration: null, triggers: [] as string[], masks: [] as string[] })) : []);
-                    const criticals = Array.isArray(spell.criticalEffects) ? spell.criticalEffects : [];
-                    if (!details.length && !spell.description && !criticals.length && spell.hasCriticalEffects !== false) return null;
-                    return (
-                      <div className="space-y-2 text-[11px] leading-relaxed">
+
+                    {isExpanded && hasBody && (
+                      <div className="pt-2 border-t border-border/60 space-y-2 text-[11px] leading-relaxed">
                         {spell.description && <p className="text-muted-foreground">{spell.description}</p>}
                         {details.length > 0 && (
                           <div className="space-y-1">
-                            <span className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Effet principal</span>
+                            <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              {t.bossPage.mainEffect}
+                            </span>
                             <ul className="space-y-1">
                               {details.map((det: any, i: number) => (
                                 <li key={i} className="text-muted-foreground">
-                                  <span className="text-foreground font-semibold">{det.label}{det.duration ? ` (${det.duration})` : ""}</span>
+                                  <span className="text-foreground font-medium">{det.label}{det.duration ? ` (${det.duration})` : ""}</span>
                                   {det.masks?.length > 0 && <span className="block text-muted-foreground/80">{det.masks.join(" · ")}</span>}
                                   {det.triggers?.length > 0 && (
                                     <span className="block text-muted-foreground/80 flex items-center gap-1">
@@ -710,10 +741,12 @@ export function PublicBossDetailClient({
                           </div>
                         )}
                         {spell.hasCriticalEffects === false ? (
-                          <p className="text-muted-foreground/80">Effets critiques : aucun.</p>
+                          <p className="text-muted-foreground/80">{t.bossPage.noCriticalEffects}</p>
                         ) : criticals.length > 0 ? (
-                          <div className="space-y-0.5 pt-1 border-t border-white/10">
-                            <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Effets critiques</span>
+                          <div className="space-y-0.5 pt-1 border-t border-border">
+                            <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              {t.bossPage.criticalEffects}
+                            </span>
                             <ul className="space-y-0.5">
                               {criticals.map((ce: string, k: number) => (
                                 <li key={k} className="text-muted-foreground">• {ce}</li>
@@ -722,29 +755,27 @@ export function PublicBossDetailClient({
                           </div>
                         ) : null}
                       </div>
-                    );
-                  })()}
-                </div>
-              ))}
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
       )}
 
-      {/* ── ONGLET SIMULATION ────────────────────────────────────────────────
-          Un seul panneau (l'ancien empilement enveloppait la grille — qui a déjà
-          son propre cadre — dans une carte `rounded-3xl shadow-2xl` : trois
-          bordures imbriquées). L'entité simulée se choisit dans une ligne sobre. */}
+      {/* ── ONGLET SIMULATION ──────────────────────────────────────────────── */}
       {detailTab === "sim" && (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h4 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Target className="w-4 h-4 opacity-70" />
-              Simulation &amp; portée des sorts
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/assets/dofus/modules/map.png" alt="" className="w-4 h-4 object-contain opacity-80" />
+              {t.bossPage.tabs.simulation}
             </h4>
             {hasRoomMonsters && (
               <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-border bg-background/40 p-1">
-                <span className="hidden shrink-0 px-1.5 text-[11px] text-muted-foreground sm:inline">Entité :</span>
+                <span className="hidden shrink-0 px-1.5 text-[11px] text-muted-foreground sm:inline">{locale === "en" ? "Entity:" : "Entité :"}</span>
                 {roomMonsters.map((m) => {
                   const isActive = (activeMonsterName ?? bossName) === m.name;
                   return (
@@ -769,13 +800,15 @@ export function PublicBossDetailClient({
             )}
           </div>
           {spells.length === 0 ? (
-            <p className="py-8 text-center text-xs text-muted-foreground">Aucun sort disponible pour la simulation.</p>
+            <p className="py-8 text-center text-xs text-muted-foreground">
+              {locale === "en" ? "No spells available for simulation." : "Aucun sort disponible pour la simulation."}
+            </p>
           ) : (
             <SpellRangeGrid
               spells={spells}
               activeSpellId={selectedSpellId}
               onSelectSpell={(s) => setSelectedSpellId(s.id)}
-              bossName={resolvedBossName}
+              bossName={locale === "en" ? (currentStats?.nameEn || resolvedBossName) : resolvedBossName}
               bossImageUrl={currentStats?.imageUrl ?? dungeon.imageUrl ?? undefined}
               dungeonMaps={dungeonMaps?.maps}
               dungeonName={dungeonMaps?.dungeonName ?? dungeon.name}
@@ -794,47 +827,52 @@ export function PublicBossDetailClient({
       {detailTab === "grades" && (
         <div className="space-y-4">
           <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-            <Flame className="w-4 h-4 opacity-70" /> Paliers de Grades & Caractéristiques de Combat
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/dofus/modules/character.png" alt="" className="w-4 h-4 object-contain opacity-80" /> {t.bossPage.gradesTitle}
           </h4>
           <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-            <Info className="w-3.5 h-3.5" /> Les caractéristiques ci-dessus varient selon le grade sélectionné.
+            <Info className="w-3.5 h-3.5" /> {t.bossPage.gradesDesc}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
             {grades.map((gr: any, idx: number) => {
               const isActive = (activeGradeIndex ?? grades.length - 1) === idx;
-              const label = grades.length === 5 ? `Butin ${4 + idx}` : `Grade ${idx + 1}`;
+              const label = grades.length === 5 ? `${locale === "en" ? "Loot" : "Butin"} ${4 + idx}` : `Grade ${idx + 1}`;
               const r = gr.resists || {};
               return (
-                <div key={idx} className={cn("p-3.5 rounded-2xl border transition-colors flex flex-col justify-between space-y-3", isActive ? "border-border-strong bg-white/[0.06]" : "border-white/10 bg-surface/60")}>
+                <div key={idx} className={cn("p-3.5 rounded-xl border transition-colors flex flex-col justify-between space-y-3", isActive ? "border-border-strong bg-surface/80 shadow-xs" : "border-border/60 bg-surface/40 hover:border-border")}>
                   <div>
                     <div className="flex items-center justify-between gap-1 mb-2">
                       <span className="text-sm font-bold text-foreground">{label}</span>
-                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-background border border-white/10 text-muted-foreground">Niv. {gr.level}</span>
+                      <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-background border border-border text-muted-foreground">
+                        {t.bossPage.levelShort} {gr.level}
+                      </span>
                     </div>
                     <div className="space-y-1 text-xs">
                       <div className="flex items-center justify-between text-muted-foreground">
-                        <span>PV :</span>
-                        <strong className="text-foreground tabular-nums text-right">{gr.lifePoints?.toLocaleString("fr-FR")}</strong>
+                        <span>{t.bossPage.stats.hp} :</span>
+                        <strong className="text-foreground font-mono tabular-nums text-right">
+                          {gr.lifePoints?.toLocaleString(locale === "en" ? "en-US" : "fr-FR")}
+                        </strong>
                       </div>
                       <div className="flex items-center justify-between text-muted-foreground">
-                        <span>PA / PM :</span>
-                        <strong className="text-foreground tabular-nums text-right">{gr.actionPoints} / {gr.movementPoints}</strong>
+                        <span>{t.bossPage.stats.ap} / {t.bossPage.stats.mp} :</span>
+                        <strong className="text-foreground font-mono tabular-nums text-right">{gr.actionPoints} / {gr.movementPoints}</strong>
                       </div>
                     </div>
-                    <div className="grid grid-cols-5 gap-1 mt-2.5 pt-2 border-t border-white/10 text-center text-[11px] font-bold tabular-nums">
-                      <span title="Neutre" className="text-muted-foreground">{r.neutral ?? 0}%</span>
-                      <span title="Terre" className="text-amber-400">{r.earth ?? 0}%</span>
-                      <span title="Feu" className="text-red-400">{r.fire ?? 0}%</span>
-                      <span title="Eau" className="text-sky-400">{r.water ?? 0}%</span>
-                      <span title="Air" className="text-emerald-400">{r.air ?? 0}%</span>
+                    <div className="grid grid-cols-5 gap-1 mt-2.5 pt-2 border-t border-border text-center text-[11px] font-mono font-bold tabular-nums">
+                      <span title={t.bossPage.stats.neutral} className="text-muted-foreground">{r.neutral ?? 0}%</span>
+                      <span title={t.bossPage.stats.earth} className="text-amber-400">{r.earth ?? 0}%</span>
+                      <span title={t.bossPage.stats.fire} className="text-red-400">{r.fire ?? 0}%</span>
+                      <span title={t.bossPage.stats.water} className="text-sky-400">{r.water ?? 0}%</span>
+                      <span title={t.bossPage.stats.air} className="text-emerald-400">{r.air ?? 0}%</span>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setActiveGradeIndex(idx)}
-                    className={cn("w-full py-1.5 rounded-xl text-xs font-bold transition-colors", isActive ? "bg-foreground text-background" : "bg-surface border border-white/10 text-muted-foreground hover:text-foreground")}
+                    className={cn("w-full py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer", isActive ? "bg-foreground text-background" : "bg-surface border border-border text-muted-foreground hover:text-foreground")}
                   >
-                    {isActive ? "✓ Grade Actif" : "Sélectionner"}
+                    {isActive ? t.bossPage.activeGrade : t.bossPage.selectGrade}
                   </button>
                 </div>
               );
@@ -846,11 +884,12 @@ export function PublicBossDetailClient({
       {/* ── TAB: BUTIN & DROPS ── */}
       {detailTab === "loot" && (
         <div>
-          <h4 className="text-sm font-bold text-sky-300 mb-3 flex items-center gap-1.5">
-            <Gem className="w-4 h-4" /> Butins notables & Taux de drop
+          <h4 className="text-sm font-bold text-foreground mb-3 flex items-center gap-1.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/dofus/modules/chest.png" alt="" className="w-4 h-4 object-contain opacity-80" /> {t.bossPage.lootTitle}
           </h4>
           {drops.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-8 text-center">Aucun drop répertorié.</p>
+            <p className="text-xs text-muted-foreground py-8 text-center">{t.bossPage.noLootFound}</p>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
               {drops.map((drop: any, idx: number) => {
@@ -862,14 +901,16 @@ export function PublicBossDetailClient({
                     type="button"
                     onClick={() => setSelectedDrop(drop)}
                     title={`${drop.name} — ${label}%`}
-                    className="flex items-center gap-2.5 rounded-xl bg-surface/60 border border-white/10 p-2 text-left hover:bg-surface hover:border-white/20 transition-colors"
+                    className="flex items-center gap-2.5 rounded-xl bg-surface/50 border border-border/70 p-2 text-left hover:bg-surface hover:border-border transition-colors cursor-pointer"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-background border border-white/10 p-1 flex items-center justify-center shrink-0 overflow-hidden">
+                    <div className="w-9 h-9 rounded-lg bg-background border border-border p-1 flex items-center justify-center shrink-0 overflow-hidden shadow-xs">
                       <MonsterImage src={drop.imageUrl} alt={drop.name} assetType="items" assetId={drop.objectId ?? drop.id} className="w-full h-full object-contain" />
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-foreground truncate">{drop.name}</p>
-                      <span className="text-[11px] font-bold text-sky-300">{label}%</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium text-foreground truncate">
+                        {locale === "en" ? (drop.nameEn || drop.name) : drop.name}
+                      </p>
+                      <span className="text-[11px] font-mono font-semibold text-sky-400">{label}%</span>
                     </div>
                   </button>
                 );
@@ -887,14 +928,15 @@ export function PublicBossDetailClient({
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-              <Users className="w-4 h-4 opacity-70" /> Monstres accompagnateurs de la salle
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/assets/dofus/modules/party.png" alt="" className="w-4 h-4 object-contain opacity-80" /> {t.bossPage.roomMonstersTitle}
             </h4>
             {companionCount > 0 && (
               <span
                 className="text-[11px] font-bold px-2 py-0.5 rounded-full border border-info/30 text-info bg-info/10"
-                title="En combat, le gardien est accompagné de 3 de ces monstres, tirés au hasard à l'ouverture de l'anomalie."
+                title={locale === "en" ? "In combat, the keeper is accompanied by 3 of these monsters, randomly chosen." : "En combat, le gardien est accompagné de 3 de ces monstres, tirés au hasard à l'ouverture de l'anomalie."}
               >
-                Anomalie · {companionHint ?? `${companionCount} monstres possibles`}
+                {locale === "en" ? "Anomaly" : "Anomalie"} · {companionHint ?? (locale === "en" ? `${companionCount} possible monsters` : `${companionCount} monstres possibles`)}
               </span>
             )}
           </div>
@@ -902,9 +944,9 @@ export function PublicBossDetailClient({
             {roomMonsters.map((m) => {
               const isActive = (activeMonsterName ?? bossName) === m.name;
               return (
-                <div key={m.id} className={cn("p-3 rounded-2xl border transition-colors flex flex-col justify-between space-y-2.5", isActive ? "border-border-strong bg-white/[0.06]" : "border-white/10 bg-surface/60")}>
+                <div key={m.id} className={cn("p-3 rounded-xl border transition-colors flex flex-col justify-between space-y-2.5", isActive ? "border-border-strong bg-surface/80 shadow-xs" : "border-border/60 bg-surface/40 hover:border-border")}>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-background border border-white/10 flex items-center justify-center p-1 shrink-0 overflow-hidden">
+                    <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-1 shrink-0 overflow-hidden shadow-xs">
                       {m.imageUrl ? (
                         <MonsterImage src={m.imageUrl} alt={m.name} monsterId={m.id} className="w-full h-full object-contain" />
                       ) : (
@@ -915,28 +957,28 @@ export function PublicBossDetailClient({
                       <p className={cn("text-xs font-bold truncate", isActive ? "text-foreground" : "text-muted-foreground")}>{m.isBoss && "👑 "}{m.name}</p>
                       <span className="text-[11px] text-muted-foreground block">
                         {m.isBoss
-                          ? "Boss principal"
+                          ? t.bossPage.mainBossBadge
                           : m.isCompanion
-                          ? `Monstre de l'anomalie${m.raceName ? ` · ${m.raceName}` : ""}`
-                          : "Monstre de salle"}
+                          ? (locale === "en" ? `Anomaly monster${m.raceName ? ` · ${m.raceName}` : ""}` : `Monstre de l'anomalie${m.raceName ? ` · ${m.raceName}` : ""}`)
+                          : t.bossPage.roomMonsterBadge}
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 pt-1 border-t border-white/10">
+                  <div className="flex items-center gap-2 pt-1 border-t border-border">
                     <button
                       type="button"
                       onClick={() => { selectMonster(m); setDetailTab("sorts"); }}
-                      className="flex-1 py-1 px-2 rounded-lg bg-surface border border-white/10 text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors text-center"
+                      className="flex-1 py-1 px-2 rounded-lg bg-surface border border-border text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors text-center cursor-pointer"
                     >
-                      Fiche & Sorts
+                      {t.bossPage.sheetAndSpells}
                     </button>
                     <button
                       type="button"
                       onClick={() => { selectMonster(m); setDetailTab("sim"); }}
-                      className="py-1 px-2.5 rounded-lg border border-border text-muted-foreground text-[11px] hover:text-foreground transition-colors text-center flex items-center gap-1"
-                      title="Simuler la portée de ce monstre"
+                      className="py-1 px-2.5 rounded-lg border border-border text-muted-foreground text-[11px] hover:text-foreground transition-colors text-center flex items-center gap-1 cursor-pointer"
+                      title={locale === "en" ? "Simulate this monster's range" : "Simuler la portée de ce monstre"}
                     >
-                      <Target className="w-3 h-3" /> Simuler
+                      <Target className="w-3 h-3" /> {t.bossPage.simulateSpell}
                     </button>
                   </div>
                 </div>
@@ -950,7 +992,7 @@ export function PublicBossDetailClient({
 
       {/* ── COORDONNÉES (entrée donjon + /travel) ── */}
       {coords && (
-        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground pt-3 border-t border-white/10">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground pt-3 border-t border-border">
           <button
             type="button"
             onClick={() => {
@@ -960,30 +1002,28 @@ export function PublicBossDetailClient({
                 window.setTimeout(() => setCopiedTravel(false), 2000);
               }).catch(() => {});
             }}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-background border border-white/10 hover:border-border-strong text-foreground transition-colors"
-            title="Cliquer pour copier la commande /travel"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface border border-border hover:border-border-strong text-foreground transition-colors cursor-pointer"
+            title={t.bossPage.copyTravelTitle}
           >
             <MapPin className="w-3.5 h-3.5 shrink-0 opacity-70" />
-            <span>Entrée du donjon : <strong className="font-mono text-foreground/90">[{coords.x}, {coords.y}]</strong></span>
-            <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-surface border border-white/10 text-muted-foreground font-mono">{travelCmd}</span>
+            <span>{t.bossPage.dungeonEntrance} <strong className="font-mono text-foreground/90">[{coords.x}, {coords.y}]</strong></span>
+            <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-background border border-border text-muted-foreground font-mono">{travelCmd}</span>
             {copiedTravel && <Check className="w-3.5 h-3.5 text-emerald-400" />}
           </button>
-          <span className="text-xs font-bold text-muted-foreground">
-            Zone : <strong className="text-foreground">{getWorldName(coords.worldMapId)}</strong>
+          <span className="text-xs font-semibold text-muted-foreground">
+            {t.bossPage.zoneLabel} <strong className="text-foreground">{getWorldName(coords.worldMapId, locale)}</strong>
           </span>
         </div>
       )}
 
-      {/* ── PASSAGE À L'ESPACE GUILDE ────────────────────────────────────────
-          Déplacé ici (bas de fiche) : il interrompait auparavant l'en-tête et les
-          caractéristiques, en pleine lecture des données. Une seule ligne sobre. */}
+      {/* ── PASSAGE À L'ESPACE GUILDE ── */}
       <div className="flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
           <Users className="w-3.5 h-3.5 shrink-0 opacity-70" />
-          Préparez ce donjon en guilde : session Discord, inscriptions par classe et succès validés automatiquement.
+          {t.bossPage.guildBannerDesc}
         </p>
         <Link href="/" className="inline-flex shrink-0 items-center gap-1.5 text-xs text-foreground transition-colors hover:underline">
-          Créer mon espace guilde
+          {t.bossPage.guildBannerCta}
           <ArrowRight className="w-3.5 h-3.5" />
         </Link>
       </div>
@@ -992,19 +1032,21 @@ export function PublicBossDetailClient({
       {selectedDrop && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedDrop(null)} />
-          <div className="relative bg-surface border border-white/10 rounded-2xl p-6 w-full max-w-xs text-center">
-            <button type="button" onClick={() => setSelectedDrop(null)} className="absolute top-3 right-3 text-muted-foreground hover:text-foreground" aria-label="Fermer">
+          <div className="relative bg-surface border border-border rounded-xl p-5 w-full max-w-xs text-center shadow-lg">
+            <button type="button" onClick={() => setSelectedDrop(null)} className="absolute top-3 right-3 text-muted-foreground hover:text-foreground cursor-pointer" aria-label={t.bossPage.closeModal}>
               <X className="w-4 h-4" />
             </button>
-            <div className="w-16 h-16 rounded-2xl bg-background border border-white/10 p-2 mx-auto mb-3">
+            <div className="w-16 h-16 rounded-xl bg-background border border-border p-2 mx-auto mb-3 shadow-xs">
               <MonsterImage src={selectedDrop.imageUrl} alt={selectedDrop.name} assetType="items" assetId={selectedDrop.objectId ?? selectedDrop.id} className="w-full h-full object-contain" />
             </div>
-            <h3 className="text-sm font-bold text-foreground">{selectedDrop.name}</h3>
-            <p className="text-xs text-sky-300 font-bold mt-1">
-              Taux de drop : {(() => {
+            <h3 className="text-sm font-bold text-foreground">
+              {locale === "en" ? (selectedDrop.nameEn || selectedDrop.name) : selectedDrop.name}
+            </h3>
+            <p className="text-xs text-sky-400 font-mono font-semibold mt-1">
+              {t.bossPage.dropRate} {(() => {
                 const byGrade = selectedDrop.percentByGrade;
                 const fmt = (v: number) => (v > 0 && v < 0.01 ? v.toFixed(3) : Number(v || 0).toFixed(2));
-                if (Array.isArray(byGrade) && byGrade.length) return `${fmt(Math.min(...byGrade))} % – ${fmt(Math.max(...byGrade))} % (grade 1-5)`;
+                if (Array.isArray(byGrade) && byGrade.length) return `${fmt(Math.min(...byGrade))}% – ${fmt(Math.max(...byGrade))}% (${locale === "en" ? "tier" : "grade"} 1-5)`;
                 return `${fmt(selectedDrop.percent ?? selectedDrop.dropPercent ?? 0)}%`;
               })()}
             </p>
@@ -1012,16 +1054,16 @@ export function PublicBossDetailClient({
               <button
                 type="button"
                 onClick={() => setSelectedDrop(null)}
-                className="flex-1 px-4 py-2 rounded-xl border border-white/10 bg-surface text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
+                className="flex-1 px-4 py-2 rounded-lg border border-border bg-surface text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
-                Fermer
+                {t.bossPage.closeModal}
               </button>
               {(selectedDrop.objectId ?? selectedDrop.id) && (
                 <a
-                  href={`https://dofusdb.fr/fr/database/item/${selectedDrop.objectId ?? selectedDrop.id}`}
+                  href={`https://dofusdb.fr/${locale === "en" ? "en" : "fr"}/database/item/${selectedDrop.objectId ?? selectedDrop.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl border border-white/10 bg-surface text-xs font-bold text-foreground hover:bg-white/[0.06] transition-colors"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg border border-border bg-surface text-xs font-semibold text-foreground hover:bg-elevated transition-colors"
                 >
                   <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm" loading="lazy" />
                   DofusDB
@@ -1032,23 +1074,21 @@ export function PublicBossDetailClient({
         </div>
       )}
 
-      {/* ── LIENS GUIDES COMPLÉMENTAIRES ──
-          Le libellé « Guides : » n'apparaît que s'il y a réellement un lien
-          sortant à proposer (sinon il resterait orphelin). */}
+      {/* ── LIENS GUIDES COMPLÉMENTAIRES ── */}
       <div className="flex flex-wrap items-center gap-2 pt-2">
         {dungeon.dofuspourlesnoobsUrl && (
           <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-            <Layers className="w-3.5 h-3.5" /> Guides :
+            <Layers className="w-3.5 h-3.5" /> {locale === "en" ? "External guides:" : "Guides :"}
           </span>
         )}
         {dungeon.dofuspourlesnoobsUrl && (
-          <a href={dungeon.dofuspourlesnoobsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-surface/60 text-foreground text-xs font-bold hover:bg-surface transition-colors">
+          <a href={dungeon.dofuspourlesnoobsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface/60 text-foreground text-xs font-semibold hover:bg-surface transition-colors">
             <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm" loading="lazy" />
             DPLN
           </a>
         )}
         <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <Shield className="w-3.5 h-3.5" /> Fiche publique — sans suivi de guilde (connexion requise dans le dashboard).
+          <Shield className="w-3.5 h-3.5" /> {t.bossPage.publicSheetNotice}
         </span>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { getAppBaseUrl } from "@/lib/utils";
 import { logger } from "@/lib/logger";
+import { DiscordApiError } from "@/lib/discord-api-errors";
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
@@ -666,15 +667,20 @@ export async function postChannelMessage(channelId: string, body: Record<string,
         console.error(`[Discord] Status ${res.status}: ${errBody}`);
 
         // F-15: ne PAS exposer le corps brut de Discord au client (fuite de détails internes).
+        // Le STATUT et le `code` numérique sont en revanche portés par l'erreur :
+        // sans eux, une alerte d'outbox (« Discord a refusé la demande ») était
+        // indiagnostiquable (voir src/lib/discord-api-errors.ts).
         let message = "Échec de l'envoi du message Discord";
+        let discordCode: number | undefined;
         try {
             const parsed = JSON.parse(errBody);
             if (res.status === 403) message = "Le bot n'a pas accès à ce salon (Permission bloquée)";
             else if (res.status === 404) message = "Salon introuvable (ID incorrect)";
             else if (parsed?.message) message = "Discord a refusé la demande";
+            if (typeof parsed?.code === "number") discordCode = parsed.code;
         } catch { /* use default */ }
 
-        throw new Error(message);
+        throw new DiscordApiError(message, res.status, discordCode);
     }
 
     const json = (await res.json()) as { id: string };

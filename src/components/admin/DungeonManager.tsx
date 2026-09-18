@@ -14,7 +14,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { motion } from "framer-motion";
 import {
     getDungeonsWithAchievements,
     createDungeon,
@@ -473,79 +472,81 @@ export default function DungeonManager() {
 
             {/* Form Dialog */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent draggable className="w-[95vw] max-w-7xl max-h-[95vh] bg-background border-border p-0 overflow-hidden shadow-2xl flex flex-col">
+                <DialogContent draggable className="w-[95vw] max-w-5xl max-h-[90vh] bg-surface border-border p-0 overflow-hidden flex flex-col rounded-xl">
                     {/* Header Draggable Handle */}
-                    <div className="p-8 bg-surface/50 border-b border-border flex items-center justify-between shrink-0">
+                    <div className="px-5 py-4 bg-surface border-b border-border flex items-center justify-between shrink-0">
                         <DialogHeader>
-                            <DialogTitle className="text-3xl font-black text-foreground flex items-center gap-4">
-                                <Plus className="w-8 h-8 text-info" />
+                            <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-3">
+                                <Plus className="w-5 h-5 text-muted-foreground" />
                                 {editing ? "Modifier le donjon" : "Nouveau donjon"}
                             </DialogTitle>
-                            <DialogDescription className="text-muted-foreground text-lg">
-                                Configurez les détails du donjon, son boss et les succès associés.
+                            <DialogDescription className="text-sm text-muted-foreground">
+                                Détails du donjon, boss et succès associés.
                             </DialogDescription>
                         </DialogHeader>
                     </div>
 
-                    <div className="p-10 overflow-y-auto flex-1 custom-scrollbar">
-                        <form onSubmit={handleSubmit} className="space-y-10 pb-6">
-                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                    <div className="px-5 py-6 overflow-y-auto flex-1 custom-scrollbar">
+                        <form onSubmit={handleSubmit} className="space-y-6 pb-2">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                 {/* Left Column: Core Info & Illustration */}
-                                <div className="lg:col-span-7 space-y-10">
-                                    <div className="space-y-8 bg-surface/30 p-8 rounded-3xl border border-border/50">
-                                        <div className="flex items-center justify-between border-b border-border pb-4 mb-2">
-                                            <h3 className="text-sm font-black text-info uppercase tracking-[0.2em]">Informations Principales</h3>
-                                            <div className="flex items-center gap-4 bg-background px-4 py-2 rounded-xl border border-border">
-                                                <span className="text-sm font-bold text-muted-foreground uppercase">Expédition</span>
-                                                <Switch
-                                                    checked={formData.isExpedition}
-                                                    onCheckedChange={(checked) => setFormData({ ...formData, isExpedition: checked })}
-                                                    className="data-[state=checked]:bg-info"
-                                                />
-                                                <span className="text-sm font-bold text-muted-foreground uppercase">Quête Ocre</span>
-                                                <Switch
-                                                    checked={formData.isOcreQuest}
-                                                    onCheckedChange={(checked) => setFormData({ ...formData, isOcreQuest: checked })}
-                                                    className="data-[state=checked]:bg-warning"
-                                                />
+                                <div className="space-y-6">
+                                    <div className="space-y-5 rounded-xl border border-border p-5">
+                                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+                                            <h3 className="text-xs font-medium text-muted-foreground">Informations principales</h3>
+                                            <div className="grid grid-cols-2 gap-x-5 gap-y-2.5">
+                                                <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground cursor-pointer">
+                                                    Expédition
+                                                    <Switch
+                                                        checked={formData.isExpedition}
+                                                        onCheckedChange={(checked) => setFormData({ ...formData, isExpedition: checked })}
+                                                    />
+                                                </label>
+                                                <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground cursor-pointer">
+                                                    Quête Ocre
+                                                    <Switch
+                                                        checked={formData.isOcreQuest}
+                                                        onCheckedChange={(checked) => setFormData({ ...formData, isOcreQuest: checked })}
+                                                    />
+                                                </label>
                                                 {/* Chantier « donjon sans succès » : le succès est d'être validé. */}
-                                                <span className="text-sm font-bold text-muted-foreground uppercase">Donjon sans succès</span>
-                                                <Switch
-                                                    checked={formData.isNoAchievement}
-                                                    onCheckedChange={(checked) => setFormData({ ...formData, isNoAchievement: checked })}
-                                                    className="data-[state=checked]:bg-foreground"
-                                                />
+                                                <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground cursor-pointer">
+                                                    Donjon sans succès
+                                                    <Switch
+                                                        checked={formData.isNoAchievement}
+                                                        onCheckedChange={(checked) => setFormData({ ...formData, isNoAchievement: checked })}
+                                                    />
+                                                </label>
                                                 {/* Chantier « boss d'anomalie » : contenu siphonné (Gardiens des anomalies). */}
-                                                <span className="flex items-center gap-1.5 text-sm font-bold text-muted-foreground uppercase">
-                                                    <img src="/assets/missions/ano1.png" alt="" aria-hidden className="w-4 h-4 object-contain" />
-                                                    Fiches Anomalies
-                                                </span>
-                                                <Switch
-                                                    checked={formData.isAnomalyBoss}
-                                                    onCheckedChange={(checked) => setFormData({ ...formData, isAnomalyBoss: checked })}
-                                                    className="data-[state=checked]:bg-info"
-                                                />
+                                                <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground cursor-pointer">
+                                                    <span className="flex items-center gap-1.5">
+                                                        <img src="/assets/missions/ano1.png" alt="" aria-hidden className="w-4 h-4 object-contain" />
+                                                        Fiches Anomalies
+                                                    </span>
+                                                    <Switch
+                                                        checked={formData.isAnomalyBoss}
+                                                        onCheckedChange={(checked) => setFormData({ ...formData, isAnomalyBoss: checked })}
+                                                    />
+                                                </label>
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                                            <div className="md:col-span-3 space-y-3">
-                                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Nom du Donjon <span className="text-danger text-lg">*</span></label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                                            <div className="sm:col-span-3 space-y-2">
+                                                <label className="text-xs font-medium text-muted-foreground pl-1">Nom du donjon <span className="text-danger">*</span></label>
                                                 <Input
                                                     value={formData.name}
                                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                                     required
                                                     placeholder="Ex: Antre du Kralamoure"
-                                                    className="h-16 bg-background border-border focus:border-info/50 focus:ring-ring/20 text-xl font-bold transition-all rounded-2xl"
+                                                    className="h-12 bg-elevated border-border text-sm font-medium rounded-lg focus-visible:ring-0 focus-visible:border-border-strong"
                                                 />
-                                                <p className="text-xs text-muted-foreground pl-1">
-                                                    Correspond à l'<strong className="text-foreground">emplacement</strong> du donjon.
-                                                    Tu peux créer plusieurs entrées du <strong className="text-foreground">même emplacement</strong>
-                                                    avec des boss différents (ex. « Comte Harebourg » + « Frizz », + « Sylargh », + « Klime »…).
+                                                <p className="text-[11px] text-muted-foreground pl-1 leading-relaxed">
+                                                    Correspond à l'emplacement du donjon. Plusieurs entrées du même emplacement possibles avec des boss différents (ex. Comte Harebourg + Frizz, + Sylargh, + Klime…).
                                                 </p>
                                             </div>
-                                            <div className="space-y-3">
-                                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Niveau <span className="text-danger text-lg">*</span></label>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-medium text-muted-foreground pl-1">Niveau <span className="text-danger">*</span></label>
                                                 <div className="relative">
                                                     <Input
                                                         type="number"
@@ -554,46 +555,44 @@ export default function DungeonManager() {
                                                         required
                                                         min={1}
                                                         max={1000}
-                                                        className="h-16 bg-background border-border focus:border-info/50 focus:ring-ring/20 pl-14 font-black italic text-info text-2xl transition-all rounded-2xl"
+                                                        className="h-12 bg-elevated border-border pl-12 text-sm font-semibold rounded-lg focus-visible:ring-0 focus-visible:border-border-strong"
                                                     />
-                                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold select-none text-sm">Lvl</div>
+                                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-xs select-none">Lvl</div>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div className="space-y-3">
-                                            <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Nom du Boss <span className="text-danger text-lg">*</span></label>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-medium text-muted-foreground pl-1">Nom du boss <span className="text-danger">*</span></label>
                                             <Input
                                                 value={formData.bossName}
                                                 onChange={(e) => setFormData({ ...formData, bossName: e.target.value })}
                                                 required
                                                 placeholder="Ex: Kralamoure Géant"
-                                                className="h-16 bg-background border-border focus:border-info/50 focus:ring-ring/20 text-xl font-bold transition-all rounded-2xl"
+                                                className="h-12 bg-elevated border-border text-sm font-medium rounded-lg focus-visible:ring-0 focus-visible:border-border-strong"
                                             />
-                                            <p className="text-xs text-muted-foreground pl-1">
-                                                Le boss ou la <strong className="text-foreground">variante</strong> (solo, +Frizz, +Sylargh…).
-                                                Doit être <strong className="text-foreground">unique</strong> pour un même emplacement :
-                                                c'est lui qui différencie chaque entrée.
+                                            <p className="text-[11px] text-muted-foreground pl-1 leading-relaxed">
+                                                Le boss ou la variante (solo, +Frizz, +Sylargh…). Unique par emplacement : c'est lui qui différencie chaque entrée.
                                             </p>
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div className="space-y-3">
-                                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Lien DofusPourLesNoobs</label>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-medium text-muted-foreground pl-1">Lien DofusPourLesNoobs</label>
                                                 <Input
                                                     value={formData.dofuspourlesnoobsUrl}
                                                     onChange={(e) => setFormData({ ...formData, dofuspourlesnoobsUrl: e.target.value })}
                                                     placeholder="https://www.dofuspourlesnoobs.com/..."
-                                                    className="h-14 bg-background border-border focus:border-info/50 focus:ring-ring/20 text-sm transition-all rounded-xl"
+                                                    className="h-11 bg-elevated border-border text-xs rounded-lg focus-visible:ring-0 focus-visible:border-border-strong"
                                                 />
                                             </div>
-                                            <div className="space-y-3">
-                                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Lien Dofensive</label>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-medium text-muted-foreground pl-1">Lien Dofensive</label>
                                                 <Input
                                                     value={formData.dofensiveUrl}
                                                     onChange={(e) => setFormData({ ...formData, dofensiveUrl: e.target.value })}
                                                     placeholder="https://dofensive.com/fr/monster/..."
-                                                    className="h-14 bg-background border-border focus:border-info/50 focus:ring-ring/20 text-sm transition-all rounded-xl"
+                                                    className="h-11 bg-elevated border-border text-xs rounded-lg focus-visible:ring-0 focus-visible:border-border-strong"
                                                 />
                                             </div>
                                         </div>
@@ -601,36 +600,36 @@ export default function DungeonManager() {
                                         {/* Chantier double boss — dissociation affichage / résolution Dofensive.
                                             Permet de pointer la « Balcon de … » du bon monstre même quand le nom affiché
                                             est composé (ex. « Comte et Sylargh ») et qu'un donjon solo homonyme existe. */}
-                                        <div className="p-5 rounded-2xl bg-info/5 border border-info/20 space-y-4">
-                                            <p className="text-caption text-info/90 pl-1 font-bold uppercase tracking-widest">Résolution Dofensive (doubles boss)</p>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                <div className="space-y-3">
-                                                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Nom du monstre (Dofensive)</label>
+                                        <div className="p-4 rounded-xl border border-border space-y-3">
+                                            <p className="text-xs font-medium text-muted-foreground pl-1">Résolution Dofensive (doubles boss)</p>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-medium text-muted-foreground pl-1">Nom du monstre (Dofensive)</label>
                                                     <Input
                                                         value={formData.dofensiveMonsterName || ""}
                                                         onChange={(e) => setFormData({ ...formData, dofensiveMonsterName: e.target.value })}
                                                         placeholder="Ex: Sylargh"
-                                                        className="h-12 bg-background border-border focus:border-info/50 focus:ring-ring/20 text-sm transition-all rounded-xl"
+                                                        className="h-11 bg-elevated border-border text-xs rounded-lg focus-visible:ring-0 focus-visible:border-border-strong"
                                                     />
-                                                    <p className="text-[10px] text-muted-foreground pl-1 leading-relaxed">Nom EXACT du monstre Dofensive (celui qui apparaît sur la fiche). Sert à retrouver la « Balcon de … » correspondante.</p>
+                                                    <p className="text-[11px] text-muted-foreground pl-1 leading-relaxed">Nom exact du monstre Dofensive (celui de la fiche). Sert à retrouver la carte correspondante.</p>
                                                 </div>
-                                                <div className="space-y-3">
-                                                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Nom du donjon (Dofensive)</label>
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-medium text-muted-foreground pl-1">Nom du donjon (Dofensive)</label>
                                                     <Input
                                                         value={formData.dofensiveDungeonName || ""}
                                                         onChange={(e) => setFormData({ ...formData, dofensiveDungeonName: e.target.value })}
                                                         placeholder="Ex: Donjon du Comte Harebourg"
-                                                        className="h-12 bg-background border-border focus:border-info/50 focus:ring-ring/20 text-sm transition-all rounded-xl"
+                                                        className="h-11 bg-elevated border-border text-xs rounded-lg focus-visible:ring-0 focus-visible:border-border-strong"
                                                     />
-                                                    <p className="text-[10px] text-muted-foreground pl-1 leading-relaxed">Nom EXACT du donjon Dofensive, pour lever l'ambiguïté avec un donjon solo homonyme. Vides pour un donjon classique.</p>
+                                                    <p className="text-[11px] text-muted-foreground pl-1 leading-relaxed">Nom exact du donjon Dofensive, pour lever l'ambiguïté avec un donjon solo homonyme. Vide pour un donjon classique.</p>
                                                 </div>
                                             </div>
                                         </div>
 
                                         {/* Map ID — sélecteur cliquable pour placer l'icône Ocre sur la carte */}
                                         {formData.isOcreQuest && (
-                                            <div className="p-5 rounded-2xl bg-warning/5 border border-warning/20 space-y-3">
-                                                <p className="text-caption text-warning/90 pl-1">
+                                            <div className="p-4 rounded-xl border border-border space-y-3">
+                                                <p className="text-xs text-muted-foreground pl-1">
                                                     Sélectionne le donjon correspondant sur la carte du monde pour y afficher l'icône Ocre.
                                                 </p>
                                                 <DungeonMapPicker
@@ -646,35 +645,33 @@ export default function DungeonManager() {
 
                                     {/* Expedition Settings */}
                                     {formData.isExpedition && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: -10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            className="space-y-8 p-8 bg-info/5 rounded-3xl border border-info/20 shadow-inner shadow-indigo-500/5"
+                                        <div
+                                            className="space-y-5 p-5 rounded-xl border border-border"
                                         >
-                                            <div className="space-y-3">
-                                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Modes Disponibles</label>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-medium text-muted-foreground">Modes disponibles</label>
                                                 <MultiSelect
                                                     options={EXPEDITION_MODES}
                                                     selected={formData.expeditionModes}
                                                     onChange={(selected) => setFormData({ ...formData, expeditionModes: selected })}
                                                     placeholder="Choisir les modes..."
-                                                    className="bg-background border-border min-h-[50px] rounded-xl"
+                                                    className="bg-elevated border-border min-h-[44px] rounded-lg"
                                                 />
                                             </div>
-                                            <div className="space-y-3">
-                                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Mécaniques</label>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-medium text-muted-foreground">Mécaniques</label>
                                                 <textarea
                                                     value={formData.expeditionMechanics || ""}
                                                     onChange={(e) => setFormData({ ...formData, expeditionMechanics: e.target.value })}
                                                     placeholder="Détails spécifiques des mécaniques..."
-                                                    className="w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-info/50 resize-none min-h-[100px]"
+                                                    className="w-full px-4 py-3 bg-elevated border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-border-strong resize-none min-h-[100px]"
                                                 />
                                             </div>
-                                        </motion.div>
+                                        </div>
                                     )}
 
-                                    <div className="bg-background/50 p-8 rounded-3xl border border-border shadow-inner">
-                                        <h3 className="text-sm font-black text-info uppercase tracking-[0.2em] border-b border-border pb-4 mb-6">Illustration</h3>
+                                    <div className="rounded-xl border border-border p-5">
+                                        <h3 className="text-xs font-medium text-muted-foreground border-b border-border pb-3 mb-4">Illustration</h3>
                                         <ImageDownloader
                                             type="dungeon"
                                             imageUrl={formData.imageUrl}
@@ -686,24 +683,24 @@ export default function DungeonManager() {
                                 </div>
 
                                 {/* Right Column: Success & Challenges */}
-                                <div className="lg:col-span-5 h-full">
-                                    <div className="h-full space-y-4 bg-surface/30 p-8 rounded-3xl border border-border/50 flex flex-col">
-                                         <div className="border-b border-border pb-4">
-                                            <h3 className="text-sm font-black text-info uppercase tracking-[0.2em]">Succès du Boss</h3>
-                                            <p className="text-xs text-muted-foreground mt-2 font-medium">
-                                                Assurez-vous qu'ils correspondent aux mécaniques du donjon.
+                                <div className="h-full">
+                                    <div className="h-full space-y-4 rounded-xl border border-border p-5 flex flex-col">
+                                         <div className="border-b border-border pb-3">
+                                            <h3 className="text-xs font-medium text-muted-foreground">Succès du boss</h3>
+                                            <p className="text-[11px] text-muted-foreground mt-1">
+                                                Vérifie qu'ils correspondent aux mécaniques du donjon.
                                             </p>
                                         </div>
 
-                                        <div className="flex-1 flex flex-col min-h-[500px]">
-                                            <div className="space-y-4 mb-4">
+                                        <div className="flex-1 flex flex-col min-h-[300px]">
+                                            <div className="space-y-3 mb-3">
                                                 <div className="flex items-center justify-between">
-                                                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">
-                                                        Succès Associés
+                                                    <label className="text-xs font-medium text-muted-foreground pl-1">
+                                                        Succès associés
                                                     </label>
-                                                    <Badge variant="outline" className="bg-info/10 border-info/20 text-info">
+                                                    <span className="text-[11px] text-muted-foreground">
                                                         {formData.challengeIds.length} sélectionné(s)
-                                                    </Badge>
+                                                    </span>
                                                 </div>
                                                 <div className="relative">
                                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -711,12 +708,12 @@ export default function DungeonManager() {
                                                         placeholder="Filtrer les succès..."
                                                         value={challengeSearch}
                                                         onChange={e => setChallengeSearch(e.target.value)}
-                                                        className="h-10 pl-9 bg-background border-border text-xs text-foreground placeholder:text-muted-foreground"
+                                                        className="h-10 pl-9 bg-elevated border-border text-xs text-foreground placeholder:text-muted-foreground rounded-lg focus-visible:ring-0 focus-visible:border-border-strong"
                                                     />
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 overflow-y-auto pr-2 custom-scrollbar flex-1 max-h-[500px]">
+                                            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 overflow-y-auto pr-2 custom-scrollbar flex-1 max-h-[420px]">
                                                 {challenges
                                                     .filter(c => c.name.toLowerCase().includes(challengeSearch.toLowerCase()))
                                                     .map((challenge) => {
@@ -734,10 +731,10 @@ export default function DungeonManager() {
                                                                 }));
                                                             }}
                                                             className={`
-                                                                relative aspect-square rounded-xl p-2 border-2 transition-all group flex flex-col items-center justify-center gap-1
+                                                                relative aspect-square rounded-lg p-2 border transition-colors group flex flex-col items-center justify-center gap-1
                                                                 ${isSelected
-                                                                    ? "border-info bg-info/10 "
-                                                                    : "border-border bg-surface/50 hover:border-border hover:bg-elevated"
+                                                                    ? "border-success bg-success/5"
+                                                                    : "border-border hover:border-border-strong"
                                                                 }
                                                             `}
                                                             title={challenge.name}
@@ -746,21 +743,22 @@ export default function DungeonManager() {
                                                                 <img
                                                                     src={challenge.iconUrl}
                                                                     alt={challenge.name}
-                                                                    className={`w-8 h-8 object-contain transition-transform ${isSelected ? "scale-110" : "group-"}`}
+                                                                    loading="lazy"
+                                                                    className="w-8 h-8 object-contain"
                                                                 />
                                                             ) : (
-                                                                <Trophy className={`w-6 h-6 ${isSelected ? "text-info" : "text-muted-foreground"}`} />
+                                                                <Trophy className={`w-6 h-6 ${isSelected ? "text-success" : "text-muted-foreground"}`} />
                                                             )}
-                                                            <span className="text-caption font-bold text-muted-foreground text-center leading-tight line-clamp-2 w-full mt-1">
+                                                            <span className="text-[11px] font-medium text-muted-foreground text-center leading-tight line-clamp-2 w-full mt-1">
                                                                 {challenge.name}
                                                             </span>
 
                                                             {isSelected && (
-                                                                <div className="absolute -top-1.5 -right-1.5 bg-info text-info-foreground rounded-full p-0.5 shadow-lg">
-                                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-success flex items-center justify-center">
+                                                                    <svg className="w-2.5 h-2.5 text-success-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                                                     </svg>
-                                                                </div>
+                                                                </span>
                                                             )}
                                                         </button>
                                                     );
@@ -771,17 +769,17 @@ export default function DungeonManager() {
                                 </div>
                             </div>
 
-                            <div className="flex gap-4 pt-6 border-t border-border sticky bottom-0 bg-background py-4 shrink-0">
-                                <Button type="submit" className="flex-[3] bg-info hover:bg-info h-14 text-lg font-black uppercase tracking-widest shadow-xl shadow-indigo-600/20 transition-all rounded-xl active:scale-[0.98]">
-                                    {editing ? "💾 Enregistrer" : "➕ Créer le Donjon"}
-                                </Button>
+                            <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4 border-t border-border sticky bottom-0 bg-surface py-4 shrink-0">
                                 <Button
                                     type="button"
                                     variant="outline"
                                     onClick={() => setIsDialogOpen(false)}
-                                    className="flex-1 h-14 border-border hover:bg-surface text-foreground text-sm font-bold uppercase tracking-widest transition-all rounded-xl"
+                                    className="sm:flex-1 h-12 border-border text-sm rounded-lg"
                                 >
                                     Fermer
+                                </Button>
+                                <Button type="submit" className="sm:flex-[3] h-12 text-sm font-semibold rounded-lg">
+                                    {editing ? "Enregistrer" : "Créer le donjon"}
                                 </Button>
                             </div>
                         </form>

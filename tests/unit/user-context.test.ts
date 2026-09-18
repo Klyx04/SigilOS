@@ -60,6 +60,10 @@ vi.mock("@/server/discord", () => ({
 vi.mock("@/server/actions/super-admin-actions", () => ({
     isSuperAdmin: vi.fn().mockResolvedValue(false),
     isGuildAllowed: vi.fn().mockResolvedValue(true),
+    // `internalCheckPermission` (chemins bot /dj /songes /missions) appelle ce
+    // garde AVANT de lire le cache config : sans mock, l'appel levait et la
+    // lecture n'avait jamais lieu (voir BLOC « cache config partagé »).
+    isDiscordSuperAdmin: vi.fn().mockResolvedValue(false),
 }));
 vi.mock("@/lib/logger", () => ({
     logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -92,7 +96,7 @@ import {
 } from "@/server/discord";
 import { redis } from "@/lib/redis";
 import { isSuperAdmin, isGuildAllowed } from "@/server/actions/super-admin-actions";
-import { validateGuildOwnership, getUserContext, revalidateUserContext, invalidateUserContextCache } from "@/server/actions/user-actions";
+import { validateGuildOwnership, getUserContext, revalidateUserContext, invalidateUserContextCache, internalCheckPermission } from "@/server/actions/user-actions";
 import { invalidateRbacUsersMappingCache } from "@/lib/platform-rbac";
 import { PERMISSIONS } from "@/lib/permissions";
 
@@ -114,6 +118,9 @@ function makeGuildConfig(overrides: Record<string, any> = {}) {
         discordGuildId: "111111111111111111",
         name: "Guilde Test",
         dofusServerId: "1",
+        isActive: true,
+        deletedAt: null,
+        missionVitrineMode: false,
         rolesMapping: {},
         usersMapping: {},
         welcomeEnabled: false,
@@ -967,6 +974,118 @@ describe("getUserContext — timeout Discord (communication_disabled_until)", ()
         expect(mockDb.guildMemberBan.findFirst).toHaveBeenCalledWith(
             expect.objectContaining({ where: expect.objectContaining({ liftedAt: null }) })
         );
+    });
+});
+
+// ─────────────────────────────────────────────────────────────
+// BLOC 8 — cache config partagé : un seul écrivain, select complet
+/**
+ * Régression (#184) — « Configuration en cours — Le tableau de bord de
+ * **Serveur Inconnu**… ».
+ *
+ * `getUserContext` (layout du dashboard) et `internalCheckPermission`
+ * (interactions du bot `/dj`, `/songes`, `/missions`) partagent le MÊME cache
+ * mémoire de process, clé `config:{guildId}`. Le second y écrivait une config
+ * TRONQUÉE (`{ id, discordGuildId, rolesMapping, usersMapping }`) ⇒ un membre qui
+ * chargeait le dashboard dans les 60 s suivantes (TTL) recevait :
+ *   - `name` absent          → `guildName` « Serveur Inconnu » ;
+ *   - `dofusServerId` absent → `isOnboardingComplete: false` → page
+ *     « Configuration en cours » au lieu du dashboard ;
+ *   - `modules` absent       → navbar grisée.
+ * Auto-guérison au bout du TTL ou au redémarrage du process : incident
+ * intermittent (« ça arrive d'un coup sans raison »), jamais reproductible.
+ *
+ * Le mock Prisma ci-dessous applique le `select` comme le vrai Prisma : sans
+ * cela, un mock qui renvoie tout masquerait la régression (le select tronqué
+ * passait inaperçu côté test).
+ */
+
+/** Reproduit la sémantique de Prisma : ne renvoie QUE les champs demandés par `select`. */
+function applySelect(source: Record<string, any>, select: Record<string, any>): Record<string, any> {
+    const out: Record<string, any> = {};
+    for (const [key, value] of Object.entries(select)) {
+        if (value === true) {
+            out[key] = source[key];
+        } else if (value && typeof value === "object" && "select" in (value as any)) {
+            const nested = source[key];
+            out[key] = nested ? applySelect(nested, (value as any).select) : null;
+        }
+    }
+    return out;
+}
+
+describe("cache config partagé — les appels du bot ne cassent plus le dashboard", () => {
+    const GUILD = "111111111111111111";
+
+    /** Guilde entièrement configurée : serveur de jeu + RBAC explicite + modules. */
+    function configuredGuild() {
+        return makeGuildConfig({
+            rolesMapping: { "role-membre": [PERMISSIONS.DASHBOARD_LOGIN, PERMISSIONS.MISSIONS_PLAY] },
+        });
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.advanceTimersByTime(120_000); // purge les caches mémoire (TTL 60 s)
+        mockIsGuildAllowed.mockResolvedValue(true);
+        mockIsSuperAdmin.mockResolvedValue(false);
+        mockDb.platformBan.findUnique.mockResolvedValue(null);
+        mockDb.userProfile.findUnique.mockResolvedValue(makeProfile());
+        mockAuth.mockResolvedValue({ user: { id: "user-1", discordId: "discord-user-1", name: "Test" } });
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-membre"] }));
+        mockFetchGuild.mockResolvedValue({ id: GUILD, owner_id: "other-owner", roles: [] });
+        mockFetchRoles.mockResolvedValue([{ id: "role-membre", permissions: "0", name: "Membre" }]);
+        // Prisma « réaliste » : le payload ne contient QUE les champs du select.
+        mockDb.guildConfig.findFirst.mockImplementation(async (args: any) =>
+            args?.select ? applySelect(configuredGuild(), args.select) : configuredGuild()
+        );
+    });
+
+    it("lit la config avec le select COMPLET, y compris depuis le chemin bot", async () => {
+        await internalCheckPermission(GUILD, "discord-user-1", PERMISSIONS.MISSIONS_PLAY);
+
+        const select = mockDb.guildConfig.findFirst.mock.calls[0]?.[0]?.select;
+        expect(select).toBeDefined();
+        // Les 3 champs dont dépend getUserContext ne doivent JAMAIS manquer.
+        expect(select.name).toBe(true);
+        expect(select.dofusServerId).toBe(true);
+        expect(select.modules?.select).toBeDefined();
+        expect(select.rolesMapping).toBe(true);
+    });
+
+    it("une interaction bot (/dj, /songes…) n'affiche plus « Configuration en cours »", async () => {
+        // 1. Le bot lit la config (et la met en cache).
+        await internalCheckPermission(GUILD, "discord-user-1", PERMISSIONS.MISSIONS_PLAY);
+
+        // 2. Un membre charge le dashboard dans la foulée (même process, < 60 s).
+        const ctx = await getUserContext(GUILD);
+
+        expect(ctx.isAuthenticated).toBe(true);
+        expect(ctx.canViewDashboard).toBe(true);
+        expect(ctx.isAdmin).toBe(false); // membre simple : c'est lui qui voyait la page d'erreur
+        expect(ctx.isOnboardingComplete).toBe(true);
+        // « Serveur Inconnu » venait d'un `name` absent de l'entrée de cache.
+        expect(ctx.guildName).toBe("Guilde Test");
+        // Config non tronquée ⇒ le verrou onboarding ne s'applique pas.
+        expect(ctx.canViewMissions).toBe(true);
+    });
+
+    it("jette une entrée de cache de forme incomplète et relit la BDD", async () => {
+        // 1er appel : la BDD renvoie une config tronquée (ancienne entrée de cache
+        // pendant un déploiement progressif) → mise en cache sous `config:{GUILD}`.
+        mockDb.guildConfig.findFirst.mockResolvedValueOnce({
+            id: "guild-uuid-1",
+            discordGuildId: GUILD,
+            rolesMapping: { "role-membre": [PERMISSIONS.DASHBOARD_LOGIN] },
+            usersMapping: {},
+        });
+        await internalCheckPermission(GUILD, "discord-user-1", PERMISSIONS.MISSIONS_PLAY);
+
+        // 2e appel : la forme incomplète doit être rejetée (et non servie).
+        const ctx = await getUserContext(GUILD);
+
+        expect(ctx.guildName).toBe("Guilde Test");
+        expect(ctx.isOnboardingComplete).toBe(true);
     });
 });
 

@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogViewer } from "./log-viewer";
-import { ScrollText, ShieldX, CheckCircle2, Building2, UserX } from "lucide-react";
+import { MarketLogView } from "./market-log-view";
+import { ScrollText, ShieldX, CheckCircle2, Building2, UserX, ShoppingBag } from "lucide-react";
+import type { GodMarketLogRow } from "@/server/actions/god-market-actions";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -21,6 +23,10 @@ interface LogsTabsProps {
     attemptsTotal: number;
     initialLogs: any[];
     initialTotal: number;
+    /** Journal d'audit du **Marché** (onglet dédié — décision user 18/09/2026). */
+    marketLogs: GodMarketLogRow[];
+    /** Guildes **internes** (id + nom) pour le filtre du journal du marché. */
+    marketGuilds: { id: string; name: string }[];
 }
 
 const REASON_LABELS: Record<string, string> = {
@@ -28,7 +34,14 @@ const REASON_LABELS: Record<string, string> = {
     DISCORD_API_ERROR: "API Discord indisponible (pas de profil connu)",
 };
 
-export function LogsTabs({ attempts, attemptsTotal, initialLogs, initialTotal }: LogsTabsProps) {
+export function LogsTabs({
+    attempts,
+    attemptsTotal,
+    initialLogs,
+    initialTotal,
+    marketLogs,
+    marketGuilds,
+}: LogsTabsProps) {
     const [tab, setTab] = useState<string>("audit");
 
     return (
@@ -49,6 +62,16 @@ export function LogsTabs({ attempts, attemptsTotal, initialLogs, initialTotal }:
                     Accès refusés
                     <span className="ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-zinc-800 text-xs font-bold text-zinc-300 tabular-nums">
                         {attemptsTotal}
+                    </span>
+                </TabsTrigger>
+                <TabsTrigger
+                    value="market"
+                    className="rounded-lg px-4 py-2 text-sm font-semibold text-zinc-400 data-[state=active]:bg-zinc-100 data-[state=active]:text-zinc-900 transition-colors"
+                >
+                    <ShoppingBag className="w-4 h-4 mr-2" />
+                    Marché
+                    <span className="ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-zinc-800 text-xs font-bold text-zinc-300 tabular-nums">
+                        {marketLogs.length}
                     </span>
                 </TabsTrigger>
             </TabsList>
@@ -113,6 +136,13 @@ export function LogsTabs({ attempts, attemptsTotal, initialLogs, initialTotal }:
                         </ul>
                     )}
                 </div>
+            </TabsContent>
+
+            {/* 🧭 Journal d'audit du **Marché** — déplacé depuis God → Marché
+                (décision user 18/09/2026) : même journal, même rétention, mais
+                regroupé avec les autres logs de la plateforme. */}
+            <TabsContent value="market" className="animate-in fade-in duration-150 focus-visible:outline-none">
+                <MarketLogView initialLogs={marketLogs} guilds={marketGuilds} />
             </TabsContent>
         </Tabs>
     );

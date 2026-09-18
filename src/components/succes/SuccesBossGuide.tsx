@@ -521,26 +521,12 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                             </div>
                         </div>
 
-                        {/* Liens Guides (DofusDB toujours ; Dofensive / DPLN seulement si liés dans game-data) */}
+                        {/* Liens Guides — DPLN si lié dans game-data (les sources externes du module
+                            ne sont plus exposées en bouton : une seule référence utile par fiche). */}
                         {(() => {
-                            const bossName = activeMonsterName ?? selected.bossName;
-                            const dbLink = statsOf(selected)?.id
-                                ? `https://dofusdb.fr/fr/database/monster/${statsOf(selected)!.id}`
-                                : `https://dofusdb.fr/fr/database/monsters?search=${encodeURIComponent(bossName)}`;
-                            const dofensiveUrl = selected.dofensiveUrl ?? null;
                             const dpnlUrl = selected.dpnlUrl ?? selected.dofuspourlesnoobsUrl ?? null;
                             return (
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <a href={dbLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-surface text-foreground text-xs font-bold hover:bg-elevated hover:border-border-strong transition-colors">
-                                        <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm" loading="lazy" />
-                                        DofusDB
-                                    </a>
-                                    {dofensiveUrl && (
-                                        <a href={dofensiveUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-surface text-foreground text-xs font-bold hover:bg-elevated hover:border-border-strong transition-colors">
-                                            <img src="https://www.google.com/s2/favicons?domain=dofensive.com&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm" loading="lazy" />
-                                            Dofensive
-                                        </a>
-                                    )}
                                     {dpnlUrl && (
                                         <a href={dpnlUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-surface text-foreground text-xs font-bold hover:bg-elevated hover:border-border-strong transition-colors">
                                             <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm" loading="lazy" />
@@ -1215,15 +1201,6 @@ export function SuccesBossGuide({ guildId, anomalyOnly = false }: { guildId: str
                                     >
                                         Fermer
                                     </button>
-                                    <a
-                                        href={`https://dofusdb.fr/fr/database/item/${selectedDrop.objectId}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl border border-border bg-surface text-xs font-bold text-foreground hover:bg-elevated hover:border-border-strong transition-colors"
-                                    >
-                                        <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm" loading="lazy" />
-                                        DofusDB
-                                    </a>
                                 </div>
                             </div>
                         </div>

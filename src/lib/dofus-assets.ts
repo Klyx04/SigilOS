@@ -357,8 +357,10 @@ export const DOFUS_WORLDS = [
     { id: 40, name: "Sanctuaire des Jardins éternels" },
 ] as const;
 
-export function getWorldName(worldMapId?: number | null): string {
-    if (!worldMapId || worldMapId === -1 || worldMapId === 1) return "Monde des Douze";
+export function getWorldName(worldMapId?: number | null, locale: string = "fr"): string {
+    if (!worldMapId || worldMapId === -1 || worldMapId === 1) {
+        return locale === "en" ? "World of Twelve" : "Monde des Douze";
+    }
     const found = DOFUS_WORLDS.find((w) => w.id === worldMapId);
-    return found ? found.name : `Monde ${worldMapId}`;
+    return found ? found.name : (locale === "en" ? `World ${worldMapId}` : `Monde ${worldMapId}`);
 }

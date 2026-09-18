@@ -18,6 +18,7 @@ import { searchZonesDetected } from "@/server/actions/game-data-actions";
 import { searchDungeonsLocal } from "@/server/actions/dofus-search-actions";
 import { toast } from "sonner";
 import { safeImageUrl, isSafeImageUrl } from "@/lib/security";
+import { ACHIEVEMENT_KIND, QUEST_KIND, buildQuestTree, isAchievement, wouldCreateCycle } from "@/lib/dofus-quest-tree";
 import { 
     Gem, Plus, Trash2, Edit2, 
     MapPin, BookOpen, Castle, Trophy, Search,
@@ -182,18 +183,34 @@ export default function DofusQuestGodManager() {
                                                 {chain.entries.length === 0 ? (
                                                     <div className="p-6 border border-dashed border-border rounded-2xl bg-muted/20 text-center"><p className="text-caption font-black uppercase tracking-widest text-muted-foreground italic">Vierge</p></div>
                                                 ) : (
-                                                    chain.entries.map((entry: any) => (
-                                                        <div key={entry.id} className="group p-4 bg-background/50 backdrop-blur-md border border-border rounded-2xl flex items-center justify-between hover:border-border-strong transition-all shadow-md">
+                                                    (() => {
+                                                        // Succès imbriqués : on parcourt l'arbre aplati, la profondeur
+                                                        // d'indentation montrant les objectifs d'un succès conteneur.
+                                                        const tree = buildQuestTree<any>(chain.entries);
+                                                        const rows: { entry: any; depth: number; childrenCount: number; parentName: string | null }[] = [];
+                                                        const pushRow = (e: any, d: number, parentName: string | null = null) => {
+                                                            const children = tree.childrenByParent.get(e.id) ?? [];
+                                                            rows.push({ entry: e, depth: d, childrenCount: children.length, parentName });
+                                                            children.forEach((child: any) => pushRow(child, d + 1, e.name));
+                                                        };
+                                                        tree.roots.forEach((r: any) => pushRow(r, 0));
+                                                        return rows.map(({ entry, depth, childrenCount, parentName }) => (
+                                                        <div key={entry.id} style={depth > 0 ? { marginLeft: `${depth * 20}px` } : undefined} className={`group p-4 bg-background/50 backdrop-blur-md border rounded-2xl flex items-center justify-between hover:border-border-strong transition-all shadow-md ${isAchievement(entry) ? "border-warning/30" : "border-border"}`}>
                                                             <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6 min-w-0">
                                                                 <div className={`w-12 h-12 rounded-xl bg-black/50 border border-border overflow-hidden flex items-center justify-center shrink-0 ${entry.questType === "DUNGEON" ? "text-danger" : "text-sky-400"}`}>
                                                                     {entry.localImageUrl ? (
                                                                         /* eslint-disable-next-line @next/next/no-img-element */
                                                                         <img src={entry.localImageUrl} alt="" className="w-full h-full object-contain p-0.5" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                                                    ) : isAchievement(entry) ? (
+                                                                        /* eslint-disable-next-line @next/next/no-img-element */
+                                                                        <img src="/assets/icons/icone-succes.png" alt="" className="w-7 h-7 object-contain" />
                                                                     ) : entry.questType === "DUNGEON" ? <Castle className="w-5 h-5" /> : <BookOpen className="w-5 h-5" />}
                                                                 </div>
                                                                 <div className="space-y-1.5 min-w-0">
                                                                     <div className="flex flex-wrap items-center gap-2">
                                                                         <h4 className="text-base font-black text-foreground italic tracking-tighter truncate">{entry.name}</h4>
+                                                                        {isAchievement(entry) && <Badge className="bg-warning/15 text-warning border border-warning/30 uppercase font-black text-caption px-1.5 py-0.5 rounded-md flex items-center gap-1"><Trophy className="w-2.5 h-2.5" /> Succès · {childrenCount > 0 ? `${childrenCount} objectif${childrenCount > 1 ? "s" : ""}` : "sans objectif"}</Badge>}
+                                                                        {parentName && <Badge className="bg-info/10 text-info border border-info/20 uppercase font-black text-caption px-1.5 py-0.5 rounded-md">↳ {parentName}</Badge>}
                                                                         {entry.isLast && <Badge className="bg-success/20 text-success border-none uppercase font-black text-caption px-1.5 py-0.5 rounded-md">Final</Badge>}
                                                                         {entry.isOptional && <Badge className="bg-muted/20 text-muted-foreground border-none uppercase font-black text-caption px-1.5 py-0.5 rounded-md">Optionnel</Badge>}
                                                                         {entry.isDungeon && <Badge className="bg-danger/20 text-danger border-none uppercase font-black text-caption px-1.5 py-0.5 rounded-md">Donjon</Badge>}
@@ -213,12 +230,16 @@ export default function DofusQuestGodManager() {
                                                                 </div>
                                                             </div>
                                                             <div className="pl-4 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                                                                {isAchievement(entry) && (
+                                                                    <Button variant="ghost" size="sm" onClick={() => { setEditingEntry({ chainId: entry.chainId, entryKind: "QUEST", parentEntryId: entry.id }); setIsEntryDialogOpen(true); }} className="h-9 px-3 bg-warning/10 hover:bg-warning/20 text-warning hover:text-warning rounded-xl border border-warning/30 text-caption font-black uppercase tracking-wider" title="Ajouter un objectif dans ce succès"><Plus className="w-3 h-3 md:mr-1.5" /> <span className="hidden md:inline">Objectif</span></Button>
+                                                                )}
                                                                 <Button variant="ghost" size="icon" onClick={async () => { const { reorderQuestEntry } = await import("@/server/actions/dofus-quest-admin-actions"); const res = await reorderQuestEntry(entry.id, "up"); if (res.success) { toast.success("Déplacée"); loadData(); } else toast.error(res.error || "Erreur"); }} className="h-9 w-9 bg-surface hover:bg-surface text-muted-foreground hover:text-info rounded-xl border border-border" title="Monter"><ArrowUp className="w-3.5 h-3.5" /></Button>
                                                                 <Button variant="ghost" size="icon" onClick={async () => { const { reorderQuestEntry } = await import("@/server/actions/dofus-quest-admin-actions"); const res = await reorderQuestEntry(entry.id, "down"); if (res.success) { toast.success("Déplacée"); loadData(); } else toast.error(res.error || "Erreur"); }} className="h-9 w-9 bg-surface hover:bg-surface text-muted-foreground hover:text-info rounded-xl border border-border" title="Descendre"><ArrowDown className="w-3.5 h-3.5" /></Button>
                                                                 <Button variant="ghost" size="icon" onClick={() => { setEditingEntry(entry); setIsEntryDialogOpen(true); }} className="h-9 w-9 bg-surface hover:bg-surface text-muted-foreground hover:text-foreground rounded-xl border border-border"><Edit2 className="w-3.5 h-3.5" /></Button>
                                                             </div>
                                                         </div>
-                                                    ))
+                                                    ));
+                                                    })()
                                                 )}
                                             </div>
                                         </div>
@@ -247,7 +268,8 @@ export default function DofusQuestGodManager() {
         </div>
         <DofusEditDialog open={isDofusDialogOpen} onOpenChange={setIsDofusDialogOpen} dofus={editingDofus} onSuccess={loadData} />
         <ChainEditDialog open={isChainDialogOpen} onOpenChange={setIsChainDialogOpen} chain={editingChain} dofusId={selectedDofusId} onSuccess={loadData} />
-        <EntryEditDialog open={isEntryDialogOpen} onOpenChange={setIsEntryDialogOpen} entry={editingEntry} onSuccess={loadData} />
+        <EntryEditDialog open={isEntryDialogOpen} onOpenChange={setIsEntryDialogOpen} entry={editingEntry} onSuccess={loadData}
+            chainEntries={selectedDofus?.questChains.find((c: any) => c.id === editingEntry?.chainId)?.entries ?? []} />
     </TabsContent>
 </Tabs>
 </div>
@@ -423,10 +445,11 @@ function ChainEditDialog({ open, onOpenChange, chain, dofusId, onSuccess }: any)
 }
 
 // ─── Entry Edit Dialog (V2 enrichie) ──────────────────────────────────────
-function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
+function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = [] }: any) {
     const [formData, setFormData] = useState<any>({
         chainId: "", name: "", zone: "", questType: "QUEST", stepOrder: 0,
         isOptional: false, isLast: false, isDungeon: false,
+        entryKind: QUEST_KIND, parentEntryId: "",
         level: "", npcName: "", npcSubArea: "",
         notes: "", externalRef: "",
         positions: [] as { x: number; y: number; label?: string }[],
@@ -487,6 +510,8 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                 isOptional: entry.isOptional || false,
                 isLast: entry.isLast || false,
                 isDungeon: entry.isDungeon || false,
+                entryKind: entry.entryKind || QUEST_KIND,
+                parentEntryId: entry.parentEntryId || "",
                 level: entry.level || "",
                 npcName: entry.npcName || "",
                 npcSubArea: entry.npcSubArea || "",
@@ -508,6 +533,7 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
             setFormData({
                 chainId: "", name: "", zone: "", questType: "QUEST", stepOrder: 0,
                 isOptional: false, isLast: false, isDungeon: false,
+                entryKind: QUEST_KIND, parentEntryId: "",
                 level: "", npcName: "", npcSubArea: "",
                 notes: "", externalRef: "",
                 positions: [], dofusdbUrl: "", dofuspourlesnoobsUrl: "",
@@ -529,6 +555,9 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
             stepOrder: parseInt(formData.stepOrder) || 0,
             isOptional: formData.isOptional,
             isLast: formData.isLast,
+            // Succès imbriqués : nature de l'étape + rattachement à un succès parent.
+            entryKind: formData.entryKind,
+            parentEntryId: formData.parentEntryId || null,
             requirements: { level: formData.level ? parseInt(formData.level) : null, npc: formData.npcName, subarea: formData.npcSubArea },
             notes: formData.notes,
             externalRef: formData.externalRef,
@@ -562,7 +591,8 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
     }
 
     async function handleDelete() {
-        if (!confirm("Purger cette étape ?")) return;
+        // Un succès emporte ses objectifs (cascade côté Server Action).
+        if (!confirm(isAchievement(entry) ? "Purger ce succès et tous ses objectifs ?" : "Purger cette étape ?")) return;
         setLoading(true);
         const res = await deleteQuestEntry(entry.id);
         if (res.success) { toast.success("Étape effacée"); onOpenChange(false); onSuccess(); }
@@ -641,6 +671,48 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                 </div>
                 <div className="max-h-[70vh] overflow-y-auto custom-scrollbar p-6">
                     <div className="space-y-6">
+                        {/* Succès imbriqués — nature de l'étape + rattachement à un succès parent.
+                            Candidats = succès de la section, hors soi-même et hors descendants (anti-cycle). */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-2xl border border-border bg-black/20">
+                            <div className="space-y-2">
+                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Nature</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        { v: QUEST_KIND, label: "Quête", icon: "/assets/icons/icone-quete.png", active: "border-info/60 bg-info/15" },
+                                        { v: ACHIEVEMENT_KIND, label: "Succès", icon: "/assets/icons/icone-succes.png", active: "border-warning/60 bg-warning/15" },
+                                    ].map((opt) => (
+                                        <button key={opt.v} type="button" onClick={() => setFormData({ ...formData, entryKind: opt.v })}
+                                            className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border transition-all ${formData.entryKind === opt.v ? opt.active : "border-border bg-black/40 hover:border-border-strong"}`}>
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src={opt.icon} alt={opt.label} className="w-6 h-6 object-contain" />
+                                            <span className={`text-caption font-black uppercase tracking-wider ${formData.entryKind === opt.v ? "text-foreground" : "text-muted-foreground"}`}>{opt.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="text-caption text-muted-foreground leading-relaxed">
+                                    Un succès contient une série d&apos;objectifs (quêtes ou autres succès) et ne compte pas comme étape.
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Succès parent</label>
+                                <select
+                                    value={formData.parentEntryId || ""}
+                                    onChange={(e) => setFormData({ ...formData, parentEntryId: e.target.value })}
+                                    className="w-full h-11 bg-black/40 border border-border rounded-xl text-xs px-3 text-foreground focus:outline-none focus:border-info/50"
+                                >
+                                    <option value="">— Racine de la section —</option>
+                                    {(chainEntries || [])
+                                        .filter((e: any) => isAchievement(e) && e.id !== entry?.id && !wouldCreateCycle(chainEntries || [], entry?.id, e.id))
+                                        .map((e: any) => (
+                                            <option key={e.id} value={e.id}>{e.name}</option>
+                                        ))}
+                                </select>
+                                <p className="text-caption text-muted-foreground leading-relaxed">
+                                    Rattache cette étape aux objectifs d&apos;un succès (« Le pays des Vermeils » → « Même pas malle »).
+                                </p>
+                            </div>
+                        </div>
+
                         {/* Core info row */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-1 md:col-span-2">

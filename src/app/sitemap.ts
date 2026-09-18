@@ -12,6 +12,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // 1. Static public routes (indexable, 200, pas de zone privée ni 404)
     const staticRoutes: MetadataRoute.Sitemap = [
         { url: `${baseUrl}/`, lastModified: now, changeFrequency: "weekly", priority: 1 },
+        { url: `${baseUrl}/modules`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
         { url: `${baseUrl}/carte-du-monde`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
         { url: `${baseUrl}/guides/rush-sylvestre`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
         { url: `${baseUrl}/boss`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },

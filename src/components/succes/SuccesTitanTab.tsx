@@ -280,9 +280,6 @@ export function SuccesTitanTab({ guildId, canEdit }: { guildId: string; canEdit:
                                         {completedIds.has(selected.id) ? <><CheckCircle2 className="w-4 h-4" /> Je l'ai vaincu</> : <><Circle className="w-4 h-4" /> Marquer je l'ai vaincu</>}
                                     </button>
                                 )}
-                                {selected.dofensiveUrl && (
-                                    <a href={selected.dofensiveUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border bg-surface text-foreground text-xs font-bold hover:bg-elevated transition-colors"><ExternalLink className="w-3.5 h-3.5" /> Dofensive</a>
-                                )}
                                 {selected.dofuspourlesnoobsUrl && (
                                     <a href={selected.dofuspourlesnoobsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border bg-surface text-foreground text-xs font-bold hover:bg-elevated transition-colors"><ExternalLink className="w-3.5 h-3.5" /> DofusPourLesNoobs</a>
                                 )}

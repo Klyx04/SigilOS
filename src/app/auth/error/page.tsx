@@ -35,35 +35,36 @@ import { DiscordIcon } from "@/components/shared/icons";
  * l'action secondaire en lien souligné (`.reg-link`) — jamais deux boutons
  * concurrents.
  */
+import { useI18n } from "@/lib/i18n/client";
+
 function ErrorContent() {
+    const { t } = useI18n();
     const searchParams = useSearchParams();
     const error = searchParams.get("error");
 
-    let title = "Oups, petit accroc !";
-    let message = "Une erreur d'authentification est survenue. Réessayez, ça devrait passer.";
+    let title = t.auth.errorTitleDefault;
+    let message = t.auth.errorMessageDefault;
 
     if (error === "OAuthCallbackError") {
-        title = "Connexion interrompue";
-        message = "L'échange avec Discord a été coupé. Vous avez peut-être annulé la connexion ou le service a eu un hoquet.";
-        // Vérifier si le message contient "verify" — Discord renvoie cette erreur
-        // quand l'email du compte Discord n'est pas vérifié.
+        title = t.auth.errorOAuthTitle;
+        message = t.auth.errorOAuthDesc;
         const msg = searchParams.get("message") || "";
         if (msg.toLowerCase().includes("verify") || msg.toLowerCase().includes("vérifi")) {
-            title = "Email Discord non vérifié";
-            message = "Discord exige que votre adresse email soit vérifiée pour utiliser l'authentification. Ouvrez Discord → Paramètres → Mon Compte → Vérifier votre email, puis réessayez.";
+            title = t.auth.errorUnverifiedTitle;
+            message = t.auth.errorUnverifiedDesc;
         }
     } else if (error === "AccessDenied") {
-        title = "Accès Refusé";
-        message = "Désolé, mais vous n'avez pas les accréditations pour entrer ici. Il faut montrer patte blanche !";
+        title = t.auth.errorAccessDeniedTitle;
+        message = t.auth.errorAccessDeniedDesc;
     } else if (error === "Banned") {
-        title = "Accès Révoqué";
-        message = "Ce compte ou ce serveur a été suspendu de la plateforme SigilOS pour non-respect des règles d'utilisation ou de sécurité.";
+        title = t.auth.errorBannedTitle;
+        message = t.auth.errorBannedDesc;
     } else if (error === "NoManagedGuild") {
-        title = "Accès Restreint";
-        message = "Votre compte Discord n'est associé à aucune guilde utilisant SigilOS et vous n'êtes administrateur d'aucun serveur éligible. Pour installer SigilOS en autonomie, connectez-vous avec le compte disposant des droits Administrateur sur votre serveur Discord.";
+        title = t.auth.errorNoManagedGuildTitle;
+        message = t.auth.errorNoManagedGuildDesc;
     } else if (error === "Verification") {
-        title = "Lien expiré";
-        message = "Ce lien de vérification a déjà été utilisé ou est trop vieux.";
+        title = t.auth.errorVerificationTitle;
+        message = t.auth.errorVerificationDesc;
     }
 
     return (
@@ -77,7 +78,7 @@ function ErrorContent() {
 
             {error && (
                 <p className="reg-mono mt-4 text-xs text-muted-foreground">
-                    Diagnostics: <span className="text-danger">{error}</span>
+                    {t.auth.diagnostics} <span className="text-danger">{error}</span>
                 </p>
             )}
 
@@ -90,7 +91,7 @@ function ErrorContent() {
                         className="reg-btn reg-btn-primary"
                     >
                         <DiscordIcon className="h-4 w-4" />
-                        Demande d'accès (Discord)
+                        {t.auth.requestAccessDiscord}
                     </a>
                 )}
                 <Link
@@ -102,7 +103,7 @@ function ErrorContent() {
                     }
                 >
                     <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    Retour à l'accueil
+                    {t.auth.returnHome}
                 </Link>
             </div>
         </div>
@@ -110,16 +111,18 @@ function ErrorContent() {
 }
 
 export default function AuthErrorPage() {
+    const { t } = useI18n();
+
     return (
         <div className="registre landing-theme min-h-screen flex flex-col bg-background text-foreground selection:bg-danger/30">
-            <PublicHeader variant="standard" backHref="/" backLabel="Accueil" />
+            <PublicHeader variant="standard" backHref="/" backLabel={t.nav.backToHome} />
 
             <main className="flex-1">
                 <div className="reg-shell py-10 lg:py-16">
                     <Suspense fallback={
                         <div className="flex items-center gap-2 text-muted-foreground">
                             <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
-                            <p className="text-xs">Initialisation des diagnostics...</p>
+                            <p className="text-xs">...</p>
                         </div>
                     }>
                         <ErrorContent />

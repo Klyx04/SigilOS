@@ -34,6 +34,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "./ThemeToggle";
 import { DashboardDrawer } from "./dashboard-drawer";
+import { LanguageToggle } from "./LanguageToggle";
+import { useI18n } from "@/lib/i18n/client";
 
 /** Serveur Discord d'entraide — seule invitation publique connue. */
 const DISCORD_INVITE = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || "https://discord.gg/uX7G6SUDgN";
@@ -80,6 +82,7 @@ const TOOLS = [
 
 const NAV_ITEMS = [
     { id: "dashboard", label: "Tableau de bord", href: "/dashboard" },
+    { id: "modules", label: "Modules", href: "/modules" },
     { id: "guides", label: "Guides", href: "/guides" },
     { id: "guildes", label: "Guildes", href: "/guilds" },
     { id: "changelog", label: "Journal", href: "/changelog" },
@@ -118,10 +121,50 @@ export function PublicHeader({
     isFixed = true,
     clientId: _clientId,
 }: PublicHeaderProps) {
+    const { t } = useI18n();
     const active = resolveActive(activePage);
     const [toolsOpen, setToolsOpen] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
     const toolsRef = useRef<HTMLDetailsElement>(null);
+
+    const localizedTools = [
+        {
+            id: "rush",
+            label: t.tools.rushTitle,
+            hint: t.tools.rushHint,
+            href: "/guides/rush-sylvestre",
+            icon: "/module-dofus/Dofus_Sylvestre.png",
+        },
+        {
+            id: "boss",
+            label: t.tools.bossTitle,
+            hint: t.tools.bossHint,
+            href: "/boss",
+            icon: "/assets/worldmap/dungeon-boss.png",
+        },
+        {
+            id: "almanax",
+            label: t.tools.almanaxTitle,
+            hint: t.tools.almanaxHint,
+            href: "/almanax",
+            icon: "/module-dofus/Dofus_Dolmanax.png",
+        },
+        {
+            id: "carte-du-monde",
+            label: t.tools.worldmapTitle,
+            hint: t.tools.worldmapHint,
+            href: "/carte-du-monde",
+            icon: "/assets/nav/map.png",
+        },
+    ];
+
+    const localizedNav = [
+        { id: "dashboard", label: t.nav.dashboard, href: "/dashboard" },
+        { id: "modules", label: t.nav.modules, href: "/modules" },
+        { id: "guides", label: t.nav.guides, href: "/guides" },
+        { id: "guildes", label: t.nav.guilds, href: "/guilds" },
+        { id: "changelog", label: t.nav.changelog, href: "/changelog" },
+    ];
 
     // Échap ferme le menu Outils et repose le focus sur son déclencheur ;
     // un clic hors du menu le referme (comportement attendu d'un menu).
@@ -189,12 +232,12 @@ export function PublicHeader({
                                 aria-current={active === "dashboard" ? "page" : undefined}
                                 className={linkClass(active === "dashboard")}
                             >
-                                Tableau de bord
+                                {t.nav.dashboard}
                             </Link>
                         ) : (
                             <form action={loginWithDiscord}>
                                 <button type="submit" className={linkClass(false)}>
-                                    Tableau de bord
+                                    {t.nav.dashboard}
                                 </button>
                             </form>
                         )}
@@ -211,14 +254,14 @@ export function PublicHeader({
                                     "cursor-pointer list-none [&::-webkit-details-marker]:hidden",
                                 )}
                             >
-                                Outils
+                                {t.nav.tools}
                                 <span className="ml-1.5 text-[0.7em] text-muted-foreground" aria-hidden="true">
                                     ▾
                                 </span>
                             </summary>
                             <div className="absolute left-0 top-[calc(100%+0.5rem)] w-[19rem] reg-panel p-1.5 z-50">
-                                <p className="reg-eyebrow px-2.5 pt-1.5 pb-2">Accès sans compte</p>
-                                {TOOLS.map((tool) => (
+                                <p className="reg-eyebrow px-2.5 pt-1.5 pb-2">{t.nav.toolsHint}</p>
+                                {localizedTools.map((tool) => (
                                     <Link
                                         key={tool.id}
                                         href={tool.href}
@@ -244,7 +287,7 @@ export function PublicHeader({
                             </div>
                         </details>
 
-                        {NAV_ITEMS.slice(1).map((item) => (
+                        {localizedNav.slice(1).map((item) => (
                             <Link
                                 key={item.id}
                                 href={item.href}
@@ -265,8 +308,9 @@ export function PublicHeader({
                         </a>
                     </nav>
 
-                    {/* Actions : thème, connexion / compte */}
-                    <div className="flex items-center gap-2 shrink-0">
+                    {/* Actions : langue, thème, connexion / compte */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        <LanguageToggle />
                         <ThemeToggle />
 
                         {user ? (
@@ -296,14 +340,14 @@ export function PublicHeader({
                                                 className="cursor-pointer"
                                             >
                                                 <LayoutDashboard className="w-4 h-4 mr-2" aria-hidden="true" />
-                                                Mes guildes
+                                                {t.nav.myGuilds}
                                             </DropdownMenuItem>
                                         </DashboardDrawer>
                                     )}
                                     <DropdownMenuItem asChild className="cursor-pointer">
                                         <Link href={dashboardHref}>
                                             <LayoutDashboard className="w-4 h-4 mr-2" aria-hidden="true" />
-                                            Tableau de bord
+                                            {t.nav.dashboard}
                                         </Link>
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
@@ -312,7 +356,7 @@ export function PublicHeader({
                                         className="cursor-pointer text-danger focus:text-danger"
                                     >
                                         <LogOut className="w-4 h-4 mr-2" aria-hidden="true" />
-                                        Déconnexion
+                                        {t.nav.logout}
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -320,7 +364,7 @@ export function PublicHeader({
                             <form action={loginWithDiscord} className="hidden sm:block">
                                 <button type="submit" className="reg-btn reg-btn-primary min-h-9 px-3.5 py-1.5 text-sm">
                                     <DiscordIcon className="w-4 h-4" aria-hidden="true" />
-                                    Connexion
+                                    {t.nav.connectDiscord}
                                 </button>
                             </form>
                         )}
@@ -351,7 +395,7 @@ export function PublicHeader({
                                         </div>
 
                                         <div className="space-y-0.5">
-                                            {NAV_ITEMS.map((item) =>
+                                            {localizedNav.map((item) =>
                                                 item.id === "dashboard" && !user ? (
                                                     <form key={item.id} action={loginWithDiscord}>
                                                         <button
@@ -386,8 +430,8 @@ export function PublicHeader({
                                         </div>
 
                                         <div className="pt-4 border-t border-border space-y-1">
-                                            <p className="reg-eyebrow pb-1">Accès sans compte</p>
-                                            {TOOLS.map((tool) => (
+                                            <p className="reg-eyebrow pb-1">{t.nav.toolsHint}</p>
+                                            {localizedTools.map((tool) => (
                                                 <Link
                                                     key={tool.id}
                                                     href={tool.href}
@@ -418,7 +462,7 @@ export function PublicHeader({
                                             <form action={loginWithDiscord} className="pt-4 border-t border-border">
                                                 <button type="submit" className="reg-btn reg-btn-primary w-full">
                                                     <DiscordIcon className="w-4 h-4" aria-hidden="true" />
-                                                    Se connecter avec Discord
+                                                    {t.nav.connectDiscord}
                                                 </button>
                                             </form>
                                         )}

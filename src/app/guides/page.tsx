@@ -7,17 +7,10 @@ import { getAppBaseUrl } from "@/lib/utils";
 import { publishedGuides } from "@/content/guides";
 import { headers } from "next/headers";
 import { JsonLd } from "@/components/shared/json-ld";
+import { getServerI18n } from "@/lib/i18n/server";
 
 /**
  * Index des guides — registre.
- *
- * Ce qui a été retiré volontairement : la carte d'introduction
- * (`rounded-3xl bg-[#101313] shadow-2xl` + orbe `blur-3xl` décoratif), le badge
- * d'encyclopédie en capitales, les vignettes de catégorie à six palettes
- * codées en dur (`bg-cyan-500/10`, `bg-rose-500/10`…), les cartes de guide
- * `rounded-2xl backdrop-blur-md shadow-lg hover:shadow-2xl` avec dégradé au
- * survol. À la place : un en-tête gauche-aligné et une liste de lignes
- * séparées par des filets — le contenu décide du contenant.
  */
 
 export const metadata = {
@@ -38,6 +31,7 @@ export default async function GuidesPage() {
     const session = await auth();
     const { getUserContext } = await import("@/server/actions/user-actions");
     const userContext = await getUserContext();
+    const { t, locale } = await getServerI18n();
 
     // [AUDIT 2026] Retrieve nonce for inline scripts
     const headersList = await headers();
@@ -56,27 +50,26 @@ export default async function GuidesPage() {
                             "@context": "https://schema.org",
                             "@type": "BreadcrumbList",
                             "itemListElement": [
-                                { "@type": "ListItem", "position": 1, "name": "Accueil", "item": getAppBaseUrl() },
-                                { "@type": "ListItem", "position": 2, "name": "Guides", "item": `${getAppBaseUrl()}/guides` },
+                                { "@type": "ListItem", "position": 1, "name": t.guidesPage.breadcrumbHome, "item": getAppBaseUrl() },
+                                { "@type": "ListItem", "position": 2, "name": t.guidesPage.breadcrumbGuides, "item": `${getAppBaseUrl()}/guides` },
                             ],
                         }}
                     />
 
                     <header>
-                        <p className="reg-eyebrow">Guides &amp; tutoriels</p>
+                        <p className="reg-eyebrow">{t.guidesPage.eyebrow}</p>
                         <h1 className="mt-3 text-[clamp(1.6rem,2.8vw,2rem)] font-bold tracking-tight text-foreground">
-                            Guides Dofus
+                            {t.guidesPage.title}
                         </h1>
                         <p className="mt-3 max-w-[62ch] text-sm text-muted-foreground leading-relaxed">
-                            Dossiers complets : mécaniques de raids de guilde, optimisation de la forgemagie,
-                            brisage rentable, élevage d&apos;enclos et administration de guilde.
+                            {t.guidesPage.subtitle}
                         </p>
                     </header>
 
                     <div className="mt-8 border-t border-border">
 
                         {publishedGuides.length === 0 ? (
-                            <p className="py-14 text-sm text-muted-foreground">Aucun guide publié pour le moment.</p>
+                            <p className="py-14 text-sm text-muted-foreground">{t.guidesPage.empty}</p>
                         ) : (
                             <ul>
                                 {publishedGuides.map((guide) => {
@@ -117,7 +110,7 @@ export default async function GuidesPage() {
                                                             dateTime={updated.toISOString()}
                                                             className="reg-mono text-xs text-muted-foreground"
                                                         >
-                                                            {updated.toLocaleDateString("fr-FR", {
+                                                            {updated.toLocaleDateString(locale === "en" ? "en-US" : "fr-FR", {
                                                                 year: "numeric",
                                                                 month: "long",
                                                                 day: "numeric",

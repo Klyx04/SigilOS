@@ -62,6 +62,7 @@ import {
 } from "@/lib/market/bundle";
 import { KamasAmount } from "@/components/market/kamas-amount";
 import { MarketPublishStep, type MarketPublishContext } from "./market-publish-step";
+import { MarketNotifyStep } from "./market-notify-step";
 import { toast } from "sonner";
 import { Boxes, ChevronLeft, ChevronRight, Check, Hammer, Loader2, Package, Plus, Save, Search, Sparkles, Store, X } from "lucide-react";
 
@@ -183,7 +184,10 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
     const isEdit = initial !== null;
 
     // Édition : on démarre directement sur « Objet / Jet », pré-rempli.
-    const [step, setStep] = useState<1 | 2 | 3 | 4>(initial ? 2 : 1);
+    // Création : 5 étapes — 4 « Publication » (aperçu Discord) et **5
+    // « Notification »** (rôles à mentionner + audience), cette dernière étant
+    // dédiée depuis le 18/09/2026 (décision user : elle était noyée dans l'étape 4).
+    const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(initial ? 2 : 1);
     const [kind, setKind] = useState<ListingKind>(initial?.type ?? "EQUIPMENT");
 
     // Équipement
@@ -537,12 +541,17 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
                     : components.length > 0
             : step === 3
                 ? title.trim().length >= 3 && (kind === "BUNDLE" ? bundleItemsValid : !priceInvalid)
-                : true; // étape 4 — publication Discord
+                : true; // étapes 4 (publication Discord) et 5 (notification)
 
     function togglePing(roleId: string) {
         setPingRoleIds((prev) =>
             prev.includes(roleId) ? prev.filter((id) => id !== roleId) : [...prev, roleId].slice(0, 3)
         );
+    }
+
+    /** « Ne mentionner personne » (étape 5) : un seul geste pour tout décocher. */
+    function clearPing() {
+        setPingRoleIds([]);
     }
 
     /**
@@ -702,7 +711,7 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
 
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
-            <StepIndicator step={step} stepCount={isEdit ? 3 : 4} />
+            <StepIndicator step={step} stepCount={isEdit ? 3 : 5} />
 
             {step === 1 && (
                 <StepNature
@@ -994,13 +1003,26 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
                     }
                         components={components.map((component) => ({ name: component.name, quantity: component.quantity }))}
                         context={publishContext}
-                        roles={roles}
+                        // La mention n'apparaît dans l'aperçu que si des rôles ont déjà
+                        // été cochés à l'étape suivante (retour en arrière).
                         selectedPingIds={pingRoleIds}
-                        onTogglePing={togglePing}
-                        // §A2 — estimation de l'audience notifiée (lecture seule).
-                        guildId={guildId}
                     />
                 </>
+            )}
+
+            {!isEdit && step === 5 && (
+                <MarketNotifyStep
+                    guildId={guildId}
+                    context={publishContext}
+                    roles={roles}
+                    selectedPingIds={pingRoleIds}
+                    onTogglePing={togglePing}
+                    onClearPing={clearPing}
+                    listingLabel={title || item?.name || "Annonce"}
+                    bundleMessageCount={kind === "BUNDLE" ? bundleItems.length : 0}
+                    forumMode={publishContext?.channelKind === "FORUM"}
+                    channelName=""
+                />
             )}
 
             {/* Navigation */}
@@ -1010,7 +1032,7 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
                     variant="ghost"
                     className="gap-2"
                     disabled={step === 1 || isPending}
-                    onClick={() => setStep((prev) => (prev > 1 ? ((prev - 1) as 1 | 2 | 3 | 4) : prev))}
+                    onClick={() => setStep((prev) => (prev > 1 ? ((prev - 1) as 1 | 2 | 3 | 4 | 5) : prev))}
                 >
                     <ChevronLeft className="w-4 h-4" />
                     Retour
@@ -1027,7 +1049,10 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
                         {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                         Enregistrer les modifications
                     </Button>
-                ) : !isEdit && step === 4 ? (
+                ) : !isEdit && step === 5 ? (
+                    /* Dernière étape (Notification) : c'est ICI qu'on publie — la
+                       notification est choisie juste avant, donc plus de doute sur ce
+                       qui partira dans le salon. */
                     <div className="flex items-center gap-2">
                         <Button type="button" variant="outline" disabled={isPending || !canGoNext} onClick={() => handleSubmit(false)}>
                             Enregistrer en brouillon
@@ -1042,7 +1067,7 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
                         type="button"
                         className="gap-2"
                         disabled={!canGoNext}
-                        onClick={() => setStep((prev) => ((prev + 1) as 2 | 3 | 4))}
+                        onClick={() => setStep((prev) => ((prev + 1) as 2 | 3 | 4 | 5))}
                     >
                         Continuer
                         <ChevronRight className="w-4 h-4" />
@@ -1054,16 +1079,16 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
 }
 
 
-/** Fil des étapes (1 Nature → 2 Objet/Lot + jet → 3 Prix → 4 Publication). */
 /**
- * Fil des étapes — **4** en création (jusqu'à la publication Discord), **3** en
- * édition (S7.12 : l'annonce existe déjà, on ne rejoue pas l'étape Discord).
+ * Fil des étapes — **5** en création (… → 4 Publication → 5 Notification),
+ * **3** en édition (S7.12 : l'annonce existe déjà, on ne rejoue pas les étapes
+ * Discord). La notification a sa **propre** étape depuis le 18/09/2026.
  */
-function StepIndicator({ step, stepCount = 4 }: { step: 1 | 2 | 3 | 4; stepCount?: 3 | 4 }) {
+function StepIndicator({ step, stepCount = 5 }: { step: 1 | 2 | 3 | 4 | 5; stepCount?: 3 | 5 }) {
     const labels =
         stepCount === 3
             ? ["Nature", "Objet / Jet", "Prix"]
-            : ["Nature", "Objet / Jet", "Prix", "Publication"];
+            : ["Nature", "Objet / Jet", "Prix", "Publication", "Notification"];
     return (
         <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider font-black">
             {labels.map((label, index) => {

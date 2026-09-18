@@ -33,6 +33,7 @@ import {
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { getBountyFiche } from "@/server/actions/bounty-actions";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/client";
 import { SpellData, SpellRangeGrid } from "@/components/succes/SpellRangeGrid";
 import { OverlayPinNotice } from "@/components/overlay-pin-notice";
 
@@ -188,11 +189,14 @@ function SpellCard({
   spell,
   isOpen,
   onToggle,
+  locale = "fr",
 }: {
   spell: SpellData;
   isOpen: boolean;
   onToggle: () => void;
+  locale?: "fr" | "en";
 }) {
+  const isEn = locale === "en";
   return (
     <div
       className={cn(
@@ -241,9 +245,9 @@ function SpellCard({
             )}
           </div>
           <div className="flex items-center gap-2 text-[10px] text-white/40 mt-0.5">
-            {spell.castInLine && <span>Ligne</span>}
-            {spell.castInDiagonal && <span>Diagonale</span>}
-            {spell.castTestLos === false && <span className="text-emerald-400/80">Sans LdV</span>}
+            {spell.castInLine && <span>{isEn ? "Line" : "Ligne"}</span>}
+            {spell.castInDiagonal && <span>{isEn ? "Diagonal" : "Diagonale"}</span>}
+            {spell.castTestLos === false && <span className="text-emerald-400/80">{isEn ? "No LoS" : "Sans LdV"}</span>}
             {spell.criticalChance !== undefined && spell.criticalChance > 0 && (
               <span>{spell.criticalChance}% CC</span>
             )}
@@ -262,33 +266,39 @@ function SpellCard({
         <div className="px-3 pb-3 pt-1 space-y-2.5 border-t border-white/[0.08] text-[11px]">
           <div className="grid grid-cols-2 gap-1.5 p-2 rounded-lg bg-black/40 border border-white/[0.06] text-[10px]">
             <div>
-              <span className="text-white/40">Portée : </span>
+              <span className="text-white/40">{isEn ? "Range: " : "Portée : "}</span>
               <strong className="text-white font-semibold">
-                {spell.minRange && spell.minRange !== spell.range ? `${spell.minRange} à ${spell.range} PO` : `${spell.range ?? 0} PO`}
+                {spell.minRange && spell.minRange !== spell.range
+                  ? (isEn ? `${spell.minRange} to ${spell.range} Range` : `${spell.minRange} à ${spell.range} PO`)
+                  : `${spell.range ?? 0} ${isEn ? "Range" : "PO"}`}
               </strong>
             </div>
             <div>
-              <span className="text-white/40">Ligne de vue : </span>
+              <span className="text-white/40">{isEn ? "Line of Sight: " : "Ligne de vue : "}</span>
               <strong className={spell.castTestLos ? "text-white" : "text-emerald-400"}>
-                {spell.castTestLos ? "Oui" : "Non"}
+                {spell.castTestLos ? (isEn ? "Yes" : "Oui") : (isEn ? "No" : "Non")}
               </strong>
             </div>
             {spell.maxCastPerTurn !== undefined && (
               <div>
-                <span className="text-white/40">Lancers/tour : </span>
+                <span className="text-white/40">{isEn ? "Casts/turn: " : "Lancers/tour : "}</span>
                 <strong className="text-white font-semibold">{spell.maxCastPerTurn}</strong>
               </div>
             )}
             {spell.minCastInterval !== undefined && spell.minCastInterval > 0 && (
               <div>
-                <span className="text-white/40">Relance : </span>
-                <strong className="text-white/90 font-medium">{spell.minCastInterval} tour{spell.minCastInterval > 1 ? "s" : ""}</strong>
+                <span className="text-white/40">{isEn ? "Cooldown: " : "Relance : "}</span>
+                <strong className="text-white/90 font-medium">
+                  {spell.minCastInterval} {isEn ? `turn${spell.minCastInterval > 1 ? "s" : ""}` : `tour${spell.minCastInterval > 1 ? "s" : ""}`}
+                </strong>
               </div>
             )}
             {spell.zone && spell.zone.shape !== "Inconnue" && (
               <div className="col-span-2">
-                <span className="text-white/40">Zone : </span>
-                <strong className="text-white/90 font-medium">{spell.zone.shape} ({spell.zone.size} case{spell.zone.size > 1 ? "s" : ""})</strong>
+                <span className="text-white/40">{isEn ? "Area: " : "Zone : "}</span>
+                <strong className="text-white/90 font-medium">
+                  {spell.zone.shape} ({spell.zone.size} {isEn ? `cell${spell.zone.size > 1 ? "s" : ""}` : `case${spell.zone.size > 1 ? "s" : ""}`})
+                </strong>
               </div>
             )}
           </div>
@@ -301,7 +311,9 @@ function SpellCard({
 
           {spell.effects && spell.effects.length > 0 ? (
             <div className="space-y-1">
-              <span className="text-[10px] font-semibold text-white/40 uppercase tracking-wide block">Effets</span>
+              <span className="text-[10px] font-semibold text-white/40 uppercase tracking-wide block">
+                {isEn ? "Effects" : "Effets"}
+              </span>
               <div className="max-h-48 overflow-y-auto space-y-1.5 p-2.5 rounded-lg bg-black/40 border border-white/[0.07] overlay-scroll">
                 {spell.effects.map((eff, i) => (
                   <div key={i} className="flex items-start gap-1.5 text-[11px] leading-relaxed text-zinc-200">
@@ -312,13 +324,15 @@ function SpellCard({
               </div>
             </div>
           ) : (
-            <p className="text-[10px] text-white/30 italic">Aucun effet descriptif renseigné</p>
+            <p className="text-[10px] text-white/30 italic">
+              {isEn ? "No descriptive effect provided" : "Aucun effet descriptif renseigné"}
+            </p>
           )}
 
           {spell.criticalEffects && spell.criticalEffects.length > 0 && (
             <div className="space-y-1">
               <span className="text-[10px] font-semibold text-white/40 uppercase tracking-wide block">
-                Effets critiques
+                {isEn ? "Critical effects" : "Effets critiques"}
               </span>
               <div className="max-h-36 overflow-y-auto space-y-1.5 p-2 rounded-lg bg-black/40 border border-white/[0.07] overlay-scroll">
                 {spell.criticalEffects.map((eff, i) => (
@@ -357,6 +371,8 @@ export function BossOverlayClient({
   onClose,
   pinned = true,
 }: BossOverlayClientProps) {
+  const { t, locale } = useI18n();
+  const isEn = locale === "en";
   const [catalog, setCatalog] = useState<BestiaireEntry[]>([]);
   const [catalogFilter, setCatalogFilter] = useState<CatalogFilter>("boss");
   const [loadingList, setLoadingList] = useState(true);
@@ -523,9 +539,9 @@ export function BossOverlayClient({
   }, []);
 
   const tabs = [
-    { id: "info" as OverlayTab, label: "Stats", Icon: Shield },
-    { id: "sorts" as OverlayTab, label: "Sorts", Icon: Zap },
-    { id: "sim" as OverlayTab, label: "Simulation", Icon: Brain },
+    { id: "info" as OverlayTab, label: isEn ? "Stats" : "Stats", Icon: Shield },
+    { id: "sorts" as OverlayTab, label: isEn ? "Spells" : "Sorts", Icon: Zap },
+    { id: "sim" as OverlayTab, label: isEn ? "Simulation" : "Simulation", Icon: Brain },
   ];
 
   return (
@@ -542,7 +558,7 @@ export function BossOverlayClient({
           <button
             onClick={handleBack}
             className="w-7 h-7 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/[0.08] transition-colors shrink-0"
-            aria-label="Retour"
+            aria-label={isEn ? "Back" : "Retour"}
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -550,19 +566,21 @@ export function BossOverlayClient({
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           <Swords className="w-4 h-4 text-white/35 shrink-0" />
           <span className="text-[13px] font-semibold text-white/90 truncate">
-            {selected ? (activeMonsterName ?? selected.bossName) : "Bestiaire"}
+            {selected ? (activeMonsterName ?? selected.bossName) : (isEn ? "Bestiary" : "Bestiaire")}
           </span>
           {/* Niveau : donnée, pas décoration — mono discret, aucun badge coloré. */}
           {selected && (
-            <span className="ml-1 font-mono text-[10px] text-white/40 shrink-0">niv. {selected.level}</span>
+            <span className="ml-1 font-mono text-[10px] text-white/40 shrink-0">
+              {t.bossPage.levelShort} {selected.level}
+            </span>
           )}
           {/* Seul or conservé : la Quête Ocre (or = sémantique Dofus, pas accent d'UI). */}
           {selected?.isOcreQuest && (
             <span
               className="inline-flex items-center gap-1 text-[10px] text-amber-300/80 shrink-0"
-              title="Boss de la Quête de l'Éternelle Moisson (Ocre)"
+              title={isEn ? "Eternal Harvest (Ochre) Quest Boss" : "Boss de la Quête de l'Éternelle Moisson (Ocre)"}
             >
-              <Sparkles className="w-2.5 h-2.5" /> Ocre
+              <Sparkles className="w-2.5 h-2.5" /> {isEn ? "Ochre" : "Ocre"}
             </span>
           )}
         </div>
@@ -582,7 +600,7 @@ export function BossOverlayClient({
               ref={searchInputRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher boss, donjon, monstre…"
+              placeholder={t.bossPage.overlaySearchPlaceholder}
               autoFocus
               className="w-full h-8 pl-8 pr-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-[12px] text-white placeholder:text-white/25 focus:outline-none focus:border-white/25 focus:bg-white/[0.08] transition-colors"
             />
@@ -599,11 +617,11 @@ export function BossOverlayClient({
           {/* Filtres du catalogue : contrôle segmenté unique, état actif neutre */}
           <div className="grid grid-cols-5 gap-0.5 rounded-lg bg-white/[0.05] p-0.5">
             {([
-              { id: "boss" as CatalogFilter, label: "Boss" },
-              { id: "anomalie" as CatalogFilter, label: "Anomalies" },
-              { id: "bounty" as CatalogFilter, label: "Avis" },
-              { id: "monstre" as CatalogFilter, label: "Monstres" },
-              { id: "titan" as CatalogFilter, label: "Titans" },
+              { id: "boss" as CatalogFilter, label: isEn ? "Bosses" : "Boss" },
+              { id: "anomalie" as CatalogFilter, label: isEn ? "Anomalies" : "Anomalies" },
+              { id: "bounty" as CatalogFilter, label: isEn ? "Bounties" : "Avis" },
+              { id: "monstre" as CatalogFilter, label: isEn ? "Monsters" : "Monstres" },
+              { id: "titan" as CatalogFilter, label: isEn ? "Titans" : "Titans" },
             ]).map(({ id, label }) => (
               <button
                 key={id}
@@ -649,7 +667,7 @@ export function BossOverlayClient({
                 {stats?.grades && stats.grades.length > 1 && (
                   <div className="inline-flex rounded-md bg-white/[0.05] p-0.5 mt-1.5">
                     {stats.grades.map((g, idx) => {
-                      const label = stats.grades!.length === 5 ? `B${4 + idx}` : `G${1 + idx}`;
+                      const label = stats.grades!.length === 5 ? (isEn ? `L${4 + idx}` : `B${4 + idx}`) : `G${1 + idx}`;
                       return (
                         <button
                           key={idx}
@@ -660,7 +678,7 @@ export function BossOverlayClient({
                               ? "bg-white/[0.12] text-white"
                               : "text-white/45 hover:text-white/75"
                           )}
-                          title={`Butin ${idx + 4} · Niveau ${g.level}`}
+                          title={`${isEn ? "Loot" : "Butin"} ${idx + 4} · ${t.bossPage.levelShort} ${g.level}`}
                         >
                           {label}
                         </button>
@@ -676,10 +694,10 @@ export function BossOverlayClient({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-white/45 hover:text-white/85 transition-colors"
-                    title="Ouvrir la fiche complète sur SigilOS"
+                    title={isEn ? "Open full guide on SigilOS" : "Ouvrir la fiche complète sur SigilOS"}
                   >
                     <img src="/assets/ui/logo-v2.png" alt="" className="w-3 h-3 object-contain opacity-80" />
-                    <span>Fiche SigilOS</span>
+                    <span>{isEn ? "SigilOS Sheet" : "Fiche SigilOS"}</span>
                     <ExternalLink className="w-2.5 h-2.5 opacity-60" />
                   </a>
                 </div>
@@ -690,7 +708,7 @@ export function BossOverlayClient({
                 type="button"
                 onClick={() => setIsHeroCollapsed(true)}
                 className="absolute top-2 right-2 p-1 text-white/30 hover:text-white/80 hover:bg-white/[0.06] rounded-md transition-colors"
-                title="Réduire l'en-tête pour agrandir l'espace"
+                title={isEn ? "Collapse header to expand space" : "Réduire l'en-tête pour agrandir l'espace"}
               >
                 <ChevronUp className="w-3.5 h-3.5" />
               </button>
@@ -711,7 +729,7 @@ export function BossOverlayClient({
                 <span className="text-[10px] text-white/40 truncate">· {selected.name}</span>
                 {stats?.grades && stats.grades.length > 1 && (
                   <span className="font-mono text-[10px] text-white/40 shrink-0">
-                    {stats.grades.length === 5 ? `butin ${4 + activeGradeIndex}` : `grade ${1 + activeGradeIndex}`}
+                    {stats.grades.length === 5 ? `${isEn ? "loot" : "butin"} ${4 + activeGradeIndex}` : `grade ${1 + activeGradeIndex}`}
                   </span>
                 )}
               </div>
@@ -719,9 +737,9 @@ export function BossOverlayClient({
                 type="button"
                 onClick={() => setIsHeroCollapsed(false)}
                 className="inline-flex items-center gap-1 text-[10px] text-white/45 hover:text-white/85 transition-colors shrink-0"
-                title="Déplier l'en-tête complet"
+                title={isEn ? "Expand full header" : "Déplier l'en-tête complet"}
               >
-                <span>Déplier</span>
+                <span>{isEn ? "Expand" : "Déplier"}</span>
                 <ChevronDown className="w-3 h-3" />
               </button>
             </div>
@@ -765,12 +783,12 @@ export function BossOverlayClient({
             {loadingList ? (
               <div className="flex flex-col items-center justify-center h-40 gap-2 text-white/30">
                 <Loader2 className="w-5 h-5 animate-spin" />
-                <span className="text-[11px]">Chargement…</span>
+                <span className="text-[11px]">{isEn ? "Loading…" : "Chargement…"}</span>
               </div>
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-40 gap-2 text-white/25">
                 <Swords className="w-6 h-6" />
-                <span className="text-[11px]">Aucun résultat</span>
+                <span className="text-[11px]">{isEn ? "No results" : "Aucun résultat"}</span>
               </div>
             ) : (
               <div className="p-2 grid grid-cols-2 gap-1.5">
@@ -781,9 +799,9 @@ export function BossOverlayClient({
                     className="group flex flex-col items-center gap-1.5 p-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.07] transition-colors text-center relative"
                   >
                     {d.isOcreQuest && (
-                      <span className="absolute top-1 right-1.5 flex items-center gap-1 text-[8px] text-amber-300/80" title="Boss de la Quête Ocre">
+                      <span className="absolute top-1 right-1.5 flex items-center gap-1 text-[8px] text-amber-300/80" title={isEn ? "Eternal Harvest (Ochre) Quest Boss" : "Boss de la Quête Ocre"}>
                         <img src="/module-dofus/Dofus_Ocre.png" alt="" className="w-3 h-3 object-contain" />
-                        Ocre
+                        {isEn ? "Ochre" : "Ocre"}
                       </span>
                     )}
                     <div className="w-14 h-14 flex items-center justify-center overflow-hidden">
@@ -806,7 +824,7 @@ export function BossOverlayClient({
                       </p>
                     </div>
                     {d.level > 0 && (
-                      <span className="font-mono text-[9px] text-white/35">niv. {d.level}</span>
+                      <span className="font-mono text-[9px] text-white/35">{t.bossPage.levelShort} {d.level}</span>
                     )}
                   </button>
                 ))}
@@ -821,7 +839,7 @@ export function BossOverlayClient({
             {loadingStats ? (
               <div className="flex items-center justify-center py-10 text-white/25 gap-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-[11px]">Chargement…</span>
+                <span className="text-[11px]">{isEn ? "Loading…" : "Chargement…"}</span>
               </div>
             ) : currentGrade ? (
               <>
@@ -834,7 +852,7 @@ export function BossOverlayClient({
                   >
                     <Users className="w-3.5 h-3.5 text-white/40" />
                     <span className="flex-1 text-[11px] text-white/70 group-hover:text-white/90 transition-colors">
-                      Famille du donjon
+                      {isEn ? "Dungeon Family" : "Famille du donjon"}
                       <span className="ml-1.5 font-mono text-white/40">{family.monsters.length}</span>
                     </span>
                     <ChevronRight className="w-3.5 h-3.5 text-white/30 group-hover:text-white/60 transition-colors" />
@@ -845,16 +863,16 @@ export function BossOverlayClient({
                     séparée par des filets — remplace les 3 cartes à gros nombres colorés. */}
                 <div className="grid grid-cols-3 divide-x divide-white/[0.06] rounded-lg bg-white/[0.03]">
                   {[
-                    { label: "PV", value: currentGrade.lifePoints, iconSrc: "/assets/dofus/stats/pv.png" },
-                    { label: "PA", value: currentGrade.actionPoints, iconSrc: "/assets/dofus/stats/pa.png" },
-                    { label: "PM", value: currentGrade.movementPoints, iconSrc: "/assets/dofus/stats/pm.png" },
-                  ].map(({ label, value, iconSrc }) => (
+                    { label: t.bossPage.stats.hp, shortLabel: isEn ? "HP" : "PV", value: currentGrade.lifePoints, iconSrc: "/assets/dofus/stats/pv.png" },
+                    { label: t.bossPage.stats.ap, shortLabel: isEn ? "AP" : "PA", value: currentGrade.actionPoints, iconSrc: "/assets/dofus/stats/pa.png" },
+                    { label: t.bossPage.stats.mp, shortLabel: isEn ? "MP" : "PM", value: currentGrade.movementPoints, iconSrc: "/assets/dofus/stats/pm.png" },
+                  ].map(({ label, shortLabel, value, iconSrc }) => (
                     <div key={label} className="flex items-center justify-center gap-1.5 py-2">
                       <img src={iconSrc} alt={label} className="w-3.5 h-3.5 object-contain opacity-90" />
                       <span className="font-mono text-[12px] text-white/90 tabular-nums">
-                        {value.toLocaleString("fr-FR")}
+                        {value.toLocaleString(locale === "en" ? "en-US" : "fr-FR")}
                       </span>
-                      <span className="text-[10px] text-white/40">{label}</span>
+                      <span className="text-[10px] text-white/40">{shortLabel}</span>
                     </div>
                   ))}
                 </div>
@@ -863,34 +881,34 @@ export function BossOverlayClient({
                 {resists && (
                   <div className="space-y-1.5">
                     <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wide flex items-center gap-1.5 mb-2">
-                      <Shield className="w-3 h-3" /> Résistances
+                      <Shield className="w-3 h-3" /> {isEn ? "Resistances" : "Résistances"}
                     </p>
                     <ResistBar
-                      label="Neutre"
+                      label={t.bossPage.stats.neutral}
                       value={resists.neutral ?? 0}
                       iconSrc="/assets/dofus/stats/resNeutre.png"
                       barColor="bg-zinc-400"
                     />
                     <ResistBar
-                      label="Terre"
+                      label={t.bossPage.stats.earth}
                       value={resists.earth ?? 0}
                       iconSrc="/assets/dofus/stats/resTerre.png"
                       barColor="bg-amber-600"
                     />
                     <ResistBar
-                      label="Feu"
+                      label={t.bossPage.stats.fire}
                       value={resists.fire ?? 0}
                       iconSrc="/assets/dofus/stats/resFeu.png"
                       barColor="bg-red-500"
                     />
                     <ResistBar
-                      label="Eau"
+                      label={t.bossPage.stats.water}
                       value={resists.water ?? 0}
                       iconSrc="/assets/dofus/stats/resEau.png"
                       barColor="bg-sky-500"
                     />
                     <ResistBar
-                      label="Air"
+                      label={t.bossPage.stats.air}
                       value={resists.air ?? 0}
                       iconSrc="/assets/dofus/stats/resAir.png"
                       barColor="bg-emerald-500"
@@ -903,12 +921,14 @@ export function BossOverlayClient({
                 {stats?.drops && stats.drops.length > 0 && (
                   <div className="space-y-1.5">
                     <div className="flex items-baseline justify-between">
-                      <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wide">Butins</p>
+                      <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wide">
+                        {isEn ? "Drops & Loot" : "Butins"}
+                      </p>
                       <span className="font-mono text-[10px] text-white/40">
                         {stats.grades && stats.grades.length === 5
-                          ? `butin ${4 + activeGradeIndex}`
+                          ? `${isEn ? "loot" : "butin"} ${4 + activeGradeIndex}`
                           : `grade ${1 + activeGradeIndex}`}
-                        {currentGrade ? ` · niv. ${currentGrade.level}` : ""}
+                        {currentGrade ? ` · ${t.bossPage.levelShort} ${currentGrade.level}` : ""}
                       </span>
                     </div>
 
@@ -955,7 +975,7 @@ export function BossOverlayClient({
             ) : (
               <div className="flex flex-col items-center justify-center py-10 gap-2 text-white/25">
                 <Swords className="w-6 h-6" />
-                <span className="text-[11px]">Aucune donnée</span>
+                <span className="text-[11px]">{isEn ? "No data" : "Aucune donnée"}</span>
               </div>
             )}
           </div>
@@ -967,17 +987,18 @@ export function BossOverlayClient({
             {loadingStats ? (
               <div className="flex items-center justify-center py-10 text-white/25 gap-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-[11px]">Chargement…</span>
+                <span className="text-[11px]">{isEn ? "Loading…" : "Chargement…"}</span>
               </div>
             ) : stats?.spells && stats.spells.length > 0 ? (
               <div className="space-y-2">
                 <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">
-                  Sorts ({stats.spells.length})
+                  {isEn ? "Spells" : "Sorts"} ({stats.spells.length})
                 </p>
                 {stats.spells.map((spell) => (
                   <SpellCard
                     key={spell.id}
                     spell={spell}
+                    locale={locale}
                     isOpen={activeSpellId === spell.id}
                     onToggle={() => setActiveSpellId(spell.id === activeSpellId ? undefined : spell.id)}
                   />
@@ -986,7 +1007,7 @@ export function BossOverlayClient({
             ) : (
               <div className="flex flex-col items-center justify-center py-10 gap-2 text-white/25">
                 <Zap className="w-6 h-6" />
-                <span className="text-[11px]">Aucun sort disponible</span>
+                <span className="text-[11px]">{isEn ? "No spells available" : "Aucun sort disponible"}</span>
               </div>
             )}
           </div>
@@ -998,7 +1019,7 @@ export function BossOverlayClient({
             {loadingStats ? (
               <div className="flex items-center justify-center py-10 text-white/25 gap-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-[11px]">Chargement…</span>
+                <span className="text-[11px]">{isEn ? "Loading…" : "Chargement…"}</span>
               </div>
             ) : stats?.spells && stats.spells.length > 0 ? (
               <>
@@ -1012,8 +1033,8 @@ export function BossOverlayClient({
                   aria-checked={freeBossMove}
                   title={
                     freeBossMove
-                      ? "Boss libre actif : cliquez une case marchable de la grille pour déplacer le boss (prévisualisation seule)"
-                      : "Boss libre : cliquez une case marchable de la grille pour déplacer le boss et tester les portées"
+                      ? (isEn ? "Free Boss active: click a walkable grid tile to move the boss (preview only)" : "Boss libre actif : cliquez une case marchable de la grille pour déplacer le boss (prévisualisation seule)")
+                      : (isEn ? "Free Boss: click a walkable tile to move boss and test ranges" : "Boss libre : cliquez une case marchable de la grille pour déplacer le boss et tester les portées")
                   }
                   className="self-start shrink-0 inline-flex items-center gap-2 text-[11px] text-white/55 hover:text-white/80 transition-colors"
                 >
@@ -1030,7 +1051,7 @@ export function BossOverlayClient({
                       )}
                     />
                   </span>
-                  <span>Boss libre{freeBossMove ? " · activé" : ""}</span>
+                  <span>{isEn ? "Free Boss" : "Boss libre"}{freeBossMove ? (isEn ? " · active" : " · activé") : ""}</span>
                   <Move className="w-3 h-3 opacity-60" />
                 </button>
                 <div className="flex-1 min-h-0 flex flex-col">
@@ -1062,7 +1083,7 @@ export function BossOverlayClient({
             ) : (
               <div className="flex flex-col items-center justify-center py-10 gap-2 text-white/25">
                 <Brain className="w-6 h-6" />
-                <span className="text-[11px]">Aucun sort à simuler</span>
+                <span className="text-[11px]">{isEn ? "No spell to simulate" : "Aucun sort à simuler"}</span>
               </div>
             )}
           </div>
@@ -1075,11 +1096,14 @@ export function BossOverlayClient({
           <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/10 bg-[#121218]">
             <div className="flex items-center gap-1.5">
               <Users className="w-4 h-4 text-white/50" />
-              <span className="text-[12px] font-bold text-white">Famille ({family.monsters.length})</span>
+              <span className="text-[12px] font-bold text-white">
+                {isEn ? "Family" : "Famille"} ({family.monsters.length})
+              </span>
             </div>
             <button
               onClick={() => setShowFamilyModal(false)}
               className="p-1 rounded-md text-white/40 hover:text-white hover:bg-white/10"
+              aria-label={t.bossPage.closeModal}
             >
               <X className="w-4 h-4" />
             </button>
@@ -1114,7 +1138,9 @@ export function BossOverlayClient({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] font-medium truncate">{m.name}</p>
-                    <p className="text-[9px] text-white/40">{m.isBoss ? "Gardien du donjon" : "Monstre de salle"}</p>
+                    <p className="text-[9px] text-white/40">
+                      {m.isBoss ? (isEn ? "Dungeon Keeper" : "Gardien du donjon") : (isEn ? "Room Monster" : "Monstre de salle")}
+                    </p>
                   </div>
                   {m.isBoss && <span className="text-[9px] text-amber-300/80 shrink-0">Boss</span>}
                 </button>
@@ -1126,7 +1152,7 @@ export function BossOverlayClient({
 
       {/* ── Footer fixe ── */}
       <div className="flex items-center justify-between px-3 py-1.5 border-t border-white/[0.06] shrink-0 bg-[#0d0d12] z-10">
-        <span className="text-[9px] text-white/25">SigilOS · Bestiaire</span>
+        <span className="text-[9px] text-white/25">SigilOS · {isEn ? "Bestiary" : "Bestiaire"}</span>
         {selected && (
           <span className="text-[9px] text-white/30 truncate ml-2">
             {activeMonsterName ?? selected.bossName}

@@ -1,288 +1,306 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ExternalLink, Edit, Users, Swords, Globe, Calendar, Server, BookOpen, Sparkles } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import {
+    ExternalLink,
+    Pencil,
+    Users,
+    Calendar,
+    Server,
+    MessageCircle,
+    Sparkles,
+    Star,
+} from "lucide-react";
 import type { GuildPresentation } from "@/server/actions/presentation-actions";
+import { AVAILABLE_ACTIVITIES, ACTIVITY_ASSETS, FOUNDER_CROWN_ASSET } from "@/lib/presentation-constants";
 import { getDofusServerImage } from "@/lib/dofus-assets";
+import { GuildEmblem } from "@/components/guild/guild-emblem";
 
-export default function PresentationContent({ 
-    guild, 
-    user, 
-    guildId 
-}: { 
-    guild: GuildPresentation, 
-    user: any, 
-    guildId: string 
+/**
+ * Lecture interne de la présentation — registre, pas de cartes génériques.
+ * Même langage que la page publique (`guild-public-view`) : emblème, faits
+ * vérifiables, état-major en registre, manifeste en marge, recrutement en
+ * panneau latéral. Zéro emoji, statut neutre (pas de fond teinté), vignettes
+ * du jeu pour les activités et le serveur.
+ */
+
+function ActivityThumb({ id }: { id: string }) {
+    const src = ACTIVITY_ASSETS[id];
+    if (!src) return <Sparkles className="h-5 w-5 text-muted-foreground" aria-hidden="true" />;
+    return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+            src={src}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            draggable={false}
+            className="h-5 w-5 shrink-0 object-contain"
+        />
+    );
+}
+
+const getActivityLabel = (id: string) => {
+    const activity = AVAILABLE_ACTIVITIES.find((a) => a.id === id);
+    return activity?.label || id;
+};
+
+export default function PresentationContent({
+    guild,
+    user,
+    guildId,
+}: {
+    guild: GuildPresentation;
+    user: any;
+    guildId: string;
 }) {
     const canEdit = user.isAdmin || user.canEditPresentation;
+    const foundedDate = guild.foundedDate ? new Date(guild.foundedDate) : null;
+
+    const roster = [
+        ...(guild.founder ? [{ pseudo: guild.founder, role: "Fondateur", lead: true }] : []),
+        ...(guild.coLeaders ?? []).map((pseudo) => ({ pseudo, role: "Co-leader", lead: false })),
+        ...(guild.team ?? []).map((pseudo) => ({ pseudo, role: "Bras droit", lead: false })),
+    ];
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-end mb-4">
-                <div className="flex items-center gap-3">
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div className={cn(
-                                    "flex items-center gap-2 px-3 py-1.5 rounded-full border text-caption font-black uppercase tracking-widest transition-all",
-                                    guild.isRecruiting
-                                        ? "bg-success/10 border-success/20 text-success"
-                                        : "bg-muted/10 border-border text-muted-foreground"
-                                )}>
-                                    <div className={cn("w-1.5 h-1.5 rounded-full", guild.isRecruiting ? "bg-success animate-pulse" : "bg-muted")} />
-                                    {guild.isRecruiting ? "Public" : "Désactivé"}
-                                </div>
-                            </TooltipTrigger>
-                            <TooltipContent className="bg-surface border-border text-caption font-medium text-foreground">
-                                {guild.isRecruiting
-                                    ? "Visible dans l'annuaire public"
-                                    : "Caché. Activez-le dans la configuration."}
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-
-                    <Link href={`/guilds/${guildId}`} target="_blank">
-                        <Button variant="outline" size="sm" className="gap-2 border-border hover:bg-surface h-9">
-                            <ExternalLink className="w-4 h-4" />
-                            <span className="hidden md:inline">Voir page publique</span>
-                        </Button>
+        <div className="registre">
+            {/* Barre de lecture : statut à gauche, actions à droite. */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="inline-flex items-center gap-2 text-sm">
+                    <span className="reg-tag">
+                        {guild.isRecruiting ? "Recrute" : "Recrutement fermé"}
+                    </span>
+                    <span className="text-muted-foreground">
+                        {guild.isRecruiting ? "Visible dans l'annuaire" : "Masquée de l'annuaire"}
+                    </span>
+                </p>
+                <p className="inline-flex items-center gap-4 text-sm">
+                    <Link href={`/guilds/${guildId}`} target="_blank" className="reg-link-quiet inline-flex items-center gap-1.5">
+                        Voir page publique
+                        <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                     </Link>
                     {canEdit && (
-                        <Link href={`/dashboard/${guildId}/admin/presentation`}>
-                            <Button size="sm" className="gap-2 bg-success hover:bg-success font-bold h-9">
-                                <Edit className="w-4 h-4" />
-                                Modifier
-                            </Button>
+                        <Link href={`/dashboard/${guildId}/admin/presentation`} className="reg-btn reg-btn-primary !min-h-0 px-3 py-1.5 text-sm">
+                            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                            Retravailler la page
                         </Link>
                     )}
-                </div>
+                </p>
             </div>
 
-            {!guild.history && (
-                <Alert className="bg-success/5 border-success/20 text-success">
-                    <Sparkles className="h-4 w-4" />
-                    <AlertTitle className="text-xs font-black uppercase tracking-widest">Page non configurée</AlertTitle>
-                    <AlertDescription className="text-sm font-medium opacity-80">
-                        Votre présentation est actuellement vide. Personnalisez votre histoire et votre équipe pour attirer de nouvelles recrues !
-                    </AlertDescription>
-                </Alert>
+            {/* Étendard : image réelle de la guilde, rien si absente. */}
+            {guild.bannerType === "custom" && guild.bannerUrl && (
+                <div className="reg-screen mt-6">
+                    <Image
+                        src={guild.bannerUrl}
+                        alt={`Étendard de la guilde ${guild.name}`}
+                        width={1600}
+                        height={600}
+                        priority
+                        unoptimized
+                        className="aspect-[8/3] w-full object-cover"
+                    />
+                </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Main Info Column */}
-                <div className="lg:col-span-2 space-y-6">
-                    {/* Banner & Logo */}
-                    <Card className="overflow-hidden border-border bg-surface/50">
-                        <div className="relative h-48 md:h-64 w-full">
-                            {guild.bannerType === "custom" && guild.bannerUrl ? (
-                                <Image
-                                    src={guild.bannerUrl}
-                                    alt="Guild Banner"
-                                    fill
-                                    className="object-cover"
-                                />
-                            ) : (
-                                <div className="w-full h-full bg-linear-to-r from-elevated to-surface flex items-center justify-center">
-                                    <Globe className="w-12 h-12 text-muted-foreground" />
-                                </div>
-                            )}
-                        </div>
-                        <div className="pt-6 px-6 pb-6">
-                            <h2 className="text-2xl font-bold text-foreground mb-2">{guild.name}</h2>
+            {/* Identité : emblème, nom, faits vérifiables. */}
+            <section aria-label="Identité de la guilde" className="mt-8 flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-8">
+                <GuildEmblem src={guild.iconUrl} name={guild.name} size={88} priority />
+                <div className="min-w-0">
+                    <h2 className="text-[clamp(1.5rem,3vw,2rem)] font-bold leading-tight tracking-tight">
+                        {guild.name}
+                    </h2>
+                    <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+                        {guild.server && (
+                            <span className="inline-flex items-center gap-2">
+                                {(() => {
+                                    const img = getDofusServerImage(guild.server);
+                                    return img ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={img}
+                                            alt=""
+                                            loading="lazy"
+                                            decoding="async"
+                                            draggable={false}
+                                            className="h-8 w-8 rounded-md border border-black/30 object-cover"
+                                        />
+                                    ) : (
+                                        <Server className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                                    );
+                                })()}
+                                <span className="text-muted-foreground">Serveur</span>
+                                <span className="font-semibold">{guild.server}</span>
+                            </span>
+                        )}
+                        {foundedDate && (
+                            <span className="inline-flex items-center gap-2">
+                                <Calendar className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                                <span className="text-muted-foreground">Fondée le</span>
+                                <span className="reg-mono font-semibold">
+                                    {foundedDate.toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" })}
+                                </span>
+                            </span>
+                        )}
+                        {guild.memberCount !== null && guild.memberCount !== undefined && (
+                            <span className="inline-flex items-center gap-2">
+                                <Users className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                                <span className="text-muted-foreground">Membres</span>
+                                <span className="reg-mono font-semibold">{guild.memberCount} / 350</span>
+                            </span>
+                        )}
+                    </div>
+                    {(guild.activities?.length ?? 0) > 0 && (
+                        <ul className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+                            {guild.activities?.map((activity) => (
+                                <li key={activity} className="inline-flex items-center gap-2 text-sm">
+                                    <ActivityThumb id={activity} />
+                                    {getActivityLabel(activity)}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            </section>
 
-                            {/* Meta Info */}
-                            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
-                                {guild.server && (
-                                    <div className="flex items-center gap-2">
-                                        {(() => {
-                                            const img = getDofusServerImage(guild.server);
-                                            return img ? (
+            {!guild.history && roster.length === 0 && canEdit && (
+                <div className="reg-panel mt-8 p-6">
+                    <p className="reg-eyebrow">Page à écrire</p>
+                    <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
+                        Ni récit ni état-major pour l&apos;instant. Une guilde sans manifeste
+                        attire peu de recrues — racontez d&apos;où vous venez en cinq minutes.
+                    </p>
+                    <Link href={`/dashboard/${guildId}/admin/presentation`} className="reg-link mt-3 inline-block text-sm">
+                        Commencer par les fondations
+                    </Link>
+                </div>
+            )}
+
+            <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-3 lg:gap-12">
+                <div className="space-y-12 lg:col-span-2">
+                    {roster.length > 0 ? (
+                        <section aria-labelledby="etat-major-titre">
+                            <h3 id="etat-major-titre" className="reg-eyebrow">État-major</h3>
+                            <ul className="mt-4 border-t border-border">
+                                {roster.map((member, index) => (
+                                    <li
+                                        key={`${member.role}-${member.pseudo}-${index}`}
+                                        className="flex items-center justify-between gap-4 border-b border-border py-3"
+                                    >
+                                        <span className="inline-flex min-w-0 items-center gap-2">
+                                            {member.lead ? (
                                                 // eslint-disable-next-line @next/next/no-img-element
-                                                <img
-                                                    src={img}
-                                                    alt=""
-                                                    loading="lazy"
-                                                    decoding="async"
-                                                    draggable={false}
-                                                    className="w-6 h-6 rounded-md object-cover border border-black/30"
-                                                />
+                                                <img src={FOUNDER_CROWN_ASSET} alt="" loading="lazy" decoding="async" draggable={false} className="h-5 w-5 shrink-0 object-contain" />
                                             ) : (
-                                                <Server className="w-4 h-4" />
-                                            );
-                                        })()}
-                                        <span>{guild.server}</span>
-                                    </div>
-                                )}
-                                {guild.foundedDate && (
-                                    <div className="flex items-center gap-1.5">
-                                        <Calendar className="w-4 h-4" />
-                                        <span>Guilde fondée le {new Date(guild.foundedDate).toLocaleDateString("fr-FR", { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="flex flex-wrap gap-2">
-                                {guild.activities?.map((activity) => (
-                                    <Badge key={activity} variant="secondary" className="bg-elevated text-foreground">
-                                        {activity}
-                                    </Badge>
+                                                <Star className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                                            )}
+                                            <span className="truncate font-semibold">{member.pseudo}</span>
+                                        </span>
+                                        <span className="shrink-0 text-xs text-muted-foreground">{member.role}</span>
+                                    </li>
                                 ))}
-                            </div>
-                        </div>
-                    </Card>
-
-                    {/* History */}
-                    {guild.history ? (
-                        <Card className="border-border bg-surface/50 overflow-hidden">
-                            <CardHeader>
-                                <CardTitle className="text-lg flex items-center gap-2">
-                                    <Globe className="w-5 h-5 text-success" />
-                                    Histoire
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="prose prose-invert prose-zinc max-w-none">
-                                    <p className="whitespace-pre-wrap break-words overflow-hidden text-foreground leading-relaxed">
-                                        {guild.history}
-                                    </p>
-                                </div>
-                            </CardContent>
-                        </Card>
+                            </ul>
+                        </section>
                     ) : (
-                        <Card className="border-border border-dashed bg-surface/20 py-12 flex flex-col items-center justify-center text-center px-6">
-                            <div className="w-12 h-12 rounded-full bg-surface flex items-center justify-center mb-4">
-                                <BookOpen className="w-6 h-6 text-muted-foreground" />
-                            </div>
-                            <h3 className="text-sm font-bold text-muted-foreground mb-1">Aucune histoire racontée</h3>
-                            <p className="text-xs text-muted-foreground max-w-xs">Partagez l'épopée de votre guilde avec le monde.</p>
-                        </Card>
+                        <section aria-label="État-major vide">
+                            <h3 className="reg-eyebrow">État-major</h3>
+                            <p className="mt-4 border-l-2 border-border pl-5 text-sm leading-relaxed text-muted-foreground">
+                                Personne n&apos;est inscrit à l&apos;état-major. Désignez au moins le
+                                meneur pour que les recrues sachent à qui s&apos;adresser.
+                            </p>
+                        </section>
                     )}
 
-                    {/* Guild Photo */}
+                    {guild.history ? (
+                        <section aria-labelledby="manifeste-titre">
+                            <h3 id="manifeste-titre" className="reg-eyebrow">Manifeste</h3>
+                            <div className="mt-4 border-l-2 border-border-strong pl-5">
+                                <p className="whitespace-pre-wrap break-words text-[0.9375rem] leading-relaxed">
+                                    {guild.history}
+                                </p>
+                            </div>
+                        </section>
+                    ) : (
+                        <section aria-label="Manifeste vide">
+                            <h3 className="reg-eyebrow">Manifeste</h3>
+                            <p className="mt-4 border-l-2 border-border pl-5 text-sm leading-relaxed text-muted-foreground">
+                                Aucun récit pour l&apos;instant. D&apos;où vient la guilde, ce
+                                qu&apos;elle cherche, ce qu&apos;elle refuse — trois phrases
+                                suffisent pour commencer.
+                            </p>
+                        </section>
+                    )}
+
                     {guild.photoUrl && (
-                        <Card className="overflow-hidden border-border bg-surface/50">
-                            <CardHeader>
-                                <CardTitle className="text-lg flex items-center gap-2">
-                                    <span className="text-xl">🖼️</span>
-                                    La Guilde en Image
-                                </CardTitle>
-                            </CardHeader>
-                            <div className="relative aspect-video w-full">
-                                <Image
-                                    src={guild.photoUrl}
-                                    alt={`Photo de la guilde ${guild.name}`}
-                                    fill
-                                    className="object-cover"
-                                />
-                            </div>
-                        </Card>
+                        <section aria-labelledby="galerie-titre">
+                            <h3 id="galerie-titre" className="reg-eyebrow">Salle des bannières</h3>
+                            <figure className="mt-4">
+                                <div className="reg-screen">
+                                    <Image
+                                        src={guild.photoUrl}
+                                        alt={`Photo de la guilde ${guild.name}`}
+                                        width={1600}
+                                        height={900}
+                                        unoptimized
+                                        className="aspect-video w-full object-cover"
+                                    />
+                                </div>
+                            </figure>
+                        </section>
                     )}
                 </div>
 
-                {/* Sidebar Info Column */}
-                <div className="space-y-6">
-                    {/* Organization */}
-                    <Card className="border-border bg-surface/50">
-                        <CardHeader>
-                            <CardTitle className="text-lg flex items-center gap-2">
-                                <Users className="w-5 h-5 text-success" />
-                                Organisation
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            {guild.founder && (
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-warning/10 border border-warning/20">
-                                    <span className="text-xl">👑</span>
-                                    <div>
-                                        <p className="text-xs font-medium text-warning uppercase tracking-wider">Fondateur</p>
-                                        <p className="font-medium text-foreground">{guild.founder}</p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {(guild.coLeaders ?? []).length > 0 && (
-                                <div className="space-y-2">
-                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider pl-1">Co-leaders</p>
-                                    {guild.coLeaders?.map((leader, i) => (
-                                        <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-warning/5 border border-warning/10">
-                                            <span className="text-sm">⭐</span>
-                                            <p className="text-sm font-medium text-foreground">{leader}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {(guild.team ?? []).length > 0 && (
-                                <div className="space-y-2">
-                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider pl-1">Bras Droits</p>
-                                    {guild.team?.map((member, i) => (
-                                        <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-info/5 border border-info/10">
-                                            <span className="text-sm">🛡️</span>
-                                            <p className="text-sm font-medium text-foreground">{member}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {/* Recruitment Info */}
-                    <Card className="border-border bg-surface/50">
-                        <CardHeader>
-                            <CardTitle className="text-lg flex items-center gap-2">
-                                <Swords className="w-5 h-5 text-success" />
-                                Recrutement
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex items-center justify-between p-3 rounded-lg bg-elevated/50">
-                                <span className="text-sm text-muted-foreground">État</span>
-                                <Badge variant={guild.isRecruiting ? "default" : "secondary"} className={guild.isRecruiting ? "bg-success/20 text-success hover:bg-success/20" : ""}>
-                                    {guild.isRecruiting ? "Ouvert" : "Fermé"}
-                                </Badge>
+                <aside aria-labelledby="recrutement-titre">
+                    <div className="reg-panel p-6 lg:sticky lg:top-24">
+                        <h3 id="recrutement-titre" className="reg-eyebrow">Centre de recrutement</h3>
+                        <dl className="mt-4">
+                            <div className="flex items-center justify-between gap-4 border-b border-border py-3 last:border-b-0">
+                                <dt className="text-sm text-muted-foreground">Statut</dt>
+                                <dd>
+                                    <span className="reg-tag">
+                                        {guild.isRecruiting ? "Ouvert" : "Fermé"}
+                                    </span>
+                                </dd>
                             </div>
-
-                            {guild.minLevel && (
-                                <div className="flex items-center justify-between p-3 rounded-lg bg-elevated/50">
-                                    <span className="text-sm text-muted-foreground">Niveau min.</span>
-                                    <span className="font-mono font-medium text-foreground">{guild.minLevel}</span>
+                            {guild.minLevel !== null && guild.minLevel !== undefined && (
+                                <div className="flex items-center justify-between gap-4 border-b border-border py-3 last:border-b-0">
+                                    <dt className="text-sm text-muted-foreground">Niveau minimum</dt>
+                                    <dd className="reg-mono text-sm font-semibold">{guild.minLevel}</dd>
                                 </div>
                             )}
-
-                            {guild.minSuccesses && (
-                                <div className="flex items-center justify-between p-3 rounded-lg bg-elevated/50">
-                                    <span className="text-sm text-muted-foreground">Succès min.</span>
-                                    <span className="font-mono font-medium text-foreground">{guild.minSuccesses}</span>
+                            {guild.minSuccesses !== null && guild.minSuccesses !== undefined && (
+                                <div className="flex items-center justify-between gap-4 border-b border-border py-3 last:border-b-0">
+                                    <dt className="text-sm text-muted-foreground">Succès minimum</dt>
+                                    <dd className="reg-mono text-sm font-semibold">{guild.minSuccesses}</dd>
                                 </div>
                             )}
-                        </CardContent>
-                    </Card>
-
-                    {/* Socials */}
-                    {guild.discord && (
-                        <Card className="border-border bg-surface/50">
-                            <CardHeader>
-                                <CardTitle className="text-lg flex items-center gap-2">
-                                    <span className="w-5 h-5 flex items-center justify-center">💬</span>
-                                    Communication
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <Link href={guild.discord} target="_blank" className="block">
-                                    <Button variant="outline" className="w-full gap-2 border-info/20 hover:bg-info/10 hover:text-info">
-                                        Rejoindre le Discord
-                                        <ExternalLink className="w-3 h-3" />
-                                    </Button>
-                                </Link>
-                            </CardContent>
-                        </Card>
-                    )}
-                </div>
+                        </dl>
+                        {guild.isRecruiting && guild.recruitmentRequirements && (
+                            <div className="pt-4">
+                                <p className="text-xs text-muted-foreground">Pré-requis</p>
+                                <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed">
+                                    {guild.recruitmentRequirements}
+                                </p>
+                            </div>
+                        )}
+                        {guild.discord ? (
+                            <Link
+                                href={guild.discord}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="reg-btn reg-btn-primary mt-6 w-full"
+                            >
+                                <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                                Rejoindre le Discord
+                            </Link>
+                        ) : (
+                            <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
+                                Aucune porte d&apos;entrée renseignée. Ajoutez le lien Discord
+                                depuis l&apos;édition pour que les recrues frappent au bon endroit.
+                            </p>
+                        )}
+                    </div>
+                </aside>
             </div>
         </div>
     );

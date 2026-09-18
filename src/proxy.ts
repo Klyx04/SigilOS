@@ -6,6 +6,7 @@ import type { NextRequest } from "next/server"
 import { getGodRoutePrefix, isValidGodSecret } from "./lib/god-route"
 import { buildCsp, generateCspNonce } from "./lib/csp"
 import { logger } from "@/lib/logger"
+import { LOCALE_COOKIE_NAME, isSupportedLocale } from "./lib/i18n/types"
 
 const { auth } = NextAuth(authConfig)
 
@@ -323,6 +324,15 @@ export default auth(async (req) => {
         requestHeaders.set("X-Robots-Tag", "noindex, nofollow");
     }
 
+    // ─── I18N LOCALE: gestion du paramètre ?lang=fr / ?lang=en ──────────────
+    const queryLang = nextUrl.searchParams.get("lang");
+    let targetLocale: string | null = null;
+    if (isSupportedLocale(queryLang)) {
+        targetLocale = queryLang;
+        // Poser sur requestHeaders pour que les Server Components lisent la bonne locale
+        requestHeaders.set("x-sigilos-locale", targetLocale);
+    }
+
     // ─── CSP NONCE: exposer la CSP au NAVIGATEUR (réponse) ───────────────────
     // Le header de requête ne suffit pas — le navigateur reçoit sa propre
     // réponse et n'exécute que les scripts qui portent le nonce présent ici.
@@ -332,6 +342,16 @@ export default auth(async (req) => {
         },
     });
     response.headers.set(csp.headerName, csp.headerValue);
+
+    if (targetLocale) {
+        // Enregistrer la préférence pour 1 an dans le cookie
+        response.cookies.set(LOCALE_COOKIE_NAME, targetLocale, {
+            path: "/",
+            maxAge: 31536000,
+            sameSite: "lax",
+            httpOnly: false,
+        });
+    }
 
     return response;
 })

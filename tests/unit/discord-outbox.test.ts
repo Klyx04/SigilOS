@@ -36,6 +36,7 @@ import {
     isDiscordOutboxJobData,
     DiscordOutboxJobSchema,
 } from "@/server/discord-outbox";
+import { DiscordApiError, PermanentDiscordWriteError } from "@/lib/discord-api-errors";
 
 beforeEach(() => {
     vi.clearAllMocks();
@@ -104,6 +105,38 @@ describe("executeDiscordWrite (worker)", () => {
         await expect(
             executeDiscordWrite({ kind: "postMessage", channelId: "123", body: { content: "x" } })
         ).rejects.toThrow();
+    });
+
+    it("postMessage refusé en 400 (Discord) → erreur DÉFINITIVE (zéro retry) avec statut + salon", async () => {
+        mockPostChannelMessage.mockRejectedValue(new DiscordApiError("Discord a refusé la demande", 400, 50035));
+
+        const promise = executeDiscordWrite({ kind: "postMessage", channelId: "123456789", body: { content: "x" } });
+
+        await expect(promise).rejects.toBeInstanceOf(PermanentDiscordWriteError);
+        await promise.catch((err: PermanentDiscordWriteError) => {
+            // Nom compris par BullMQ → aucun rejeu des 8 tentatives.
+            expect(err.name).toBe("UnrecoverableError");
+            expect(err.status).toBe(400);
+            expect(err.discordCode).toBe(50035);
+            expect(err.channelId).toBe("123456789");
+            expect(err.message).toContain("HTTP 400");
+        });
+    });
+
+    it("postMessage refusé en 429 / 500 → erreur RETENTABLE conservée telle quelle", async () => {
+        const rateLimited = new DiscordApiError("Discord a refusé la demande", 429);
+        mockPostChannelMessage.mockRejectedValue(rateLimited);
+
+        await expect(
+            executeDiscordWrite({ kind: "postMessage", channelId: "123", body: { content: "x" } })
+        ).rejects.toBe(rateLimited);
+
+        const serverError = new DiscordApiError("Discord a refusé la demande", 500);
+        mockPostChannelMessage.mockRejectedValue(serverError);
+
+        await expect(
+            executeDiscordWrite({ kind: "postMessage", channelId: "123", body: { content: "x" } })
+        ).rejects.toBe(serverError);
     });
 
     it("deleteMessage → deleteChannelMessage; false → throw", async () => {

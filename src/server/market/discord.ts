@@ -14,8 +14,10 @@
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { getAppBaseUrl } from "@/lib/utils";
+import { redis } from "@/lib/redis";
 import {
     createForumPost,
+    deleteChannel,
     deleteChannelMessage,
     fetchChannel,
     sendChannelMessage,
@@ -48,6 +50,68 @@ export type MarketDiscordResult = {
 };
 
 const MARKET_CHANNEL_KIND_FORUM = "FORUM";
+
+/** ID de message Discord = snowflake (15-21 chiffres). */
+const SNOWFLAKE_RE = /^\d{15,21}$/;
+
+/**
+ * Clés Redis où **le worker d'outbox ré-ancre le VRAI ID** de message posté,
+ * quand `DISCORD_OUTBOX_ENABLED=true` : `sendChannelMessage` retourne alors
+ * `outbox:<jobId>` (une écriture **en file**, pas encore un ID Discord).
+ * Voir `storeMessageIdKey` dans `src/server/discord.ts` et
+ * `executeDiscordWrite` (`src/server/outbox`).
+ */
+function listingMessageKey(listingId: string): string {
+    return `market:msg:${listingId}`;
+}
+function componentMessageKey(componentId: string): string {
+    return `market:cmsg:${componentId}`;
+}
+
+/**
+ * Résout l'ID **réel** d'un message stocké en base.
+ *
+ * Constat beta (18/09/2026) — avec l'outbox active, `sendChannelMessage` renvoie
+ * `outbox:<jobId>` ; le module le stockait tel quel dans
+ * `MarketDiscordMessage.discordMessageId` / `MarketListingComponent.discordMessageId`.
+ * Conséquences : les éditions (`PATCH /channels/{salon}/messages/outbox:…`)
+ * échouaient indéfiniment et surtout **la suppression ne supprimait rien**
+ * (« Suppression Discord refusée ») ⇒ un post de forum restait orphelin à vie.
+ *
+ * Ici : un ID `outbox:` est résolu depuis Redis (ré-ancre du worker, clé
+ * `storeMessageIdKey` passée à l'enqueue : `market:msg:<listingId>` ou
+ * `market:cmsg:<componentId>`) ; tant que l'écriture n'est pas passée, on
+ * renvoie `null` (l'appelant republie ou nettoie la trace au lieu d'écrire dans
+ * le vide).
+ */
+async function resolveMarketMessageId(
+    stored: string | null | undefined,
+    storeKey: string
+): Promise<string | null> {
+    if (!stored) return null;
+    if (SNOWFLAKE_RE.test(stored)) return stored;
+    if (!stored.startsWith("outbox:")) return null;
+    const resolved = await redis.get(storeKey).catch(() => null);
+    return resolved && SNOWFLAKE_RE.test(resolved) ? resolved : null;
+}
+
+/**
+ * Supprime un message du Marché — et, en salon **forum**, le fil associé.
+ * Le message d'ouverture d'un post forum n'emporte pas toujours le fil avec lui
+ * (et un fil vide reste visible dans le forum) : on ferme donc explicitement le
+ * fil (best-effort : `404` = déjà parti, jamais une erreur bloquante).
+ */
+async function deleteMarketMessage(
+    channelId: string,
+    messageId: string,
+    forumMode: boolean
+): Promise<boolean> {
+    const deleted = await deleteChannelMessage(channelId, messageId);
+    if (forumMode && channelId !== messageId) {
+        await deleteChannel(channelId).catch(() => false);
+    }
+    return deleted;
+}
 
 /**
  * Détecte (et mémorise) le type de salon (`TEXT` / `FORUM`) si inconnu.
@@ -336,6 +400,21 @@ export async function publishListingToDiscord(
         // S5.1 — une annonce archivée ou supprimée n'est jamais (re)publiée.
         if (listing.deletedAt) return { ok: true, skipped: true };
 
+        /**
+         * 🧺 **Lot multiple (option A)** — la PREMIÈRE publication doit aussi
+         * passer par le chemin « un message par objet ».
+         *
+         * Constat beta (18/09/2026) : publier un lot depuis le dashboard créait
+         * **un seul** embed (celui de l'annonce, listant les objets dans
+         * « Contenu du lot ») — le routage `BUNDLE` n'existait que dans
+         * `syncListingMessage`, donc uniquement sur les transitions ultérieures
+         * (réservation, vente, offre…). Le lot n'avait donc jamais ses messages
+         * par objet à la publication.
+         */
+        if (listing.type === "BUNDLE") {
+            return syncBundleComponentMessages(listingId, pingRoleIds);
+        }
+
         const channelId = listing.guild.marketNotifyChannelId;
         if (!channelId) {
             logger.info("[market] publication Discord ignorée — salon non configuré", { listingId });
@@ -448,7 +527,10 @@ export async function publishListingToDiscord(
  * jamais le lot entier. Les messages publiés avant cette livraison (sans bouton)
  * sont réécrits à la première synchronisation, donc rattrapés automatiquement.
  */
-export async function syncBundleComponentMessages(listingId: string): Promise<MarketDiscordResult> {
+export async function syncBundleComponentMessages(
+    listingId: string,
+    pingRoleIds?: string[]
+): Promise<MarketDiscordResult> {
     try {
         const loaded = await loadListingForDiscord(listingId);
         if (!loaded) return { ok: false, error: "Annonce introuvable" };
@@ -475,8 +557,75 @@ export async function syncBundleComponentMessages(listingId: string): Promise<Ma
         });
 
         const imageUrl = resolveDiscordImageUrl(listing);
-        const base = buildPayload(loaded, imageUrl).payload;
+        const builtBase = buildPayload(loaded, imageUrl);
+        const base = builtBase.payload;
+        const { forumMode } = builtBase;
         let lastMessageId: string | null = null;
+
+        /**
+         * ⚠️ Le chemin « un message par objet » doit respecter le **type de salon**.
+         * Constat beta (18/09/2026) : il envoyait TOUJOURS un message simple
+         * (`sendChannelMessage`) ; dans un salon **forum**, Discord refuse
+         * (message sans `thread_name`) ⇒ refus **définitif** rejoué 8× par
+         * l'outbox avant « écriture abandonnée ».
+         *
+         * Preuve mesurée (salon `『🛒』𝐓𝐑𝐎𝐂-𝐙𝐎𝐍𝐄`, `type: 15`) :
+         * `POST /channels/{id}/messages` → `400 {"code":50008,
+         * "message":"Cannot send messages in a non-text channel"}` — deux objets
+         * d'un lot refusés à 01:09, alerte God à 01:19.
+         *
+         * En forum, un lot publie donc **un post par objet**, comme le fait déjà
+         * le message d'annonce (`createForumPost`).
+         */
+        const appliedTags = forumMode
+            ? resolveMarketForumTags(listing.guild.marketForumTags, {
+                  type: listing.type,
+                  status: listing.status,
+              })
+            : [];
+
+        // S3.15 — ping **serveur-vérifié**, une seule fois (premier objet publié).
+        const allowedPings = Array.isArray(listing.guild.marketAllowedPingRoleIds)
+            ? (listing.guild.marketAllowedPingRoleIds as string[])
+            : [];
+        const selectedPings = (pingRoleIds ?? []).filter((id) => allowedPings.includes(id)).slice(0, 3);
+        const pingTargets =
+            selectedPings.length > 0
+                ? selectedPings
+                : listing.guild.marketNotifyRoleId
+                  ? [listing.guild.marketNotifyRoleId]
+                  : [];
+        const mentionContent = pingTargets.map((id) => `<@&${id}>`).join(" ");
+        let mentionUsed = false;
+
+        /**
+         * 🧺 **Migration silencieuse (18/09/2026)** — avant ce correctif, publier un
+         * LOT créait **un** message d'annonce (embed unique listant les objets).
+         * Ce message n'a plus de raison d'être (le lot vit par ses messages par
+         * objet) et resterait sinon **en doublon** dans le salon (constat : le post
+         * « hérité » restait affiché à côté des objets). On l'efface donc au
+         * **premier** passage du chemin par objet, puis on vide sa trace.
+         */
+        const legacyMessage = listing.discordMessage;
+        if (legacyMessage?.discordMessageId) {
+            const legacyId = await resolveMarketMessageId(
+                legacyMessage.discordMessageId,
+                listingMessageKey(listingId)
+            );
+            if (legacyId) {
+                await deleteMarketMessage(legacyMessage.discordChannelId, legacyId, forumMode).catch(() => false);
+            }
+            await db.marketDiscordMessage.updateMany({
+                where: { listingId },
+                data: {
+                    discordChannelId: "",
+                    discordMessageId: "",
+                    syncStatus: "OK",
+                    lastError: null,
+                    lastSyncedAt: new Date(),
+                },
+            });
+        }
 
         for (const component of components) {
             const payload: MarketDiscordPayloadInput = {
@@ -523,45 +672,85 @@ export async function syncBundleComponentMessages(listingId: string): Promise<Ma
             };
 
             if (component.discordMessageId && component.discordChannelId) {
-                try {
-                    await updateChannelMessage(
-                        component.discordChannelId,
-                        component.discordMessageId,
-                        "",
-                        embed
-                    );
-                    lastMessageId = component.discordMessageId;
-                    continue;
-                } catch (editError) {
-                    // 🧺 §A5 — message d'objet **supprimé à la main** (404) ou post forum
-                    // fermé : on **efface la trace** de l'objet puis on le republie, au lieu
-                    // d'échouer à chaque passe (l'ancien comportement laissait une annonce
-                    // `FAILED` définitivement irréconciliable). Même règle que §13.6 pour le
-                    // message d'annonce, portée ici pour les messages par objet.
-                    const detail = editError instanceof Error ? editError.message : String(editError);
-                    // Import **paresseux** : `maintenance.ts` importe ce module (aucun
-                    // cycle à l'évaluation), et la garde pure n'est nécessaire qu'ici.
-                    const { isDiscordMessageGoneError } = await import("@/server/market/maintenance");
-                    if (!isDiscordMessageGoneError(detail)) throw editError;
+                // ID `outbox:<jobId>` (mode dégradé) : on résout le vrai snowflake
+                // avant d'éditer — sinon on PATCH une URL invalide à chaque passe.
+                const realId = await resolveMarketMessageId(
+                    component.discordMessageId,
+                    componentMessageKey(component.id)
+                );
+                if (realId) {
+                    try {
+                        await updateChannelMessage(component.discordChannelId, realId, "", embed);
+                        if (realId !== component.discordMessageId) {
+                            // Trace réparée : les prochaines passes repartent d'un ID valide.
+                            await db.marketListingComponent.update({
+                                where: { id: component.id },
+                                data: { discordMessageId: realId },
+                            });
+                        }
+                        lastMessageId = realId;
+                        continue;
+                    } catch (editError) {
+                        // 🧺 §A5 — message d'objet **supprimé à la main** (404) ou post forum
+                        // fermé : on **efface la trace** de l'objet puis on le republie, au lieu
+                        // d'échouer à chaque passe (l'ancien comportement laissait une annonce
+                        // `FAILED` définitivement irréconciliable). Même règle que §13.6 pour le
+                        // message d'annonce, portée ici pour les messages par objet.
+                        const detail = editError instanceof Error ? editError.message : String(editError);
+                        // Import **paresseux** : `maintenance.ts` importe ce module (aucun
+                        // cycle à l'évaluation), et la garde pure n'est nécessaire qu'ici.
+                        const { isDiscordMessageGoneError } = await import("@/server/market/maintenance");
+                        if (!isDiscordMessageGoneError(detail)) throw editError;
 
+                        await db.marketListingComponent.update({
+                            where: { id: component.id },
+                            data: { discordChannelId: null, discordMessageId: null },
+                        });
+                        logger.info("[market] message d'objet disparu — recréation", {
+                            listingId,
+                            componentId: component.id,
+                        });
+                    }
+                } else if (component.discordMessageId.startsWith("outbox:")) {
+                    // Écriture encore en file (ou jamais aboutie) : trace effacée,
+                    // l'objet est republié proprement au lieu de rester bloqué.
                     await db.marketListingComponent.update({
                         where: { id: component.id },
                         data: { discordChannelId: null, discordMessageId: null },
                     });
-                    logger.info("[market] message d'objet disparu — recréation", {
-                        listingId,
-                        componentId: component.id,
-                    });
                 }
             }
 
-            const sent = await sendChannelMessage(listing.guild.marketNotifyChannelId, "", embed);
-            if (!sent) throw new Error("Envoi Discord refusé (objet du lot)");
-            const messageId = typeof sent === "string" ? sent : String(sent);
+            // S3.15 — le ping part avec le **premier** objet publié (jamais répété).
+            const mention = !mentionUsed ? mentionContent : "";
+            let messageId: string;
+            let messageChannelId = listing.guild.marketNotifyChannelId;
+
+            if (forumMode) {
+                const post = await createForumPost(
+                    listing.guild.marketNotifyChannelId,
+                    buildForumPostName(payload),
+                    mention,
+                    { ...embed, appliedTags }
+                );
+                if (!post) throw new Error("Création du post forum refusée (objet du lot)");
+                messageId = post.messageId;
+                messageChannelId = post.id;
+            } else {
+                const sent = await sendChannelMessage(listing.guild.marketNotifyChannelId, "", {
+                    ...embed,
+                    mentionContent: mention || undefined,
+                    storeMessageIdKey: componentMessageKey(component.id),
+                });
+                if (!sent) throw new Error("Envoi Discord refusé (objet du lot)");
+                messageId = typeof sent === "string" ? sent : String(sent);
+            }
+            if (!mentionUsed && mention) mentionUsed = true;
+
             await db.marketListingComponent.update({
                 where: { id: component.id },
                 data: {
-                    discordChannelId: listing.guild.marketNotifyChannelId,
+                    discordChannelId: messageChannelId,
                     discordMessageId: messageId,
                 },
             });
@@ -605,11 +794,37 @@ export async function syncListingMessage(listingId: string): Promise<MarketDisco
             return publishListingToDiscord(listingId);
         }
 
+        /**
+         * ID `outbox:<jobId>` (mode dégradé) : `sendChannelMessage` renvoie le job
+         * de la file, pas l'ID Discord. On résout le vrai snowflake ré-ancre par
+         * le worker avant d'éditer — sinon on PATCH une URL invalide à chaque
+         * passe (annonce bloquée en `FAILED` sans jamais pouvoir se réparer).
+         */
+        const realMessageId = await resolveMarketMessageId(
+            existing.discordMessageId,
+            listingMessageKey(listingId)
+        );
+        if (!realMessageId) {
+            // Écriture encore en file (ou trace inexploitable) : on republie.
+            await db.marketDiscordMessage.update({
+                where: { listingId },
+                data: { discordMessageId: "", syncStatus: "PENDING" },
+            });
+            return publishListingToDiscord(listingId);
+        }
+        if (realMessageId !== existing.discordMessageId) {
+            await db.marketDiscordMessage.update({
+                where: { listingId },
+                data: { discordMessageId: realMessageId },
+            });
+            existing.discordMessageId = realMessageId;
+        }
+
         const imageUrl = resolveDiscordImageUrl(listing);
         const { payload } = buildPayload(loaded, imageUrl);
         const built = buildMarketDiscordPayload(payload);
 
-        const ok = await updateChannelMessage(existing.discordChannelId, existing.discordMessageId, "", {
+        const ok = await updateChannelMessage(existing.discordChannelId, realMessageId, "", {
             embedTitle: built.embedTitle,
             embedColor: built.embedColor,
             embedDescription: built.embedDescription,
@@ -671,6 +886,14 @@ export async function deleteListingDiscordMessage(listingId: string): Promise<Ma
             select: { discordChannelId: true, discordMessageId: true },
         });
 
+        // Salons **forum** : un post = un fil. Supprimer le message d'ouverture ne
+        // suffit pas toujours (et le fil vide reste visible) → on le ferme aussi.
+        const guild = await db.marketListing.findUnique({
+            where: { id: listingId },
+            select: { guild: { select: { marketChannelKind: true } } },
+        });
+        const forumMode = guild?.guild.marketChannelKind === MARKET_CHANNEL_KIND_FORUM;
+
         /**
          * 🧺 **Option A — nettoyage des messages par objet** : un lot a publié
          * **un message par objet**. Les laisser en salon ferait survivre des
@@ -679,6 +902,10 @@ export async function deleteListingDiscordMessage(listingId: string): Promise<Ma
          * republication ultérieure envoie de vrais messages neufs.
          * Non bloquant : un échec est journalisé, jamais propagé — le message du
          * lot reste supprimé et la trace `syncStatus = FAILED` porte l'erreur.
+         *
+         * ⚠️ IDs `outbox:<jobId>` (mode dégradé) : on résout le vrai snowflake,
+         * sinon la suppression portait sur une URL inexistante — le post restait
+         * orphelin (bug « la suppression ne nettoie pas le forum », 18/09/2026).
          */
         const components = await db.marketListingComponent.findMany({
             where: { listingId, discordMessageId: { not: null } },
@@ -686,7 +913,21 @@ export async function deleteListingDiscordMessage(listingId: string): Promise<Ma
         });
         for (const component of components) {
             if (!component.discordChannelId || !component.discordMessageId) continue;
-            const ok = await deleteChannelMessage(component.discordChannelId, component.discordMessageId);
+
+            const realId = component.discordMessageId.startsWith("outbox:")
+                ? await resolveMarketMessageId(component.discordMessageId, componentMessageKey(component.id))
+                : component.discordMessageId;
+
+            if (!realId) {
+                // Jamais posté (écriture abandonnée) : rien à supprimer côté Discord.
+                await db.marketListingComponent.update({
+                    where: { id: component.id },
+                    data: { discordChannelId: null, discordMessageId: null },
+                });
+                continue;
+            }
+
+            const ok = await deleteMarketMessage(component.discordChannelId, realId, forumMode);
             if (!ok) {
                 logger.warn("[market] suppression du message d'objet refusée", {
                     listingId,
@@ -703,15 +944,43 @@ export async function deleteListingDiscordMessage(listingId: string): Promise<Ma
         // Annonce jamais publiée (brouillon, salon non configuré) : rien à retirer.
         if (!existing) return { ok: true, skipped: true };
 
-        const deleted = await deleteChannelMessage(existing.discordChannelId, existing.discordMessageId);
+        const realListingId = existing.discordMessageId.startsWith("outbox:")
+            ? await resolveMarketMessageId(existing.discordMessageId, listingMessageKey(listingId))
+            : existing.discordMessageId;
+
+        // Trace inexploitable (écriture abandonnée / ID perdu) : on nettoie la
+        // base pour qu'une republication crée un message propre, sans échouer.
+        if (!realListingId) {
+            await db.marketDiscordMessage.update({
+                where: { listingId },
+                data: {
+                    discordChannelId: "",
+                    discordMessageId: "",
+                    syncStatus: "DELETED",
+                    lastError: null,
+                    lastSyncedAt: new Date(),
+                },
+            });
+            return { ok: true, skipped: true };
+        }
+
+        const deleted = await deleteMarketMessage(existing.discordChannelId, realListingId, forumMode);
         if (!deleted) throw new Error("Suppression Discord refusée");
 
         await db.marketDiscordMessage.update({
             where: { listingId },
-            data: { syncStatus: "DELETED", lastError: null, lastSyncedAt: new Date() },
+            // IDs vidés : une restauration (§S4.11) doit **republier** un message
+            // neuf, jamais réécrire dans un message supprimé (404 en boucle).
+            data: {
+                discordChannelId: "",
+                discordMessageId: "",
+                syncStatus: "DELETED",
+                lastError: null,
+                lastSyncedAt: new Date(),
+            },
         });
 
-        return { ok: true, messageId: existing.discordMessageId };
+        return { ok: true, messageId: realListingId };
     } catch (error) {
         const message = errorMessage(error);
         logger.error("[market] deleteListingDiscordMessage failed", { listingId, err: message });

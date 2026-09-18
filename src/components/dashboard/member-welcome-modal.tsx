@@ -1,19 +1,33 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-    Compass,
-    X,
-    ArrowRight,
-    User,
-    ScrollText,
-    InfinityIcon,
-    Trophy,
-} from "lucide-react";
+import { X, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { markWelcomeAsSeen } from "@/server/actions/onboarding-actions";
 import Link from "next/link";
+
+const FEATURES = [
+    {
+        icon: "/assets/dofus/modules/character.png",
+        label: "Ton Profil",
+        description: "Renseigne ton pseudo Dofus et ta classe pour être identifié dans la guilde.",
+    },
+    {
+        icon: "/assets/dofus/modules/quest.png",
+        label: "Missions",
+        description: "Participe aux défis hebdomadaires pour gagner de l'XP et faire grimper la guilde.",
+    },
+    {
+        icon: "/assets/dofus/modules/breach.png",
+        label: "Songes Infinis",
+        description: "Forme des équipes et progresse ensemble dans les Songes Infinis.",
+    },
+    {
+        icon: "/assets/dofus/modules/ladder.png",
+        label: "Ladder XP",
+        description: "Chaque action rapporte de l'XP. Grimpe le classement et montre ta contribution !",
+    },
+];
 
 interface MemberWelcomeModalProps {
     guildId: string;
@@ -37,132 +51,83 @@ export function MemberWelcomeModal({ guildId, guildName, userName, show }: Membe
         await markWelcomeAsSeen(guildId);
     };
 
-    const features = [
-        {
-            icon: User,
-            label: "Ton Profil",
-            description: "Renseigne ton pseudo Dofus et ta classe pour être identifié dans la guilde.",
-            color: "text-info",
-            bg: "bg-info/10 border-info/20",
-        },
-        {
-            icon: ScrollText,
-            label: "Missions",
-            description: "Participe aux défis hebdomadaires pour gagner de l'XP et faire grimper la guilde.",
-            color: "text-success",
-            bg: "bg-success/10 border-success/20",
-        },
-        {
-            icon: InfinityIcon,
-            label: "Songes Infinis",
-            description: "Forme des équipes et progresse ensemble dans les Songes Infinis.",
-            color: "text-info",
-            bg: "bg-info/10 border-info/20",
-        },
-        {
-            icon: Trophy,
-            label: "Ladder XP",
-            description: "Chaque action rapporte de l'XP. Grimpe le classement et montre ta contribution !",
-            color: "text-warning",
-            bg: "bg-warning/10 border-warning/20",
-        },
-    ];
+    if (!isOpen) return null;
 
     return (
-        <AnimatePresence>
-            {isOpen && (
-                <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
-                    {/* Backdrop */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
+            {/* Backdrop — cliquable pour passer */}
+            <div className="absolute inset-0 bg-black/80" aria-hidden="true" onClick={handleClose} />
+
+            <div className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto bg-surface rounded-xl border border-border animate-in fade-in zoom-in-95 duration-200">
+                <div className="relative p-6 sm:p-10 space-y-6">
+                    <button
                         onClick={handleClose}
-                        className="absolute inset-0 bg-black/80 backdrop-blur-md"
-                    />
-
-                    {/* Modal Content */}
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        transition={{ type: "spring", damping: 20, stiffness: 300 }}
-                        className="relative w-full max-w-xl bg-surface rounded-3xl border border-border overflow-hidden "
+                        aria-label="Fermer"
+                        className="absolute top-4 right-4 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors"
                     >
-                        <div className="relative z-10 p-8 md:p-12 flex flex-col items-center text-center space-y-8">
-                            {/* Close Button */}
-                            <button
-                                onClick={handleClose}
-                                className="absolute top-5 right-5 p-2 rounded-full bg-surface border border-border text-muted-foreground hover:text-foreground hover:bg-surface transition-all"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
+                        <X className="w-4 h-4" />
+                    </button>
 
-                            {/* Icon Header */}
-                            <div className="relative w-20 h-20 rounded-[2rem] bg-success flex items-center justify-center">
-                                <Compass className="w-10 h-10 text-foreground" />
-                            </div>
-
-                            {/* Text Content */}
-                            <div className="space-y-4">
-                                <h2 className="text-3xl md:text-4xl font-black text-foreground tracking-tight">
-                                    Bienvenue, <span className="text-success">{userName}</span> !
-                                </h2>
-                                <p className="text-muted-foreground font-medium max-w-md mx-auto text-base md:text-lg leading-relaxed">
-                                    Tu viens de rejoindre <strong className="text-foreground">{guildName}</strong> sur SigilOS.
-                                    Voici les outils à ta disposition :
-                                </p>
-                            </div>
-
-                            {/* Features List */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full text-left">
-                                {features.map((feature) => (
-                                    <div
-                                        key={feature.label}
-                                        className={`flex items-start gap-4 p-4 rounded-2xl border ${feature.bg}`}
-                                    >
-                                        <div className="mt-0.5 flex-shrink-0">
-                                            <feature.icon className={`w-5 h-5 ${feature.color}`} />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <span className="text-sm font-black text-foreground block">{feature.label}</span>
-                                            <span className="text-xs text-muted-foreground font-medium leading-relaxed block">{feature.description}</span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Tip */}
-                            <p className="text-sm text-muted-foreground font-medium italic max-w-sm">
-                                💡 Commence par renseigner ton <strong className="text-foreground not-italic">pseudo Dofus</strong> et ta <strong className="text-foreground not-italic">classe</strong> pour que tes coéquipiers te reconnaissent.
+                    <div className="flex items-start gap-4">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src="/assets/dofus/modules/character.png"
+                            alt=""
+                            width={64}
+                            height={64}
+                            draggable={false}
+                            className="w-16 h-16 shrink-0 object-contain"
+                        />
+                        <div className="space-y-1.5 pt-1">
+                            <p className="text-xs font-medium text-muted-foreground">Tu viens de rejoindre {guildName}</p>
+                            <h2 className="text-2xl font-bold text-foreground tracking-tight">
+                                Bienvenue, {userName} !
+                            </h2>
+                            <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
+                                Voici les outils à ta disposition sur SigilOS.
                             </p>
-
-                            {/* Actions */}
-                            <div className="flex flex-col sm:flex-row items-center gap-4 w-full pt-2 max-w-md">
-                                <Button
-                                    asChild
-                                    className="w-full h-14 bg-background text-foreground hover:bg-surface font-black uppercase tracking-[0.12em] text-sm rounded-2xl group"
-                                >
-                                    <Link href={`/dashboard/${guildId}/profile?edit=identity`} onClick={handleClose}>
-                                        Compléter mon profil
-                                        <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                                    </Link>
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={handleClose}
-                                    className="w-full h-14 text-muted-foreground hover:text-foreground hover:bg-surface font-bold text-sm rounded-2xl"
-                                >
-                                    Explorer le dashboard
-                                </Button>
-                            </div>
                         </div>
+                    </div>
 
-                        {/* Bottom decorative bar */}
-                        <div className="absolute bottom-0 left-0 w-full h-1 bg-success" />
-                    </motion.div>
+                    <ul className="divide-y divide-border border-y border-border">
+                        {FEATURES.map((feature) => (
+                            <li key={feature.label} className="flex items-center gap-4 py-3.5">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={feature.icon}
+                                    alt=""
+                                    width={32}
+                                    height={32}
+                                    loading="lazy"
+                                    draggable={false}
+                                    className="w-8 h-8 shrink-0 object-contain"
+                                />
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-foreground">{feature.label}</p>
+                                    <p className="text-xs text-muted-foreground leading-relaxed">{feature.description}</p>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                        Commence par renseigner ton <span className="text-foreground font-medium">pseudo Dofus</span> et ta{" "}
+                        <span className="text-foreground font-medium">classe</span> pour que tes coéquipiers te reconnaissent.
+                    </p>
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <Button asChild className="flex-1 h-12 text-sm font-semibold rounded-lg">
+                            <Link href={`/dashboard/${guildId}/profile?edit=identity`} onClick={handleClose}>
+                                Compléter mon profil
+                                <ArrowRight className="ml-2 w-4 h-4" />
+                            </Link>
+                        </Button>
+                        <Button variant="ghost" onClick={handleClose} className="flex-1 h-12 text-sm rounded-lg">
+                            Explorer le dashboard
+                        </Button>
+                    </div>
                 </div>
-            )}
-        </AnimatePresence>
+            </div>
+        </div>
     );
 }

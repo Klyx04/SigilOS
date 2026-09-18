@@ -1,21 +1,34 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-    Rocket,
-    X,
-    ArrowRight,
-    Sparkles,
-    Shield,
-    Puzzle,
-    BookOpen,
-    Swords
-} from "lucide-react";
+import { X, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { markWelcomeAsSeen } from "@/server/actions/onboarding-actions";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+
+// Icônes officielles du jeu (assets curés, servis nus — jamais de tuile teintée).
+const FEATURES = [
+    {
+        icon: "/assets/dofus/icons/chat.png",
+        label: "Bot Discord",
+        description: "Annonces, validations et rappels directement sur ton serveur.",
+    },
+    {
+        icon: "/assets/dofus/modules/social.png",
+        label: "Modules",
+        description: "Missions, Songes, Ocre, marché… active ce dont ta guilde a besoin.",
+    },
+    {
+        icon: "/assets/dofus/modules/quest.png",
+        label: "Missions",
+        description: "Défis hebdomadaires avec preuves et validation par le staff.",
+    },
+    {
+        icon: "/assets/dofus/modules/guide.png",
+        label: "Wiki",
+        description: "Documentation interne de la guilde, accès par rôle Discord.",
+    },
+];
 
 interface WelcomeModalProps {
     guildId: string;
@@ -36,98 +49,76 @@ export function WelcomeModal({ guildId, show }: WelcomeModalProps) {
         await markWelcomeAsSeen(guildId);
     };
 
+    if (!isOpen) return null;
+
     return (
-        <AnimatePresence>
-            {isOpen && (
-                <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
-                    {/* Backdrop — non-cliquable pour forcer l'action */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-black/80 backdrop-blur-md"
-                    />
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
+            {/* Backdrop — non-cliquable pour forcer l'action */}
+            <div className="absolute inset-0 bg-black/80" aria-hidden="true" />
 
-                    {/* Modal Content */}
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto glass-premium rounded-2xl md:rounded-3xl border border-border-strong"
+            {/* Panneau plat : asset nu, pas d'ombre portée, pas de verre dépoli */}
+            <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-surface rounded-xl border border-border animate-in fade-in zoom-in-95 duration-200">
+                <div className="relative p-6 sm:p-10 space-y-6">
+                    <button
+                        onClick={handleClose}
+                        aria-label="Fermer"
+                        className="absolute top-4 right-4 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors"
                     >
-                        <div className="relative z-10 p-5 sm:p-8 md:p-12 flex flex-col items-center text-center space-y-5 md:space-y-8">
-                            {/* Close Button — always visible */}
-                            <button
-                                onClick={handleClose}
-                                className="absolute top-3 right-3 sm:top-6 sm:right-6 p-2 rounded-full bg-surface border border-border text-muted-foreground hover:text-foreground hover:bg-surface transition-all z-20"
-                            >
-                                <X className="w-4 h-4 sm:w-5 sm:h-5" />
-                            </button>
+                        <X className="w-4 h-4" />
+                    </button>
 
-                            {/* Icon Header */}
-                            <div className="relative pt-2">
-                                <div className="relative w-14 h-14 sm:w-20 sm:h-20 rounded-2xl bg-success flex items-center justify-center shadow-lg">
-                                    <Rocket className="w-7 h-7 sm:w-10 sm:h-10 text-foreground" />
-                                </div>
-                                <div className="absolute -top-2 -right-2 p-1.5 rounded-full bg-success shadow-xl border-2 border-border">
-                                    <Sparkles className="w-3 h-3 text-foreground" />
-                                </div>
-                            </div>
-
-                            {/* Text Content */}
-                            <div className="space-y-3">
-                                <h2 className="text-display-lg md:text-display-xl font-bold text-foreground font-heading">
-                                    Bienvenue sur <span className="text-success">SigilOS</span>
-                                </h2>
-                                <p className="text-muted-foreground font-medium max-w-sm sm:max-w-md mx-auto text-sm sm:text-base md:text-lg leading-relaxed">
-                                    Votre guilde a maintenant son QG sur SigilOS. Configurez vos modules, invitez vos membres et lancez vos premières sorties.
-                                </p>
-                            </div>
-
-                            {/* Features Grid (Small) */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full pt-4">
-                                <div className="flex flex-col items-center gap-2">
-                                    <div className="p-3 rounded-xl bg-surface border border-border text-info">
-                                        <Shield className="w-5 h-5" />
-                                    </div>
-                                    <span className="text-caption font-semibold text-muted-foreground">Bot Discord</span>
-                                </div>
-                                <div className="flex flex-col items-center gap-2">
-                                    <div className="p-3 rounded-xl bg-surface border border-border text-info">
-                                        <Puzzle className="w-5 h-5" />
-                                    </div>
-                                    <span className="text-caption font-semibold text-muted-foreground">Modules</span>
-                                </div>
-                                <div className="flex flex-col items-center gap-2">
-                                    <div className="p-3 rounded-xl bg-surface border border-border text-success">
-                                        <Swords className="w-5 h-5" />
-                                    </div>
-                                    <span className="text-caption font-semibold text-muted-foreground">Missions</span>
-                                </div>
-                                <div className="flex flex-col items-center gap-2">
-                                    <div className="p-3 rounded-xl bg-surface border border-border text-info">
-                                        <BookOpen className="w-5 h-5" />
-                                    </div>
-                                    <span className="text-caption font-semibold text-muted-foreground">Wiki</span>
-                                </div>
-                            </div>
-
-                            {/* Actions */}
-                            <div className="flex flex-col items-center gap-3 pt-3 w-full max-w-md">
-                                <Button
-                                    asChild
-                                    className="w-full h-12 bg-background text-foreground hover:bg-surface font-semibold text-sm rounded-xl"
-                                >
-                                    <Link href={`/dashboard/${guildId}/admin/getting-started`} onClick={handleClose}>
-                                        Lancer la configuration
-                                        <ArrowRight className="ml-2 w-4 h-4" />
-                                    </Link>
-                                </Button>
-                            </div>
+                    {/* En-tête : blason du jeu nu + eyebrow muet, aligné à gauche */}
+                    <div className="flex items-start gap-4">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src="/assets/dofus/modules/guild.png"
+                            alt=""
+                            width={64}
+                            height={64}
+                            draggable={false}
+                            className="w-16 h-16 shrink-0 object-contain"
+                        />
+                        <div className="space-y-1.5 pt-1">
+                            <p className="text-xs font-medium text-muted-foreground">Ta guilde a son QG</p>
+                            <h2 className="text-2xl font-bold text-foreground tracking-tight">
+                                Bienvenue sur SigilOS
+                            </h2>
+                            <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
+                                Configure tes modules, invite tes membres et lance tes premières sorties.
+                            </p>
                         </div>
-                    </motion.div>
+                    </div>
+
+                    {/* Contenu : liste asset + texte, pas de tuiles teintées */}
+                    <ul className="divide-y divide-border border-y border-border">
+                        {FEATURES.map((feature) => (
+                            <li key={feature.label} className="flex items-center gap-4 py-3.5">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={feature.icon}
+                                    alt=""
+                                    width={32}
+                                    height={32}
+                                    loading="lazy"
+                                    draggable={false}
+                                    className="w-8 h-8 shrink-0 object-contain"
+                                />
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-foreground">{feature.label}</p>
+                                    <p className="text-xs text-muted-foreground leading-relaxed">{feature.description}</p>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+
+                    <Button asChild className="w-full h-12 text-sm font-semibold rounded-lg">
+                        <Link href={`/dashboard/${guildId}/admin/getting-started`} onClick={handleClose}>
+                            Lancer la configuration
+                            <ArrowRight className="ml-2 w-4 h-4" />
+                        </Link>
+                    </Button>
                 </div>
-            )}
-        </AnimatePresence>
+            </div>
+        </div>
     );
 }

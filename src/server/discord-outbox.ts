@@ -7,6 +7,12 @@ import {
     patchChannelMessage,
     createForumThread,
 } from "@/server/discord";
+import {
+    PermanentDiscordWriteError,
+    getDiscordApiCode,
+    getDiscordApiStatus,
+    isPermanentDiscordWriteFailure,
+} from "@/lib/discord-api-errors";
 
 // #223 P3.1 — Outbox des écritures Discord (BullMQ/Redis).
 //
@@ -88,15 +94,39 @@ export async function enqueueDiscordWrite(
 // ─── Exécution (côté worker) ──────────────────────────────────────────────────
 
 /**
- * Exécute une écriture Discord depuis la file. En cas d'échec (réseau, 429/5xx),
- * THROW : BullMQ retente avec le backoff exponentiel configuré. Les erreurs
- * permanentes (4xx) finissent par dépasser `attempts` et sont loggées/dropées.
+ * Exécute une écriture Discord depuis la file. En cas d'échec TRANSITOIRE
+ * (réseau, 429, 5xx), THROW : BullMQ retente avec le backoff exponentiel.
+ *
+ * En cas de REFUS PERMANENT (4xx hors 429 : 400 corps invalide, 401 token,
+ * 403 permissions, 404 salon supprimé), THROW `PermanentDiscordWriteError` :
+ * le worker la convertit en `UnrecoverableError` → zéro retry inutile, alerte
+ * immédiate et exploitable (statut HTTP + code Discord + salon).
  */
 export async function executeDiscordWrite(
     job: DiscordOutboxJobData
 ): Promise<{ success: true; messageId?: string }> {
     const validated = DiscordOutboxJobSchema.parse(job);
+    const channelId = validated.channelId;
 
+    try {
+        return await dispatchDiscordWrite(validated);
+    } catch (error) {
+        if (isPermanentDiscordWriteFailure(error)) {
+            const status = getDiscordApiStatus(error);
+            const code = getDiscordApiCode(error);
+            const reason = error instanceof Error ? error.message : String(error);
+            throw new PermanentDiscordWriteError(
+                `${reason}${status ? ` (HTTP ${status}` : " ("}${code !== undefined ? ` · code ${code}` : ""})`,
+                { status: status || undefined, discordCode: code, channelId },
+            );
+        }
+        throw error;
+    }
+}
+
+async function dispatchDiscordWrite(
+    validated: DiscordOutboxJobData
+): Promise<{ success: true; messageId?: string }> {
     switch (validated.kind) {
         case "postMessage": {
             const messageId = await postChannelMessage(validated.channelId, validated.body);

@@ -22,7 +22,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { shareGalleryItemOnDiscord } from "@/server/actions/gallery-actions";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ClassFilter, GenderFilter, AdvancedTagFilter, getNumericClassId } from "@/components/gallery/gallery-filters";
+import { ClassFilter, GenderFilter, AdvancedTagFilter, TagWithIcons, getNumericClassId } from "@/components/gallery/gallery-filters";
 
 interface GalleryClientProps {
     initialBuilds: GalleryBuild[];
@@ -514,7 +514,7 @@ export function GalleryClient({
                                                 )}
                                             >
                                                 {active && <Check className="w-3 h-3 shrink-0" />}
-                                                {tag.text}
+                                                <TagWithIcons tag={tag} />
                                             </button>
                                         );
                                     })}

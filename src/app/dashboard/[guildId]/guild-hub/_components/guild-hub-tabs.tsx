@@ -20,23 +20,23 @@ interface HubCardProps {
 }
 
 // #83 — Refonte calme : suppression glows/radial-gradients/layoutId spring/blur,
-// hover = fond + bordure uniquement, un seul accent (emerald), 150-200ms.
+// actif = trait net + pastille pleine, jamais de fond teinté, 150-200ms.
 function HubCard({ label, description, icon: Icon, isActive, onClick }: HubCardProps) {
     return (
         <button
             onClick={onClick}
             aria-pressed={isActive}
             className={cn(
-                "group flex items-center gap-4 p-5 rounded-2xl border text-left outline-none transition-colors duration-200 select-none focus-visible:ring-2 focus-visible:ring-success/50",
+                "group flex items-center gap-4 p-5 rounded-2xl border text-left outline-none transition-colors duration-200 select-none focus-visible:ring-2 focus-visible:ring-border-strong",
                 isActive
-                    ? "border-success/40 bg-success/[0.06]"
+                    ? "border-border-strong bg-surface"
                     : "border-border bg-surface hover:bg-surface hover:border-border-strong"
             )}
         >
             <div className={cn(
                 "w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border transition-colors duration-200",
                 isActive
-                    ? "bg-success/10 border-success/30 text-success"
+                    ? "bg-surface border-border-strong text-foreground"
                     : "bg-surface/60 border-border text-muted-foreground group-hover:text-foreground group-hover:border-border"
             )}>
                 <Icon className="w-5 h-5" />
@@ -55,11 +55,11 @@ function HubCard({ label, description, icon: Icon, isActive, onClick }: HubCardP
             </div>
 
             {isActive && (
-                <span className="w-2 h-2 rounded-full bg-success shrink-0" aria-hidden />
+                <span className="w-2 h-2 rounded-full bg-foreground shrink-0" aria-hidden />
             )}
             <ChevronRight className={cn(
                 "w-4 h-4 shrink-0 transition-colors duration-200",
-                isActive ? "text-success" : "text-muted-foreground group-hover:text-muted-foreground"
+                isActive ? "text-foreground" : "text-muted-foreground group-hover:text-muted-foreground"
             )} />
         </button>
     );

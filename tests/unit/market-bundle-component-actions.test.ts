@@ -80,6 +80,8 @@ const COMPONENT_ID = "cm5marketcomponent0001";
 const BUYER_PROFILE_ID = "profile-buyer";
 const ALLOWED_ROLE = "123456789012345678";
 const OTHER_ROLE = "987654321098765432";
+/** 2ᵉ rôle notifiable — vérifie le **détail par rôle** de l'aperçu d'audience. */
+const SECOND_ALLOWED_ROLE = "111222333444555666";
 
 function memberContext(overrides: Record<string, unknown> = {}) {
     return {
@@ -105,7 +107,7 @@ function guildConfig(overrides: Record<string, unknown> = {}) {
         marketNotifyChannelId: "channel-1",
         marketNotifyRoleId: null,
         marketChannelKind: "TEXT",
-        marketAllowedPingRoleIds: [ALLOWED_ROLE],
+        marketAllowedPingRoleIds: [ALLOWED_ROLE, SECOND_ALLOWED_ROLE],
         ...overrides,
     };
 }
@@ -197,7 +199,7 @@ describe("estimateMarketPingAudience — §A2 (audience notifiée)", () => {
 
         expect(result).toEqual({
             success: true,
-            data: { count: 2, approximate: false, available: true, roleCount: 1 },
+            data: { count: 2, approximate: false, available: true, roleCount: 1, perRole: { [ALLOWED_ROLE]: 2 } },
         });
     });
 
@@ -206,7 +208,7 @@ describe("estimateMarketPingAudience — §A2 (audience notifiée)", () => {
 
         expect(result).toEqual({
             success: true,
-            data: { count: 0, approximate: false, available: true, roleCount: 0 },
+            data: { count: 0, approximate: false, available: true, roleCount: 0, perRole: {} },
         });
         expect(listGuildMembers).not.toHaveBeenCalled();
     });
@@ -233,7 +235,24 @@ describe("estimateMarketPingAudience — §A2 (audience notifiée)", () => {
 
         expect(result).toEqual({
             success: true,
-            data: { count: 0, approximate: false, available: false, roleCount: 1 },
+            data: { count: 0, approximate: false, available: false, roleCount: 1, perRole: {} },
         });
+    });
+
+    it("détaille l'audience **par rôle** (aperçu de l'étape 5) et ignore les bots", async () => {
+        (listGuildMembers as ReturnType<typeof vi.fn>).mockResolvedValue([
+            { user: { id: "u1", bot: false }, roles: [ALLOWED_ROLE] },
+            { user: { id: "u2" }, roles: [SECOND_ALLOWED_ROLE] },
+            // 🤖 Un bot qui porte le rôle ne compte pas comme un membre notifié.
+            { user: { id: "bot-1", bot: true }, roles: [ALLOWED_ROLE, SECOND_ALLOWED_ROLE] },
+        ]);
+
+        const result = await estimateMarketPingAudience(GUILD_ID, [ALLOWED_ROLE, SECOND_ALLOWED_ROLE]);
+
+        expect(result.success).toBe(true);
+        if (!result.success || !result.data) throw new Error("réponse attendue");
+        // Dédupliqué par membre : u1 + u2 (le bot est exclu).
+        expect(result.data.count).toBe(2);
+        expect(result.data.perRole).toEqual({ [ALLOWED_ROLE]: 1, [SECOND_ALLOWED_ROLE]: 1 });
     });
 });

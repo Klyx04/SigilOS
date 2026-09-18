@@ -6,6 +6,7 @@ import { RefreshCw, Activity } from "lucide-react";
 import { DiscordIcon } from "@/components/shared/icons";
 import { PublicHeader } from "@/components/layout/public-header";
 import { User } from "next-auth";
+import { useI18n } from "@/lib/i18n/client";
 
 type CheckState = "up" | "degraded" | "down" | "unknown";
 
@@ -183,6 +184,7 @@ export function StatusClient({ user, isMember }: { user?: User; isMember: boolea
 
     const checkedAt = health?.timestamp ? new Date(health.timestamp) : null;
 
+    const { t } = useI18n();
     const rows = buildRows(health);
     const incidents = buildIncidents(health);
 
@@ -197,10 +199,10 @@ export function StatusClient({ user, isMember }: { user?: User; isMember: boolea
                 {/* Title */}
                 <header className="mb-10">
                     <h1 className="text-[clamp(1.75rem,3.2vw,2.4rem)] font-bold leading-[1.12] tracking-tight text-foreground">
-                        État des Services
+                        {t.status.pageTitle}
                     </h1>
                     <p className="mt-3 text-sm text-muted-foreground">
-                        Relevé {checkedAt ? `à ${checkedAt.toLocaleTimeString("fr-FR")}` : "en cours…"} — vérifié en continu
+                        {t.status.pageDesc}
                     </p>
                 </header>
 
@@ -210,7 +212,7 @@ export function StatusClient({ user, isMember }: { user?: User; isMember: boolea
                 {loading ? (
                     <div className="reg-panel bg-surface flex items-center gap-3 p-6">
                         <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden="true" />
-                        <p className="text-sm text-muted-foreground">Relevé des services en cours…</p>
+                        <p className="text-sm text-muted-foreground">{t.footer.statusChecking}</p>
                     </div>
                 ) : (
                 <>
@@ -221,23 +223,23 @@ export function StatusClient({ user, isMember }: { user?: User; isMember: boolea
                             <StatusDot state={globalState} />
                             <div className="min-w-0">
                                 <h2 className="text-lg font-bold text-foreground">
-                                    {globalState === "up" ? "Tous les systèmes sont opérationnels" :
-                                        globalState === "degraded" ? "Service perturbé" :
-                                        globalState === "unknown" ? "Vérification en cours" :
-                                            "Incident en cours"}
+                                    {globalState === "up" ? t.footer.statusOnline :
+                                        globalState === "degraded" ? t.footer.statusDegraded :
+                                        globalState === "unknown" ? t.status.unknown :
+                                            t.footer.statusOffline}
                                 </h2>
                                 <p className="reg-mono mt-1 text-xs text-muted-foreground">
-                                    {lastUpdated ? `Vérifié à ${lastUpdated.toLocaleTimeString("fr-FR")}` : "Vérification..."}
+                                    {lastUpdated ? `${t.status.lastChecked} ${lastUpdated.toLocaleTimeString()}` : "..."}
                                 </p>
                             </div>
                         </div>
                         <button
                             onClick={fetchHealth}
                             className="reg-btn reg-btn-secondary shrink-0"
-                            title="Rafraîchir"
+                            title={t.status.refresh}
                         >
                             <RefreshCw className={`w-4 h-4 text-muted-foreground ${loading ? "animate-spin" : ""}`} aria-hidden="true" />
-                            <span className="hidden sm:inline">Rafraîchir</span>
+                            <span className="hidden sm:inline">{t.status.refresh}</span>
                         </button>
                     </div>
                 </div>

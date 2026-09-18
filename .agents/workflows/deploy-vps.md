@@ -58,24 +58,39 @@ git pull --autostash origin dev                           → "Your local change
 ```
 
 ⇒ `--autostash` **ne protège pas** dans ce cas (il n'y a rien à stasher). Le
-correctif est intégré à `git_fetch` (levée du bit, sauvegarde hors de l'arbre,
-pull, restauration de la curation). **Déblocage manuel une seule fois** :
+correctif est intégré à `git_fetch` (levée du bit par **appels séparés**, sauvegarde
+hors de l'arbre, `git show HEAD:<f> > <f>`, pull, restauration de la curation).
+**Déblocage manuel une seule fois** (séquence validée en bac à sable) :
 
 ```bash
 cd ~/SigilOS
 F=public/game-data/ignored-monsters.json
 
-git ls-files -v "$F"                                        # h / S = le piège
-git update-index --no-assume-unchanged --no-skip-worktree -- "$F"
+git ls-files -v "$F"                    # S (skip-worktree) ou h (assume-unchanged)
 
-cp "$F" /tmp/ignored-monsters.SAUVEGARDE.json                # curation serveur
-git checkout -- "$F"                                        # version du dépôt
-git pull origin dev                                         # passe (fast-forward)
-cp /tmp/ignored-monsters.SAUVEGARDE.json "$F"                # curation restaurée
+# 1) Lever le bit — DEUX appels SÉPARÉS (combinés, git 2.39 les ignore en silence)
+git update-index --no-skip-worktree -- "$F"
+git update-index --no-assume-unchanged -- "$F"
+git ls-files -v "$F"                    # doit afficher H
 
-git rev-parse --short HEAD                                  # le commit attendu
-grep -c autostash scripts/deploy-cd.sh                      # ≥ 2 → correctif en place
+# 2) Sauvegarder la curation, remettre la version du dépôt, pull, restaurer
+cp "$F" /tmp/ignored-monsters.SAUVEGARDE.json
+git show HEAD:"$F" > "$F"               # ⚠️ `git checkout -- "$F"` échoue avec le bit
+git pull origin dev
+cp /tmp/ignored-monsters.SAUVEGARDE.json "$F"
+
+# 3) Vérifier
+git rev-parse --short HEAD
+grep -c autostash scripts/deploy-cd.sh  # ≥ 2 → correctif en place
 ```
+
+Trois pièges git rencontrés le 18/09/2026 (reproduits en bac à sable, git 2.39) :
+
+| Commande | Comportement |
+|---|---|
+| `git update-index --no-assume-unchanged --no-skip-worktree -- <f>` | **s'annulent en silence** (le drapeau reste `S`) → appels séparés |
+| `git checkout -- <f>` sur un fichier `skip-worktree` | `error: pathspec … did not match any file(s) known to git` → utiliser `git show HEAD:<f> > <f>` |
+| `git diff` / `git status` sur ce fichier | muets (git est aveugle) → comparer le **contenu** (`cmp -s`) |
 
 ## Diagnostic — un seul outil
 

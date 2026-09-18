@@ -5,7 +5,7 @@ import { rateLimit } from "@/lib/ratelimit";
 import { buildDofusbookClientFetchUrl } from "@/lib/dofusbook-sign";
 
 import redis from "@/lib/redis";
-import { processDofusbookRawData, isDofusbookBlockResponse, DOFUSBOOK_BLOCKED_MESSAGE, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
+import { processDofusbookRawData, extractDofusbookBuildId, isDofusbookBlockResponse, DOFUSBOOK_BLOCKED_MESSAGE, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
 import { isDofusbookBreakerOpen, openDofusbookBreaker } from "@/lib/dofusbook-guard";
 import { assertSafeUrl } from "@/lib/image-downloader";
 
@@ -57,9 +57,11 @@ function resetDofusbookFailures(): void {
  */
 export async function getDofusbookId(url: string): Promise<string | null> {
     try {
-        // 1. Direct regex for full URLs
-        const fullUrlMatch = url.match(/(?:equipement|dofus)\/(?:[a-z]+\/)?(?:private\/)?(\d+)/i);
-        if (fullUrlMatch) return fullUrlMatch[1];
+        // 1. URL complète : extraction **partagée** avec le formulaire client
+        //    (`extractDofusbookBuildId`), donc tolérante aux variantes d'interface
+        //    (`/desktop/fr/equipement/<id>-slug/objets`, `/perso/`, `/private/`…).
+        const buildId = extractDofusbookBuildId(url);
+        if (buildId) return buildId;
 
         // 2. Short URL resolution (d-bk.net)
         if (url.includes("d-bk.net")) {

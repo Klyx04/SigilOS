@@ -34,19 +34,27 @@ export default async function LegalLayout({
 }) {
     const session = await auth();
     const { getUserContext } = await import("@/server/actions/user-actions");
-    const userContext = await getUserContext();
+    const { getServerI18n } = await import("@/lib/i18n/server");
+    const [userContext, { t }] = await Promise.all([getUserContext(), getServerI18n()]);
+
+    const legalPages = [
+        { label: t.footer.cgu, href: "/legal/cgu" },
+        { label: t.footer.privacy, href: "/legal/privacy" },
+        { label: t.footer.mentions, href: "/legal/mentions" },
+        { label: t.footer.faq, href: "/legal/faq" },
+    ];
 
     return (
         <div className="registre min-h-screen bg-background text-foreground flex flex-col">
-            <PublicHeader user={session?.user} backHref="/" backLabel="Accueil" isMember={userContext.isMember} />
+            <PublicHeader user={session?.user} backHref="/" backLabel={t.nav.backToHome} isMember={userContext.isMember} />
 
             <main className="flex-1">
                 <div className="reg-shell py-10 lg:py-14">
                     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,9fr)] lg:gap-14">
-                        <nav aria-label="Informations légales">
-                            <p className="reg-eyebrow">Informations légales</p>
+                        <nav aria-label={t.footer.legal}>
+                            <p className="reg-eyebrow">{t.footer.legal}</p>
                             <ul className="mt-4 space-y-1.5 text-sm">
-                                {LEGAL_PAGES.map((page) => (
+                                {legalPages.map((page) => (
                                     <li key={page.href}>
                                         <Link
                                             href={page.href}

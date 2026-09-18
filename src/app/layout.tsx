@@ -51,6 +51,11 @@ export const metadata: Metadata = {
   metadataBase: new URL(getAppBaseUrl()),
   alternates: {
     canonical: getAppBaseUrl(),
+    languages: {
+      "fr": getAppBaseUrl(),
+      "en": `${getAppBaseUrl()}?lang=en`,
+      "x-default": getAppBaseUrl(),
+    },
   },
   manifest: "/manifest.webmanifest", // Next.js generates this from manifest.ts
   title: {
@@ -126,23 +131,29 @@ export default async function RootLayout({
 
   // [AUDIT 2026] Retrieve nonce from middleware for CSP-compliant script injection
   const headersList = await headers();
-  const nonce = headersList.get('x-nonce') ?? '';
+  const nonce = headersList.get("x-nonce") ?? "";
+  // Récupération de la locale active (cookie sigilos_locale ou header accept-language)
+  const { getServerLocale } = await import("@/lib/i18n/server");
+  const locale = await getServerLocale();
+  const { I18nProvider } = await import("@/lib/i18n/client");
 
   return (
-    <html lang="fr" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <body suppressHydrationWarning className={`${spaceGrotesk.variable} ${geistMono.variable} ${inter.variable} ${cinzel.variable} ${sourceSans.variable} ${plexMono.variable} antialiased`}>
         <ThemeProvider forcedTheme={forcedTheme} nonce={nonce}>
-          <AuthProvider session={session}>
-            <TooltipProvider>
-              <GodBypassCookie />
-              <PwaRegistration />
-              {children}
-              {donationsEnabled && <SupportOrb />}
-              <PwaInstallBanner />
-              <AppToaster />
-              <BossOverlayHost />
-            </TooltipProvider>
-          </AuthProvider>
+          <I18nProvider initialLocale={locale}>
+            <AuthProvider session={session}>
+              <TooltipProvider>
+                <GodBypassCookie />
+                <PwaRegistration />
+                {children}
+                {donationsEnabled && <SupportOrb />}
+                <PwaInstallBanner />
+                <AppToaster />
+                <BossOverlayHost />
+              </TooltipProvider>
+            </AuthProvider>
+          </I18nProvider>
         </ThemeProvider>
       </body>
     </html>

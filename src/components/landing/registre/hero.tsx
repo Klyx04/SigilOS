@@ -9,21 +9,21 @@
  *
  * Ce qui le remplace : une phrase, une action principale, un lien secondaire,
  * et à droite un **écran réel du produit** légendé (pas une illustration).
+ * Le visuel est statique (`src/lib/landing-figures.ts`) : il ne dépend plus d'un
+ * upload en base.
  */
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import type { PublicLandingScreen } from "@/server/actions/landing-screen-actions";
+import { DashboardMockup } from "./dashboard-mockup";
 import type { PublicGuildShowcase } from "@/server/actions/presentation-actions";
 import { getGuildSlug } from "@/lib/presentation-constants";
 import { loginWithDiscord } from "@/server/actions/auth-actions";
 import { DiscordIcon } from "@/components/shared/icons";
 import { AccessRequestModal } from "../AccessRequestModal";
+import { useI18n } from "@/lib/i18n/client";
 
 interface LandingHeroProps {
-    /** Capture God de la section « hero » ; repli sur la capture par défaut. */
-    screen?: PublicLandingScreen | null;
     /** Guilde publique mise en avant pour le lien secondaire. */
     guild?: PublicGuildShowcase | null;
     clientId?: string;
@@ -31,19 +31,9 @@ interface LandingHeroProps {
     autoOnboardingOn?: boolean;
 }
 
-const FALLBACK_SCREEN: PublicLandingScreen = {
-    id: "hero-default",
-    label: "SigilOS",
-    title: "Tableau de bord de guilde",
-    description: null,
-    imageUrl: "/assets/screenshots/screenshot1.png",
-    alt: "Tableau de bord SigilOS : sorties, progression et membres d'une guilde Dofus",
-    sortOrder: 0,
-};
-
-export function LandingHero({ screen, guild, clientId = "", autoOnboardingOn = true }: LandingHeroProps) {
+export function LandingHero({ guild, clientId = "", autoOnboardingOn = true }: LandingHeroProps) {
+    const { t } = useI18n();
     const [showAccessModal, setShowAccessModal] = useState(false);
-    const figure = screen?.imageUrl ? screen : FALLBACK_SCREEN;
     const guildHref = guild ? `/guilds/${getGuildSlug(guild)}` : "/guilds";
 
     return (
@@ -52,61 +42,51 @@ export function LandingHero({ screen, guild, clientId = "", autoOnboardingOn = t
                 <div>
                     <p className="reg-mono flex items-center gap-2 text-xs text-muted-foreground">
                         <span className="w-1.5 h-1.5 rounded-full bg-success" aria-hidden="true" />
-                        BÊTA OUVERTE · v2.2
+                        {t.landing.badge}
                     </p>
 
                     <h1 className="mt-5 max-w-[13ch] text-[clamp(2rem,4.2vw,3.1rem)] font-bold leading-[1.06] tracking-tight text-foreground">
-                        Le tableau de bord de ta guilde Dofus.
+                        {t.landing.heroTitle}
                     </h1>
 
                     <p className="mt-5 max-w-[34rem] text-base text-muted-foreground leading-relaxed">
-                        Sorties, quêtes et progression au même endroit. Les membres passent par Discord&nbsp;; SigilOS ne
-                        demande aucun accès au compte Ankama.
+                        {t.landing.heroDesc}
                     </p>
 
-                    <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
+                    <div className="mt-8 flex flex-wrap items-center gap-4">
                         <form action={loginWithDiscord}>
-                            <button type="submit" className="reg-btn reg-btn-primary">
+                            <button type="submit" className="reg-btn reg-btn-primary cursor-pointer">
                                 <DiscordIcon className="w-4 h-4" aria-hidden="true" />
-                                Se connecter avec Discord
+                                {t.landing.ctaConfigure}
                             </button>
                         </form>
-                        <Link href={guildHref} className="reg-link">
-                            Voir {guild?.name ?? "l'annuaire des guildes"}
+                        <Link
+                            href="/modules"
+                            className="px-4 py-2 text-sm font-semibold text-foreground hover:text-accent border border-border hover:border-border-strong rounded-lg bg-surface/40 transition-colors"
+                        >
+                            {t.landing.ctaModules}
                         </Link>
                     </div>
 
-                    <p className="mt-5 text-xs text-muted-foreground">
-                        Gratuit · sans publicité · outils ouverts accessibles sans compte
-                    </p>
-
-                    <p className="mt-2 text-xs text-muted-foreground">
-                        Besoin d&apos;aide pour installer ?{" "}
-                        <button
-                            type="button"
-                            onClick={() => setShowAccessModal(true)}
-                            className="reg-link-quiet text-xs"
-                        >
-                            Ouvrir un ticket Discord
-                        </button>
-                    </p>
+                    {/* Étapes réelles et factuelles de mise en route */}
+                    <div className="mt-6 pt-5 border-t border-border/60 space-y-2 text-xs text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px]">
+                            <span className="text-foreground font-semibold">{t.landing.setupStepsTitle}</span>
+                            <span>{t.landing.setupStep1}</span>
+                            <span>&bull;</span>
+                            <span>{t.landing.setupStep2}</span>
+                            <span>&bull;</span>
+                            <span>{t.landing.setupStep3}</span>
+                        </div>
+                        <p className="text-[11px] text-zinc-400">
+                            {t.landing.setupEstimate}
+                        </p>
+                    </div>
                 </div>
 
                 {/* Écran réel, affiché à une taille lisible, jamais assombri. */}
                 <figure className="reg-screen">
-                    <figcaption className="reg-mono flex items-center justify-between gap-4 border-b border-border bg-muted px-3 py-2 text-xs">
-                        <span className="text-foreground">{figure.label || "SigilOS"}</span>
-                        <span className="text-muted-foreground">Capture de l&apos;interface</span>
-                    </figcaption>
-                    <Image
-                        src={figure.imageUrl}
-                        alt={figure.alt || figure.title || "Interface SigilOS"}
-                        width={1440}
-                        height={900}
-                        priority
-                        sizes="(max-width: 1024px) 100vw, 640px"
-                        className="w-full h-auto"
-                    />
+                    <DashboardMockup />
                 </figure>
             </div>
 

@@ -2,10 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getAppBaseUrl } from "@/lib/utils";
-import { LANDING_FAQ } from "@/lib/landing-faq";
-import { findPublicScreen, firstPublicScreen } from "@/lib/landing-utils";
 import { getPublicGuildShowcase } from "@/server/actions/presentation-actions";
-import { getPublicLandingScreens } from "@/server/actions/landing-screen-actions";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { JsonLd } from "@/components/shared/json-ld";
@@ -15,60 +12,11 @@ import { LandingWorkflow } from "@/components/landing/registre/workflow";
 import { LandingGuide } from "@/components/landing/registre/guide";
 import { LandingProof } from "@/components/landing/registre/proof";
 import { LandingSetup } from "@/components/landing/registre/setup";
-
-/**
- * Landing publique — refonte « registre » (anti-AI-slop).
- *
- * Six blocs, dans l'ordre du parcours visiteur :
- *   1. Hero 5/7 — ce que c'est, pour qui, une seule action principale.
- *   2. Outils ouverts — quatre raccourcis, accessibles sans compte.
- *   3. Une sortie de bout en bout — le vrai enchaînement Discord → SigilOS.
- *   4. Le guide en jeu — les captures produit du God, légendées.
- *   5. Preuve communautaire — la guilde réelle, ses chiffres, son journal.
- *   6. Mise en route + questions utiles.
- *
- * Ont disparu : le bento marketing, le tableau « sans / avec », les trois
- * piliers, la séquence 01/02/03 en cartes, la preuve sociale au pluriel et la
- * capsule de pied de page flottante.
- */
+import { getServerI18n } from "@/lib/i18n/server";
 
 export const revalidate = 3600; // ISR 1h — page d'accueil publique (contenu stable), accéléra le chargement & le SEO
 
 const baseUrl = getAppBaseUrl();
-
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "SoftwareApplication",
-      "name": "SigilOS",
-      "applicationCategory": "GameApplication",
-      "operatingSystem": "Web",
-      "url": baseUrl,
-      "description":
-        "SigilOS est le tableau de bord d'une guilde Dofus relié à Discord : sorties, quêtes, membres et progression au même endroit.",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "EUR",
-      },
-      "creator": {
-        "@type": "Organization",
-        "name": "SigilOS",
-        "url": baseUrl,
-      },
-    },
-    {
-      // Balisage aligné sur la FAQ réellement affichée (source : src/lib/landing-faq.ts).
-      "@type": "FAQPage",
-      "mainEntity": LANDING_FAQ.map((item) => ({
-        "@type": "Question",
-        "name": item.q,
-        "acceptedAnswer": { "@type": "Answer", "text": item.a },
-      })),
-    },
-  ],
-};
 
 export default async function Home({
   searchParams,
@@ -76,6 +24,7 @@ export default async function Home({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const [session, params] = await Promise.all([auth(), searchParams]);
+  const { t, locale } = await getServerI18n();
 
   const { getUserContext } = await import("@/server/actions/user-actions");
   const userContext = await getUserContext();
@@ -95,18 +44,8 @@ export default async function Home({
     }
   }
 
-  // Données réelles de la page : guilde(s) publique(s) + captures pilotées par le God (#140).
-  const [showcaseGuilds, productScreensRes, heroScreensRes] = await Promise.all([
-    getPublicGuildShowcase(6),
-    getPublicLandingScreens("product-story"),
-    getPublicLandingScreens("hero"),
-  ]);
+  const showcaseGuilds = await getPublicGuildShowcase(6);
 
-  const productScreens = productScreensRes.success && productScreensRes.data ? productScreensRes.data : [];
-  const heroScreens = heroScreensRes.success && heroScreensRes.data ? heroScreensRes.data : [];
-
-  const heroScreen = firstPublicScreen(heroScreens[0]);
-  const workflowScreen = findPublicScreen(productScreens, /sortie|groupe|event|événement|calendrier/i);
   const topGuild =
     [...showcaseGuilds].sort((a, b) => (b.memberCount || 0) - (a.memberCount || 0))[0] ?? null;
 
@@ -121,30 +60,60 @@ export default async function Home({
   const headersList = await headers();
   const nonce = headersList.get("x-nonce") ?? "";
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "name": "SigilOS",
+        "applicationCategory": "GameApplication",
+        "operatingSystem": "Web",
+        "url": baseUrl,
+        "description":
+          locale === "en"
+            ? "SigilOS is a Dofus guild dashboard connected to Discord: outings, quests, roster, and progress in one place."
+            : "SigilOS est le tableau de bord d'une guilde Dofus relié à Discord : sorties, quêtes, membres et progression au même endroit.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "EUR",
+        },
+        "creator": {
+          "@type": "Organization",
+          "name": "SigilOS",
+          "url": baseUrl,
+        },
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": t.landing.faqItems.map((item) => ({
+          "@type": "Question",
+          "name": item.q,
+          "acceptedAnswer": { "@type": "Answer", "text": item.a },
+        })),
+      },
+    ],
+  };
+
   return (
     <>
       <JsonLd id="json-ld" nonce={nonce} data={jsonLd} />
 
       <div className="registre min-h-screen bg-background text-foreground flex flex-col overflow-x-hidden">
         <a className="reg-skip" href="#contenu">
-          Aller au contenu
+          {t.nav.skipToContent}
         </a>
 
         <PublicHeader user={session?.user} variant="hero" isMember={userContext.isMember} />
 
         <main id="contenu" className="flex-1 w-full">
-          <LandingHero
-            screen={heroScreen}
-            guild={topGuild}
-            clientId={clientId}
-            autoOnboardingOn={autoOnboardingOn}
-          />
+          <LandingHero guild={topGuild} clientId={clientId} autoOnboardingOn={autoOnboardingOn} />
 
           <LandingTools />
 
-          <LandingWorkflow screen={workflowScreen} />
+          <LandingWorkflow />
 
-          <LandingGuide screens={productScreens} />
+          <LandingGuide />
 
           <LandingProof guilds={showcaseGuilds} />
 

@@ -6,6 +6,7 @@ import { JsonLd } from "@/components/shared/json-ld";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { WorldmapLandingPublicClient } from "./_components/WorldmapLandingPublicClient";
+import { getServerI18n } from "@/lib/i18n/server";
 
 export const revalidate = 86400; // Cache ISR 24h
 
@@ -49,6 +50,7 @@ export default async function CarteduMondePage({ searchParams }: Props) {
 
   const session = await auth();
   const user = session?.user ?? null;
+  const { t, locale } = await getServerI18n();
 
   const headersList = await headers();
   const nonce = headersList.get("x-nonce") ?? "";
@@ -64,11 +66,11 @@ export default async function CarteduMondePage({ searchParams }: Props) {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
       itemListElement: [
-        { "@type": "ListItem", position: 1, name: "Accueil", item: getAppBaseUrl() },
+        { "@type": "ListItem", position: 1, name: t.almanaxPage.breadcrumbHome, item: getAppBaseUrl() },
         {
           "@type": "ListItem",
           position: 2,
-          name: "Carte du Monde",
+          name: t.worldmapPage.breadcrumbWorldmap,
           item: BASE_URL,
         },
       ],
@@ -76,9 +78,8 @@ export default async function CarteduMondePage({ searchParams }: Props) {
     {
       "@context": "https://schema.org",
       "@type": "WebApplication",
-      name: "Carte du Monde Dofus Unity — SigilOS",
-      description:
-        "Carte interactive HD de Dofus Unity avec zaaps, donjons, archimonstres et ressources récoltables. Accessible gratuitement sans compte.",
+      name: `${t.worldmapPage.title} — SigilOS`,
+      description: t.worldmapPage.subtitle,
       url: BASE_URL,
       applicationCategory: "GameApplication",
       operatingSystem: "Web",

@@ -1,24 +1,19 @@
 import { db } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
+import type {
+    CalendarEmbedSyncStatus,
+    CalendarInteractionAction,
+    CalendarRegistrationOutcome,
+} from "@/lib/calendar-interaction-feedback";
 import { revalidatePath } from "next/cache";
 import { updateChannelMessage, sendChannelMessage, fetchChannel, createForumPost } from "@/server/discord";
 import { getAppBaseUrl } from "@/lib/utils";
 import { getDofusWeek } from "@/lib/date-utils";
+import { resolveEventImageFile } from "@/lib/calendar-event-images";
 
-// Map event types to premium image filenames
-const EVENT_IMAGES: Record<string, string> = {
-    "RAID_OFFICIAL": "calendar_raid_official.png",
-    "EVENT_GUILD": "calendar_event_guild.png",
-    "SESSION_MISSIONS": "calendar_session_missions.png",
-    "SORTIE_FARM": "calendar_boss_farm.png",
-    // Fallbacks
-    "GUILD_MISSION": "calendar_guild_mission.png",
-    "SONGES_RUN": "calendar_songes_run.png",
-    "DUNGEON_FARM": "calendar_dungeon_farm.png",
-    "SOCIAL": "calendar_social.png",
-    "ALMANAX_BONUS": "calendar_almanax_bonus.png",
-    "OFFICIAL_RESET": "calendar_raid_official.png",
-    "OTHERS": "calendar_autres.png"
-};
+// Les visuels (génériques + dédiés par type de raid) vivent dans
+// `src/lib/calendar-event-images.ts` : même source pour l'embed Discord et les
+// cartes du dashboard.
 
 // Map event types to emojis and colors
 const EVENT_CONFIG: Record<string, { emoji: string; color: number; label: string }> = {
@@ -50,27 +45,114 @@ async function getDiscordId(userId: string): Promise<string | null> {
     return account?.providerAccountId || null;
 }
 
-// Rate limiting for interactions (prevent Discord embed hammer)
+// ---------------------------------------------------------------------------
+// ANTI-SPAM DES BOUTONS DU CALENDRIER (par membre ET par action)
+// ---------------------------------------------------------------------------
+// Constat beta du 18/09/2026 (events raid) : un clic « S'inscrire » suivi d'un clic
+// « Se désinscrire » répondait « Patiente quelques secondes avant d'annuler ».
+// La clé était `userId:eventId` : join et leave partageaient **la même** fenêtre, et
+// elle était armée **avant** les gardes — un simple refus « Déjà inscrit » condamnait
+// donc 10 s d'attente. Désormais : une clé par action, 5 s, armée uniquement quand
+// l'inscription a réellement changé (un no-op ne consomme rien).
+const INTERACTION_COOLDOWN_MS = 5 * 1000;
 const interactionCooldowns = new Map<string, number>();
-const INTERACTION_COOLDOWN_MS = 10 * 1000; // 10 seconds
 
-export async function processRegistration(guildId: string, eventId: string, userId: string, data?: { classe?: string; comment?: string }) {
+function cooldownKey(userId: string, eventId: string, action: CalendarInteractionAction) {
+    return `${action}:${userId}:${eventId}`;
+}
+
+/** Millisecondes restantes avant de pouvoir rejouer la **même** action (0 = libre). */
+function cooldownRemainingMs(userId: string, eventId: string, action: CalendarInteractionAction): number {
+    const key = cooldownKey(userId, eventId, action);
+    const last = interactionCooldowns.get(key) ?? 0;
+    const remaining = INTERACTION_COOLDOWN_MS - (Date.now() - last);
+    if (remaining <= 0) {
+        interactionCooldowns.delete(key);
+        return 0;
+    }
+    return remaining;
+}
+
+/** Arme la fenêtre après une action qui a bien modifié l'inscription. */
+function armCooldown(userId: string, eventId: string, action: CalendarInteractionAction) {
+    // Purge opportuniste : la map vit dans le process Next (jamais de fuite mémoire).
+    if (interactionCooldowns.size > 512) interactionCooldowns.clear();
+    interactionCooldowns.set(cooldownKey(userId, eventId, action), Date.now());
+}
+
+/** Places occupées : mêmes règles que l'embed (REGISTERED + CONFIRMED) + file d'attente. */
+function countParticipants(rows: { status: string }[]) {
+    return {
+        registeredCount: rows.filter(p => p.status === "REGISTERED" || p.status === "CONFIRMED").length,
+        reserveCount: rows.filter(p => p.status === "RESERVE").length,
+    };
+}
+
+/** Un embed Discord existe-t-il pour cet événement ? (sinon rien à rafraîchir) */
+function hasPublishedEmbed(event: { discordMessageId: string | null; discordChannelId: string | null }) {
+    return Boolean(event.discordMessageId && event.discordChannelId);
+}
+
+/** Budget d'attente du PATCH d'embed : l'ACK d'une interaction doit partir < 3 s. */
+const EMBED_SYNC_DEADLINE_MS = 1500;
+
+/**
+ * Rafraîchit l'embed **dans** la fenêtre d'interaction : le cliqueur reçoit un chiffre
+ * exact, mais un Discord lent (429/5xx → `fetchWithRetry`) ne peut pas faire expirer
+ * l'interaction (« L'application n'a pas répondu »). Au-delà du budget, le PATCH n'est
+ * pas annulé : il se termine en tâche de fond et l'issue est journalisée.
+ */
+async function refreshEmbedWithinDeadline(guildId: string, eventId: string): Promise<CalendarEmbedSyncStatus> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<"timeout">((resolve) => {
+        timer = setTimeout(() => resolve("timeout"), EMBED_SYNC_DEADLINE_MS);
+    });
+    const outcome = await Promise.race([refreshDiscordEventEmbed(guildId, eventId), deadline]);
+    if (timer) clearTimeout(timer);
+    if (outcome === "timeout") {
+        logger.warn("[Calendar] PATCH embed au-delà du budget d'interaction — poursuivi en tâche de fond", {
+            guildId,
+            eventId,
+        });
+        return "deferred";
+    }
+    return outcome;
+}
+
+export async function processRegistration(guildId: string, eventId: string, userId: string, data?: { classe?: string; comment?: string }): Promise<CalendarRegistrationOutcome> {
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
         select: { id: true, raidRequireKamaDonation: true, raidKamaDonationThreshold: true }
     });
     if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
 
+    // Une seule requête : les places affichées par l'embed (REGISTERED + CONFIRMED)
+    // **et** l'inscription éventuelle du cliqueur (pour un « déjà inscrit » utile).
     const event = await db.guildEvent.findUnique({
         where: { id: eventId, guildId: guildConfig.id },
-        include: {
-            _count: { select: { participants: { where: { status: "REGISTERED" } } } },
-            participants: { where: { userId: userId } }
-        }
+        include: { participants: { select: { userId: true, status: true } } }
     });
 
     if (!event) return { success: false, error: "Événement introuvable" };
     if (event.status !== "PUBLISHED") return { success: false, error: "Inscriptions fermées" };
+
+    // Places affichées par l'embed : REGISTERED + CONFIRMED (jamais les réserves).
+    const counts = countParticipants(event.participants);
+    const maxParticipants = event.maxParticipants || null;
+
+    // Déjà inscrit = information, pas un refus : aucune écriture, aucun rafraîchissement
+    // d'embed et aucune fenêtre d'anti-spam consommée (clic doublon ou embed périmé).
+    const mine = event.participants.find(p => p.userId === userId);
+    if (mine) {
+        return {
+            success: false,
+            error: "Déjà inscrit",
+            alreadyRegistered: true,
+            isReserve: mine.status === "RESERVE",
+            ...counts,
+            maxParticipants,
+        };
+    }
 
     // RBAC: Raids require RAID_MEMBER permission to participate
     if (event.type === "RAID_OFFICIAL") {
@@ -130,40 +212,52 @@ export async function processRegistration(guildId: string, eventId: string, user
         }
     }
 
-    const cooldownKey = `${userId}:${eventId}`;
-    const lastAction = interactionCooldowns.get(cooldownKey) || 0;
-    if (Date.now() - lastAction < INTERACTION_COOLDOWN_MS) {
-        return { success: false, error: "Doucement ! Patiente quelques secondes entre tes actions." };
+    const remaining = cooldownRemainingMs(userId, eventId, "join");
+    if (remaining > 0) {
+        return {
+            success: false,
+            error: `Doucement ! Réessaie dans ${Math.ceil(remaining / 1000)} s.`,
+            ...counts,
+            maxParticipants,
+        };
     }
-    interactionCooldowns.set(cooldownKey, Date.now());
 
-    if (event.participants.length > 0) return { success: false, error: "Déjà inscrit" };
-
-
-
-    const currentCount = event._count.participants;
-    const maxParticipants = event.maxParticipants || 999;
-    const isReserve = currentCount >= maxParticipants;
+    const isReserve = maxParticipants !== null && counts.registeredCount >= maxParticipants;
 
     await db.eventParticipant.create({
         data: {
             eventId,
             userId: userId,
             status: isReserve ? "RESERVE" : "REGISTERED",
-            position: currentCount + 1,
+            // Position unique : elle est recomputée à chaque désinscription.
+            position: event.participants.length + 1,
             classe: data?.classe,
             comment: data?.comment
         }
     });
+    armCooldown(userId, eventId, "join");
 
-    updateDiscordEventEmbed(guildId, eventId).catch(err => console.error("Background Embed Update Error:", err));
+    // Le compteur annoncé au cliqueur doit être celui de l'embed : on PATCH **avant**
+    // de répondre (borné à `EMBED_SYNC_DEADLINE_MS`). Avant, ce PATCH était lancé en
+    // tâche de fond et perdu : l'embed gardait un chiffre faux, sans trace.
+    const embedStatus = hasPublishedEmbed(event)
+        ? await refreshEmbedWithinDeadline(guildId, eventId)
+        : undefined;
 
     revalidatePath(`/dashboard/${guildId}/calendar`);
     revalidatePath(`/dashboard/${guildId}`, "layout");
-    return { success: true, isReserve, reserveMessage: isReserve ? "Tes Kamas Violets ne seront pas déduits si tu ne participes pas au raid." : undefined };
+    return {
+        success: true,
+        isReserve,
+        reserveMessage: isReserve ? "Tes Kamas Violets ne seront pas déduits si tu ne participes pas au raid." : undefined,
+        registeredCount: counts.registeredCount + (isReserve ? 0 : 1),
+        reserveCount: counts.reserveCount + (isReserve ? 1 : 0),
+        maxParticipants,
+        embedStatus,
+    };
 }
 
-export async function processUnregistration(guildId: string, eventId: string, userId: string) {
+export async function processUnregistration(guildId: string, eventId: string, userId: string): Promise<CalendarRegistrationOutcome> {
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
         select: { id: true }
@@ -175,26 +269,29 @@ export async function processUnregistration(guildId: string, eventId: string, us
         include: { event: true }
     });
 
-    if (!participant) return { success: false, error: "Non inscrit" };
+    // Aucune inscription à annuler (embed périmé, désinscription déjà faite) :
+    // la route le traduit en information, pas en erreur.
+    if (!participant) return { success: false, error: "Non inscrit", notRegistered: true };
 
     // SECURITY: Block captain/creator from unregistering from a RAID — must transfer lead first
     if (participant.event.type === "RAID_OFFICIAL" && participant.event.creatorId === userId) {
         return { success: false, error: "Vous êtes le capitaine du raid. Transférez d'abord le capitanat à un autre participant avant de vous désinscrire." };
     }
 
-    const cooldownKey = `${userId}:${eventId}`;
-    const lastAction = interactionCooldowns.get(cooldownKey) || 0;
-    if (Date.now() - lastAction < INTERACTION_COOLDOWN_MS) {
-        return { success: false, error: "Patiente quelques secondes avant d'annuler." };
+    const remaining = cooldownRemainingMs(userId, eventId, "leave");
+    if (remaining > 0) {
+        return { success: false, error: `Doucement ! Réessaie dans ${Math.ceil(remaining / 1000)} s.` };
     }
-    interactionCooldowns.set(cooldownKey, Date.now());
 
     const wasRegistered = participant.status === "REGISTERED";
 
     await db.eventParticipant.delete({
         where: { id: participant.id }
     });
+    // La fenêtre ne s'arme qu'ici : un « Non inscrit » ne doit jamais bloquer l'action suivante.
+    armCooldown(userId, eventId, "leave");
 
+    let promotedReserve = false;
     if (wasRegistered) {
         const firstReserve = await db.eventParticipant.findFirst({
             where: { eventId, status: "RESERVE" },
@@ -209,6 +306,7 @@ export async function processUnregistration(guildId: string, eventId: string, us
                     promotedAt: new Date()
                 }
             });
+            promotedReserve = true;
         }
     }
 
@@ -224,11 +322,23 @@ export async function processUnregistration(guildId: string, eventId: string, us
         });
     }
 
-    updateDiscordEventEmbed(guildId, eventId).catch(err => console.error("Background Embed Update Error:", err));
+    // Compteurs relevés **après** promotion + réindexation : le chiffre annoncé au
+    // cliqueur est celui de l'embed (recomputé juste après, dans la même fenêtre).
+    const counts = countParticipants(participants);
+    const embedStatus = hasPublishedEmbed(participant.event)
+        ? await refreshEmbedWithinDeadline(guildId, eventId)
+        : undefined;
 
     revalidatePath(`/dashboard/${guildId}/calendar`);
     revalidatePath(`/dashboard/${guildId}`, "layout");
-    return { success: true };
+    return {
+        success: true,
+        promoted: promotedReserve,
+        registeredCount: counts.registeredCount,
+        reserveCount: counts.reserveCount,
+        maxParticipants: participant.event.maxParticipants || null,
+        embedStatus,
+    };
 }
 
 export async function publishDiscordEvent(guildId: string, eventId: string) {
@@ -295,7 +405,8 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
         }
 
         const typeConfig = EVENT_CONFIG[event.type] || { emoji: "📅", color: 0x9333ea, label: event.type };
-        const imageName = EVENT_IMAGES[event.type] || "calendar_event_guild.png";
+        // Visuel du raid selon `metadata.raidType` (Gigalodon / Jardins Éternels).
+        const imageName = resolveEventImageFile(event.type, event.metadata);
         const publicUrl = getAppBaseUrl();
         const imageUrl = `${publicUrl}/assets/calendar/${imageName}`;
 
@@ -466,7 +577,16 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
     }
 }
 
-export async function updateDiscordEventEmbed(guildId: string, eventId: string) {
+/**
+ * Reconstruit et PATCH l'embed Discord d'un événement, en **rendant l'issue**
+ * (`synced` / `skipped` / `failed`) : c'est ce qui permet au parcours d'inscription
+ * d'annoncer un chiffre exact, et de dire au cliqueur quand l'embed n'a pas suivi
+ * (avant, l'échec partait dans un `console.error` que personne ne lisait).
+ *
+ * Ne **throw jamais** : les appelants historiques (actions du dashboard) s'appuient
+ * sur `.catch()`. Pour un contrat `void`, utiliser `updateDiscordEventEmbed`.
+ */
+export async function refreshDiscordEventEmbed(guildId: string, eventId: string): Promise<CalendarEmbedSyncStatus> {
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
@@ -478,7 +598,7 @@ export async function updateDiscordEventEmbed(guildId: string, eventId: string) 
                 raidSanctuaireNotifyChannelId: true
             }
         });
-        if (!guildConfig) return;
+        if (!guildConfig) return "skipped";
 
         const event = await db.guildEvent.findUnique({
             where: { id: eventId },
@@ -501,10 +621,11 @@ export async function updateDiscordEventEmbed(guildId: string, eventId: string) 
             }
         });
 
-        if (!event || !event.discordMessageId || !event.discordChannelId) return;
+        if (!event || !event.discordMessageId || !event.discordChannelId) return "skipped";
 
         const typeConfig = EVENT_CONFIG[event.type] || { emoji: "📅", color: 0x9333ea, label: event.type };
-        const imageName = EVENT_IMAGES[event.type] || "calendar_event_guild.png";
+        // Même résolution que la publication : un PATCH ne doit jamais changer le visuel.
+        const imageName = resolveEventImageFile(event.type, event.metadata);
         const publicUrl = getAppBaseUrl();
         const imageUrl = `${publicUrl}/assets/calendar/${imageName}`;
 
@@ -609,7 +730,7 @@ export async function updateDiscordEventEmbed(guildId: string, eventId: string) 
             }
         ];
 
-        await updateChannelMessage(
+        const synced = await updateChannelMessage(
             event.discordChannelId,
             event.discordMessageId,
             "",
@@ -624,7 +745,18 @@ export async function updateDiscordEventEmbed(guildId: string, eventId: string) 
             }
         );
 
+        return synced ? "synced" : "failed";
     } catch (error) {
-        console.error("[Calendar Service] updateDiscordEventEmbed Error:", error);
+        logger.error("[Calendar Service] refreshDiscordEventEmbed Error:", { error, guildId, eventId });
+        return "failed";
     }
+}
+
+/**
+ * Rafraîchit l'embed d'un événement — **contrat `void`** conservé pour les appelants
+ * historiques (`src/server/actions/calendar-actions.ts`) qui enchaînent `.catch()`.
+ * Préférer `refreshDiscordEventEmbed` quand l'issue compte (inscription Discord).
+ */
+export async function updateDiscordEventEmbed(guildId: string, eventId: string): Promise<void> {
+    await refreshDiscordEventEmbed(guildId, eventId);
 }

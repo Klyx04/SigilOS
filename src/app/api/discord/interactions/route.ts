@@ -95,9 +95,14 @@ const DISCORD_PERM_MAP: Record<string, PermissionId> = {
     mkt: PERMISSION_IDS.MARKET_TRADE,            // Marché = réserver / offrir / contacter
 };
 
+/** Réponse éphémère standard (type 4, `flags: 64`) — visible du seul cliqueur. */
+function ephemeralDiscordMessage(content: string): NextResponse {
+    return NextResponse.json({ type: 4, data: { content, flags: 64 } });
+}
+
 /** Refus éphémère standard (type 4, `flags: 64` — jamais muet, jamais public). */
 function ephemeralDiscordRefusal(content: string): NextResponse {
-    return NextResponse.json({ type: 4, data: { content, flags: 64 } });
+    return ephemeralDiscordMessage(content);
 }
 
 /** Textes de refus partagés par les boutons **et** les modales (une source). */
@@ -178,13 +183,25 @@ export async function POST(request: NextRequest) {
             let result;
 
             if (prefix === "calendar") {
-                if (action === "join") {
-                    const { processRegistration } = await import("@/server/calendar-service");
-                    result = await processRegistration(guild_id, entityId, account!.userId);
-                } else if (action === "leave") {
-                    const { processUnregistration } = await import("@/server/calendar-service");
-                    result = await processUnregistration(guild_id, entityId, account!.userId);
+                // Inscriptions aux événements. Deux garanties tenues ici (constat beta du
+                // 18/09/2026) :
+                //  1. le cliqueur reçoit toujours un message **explicite** — un `type: 4`
+                //     éphémère. L'ancien `type: 6` (ACK muet) laissait un « bien inscrit »
+                //     absent, le défer non résolu côté client (« Le message n'a pas pu être
+                //     chargé ») et aucun compteur ;
+                //  2. le compteur annoncé vient du service, qui a **attendu** le PATCH de
+                //     l'embed (borné) avant de répondre : plus d'embed périmé silencieux.
+                const { processRegistration, processUnregistration } = await import("@/server/calendar-service");
+                const { buildCalendarInteractionFeedback } = await import("@/lib/calendar-interaction-feedback");
+
+                if (action === "join" || action === "leave") {
+                    const outcome = action === "join"
+                        ? await processRegistration(guild_id, entityId, account!.userId)
+                        : await processUnregistration(guild_id, entityId, account!.userId);
+                    return ephemeralDiscordMessage(buildCalendarInteractionFeedback(action, outcome));
                 }
+
+                return ephemeralDiscordMessage("❌ Action calendrier inconnue.");
             } else if (prefix === "songes") {
                 if (action === "join") {
                     // Open a Modal for class selection + optional message
@@ -1200,17 +1217,17 @@ export async function POST(request: NextRequest) {
                 // DJ interactions: give ephemeral feedback
                 if (prefix === "dj") {
                     const label = action === "join" ? "✅ Tu as rejoint le groupe !" : "👋 Tu as quitté le groupe.";
-                    return NextResponse.json({
-                        type: 4,
-                        data: { content: label, flags: 64 },
-                    });
+                    return ephemeralDiscordMessage(label);
                 }
-                return NextResponse.json({ type: 6 }); // ACK silencieux (others)
+                // Plus aucun module ne répond en silence : `type: 6` (défer d'update) laissait
+                // l'interaction sans suite côté client. Seul `songes:leave` arrive encore ici
+                // (le Marché, les tickets, le poll et les reaction-roles répondent plus haut).
+                if (prefix === "songes") {
+                    return ephemeralDiscordMessage("👋 C'est noté — tu ne fais plus partie de cette run Songes.");
+                }
+                return ephemeralDiscordMessage("✅ Action enregistrée.");
             } else {
-                return NextResponse.json({
-                    type: 4,
-                    data: { content: `❌ ${result?.error || "Erreur inconnue"}`, flags: 64 },
-                });
+                return ephemeralDiscordRefusal(`❌ ${result?.error || "Erreur inconnue"}`);
             }
         }
 

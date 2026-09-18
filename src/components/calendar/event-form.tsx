@@ -53,6 +53,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { raidImagePath } from "@/lib/calendar-event-images";
 import { MissionPicker } from "./mission-picker";
 import Link from "next/link";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
@@ -97,7 +98,8 @@ const RAID_TYPES = [
         min: 8,
         max: 16,
         icon: "🌿",
-        image: "https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?q=80&w=1000&auto=format&fit=crop", // Mystical Garden
+        // Illustration SigilOS (portrait 3:4) — le sélecteur l'affiche entière, jamais rognée.
+        image: raidImagePath("jardin"),
         thumbnail: "https://static.ankama.com/dofus/www/game/monsters/200/5131.png",
     },
     {
@@ -107,7 +109,7 @@ const RAID_TYPES = [
         min: 8,
         max: 12,
         icon: "🦈",
-        image: "https://images.unsplash.com/photo-1551244072-5d12893278ab?q=80&w=1000&auto=format&fit=crop", // Deep Ocean
+        image: raidImagePath("gigalodon"),
         thumbnail: "https://static.ankama.com/dofus/www/game/monsters/200/5129.png",
     },
 ] as const;
@@ -624,34 +626,36 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                             {/* Raid Subtype */}
                             <div className="space-y-2">
                                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Type de Raid</span>
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     {RAID_TYPES.map(rt => (
                                         <button
                                             key={rt.id}
                                             type="button"
                                             onClick={() => handleRaidTypeChange(rt.id as "jardin" | "gigalodon")}
+                                            aria-pressed={raidType === rt.id}
                                             className={cn(
-                                                "relative flex flex-col items-start gap-1.5 p-3 rounded-xl border-2 text-left transition-all group overflow-hidden h-24",
+                                                "group flex items-stretch gap-3 p-2.5 rounded-xl border-2 text-left transition-all",
                                                 raidType === rt.id
-                                                    ? "border-danger/50 "
-                                                    : "border-border bg-surface/50 hover:border-border"
+                                                    ? "border-danger/50 bg-danger/5"
+                                                    : "border-border bg-surface/50 hover:border-danger/30"
                                             )}
                                         >
-                                            {/* Background Art */}
+                                            {/* Illustration SigilOS affichée ENTIÈRE : cadre 72×96 (ratio
+                                                3:4 de l'image) + `object-contain` — rien n'est rogné. */}
                                             {rt.image && (
-                                                <div className="absolute inset-0 z-0">
+                                                <div className="relative shrink-0 h-24 w-[72px] overflow-hidden rounded-lg border border-border/60 bg-background/60">
                                                     <img 
                                                         src={rt.image} 
-                                                        alt={rt.short}
+                                                        alt={rt.label}
                                                         className={cn(
-                                                            "w-full h-full object-cover opacity-25 transition-all duration-300 group-",
-                                                            raidType === rt.id ? "opacity-60 saturate-[1.2] scale-105" : "group-hover:opacity-40"
+                                                            "h-full w-full object-contain transition-transform duration-300",
+                                                            raidType === rt.id ? "scale-[1.03]" : "scale-100 group-hover:scale-[1.03]"
                                                         )}
                                                     />
                                                     {/* Color Overlay for contrast */}
                                                     <div className={cn(
-                                                        "absolute inset-0 bg-background/40",
-                                                        raidType === rt.id ? "opacity-40" : "opacity-80"
+                                                        "pointer-events-none absolute inset-0 bg-gradient-to-t from-background/60 via-background/5 to-transparent",
+                                                        raidType === rt.id ? "opacity-0" : "opacity-100"
                                                     )} />
                                                     
                                                     {/* Selection state */}
@@ -661,18 +665,13 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                 </div>
                                             )}
 
-                                            <div className="relative z-10">
-                                                <span className="text-2xl block mb-1">{rt.icon}</span>
-                                                <div className="flex flex-col">
-                                                    <span className={cn(
-                                                        "text-label font-black leading-tight uppercase tracking-tight",
-                                                        raidType === rt.id ? "text-foreground" : "text-foreground"
-                                                    )}>{rt.short}</span>
-                                                    <span className={cn(
-                                                        "text-caption font-bold uppercase tracking-widest mt-0.5",
-                                                        raidType === rt.id ? "text-danger" : "text-muted-foreground"
-                                                    )}>{rt.min}–{rt.max} joueurs</span>
-                                                </div>
+                                            <div className="relative flex min-w-0 flex-col justify-center">
+                                                <span className="text-2xl leading-none mb-1.5">{rt.icon}</span>
+                                                <span className="text-label font-black leading-tight uppercase tracking-tight text-foreground">{rt.short}</span>
+                                                <span className={cn(
+                                                    "text-caption font-bold uppercase tracking-widest mt-0.5",
+                                                    raidType === rt.id ? "text-danger" : "text-muted-foreground"
+                                                )}>{rt.min}–{rt.max} joueurs</span>
                                             </div>
                                         </button>
                                     ))}

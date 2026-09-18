@@ -156,6 +156,9 @@ If user input is required (like Songes candidature), use Discord Modals:
 | URL preview pollution | Use `{ suppressEmbeds: true }` for plain messages with URLs |
 | `guild_id` vs `guildId` | Discord payload `guild_id` = snowflake. DB `guildId` = internal CUID. Never mix. |
 | No permission mapping = locked out | Owners + Discord admins always bypass RBAC. Regular members need role mapping in admin page. |
+| `type: 6` (ACK muet) en réponse à un bouton | Un défer non résolu côté client : aucune confirmation (« bien inscrit »), bulle « Le message n'a pas pu être chargé ». Répondre en `type: 4` éphémère (`ephemeralDiscordMessage`), ou `type: 6` **suivi** d'un `editInteractionMessage` (pattern tickets). |
+| Embed rafraîchi en tâche de fond (`.catch()`) | Compteur/pseudos périmés si le PATCH échoue ou est coupé. **Attendre** le PATCH avant de répondre, avec un plafond (< 3 s : `refreshEmbedWithinDeadline` du service calendrier) pour ne jamais expirer l'interaction. |
+| Fenêtre anti-spam partagée entre deux actions | Clé `userId:eventId` ⇒ « S'inscrire » puis « Se désinscrire » se bloquent mutuellement. Clé **par action**, armée seulement quand l'action a réellement changé l'état. |
 
 ## Testing
 

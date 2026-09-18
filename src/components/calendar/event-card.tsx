@@ -1,6 +1,7 @@
 "use client";
 
 import { getDisplayName } from "@/lib/display-name";
+import { resolveEventImagePath } from "@/lib/calendar-event-images";
 
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -55,19 +56,8 @@ const TYPE_THEMES: Record<string, { label: string; color: string; bg: string; bo
     OTHERS: { label: "Autres", color: "text-muted-foreground", bg: "bg-muted/10", border: "border-border/20", icon: Diamond, gradient: "from-muted to-muted" },
 };
 
-const EVENT_IMAGES: Record<string, string> = {
-    "RAID_OFFICIAL": "/assets/calendar/calendar_raid_official.png",
-    EVENT_GUILD: "/assets/calendar/calendar_event_guild.png",
-    SESSION_MISSIONS: "/assets/calendar/calendar_session_missions.png",
-    SORTIE_FARM: "/assets/calendar/calendar_boss_farm.png",
-    KRALAMOURE: "/assets/calendar/calendar_kralamour.png",
-    "GUILD_MISSION": "/assets/calendar/calendar_session_missions.png", // Fallback
-    "SONGES_RUN": "/assets/calendar/calendar_songes_run.png",
-    "DUNGEON_FARM": "/assets/calendar/calendar_dungeon_farm.png",
-    "SOCIAL": "/assets/calendar/calendar_social.png",
-    "ALMANAX_BONUS": "/assets/calendar/calendar_almanax_bonus.png",
-    "OTHERS": "/assets/calendar/calendar_autres.png",
-};
+// Les visuels d'événement (dont les deux raids) viennent de
+// `src/lib/calendar-event-images.ts` — même source que les embeds Discord.
 
 export function EventCard({
     event,
@@ -206,7 +196,7 @@ export function EventCard({
             <div className="absolute top-0 left-0 right-0 h-32 overflow-hidden opacity-40 mask-image-gradient">
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-surface/90 z-10" />
                 <img
-                    src={EVENT_IMAGES[event.type] || EVENT_IMAGES["EVENT_GUILD"]}
+                    src={resolveEventImagePath(event.type, event.metadata)}
                     alt="Event type"
                     className={cn(
                         "w-full h-full object-cover transition-all duration-300 transform group-",

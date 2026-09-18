@@ -3,6 +3,7 @@
 import { db } from "@/lib/prisma";
 import { resolveDofusServerName } from "@/lib/presentation-constants";
 import { Prisma } from "@prisma/client";
+import { isDofusbookBuildUrl, isDofusRoomBuildUrl } from "@/lib/dofusbook-utils";
 import { revalidatePath } from "next/cache";
 import { getUserContext, checkGuildPermission } from "./user-actions";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -1305,12 +1306,12 @@ const UpdateDofusBookLinksSchema = z.object({
             .min(1, "Nom requis")
             .max(30, "Nom trop long (max 30)"),
         url: z.string().refine(
-            (url) => {
-                const dofusbookPattern = /^https:\/\/(www\.)?(d-bk\.net|dofusbook\.net)\/(fr|en|es|pt|de)\/(?:private\/)?[a-zA-Z0-9-_\/]+$/;
-                const dofusroomPattern = /^https:\/\/(www\.)?dofusroom\.com\/(buildroom\/build\/show\/\d+|b-\d+)\/?$/;
-                return dofusbookPattern.test(url) || dofusroomPattern.test(url);
-            },
-            { message: "Format de lien invalide (DofusBook: d-bk.net/dofusbook.net ou DofusRoom: dofusroom.com)" }
+            // 🎯 Source unique de vérité (`src/lib/dofusbook-utils.ts`) : accepte le site,
+            // l'app « desktop » (`/desktop/fr/equipement/<id>-slug/objets`) et les liens
+            // courts d-bk.net. Les regex locales les refusaient (bug du 18/09/2026 :
+            // « FORMAT DE LIEN INVALIDE » à l'enregistrement).
+            (url) => isDofusbookBuildUrl(url) || isDofusRoomBuildUrl(url),
+            { message: "Format de lien invalide (DofusBook : …/equipement/<id> ou d-bk.net — DofusRoom : dofusroom.com)" }
         ),
         tags: z.array(z.string()).optional(),
         classId: z.number().nullable().optional(),

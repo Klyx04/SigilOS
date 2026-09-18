@@ -122,6 +122,78 @@ export const DOFUSBOOK_BLOCKED_MESSAGE =
  * NB : 404 (build inexistant, JSON `stuff/not-found`) et 401 (mauvais secret côté worker)
  * ne sont PAS des blocages.
  */
+/**
+ * Id **numérique** d'un build dans une URL Dofusbook, sinon `null`.
+ *
+ * Tolérant aux variantes d'interface (l'app « desktop » de Dofusbook ajoute des
+ * segments d'app et un suffixe d'onglet — `desktop/fr/equipement/<id>-slug/objets`) :
+ *   · `…/fr/equipement/16582897-feca-multi-low-cost-pvm-200`
+ *   · `…/desktop/fr/equipement/16582897-…/objets`
+ *   · `…/fr/equipement/private/16582901-…` · `…/equipement/perso/16582901-…`
+ *
+ * Partagé par le formulaire (client) et `getDofusbookId()` (serveur) : une seule
+ * vérité, ils ne peuvent plus diverger.
+ */
+export function extractDofusbookBuildId(url: string): string | null {
+    const match = String(url).match(/(?:equipement|dofus)\/(?:[a-z0-9-]+\/)*(\d+)/i);
+    return match ? match[1] : null;
+}
+
+/** `hostname` appartient-il au domaine (lui-même ou un de ses sous-domaines) ? */
+function hostMatches(hostname: string, domain: string): boolean {
+    return hostname === domain || hostname.endsWith(`.${domain}`);
+}
+
+/**
+ * Ce lien est-il un **build Dofusbook** exploitable ?
+ *
+ * Accepte les deux formes légitimes, quel que soit le chemin d'interface :
+ *   · lien complet `https://(www.)?dofusbook.net/<…>/equipement/<id>-slug[…/objets]` ;
+ *   · lien court officiel `https://(www.)?d-bk.net/<…>/<code>` (id résolu côté serveur).
+ *
+ * ⚠️ Sert de **source unique** à la validation : formulaire `AddBuildModal` (client) **et**
+ * schéma Zod `updateDofusBookLinks` (serveur). Les deux refusaient le format « desktop »
+ * (bug du 18/09/2026 : « FORMAT DE LIEN INVALIDE » sur `…/desktop/fr/equipement/…/objets`).
+ */
+export function isDofusbookBuildUrl(raw: string): boolean {
+    let parsed: URL;
+    try {
+        parsed = new URL(String(raw).trim());
+    } catch {
+        return false;
+    }
+    if (parsed.protocol !== "https:") return false;
+
+    const host = parsed.hostname.toLowerCase();
+    if (hostMatches(host, "d-bk.net")) {
+        // Lien court : au moins 2 segments (`/fr/d/17Zy9`).
+        return parsed.pathname.split("/").filter(Boolean).length >= 2;
+    }
+    if (hostMatches(host, "dofusbook.net")) {
+        // Lien complet : un id de build doit être extractible (les pages « liste » sont refusées).
+        return extractDofusbookBuildId(parsed.pathname) !== null;
+    }
+    return false;
+}
+
+/**
+ * Lien **DofusRoom** historique (`/buildroom/build/show/123` ou `/b-123`).
+ * L'intégration DofusRoom a été retirée, mais le schéma de sauvegarde continue de
+ * l'accepter pour ne pas casser les profils existants (les liens sont ensuite filtrés).
+ */
+export function isDofusRoomBuildUrl(raw: string): boolean {
+    let parsed: URL;
+    try {
+        parsed = new URL(String(raw).trim());
+    } catch {
+        return false;
+    }
+    if (parsed.protocol !== "https:" || !hostMatches(parsed.hostname.toLowerCase(), "dofusroom.com")) {
+        return false;
+    }
+    return /^\/(?:buildroom\/build\/show\/\d+|b-\d+)\/?$/.test(parsed.pathname);
+}
+
 export function isDofusbookBlockResponse(status: number, contentType?: string | null, body?: string | null): boolean {
     if (status === 401 || status === 404) return false;
     if (status === 403 || status === 429) return true;

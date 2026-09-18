@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { canonicalClassId, dofusbookCharacteristicRows, DOFUSBOOK_CHARACTERISTIC_CODES, dofusbookItemIconId, dofusbookItemIconUrl, DOFUSBOOK_ITEM_ICON_URL_VERSION, DOFUSBOOK_STAT_LABELS, getClassName, isDofusbookBlockResponse, isUsableDofusbookRawPayload, processDofusbookRawData } from "@/lib/dofusbook-utils";
+import { canonicalClassId, dofusbookCharacteristicRows, DOFUSBOOK_CHARACTERISTIC_CODES, dofusbookItemIconId, dofusbookItemIconUrl, DOFUSBOOK_ITEM_ICON_URL_VERSION, DOFUSBOOK_STAT_LABELS, extractDofusbookBuildId, getClassName, isDofusbookBlockResponse, isDofusbookBuildUrl, isDofusRoomBuildUrl, isUsableDofusbookRawPayload, processDofusbookRawData } from "@/lib/dofusbook-utils";
 
 // Matériau minimal d'un build Dofusbook (suffisant pour `processDofusbookRawData`).
 function buildRaw(overrides: Record<string, unknown> = {}) {
@@ -82,6 +82,60 @@ describe("processDofusbookRawData — résolution de classe (#galerie Inconnu)",
         expect(res.stats?.retpm).toBe(1);
         expect(res.stats?.tacle).toBe(40);
         expect(res.stats?.fuite).toBe(30);
+    });
+});
+
+describe("isDofusbookBuildUrl / extractDofusbookBuildId — flexibilité des liens de build", () => {
+    // 🐛 Bug du 18/09/2026 : le formulaire (et le schéma Zod serveur) refusaient le
+    // format de l'app « desktop » de Dofusbook → toast « FORMAT DE LIEN INVALIDE ».
+    const DESKTOP_URL = "https://www.dofusbook.net/desktop/fr/equipement/16582897-feca-multi-low-cost-pvm-200/objets";
+
+    it("accepte le format « desktop » (segment d'app + suffixe d'onglet)", () => {
+        expect(isDofusbookBuildUrl(DESKTOP_URL)).toBe(true);
+        expect(extractDofusbookBuildId(DESKTOP_URL)).toBe("16582897");
+    });
+
+    it("accepte toutes les variantes d'URL du site (langue, perso, private, query, slash)", () => {
+        const accepted = [
+            "https://www.dofusbook.net/fr/equipement/16582901-feca-multi-premium-pvm-200",
+            "https://dofusbook.net/fr/equipement/16582901-feca/",
+            "https://www.dofusbook.net/fr/equipement/private/16582901-",
+            "https://www.dofusbook.net/fr/equipement/perso/16582901-x",
+            "https://www.dofusbook.net/en/equipement/16582901-x?tab=stats#top",
+            "https://www.dofusbook.net/desktop/fr/equipement/16582897-x/objets",
+        ];
+        for (const url of accepted) {
+            expect(isDofusbookBuildUrl(url), url).toBe(true);
+        }
+    });
+
+    it("accepte les liens courts d-bk.net (id résolu côté serveur) mais n'en extrait pas d'id", () => {
+        expect(isDofusbookBuildUrl("https://d-bk.net/fr/d/17Zy9")).toBe(true);
+        expect(isDofusbookBuildUrl("https://www.d-bk.net/fr/d/17Zy9")).toBe(true);
+        expect(extractDofusbookBuildId("https://d-bk.net/fr/d/17Zy9")).toBeNull();
+    });
+
+    it("refuse ce qui n'est pas un build (hôte, protocole, page sans id)", () => {
+        const refused = [
+            "http://www.dofusbook.net/fr/equipement/16582901-x",     // https requis
+            "https://evil.com/fr/equipement/16582901-x",
+            "https://dofusbook.net.evil.com/fr/equipement/16582901-x", // suffixe trompeur
+            "https://www.dofusbook.net/",
+            "https://www.dofusbook.net/fr/equipement",               // page « liste », sans id
+            "https://d-bk.net/",
+            "pas une url",
+            "https://www.dofusroom.com/buildroom/build/show/123",     // DofusRoom ⇒ autre validateur
+        ];
+        for (const url of refused) {
+            expect(isDofusbookBuildUrl(url), url).toBe(false);
+        }
+    });
+
+    it("conserve le validateur DofusRoom pour la compatibilité du schéma serveur", () => {
+        expect(isDofusRoomBuildUrl("https://www.dofusroom.com/buildroom/build/show/123")).toBe(true);
+        expect(isDofusRoomBuildUrl("https://dofusroom.com/b-123")).toBe(true);
+        expect(isDofusRoomBuildUrl("http://dofusroom.com/b-123")).toBe(false);
+        expect(isDofusRoomBuildUrl("https://www.dofusbook.net/fr/equipement/16582901-x")).toBe(false);
     });
 });
 

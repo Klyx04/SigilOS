@@ -4,28 +4,25 @@
 import { useState, useEffect, useTransition } from "react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { 
-    Users, 
-    Loader2, 
-    Crown, 
-    Trash2, 
-    UserPlus, 
-    Clock, 
-    LogOut, 
-    Bell, 
-    Check, 
-    X, 
-    ShieldCheck, 
-    Sparkles, 
+import {
+    Users,
+    Loader2,
+    Trash2,
+    UserPlus,
+    Clock,
+    LogOut,
+    Bell,
+    Check,
+    X,
+    ShieldCheck,
     TrendingUp,
-    MessageSquare,
-    CalendarCheck,
     Pencil,
-    AlertTriangle,
-    Copy
+    AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { DofusUiIcon } from "@/components/shared/dofus-ui-icon";
+import { PseudoChip } from "@/components/shared/pseudo-chip";
 import {
     Dialog,
     DialogContent,
@@ -52,17 +49,16 @@ import {
     leaveDreamRun,
     respondToJoinRequest
 } from "@/server/actions/songes/dream-run-actions";
-import { 
-    DIFFICULTIES, 
-    OBJECTIVES, 
-    DOFUS_CLASSES, 
-    type DifficultyKey, 
-    type ObjectiveKey, 
-    type DofusClass, 
-    getEpreuve 
+import {
+    DIFFICULTIES,
+    OBJECTIVES,
+    DOFUS_CLASSES,
+    type DifficultyKey,
+    type ObjectiveKey,
+    type DofusClass,
+    getEpreuve
 } from "@/lib/songes/types";
 import { ClassIcon } from "@/components/shared/class-icon";
-import { getClass } from "@/lib/dofus-assets";
 import { RunCloseModal } from "@/components/songes/RunCloseModal";
 import { RunProgressModal } from "@/components/songes/RunProgressModal";
 import { RunLeaderActions } from "@/components/songes/RunLeaderActions";
@@ -113,8 +109,6 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
     const [profiles, setProfiles] = useState<MemberProfile[]>([]);
     const [pendingRequest, setPendingRequest] = useState(false);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
-    // #179 — copier les pseudos des participants (format /w Pseudo)
-    const [copiedPseudos, setCopiedPseudos] = useState(false);
 
     const difficulty = DIFFICULTIES[run.difficulty as DifficultyKey];
     const objective = OBJECTIVES[run.objective as ObjectiveKey];
@@ -160,23 +154,13 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
         return profile?.pseudoDofus || profile?.discordNickname || "Joueur";
     };
 
-    // #179 — copier les pseudos (leader + membres) au format /w Pseudo
-    const handleCopyPseudos = () => {
-        const names = [getDisplayName(run.leaderId), ...run.members.map((m) => getDisplayName(m.userId))];
-        const text = names.map((n) => `/w ${n}`).join("\n");
-        if (!text.trim()) return;
-        navigator.clipboard.writeText(text).then(() => {
-            setCopiedPseudos(true);
-            toast.success("Pseudos copiés !", { description: "Colle-les dans Discord pour chuchoter à tous." });
-            setTimeout(() => setCopiedPseudos(false), 2000);
-        }).catch(() => toast.error("Impossible de copier"));
-    };
+    // #179 — la copie des pseudos est UNITAIRE (`PseudoChip`) : plus de bouton global.
 
     const handleSendJoinRequest = async () => {
         setLoading(true);
-        const result = await sendJoinRequest(params.guildId as string, { 
-            runId: run.id, 
-            classe: selectedClasse, 
+        const result = await sendJoinRequest(params.guildId as string, {
+            runId: run.id,
+            classe: selectedClasse,
             message: message || undefined,
             linkedStuffId: null,
             linkedStuffName: null,
@@ -231,7 +215,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
 
     return (
         <div className="group relative overflow-hidden rounded-2xl bg-surface/90 border border-border p-6 transition-colors duration-200 hover:border-border-strong shadow-sm">
-            
+
             {/* --- HEADER --- */}
             <div className="relative z-10 flex justify-between items-start gap-4 mb-6">
                 <div className="flex items-center gap-4 min-w-0">
@@ -338,7 +322,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     </div>
                     <div className="flex flex-col items-end flex-1 ml-8">
                         <div className="w-full h-2 bg-muted rounded-full overflow-hidden p-0.5 border border-border">
-                            <div 
+                            <div
                                 className="h-full rounded-full bg-emerald-500/80 transition-all duration-200"
                                 style={{ width: `${progress}%` }}
                             />
@@ -351,18 +335,6 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
             <div className="relative z-10 space-y-3 mb-6">
                 <div className="flex items-center justify-between gap-3 mb-1">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Membres</span>
-                    {/* #179 — copier les pseudos des participants */}
-                    {run.members.length > 0 && (
-                        <button
-                            type="button"
-                            onClick={handleCopyPseudos}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-elevated text-caption font-bold text-muted-foreground hover:text-foreground hover:bg-elevated/70 transition-colors"
-                            title="Copier les pseudos des participants (format /w Pseudo)"
-                        >
-                            {copiedPseudos ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                            {copiedPseudos ? "Copié" : "Pseudos"}
-                        </button>
-                    )}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {[1, 2, 3, 4].map((slot) => {
@@ -370,8 +342,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                         const pseudo = member ? getDisplayName(member.userId) : "Libre";
                         const profile = profiles.find(p => p.userId === member?.userId);
                         const memberClassId = member ? getMemberClass(member.userId) : null;
-                        const memberClassData = memberClassId ? getClass(memberClassId) : null;
-                        
+
                         return (
                             <div key={slot} className={cn(
                                 "flex items-center gap-3 px-4 py-3 rounded-[1rem] border transition-all truncate",
@@ -388,52 +359,24 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                     ) : <UserPlus className="w-3.5 h-3.5 text-muted-foreground/60" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-1">
-                                        <span className={cn(
-                                            "text-xs font-black truncate",
-                                            member ? "text-foreground" : "text-muted-foreground/60"
-                                        )}>
-                                            {pseudo}
-                                        </span>
-                                        {member && pseudo !== "Libre" && (
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    navigator.clipboard.writeText(`/w ${pseudo}`);
-                                                    toast.success(`/w ${pseudo} copié !`);
-                                                }}
-                                                className="p-0.5 text-muted-foreground/50 hover:text-foreground rounded hover:bg-white/5 transition-colors shrink-0"
-                                                title={`Copier /w ${pseudo}`}
-                                            >
-                                                <Copy className="w-3 h-3" />
-                                            </button>
-                                        )}
-                                    </div>
+                                    {member && pseudo !== "Libre" ? (
+                                        <PseudoChip
+                                            pseudo={pseudo}
+                                            classe={memberClassId}
+                                            className="text-xs font-black text-foreground"
+                                        />
+                                    ) : (
+                                        <span className="text-xs font-black text-foreground/30">{pseudo}</span>
+                                    )}
                                     {member?.joinedAt && (
                                         <span className="text-[10px] text-foreground/30 font-medium block truncate" title={new Date(member.joinedAt).toLocaleString("fr-FR")}>
                                             {format(new Date(member.joinedAt), "d MMM à HH:mm", { locale: fr })}
                                         </span>
                                     )}
                                 </div>
-                                <div className="flex items-center gap-1.5 shrink-0 ml-auto">
-                                    {memberClassData && (
-                                        <div
-                                            className="w-5 h-5 rounded flex items-center justify-center"
-                                            title={memberClassData.name}
-                                            style={{ backgroundColor: `${memberClassData.color}20` }}
-                                        >
-                                            <Image
-                                                src={memberClassData.icon}
-                                                alt={memberClassData.name}
-                                                width={14}
-                                                height={14}
-                                                className="object-contain"
-                                                unoptimized
-                                            />
-                                        </div>
-                                    )}
-                                    {member?.userId === run.leaderId && <Crown className="w-3.5 h-3.5 text-amber-500" />}
-                                </div>
+                                {member?.userId === run.leaderId && (
+                                    <DofusUiIcon name="leader" size={13} className="shrink-0 opacity-80" />
+                                )}
                             </div>
                         );
                     })}
@@ -461,27 +404,27 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                                 <AvatarFallback className="bg-elevated text-caption font-bold">{name.charAt(0)}</AvatarFallback>
                                             </Avatar>
                                             <div className="min-w-0">
-                                                <p className="text-sm font-black text-foreground truncate">{name}</p>
-                                                <div className="flex items-center gap-1.5 text-caption font-black uppercase tracking-widest text-foreground/30">
-                                                    <ClassIcon classId={c.classe as DofusClass} size={12} />
-                                                    {c.classe}
-                                                </div>
+                                                <PseudoChip
+                                                    pseudo={name}
+                                                    classe={c.classe as DofusClass}
+                                                    className="text-sm font-black text-foreground"
+                                                />
                                             </div>
                                         </div>
                                         <div className="flex gap-1.5 shrink-0">
-                                            <Button 
-                                                size="icon" 
-                                                className="w-8 h-8 rounded-lg bg-green-500 hover:bg-green-400 text-foreground" 
-                                                onClick={() => handleRespondCandidacy(c.id, true)} 
+                                            <Button
+                                                size="icon"
+                                                className="w-8 h-8 rounded-lg bg-green-500 hover:bg-green-400 text-foreground"
+                                                onClick={() => handleRespondCandidacy(c.id, true)}
                                                 disabled={!!actionLoading}
                                             >
                                                 {actionLoading === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-4 h-4" />}
                                             </Button>
-                                            <Button 
-                                                size="icon" 
-                                                variant="ghost" 
-                                                className="w-8 h-8 rounded-lg text-foreground/20 hover:text-rose-500 hover:bg-rose-500/10" 
-                                                onClick={() => handleRespondCandidacy(c.id, false)} 
+                                            <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="w-8 h-8 rounded-lg text-foreground/20 hover:text-rose-500 hover:bg-rose-500/10"
+                                                onClick={() => handleRespondCandidacy(c.id, false)}
                                                 disabled={!!actionLoading}
                                             >
                                                 <X className="w-4 h-4" />
@@ -505,31 +448,31 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                 {isLeader ? (
                     <>
                         <div className="w-full sm:w-auto flex-1">
-                             <RunLeaderActions 
-                                guildId={params.guildId as string} 
-                                runId={run.id} 
-                                variant="full" 
+                             <RunLeaderActions
+                                guildId={params.guildId as string}
+                                runId={run.id}
+                                variant="full"
                                 isDiscordConfigured={isDiscordConfigured}
                              />
                         </div>
-                        
-                        <Button 
-                            variant="secondary" 
+
+                        <Button
+                            variant="secondary"
                             className="flex-1 h-11 bg-surface hover:bg-surface border-border text-foreground font-black uppercase tracking-widest text-caption rounded-xl"
                             onClick={() => setProgressModalOpen(true)}
                         >
                             <TrendingUp className="w-4 h-4 mr-2" />
                             Avancement
                         </Button>
-                        <Button 
-                            variant="secondary" 
+                        <Button
+                            variant="secondary"
                             className="flex-1 h-11 bg-surface hover:bg-surface border-border text-foreground font-black uppercase tracking-widest text-caption rounded-xl"
                             onClick={() => setEditModalOpen(true)}
                         >
                             <Pencil className="w-4 h-4 mr-2" />
                             Modifier
                         </Button>
-                        <Button 
+                        <Button
                             className="flex-1 h-11 bg-warning/15 hover:bg-warning/25 text-warning border border-warning/30 font-black uppercase tracking-widest text-caption rounded-xl transition-all"
                             onClick={() => setCloseModalOpen(true)}
                         >
@@ -538,8 +481,8 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                         </Button>
                     </>
                 ) : isMember ? (
-                    <Button 
-                        variant="ghost" 
+                    <Button
+                        variant="ghost"
                         className="flex-1 h-11 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 font-black uppercase tracking-widest text-caption rounded-xl"
                         onClick={handleLeave}
                     >
@@ -552,8 +495,8 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                             <Clock className="w-4 h-4 mr-2" />
                             En attente
                         </div>
-                        <Button 
-                            variant="ghost" 
+                        <Button
+                            variant="ghost"
                             className="h-11 w-11 rounded-xl border border-border text-foreground/20 hover:text-rose-500"
                             onClick={handleCancelRequest}
                         >
@@ -561,7 +504,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                         </Button>
                     </div>
                 ) : canApply ? (
-                    <Button 
+                    <Button
                         className="flex-1 h-11 bg-surface hover:bg-elevated text-foreground font-black uppercase tracking-widest text-caption rounded-xl border border-border transition-colors"
                         onClick={() => setJoinDialogOpen(true)}
                     >
@@ -614,7 +557,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                     className="bg-surface border-border min-h-[100px] text-sm resize-none rounded-xl p-4"
                                 />
                             </div>
-                            
+
                             <Button onClick={handleSendJoinRequest} disabled={loading} className="w-full bg-surface hover:bg-elevated text-foreground border border-border font-black uppercase tracking-[0.2em] h-14 rounded-xl shadow-xl">
                                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Envoyer ma candidature"}
                             </Button>

@@ -25,26 +25,19 @@ import {
     Target,
     Wheat,
     Bell,
-    Share2,
-    ChevronDown,
-    AtSign,
     ExternalLink,
     Eye,
     Globe,
     Lock,
-    Shield,
     Trophy,
     Star,
     Coins,
-    AlertTriangle,
-    Copy,
 } from "lucide-react";
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -59,12 +52,13 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { ClassIcon, getClassColor } from "@/components/shared/class-icon";
+import { DofusUiIcon } from "@/components/shared/dofus-ui-icon";
+import { PseudoChip } from "@/components/shared/pseudo-chip";
 import { RegistrationModal } from "./registration-modal";
 import { CalendarDiscordDialog } from "./calendar-discord-dialog";
 import { getMissionsByIds } from "@/server/actions/mission-actions";
 import { kickParticipant, transferRaidCaptaincy } from "@/server/actions/calendar-actions";
-import { Skull, Zap, Clock as ClockIcon, Infinity as InfinityIcon, Sparkles as SparklesIcon } from "lucide-react";
+import { Skull, Zap, Infinity as InfinityIcon, Sparkles as SparklesIcon } from "lucide-react";
 
 // ============================================
 // 4 EVENT TYPES
@@ -286,8 +280,6 @@ export function EventDetailModal({
     const [presentParticipants, setPresentParticipants] = useState<Set<string>>(new Set());
     const [isCompletingRaid, setIsCompletingRaid] = useState(false);
     const [confirmRaidComplete, setConfirmRaidComplete] = useState(false);
-    // #191 — #179 — Doit être AVANT le guard `if (!event) return null` (règles des Hooks)
-    const [copiedPseudos, setCopiedPseudos] = useState(false);
 
     const eventMetadata = (event as any)?.metadata as any;
     const missionIds = eventMetadata?.missionIds as string[] | undefined;
@@ -355,24 +347,8 @@ export function EventDetailModal({
     const cachedCount = isKrala ? (eventMetadata?.metamobParticipantsCount || 0) : 0;
     const displayCount = registeredCount > 0 ? registeredCount : cachedCount;
 
-    // #179 — copier les pseudos des participants (organisateur + inscrits + réserve)
-    const participantDisplayName = (p: Participant): string =>
-        (p.user.profiles?.[0]?.discordNickname || p.user.name || "Anonyme").replace(/\s\(\d+\)$/, "");
-    const handleCopyPseudos = () => {
-        const names: string[] = [];
-        if (event.creator) names.push(event.creator.name || "Anonyme");
-        event.participants
-            .filter((p) => p.status === "REGISTERED" || p.status === "RESERVE")
-            .sort((a, b) => a.position - b.position)
-            .forEach((p) => names.push(participantDisplayName(p)));
-        const text = names.map((n) => `/w ${n}`).join("\n");
-        if (!text.trim()) return;
-        navigator.clipboard.writeText(text).then(() => {
-            setCopiedPseudos(true);
-            toast.success("Pseudos copiés !", { description: "Colle-les dans Discord pour chuchoter à tous." });
-            setTimeout(() => setCopiedPseudos(false), 2000);
-        }).catch(() => toast.error("Impossible de copier"));
-    };
+    // #179 — la copie des pseudos est UNITAIRE (voir `PseudoChip` dans `ParticipantRow`) :
+    // plus de bouton global qui collait toute la liste `\n/w Pseudo`.
 
     const handleAction = async (action: () => Promise<void>) => {
         setIsLoading(true);
@@ -435,14 +411,14 @@ export function EventDetailModal({
                     {/* Header */}
                     <div className={cn("relative px-8 pt-12 pb-10 border-b border-border/50 overflow-hidden", typeConfig.bgColor)}>
                         <div className={cn("absolute inset-0 opacity-40 bg-gradient-to-br z-0", typeConfig.gradient)} />
-                        
+
                         {/* Decorative Kralamoure Insert (Top Right) */}
                         {event.type === "KRALAMOURE" && (
                             <div className="absolute right-0 top-0 w-32 h-full opacity-60 pointer-events-none overflow-hidden select-none">
                                 <div className="absolute top-1/2 -translate-y-1/2 right-4 w-20 h-20 rounded-2xl border border-border-strong overflow-hidden rotate-12 shadow-2xl backdrop-blur-md bg-surface p-1">
-                                    <Image 
-                                        src="/game-data/dungeons/antre-du-kralamoure-g-ant.webp" 
-                                        alt="Kralamoure" 
+                                    <Image
+                                        src="/game-data/dungeons/antre-du-kralamoure-g-ant.webp"
+                                        alt="Kralamoure"
                                         fill
                                         className="object-cover rounded-xl"
                                     />
@@ -781,7 +757,7 @@ export function EventDetailModal({
                                                 const config = MISSION_CATEGORY_CONFIG[mission.category] || MISSION_CATEGORY_CONFIG.EVENT;
                                                 const payload = mission.payload || {};
                                                 let imageUrl = payload.imageUrl || payload.image || config.fallbackImage;
-                                                
+
                                                 if (mission.category === 'SONGES') {
                                                     const diff: string = (payload.difficulty || 'Reve').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                                                     const levelMap: Record<string, number> = { 'I': 1, 'II': 2, 'III': 3, 'IV': 4 };
@@ -795,19 +771,19 @@ export function EventDetailModal({
                                                     <TooltipProvider key={mission.id}>
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
-                                                                <Link 
+                                                                <Link
                                                                     href={`/dashboard/${guildId}/missions`}
                                                                     className="group relative aspect-[16/9] rounded-xl border border-border overflow-hidden bg-background shadow-lg block hover:border-warning/50 transition-all hover:scale-[1.02]"
                                                                 >
-                                                                    <Image 
-                                                                        src={imageUrl} 
-                                                                        alt={mTitle} 
-                                                                        fill 
-                                                                        className="object-contain p-2 opacity-60 group-hover:opacity-100 transition-opacity duration-300" 
+                                                                    <Image
+                                                                        src={imageUrl}
+                                                                        alt={mTitle}
+                                                                        fill
+                                                                        className="object-contain p-2 opacity-60 group-hover:opacity-100 transition-opacity duration-300"
                                                                         unoptimized
                                                                     />
                                                                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-                                                                    
+
                                                                     {/* Category Icon */}
                                                                     <div className={cn(
                                                                         "absolute top-2 left-2 p-1 rounded bg-black/60 border border-border backdrop-blur-md z-10",
@@ -848,26 +824,12 @@ export function EventDetailModal({
                                     <div>
                                         <h3 className="text-sm font-black text-muted-foreground mb-4 flex items-center justify-between uppercase italic tracking-widest">
                                             <div className="flex items-center gap-2">
-                                                <Users className="h-4 w-4 text-pink-400" />
+                                                <DofusUiIcon name="player" size={15} />
                                                 Participants{isKrala ? " Metamob" : ""}
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                {/* #179 — copier les pseudos des participants */}
-                                                {event.participants.filter((p) => p.status === "REGISTERED" || p.status === "RESERVE").length > 0 && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={handleCopyPseudos}
-                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-elevated/60 border border-border text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors normal-case tracking-normal italic-none"
-                                                        title="Copier les pseudos des participants (format /w Pseudo)"
-                                                    >
-                                                        {copiedPseudos ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-                                                        {copiedPseudos ? "Copié" : "Pseudos"}
-                                                    </button>
-                                                )}
-                                                <span className="px-2 py-0.5 rounded-md bg-pink-500/20 text-pink-400 text-xs font-black shadow-lg shadow-pink-500/10">
-                                                    {displayCount}
-                                                </span>
-                                            </div>
+                                            <span className="px-2 py-0.5 rounded-md border border-border bg-surface/50 text-xs font-black text-foreground">
+                                                {displayCount}
+                                            </span>
                                         </h3>
 
                                         <div className="space-y-2">
@@ -984,8 +946,8 @@ export function EventDetailModal({
                                                 <div className="text-center py-12 rounded-xl border-2 border-dashed border-border/50 bg-surface/20">
                                                     <User className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
                                                     <p className="text-muted-foreground font-medium">
-                                                        {isKrala 
-                                                            ? "Détails des participants indisponibles" 
+                                                        {isKrala
+                                                            ? "Détails des participants indisponibles"
                                                             : "Aucun participant inscrit"
                                                         }
                                                     </p>
@@ -1289,7 +1251,7 @@ export function EventDetailModal({
                                     {isCompletingRaid ? (
                                         <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Clôture...</>
                                     ) : (
-                                        <><Trophy className="h-4 w-4 mr-2" />Valider & Distribuer</>  
+                                        <><Trophy className="h-4 w-4 mr-2" />Valider & Distribuer</>
                                     )}
                                 </Button>
                             </div>
@@ -1389,50 +1351,24 @@ function ParticipantRow({
                 </Avatar>
                 <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                        <span className={cn("text-sm font-medium truncate", isCurrentUser ? "text-info" : "text-foreground")}>
-                            {(participant.user.profiles?.[0]?.discordNickname || participant.user.name || "Anonyme").replace(/\s\(\d+\)$/, "")}
-                            {isCurrentUser && " (Moi)"}
-                        </span>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                const name = (participant.user.profiles?.[0]?.discordNickname || participant.user.name || "Anonyme").replace(/\s\(\d+\)$/, "");
-                                navigator.clipboard.writeText(`/w ${name}`);
-                                toast.success(`/w ${name} copié dans le presse-papier !`);
-                            }}
-                            className="p-0.5 text-muted-foreground/50 hover:text-foreground rounded hover:bg-white/5 transition-colors"
-                            title={`Copier /w ${(participant.user.profiles?.[0]?.discordNickname || participant.user.name || "Anonyme").replace(/\s\(\d+\)$/, "")}`}
-                        >
-                            <Copy className="h-3 w-3" />
-                        </button>
+                        <PseudoChip
+                            pseudo={(participant.user.profiles?.[0]?.discordNickname || participant.user.name || "Anonyme").replace(/\s\(\d+\)$/, "")}
+                            classe={participant.classe}
+                            className="text-sm font-medium text-foreground"
+                        />
+                        {isCurrentUser && <span className="text-caption font-bold text-muted-foreground shrink-0">(Moi)</span>}
                         {isCreator && (
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger>
-                                        <Crown className="h-3.5 w-3.5 text-warning" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>Organisateur</TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
+                            <span title="Organisateur" className="shrink-0">
+                                <DofusUiIcon name="leader" size={14} />
+                            </span>
                         )}
                         {participant.hasParticipatedThisWeek && (
-                            <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 text-caption font-black uppercase py-0 px-1.5 shrink-0">
-                                ⚠️ Déjà participé cette semaine
+                            <Badge variant="outline" className="border-border bg-surface/50 text-muted-foreground text-caption font-black uppercase py-0 px-1.5 shrink-0">
+                                Déjà participé cette semaine
                             </Badge>
                         )}
                     </div>
                     <div className="flex items-center gap-2">
-                        {participant.classe && (
-                            <div
-                                className="flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium"
-                                style={{
-                                    backgroundColor: `${getClassColor(participant.classe)}15`,
-                                    color: getClassColor(participant.classe)
-                                }}
-                            >
-                                <ClassIcon classId={participant.classe} size={16} showName />
-                            </div>
-                        )}
                         {participant.createdAt && (
                             <span className="text-caption text-muted-foreground/60" title={new Date(participant.createdAt).toLocaleString("fr-FR")}>
                                 {format(new Date(participant.createdAt), "d MMM à HH:mm", { locale: fr })}

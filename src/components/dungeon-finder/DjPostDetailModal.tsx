@@ -8,9 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import {
-    Users, CheckCircle2, XCircle, Crown, Swords, Clock,
-    Trophy, Map, Zap, Link2, LogIn, LogOut, Trash2, Pencil, Bell, Layers, AlarmClock,
-    Copy, Check
+    Users, CheckCircle2, Swords, Map, Zap, LogIn, LogOut, Trash2, Pencil, Bell, Layers, AlarmClock,
 } from "lucide-react";
 import {
     acceptDjParticipant,
@@ -25,6 +23,8 @@ import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions"
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
+import { DofusUiIcon } from "@/components/shared/dofus-ui-icon";
+import { PseudoChip } from "@/components/shared/pseudo-chip";
 import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle } from "@/lib/dungeon-finder-utils";
 import { DjMultiBossAvatars } from "./DjMultiBossAvatars";
 
@@ -55,8 +55,6 @@ export function DjPostDetailModal({
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
-    // #179 — copier les pseudos des joueurs inscrits / file d'attente
-    const [copiedPseudos, setCopiedPseudos] = useState(false);
 
     const isOwner = post.profileId === currentProfileId;
     const myParticipation = currentProfileId
@@ -78,23 +76,8 @@ export function DjPostDetailModal({
     const acceptedCount = acceptedParticipants.length + 1; // +1 for creator
     const spotsLeft = post.maxMembers - acceptedCount;
 
-    // #179 — liste `/w Pseudo` (créateur + inscrits + file d'attente)
-    const buildWhisperList = () => {
-        const names = [displayName(post.profile)];
-        acceptedParticipants.forEach((p) => names.push(displayName(p.profile)));
-        pendingParticipants.forEach((p) => names.push(displayName(p.profile)));
-        return names.map((n) => `/w ${n}`).join("\n");
-    };
-
-    const handleCopyPseudos = () => {
-        const text = buildWhisperList();
-        if (!text.trim()) return;
-        navigator.clipboard.writeText(text).then(() => {
-            setCopiedPseudos(true);
-            toast.success("Pseudos copiés !", { description: "Colle-les dans Discord pour chuchoter à tous." });
-            setTimeout(() => setCopiedPseudos(false), 2000);
-        }).catch(() => toast.error("Impossible de copier"));
-    };
+    // #179 — la copie des pseudos est UNITAIRE (voir `PseudoChip`) : plus de bouton
+    // global qui collait toute la liste `\n/w Pseudo`.
 
     function handleJoin() {
         startTransition(async () => {
@@ -193,7 +176,12 @@ export function DjPostDetailModal({
                                     {postSubtitle}
                                 </p>
                             </div>
-                            <Badge className={`text-caption font-black uppercase tracking-wider px-2.5 py-1 backdrop-blur-md ${post.status === "OPEN" ? "bg-success/10 text-success border-success/20 " : "bg-surface text-muted-foreground border-border"}`}>
+                            <Badge className="text-caption font-black uppercase tracking-wider px-2.5 py-1 border-border-strong bg-elevated text-foreground backdrop-blur-md">
+                                <DofusUiIcon
+                                    name={post.status === "OPEN" ? "open" : "closed"}
+                                    size={12}
+                                    className="mr-1.5 inline-block align-[-1px]"
+                                />
                                 {post.status === "OPEN" ? "Ouvert" : post.status === "FULL" ? "Complet" : "Fermé"}
                             </Badge>
                         </div>
@@ -203,19 +191,19 @@ export function DjPostDetailModal({
                         {/* Info grid */}
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             <div className="bg-surface/40 rounded-xl p-4 border border-border shadow-inner">
-                                <p className="text-muted-foreground text-caption uppercase tracking-widest font-bold mb-1.5 flex items-center gap-1.5"><Swords className="w-3.5 h-3.5" /> Mode</p>
+                                <p className="text-muted-foreground text-caption uppercase tracking-widest font-bold mb-1.5 flex items-center gap-1.5"><DofusUiIcon name="dungeon" size={14} /> Mode</p>
                                 <p className="font-black text-foreground text-base">{MODE_LABELS[post.mode] ?? post.mode}</p>
                             </div>
                             <div className="bg-surface/40 rounded-xl p-4 border border-border shadow-inner">
-                                <p className="text-muted-foreground text-caption uppercase tracking-widest font-bold mb-1.5 flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Places</p>
-                                <p className={`font-black text-base ${spotsLeft === 0 ? "text-warning" : "text-success"}`}>
-                                    {acceptedCount}/{post.maxMembers} — {spotsLeft > 0 ? <span className="text-foreground font-medium">{`${spotsLeft} dispo${spotsLeft > 1 ? "s" : ""}`}</span> : "Complet"}
+                                <p className="text-muted-foreground text-caption uppercase tracking-widest font-bold mb-1.5 flex items-center gap-1.5"><DofusUiIcon name="player" size={14} /> Places</p>
+                                <p className="font-black text-foreground text-base">
+                                    {acceptedCount}/{post.maxMembers} — {spotsLeft > 0 ? <span className="text-muted-foreground font-medium">{`${spotsLeft} dispo${spotsLeft > 1 ? "s" : ""}`}</span> : "Complet"}
                                 </p>
                             </div>
                             {post.targetDate && (
-                                <div className="bg-info/5 rounded-xl p-4 border border-info/10 col-span-2 shadow-inner">
-                                    <p className="text-info/80 text-caption uppercase tracking-widest font-bold mb-1.5 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Date prévue</p>
-                                    <p className="font-bold text-info">
+                                <div className="bg-surface/40 rounded-xl p-4 border border-border col-span-2 shadow-inner">
+                                    <p className="text-muted-foreground text-caption uppercase tracking-widest font-bold mb-1.5 flex items-center gap-1.5"><DofusUiIcon name="date" size={14} /> Date prévue</p>
+                                    <p className="font-bold text-foreground">
                                         {new Date(post.targetDate).toLocaleDateString("fr-FR", {
                                             weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit"
                                         }).replace(/, /g, " à ")}
@@ -225,14 +213,14 @@ export function DjPostDetailModal({
                         </div>
 
                         {/* Quest & Dungeon Guide Links (DPLN & Dofensive) */}
-                        <div className="bg-info/5 border border-info/20 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                        <div className="bg-surface/40 border border-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                             <div className="flex flex-1 items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-info/50 flex items-center justify-center shrink-0 border border-info/50">
-                                    <Map className="w-4 h-4 text-info" />
+                                <div className="w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center shrink-0">
+                                    <DofusUiIcon name={post.mode === "QUETE" ? "quest" : "dungeon"} size={16} />
                                 </div>
                                 <div>
-                                    <p className="text-caption text-info/70 font-bold uppercase tracking-widest mb-0.5">Guides & Base de données</p>
-                                    <span className="text-sm text-info font-bold">
+                                    <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest mb-0.5">Guides & Base de données</p>
+                                    <span className="text-sm text-foreground font-bold">
                                         {postTitle}
                                     </span>
                                 </div>
@@ -302,16 +290,16 @@ export function DjPostDetailModal({
                         {/* Wanted achievements */}
                         {post.wantedAchievementIds.length > 0 && post.dungeon && (
                             <div className="space-y-2">
-                                <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5"><Trophy className="w-3.5 h-3.5" /> Succès visés</p>
+                                <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5"><DofusUiIcon name="trophy" size={14} /> Succès visés</p>
                                 <div className="flex gap-2 flex-wrap">
                                     {post.dungeon.achievements
                                         .filter((a) => post.wantedAchievementIds.includes(a.id))
                                         .map((a) => (
-                                            <div key={a.id} className="flex items-center gap-2 bg-warning/10 border border-warning/20 rounded-lg px-2.5 py-1.5 shadow-sm">
+                                            <div key={a.id} className="flex items-center gap-2 bg-surface/40 border border-border rounded-lg px-2.5 py-1.5">
                                                 {a.challenge.iconUrl && (
                                                     <img src={a.challenge.iconUrl} alt="" className="w-4 h-4 object-contain" />
                                                 )}
-                                                <span className="text-xs text-warning font-bold">{a.challenge.name}</span>
+                                                <span className="text-xs text-foreground font-semibold">{a.challenge.name}</span>
                                             </div>
                                         ))}
                                 </div>
@@ -326,11 +314,11 @@ export function DjPostDetailModal({
                                     {post.requiredClasses.map((c) => {
                                         const classData = getClass(c);
                                         return (
-                                            <div key={c} className="flex items-center bg-info/10 border border-info/20 rounded-md p-1 shadow-sm px-2 gap-1.5">
+                                            <div key={c} className="flex items-center bg-surface/40 border border-border rounded-md py-1 px-2 gap-1.5">
                                                 <div className="w-4 h-4 rounded overflow-hidden">
                                                     <img src={classData?.icon} alt={classData?.name || c} className="w-full h-full object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
                                                 </div>
-                                                <span className="text-caption text-info font-medium">{classData?.name || c}</span>
+                                                <span className="text-caption text-foreground font-medium">{classData?.name || c}</span>
                                             </div>
                                         );
                                     })}
@@ -344,32 +332,23 @@ export function DjPostDetailModal({
                                 <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-2">
                                     <Users className="w-3 h-3" /> Participants ({acceptedCount}/{post.maxMembers})
                                 </p>
-                                {/* #179 — copier les pseudos des inscrits + file d'attente (format /w Pseudo) */}
-                                {(acceptedCount > 1 || pendingParticipants.length > 0) && (
-                                    <button
-                                        type="button"
-                                        onClick={handleCopyPseudos}
-                                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-surface text-caption text-muted-foreground font-bold hover:text-foreground hover:bg-elevated transition-colors"
-                                        title="Copier les pseudos des joueurs (format /w Pseudo)"
-                                    >
-                                        {copiedPseudos ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
-                                        {copiedPseudos ? "Copié" : "Pseudos"}
-                                    </button>
-                                )}
                             </div>
                             <div className="space-y-1.5">
                                 {/* Creator row */}
-                                <div className="flex items-center gap-4 bg-warning/5 rounded-xl p-3 border border-warning/10 shadow-sm relative overflow-hidden">
-                                    <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 ring-2 ring-warning/40 ">
+                                <div className="flex items-center gap-4 bg-surface/40 rounded-xl p-3 border border-border-strong">
+                                    <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 ring-1 ring-border-strong">
                                         {post.profile.user.image && <img src={post.profile.user.image} alt="" className="w-full h-full object-cover" />}
                                     </div>
-                                    <div className="flex-1 min-w-0 z-10">
-                                        <div className="flex items-center gap-1.5">
-                                            <p className="text-sm font-black text-foreground truncate drop-shadow-sm">{displayName(post.profile)}</p>
-                                        </div>
-                                        <span className="text-caption text-warning/80 font-bold flex items-center mt-0.5"><Crown className="w-3 h-3 mr-1 inline" /> Créateur du groupe</span>
+                                    <div className="flex-1 min-w-0">
+                                        <PseudoChip
+                                            pseudo={displayName(post.profile)}
+                                            classe={post.profile.classe}
+                                            className="text-sm font-black text-foreground"
+                                        />
+                                        <span className="text-caption text-muted-foreground font-bold flex items-center mt-0.5">
+                                            <DofusUiIcon name="leader" size={12} className="mr-1" /> Créateur du groupe
+                                        </span>
                                     </div>
-                                    <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-warning/10 to-transparent pointer-events-none" />
                                 </div>
 
                                 {/* Participants ACCEPTED */}
@@ -381,10 +360,13 @@ export function DjPostDetailModal({
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap">
-                                                    <p className="text-sm font-bold text-foreground truncate group-hover:text-foreground transition-colors">{displayName(p.profile)}</p>
-                                                    {p.classe && <Badge variant="outline" className="text-caption h-4 border-border text-muted-foreground px-1.5">{p.classe}</Badge>}
+                                                    <PseudoChip
+                                                        pseudo={displayName(p.profile)}
+                                                        classe={p.classe}
+                                                        className="text-sm font-bold text-foreground"
+                                                    />
                                                     {(post.dungeonsJson as any[])?.length > 0 && p.dungeonIndex != null && (post.dungeonsJson as any[])[p.dungeonIndex]?.name && (
-                                                        <Badge variant="outline" className="text-caption h-4 border-info text-info px-1.5 max-w-[120px] truncate">
+                                                        <Badge variant="outline" className="text-caption h-4 border-border text-muted-foreground px-1.5 max-w-[120px] truncate">
                                                             {(post.dungeonsJson as any[])[p.dungeonIndex]?.name}
                                                         </Badge>
                                                     )}
@@ -396,7 +378,7 @@ export function DjPostDetailModal({
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
-                                            <Badge className="text-caption font-bold uppercase tracking-wider text-success bg-success/10 border-success/20">
+                                            <Badge className="text-caption font-bold uppercase tracking-wider border-border bg-surface/50 text-muted-foreground">
                                                 Inscrit
                                             </Badge>
                                             {/* Owner actions */}
@@ -427,18 +409,21 @@ export function DjPostDetailModal({
                                     </p>
                                     <div className="space-y-1.5">
                                         {pendingParticipants.map((p, idx) => (
-                                            <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-warning/5 rounded-xl p-3 border border-warning/15 hover:bg-warning/10 transition-colors group">
+                                            <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-surface/40 rounded-xl p-3 border border-border hover:bg-surface/60 transition-colors group">
                                                 <div className="flex items-center gap-4 flex-1 min-w-0">
                                                     <div className="relative">
-                                                        <div className="w-10 h-10 rounded-full overflow-hidden bg-elevated shrink-0 ring-1 ring-warning/30">
+                                                        <div className="w-10 h-10 rounded-full overflow-hidden bg-elevated shrink-0 ring-1 ring-border">
                                                             {p.profile.user.image && <img src={p.profile.user.image} alt="" className="w-full h-full object-cover" />}
                                                         </div>
-                                                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-warning text-warning-foreground text-caption font-black flex items-center justify-center">{idx + 1}</span>
+                                                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full border border-border-strong bg-elevated text-foreground text-caption font-black flex items-center justify-center">{idx + 1}</span>
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2 flex-wrap">
-                                                            <p className="text-sm font-bold text-foreground truncate">{displayName(p.profile)}</p>
-                                                            {p.classe && <Badge variant="outline" className="text-caption h-4 border-border text-muted-foreground px-1.5">{p.classe}</Badge>}
+                                                            <PseudoChip
+                                                                pseudo={displayName(p.profile)}
+                                                                classe={p.classe}
+                                                                className="text-sm font-bold text-foreground"
+                                                            />
                                                         </div>
                                                         <p className="text-caption text-muted-foreground mt-0.5">
                                                             En attente depuis {format(new Date(p.createdAt), "d MMM à HH:mm", { locale: fr })}

@@ -70,11 +70,13 @@ usage() {
 
 USAGE
   ./scripts/deploy-cd.sh list beta|prod        Affiche les versions dispo sur GHCR
+  ./scripts/deploy-cd.sh list beta|prod sha7   Vérifie qu'un tag précis est publié
   ./scripts/deploy-cd.sh beta|prod [sha]       Déploie la version (défaut : latest)
   ./scripts/deploy-cd.sh --help                Affiche cette aide
 
 EXEMPLES
   ./scripts/deploy-cd.sh list beta
+  ./scripts/deploy-cd.sh list beta da4ec40     # ce commit est-il publié sur GHCR ?
   ./scripts/deploy-cd.sh beta                  # déploie latest en bêta
   ./scripts/deploy-cd.sh prod 3f2a9c1          # déploie le SHA 3f2a9c1 en prod
 
@@ -123,8 +125,9 @@ cd "$(dirname "$0")/.."
 # -----------------------------------------------------------------------------
 list_handler() {
     local target="$1"
+    local sha="${2:-}"
     if [[ "$target" != "beta" && "$target" != "prod" ]]; then
-        err "Usage : ./scripts/deploy-cd.sh list {beta|prod}"
+        err "Usage : ./scripts/deploy-cd.sh list {beta|prod} [sha7]"
         exit 1
     fi
     [ -n "${GHCR_TOKEN:-}" ] || fail "GHCR_TOKEN non défini. Exportez : export GHCR_TOKEN=<token read:packages>"
@@ -142,7 +145,32 @@ list_handler() {
         fi
     done
     horiz
+
+    # `list beta <sha7>` répond à LA question qui coûte le plus de temps :
+    # « ce commit a-t-il vraiment été publié par la CI ? ». Un tag absent et un
+    # registre cassé produisent le même échec au pull — ici on tranche avant.
+    if [[ -n "$sha" ]]; then
+        printf "${C_BOLD}  Tag %s${C_RESET}\n" "$sha"
+        local MISSING=0
+        for NAME in app worker ws discord-bot; do
+            local IMG="${GHCR_REG}/sigilos-${NAME}-${target}"
+            if sudo docker buildx imagetools inspect "${IMG}:${sha}" >/dev/null 2>&1; then
+                printf "  %-32s ${C_GREEN}✓ publié${C_RESET}\n" "sigilos-${NAME}-${target}"
+            else
+                printf "  %-32s ${C_RED}✗ absent${C_RESET}\n" "sigilos-${NAME}-${target}"
+                MISSING=1
+            fi
+        done
+        horiz
+        if [[ "$MISSING" == "1" ]]; then
+            err "Tag $sha incomplet : la CI ne l'a pas publié (onglet Actions → Build & Push)."
+        else
+            ok "Tag $sha publié sur les 4 images — déployable et rollback-able."
+        fi
+    fi
+
     dim "Déployer une version précise : ./scripts/deploy-cd.sh ${target} <sha7>"
+    dim "Vérifier un tag sans déployer  : ./scripts/deploy-cd.sh list ${target} <sha7>"
     exit 0
 }
 
@@ -351,6 +379,33 @@ deploy() {
     fi
     rm -f /tmp/sigilos-login.log
 
+    # ── Pré-vol « le tag existe-t-il vraiment ? » ──────────────────────────────
+    # Un tag jamais publié et un registre injoignable donnent le MÊME échec au
+    # pull. On tranche la question AVANT de toucher aux conteneurs, image par
+    # image, en lisant seulement le manifeste (aucune couche téléchargée).
+    if [[ "$SHA" != "latest" ]]; then
+        step "1.5" "Vérification du tag ${SHA}" "Contrôle que la CI a bien publié ce commit sur GHCR (manifeste seulement, aucun téléchargement)."
+        local MISSING_TAG=0
+        for NAME in app worker ws discord-bot; do
+            local IMG="${GHCR_REG}/sigilos-${NAME}-${TARGET}"
+            if sudo docker buildx imagetools inspect "${IMG}:${SHA}" >/dev/null 2>&1; then
+                ok "${NAME} : tag ${SHA} publié"
+            else
+                err "${NAME} : tag ${SHA} absent (${IMG})"
+                MISSING_TAG=1
+            fi
+        done
+        if [[ "$MISSING_TAG" == "1" ]]; then
+            echo ""
+            dim "  Un tag absent = une image jamais publiée par la CI. Ce n'est donc NI"
+            dim "  le disque NI le token du serveur : vérifie l'onglet Actions (Build &"
+            dim "  Push vert pour ce commit) puis relance."
+            dim "  Vérifier sans déployer : ./scripts/deploy-cd.sh list ${TARGET} ${SHA}"
+            fail "Tag ${SHA} incomplet sur GHCR — déploiement annulé avant tout changement."
+        fi
+        echo ""
+    fi
+
     step "2" "Téléchargement des images" "Récupère les 4 composants de l'app (app, worker, ws, bot) déjà «cuisinés» sur GitHub — aucun re-build sur le serveur."
     local PULL_OK=1
     for NAME in app worker ws discord-bot; do
@@ -444,7 +499,7 @@ deploy() {
 COMMAND="${1:-}"
 case "$COMMAND" in
     beta|prod)   deploy "$COMMAND" "${2:-latest}" ;;
-    list)        list_handler "${2:-}" ;;
+    list)        list_handler "${2:-}" "${3:-}" ;;
     --help|-h)   usage 0 ;;
     *)           usage 1 ;;
 esac

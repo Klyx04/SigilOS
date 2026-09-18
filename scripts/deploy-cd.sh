@@ -202,25 +202,35 @@ git_fetch() {
         "public/game-data/ignored-monsters.json"
     )
 
-    # ── Bits `assume-unchanged` / `skip-worktree` : le piège qui bloque un pull ──
-    # Posés à la main pour ne plus voir un fichier dans `git status`, ils rendent git
-    # AVEUGLE sur son contenu : `git stash` répond « No local changes to save » et le
-    # merge refuse pourtant de l'écraser (« Your local changes would be overwritten by
-    # merge — Aborting »). `--autostash` n'a alors RIEN à stasher ⇒ aucune protection.
-    # Constat beta du 18/09/2026 : c'est exactement ce qui bloquait le deploy.
+    # ── Git peut être AVEUGLE sur ces fichiers : ne jamais croire l'index ───────
+    # Les bits `assume-unchanged` / `skip-worktree` (posés à la main pour ne plus voir
+    # le bruit dans `git status`) font répondre « aucun changement » à `git diff` et
+    # « No local changes to save » à `git stash`… alors que le merge refuse ensuite
+    # d'écraser le fichier (« Your local changes would be overwritten by merge »).
+    # ⇒ ni `git diff` ni `--autostash` ne protègent dans ce cas.
+    # Deux règles apprises le 18/09/2026 (git 2.39, reproduit en bac à sable) :
+    #   1. les deux options d'un MÊME `update-index` s'annulent en silence (le drapeau
+    #      reste `S`) → il faut deux appels SÉPARÉS ;
+    #   2. l'état des fichiers se compare au CONTENU (`git show HEAD:<f> | cmp -s`),
+    #      jamais via l'index qui ment.
     local f
     for f in "${GENERATED[@]}" "${PRESERVED[@]}"; do
         [[ -f "$f" ]] || continue
+        git cat-file -e "HEAD:$f" 2>/dev/null || continue
         if git ls-files -v -- "$f" 2>/dev/null | grep -qE '^[a-z]|^S'; then
-            dim "  → $f : bit assume-unchanged/skip-worktree levé (git le croyait « propre »)"
-            git update-index --no-assume-unchanged --no-skip-worktree -- "$f" 2>/dev/null || true
+            dim "  → $f : bit skip-worktree/assume-unchanged levé (git le voyait « propre »)"
+            git update-index --no-skip-worktree -- "$f" 2>/dev/null || true
+            git update-index --no-assume-unchanged -- "$f" 2>/dev/null || true
         fi
     done
 
+    # Artefacts régénérés au runtime : la version du dépôt suffit (rien à conserver).
     for f in "${GENERATED[@]}"; do
-        if [[ -f "$f" ]] && ! git diff --quiet -- "$f" 2>/dev/null; then
+        [[ -f "$f" ]] || continue
+        git cat-file -e "HEAD:$f" 2>/dev/null || continue
+        if ! git show "HEAD:$f" 2>/dev/null | cmp -s - "$f"; then
             dim "  → artefact régénéré : $f (restauration de la version du dépôt)"
-            git checkout -- "$f"
+            git show "HEAD:$f" > "$f"
         fi
     done
 
@@ -228,11 +238,13 @@ git_fetch() {
     # soit propre, puis restauration — c'est la curation du serveur qui fait foi.
     local PRESERVE_DIR=""
     for f in "${PRESERVED[@]}"; do
-        if [[ -f "$f" ]] && ! git diff --quiet -- "$f" 2>/dev/null; then
+        [[ -f "$f" ]] || continue
+        git cat-file -e "HEAD:$f" 2>/dev/null || continue
+        if ! git show "HEAD:$f" 2>/dev/null | cmp -s - "$f"; then
             [[ -n "$PRESERVE_DIR" ]] || PRESERVE_DIR="$(mktemp -d)"
             cp "$f" "$PRESERVE_DIR/$(basename "$f")"
             dim "  → donnée locale conservée : $f (mise de côté hors de l'arbre)"
-            git checkout -- "$f" 2>/dev/null || true
+            git show "HEAD:$f" > "$f"
         fi
     done
 

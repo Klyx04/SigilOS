@@ -70,22 +70,25 @@ node scratch/_test-worker-local.mjs
 ```
 
 
-## ⚠️ Limite connue (constatée le 18/09/2026)
+## ⚠️ Comportement WAF (mesuré le 18/09/2026)
 
-Le WAF Dofusbook bloque **aussi l'égress des Workers Cloudflare** (403 « Sorry, you have
-been blocked », même page de blocage que pour Node/undici et Playwright). Autrement dit :
-déployé sur l'edge Cloudflare, ce worker peut cesser de rafraîchir du jour au lendemain
-sans aucun changement de notre côté.
+Dofusbook (Cloudflare bot-management) challenge l'égress des Workers **par
+intermittence** : un `MISS` peut tomber sur la page de blocage (403 « Sorry, you have
+been blocked »), la requête suivante passe. Trois protections rendent le module fiable
+malgré ça :
 
-Dans ce cas, le même `worker.js` fonctionne **tel quel** lancé sur une machine à IP
-résidentielle :
+1. **Cache 24 h des succès** (`Cache-Control: public, max-age=86400`, clé stable
+   `…/api/stuffs/dofus/public/<id>`, partagée par les deux routes) ⇒ un `HIT` ne
+   retouche jamais Dofusbook ;
+2. **Les échecs ne sont jamais mis en cache** (un 403 n'est pas figé) ;
+3. Côté SigilOS : **bake navigateur** (non concerné par le disjoncteur) + disjoncteur
+   15 min sur les appels serveur pour ne pas marteler.
 
-```bash
-npx wrangler dev --port 8787          # + cloudflared / Tailscale pour l'exposer en HTTPS
-```
+Relevé bêta du 18/09 : 403 sur un MISS à `00:00:13`, puis `200`+`HIT` sur les deux
+routes quelques minutes plus tard (`X-Dofusbook-Status: 200`, `X-SigilOS-Cache: HIT`).
 
-Sorties durables (aucune activée aujourd'hui) : machine résidentielle toujours allumée,
-proxy résidentiel payant, ou accès/allowlist officiel Dofusbook. Détails, runbook et
-comportement dégradé : [`docs/GALERIE-DOFUSBOOK-RELAIS.md`](../../docs/GALERIE-DOFUSBOOK-RELAIS.md).
+Si le blocage devenait **permanent**, le même `worker.js` fonctionne tel quel sur une
+machine à IP résidentielle (`npx wrangler dev --port 8787` + `cloudflared`/Tailscale).
+Détails et runbook : [`docs/GALERIE-DOFUSBOOK-RELAIS.md`](../../docs/GALERIE-DOFUSBOOK-RELAIS.md).
 
 Attendu : `✅ Worker validé (logique OK avant déploiement)`.

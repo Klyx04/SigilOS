@@ -162,8 +162,16 @@ git_fetch() {
     # overwritten by merge → Aborting »). Son contenu est éphémère (régénéré au tick
     # suivant) ⇒ on restaure la version du dépôt avant le pull.
     # ➕ Ajouter ici tout futur artefact généré dans un dossier versionné.
+    # `dungeon-monsters.json` est ÉPHÉMÈRE (le siphon le réécrit au tick suivant) :
+    # restaurer la version du dépôt ne perd rien.
     local GENERATED=(
         "public/game-data/dungeon-monsters.json"
+    )
+    # À l'inverse `ignored-monsters.json` est CURÉ à la main (God) : l'écraser ferait
+    # perdre les exclusions configurées sur CE serveur ⇒ on le laisse tel quel et on
+    # compte sur `git pull --autostash` pour le remettre en place après le pull.
+    local PRESERVED=(
+        "public/game-data/ignored-monsters.json"
     )
     local f
     for f in "${GENERATED[@]}"; do
@@ -172,18 +180,29 @@ git_fetch() {
             git checkout -- "$f"
         fi
     done
+    for f in "${PRESERVED[@]}"; do
+        if [[ -f "$f" ]] && ! git diff --quiet -- "$f" 2>/dev/null; then
+            dim "  → donnée locale conservée : $f (stash automatique du pull)"
+        fi
+    done
 
     DIRTY="$(git status --porcelain 2>/dev/null)"
     if [[ -n "$DIRTY" ]]; then
-        warn "Des fichiers locaux sont modifiés — le pull peut être bloqué (non bloquant)."
+        warn "Des fichiers locaux sont modifiés — ils seront stashed puis réappliqués (--autostash)."
         printf '%s\n' "$DIRTY" | sed 's/^/     /' | head -10
-        dim "  → Pour rétablir : git checkout -- <fichier>   (ou   git stash)"
+        dim "  → Pour rétablir à la main : git checkout -- <fichier>   (ou   git stash)"
     fi
-    if git pull origin "$BRANCH" >/tmp/sigilos-pull.log 2>&1; then
+    # `--autostash` : les modifications locales (dont les listes curées côté serveur)
+    # sont mises de côté, le pull passe, puis elles sont réappliquées. Un conflit de
+    # ré-application laisse le stash intact (aucune perte) et l'affiche ci-dessous.
+    if git pull --autostash origin "$BRANCH" >/tmp/sigilos-pull.log 2>&1; then
         ok "Code source à jour (branche $BRANCH, $(git log -1 --oneline 2>/dev/null || echo '?'))."
     else
-        warn "git pull en échec — on continue avec les images GHCR (non bloquant)."
+        warn "git pull en échec (ou ré-application du stash) — on continue avec les images GHCR (non bloquant)."
         sed 's/^/     /' /tmp/sigilos-pull.log | tail -8
+        if ! git stash list | grep -q .; then :; else
+            dim "  → stash conservé : 'git stash pop' après résolution (rien n'est perdu)."
+        fi
     fi
     rm -f /tmp/sigilos-pull.log
 }
@@ -241,7 +260,11 @@ pull_image() {
     fi
     # Docker écrit sa progression avec des \r → on les transforme en \n pour
     # compter les couches téléchargées et afficher un % lisible.
-    sudo docker pull "${IMG}:${SHA}" 2>&1 | tr '\r' '\n' | while IFS= read -r line; do
+    # On garde aussi la sortie BRUTE : en cas d'échec on affiche la cause réelle
+    # (disque plein, tag introuvable, 403 GHCR…) au lieu d'un « ✗ ÉCHEC » muet.
+    local PULL_LOG
+    PULL_LOG="$(mktemp)"
+    sudo docker pull "${IMG}:${SHA}" 2>&1 | tr '\r' '\n' | tee "$PULL_LOG" | while IFS= read -r line; do
         case "$line" in
             *"Already exists"*)   TOTAL=$((TOTAL+1)); DONE=$((DONE+1)); bar "$NAME" "$DONE" "$TOTAL";;
             *"Pulling fs layer"*) TOTAL=$((TOTAL+1)); bar "$NAME" "$DONE" "$TOTAL";;
@@ -255,8 +278,12 @@ pull_image() {
         printf "\r  ${C_DIM}%-20s${C_RESET} ${C_GREEN}✓ téléchargée${C_RESET}\n" "$NAME"
     else
         printf "\r  ${C_DIM}%-20s${C_RESET} ${C_RED}✗ ÉCHEC${C_RESET}\n" "$NAME"
+        dim "     cause : docker pull ${IMG}:${SHA}"
+        grep -viE 'Pulling fs layer|Waiting|Downloading|Extracting|Pull complete|Already exists|Verifying Checksum|Download complete|^$' "$PULL_LOG" | tail -3 | sed 's/^/     /'
+        dim "     repères : espace disque (df -h) · tags publiés (./scripts/deploy-cd.sh list beta) · expiration GHCR_TOKEN"
         PULL_OK=0
     fi
+    rm -f "$PULL_LOG"
 }
 
 

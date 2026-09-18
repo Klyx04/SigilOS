@@ -17,14 +17,16 @@
 |---|---|
 | Node / undici (le VPS) | ❌ 403 « Sorry, you have been blocked » |
 | Playwright headless / headful / Chrome réel piloté | ❌ 403 (même page de blocage, 4 554 o) |
-| **Égress d'un Worker Cloudflare** (`test-dofusbook.*.workers.dev`, déjà déployé) | ❌ 403 — **bloqué aussi** |
+| **Égress d'un Worker Cloudflare** (`test-dofusbook.*.workers.dev`, déjà déployé) | ⚠️ 403 **intermittent** — challenge par requête : les MISS tombent, les HIT passent (mesuré le 18/09, §5) |
 | `robots.txt` | ✅ (seul chemin qui passe) |
 | **Vrai navigateur (Chrome) depuis une IP résidentielle** | ✅ 200 |
 | `wrangler dev` (workerd) sur une machine résidentielle | ✅ 200 |
 
-➡️ **Conséquence** : aucun serveur ne peut lire l'API Dofusbook (ni le VPS, ni l'edge
-Cloudflare). Il faut soit **le navigateur du membre**, soit **une machine à IP
-résidentielle** qui sert de relais. Les deux sont implémentés.
+➡️ **Conséquence** : un serveur (VPS) est bloqué **à tous les coups**, et l'égress
+Cloudflare l'est **par intermittence** (le challenge dépend de la requête). Trois parades
+sont donc implémentées : le **cache 24 h des succès côté worker** (un `HIT` ne retouche
+jamais Dofusbook), le **bake par le navigateur du membre**, et le **relais sur machine
+résidentielle** en secours.
 
 ---
 
@@ -68,6 +70,13 @@ signature seule) → `fetch()` du navigateur sur `/s/{id}` → `storeClientDofus
 (server action) qui **valide** (`isUsableDofusbookRawPayload`), traite et **enregistre
 dans le profil du propriétaire** (`persisted`), ou renvoie les données sans persister pour
 un non-propriétaire. Utilisé par la galerie (`gallery-client.tsx`) et la modale
+(`dofusbook-preview.tsx`).
+
+**2. Flux serveur** — `getDofusbookPreview(url, force)` (`src/server/actions/dofusbook-actions.ts`) :
+cache Redis 24 h (`sigilos:dofusbook:v12:<id>`, invalidé si la donnée n'a pas d'items) →
+worker `/{id}` → traitement. Le **fallback VPS direct est désactivé** par défaut
+(`DOFUSBOOK_ALLOW_VPS_FALLBACK=false`). Utilisé par l'ajout/édition d'un lien de build
+(`profile-actions.ts`).
 
 ---
 
@@ -103,6 +112,16 @@ Le disjoncteur (`src/lib/dofusbook-guard.ts`) est **partagé** entre la route pr
 modale et les server actions : un blocage détecté gèle les tentatives au lieu de marteler
 Dofusbook.
 
+Le **cache du worker** rend la mesure indolore : un succès est conservé **24 h**
+(`Cache-Control: public, max-age=86400`) sous une clé **stable**
+(`…/api/stuffs/dofus/public/<id>`), **partagée par les deux routes**. Un `HIT` ne
+retouche pas Dofusbook : c'est instantané et immunisé au WAF. Seuls les `MISS` (premier
+accès à un build, ou après 24 h) risquent le challenge.
+
+Et le **bake navigateur n'est pas concerné par le disjoncteur** (il ne fait que
+s'authentifier et limiter à 30 bakes/min) : même pendant les 15 min de gel, le bouton
+« Actualiser » de la modale continue de fonctionner.
+
 ---
 
 ## 5. Exploitation
@@ -116,9 +135,18 @@ npx wrangler deploy        # puis RÉGLER WORKER_SECRET : Cloudflare → Worker 
 Côté VPS : `DOFUSBOOK_CF_WORKER_URL=https://test-dofusbook.<compte>.workers.dev` +
 `DOFUSBOOK_WORKER_SECRET`.
 
-> ⚠️ **Limite constatée le 18/09/2026** : l'égress des Workers Cloudflare a lui aussi été
-> bloqué par le WAF (403). Dans ce cas ce mode ne rafraîchit plus rien jusqu'au
-> déblocage côté Dofusbook — l'affichage de la galerie reste intact.
+> **Relevé du 18/09/2026 (00:00 → 00:07 locales, bêta) — le WAF challenge par
+> intermittence, et le cache fait le reste :**
+> · `00:00:13` → `/{id}` sur un **MISS** : **403** (page de blocage Cloudflare) ⇒
+>   disjoncteur 15 min + notif God (comportement attendu, aucune donnée perdue) ;
+> · ~1 min plus tard → bake **navigateur** `/s/{id}` sur un MISS : **200** ✅ ⇒ le
+>   payload part en cache worker **24 h** ;
+> · ensuite → `/{id}` **et** `/s/{id}` : `200` · `X-Dofusbook-Status: 200` ·
+>   `X-SigilOS-Cache: HIT`.
+>
+> Conclusion opérationnelle : **ce mode fonctionne seul, aucune machine à allumer**. Les
+> rechutes sont ponctuelles et n'impactent que le **premier** accès à un build non encore
+> caché (l'affichage, lui, reste servi depuis la base/Redis).
 
 ### Mode dépannage — relais local (`wrangler dev` + tunnel)
 
@@ -154,7 +182,19 @@ Données de Jeu* → « Pré-chauffer sorts de classes » / « Siphonner les gri
 
 ## 6. Limites connues
 
-1. **WAF** — si Cloudflare bloque aussi l'égress des Workers, trois sorties existent,
+1. **WAF (intermittent)** — mesuré le 18/09/2026 : l'égress Cloudflare passe sur la très
+   grande majorité des requêtes ; un `MISS` peut tomber sur la page de blocage (voir §5).
+   Cache 24 h + bake navigateur + disjoncteur rendent le module exploitable **sans
+   machine allumée**. Si le blocage devenait **permanent**, trois sorties : (a) machine à
+   IP résidentielle (boîtier maison + tunnel stable), (b) **proxy résidentiel payant**
+   côté VPS, (c) **accès/allowlist officiel Dofusbook** (seule solution durable).
+2. **Liens courts `d-bk.net`** — `getDofusbookId()` résout la redirection `302` **depuis
+   le serveur** ⇒ challenge Cloudflare ⇒ « Identifiant Dofusbook introuvable ». Les liens
+   **complets** (`…/equipement/<id>`) fonctionnent (regex, zéro réseau). Correctif
+   possible : route `/resolve` sur le worker (résolution depuis l'IP du relais).
+3. **Images hors proxy** (`/api/assets-dofus/{monsters|items|spells}`) — cartes de donjons
+   et icônes de métiers (`dofus-resolvers.tsx`, `OptimizedGuideAdminClient.tsx`) ;
+   `dofus-resolvers.tsx` appelle en outre **l'API DofusDB depuis le navigateur**.
 
 ---
 
@@ -205,21 +245,4 @@ CORS ................................................. Access-Control-Allow-Orig
 proxy assets (spells/12160?url=…) .................... 200 image/webp · 2 484 o · Cache 1 an · écrit sur disque
 ```
 
-   **aucune activée aujourd'hui** : (a) machine à IP résidentielle toujours allumée
-   (boîtier maison + tunnel stable), (b) **proxy résidentiel payant** côté VPS,
-   (c) **accès/allowlist officiel Dofusbook** (seule solution durable).
-2. **Liens courts `d-bk.net`** — `getDofusbookId()` résout le `302` **depuis le serveur**
-   ⇒ challenge Cloudflare ⇒ « Identifiant Dofusbook introuvable ». Les liens **complets**
-   (`…/equipement/<id>`) fonctionnent (regex, zéro réseau). Correctif possible : route
-   `/resolve` sur le worker (résolution depuis l'IP du relais).
-3. **Images hors proxy** (`/api/assets-dofus/{monsters|items|spells}`) — cartes de donjons
-   et icônes de métiers (`dofus-resolvers.tsx`, `OptimizedGuideAdminClient.tsx`) ;
-   `dofus-resolvers.tsx` appelle en outre **l'API DofusDB depuis le navigateur**.
 
-(`dofusbook-preview.tsx`).
-
-**2. Serveur** — `getDofusbookPreview(url, force)` (`src/server/actions/dofusbook-actions.ts`) :
-cache Redis 24 h (`sigilos:dofusbook:v12:<id>`, invalidé si la donnée n'a pas d'items) →
-worker `/{id}` → traitement. Le **fallback VPS direct est désactivé** par défaut
-(`DOFUSBOOK_ALLOW_VPS_FALLBACK=false`). Utilisé par l'ajout/édition d'un lien de build
-(`profile-actions.ts`).

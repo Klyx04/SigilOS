@@ -453,6 +453,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                                         src={`/assets/dofus/classes/${cls.id === 19 ? 20 : cls.id}.png`}
                                                         alt={cls.name}
                                                         fill
+                                                        sizes="32px"
                                                         className="object-contain"
                                                     />
                                                 </div>

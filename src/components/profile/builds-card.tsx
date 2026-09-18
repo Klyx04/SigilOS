@@ -96,6 +96,7 @@ const ClassSelector = ({
                                     src={`/assets/dofus/classes/${cls.id === 19 ? 20 : cls.id}.png`}
                                     alt={cls.name}
                                     fill
+                                    sizes="(min-width: 640px) 36px, 28px"
                                     className="object-contain"
                                 />
                             </div>
@@ -327,7 +328,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                 {filteredLinks.length > 0 ? (
                     filteredLinks.map(link => (
                         <div key={link.id} className="relative group/card h-full flex flex-col justify-between gap-2">
-                            <DofusbookPreview url={link.url} title={link.name} tags={link.tags} classId={link.classId} initialData={(link as any).previewData} />
+                            <DofusbookPreview url={link.url} title={link.name} tags={link.tags} classId={link.classId} initialData={(link as any).previewData} guildId={guildId} />
 
                             {/* Upload / Update Date Bar (Gallery parity) */}
                             <div className="flex items-center justify-between px-2 pt-1 text-caption text-muted-foreground border-t border-border">

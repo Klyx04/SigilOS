@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { getClassSpells, type ClassSpellDamage } from "@/server/actions/dofus-spells-actions";
 import { computeSpellDamage, castsPerTarget, castsPerTurn, spellZoneFromDamages, type BuildStatsForSpells, type SpellElementKey } from "@/lib/dofus-spells";
 import { getClassName } from "@/lib/dofusbook-utils";
+import { resolveDofusAssetImageUrl } from "@/lib/dofus-image-url";
 
 const frNumber = new Intl.NumberFormat("fr-FR");
 
@@ -354,6 +355,10 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                     {filteredSpells.map((sp) => {
                         const meta = ELEMENT_META[sp.primaryElement];
                         const currentGrade = gradeSel[sp.id] ?? sp.gLabel;
+                        // Icône SIPHONNÉE : `/api/assets-dofus/spells/{id}?url=…` (WebP disque du
+                        // serveur) au lieu de l'URL absolue DofusDB stockée en base — le navigateur
+                        // n'appelle plus jamais `api.dofusdb.fr` (57 requêtes sup. en moins).
+                        const iconSrc = resolveDofusAssetImageUrl("spells", sp.id, sp.imageUrl);
 
                         return (
                             <div
@@ -367,9 +372,9 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                                 {/* En-tête du sort */}
                                 <div className="flex items-start gap-3">
                                     <div className="w-11 h-11 rounded-xl bg-elevated border border-border flex items-center justify-center overflow-hidden shrink-0 relative">
-                                        {sp.imageUrl ? (
+                                        {iconSrc ? (
                                             // eslint-disable-next-line @next/next/no-img-element
-                                            <img src={sp.imageUrl} alt={sp.name} className="w-full h-full object-contain p-0.5" loading="lazy" />
+                                            <img src={iconSrc} alt={sp.name} className="w-full h-full object-contain p-0.5" loading="lazy" />
                                         ) : (
                                             <Zap className={cn("w-5 h-5", meta?.text ?? "text-muted-foreground")} />
                                         )}

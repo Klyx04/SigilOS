@@ -83,35 +83,50 @@ export async function GET(
             }
         }
 
-        // 1.5 Source Prioritaire Locale : Assets officiels HD sur la machine (C:\Users\user\Desktop\dofus_assets)
-        // Permet un rendu instantané (0ms), zéro dépendance DofusDB, 100% autonome
-        const desktopDirMap: Record<string, string> = {
-            monsters: 'C:\\Users\\user\\Desktop\\dofus_assets\\monsters_2x',
-            spells: 'C:\\Users\\user\\Desktop\\dofus_assets\\spells_2x',
-            items: 'C:\\Users\\user\\Desktop\\dofus_assets\\items_2x',
-        };
-        const desktopDir = desktopDirMap[assetType];
-        if (desktopDir) {
-            const candidateFiles = [
-                path.join(desktopDir, `${safeId}.png`),
-                path.join(desktopDir, `${safeId}.webp`),
-            ];
-            for (const desktopFile of candidateFiles) {
-                if (fs.existsSync(desktopFile)) {
-                    try {
-                        const rawBuffer = fs.readFileSync(desktopFile);
-                        const webpBuffer = await sharp(rawBuffer)
-                            .webp({ quality: 80, effort: 2 })
-                            .toBuffer();
-                        fs.writeFileSync(localFilePath, webpBuffer);
-                        return new NextResponse(webpBuffer, {
-                            headers: {
-                                'Content-Type': 'image/webp',
-                                'Cache-Control': 'public, max-age=31536000, immutable',
-                            },
-                        });
-                    } catch {}
+        // 1.5 Sources locales « game data » (assets officiels, ZÉRO réseau)
+        // 👑 « God » = dump du client de jeu (`items_2x`, `spells_2x`, `monsters_2x`).
+        //    • dev  : chemin historique Windows (C:\Users\user\Desktop\dofus_assets)
+        //    • prod : `DOFUS_ASSETS_DIR` (ex. /data/dofus_assets monté en lecture seule)
+        //      → les icônes sont alors servies LOCALEMENT, sans dépendre de DofusDB.
+        //    Plusieurs racines possibles, séparées par « ; » ou « , ».
+        const godRoots = [
+            ...String(process.env.DOFUS_ASSETS_DIR || '')
+                .split(/[;,]/)
+                .map((dir) => dir.trim())
+                .filter(Boolean),
+            'C:\\Users\\user\\Desktop\\dofus_assets', // héritage dev (ignoré si absent)
+        ];
+        const godSubDir = assetType === 'items' ? 'items_2x' : assetType === 'monsters' ? 'monsters_2x' : 'spells_2x';
+
+        /** Fichier 2x local correspondant à un id, dans les racines configurées. */
+        const findGodFile = (id: string): string | null => {
+            for (const root of godRoots) {
+                for (const candidate of [
+                    path.join(root, godSubDir, `${id}.png`),
+                    path.join(root, godSubDir, `${id}.webp`),
+                ]) {
+                    if (fs.existsSync(candidate)) return candidate;
                 }
+            }
+            return null;
+        };
+
+        const godFile = findGodFile(safeId);
+        if (godFile) {
+            try {
+                const rawBuffer = fs.readFileSync(godFile);
+                const webpBuffer = await sharp(rawBuffer)
+                    .webp({ quality: 80, effort: 2 })
+                    .toBuffer();
+                fs.writeFile(localFilePath, webpBuffer, () => {});
+                return new NextResponse(webpBuffer, {
+                    headers: {
+                        'Content-Type': 'image/webp',
+                        'Cache-Control': 'public, max-age=31536000, immutable',
+                    },
+                });
+            } catch {
+                // Fichier local illisible → on continue vers le siphonnage réseau
             }
         }
 
@@ -120,26 +135,24 @@ export async function GET(
         const rawUrlParam = req.nextUrl.searchParams.get('url');
         const safeUrlParam = getAllowedRemoteUrl(rawUrlParam);
 
-        // Si une URL est fournie et qu'on peut en extraire un id numérique pour chercher sur le desktop
+        // Si une URL est fournie et qu'on peut en extraire un id numérique, on tente le fichier « god » local
         if (safeUrlParam) {
             const urlMatch = safeUrlParam.match(/\/(\d+)\.(png|webp|jpg)/i);
-            if (urlMatch && desktopDir) {
-                const altDesktopFile = path.join(desktopDir, `${urlMatch[1]}.png`);
-                if (fs.existsSync(altDesktopFile)) {
-                    try {
-                        const rawBuffer = fs.readFileSync(altDesktopFile);
-                        const webpBuffer = await sharp(rawBuffer)
-                            .webp({ quality: 80, effort: 2 })
-                            .toBuffer();
-                        fs.writeFileSync(localFilePath, webpBuffer);
-                        return new NextResponse(webpBuffer, {
-                            headers: {
-                                'Content-Type': 'image/webp',
-                                'Cache-Control': 'public, max-age=31536000, immutable',
-                            },
-                        });
-                    } catch {}
-                }
+            const altGodFile = urlMatch ? findGodFile(urlMatch[1]) : null;
+            if (altGodFile) {
+                try {
+                    const rawBuffer = fs.readFileSync(altGodFile);
+                    const webpBuffer = await sharp(rawBuffer)
+                        .webp({ quality: 80, effort: 2 })
+                        .toBuffer();
+                    fs.writeFile(localFilePath, webpBuffer, () => {});
+                    return new NextResponse(webpBuffer, {
+                        headers: {
+                            'Content-Type': 'image/webp',
+                            'Cache-Control': 'public, max-age=31536000, immutable',
+                        },
+                    });
+                } catch {}
             }
         }
 
@@ -197,16 +210,22 @@ export async function GET(
                 });
                 if (itemRes.ok) {
                     const itemData = await itemRes.json();
-                    const iconId = itemData.iconId || itemData.id;
-                    if (iconId) {
-                        const iconRes = await fetch(`https://api.dofusdb.fr/img/items/${iconId}.png`, {
-                            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-                            signal: AbortSignal.timeout(6_000),
-                        });
-                        if (iconRes.ok) {
-                            const arrayBuffer = await iconRes.arrayBuffer();
-                            inputBuffer = Buffer.from(arrayBuffer);
-                            downloaded = true;
+                    // 🛡️ Garde d'identité : quand l'id n'existe pas, DofusDB répond quand même
+                    // HTTP 200 avec un item de repli (« Purée pique-fêle » id 666). Sans ce
+                    // contrôle, on servait l'icône d'un AUTRE item — cause du bug « mauvais
+                    // items » de la galerie (id interne Dofusbook ≠ id de jeu).
+                    if (Number(itemData?.id) === Number(safeId)) {
+                        const iconId = Number(itemData.iconId) || Number(itemData.id);
+                        if (iconId > 0) {
+                            const iconRes = await fetch(`https://api.dofusdb.fr/img/items/${iconId}.png`, {
+                                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                                signal: AbortSignal.timeout(6_000),
+                            });
+                            if (iconRes.ok) {
+                                const arrayBuffer = await iconRes.arrayBuffer();
+                                inputBuffer = Buffer.from(arrayBuffer);
+                                downloaded = true;
+                            }
                         }
                     }
                 }
@@ -315,14 +334,18 @@ export async function GET(
             }
         }
 
-        // 3. Fallback SVG transparent / écusson neutre pour éviter tout 404 rouge dans DevTools
+        // 3. Fallback SVG neutre pour éviter tout 404 rouge dans DevTools.
+        // ⚠️ `no-store` OBLIGATOIRE : sinon un échec TRANSITOIRE de siphonnage est figé
+        // 24 h dans le cache du navigateur → l'utilisateur voit des icônes manquantes
+        // (placeholder « lien cassé ») alors que la source est de nouveau disponible.
         const placeholderSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 3 3"/><path d="m19 21 2-2"/></svg>`;
 
         return new NextResponse(placeholderSvg, {
             status: 200,
             headers: {
                 'Content-Type': 'image/svg+xml',
-                'Cache-Control': 'public, max-age=86400',
+                'Cache-Control': 'no-store',
+                'X-SigilOS-Placeholder': '1',
             },
         });
     } catch {

@@ -1,8 +1,12 @@
 "use server";
 import { logger } from "@/lib/logger";
+import { auth } from "@/auth";
+import { rateLimit } from "@/lib/ratelimit";
+import { buildDofusbookClientFetchUrl } from "@/lib/dofusbook-sign";
 
 import redis from "@/lib/redis";
-import { processDofusbookRawData, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
+import { processDofusbookRawData, isDofusbookBlockResponse, DOFUSBOOK_BLOCKED_MESSAGE, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
+import { isDofusbookBreakerOpen, openDofusbookBreaker } from "@/lib/dofusbook-guard";
 import { assertSafeUrl } from "@/lib/image-downloader";
 
 const DOFUSBOOK_API = "https://www.dofusbook.net/api/stuffs/dofus/public/";
@@ -91,6 +95,38 @@ export async function getDofusbookId(url: string): Promise<string | null> {
 }
 
 /**
+ * Renvoie l'URL **signée** (worker Cloudflare `/s/{id}`) que le NAVIGATEUR du membre doit
+ * appeler pour récupérer les données d'un build.
+ *
+ * Pourquoi passer par le navigateur ? Dofusbook (Cloudflare) refuse les requêtes dont le
+ * client d'origine est un serveur (Node/.NET → 403/5xx « Attention Required! ») alors
+ * qu'un vrai navigateur passe. Le serveur ne fait donc que **signer** (jeton HMAC 5 min) :
+ * la requête part de l'edge Cloudflare via le navigateur du membre, le worker reste le
+ * seul émetteur vers Dofusbook et **l'IP du VPS n'est jamais exposée**.
+ */
+export async function getDofusbookClientFetchUrl(buildUrl: string): Promise<{
+    success: boolean;
+    url?: string;
+    id?: string;
+    error?: string;
+}> {
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) return { success: false, error: "Non authentifié" };
+
+    const limited = await rateLimit(`dofusbook-client-url:${userId}`, 60, 60_000);
+    if (!limited.success) return { success: false, error: "Trop de requêtes — réessaie dans une minute." };
+
+    const id = await getDofusbookId(buildUrl);
+    if (!id) return { success: false, error: "Identifiant Dofusbook introuvable" };
+
+    const url = buildDofusbookClientFetchUrl(id);
+    if (!url) return { success: false, error: "Proxy Dofusbook non configuré (DOFUSBOOK_CF_WORKER_URL)." };
+
+    return { success: true, url, id };
+}
+
+/**
  * Fetches and processes Dofusbook build data.
  * Strategy 1: CF Worker (Cloudflare edge IPs — bypasses VPS ban)
  * Strategy 2: VPS direct fetch (fallback — may be blocked by Cloudflare WAF)
@@ -122,8 +158,15 @@ export async function getDofusbookPreview(url: string, force: boolean = false): 
         }
 
         let raw: any = null;
+        const allowVpsFallback = process.env.DOFUSBOOK_ALLOW_VPS_FALLBACK === "true";
 
-        // 2. Strategy 1 — CF Worker (preferred)
+        // Disjoncteur partagé avec la route proxy : si Dofusbook a bloqué récemment,
+        // on ne rappelle rien (l'IP du VPS ne touche plus jamais dofusbook.net).
+        if (await isDofusbookBreakerOpen()) {
+            return { success: false, error: DOFUSBOOK_BLOCKED_MESSAGE, id };
+        }
+
+        // 2. Strategy 1 — CF Worker (seul émetteur autorisé vers Dofusbook)
         const cfWorkerUrl = process.env.DOFUSBOOK_CF_WORKER_URL;
         const cfWorkerSecret = process.env.DOFUSBOOK_WORKER_SECRET;
 
@@ -141,14 +184,29 @@ export async function getDofusbookPreview(url: string, force: boolean = false): 
                 if (workerRes.ok) {
                     raw = await workerRes.json();
                 } else {
-                    logger.warn(`[Dofusbook Action] CF Worker ${workerRes.status} for ${id} — VPS fallback`);
+                    const contentType = workerRes.headers.get("content-type");
+                    const body = await workerRes.text().catch(() => "");
+                    if (isDofusbookBlockResponse(workerRes.status, contentType, body)) {
+                        // Challenge anti-bot Cloudflare : on gèle les bakes 15 min.
+                        await openDofusbookBreaker(`bake build ${id} → statut ${workerRes.status}`);
+                        await trackDofusbookFailure("blocked", `${workerRes.status} sur build ${id} (challenge Cloudflare)`);
+                        return { success: false, error: DOFUSBOOK_BLOCKED_MESSAGE, id };
+                    }
+                    if (workerRes.status === 404) return { success: false, error: "Stuff introuvable", id };
+                    logger.warn(`[Dofusbook Action] CF Worker ${workerRes.status} for ${id}`, { detail: body.slice(0, 120) });
                 }
             } catch (err) {
                 logger.warn(`[Dofusbook Action] CF Worker failed for ${id}:`, err);
             }
         }
 
-        // 3. Strategy 2 — Direct VPS fetch (fallback)
+        // 3. Strategy 2 — VPS direct : DÉSACTIVÉE par défaut (Dofusbook bloque les IP
+        // serveur et on ne veut pas faire flaguer celle du VPS). Dépannage explicite :
+        // DOFUSBOOK_ALLOW_VPS_FALLBACK=true.
+        if (!raw && !allowVpsFallback) {
+            return { success: false, error: DOFUSBOOK_BLOCKED_MESSAGE, id };
+        }
+
         if (!raw) {
             const response = await fetch(`${DOFUSBOOK_API}${id}`, {
                 headers: {
@@ -164,6 +222,13 @@ export async function getDofusbookPreview(url: string, force: boolean = false): 
             });
 
             if (!response.ok) {
+                const contentType = response.headers.get("content-type");
+                const body = await response.text().catch(() => "");
+                if (isDofusbookBlockResponse(response.status, contentType, body)) {
+                    await openDofusbookBreaker(`bake VPS ${id} → statut ${response.status}`);
+                    await trackDofusbookFailure("blocked", `${response.status} sur build ${id} (blocage anti-bot)`);
+                    return { success: false, error: DOFUSBOOK_BLOCKED_MESSAGE, id };
+                }
                 logger.error(`[Dofusbook] API Error ${response.status} for build ${id}`);
                 if (response.status === 404) return { success: false, error: "Stuff introuvable", id };
                 await trackDofusbookFailure("http", `${response.status} sur build ${id}`);

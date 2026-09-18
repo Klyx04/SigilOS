@@ -40,6 +40,25 @@ interface BuildCspOptions {
 }
 
 /**
+ * Origine du relais Dofusbook configuré (`DOFUSBOOK_CF_WORKER_URL`) : worker Cloudflare,
+ * tunnel maison (`cloudflared`/Tailscale) ou domaine personnalisé. Déduite de l'env pour
+ * que `connect-src` suive automatiquement le relais réellement utilisé — sinon une URL
+ * changée sans toucher au CSP casse l'actualisation des builds en silence.
+ * Fonction pure (pas d'I/O), valeur invalide → ignorée.
+ */
+export function dofusbookRelayOrigin(raw = process.env.DOFUSBOOK_CF_WORKER_URL): string | null {
+    const cleaned = (raw || "").trim().replace(/^['"]|['"]$/g, "");
+    if (!cleaned) return null;
+    try {
+        const url = new URL(cleaned);
+        if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+        return `${url.protocol}//${url.host}`;
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Construit la CSP complète.
  *
  * ⚠️ `style-src 'unsafe-inline'` DOIT rester : Next.js en a besoin pour son
@@ -52,6 +71,8 @@ export function buildCsp({ nonce, enforce }: BuildCspOptions): {
     mode: CspMode;
 } {
     const isProd = process.env.NODE_ENV === "production";
+    /** Origine du relais Dofusbook configuré (null si non configuré/invalide). */
+    const relayOrigin = dofusbookRelayOrigin();
 
     // ─── img-src — adapté à next.config.ts remotePatterns ───────────────────
     const imgSrc = [
@@ -98,7 +119,19 @@ export function buildCsp({ nonce, enforce }: BuildCspOptions): {
         "https://static-cdn.jtvnw.net https://i.ytimg.com",
         "https://dofusskinmanga.com https://barbofus.com https://www.barbofus.com https://static.barbofus.com",
         "https://www.google.com https://*.gstatic.com",
-    ].join(" ");
+        // Relais Dofusbook : le NAVIGATEUR du membre y appelle l'API Dofusbook via une URL
+        // signée (Dofusbook refuse les clients « serveur » : Node/undici, .NET, Playwright,
+        // et même l'égress Cloudflare des Workers → 403 « Sorry, you have been blocked »).
+        // Sans cette entrée, la requête est bloquée dès que CSP_ENFORCE=true (et signalée sinon).
+        // L'origine est déduite de DOFUSBOOK_CF_WORKER_URL pour suivre le relais réellement
+        // configuré (worker CF, tunnel `cloudflared`/Tailscale, domaine perso).
+        "https://*.workers.dev",
+        ...(relayOrigin ? [relayOrigin] : []),
+        // Worker local de développement (`wrangler dev`) — jamais en production.
+        ...(isProd ? [] : ["http://127.0.0.1:* http://localhost:*"]),
+    ]
+        .filter((entry, index, all) => entry && all.indexOf(entry) === index)
+        .join(" ");
 
     // ─── script-src — nonce-based, PLUS aucun 'unsafe-inline' ──────────────
     // 'unsafe-eval' uniquement en dev (comme avant). Sentry loader externe.

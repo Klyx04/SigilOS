@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { generateCspNonce, buildCsp, CSP_HEADER_ENFORCE, CSP_HEADER_REPORT_ONLY } from "../../src/lib/csp";
+import { generateCspNonce, buildCsp, dofusbookRelayOrigin, CSP_HEADER_ENFORCE, CSP_HEADER_REPORT_ONLY } from "../../src/lib/csp";
 
 // Tests du construction CSP nonce-based.
 // On teste uniquement la logique pure (aucun I/O) : génération du nonce,
@@ -30,6 +30,28 @@ describe("CSP nonce-based", () => {
                 const nonce = generateCspNonce();
                 expect(nonce).toMatch(/^[A-Za-z0-9_-]+$/);
             }
+        });
+    });
+
+    describe("dofusbookRelayOrigin", () => {
+        it("réduit l'URL configurée à son origine (protocole + hôte + port)", () => {
+            expect(dofusbookRelayOrigin("https://dofusbook.sigilos.fr/s/123?e=1&t=abc")).toBe("https://dofusbook.sigilos.fr");
+            expect(dofusbookRelayOrigin("http://127.0.0.1:8787")).toBe("http://127.0.0.1:8787");
+            expect(dofusbookRelayOrigin("https://test-dofusbook.benjamin-tremoureux.workers.dev/")).toBe(
+                "https://test-dofusbook.benjamin-tremoureux.workers.dev"
+            );
+        });
+
+        it("tolère les guillemets et espaces des fichiers .env", () => {
+            expect(dofusbookRelayOrigin('  "https://x.workers.dev"  ')).toBe("https://x.workers.dev");
+            expect(dofusbookRelayOrigin("'http://localhost:8787'")).toBe("http://localhost:8787");
+        });
+
+        it("retourne null pour une valeur vide, invalide ou non http(s)", () => {
+            expect(dofusbookRelayOrigin("")).toBeNull();
+            expect(dofusbookRelayOrigin("   ")).toBeNull();
+            expect(dofusbookRelayOrigin("pas-une-url")).toBeNull();
+            expect(dofusbookRelayOrigin("ftp://dofusbook.sigilos.fr")).toBeNull();
         });
     });
 
@@ -114,6 +136,41 @@ describe("CSP nonce-based", () => {
             expect(directive).toContain("https://media.discordapp.net");
             expect(directive).toContain("https://api.dofusdu.de");
             expect(directive).toContain("https://api.dofusdb.fr");
+        });
+
+        it("allows the Dofusbook Cloudflare worker (bake « navigateur »)", () => {
+            const directive = headerValue.split(";").find(d => d.trim().startsWith("connect-src"))!;
+            expect(directive).toContain("https://*.workers.dev");
+        });
+
+        it("allows the local worker (wrangler dev) in development only", () => {
+            vi.stubEnv("NODE_ENV", "development");
+            const dev = buildCsp({ nonce: "abc", enforce: false });
+            const devDirective = dev.headerValue.split(";").find(d => d.trim().startsWith("connect-src"))!;
+            expect(devDirective).toContain("http://127.0.0.1:*");
+
+            vi.stubEnv("NODE_ENV", "production");
+            const prod = buildCsp({ nonce: "abc", enforce: false });
+            const prodDirective = prod.headerValue.split(";").find(d => d.trim().startsWith("connect-src"))!;
+            expect(prodDirective).not.toContain("http://127.0.0.1:*");
+            expect(prodDirective).toContain("https://*.workers.dev");
+        });
+
+        it("suit le relais Dofusbook configuré (DOFUSBOOK_CF_WORKER_URL → connect-src)", () => {
+            vi.stubEnv("DOFUSBOOK_CF_WORKER_URL", "https://dofusbook.sigilos.fr/s/123?e=1&t=abc");
+            const { headerValue: csp } = buildCsp({ nonce: "abc", enforce: false });
+            const directive = csp.split(";").find(d => d.trim().startsWith("connect-src"))!;
+            // Seule l'ORIGINE est retenue (une CSP ne connaît pas les chemins).
+            expect(directive).toContain("https://dofusbook.sigilos.fr");
+            expect(directive).not.toContain("dofusbook.sigilos.fr/s/123");
+        });
+
+        it("ignore une origine de relais invalide (aucune directive cassée)", () => {
+            vi.stubEnv("DOFUSBOOK_CF_WORKER_URL", "pas-une-url");
+            const { headerValue: csp } = buildCsp({ nonce: "abc", enforce: false });
+            const directive = csp.split(";").find(d => d.trim().startsWith("connect-src"))!;
+            expect(directive).not.toContain("pas-une-url");
+            expect(directive).toContain("'self'");
         });
 
         it("keeps img-src CDNs (Discord, DofusDB, Ankama, Unsplash, Imgur)", () => {

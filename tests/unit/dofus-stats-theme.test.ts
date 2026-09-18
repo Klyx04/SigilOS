@@ -48,6 +48,33 @@ describe("dofus-stats-theme — résolution des thèmes", () => {
         expect(resolveDofusStatTheme(null, null, "dmg")).toMatchObject({ asset: "dommages.png" });
     });
 
+    /**
+     * Codes courts **réellement présents** dans les payloads Dofusbook
+     * (`cloths[].effects[].name`) — ceux que la galerie de stuff affiche.
+     */
+    it("résout les codes de bonus de panoplie Dofusbook", () => {
+        expect(resolveDofusStatTheme(null, null, "ag")).toMatchObject({ asset: "air.png" });
+        expect(resolveDofusStatTheme(null, null, "cc")).toMatchObject({ asset: "critique.png" });
+        expect(resolveDofusStatTheme(null, null, "dff")).toMatchObject({ asset: "feu.png" });
+        expect(resolveDofusStatTheme(null, null, "rtp")).toMatchObject({ asset: "resTerre.png" });
+        expect(resolveDofusStatTheme(null, null, "fu")).toMatchObject({ asset: "fuite.png" });
+        expect(resolveDofusStatTheme(null, null, "ta")).toMatchObject({ asset: "tacle.png" });
+        expect(resolveDofusStatTheme(null, null, "epa")).toMatchObject({ asset: "esquivePA.png" });
+        expect(resolveDofusStatTheme(null, null, "epm")).toMatchObject({ asset: "esquivePM.png" });
+        expect(resolveDofusStatTheme(null, null, "rpa")).toMatchObject({ asset: "retraitPA.png" });
+        expect(resolveDofusStatTheme(null, null, "rpm")).toMatchObject({ asset: "retraitPM.png" });
+        expect(resolveDofusStatTheme(null, null, "ii")).toMatchObject({ asset: "initiative.png" });
+        // Dommages Critiques (id 410) / Dommages Poussée (id 420)
+        expect(resolveDofusStatTheme(null, null, "dc")).toMatchObject({ asset: "dommages.png" });
+        expect(resolveDofusStatTheme(null, null, "dp")).toMatchObject({ asset: "dommages.png" });
+    });
+
+    it("`rc` = réduction des dégâts critiques subis (jamais l'icône « coups critiques »)", () => {
+        // Payload brut Dofusbook : {"id":430,"name":"rc"} ; référentiel DofusDB 87 = « Critiques (fixe) ».
+        expect(resolveDofusStatTheme(null, null, "rc")).toMatchObject({ asset: "bouclier.png", label: "Résistance Critiques" });
+        expect(resolveDofusStatTheme(null, null, "rc")?.asset).not.toBe("critique.png");
+    });
+
     it("résout par mots-clés du libellé (dernier filet)", () => {
         expect(resolveDofusStatTheme(null, null, null, "Résistance Feu (%)")).toMatchObject({
             asset: "resFeu.png",

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo, memo } from "react";
-import { getClassName, processDofusbookRawData, dofusbookItemIconUrl, type DofusbookPreviewData, type DofusbookItem } from "@/lib/dofusbook-utils";
+import { getClassName, processDofusbookRawData, dofusbookItemIconUrl, dofusbookItemIconId, dofusbookCharacteristicRows, DOFUSBOOK_STAT_LABELS as statLabelMapping, type DofusbookPreviewData, type DofusbookItem } from "@/lib/dofusbook-utils";
+import { bakeDofusbookFromBrowser } from "@/lib/dofusbook-client-bake";
 import { ExternalLink, Users, Loader2, Zap, Move, Shield, Sparkles, RefreshCw, Copy, X } from "lucide-react";
 import NextImage from "next/image";
 import { cn } from "@/lib/utils";
@@ -29,16 +30,11 @@ type BuildTabId = (typeof BUILD_TABS)[number]["id"];
 
 type ClothData = { name: string; count: number; total: number; clothItems?: DofusbookItem[]; bonuses?: Record<string, number> };
 
-const statLabelMapping: Record<string, string> = {
-    "pa": "PA", "pm": "PM", "po": "PO", "vi": "Vitalité", "vit": "Vitalité",
-    "fo": "Force", "in": "Intelligence", "ch": "Chance", "ag": "Agilité",
-    "sa": "Sagesse", "pu": "Puissance", "rnp": "% Ré Neutre", "rtp": "% Ré Terre",
-    "rfp": "% Ré Feu", "rep": "% Ré Eau", "rap": "% Ré Air", "ini": "Initiative",
-    "cc": "% Critique", "pp": "Prospection", "invo": "Invocation", "so": "Soin",
-    "dnf": "Do Neutre", "dtf": "Do Terre", "dff": "Do Feu", "def": "Do Eau",
-    "daf": "Do Air", "df": "Dommages", "dc": "Do Crit.", "dp": "Do Pous.",
-    "da": "% Do Armes", "ds": "% Do Sorts", "dm": "% Do Mêlée", "di": "% Do Dist.", "dd": "% Do Dist."
-};
+/**
+ * `statLabelMapping` est importé sous cet alias depuis `@/lib/dofusbook-utils`
+ * (`DOFUSBOOK_STAT_LABELS`) : table **pure et testée** (codes réels des payloads
+ * Dofusbook, libellés ancrés sur le référentiel DofusDB). Ne pas la redéclarer ici.
+ */
 
 interface DofusbookPreviewProps {
     url: string;
@@ -47,6 +43,8 @@ interface DofusbookPreviewProps {
     tags?: string[];
     classId?: number;
     initialData?: DofusbookPreviewData;
+    /** Guilde courante : permet d'**enregistrer** les données récupérées par le navigateur. */
+    guildId?: string;
 }
 
 const parseDofusbookSmithmagic = (smithmagic: any, items: any) => {
@@ -72,6 +70,9 @@ const parseDofusbookSmithmagic = (smithmagic: any, items: any) => {
         const resolvedSlot = slotMapping[slotKey] || slotKey;
         const item = items?.[slotKey];
         if (!item) continue;
+
+        // ⚠️ IconId DofusDB (`picture`) — l'id interne Dofusbook affichait une autre icône.
+        const iconId = dofusbookItemIconId(item);
         
         for (const [statKey, val] of Object.entries(fmStats as Record<string, any>)) {
             const numVal = Number(val);
@@ -82,7 +83,7 @@ const parseDofusbookSmithmagic = (smithmagic: any, items: any) => {
                 value: numVal,
                 slotKey: resolvedSlot,
                 itemName: item.name || "Équipement",
-                itemImage: item.id ? dofusbookItemIconUrl(Number(item.id)) : ""
+                itemImage: iconId ? dofusbookItemIconUrl(iconId) : ""
             });
         }
     }
@@ -126,12 +127,18 @@ const SLOT_LABELS: Record<string, string> = {
     br: "Bouclier", d1: "Dofus 1", d2: "Dofus 2", d3: "Dofus 3", d4: "Dofus 4", d5: "Dofus 5", d6: "Dofus 6",
 };
 
-/** Icône d'item 100 % interne : proxy auto-siphon (aucun hotlink Dofusbook/DofusDB). */
+/**
+ * Icône d'item 100 % interne : proxy auto-siphon (aucun hotlink Dofusbook/DofusDB).
+ * L'id utilisé est l'`iconId` DofusDB (`item.picture`) — jamais l'id interne Dofusbook
+ * ni l'id Ankama, qui produisaient des icônes d'autres items (voir `dofusbookItemIconId`).
+ */
 function ItemIcon({ item, size = 44, className }: { item: DofusbookItem; size?: number; className?: string }) {
+    const iconId = dofusbookItemIconId(item);
+    if (!iconId) return null;
     return (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-            src={dofusbookItemIconUrl(Number(item.id))}
+            src={dofusbookItemIconUrl(iconId)}
             alt={item.name}
             width={size}
             height={size}
@@ -311,7 +318,7 @@ function GearSlotItem({ slot, item, label, onSelect }: { slot: string; item: Dof
     );
 }
 
-export const DofusbookPreview = memo(function DofusbookPreview({ url, title, className, tags = [], classId, initialData }: DofusbookPreviewProps) {
+export const DofusbookPreview = memo(function DofusbookPreview({ url, title, className, tags = [], classId, initialData, guildId }: DofusbookPreviewProps) {
     const [data, setData] = useState<DofusbookPreviewData | null>(initialData || null);
     const [loading, setLoading] = useState(!initialData);
     const [lastRefresh, setLastRefresh] = useState(0);
@@ -338,10 +345,23 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
 
         if (!silent) setLoading(true);
         try {
+            // 1) Bake « navigateur » : Dofusbook (Cloudflare) refuse les clients serveur
+            //    → seul un vrai navigateur passe. Il appelle le worker CF via une URL
+            //    signée, puis les données sont enregistrées côté serveur (profil propriétaire).
+            const baked = await bakeDofusbookFromBrowser(url, guildId);
+            if (baked.ok) {
+                setData(baked.data);
+                if (force && !silent) {
+                    toast.success(baked.persisted ? "Données actualisées" : "Données actualisées (affichage seul)");
+                }
+                return;
+            }
+
+            // 2) Repli : proxy serveur (cache Redis 24 h / données « stale »)
             const response = await fetch(`/api/dofusbook/proxy/${buildId}`, {
                 headers: force ? { "Cache-Control": "no-cache" } : {}
             });
-            
+
             if (response.headers.get("X-Throttled") === "true") {
                 toast.info("Données déjà à jour (cache récent)");
             }
@@ -350,15 +370,17 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                 const raw = await response.json();
                 if (raw) {
                     setData(processDofusbookRawData(buildId, raw));
-                    if (force && response.headers.get("X-Throttled") !== "true") {
+                    if (force && response.headers.get("X-Throttled") !== "true" && !silent) {
                         toast.success("Données actualisées");
                     }
                 }
-            } else if (force) {
-                toast.error(`Erreur ${response.status} lors de l'actualisation`);
+            } else if (force && !silent) {
+                // 403 / 429 / 5xx = Dofusbook refuse l'appel serveur (challenge anti-bot) :
+                // on conserve les dernières données connues.
+                toast.warning(baked.error || "Dofusbook bloque temporairement les requêtes — dernières données connues conservées.");
             }
         } catch (err) {
-            if (force) toast.error("Erreur réseau");
+            if (force && !silent) toast.error("Erreur réseau");
         } finally {
             setLoading(false);
         }
@@ -378,6 +400,13 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
             setLoading(false);
         }
     }, [buildId, initialData]);
+
+    /**
+     * Détail Total / ⚡ / Base / Parcho par caractéristique primaire (colonnes du panneau
+     * Dofusbook). Vide pour une préview au format antérieur (sans `characteristics`) :
+     * aucun tableau plutôt que des zéros inventés — « Actualiser » régénère le détail.
+     */
+    const characteristicRows = useMemo(() => dofusbookCharacteristicRows(data), [data]);
 
     const hasData = !!data;
 
@@ -479,6 +508,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                     { s: 'd4', c: 4, r: 5 }, { s: 'd5', c: 5, r: 5 }, { s: 'd6', c: 6, r: 5 },
                                 ].map((slot) => {
                                     const item = slot.s === 'fa' ? (data.items?.['fa'] || data.items?.['mo']) : data.items?.[slot.s];
+                                    const iconId = dofusbookItemIconId(item);
                                     return (
                                         <Tooltip key={slot.s}>
                                             <TooltipTrigger asChild>
@@ -489,10 +519,10 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                     )}
                                                     style={{ gridColumnStart: slot.c, gridRowStart: slot.r }}
                                                 >
-                                                    {item && (
+                                                    {item && iconId && (
                                                         // eslint-disable-next-line @next/next/no-img-element
                                                         <img
-                                                            src={dofusbookItemIconUrl(Number(item.id))}
+                                                            src={dofusbookItemIconUrl(iconId)}
                                                             alt={item.name}
                                                             width={30}
                                                             height={30}
@@ -654,12 +684,42 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                 <h4 className="text-caption font-bold text-foreground/80 uppercase flex items-center gap-1.5">
                                                     <Move className="w-3.5 h-3.5 text-success" /> Statistiques Générales
                                                 </h4>
-                                                <span className="text-caption font-bold text-muted-foreground inline-flex items-center gap-1">
-                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                    <img src="/assets/dofus/stats/puissance.png" alt="" aria-hidden="true" className="w-3.5 h-3.5 object-contain" loading="lazy" />
-                                                    Puissance <strong className="text-foreground font-bold tabular-nums">+{data.elements?.pu ?? 0}</strong>
-                                                </span>
                                             </div>
+
+                                            {/* Détail des caractéristiques primaires — mêmes colonnes que le
+                                                panneau Dofusbook (`+` / Base / Parcho), Puissance comprise. */}
+                                            {characteristicRows.length > 0 && (
+                                                <div className="flex flex-col text-caption">
+                                                    <div className="grid grid-cols-[minmax(0,1fr)_3rem_2.75rem_2.75rem_2.75rem] items-center gap-x-1 pb-1 border-b border-border/60 text-[10px] font-bold uppercase text-muted-foreground">
+                                                        <span className="truncate">Caractéristique</span>
+                                                        <span className="text-right">Total</span>
+                                                        <span className="inline-flex items-center justify-end" title="Caractéristique + Puissance (valeur effective des dommages)">
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                            <img src="/assets/dofus/stats/puissance.png" alt="" aria-hidden="true" className="w-3 h-3 object-contain" loading="lazy" />
+                                                        </span>
+                                                        <span className="text-right" title="Points investis à la main (capital)">Base</span>
+                                                        <span className="text-right" title="Parchotage (parchemins de caractéristique)">Parcho</span>
+                                                    </div>
+
+                                                    {characteristicRows.map((row) => (
+                                                        <div
+                                                            key={row.key}
+                                                            title={row.breakdown}
+                                                            className="grid grid-cols-[minmax(0,1fr)_3rem_2.75rem_2.75rem_2.75rem] items-center gap-x-1 py-0.5 border-b border-border/40"
+                                                        >
+                                                            <span className="flex items-center gap-1.5 min-w-0">
+                                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                <img src={dofusStatAssetUrl(row.asset)} alt="" aria-hidden="true" className="w-3.5 h-3.5 object-contain shrink-0" loading="lazy" />
+                                                                <span className={cn("truncate font-bold", row.color)}>{row.label}</span>
+                                                            </span>
+                                                            <span className={cn("text-right font-bold tabular-nums", row.color)}>{row.total}</span>
+                                                            <span className="text-right tabular-nums text-muted-foreground">{row.power ?? "—"}</span>
+                                                            <span className={cn("text-right tabular-nums", row.base ? "text-muted-foreground" : "text-muted-foreground/40")}>{row.base}</span>
+                                                            <span className={cn("text-right tabular-nums", row.scroll ? "text-muted-foreground" : "text-muted-foreground/40")}>{row.scroll}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
 
                                             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-caption">
                                                 {([
@@ -909,11 +969,30 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                             {/* Liste des stats conférées par la panoplie */}
                                                             {cloth.bonuses && Object.keys(cloth.bonuses).length > 0 && (
                                                                 <div className="flex flex-wrap gap-1 pt-1 border-t border-border/40">
-                                                                    {Object.entries(cloth.bonuses).map(([stat, val]) => (
-                                                                        <span key={stat} className="px-2 py-0.5 bg-background/60 rounded-md text-[11px] font-bold text-success/90 tabular-nums">
-                                                                            {val > 0 ? `+${val}` : val} {statLabelMapping[stat] || stat}
-                                                                        </span>
-                                                                    ))}
+                                                                    {Object.entries(cloth.bonuses).map(([stat, val]) => {
+                                                                        const label = statLabelMapping[stat] || stat;
+                                                                        // Asset officiel de la stat (jamais d'icône inventée : inconnu ⇒ pas d'icône).
+                                                                        const theme = resolveDofusStatTheme(null, null, stat, label);
+                                                                        return (
+                                                                            <span
+                                                                                key={stat}
+                                                                                title={theme?.label ?? label}
+                                                                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-background/60 rounded-md text-[11px] font-bold text-success/90 tabular-nums"
+                                                                            >
+                                                                                {theme && (
+                                                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                                                    <img
+                                                                                        src={dofusStatAssetUrl(theme.asset)}
+                                                                                        alt=""
+                                                                                        aria-hidden="true"
+                                                                                        className="w-3.5 h-3.5 object-contain shrink-0"
+                                                                                        loading="lazy"
+                                                                                    />
+                                                                                )}
+                                                                                {val > 0 ? `+${val}` : val} {label}
+                                                                            </span>
+                                                                        );
+                                                                    })}
                                                                 </div>
                                                             )}
                                                         </div>

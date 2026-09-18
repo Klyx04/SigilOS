@@ -27,6 +27,11 @@
 .env
 .env.*
 !.env.example
+# Secrets locaux du worker Cloudflare (`wrangler dev`)
+.dev.vars
+.dev.vars.*
+# État local de `wrangler dev` (cache/miniflare)
+.wrangler/
 
 # IDE
 .idea/

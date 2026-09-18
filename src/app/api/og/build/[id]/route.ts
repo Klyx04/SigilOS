@@ -3,6 +3,8 @@ import { db } from "@/lib/prisma";
 import sharp, { type OverlayOptions } from "sharp";
 import path from "node:path";
 import fs from "node:fs";
+import { ASSET_DIRS, siphonAndCompressImage } from "@/lib/dofus-asset-siphon";
+import { dofusbookItemIconId } from "@/lib/dofusbook-utils";
 
 // Layout grid matching the Dofusbook / SigilOS web preview
 const SLOT_COORDINATES: Record<string, { x: number; y: number }> = {
@@ -94,30 +96,30 @@ export async function GET(
             const coord = SLOT_COORDINATES[slot];
             const item = slot === "fa" ? (items["fa"] || items["mo"]) : items[slot];
 
-            if (item && item.picture) {
+            if (item) {
                 try {
-                    const imgUrl = `https://www.dofusbook.net/static/dist/items/${item.picture}-70.webp`;
-                    const res = await fetch(imgUrl, {
-                        headers: {
-                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0.0.0 Safari/537.36",
-                            "Referer": "https://www.dofusbook.net/",
-                        },
-                        // Cache for 1 day
-                        next: { revalidate: 86400 }
-                    });
+                    // 🐛 L'ancien hotlink `dofusbook.net/static/dist/items/{picture}-70.webp`
+                    // est bloqué par Cloudflare (403) → toutes les cases restaient vides.
+                    // On sert l'icône depuis nos assets internes (WebP siphonné DofusDB),
+                    // avec le même iconId que la galerie (`item.picture`).
+                    const iconId = dofusbookItemIconId(item);
+                    if (!iconId) return null;
 
-                    if (res.ok) {
-                        const arrBuffer = await res.arrayBuffer();
-                        const resized = await sharp(Buffer.from(arrBuffer))
-                            .resize(ITEM_SIZE - 8, ITEM_SIZE - 8, { fit: "contain" })
-                            .toBuffer();
-
-                        return {
-                            input: resized,
-                            top: coord.y + 4,
-                            left: coord.x + 4,
-                        };
+                    const localFile = path.join(ASSET_DIRS.items, `${iconId}.webp`);
+                    if (!fs.existsSync(localFile)) {
+                        await siphonAndCompressImage(null, "items", iconId);
                     }
+                    if (!fs.existsSync(localFile)) return null;
+
+                    const resized = await sharp(localFile)
+                        .resize(ITEM_SIZE - 8, ITEM_SIZE - 8, { fit: "contain" })
+                        .toBuffer();
+
+                    return {
+                        input: resized,
+                        top: coord.y + 4,
+                        left: coord.x + 4,
+                    };
                 } catch {
                     // Fallback to empty slot
                 }

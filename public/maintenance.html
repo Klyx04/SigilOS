@@ -3,29 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SigilOS — Ouverture prochaine : la bêta est ouverte</title>
-  <meta name="description" content="SigilOS ouvre bientôt ses portes en production. En attendant, la bêta est ouverte et 100% gratuite : activez votre guilde Dofus dès maintenant sur beta.sigilos.fr.">
+  <title>SigilOS — Tableau de bord de guilde Dofus · bêta ouverte et gratuite</title>
+  <meta name="description" content="La production de SigilOS ouvre bientôt ses portes. En attendant, la bêta est ouverte et gratuite : reliez votre guilde Dofus à Discord (sorties, quêtes, boss, carte du monde) sans mot de passe Ankama ni compte à créer.">
   <link rel="canonical" href="https://sigilos.fr/">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
   <link rel="icon" href="/assets/ui/logo-v2.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <!-- ⚠️ Feuille EXTERNE obligatoire : la CSP de production (`style-src 'self'`) refuse
+       tout `<style>` inline, et `default-src 'self'` refuse Google Fonts — la page
+       redeviendrait dénudée (mesuré le 19/09/2026 : Times New Roman, fond transparent,
+       2 violations CSP). Mêmes jetons OKLCH et mêmes primitives `.reg-*` que la landing. -->
+  <link rel="stylesheet" href="/assets/maintenance.css">
 
   <meta property="og:type" content="website">
   <meta property="og:locale" content="fr_FR">
   <meta property="og:url" content="https://sigilos.fr/">
   <meta property="og:site_name" content="SigilOS">
-  <meta property="og:title" content="SigilOS — Ouverture prochaine : la bêta est ouverte">
-  <meta property="og:description" content="La production ouvre bientôt. En attendant, la bêta est ouverte et gratuite pour toutes les guildes Dofus.">
-  <meta property="og:image" content="https://sigilos.fr/assets/ui/logo-v2.png">
-  <meta property="og:image:width" content="512">
-  <meta property="og:image:height" content="512">
+  <meta property="og:title" content="SigilOS — Tableau de bord de guilde Dofus · bêta ouverte et gratuite">
+  <meta property="og:description" content="La production ouvre bientôt. En attendant, la bêta est ouverte et gratuite pour toutes les guildes Dofus : sorties, quêtes, boss et carte du monde reliés à Discord.">
+  <meta property="og:image" content="https://sigilos.fr/assets/screenshots/dashboard-guilde.png">
+  <meta property="og:image:width" content="1080">
+  <meta property="og:image:height" content="540">
+  <meta property="og:image:alt" content="Tableau de bord SigilOS : bandeau du jour, événement de guilde, agenda des sorties et groupes donjons.">
 
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="SigilOS — Ouverture prochaine : la bêta est ouverte">
-  <meta name="twitter:description" content="La production ouvre bientôt. En attendant, retrouvez-nous sur la bêta ouverte et gratuite.">
-  <meta name="twitter:image" content="https://sigilos.fr/assets/ui/logo-v2.png">
+  <meta name="twitter:title" content="SigilOS — Tableau de bord de guilde Dofus · bêta ouverte">
+  <meta name="twitter:description" content="La production ouvre bientôt. La bêta est ouverte et gratuite : reliez votre guilde Dofus à Discord, sans mot de passe Ankama.">
+  <meta name="twitter:image" content="https://sigilos.fr/assets/screenshots/dashboard-guilde.png">
 
   <script type="application/ld+json">
   {
@@ -34,19 +38,38 @@
     "name": "SigilOS",
     "url": "https://sigilos.fr/",
     "logo": "https://sigilos.fr/assets/ui/logo-v2.png",
-    "description": "Le tableau de bord pour piloter votre guilde Dofus : missions, raids, Songes Infinis, ladder XP et bot Discord.",
+    "description": "Le tableau de bord pour piloter votre guilde Dofus : sorties, quêtes, boss, carte du monde et bot Discord.",
     "sameAs": ["https://beta.sigilos.fr"]
   }
   </script>
+
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "WebSite",
     "name": "SigilOS",
     "url": "https://sigilos.fr/",
-    "description": "Gestion de guilde Dofus : missions, raids, Songes Infinis et bot Discord. Ouverture prochaine, bêta ouverte."
+    "description": "Gestion de guilde Dofus : sorties, quêtes, boss, carte du monde et bot Discord. La production ouvre bientôt, la bêta est ouverte."
   }
   </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "SigilOS",
+    "applicationCategory": "GameApplication",
+    "operatingSystem": "Web",
+    "url": "https://sigilos.fr/",
+    "description": "Tableau de bord de guilde Dofus relié à Discord : sorties, quêtes, boss et carte du monde au même endroit.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+    "creator": { "@type": "Organization", "name": "SigilOS", "url": "https://sigilos.fr/" }
+  }
+  </script>
+
+  <!-- ⚠️ Les questions balisées ici sont EXACTEMENT celles affichées plus bas
+       (§ « Questions utiles ») : baliser une question absente du rendu est un risque
+       SEO (règle appliquée sur `/almanax` le 16/09/2026). -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -54,152 +77,439 @@
     "mainEntity": [
       {
         "@type": "Question",
-        "name": "Quand SigilOS ouvre-t-il en production ?",
+        "name": "Combien coûte SigilOS ?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "La version production de SigilOS ouvre bientôt ses portes. En attendant, la bêta est ouverte et 100% gratuite pour toutes les guildes Dofus."
+          "text": "Rien. SigilOS est gratuit et sans publicité pour les guildes Dofus. Le soutien au projet reste volontaire et n'ouvre aucun avantage."
         }
       },
       {
         "@type": "Question",
-        "name": "Comment accéder à SigilOS en attendant l'ouverture ?",
+        "name": "Demandez-vous mon mot de passe Ankama ?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Rejoignez la bêta ouverte sur beta.sigilos.fr : connectez simplement votre compte Discord, sans mot de passe Ankama ni compte à créer."
+          "text": "Non, jamais. La connexion se fait via Discord : SigilOS n'a pas besoin d'un accès à votre compte de jeu et ne demande aucun identifiant Ankama."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Quand SigilOS ouvre-t-il en production ?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "L'ouverture de la production est en préparation. En attendant, la bêta est ouverte et 100% gratuite pour toutes les guildes Dofus."
         }
       }
     ]
   }
   </script>
-
-  <style>
-  :root {
-    --bg: #07080b;
-    --surface: #121620;
-    --border: rgba(255, 255, 255, 0.07);
-    --border-strong: rgba(255, 255, 255, 0.13);
-    --foreground: #e9eff4;
-    --muted: #98a4b2;
-    --success: #14b8a6;
-    --success-soft: rgba(20, 184, 166, 0.11);
-    --success-border: rgba(20, 184, 166, 0.24);
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'Inter', system-ui, sans-serif;
-    background: var(--bg); color: var(--foreground);
-    line-height: 1.62; min-height: 100vh; overflow-x: hidden;
-    -webkit-font-smoothing: antialiased;
-    display: flex; flex-direction: column;
-  }
-  h1, .brand-name {
-    font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.02em;
-  }
-  a { color: inherit; }
-  img { display: block; max-width: 100%; }
-  .bg {
-    position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background:
-      radial-gradient(ellipse at 50% -10%, rgba(20, 184, 166, 0.13) 0%, transparent 55%),
-      radial-gradient(ellipse at 85% 75%, rgba(20, 184, 166, 0.05) 0%, transparent 45%);
-  }
-  .wrap { position: relative; z-index: 1; max-width: 880px; margin: 0 auto; padding: 0 22px; width: 100%; flex: 1; display: flex; flex-direction: column; justify-content: center; }
-  .brand { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; margin: 0 auto 26px; }
-  .brand-logo {
-    width: 46px; height: 46px; border-radius: 13px;
-    background: var(--success-soft); border: 1px solid var(--success-border);
-    display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;
-  }
-  .brand-logo img { width: 100%; height: 100%; object-fit: contain; display: block; padding: 6px; }
-  .brand-name { font-size: 1.25rem; font-weight: 700; color: var(--foreground); }
-  .brand-name em { font-style: normal; color: var(--success); }
-
-  .hero-scene {
-    position: relative; border-radius: 28px; overflow: hidden;
-    border: 1px solid var(--border);
-    background:
-      linear-gradient(180deg, rgba(7,8,11,0.62) 0%, rgba(7,8,11,0.86) 62%, var(--bg) 100%),
-      url('/assets/dofus/vista/hall-creation.webp') center / cover no-repeat;
-  }
-  .hero-scene::before {
-    content: ""; position: absolute; inset: 0;
-    background: radial-gradient(ellipse at 50% 20%, rgba(20, 184, 166, 0.14) 0%, transparent 55%);
-  }
-  .hero { position: relative; text-align: center; padding: 72px 24px 60px; }
-  .pill {
-    display: inline-flex; align-items: center; gap: 9px; padding: 8px 18px; border-radius: 999px;
-    background: rgba(7,8,11,0.62); border: 1px solid var(--success-border); backdrop-filter: blur(8px);
-    font-size: 0.78rem; font-weight: 600; color: var(--success); margin-bottom: 26px;
-  }
-  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); animation: blink 2s ease-in-out infinite; }
-  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
-  .hero h1 { font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 700; line-height: 1.1; max-width: 680px; margin: 0 auto 20px; }
-  .hero h1 .accent { color: var(--success); }
-  .hero p.sub { font-size: 1.02rem; color: #cdd7e0; max-width: 560px; margin: 0 auto 36px; }
-  .hero p.sub strong { color: var(--foreground); font-weight: 600; }
-
-  .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
-    padding: 15px 32px; border-radius: 999px; font-size: 0.95rem; font-weight: 600;
-    text-decoration: none; transition: all 0.2s ease; cursor: pointer; border: 0; font-family: inherit;
-  }
-  .btn .arrow { transition: transform 0.2s ease; }
-  .btn:hover .arrow { transform: translateX(4px); }
-  .btn-primary { background: var(--success); color: #04231e; border: 1px solid var(--success-border); box-shadow: 0 12px 34px rgba(20, 184, 166, 0.22); }
-  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 40px rgba(20, 184, 166, 0.34); }
-  .cta-row { display: flex; flex-direction: column; align-items: center; gap: 16px; }
-  .cta-hint { font-size: 0.78rem; color: var(--muted); text-align: center; }
-  .cta-hint .accent { color: var(--success); }
-  @media (max-width: 640px) { .hero { padding: 56px 16px 48px; } }
-
-  .footer { position: relative; z-index: 1; border-top: 1px solid var(--border); padding: 26px 0 42px; text-align: center; font-size: 0.75rem; color: var(--muted); }
-  .footer a { color: var(--success); text-decoration: none; transition: color 0.2s ease; }
-  .footer a:hover { text-decoration: underline; }
-  .footer .links { margin-bottom: 8px; }
-  .footer .links a { margin: 0 8px; }
-  </style>
 </head>
-<body>
+<body class="registre">
+  <a class="reg-skip" href="#contenu">Aller au contenu</a>
 
-  <div class="bg"></div>
-  <div class="wrap">
-
-    <main>
-      <div class="hero-scene">
-        <section class="hero">
-          <a class="brand" href="https://sigilos.fr/" aria-label="SigilOS">
-            <span class="brand-logo"><img src="/assets/ui/logo-v2.png" alt="Logo SigilOS" width="46" height="46"></span>
-            <span class="brand-name">Sigil<em>OS</em></span>
-          </a>
-          <div><span class="pill"><span class="dot"></span> Bêta ouverte — activez votre guilde</span></div>
-          <h1>SigilOS ouvre bientôt <span class="accent">ses portes.</span></h1>
-          <p class="sub">
-            La version <strong>production</strong> est en préparation.
-            En attendant, la <strong>bêta est ouverte</strong> et 100% gratuite :
-            activez votre guilde Dofus dès maintenant.
-          </p>
-
-          <div class="cta-row">
-            <a class="btn btn-primary" href="https://beta.sigilos.fr" target="_blank" rel="noopener">
-              Rejoindre la bêta <span class="arrow">→</span>
-            </a>
-            <div class="cta-hint"><span class="accent">beta.sigilos.fr</span> — gratuit, sans mot de passe Ankama.</div>
-          </div>
-        </section>
-      </div>
-    </main>
-
-  </div>
-
-  <footer class="footer">
-    <div class="links">
-      <a href="https://beta.sigilos.fr/legal/mentions" target="_blank" rel="noopener">Mentions légales</a>
-      ·
-      <a href="https://beta.sigilos.fr/legal/privacy" target="_blank" rel="noopener">Politique de confidentialité</a>
-      ·
-      <a href="https://beta.sigilos.fr/guides/creer-gerer-guilde-dofus-2026" target="_blank" rel="noopener">Guide guilde Dofus 2026</a>
+  <header class="site-head">
+    <div class="reg-shell site-head__in">
+      <a class="brand" href="https://sigilos.fr/">
+        <img class="brand__mark" src="/assets/ui/logo-v2.png" alt="" width="28" height="28">
+        SigilOS
+      </a>
+      <nav class="site-nav" aria-label="État du service">
+        <span class="reg-tag">Production bientôt</span>
+        <span class="reg-tag reg-tag-accent">Bêta ouverte</span>
+      </nav>
     </div>
-    <div>© SigilOS 2026 · Projet indépendant, non affilié à Ankama Games</div>
+  </header>
+
+  <main id="contenu">
+    <!-- 1. Où en est le projet, ce qui est déjà ouvert, une seule action. -->
+    <section class="reg-section reg-section-tight">
+      <div class="reg-shell">
+        <div class="hero-grid">
+          <div>
+            <p class="reg-eyebrow">Bêta ouverte &middot; v2.2</p>
+            <h1 class="hero-title">Le tableau de bord de votre guilde Dofus.</h1>
+
+            <!-- L'état du service passe AVANT le discours : deux lignes comparées,
+                 l'une éteinte (production), l'autre en accent (bêta). Le lecteur
+                 n'a rien à déduire — et aucune fausse échéance n'est affichée. -->
+            <ul class="status">
+              <li class="status__item">
+                <span class="status__dot" aria-hidden="true"></span>
+                <span class="status__label">Production</span>
+                <span class="status__value">Ouverture en préparation</span>
+              </li>
+              <li class="status__item status__item--beta">
+                <span class="status__dot" aria-hidden="true"></span>
+                <span class="status__label">Bêta</span>
+                <span class="status__value">Ouverte maintenant, gratuite</span>
+              </li>
+            </ul>
+
+            <p class="lead">
+              Reliez votre guilde à Discord et pilotez sorties, quêtes et progression au même
+              endroit. Les membres passent par Discord — SigilOS ne demande
+              <strong>aucun accès au compte Ankama</strong>.
+            </p>
+
+            <div class="actions">
+              <a class="reg-btn reg-btn-primary" href="https://beta.sigilos.fr" rel="noopener">
+                Rejoindre la bêta
+              </a>
+              <a class="reg-link" href="https://beta.sigilos.fr/modules" rel="noopener">Voir les modules ouverts</a>
+            </div>
+
+            <div class="facts">
+              <p class="facts__row reg-mono">
+                <span>1. Connexion Discord</span>
+                <span class="facts__sep">·</span>
+                <span>2. Choix du serveur</span>
+                <span class="facts__sep">·</span>
+                <span>3. Modules au choix</span>
+              </p>
+              <p class="facts__row">
+                Déploiement en moins de 2 minutes &middot; Zéro engagement &middot; Gratuit, sans publicité
+              </p>
+            </div>
+          </div>
+
+          <!-- Mockup 1 — reproduction du tableau de bord (HTML/CSS, aucun script).
+               Légendé « Aperçu » : c'est une illustration honnête du produit, pas
+               une capture à jour — et elle reste nette sur tous les écrans. -->
+          <figure class="mk-figure">
+            <div class="mk" aria-hidden="true">
+              <p class="mk__bar">
+                <span>Tableau de bord</span>
+                <span><span class="mk__dot"></span> Guilde active</span>
+              </p>
+              <div class="mk__body">
+                <p class="mk__head">
+                  <span class="mk__label">Aujourd'hui</span>
+                  <span class="mk__sub">
+                    1 sondage en cours · Voter · Substrat de Buisson · <span class="mk__num--ok">Offrande</span>
+                  </span>
+                </p>
+
+                <div class="mk__card mk__card--event">
+                  <span class="mk__thumb mk__thumb--xl">
+                    <img src="/assets/calendar/kralamoure-head.png" alt="" width="32" height="32" aria-hidden="true">
+                  </span>
+                  <span class="mk__stack">
+                    <span class="mk__head">
+                      <span class="mk__flag">Événement majeur</span>
+                      <span class="mk__num">dans 12 minutes</span>
+                    </span>
+                    <span class="mk__head">
+                      <span class="mk__title">Ouverture Kralamoure (Draconiros)</span>
+                      <span class="reg-tag">S'inscrire</span>
+                    </span>
+                  </span>
+                </div>
+
+                <div class="mk__split">
+                  <div class="mk__card">
+                    <p class="mk__head">
+                      <span class="mk__label">Agenda</span>
+                      <span class="mk__sub">Mon planning</span>
+                    </p>
+                    <p class="mk__row">
+                      <span class="mk__group">
+                        <span class="mk__thumb">
+                          <img src="/assets/calendar/kralamoure-head.png" alt="" width="16" height="16" aria-hidden="true">
+                        </span>
+                        <span class="mk__title">20:00 · Kralamoure</span>
+                      </span>
+                      <span class="mk__num">42 inscrits</span>
+                    </p>
+                    <p class="mk__row mk__row--quiet">
+                      <span class="mk__group">
+                        <span class="mk__thumb">
+                          <img src="/images/songes-bosses/7210_Belladone.png" alt="" width="16" height="16" aria-hidden="true">
+                        </span>
+                        <span class="mk__title mk__title--quiet">21:30 · Donjon Belladone</span>
+                      </span>
+                      <span class="mk__num mk__num--ok">4/4</span>
+                    </p>
+                  </div>
+
+                  <div class="mk__card">
+                    <p class="mk__head">
+                      <span class="mk__label">Groupes donjons</span>
+                      <span class="mk__sub">2 actifs</span>
+                    </p>
+                    <p class="mk__row">
+                      <span class="mk__group">
+                        <span class="mk__thumb mk__thumb--lg">
+                          <img src="/images/songes-bosses/3835_Vortex.png" alt="" width="28" height="28" aria-hidden="true">
+                        </span>
+                        <span class="mk__col">
+                          <span class="mk__title">Œil de Vortex</span>
+                          <span class="mk__sub">Niv. 200 · par Ardente</span>
+                        </span>
+                      </span>
+                      <span class="mk__num">3/4</span>
+                    </p>
+                    <p class="mk__row mk__row--quiet">
+                      <span class="mk__group">
+                        <span class="mk__thumb mk__thumb--lg">
+                          <img src="/images/songes-bosses/3828_Protozorreur.png" alt="" width="28" height="28" aria-hidden="true">
+                        </span>
+                        <span class="mk__col">
+                          <span class="mk__title mk__title--quiet">Ventre de la Baleine</span>
+                          <span class="mk__sub">Niv. 200 · par Vermeth</span>
+                        </span>
+                      </span>
+                      <span class="mk__num mk__num--ok">Complet</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <p class="mk__foot">
+                <span>SigilOS v2.2 · QG de Guilde</span>
+                <span class="mk__num--ok">14 membres en jeu</span>
+              </p>
+            </div>
+            <figcaption class="mk-caption">
+              Aperçu — le tableau de bord d'une guilde pendant la bêta.
+            </figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Faits vérifiables : ce qui existe déjà, en tableau (pas en cartes). -->
+    <section class="reg-section">
+      <div class="reg-shell">
+        <div class="section-head">
+          <p class="reg-eyebrow">Outils ouverts &middot; sans inscription</p>
+          <h2 class="section-title">Ce que la bêta propose déjà.</h2>
+          <p class="section-intro">
+            Accessibles directement à tout joueur de Dofus Unity, sans créer de compte : les outils
+            de jeu se consultent librement, la guilde connectée débloque le collectif.
+          </p>
+        </div>
+
+        <div class="section-body">
+          <table class="reg-table">
+            <thead>
+              <tr>
+                <th scope="col">Outil</th>
+                <th scope="col">Ce qu'il donne</th>
+                <th scope="col">Accès</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <a class="reg-link reg-tool" href="https://beta.sigilos.fr/guides/rush-sylvestre" rel="noopener">
+                    <img class="reg-tool__mark" src="/module-dofus/Dofus_Sylvestre.png" alt="" width="20" height="20" aria-hidden="true">
+                    Rush Sylvestre
+                  </a>
+                </td>
+                <td>HUD de quête, reprise instantanée et coordonnées /travel copiables.</td>
+                <td><span class="reg-tag reg-tag-accent">Accès libre</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <a class="reg-link reg-tool" href="https://beta.sigilos.fr/boss" rel="noopener">
+                    <img class="reg-tool__mark" src="/assets/worldmap/dungeon-boss.png" alt="" width="20" height="20" aria-hidden="true">
+                    Encyclopédie Boss
+                  </a>
+                </td>
+                <td>Faiblesses, sorts critiques, délocks et stratégies de donjon.</td>
+                <td><span class="reg-tag reg-tag-accent">Accès libre</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <a class="reg-link reg-tool" href="https://beta.sigilos.fr/almanax" rel="noopener">
+                    <img class="reg-tool__mark" src="/module-dofus/Dofus_Dolmanax.png" alt="" width="20" height="20" aria-hidden="true">
+                    Almanax du jour
+                  </a>
+                </td>
+                <td>Offrande quotidienne, bonus Méryde et prévisions de la semaine.</td>
+                <td><span class="reg-tag reg-tag-accent">Accès libre</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <a class="reg-link reg-tool" href="https://beta.sigilos.fr/carte-du-monde" rel="noopener">
+                    <img class="reg-tool__mark" src="/assets/nav/map.png" alt="" width="20" height="20" aria-hidden="true">
+                    Carte du Monde HD
+                  </a>
+                </td>
+                <td>Repères Unity, Zaaps, entrées de donjons, bateaux et ressources rares.</td>
+                <td><span class="reg-tag reg-tag-accent">Accès libre</span></td>
+              </tr>
+              <!-- Vignette du 5e outil : asset officiel du module `calendar`
+                   (`dofus/modules/`, cf. MODULE_DOFUS_ASSETS). Surtout PAS
+                   `/assets/nav/calendar.png` : ce glyphe est BLANC — mesuré à 20 px,
+                   0 % de ses pixels se détachent du fond clair (contraste 1,07:1),
+                   il disparaissait donc entièrement en thème clair. -->
+              <tr>
+                <td>
+                  <span class="reg-tool">
+                    <img class="reg-tool__mark" src="/assets/dofus/modules/calendar.png" alt="" width="20" height="20" aria-hidden="true">
+                    Sorties, missions &amp; bot Discord
+                  </span>
+                </td>
+                <td>Annonce dans le salon, inscriptions d'un clic, besoins de classe et rappels.</td>
+                <td><span class="reg-tag">Guilde connectée</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="section-intro">
+          Côté guilde connectée, le calendrier des sorties se remplit depuis Discord : l'annonce,
+          les places et les besoins de classe restent au même endroit.
+        </p>
+
+        <!-- Mockup 2 — le calendrier des sorties (HTML/CSS), l'écran qui relie
+             Discord et le jeu. Un seul aperçu de plus : au-delà, on ne lit plus. -->
+        <figure class="mk-figure">
+          <div class="mk" aria-hidden="true">
+            <p class="mk__bar">
+              <span>Calendrier des sorties</span>
+              <span>Août 2026 · Semaine 33</span>
+            </p>
+            <p class="mk__days">
+              <span><b>Lun</b>10</span>
+              <span><b>Mar</b>11</span>
+              <span><b>Mer</b>12</span>
+              <span><b>Jeu</b>13</span>
+              <span><b>Ven</b>14</span>
+              <span><b>Sam</b>15</span>
+              <span><b>Dim</b>16</span>
+            </p>
+            <div class="mk__body">
+              <div class="mk__split">
+                <div class="mk__card">
+                  <p class="mk__head">
+                    <span class="mk__num">Lundi 10 · 20:00</span>
+                    <span class="mk__flag">Raid 3.6</span>
+                  </p>
+                  <p class="mk__title">Raid Gigalodon</p>
+                  <p class="mk__head">
+                    <span class="mk__sub">3/4 places</span>
+                    <span class="mk__sub">Eniripsa recherché</span>
+                  </p>
+                </div>
+                <div class="mk__card">
+                  <p class="mk__head">
+                    <span class="mk__num">Jeudi 13 · 21:00</span>
+                    <span class="mk__sub">Donjon</span>
+                  </p>
+                  <p class="mk__title">Belladone 200</p>
+                  <p class="mk__head">
+                    <span class="mk__sub">4/4 places</span>
+                    <span class="mk__num mk__num--ok">Complet</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+            <p class="mk__foot">
+              <span><span class="mk__dot"></span> Bot Discord synchronisé</span>
+              <span>2 sorties cette semaine</span>
+            </p>
+          </div>
+          <figcaption class="mk-caption">
+            Aperçu — une sortie planifiée : heure, places et besoins de classe.
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 3. Trois lignes, pas trois cartes : le chemin d'installation réel. -->
+    <section class="reg-section">
+      <div class="reg-shell">
+        <div class="section-head">
+          <p class="reg-eyebrow">Mise en route</p>
+          <h2 class="section-title">Discord suffit pour commencer.</h2>
+          <p class="section-intro">
+            Un administrateur choisit son serveur, active les modules utiles, puis invite la guilde —
+            en autonomie, ou accompagné si vous préférez être guidé.
+          </p>
+        </div>
+
+        <div class="section-body">
+          <div class="reg-step">
+            <span class="reg-step__num">01</span>
+            <div>
+              <p class="reg-step__title">Connexion Discord</p>
+              <p class="reg-step__detail">Identification OAuth2 : aucun mot de passe transmis à SigilOS.</p>
+            </div>
+          </div>
+          <div class="reg-step">
+            <span class="reg-step__num">02</span>
+            <div>
+              <p class="reg-step__title">Choix du serveur</p>
+              <p class="reg-step__detail">Le Discord de la guilde et les salons utilisés pour les annonces.</p>
+            </div>
+          </div>
+          <div class="reg-step">
+            <span class="reg-step__num">03</span>
+            <div>
+              <p class="reg-step__title">Invitation des membres</p>
+              <p class="reg-step__detail">Les accès suivent les rôles Discord déjà en place.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. FAQ : les mêmes questions que le balisage FAQPage (aucun écart). -->
+    <section class="reg-section">
+      <div class="reg-shell">
+        <div class="section-head">
+          <p class="reg-eyebrow">Questions utiles</p>
+          <h2 class="section-title">Avant de rejoindre.</h2>
+        </div>
+
+        <div class="section-body reg-faq">
+          <details>
+            <summary>Combien coûte SigilOS&nbsp;?</summary>
+            <p>
+              Rien. SigilOS est gratuit et sans publicité pour les guildes Dofus. Le soutien au projet
+              reste volontaire et n'ouvre aucun avantage.
+            </p>
+          </details>
+          <details>
+            <summary>Demandez-vous mon mot de passe Ankama&nbsp;?</summary>
+            <p>
+              Non, jamais. La connexion se fait via Discord : SigilOS n'a pas besoin d'un accès à
+              votre compte de jeu et ne demande aucun identifiant Ankama.
+            </p>
+          </details>
+          <details>
+            <summary>Quand SigilOS ouvre-t-il en production&nbsp;?</summary>
+            <p>
+              L'ouverture de la production est en préparation. En attendant, la bêta est ouverte et
+              100&nbsp;% gratuite pour toutes les guildes Dofus.
+            </p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Clôture : une phrase, une action, aucun encadré décoratif. -->
+    <section class="reg-section">
+      <div class="reg-shell closing">
+        <div>
+          <h2 class="section-title">Rejoindre la bêta.</h2>
+          <p class="closing__hint reg-mono">beta.sigilos.fr — gratuit, sans mot de passe Ankama.</p>
+        </div>
+        <a class="reg-btn reg-btn-primary" href="https://beta.sigilos.fr" rel="noopener">Configurer ma guilde</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-foot">
+    <div class="reg-shell">
+      <nav class="site-foot__links" aria-label="Liens légaux">
+        <a class="reg-link-quiet reg-external" href="https://beta.sigilos.fr/legal/mentions" rel="noopener">Mentions légales</a>
+        <a class="reg-link-quiet reg-external" href="https://beta.sigilos.fr/legal/privacy" rel="noopener">Politique de confidentialité</a>
+        <a class="reg-link-quiet reg-external" href="https://beta.sigilos.fr/guides/creer-gerer-guilde-dofus-2026" rel="noopener">Guide guilde Dofus 2026</a>
+      </nav>
+      <p class="site-foot__legal">© SigilOS 2026 · Projet indépendant, non affilié à Ankama Games</p>
+    </div>
   </footer>
 </body>
 </html>
+

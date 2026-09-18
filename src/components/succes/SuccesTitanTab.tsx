@@ -8,6 +8,7 @@ import { getUserTitansData, toggleTitanCompleted } from "@/server/actions/titan-
 import { getMonsterStats, getDungeonMonsters } from "@/server/actions/game-data-actions";
 import { getBossDofensiveSpells, getDofensiveDungeonForBoss, type DofensiveDungeonInfo } from "@/server/actions/dofensive-actions";
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
+import { resolveDofusAssetImageUrl } from "@/lib/dofus-image-url";
 import { SpellRangeGrid } from "@/components/succes/SpellRangeGrid";
 
 interface Titan {
@@ -59,12 +60,14 @@ function formatSchedule(schedule?: any): string {
     return parts.length ? parts.join(" · ") : "Disponibilité non renseignée";
 }
 
-/** Résout la meilleure source d'image du titan (stats DofusDB > image locale > fallback API). */
+/**
+ * Résout la meilleure source d'image du titan (stats DofusDB > image locale > fallback)
+ * — **toujours via le proxy interne** `/api/assets-dofus/monsters/{id}` : le navigateur
+ * ne doit jamais hotlinker `api.dofusdb.fr` (le serveur sert le WebP siphonné, cache 1 an).
+ */
 function titanImage(t: Titan, stats?: any): string | null {
     const src = stats?.imageUrl || t.imageUrl;
-    if (src) return src;
-    if (t.dofusdbId) return `https://api.dofusdb.fr/img/monsters/${t.dofusdbId}.png`;
-    return null;
+    return resolveDofusAssetImageUrl("monsters", t.dofusdbId, src) ?? src ?? null;
 }
 
 function MonsterImage({ src, alt = "", className = "", monsterId }: { src?: string | null; alt?: string; className?: string; monsterId?: number | string }) {

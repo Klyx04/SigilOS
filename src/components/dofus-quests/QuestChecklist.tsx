@@ -9,6 +9,7 @@ import { toggleQuestStatus, getOtherMembersOnQuest, type MemberOnQuest } from "@
 import type { DofusChainWithProgress, DofusEntryWithProgress } from "@/server/actions/dofus-quest-actions";
 import { DofusQuestStatus } from "@prisma/client";
 import { NpcName, ItemInline, ParsedObjective, copyWithToast, detectRealDungeons, extractObjectiveText } from "./dofus-resolvers";
+import { internalDofusDbImageUrl } from "@/lib/dofus-image-url";
 import { QuestGuildStatus } from "./QuestGuildStatus";
 import { QuestActionsBlock } from "./QuestActionsBlock";
 
@@ -193,10 +194,10 @@ function QuestEntryRow({
                                     <div className="w-12 h-12 rounded-xl bg-black/60 border border-danger/20 flex items-center justify-center p-1 shrink-0 overflow-hidden">
                                         {d.img ? (
                                             // eslint-disable-next-line @next/next/no-img-element
-                                            <img src={d.img} alt={d.name} className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                            <img src={internalDofusDbImageUrl(d.img) ?? d.img} alt={d.name} className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                                         ) : d.id ? (
                                             // eslint-disable-next-line @next/next/no-img-element
-                                            <img src={`https://api.dofusdb.fr/img/monsters/${d.id}.png`} alt={d.name} className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                            <img src={`/api/assets-dofus/monsters/${d.id}`} alt={d.name} className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                                         ) : (
                                             <span className="text-danger">🏰</span>
                                         )}

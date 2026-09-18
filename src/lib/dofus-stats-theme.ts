@@ -330,6 +330,25 @@ const THEME_BY_CODE: Record<string, StatThemeKey> = {
     rap: "airResistance",
     rfc: "criticalResistance",
     rp: "pushResistance",
+    /**
+     * Famille « dégâts / réductions critiques & poussée » — ids Dofusbook relevés dans
+     * les payloads réels (`cloths[].effects[]`) : `410 dc` (Dommages Critiques),
+     * `420 dp` (Dommages Poussée), `430 rc` (réduction des dégâts critiques subis),
+     * `440 rp` (réduction des dégâts de poussée subis — déduit de la même série).
+     * Référentiel DofusDB : `86` Critiques, `87` Critiques (fixe), `84` Poussée,
+     * `85` Poussée (fixe).
+     */
+    dc: "criticalDamage",
+    dp: "pushDamage",
+    /**
+     * `rc` = réduction des **dégâts critiques** subis.
+     * Preuve : payload brut Dofusbook (`cloths[].effects[]`) → l'effet porte
+     * `{"id":430,"name":"rc","value":10}`, juste après `{"id":420,"name":"dp"}`
+     * (Dommages Poussée) ; le référentiel DofusDB nomme la stat `87` = « Critiques (fixe) »
+     * (`criticalDamageReduction`). C'est donc **la même famille** que `rfc`
+     * (asset `bouclier.png`) — jamais `critique.png` (coups critiques *infligés*).
+     */
+    rc: "criticalResistance",
 };
 
 /**

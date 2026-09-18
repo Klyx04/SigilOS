@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { redis } from "@/lib/redis";
 import { logger } from "@/lib/logger";
+import { DOFUSBOOK_BLOCKED_MESSAGE, isDofusbookBlockResponse } from "@/lib/dofusbook-utils";
+import { isDofusbookBreakerOpen, openDofusbookBreaker } from "@/lib/dofusbook-guard";
 
 const BUILD_CACHE_TTL = 86400; // 24h
 const STALE_CACHE_KEY_PREFIX = "dofusbook:stale:";
@@ -43,11 +45,40 @@ function getRandomUA() {
  *
  * Set DOFUSBOOK_CF_WORKER_URL in .env to enable.
  */
-async function fetchBuildData(finalId: string, force: boolean = false): Promise<{ data: any; ok: boolean; status: number }> {
+type FetchBuildResult = { data: any; ok: boolean; status: number; blocked: boolean };
+
+/** Lit (au plus 2 Ko) le corps d'une réponse en échec pour qualifier un blocage anti-bot. */
+async function describeFailure(res: Response): Promise<{ blocked: boolean; detail: string }> {
+    const contentType = res.headers.get("content-type");
+    let body = "";
+    try {
+        body = (await res.text()).slice(0, 2048);
+    } catch {
+        /* corps illisible : on se base sur le statut */
+    }
+    return {
+        blocked: isDofusbookBlockResponse(res.status, contentType, body),
+        detail: `${res.status} ${contentType ?? ""} ${body.slice(0, 120).replace(/\s+/g, " ")}`,
+    };
+}
+
+/**
+ * Récupère les données brutes d'un build.
+ *
+ * Stratégie 1 — **CF Worker uniquement** (obligatoire) : c'est le seul émetteur autorisé
+ * vers Dofusbook, car Dofusbook (Cloudflare) bloque les clients « serveur » (Node/undici,
+ * .NET…) alors qu'un navigateur passe. Un appel direct depuis le VPS est donc inutile
+ * **et** risque de faire flaguer son IP → désactivé par défaut.
+ *
+ * Stratégie 2 — appel direct VPS : uniquement si `DOFUSBOOK_ALLOW_VPS_FALLBACK=true`
+ * (dépannage explicite) ; jamais après un blocage détecté.
+ */
+async function fetchBuildData(finalId: string, force: boolean = false): Promise<FetchBuildResult> {
     const cfWorkerUrl = process.env.DOFUSBOOK_CF_WORKER_URL;
     const cfWorkerSecret = process.env.DOFUSBOOK_WORKER_SECRET;
+    const allowVpsFallback = process.env.DOFUSBOOK_ALLOW_VPS_FALLBACK === "true";
 
-    // --- Strategy 1: CF Worker ---
+    // --- Strategy 1: CF Worker (seul émetteur vers Dofusbook) ---
     if (cfWorkerUrl) {
         try {
             const urlWithForce = force ? `${cfWorkerUrl}/${finalId}?force=true` : `${cfWorkerUrl}/${finalId}`;
@@ -62,16 +93,25 @@ async function fetchBuildData(finalId: string, force: boolean = false): Promise<
 
             if (workerRes.ok) {
                 const data = await workerRes.json();
-                return { data, ok: true, status: 200 };
+                return { data, ok: true, status: 200, blocked: false };
             }
 
-            logger.warn(`[Dofusbook] CF Worker ${workerRes.status} for ${finalId} — fallback VPS`);
+            const { blocked, detail } = await describeFailure(workerRes);
+            logger.warn(`[Dofusbook] CF Worker ${workerRes.status} pour ${finalId}${blocked ? " (BLOCAGE anti-bot)" : ""}`, { detail });
+            if (blocked && !allowVpsFallback) {
+                // Inutile (et risqué pour l'IP du VPS) de retenter : on remonte le blocage.
+                return { data: null, ok: false, status: workerRes.status, blocked: true };
+            }
         } catch (err) {
             logger.warn(`[Dofusbook] CF Worker failed for ${finalId}`, { error: (err as Error).message });
         }
     }
 
-    // --- Strategy 2: Direct VPS fetch (may be blocked by Cloudflare) ---
+    // --- Strategy 2: Direct VPS fetch — DÉSACTIVÉE par défaut (protection de l'IP) ---
+    if (!allowVpsFallback) {
+        return { data: null, ok: false, status: cfWorkerUrl ? 503 : 501, blocked: true };
+    }
+
     const apiUrl = `https://www.dofusbook.net/api/stuffs/dofus/public/${finalId}`;
 
     for (let attempt = 1; attempt <= 2; attempt++) {
@@ -92,17 +132,23 @@ async function fetchBuildData(finalId: string, force: boolean = false): Promise<
 
             if (response.ok) {
                 const data = await response.json();
-                return { data, ok: true, status: 200 };
+                return { data, ok: true, status: 200, blocked: false };
+            }
+
+            const { blocked, detail } = await describeFailure(response);
+            if (blocked) {
+                logger.warn(`[Dofusbook] VPS direct bloqué pour ${finalId}`, { detail });
+                return { data: null, ok: false, status: response.status, blocked: true };
             }
 
             if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
-            else return { data: null, ok: false, status: response.status };
+            else return { data: null, ok: false, status: response.status, blocked: false };
         } catch {
-            if (attempt === 2) return { data: null, ok: false, status: 500 };
+            if (attempt === 2) return { data: null, ok: false, status: 500, blocked: false };
         }
     }
 
-    return { data: null, ok: false, status: 500 };
+    return { data: null, ok: false, status: 500, blocked: false };
 }
 
 export async function GET(
@@ -174,28 +220,52 @@ export async function GET(
             }
         }
 
-        // 3. Fetch (CF Worker → VPS fallback)
-        const { data, ok, status } = await fetchBuildData(finalId, force);
+        // 3. Disjoncteur : si Dofusbook a bloqué récemment, on ne retente rien du tout
+        // (protection de l'IP du VPS + du quota du worker).
+        const breakerOpen = await isDofusbookBreakerOpen();
+
+        // 4. Fetch (CF Worker — seul émetteur autorisé vers Dofusbook)
+        const { data, ok, status, blocked } = breakerOpen
+            ? { data: null as any, ok: false, status: 503, blocked: true }
+            : await fetchBuildData(finalId, force);
 
         if (!ok || !data) {
-            // #41 — alerte God (throttle 10 min) : l'API Dofusbook est injoignable
-            // (CF Worker + VPS échoués) → les builds FM ne remontent plus.
-            await notifyGodOnce(
-                "🚨 Dofusbook API indisponible",
-                `Impossible de récupérer le stuff #${finalId} (CF Worker + VPS). Le FM ne remonte plus sur la galerie.`,
-                { buildId: finalId, status, source: "dofusbook-proxy" }
-            );
+            if (blocked) {
+                // Ouvre/renouvelle le disjoncteur : plus aucun appel à Dofusbook pendant 15 min.
+                await openDofusbookBreaker(`proxy build ${finalId} → statut ${status}`);
 
-            // Last resort: stale cache
+                await notifyGodOnce(
+                    "🚫 Dofusbook bloque les appels serveur",
+                    `Dofusbook (Cloudflare) refuse les requêtes serveur pour le stuff #${finalId} (statut ${status}) — challenge anti-bot probable. Les bakes sont gelés 15 min et le fallback direct VPS est désactivé (l'IP du VPS n'est plus exposée).`,
+                    { buildId: finalId, status, source: "dofusbook-proxy" }
+                );
+            } else {
+                // #41 — alerte God (throttle 10 min) : API injoignable pour une autre raison.
+                await notifyGodOnce(
+                    "🚨 Dofusbook API indisponible",
+                    `Impossible de récupérer le stuff #${finalId} (statut ${status}).`,
+                    { buildId: finalId, status, source: "dofusbook-proxy" }
+                );
+            }
+
+            // Last resort: stale cache (7 j)
             try {
                 const staleData = await redis.get(`${STALE_CACHE_KEY_PREFIX}${finalId}`);
                 if (staleData) {
                     logger.warn(`[Dofusbook] Serving stale cache for ${finalId}`);
                     return NextResponse.json(JSON.parse(staleData as string), {
-                        headers: { "X-Cache": "STALE" }
+                        headers: { "X-Cache": "STALE", ...(blocked ? { "X-Dofusbook-Blocked": "1" } : {}) }
                     });
                 }
             } catch { /* ignore */ }
+
+            if (blocked) {
+                // 503 (et non 403) : c'est un refus **temporaire** de la source, pas un accès interdit.
+                return NextResponse.json(
+                    { error: "dofusbook-blocked", message: DOFUSBOOK_BLOCKED_MESSAGE, status },
+                    { status: 503 }
+                );
+            }
 
             return NextResponse.json(
                 { error: `Dofusbook unavailable (${status})` },

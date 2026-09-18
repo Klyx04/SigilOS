@@ -12,7 +12,8 @@ import type { DofusbookPreviewData } from "@/lib/dofusbook-utils";
 import { DO_TAGS } from "@/lib/dofus-tags";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getStuffGalleryPage, getSkinGalleryPage, refreshBuildMetadata, toggleSkinVote, type GalleryBuild, type GallerySkin } from "@/server/actions/gallery-actions";
+import { getStuffGalleryPage, getSkinGalleryPage, toggleSkinVote, type GalleryBuild, type GallerySkin } from "@/server/actions/gallery-actions";
+import { bakeDofusbookFromBrowser } from "@/lib/dofusbook-client-bake";
 import { toggleBuildVote } from "@/server/actions/vote-actions";
 import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "sonner";
@@ -269,12 +270,15 @@ export function GalleryClient({
         toast.info(`Rafraîchissement de "${build.name}"...`);
 
         try {
-            const res = await refreshBuildMetadata(guildId, build.author.id, build.url);
-            if (res.success) {
-                toast.success("Build mis à jour !");
+            // Dofusbook (Cloudflare) refuse les appels serveur (challenge anti-bot) : c'est
+            // le NAVIGATEUR qui récupère les données via le worker CF signé, puis elles
+            // sont enregistrées dans le profil du propriétaire.
+            const baked = await bakeDofusbookFromBrowser(build.url, guildId);
+            if (baked.ok) {
+                toast.success(baked.persisted ? "Build mis à jour !" : "Données récupérées (non enregistrées)");
                 applyFilters(searchQuery, activeTags, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
             } else {
-                toast.error(res.error || "Échec du rafraîchissement");
+                toast.error(baked.error || "Échec du rafraîchissement");
             }
         } catch (e) {
             toast.error("Erreur serveur");
@@ -586,7 +590,7 @@ export function GalleryClient({
                         stuffBuilds.map((build) => (
                             <div key={build.id} className="group/card flex flex-col gap-3">
                                 <div className="relative">
-                                    <DofusbookPreview url={build.url} title={build.name} tags={build.tags} classId={build.classId ? Number(build.classId) : undefined} initialData={build.previewData} />
+                                    <DofusbookPreview url={build.url} title={build.name} tags={build.tags} classId={build.classId ? Number(build.classId) : undefined} initialData={build.previewData} guildId={guildId} />
                                     
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent transition-all duration-300 rounded-[2.5rem] flex flex-col justify-end p-4 z-10 pointer-events-none opacity-90 group-hover/card:opacity-100">
                                         <div className="flex items-center justify-end gap-1.5 backdrop-blur-md bg-black/40 p-1.5 rounded-2xl border border-white/10 w-fit ml-auto shadow-lg">

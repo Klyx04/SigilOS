@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveDofusImageUrl } from "@/lib/dofus-image-url";
+import { resolveDofusImageUrl, resolveDofusAssetImageUrl, internalDofusDbImageUrl } from "@/lib/dofus-image-url";
 
 describe("resolveDofusImageUrl (#206 Dofoobz)", () => {
     it("sert l'asset local pour le slug dofoozbz, quel que soit l'imageUrl en base", () => {
@@ -55,3 +55,61 @@ describe("resolveDofusImageUrl (#206 Dofoobz)", () => {
         expect(resolveDofusImageUrl("dofus-custom", undefined, "Dofus Mystère")).toBeNull();
     });
 });
+
+describe("resolveDofusAssetImageUrl / internalDofusDbImageUrl — zéro hotlink DofusDB (#icônes de sorts)", () => {
+    // Cas réel (18/09/2026) : `spell.imageUrl` stocké en base est une URL ABSOLUE DofusDB
+    // (`https://api.dofusdb.fr/img/spells/sort_12160.png`) → 57 requêtes navigateur vers
+    // DofusDB depuis l'onglet « Sorts » de la modale de build.
+    const SPELL_DB_URL = "https://api.dofusdb.fr/img/spells/sort_12160.png";
+
+    it("réécrit une icône de sort DofusDB vers le proxy interne (siphon disque)", () => {
+        expect(resolveDofusAssetImageUrl("spells", 12160, SPELL_DB_URL)).toBe(
+            `/api/assets-dofus/spells/12160?url=${encodeURIComponent(SPELL_DB_URL)}`
+        );
+    });
+
+    it("privilégie l'id fourni (clé du cache disque) sur l'id d'icône de l'URL", () => {
+        // L'id du sort (ex. 4) ≠ l'id d'icône (12160) : le siphon enregistre
+        // `spells/{idDuSort}.webp` → c'est cet id qui doit servir de clé de chemin.
+        const url = resolveDofusAssetImageUrl("spells", 4, SPELL_DB_URL);
+        expect(url).toContain("/api/assets-dofus/spells/4?url=");
+        expect(url).toContain(encodeURIComponent(SPELL_DB_URL));
+    });
+
+    it("retombe sur l'id extrait de l'URL quand l'appelant n'en fournit aucun", () => {
+        expect(internalDofusDbImageUrl(SPELL_DB_URL)).toBe(
+            `/api/assets-dofus/spells/12160?url=${encodeURIComponent(SPELL_DB_URL)}`
+        );
+        expect(internalDofusDbImageUrl("https://api.dofusdb.fr/img/monsters/1234.png")).toContain("/api/assets-dofus/monsters/1234?url=");
+        expect(internalDofusDbImageUrl("https://api.dofusdb.fr/img/items/9143.png")).toContain("/api/assets-dofus/items/9143?url=");
+        // Hôte `static.dofusdb.fr` : réécrit aussi, mais SANS `?url=` (non allowlisté par le proxy).
+        expect(internalDofusDbImageUrl("https://static.dofusdb.fr/img/spells/sort_7.png")).toBe("/api/assets-dofus/spells/7");
+    });
+
+    it("n'envoie JAMAIS d'URL d'un hôte non allowlisté au proxy (SSRF fail-closed)", () => {
+        expect(resolveDofusAssetImageUrl("spells", 12, "https://evil.example.com/img/spells/12.png")).toBe(
+            "/api/assets-dofus/spells/12"
+        );
+        expect(resolveDofusAssetImageUrl("monsters", 12, "https://evildofusdb.fr/img/monsters/12.png")).toBe(
+            "/api/assets-dofus/monsters/12"
+        );
+        expect(internalDofusDbImageUrl("https://evil.example.com/img/spells/12.png")).toBeNull();
+        expect(internalDofusDbImageUrl("http://api.dofusdb.fr/img/spells/sort_12.png")).toBeNull(); // HTTPS only
+    });
+
+    it("renvoie null (⇒ repli de l'appelant) sans id ni URL DofusDB exploitable", () => {
+        expect(resolveDofusAssetImageUrl("spells")).toBeNull();
+        expect(resolveDofusAssetImageUrl("spells", null, "/uploads/assets-dofus/spells/4.webp")).toBeNull();
+        expect(resolveDofusAssetImageUrl("items", "  ")).toBeNull();
+        expect(internalDofusDbImageUrl("/uploads/assets-dofus/spells/4.webp")).toBeNull();
+        expect(internalDofusDbImageUrl("https://api.dofusdb.fr/spells/4?lang=fr")).toBeNull(); // API, pas une icône
+        expect(internalDofusDbImageUrl(null)).toBeNull();
+        expect(internalDofusDbImageUrl(undefined)).toBeNull();
+    });
+
+    it("laisse une URL (interne) sans paramètre inutile", () => {
+        expect(resolveDofusAssetImageUrl("items", "9143")).toBe("/api/assets-dofus/items/9143");
+        expect(resolveDofusAssetImageUrl("monsters", 1234, null)).toBe("/api/assets-dofus/monsters/1234");
+    });
+});
+

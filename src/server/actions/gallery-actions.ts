@@ -5,7 +5,8 @@ import { getUserContext } from "./user-actions";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
-import { canonicalClassId, getClassName } from "@/lib/dofusbook-utils";
+import { canonicalClassId, getClassName, isUsableDofusbookRawPayload, processDofusbookRawData, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
+import { rateLimit } from "@/lib/ratelimit";
 import { logger } from "@/lib/logger";
 import { getGameDisplayName } from "@/lib/display-name";
 
@@ -353,6 +354,82 @@ export async function refreshBuildMetadata(
     } catch (error) {
         logger.error("Refresh Build Metadata Error:", { error });
         return { success: false, error: "Erreur serveur lors du rafraîchissement" };
+    }
+}
+
+/**
+ * Enregistre un `previewData` **récupéré par le navigateur du membre** (bake côté client).
+ *
+ * Contexte : Dofusbook (Cloudflare) refuse désormais les appels serveur (challenge
+ * anti-bot) → `getDofusbookPreview()` ne peut plus baker. Le navigateur, lui, passe :
+ * il appelle le worker signé (`getDofusbookClientFetchUrl()`) et nous transmet le JSON.
+ * Cette action le valide (forme + taille : entrée non fiable) puis le stocke.
+ *
+ * Si le build n'appartient à aucun profil de la guilde, on renvoie quand même les
+ * données traitées pour l'affichage, sans persister (`persisted: false`).
+ */
+export async function storeClientDofusbookPreview(
+    guildId: string,
+    buildUrl: string,
+    raw: unknown
+): Promise<ActionResponse<{ data: DofusbookPreviewData; persisted: boolean }>> {
+    if (!guildId || !buildUrl) return { success: false, error: "Paramètres manquants" };
+
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
+
+    const limited = await rateLimit(`dofusbook-client-bake:${user.id ?? "anon"}`, 30, 60_000);
+    if (!limited.success) return { success: false, error: "Trop de rafraîchissements — réessaie dans une minute." };
+
+    if (!isUsableDofusbookRawPayload(raw)) {
+        return { success: false, error: "Données Dofusbook invalides ou trop volumineuses" };
+    }
+
+    try {
+        const { getDofusbookId } = await import("./dofusbook-actions");
+        const id = await getDofusbookId(buildUrl);
+        if (!id) return { success: false, error: "Identifiant Dofusbook introuvable" };
+
+        const data = processDofusbookRawData(id, raw);
+
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        // Recherche du profil propriétaire du build dans cette guilde (tous statuts : un
+        // profil archivé/inactif conserve ses builds et doit pouvoir être rafraîchi).
+        const profiles = await db.userProfile.findMany({
+            where: { guildId: guildConfig.id },
+            select: { id: true, dofusBookLinks: true },
+        });
+        const owner = profiles.find((p) =>
+            ((p.dofusBookLinks as any[]) || []).some((l) => l?.url === buildUrl)
+        );
+
+        if (!owner) return { success: true, data: { data, persisted: false } };
+
+        const now = new Date().toISOString();
+        const updatedLinks = ((owner.dofusBookLinks as any[]) || []).map((link) =>
+            link?.url === buildUrl
+                ? { ...link, previewData: data, source: "dofusbook" as const, updatedAt: now }
+                : link
+        );
+
+        await db.userProfile.update({
+            where: { id: owner.id },
+            data: { dofusBookLinks: updatedLinks as any },
+        });
+
+        revalidatePath(`/dashboard/${guildId}/galerie-stuff`);
+        // 🔗 #126 : la page membre est servie sous /members/<slug> → on revalide le pattern
+        revalidatePath(`/dashboard/${guildId}/members/[slug]`);
+
+        return { success: true, data: { data, persisted: true } };
+    } catch (error) {
+        logger.error("[Dofusbook] Client bake storage error:", { error });
+        return { success: false, error: "Erreur serveur lors de l'enregistrement" };
     }
 }
 

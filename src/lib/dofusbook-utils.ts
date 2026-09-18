@@ -1,4 +1,6 @@
-﻿export type DofusbookItemEffect = {
+﻿import { resolveDofusStatTheme } from "@/lib/dofus-stats-theme";
+
+export type DofusbookItemEffect = {
     code: string;
     min: number;
     max: number;
@@ -7,9 +9,17 @@
 };
 
 export type DofusbookItem = {
+    /**
+     * Id **interne Dofusbook** (ex. 1621 = « Anneau Poli »).
+     * ⚠️ Ce n'est PAS un id de jeu : ne jamais le passer à `dofusbookItemIconUrl()`
+     * (voir `dofusbookItemIconId()`).
+     */
     id: number;
     name: string;
+    /** Id d'icône DofusDB (`iconId`, ex. 9143 = « Anneau Poli ») → `/img/items/{picture}.png`. */
     picture: number;
+    /** Id Ankama / DofusDB de l'item (ex. 8879 = « Anneau Poli ») → `/items/{official}`.
+     *  ⚠️ Ne pas l'utiliser pour une icône (voir `dofusbookItemIconId()`). */
     official: number;
     /** Niveau et type quand Dofusbook les expose (repli : 0 / ""). */
     level?: number;
@@ -18,9 +28,131 @@ export type DofusbookItem = {
     effects?: DofusbookItemEffect[];
 };
 
-/** Icône d'item 100 % interne : proxy auto-siphon (jamais de hotlink Dofusbook/DofusDB côté client). */
-export function dofusbookItemIconUrl(id: number): string {
-    return `/api/assets-dofus/items/${id}`;
+/**
+ * Icône d'item 100 % interne : proxy auto-siphon (jamais de hotlink Dofusbook/DofusDB côté client).
+ *
+ * ⚠️ `iconId` doit être l'id d'icône DofusDB (`item.picture`), pas un id d'item :
+ * `/img/items/{id}.png` est un **namespace d'icônes** (un id d'item peut y répondre 200
+ * avec l'image d'un AUTRE objet) — voir `dofusbookItemIconId()`.
+ */
+/**
+ * Codes courts des **bonus de panoplie / effets d'items Dofusbook** → libellé FR compact.
+ *
+ * 📌 Source de vérité : `cloths[].effects[].name` du payload brut Dofusbook. Les codes
+ * réellement observés en production (builds de la galerie) sont :
+ * `ag cc ch daf dc def dff dnf dtf epa epm fo fu in ii pa pm po pu rap rc rep rfp rtp ta vi`.
+ * Les libellés des codes ambigus sont ancrés sur le référentiel officiel DofusDB
+ * (`/characteristics`, lu le 18/09/2026) :
+ *   · `78` Fuite, `79` Tacle, `27`/`28` Esquive PA/PM, `82`/`83` Retrait PA/PM,
+ *   · `85` Poussée (fixe) → `rp`, `87` Critiques (fixe) → `rc` (dégâts critiques subis).
+ *
+ * ⚠️ Un code inconnu reste affiché tel quel (jamais un libellé inventé) ; l'icône, elle,
+ * est résolue séparément par `resolveDofusStatTheme()`.
+ */
+export const DOFUSBOOK_STAT_LABELS: Record<string, string> = {
+    pa: "PA", pm: "PM", po: "PO", vi: "Vitalité", vit: "Vitalité",
+    fo: "Force", in: "Intelligence", ch: "Chance", ag: "Agilité",
+    sa: "Sagesse", pu: "Puissance", rnp: "% Ré Neutre", rtp: "% Ré Terre",
+    rfp: "% Ré Feu", rep: "% Ré Eau", rap: "% Ré Air", ini: "Initiative", ii: "Initiative",
+    cc: "% Critique", pp: "Prospection", invo: "Invocation", ic: "Invocation", so: "Soin",
+    dnf: "Do Neutre", dtf: "Do Terre", dff: "Do Feu", def: "Do Eau",
+    daf: "Do Air", df: "Dommages", dmg: "Dommages", dc: "Do Crit.", dp: "Do Pouss.",
+    da: "% Do Armes", ds: "% Do Sorts", dm: "% Do Mêlée", di: "% Do Dist.", dd: "% Do Dist.",
+    // Résistances « fixes » (les variantes `%` sont ci-dessus)
+    rn: "Ré Neutre", rt: "Ré Terre", rf: "Ré Feu", re: "Ré Eau", ra: "Ré Air",
+    // Utilitaires de combat
+    fu: "Fuite", ta: "Tacle", epa: "Esquive PA", epm: "Esquive PM",
+    rpa: "Retrait PA", rpm: "Retrait PM", pod: "Pods",
+    // Réductions de dégâts subis (référentiel 85 / 87)
+    rp: "Ré Pouss.", rc: "Ré Crit.",
+};
+
+/**
+ * Version de la clé d'URL des icônes d'items (voir `dofusbookItemIconUrl`).
+ *
+ * 🐛 Historique (symptôme : panneau d'équipement avec des slots « vides » en forme d'épée) :
+ * le proxy renvoyait un placeholder SVG avec `Cache-Control: max-age=86400` → un échec de
+ * siphonnage TRANSITOIRE restait figé jusqu'à 24 h dans le cache du navigateur, alors que le
+ * serveur servait ensuite le vrai WebP. Le placeholder est désormais `no-store`, mais une
+ * réponse DÉJÀ en cache ne se répare pas toute seule : incrémenter cette version change la
+ * clé d'URL et contourne les entrées figées (un seul rechargement, puis cache 1 an à nouveau).
+ */
+export const DOFUSBOOK_ITEM_ICON_URL_VERSION = 2;
+
+export function dofusbookItemIconUrl(iconId: number): string {
+    return `/api/assets-dofus/items/${iconId}?v=${DOFUSBOOK_ITEM_ICON_URL_VERSION}`;
+}
+
+/**
+ * IconId DofusDB (`item.picture`) à passer à `dofusbookItemIconUrl()` pour l'icône d'un item.
+ *
+ * 🐛 Bug corrigé (galerie / fiche perso « affichent de mauvais items ») : le code utilisait
+ * `item.id`, l'id **interne Dofusbook** (ex. 1621 = « Anneau Poli »), absent de DofusDB →
+ * 404 sur `/img/items/1621.png`, puis l'auto-healing du proxy retombait sur `/items/1621` =
+ * **« Bottes de Maîtrise »** ⇒ icônes d'autres objets (hache, bottes, « Purée pique-fêle »…).
+ *
+ * ⚠️ Ne PAS utiliser `official` (id Ankama) non plus : `/img/items/{official}.png` répond
+ * 200 dans ~1/3 des cas avec l'icône d'un **autre** item (collision de namespace, invisible
+ * côté proxy). Seul `picture` = `iconId` DofusDB cible exactement la bonne image (vérifié
+ * 30/30 sur les builds réels, cf. `item.img` renvoyé par DofusDB = `/img/items/{picture}.png`).
+ *
+ * Retourne `null` si `picture` est absent (vieux cache / schéma changé) → pas d'icône plutôt
+ * qu'une fausse icône.
+ */
+export function dofusbookItemIconId(item?: Pick<DofusbookItem, "picture"> | null): number | null {
+    const iconId = Number(item?.picture ?? 0);
+    return Number.isInteger(iconId) && iconId > 0 ? iconId : null;
+}
+
+/**
+ * Message unique (UI + serveur) quand Dofusbook refuse les appels **serveur**
+ * (challenge anti-bot Cloudflare) — cf. `isDofusbookBlockResponse()`.
+ */
+export const DOFUSBOOK_BLOCKED_MESSAGE =
+    "Dofusbook bloque les requêtes serveur (challenge Cloudflare) — les dernières données connues sont conservées.";
+
+/**
+ * Détecte une réponse de **blocage anti-bot** Dofusbook / Cloudflare renvoyée à la place
+ * du JSON de build (page « Attention Required! », 403/429, ou 5xx type 520).
+ *
+ * Sert à : (1) arrêter immédiatement les tentatives (et ne PAS retomber sur un appel
+ * direct depuis le VPS — on protège son IP de tout flag) ; (2) afficher un message clair ;
+ * (3) ouvrir un disjoncteur Redis pour ne plus marteler Dofusbook.
+ *
+ * NB : 404 (build inexistant, JSON `stuff/not-found`) et 401 (mauvais secret côté worker)
+ * ne sont PAS des blocages.
+ */
+export function isDofusbookBlockResponse(status: number, contentType?: string | null, body?: string | null): boolean {
+    if (status === 401 || status === 404) return false;
+    if (status === 403 || status === 429) return true;
+    if (status >= 500) return true;
+    // 200/3xx avec une page HTML de challenge (au lieu du JSON attendu)
+    const isHtml = (contentType || "").toLowerCase().includes("text/html");
+    const looksLikeChallenge = !!body && /Attention Required|Just a moment|cf-mitigated|Enable JavaScript and cookies/i.test(body);
+    return isHtml && looksLikeChallenge;
+}
+
+/** Taille maximale acceptée pour un payload brut de build fourni par un client (~2 Mo). */
+export const DOFUSBOOK_RAW_MAX_CHARS = 2 * 1024 * 1024;
+
+/**
+ * Valide (forme + taille) un payload brut Dofusbook **fourni par le client** (bake
+ * navigateur) avant de le parser avec `processDofusbookRawData` et de le stocker :
+ * le navigateur est une entrée NON fiable.
+ */
+export function isUsableDofusbookRawPayload(raw: unknown): boolean {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
+    const stuff = (raw as { stuff?: unknown }).stuff;
+    if (!stuff || typeof stuff !== "object" || Array.isArray(stuff)) return false;
+    const slots = (stuff as { stuffItem?: unknown }).stuffItem;
+    if (!slots || typeof slots !== "object" || Array.isArray(slots)) return false;
+    const items = (raw as { items?: unknown }).items;
+    if (items !== undefined && !Array.isArray(items)) return false;
+    try {
+        return JSON.stringify(raw).length <= DOFUSBOOK_RAW_MAX_CHARS;
+    } catch {
+        return false;
+    }
 }
 
 /** Meilleur jet d'un effet Dofusbook (`min`/`max`/`value`), comme `sumEffect`. */
@@ -124,7 +256,111 @@ export type DofusbookPreviewData = {
     }[];
     thumbnail?: string;
     smithmagic?: any;
+    /**
+     * PV donnés par le **niveau** (`50 + 5 × niveau`, soit 1050 au niveau 200).
+     *
+     * ⚠️ Ils sont **inclus** dans `stats.vit` (total de PV du personnage) mais **exclus**
+     * de `characteristics.vi.total` : Dofusbook présente la Vitalité *caractéristique*
+     * (équipement + capital + parchotage), sans le socle de niveau (relevé du 18/09/2026 :
+     * 3150 affiché alors que le personnage a 4200 PV).
+     */
+    levelHp?: number;
+    /**
+     * Détail par caractéristique primaire (`vi sa fo in ch ag pu`), tel que Dofusbook
+     * le présente dans son panneau `+` / `Base` / `Parcho`.
+     */
+    characteristics?: Partial<Record<DofusbookCharacteristicKey, DofusbookCharacteristic>>;
 };
+
+/** Caractéristiques primaires capitalisables/parchotables — ordre d'affichage Dofusbook. */
+export const DOFUSBOOK_CHARACTERISTIC_CODES = ["vi", "sa", "fo", "in", "ch", "ag", "pu"] as const;
+
+export type DofusbookCharacteristicKey = (typeof DOFUSBOOK_CHARACTERISTIC_CODES)[number];
+
+/**
+ * Répartition d'une caractéristique primaire, telle que Dofusbook la détaille :
+ *   · `total`  = caractéristique affichée = `items + base + scroll` ;
+ *   · `items`  = apport de l'**équipement** (items, bonus de panoplie, forgemagie) ;
+ *   · `base`   = points investis **à la main** (payload `base_*`) ;
+ *   · `scroll` = **parchotage** (payload `scroll_*`) ;
+ *   · `power`  = `total + Puissance`, la valeur **effective** au calcul des dommages
+ *                (colonne ⚡ de Dofusbook). Calculée par `dofusbookCharacteristicRows()`,
+ *                donc **absente** de la donnée brute et pour Vitalité/Sagesse/Puissance.
+ */
+export type DofusbookCharacteristic = {
+    total: number;
+    items: number;
+    base: number;
+    scroll: number;
+    power?: number;
+};
+
+/** Ligne prête à l'affichage : libellé/icône officiels résolus + texte de détail. */
+export type DofusbookCharacteristicRow = DofusbookCharacteristic & {
+    key: DofusbookCharacteristicKey;
+    label: string;
+    asset: string;
+    color: string;
+    /** Détail lisible au survol, ex. « Force : 365 (équipement) + 95 (base) + 100 (parcho) = 560 ». */
+    breakdown: string;
+};
+
+/** Éléments sur lesquels la Puissance se cumule (colonne ⚡ de Dofusbook). */
+const DOFUSBOOK_POWERED_CHARACTERISTICS: readonly DofusbookCharacteristicKey[] = ["fo", "in", "ch", "ag"];
+
+const formatSigned = (value: number) => (value < 0 ? `− ${Math.abs(value)}` : `+ ${value}`);
+
+/**
+ * Lignes « caractéristiques primaires » de la modale (Total / ⚡ / Base / Parcho),
+ * dans l'ordre Dofusbook, avec les icônes officielles.
+ *
+ * Renvoie `[]` quand la donnée n'existe pas (préview en cache au format antérieur) :
+ * l'appelant n'affiche rien plutôt que des zéros inventés — un clic sur
+ * « Actualiser » régénère le détail depuis le payload brut.
+ */
+export function dofusbookCharacteristicRows(
+    data: DofusbookPreviewData | null | undefined
+): DofusbookCharacteristicRow[] {
+    const values = data?.characteristics;
+    if (!values) return [];
+
+    const power = Number(values.pu?.total) || 0;
+    const levelHp = Number(data?.levelHp) || 0;
+
+    return DOFUSBOOK_CHARACTERISTIC_CODES.flatMap((key) => {
+        const value = values[key];
+        if (!value) return [];
+
+        // Les 7 codes sont cartographiés dans `dofus-stats-theme` (garde-fou : jamais
+        // d'icône cassée, on saute la ligne si un thème venait à disparaître).
+        const theme = resolveDofusStatTheme(null, null, key);
+        if (!theme) return [];
+
+        const isPowered = DOFUSBOOK_POWERED_CHARACTERISTICS.includes(key);
+        const effective = isPowered && power !== 0 ? value.total + power : undefined;
+        const isVitality = key === "vi";
+
+        const breakdown = [
+            `${theme.label} : ${value.items} (équipement) + ${value.base} (base) + ${value.scroll} (parcho) = ${value.total}`,
+            effective != null ? `${value.total} + ${power} Puissance ⇒ ${effective}` : null,
+            isVitality && levelHp !== 0
+                ? `socle de niveau ${formatSigned(levelHp)} PV ⇒ ${value.total + levelHp} PV`
+                : null,
+        ]
+            .filter((part): part is string => !!part)
+            .join(" · ");
+
+        return [{
+            key,
+            label: theme.label,
+            asset: theme.asset,
+            color: theme.color,
+            breakdown,
+            ...value,
+            ...(effective != null ? { power: effective } : {}),
+        }];
+    });
+}
 
 export function getClassName(id: number): string {
     const classes: Record<number, string> = {
@@ -176,7 +412,10 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     let pm = 3;
     let po = 0;
     // Base life: 1050 at level 200 (Dofus 2 formula: 50 + level*5)
-    let vit = 50 + (level * 5);
+    // Conservé à part : le socle de PV du niveau n'appartient à aucune des trois colonnes
+    // Dofusbook (`équipement` / `base` / `parcho`) — voir `characteristics` plus bas.
+    const levelHp = 50 + (level * 5);
+    let vit = levelHp;
     let ini = level * 5; // Rough base initiative approximation
     let pp = 100;
     let cc = 0;
@@ -338,17 +577,26 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     // 👤 4. Character Capital + Scroll (parchos/capitaux)
     // These are stored in raw.stuffStats or raw.stuff.stuffCarac
     const carac = raw.stuffStats || raw.stuff?.stuffCarac;
+    // Capital/points à la main et parchotage, conservés **séparément** des totaux :
+    // ce sont les colonnes `Base` et `Parcho` du détail affiché dans la modale.
+    const capital: Record<DofusbookCharacteristicKey, number> = { vi: 0, sa: 0, fo: 0, in: 0, ch: 0, ag: 0, pu: 0 };
+    const scrollPoints: Record<DofusbookCharacteristicKey, number> = { vi: 0, sa: 0, fo: 0, in: 0, ch: 0, ag: 0, pu: 0 };
     if (carac && !Array.isArray(carac)) {
         const base   = (k: string) => Number(carac[`base_${k}`])   || 0;
         const scroll = (k: string) => Number(carac[`scroll_${k}`]) || 0;
 
-        vit   += base('vi')  + scroll('vi');
-        el_fo += base('fo')  + scroll('fo');
-        el_in += base('in')  + scroll('in');
-        el_ch += base('ch')  + scroll('ch');
-        el_ag += base('ag')  + scroll('ag');
-        el_sa += base('sa')  + scroll('sa');
-        el_pu += base('pu')  + scroll('pu');
+        DOFUSBOOK_CHARACTERISTIC_CODES.forEach((key) => {
+            capital[key] = base(key);
+            scrollPoints[key] = scroll(key);
+        });
+
+        vit   += capital.vi + scrollPoints.vi;
+        el_fo += capital.fo + scrollPoints.fo;
+        el_in += capital.in + scrollPoints.in;
+        el_ch += capital.ch + scrollPoints.ch;
+        el_ag += capital.ag + scrollPoints.ag;
+        el_sa += capital.sa + scrollPoints.sa;
+        el_pu += capital.pu + scrollPoints.pu;
         ini   += base('ini') + scroll('ini');
     }
     
@@ -494,6 +742,39 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     const rawClassId = Number(raw.stuff?.character_class);
     const validClassId = Number.isFinite(rawClassId) && rawClassId >= 1 && rawClassId <= 19 ? rawClassId : null;
 
+    /**
+     * 📊 Détail « équipement / base / parchotage » par caractéristique primaire
+     * (colonnes `+` / `Base` / `Parcho` du panneau Dofusbook).
+     *
+     * `items` est obtenu par **soustraction** (`total − capital − parchotage`) : c'est
+     * exactement ce que Dofusbook agrège dans sa colonne « + » (items, bonus de panoplie,
+     * forgemagie globale et exo), sans avoir à tracer une seconde somme.
+     * ⚠️ Vitalité : `total` est la **caractéristique** — le socle de PV de niveau
+     * (`levelHp`, inclus dans `stats.vit`) n'est pas une des trois colonnes.
+     */
+    const characteristicTotals: Record<DofusbookCharacteristicKey, number> = {
+        vi: vit - levelHp,
+        sa: el_sa,
+        fo: el_fo,
+        in: el_in,
+        ch: el_ch,
+        ag: el_ag,
+        pu: el_pu,
+    };
+    const characteristics = DOFUSBOOK_CHARACTERISTIC_CODES.reduce(
+        (acc, key) => {
+            const total = characteristicTotals[key];
+            acc[key] = {
+                total,
+                items: total - capital[key] - scrollPoints[key],
+                base: capital[key],
+                scroll: scrollPoints[key],
+            };
+            return acc;
+        },
+        {} as Record<DofusbookCharacteristicKey, DofusbookCharacteristic>
+    );
+
     return {
         v: 2,
         id: parseInt(id) || 0,
@@ -508,6 +789,8 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
         items: itemsMap,
         cloths: activeCloths,
         thumbnail,
-        smithmagic: computedSmithmagic
+        smithmagic: computedSmithmagic,
+        levelHp,
+        characteristics
     };
 }

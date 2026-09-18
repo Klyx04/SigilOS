@@ -10,6 +10,7 @@ Ce document consigne l'ensemble des actions manuelles, configurations VPS, varia
 3. [Serveur VPS & Déploiement](#3-serveur-vps--déploiement)
 4. [Variables d'Environnement (.env)](#4-variables-denvironnement-env)
 5. [Surveillance Post-Déploiement (Tour de Contrôle God)](#5-surveillance-post-déploiement-tour-de-contrôle-god)
+6. [Galerie de stuff Dofusbook (relais WAF)](#6-galerie-de-stuff-dofusbook-relais-waf)
 
 ---
 
@@ -101,6 +102,46 @@ Toutes les variables requises sont déjà configurées sur votre VPS :
      - Le bouton **Geler** coupe l'accès instantanément sans supprimer les données.
      - Le bouton **Bannir** blacklist la guilde, expulse le bot automatiquement du serveur Discord et purge la mémoire Redis.
   4. **Radar Anti-Fantômes :** Détecte si le bot est présent sur des serveurs Discord non déclarés et permet de l'expulser en un clic.
+
+
+---
+
+## 6. Galerie de stuff Dofusbook (relais WAF)
+
+Contexte complet : [`docs/GALERIE-DOFUSBOOK-RELAIS.md`](docs/GALERIE-DOFUSBOOK-RELAIS.md).
+
+**Ce qui est déjà en place** : le worker relais (`cloudflare-workers/dofusbook-proxy`,
+routes `/:id` serveur et `/s/:id` navigateur), le bake navigateur, le disjoncteur, le
+CSP auto-adaptatif et les correctifs d'assets (icônes d'items/sorts/sorts de panoplie,
+stats de panoplie, détail Total/⚡/Base/Parcho).
+
+**Actions manuelles restantes (VPS)** :
+
+1. **Redéployer** (`./scripts/deploy.sh prod`) : la prod tourne encore le code d'avant
+   ce batch, pointé sur l'ancien worker dont l'égress Cloudflare est bloqué par
+   Dofusbook.
+2. **Vérifier 2 variables** dans l'`.env` du VPS (aucune création d'infra) :
+   - `DOFUSBOOK_CF_WORKER_URL="https://test-dofusbook.<compte>.workers.dev"` (l'URL du
+     worker déployé) ;
+   - `DOFUSBOOK_WORKER_SECRET="…"` **identique** au `WORKER_SECRET` du worker.
+   - laisser `DOFUSBOOK_ALLOW_VPS_FALLBACK="false"` (protection de l'IP du VPS).
+3. **Faire pointer le DNS/worker** : s'assurer que `WORKER_SECRET` est bien défini dans
+   Cloudflare → Worker → Settings → Variables (sans lui, la route serveur est
+   fail-closed → 401).
+4. **Tester après déploiement** : galerie `/galerie-stuff` → bouton « Actualiser » d'un
+   build. Attendu : toast « Build mis à jour ! ». Si la réponse est
+   « Dofusbook bloque temporairement… », c'est le **WAF** qui bloque encore l'égress
+   Cloudflare (voir la décision ci-dessous).
+5. **Décision à prendre (bloquante pour un refresh 24/7)** : le WAF Dofusbook bloque
+   **toutes** les IP serveur, y compris l'égress des Workers Cloudflare. Trois options,
+   aucune activée aujourd'hui :
+   - (a) machine à IP résidentielle toujours allumée (boîtier maison + tunnel stable) ;
+   - (b) proxy résidentiel payant côté VPS ;
+   - (c) demande d'accès/allowlist officiel auprès de Dofusbook (**seule solution durable**).
+
+Tant qu'aucune option n'est retenue : **l'affichage de la galerie et toutes les icônes
+continuent de fonctionner** ; seuls l'ajout d'un nouveau build et le bouton
+« Actualiser » restent indisponibles.
 
 ---
 *Ce document sera complété automatiquement si d'autres actions manuelles sont requises lors des développements.*

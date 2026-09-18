@@ -202,17 +202,23 @@ export async function siphonAndCompressImage(
                 });
                 if (itemRes.ok) {
                     const itemData = await itemRes.json();
-                    const iconId = Number(itemData.iconId || itemData.id);
-                    if (iconId && Number.isInteger(iconId) && iconId > 0) {
-                        const directItemUrl = new URL('https://api.dofusdb.fr');
-                        directItemUrl.pathname = `/img/items/${iconId}.png`;
-                        const imgRes = await dofusDbFetch(directItemUrl.toString(), {
-                            headers: DEFAULT_HEADERS,
-                            signal: AbortSignal.timeout(12_000),
-                        });
-                        if (imgRes.ok) {
-                            const arrayBuffer = await imgRes.arrayBuffer();
-                            downloadedBuffer = Buffer.from(arrayBuffer);
+                    // 🛡️ Garde d'identité : DofusDB renvoie HTTP 200 avec un item de repli
+                    // (« Purée pique-fêle » id 666) quand l'id demandé n'existe pas. Sans ce
+                    // contrôle, l'auto-healing retournait l'icône d'un AUTRE item (bug
+                    // « mauvais items » galerie/perso : id interne Dofusbook ≠ id de jeu).
+                    if (Number(itemData?.id) === Number(cleanId)) {
+                        const iconId = Number(itemData.iconId) || Number(itemData.id);
+                        if (iconId > 0) {
+                            const directItemUrl = new URL('https://api.dofusdb.fr');
+                            directItemUrl.pathname = `/img/items/${iconId}.png`;
+                            const imgRes = await dofusDbFetch(directItemUrl.toString(), {
+                                headers: DEFAULT_HEADERS,
+                                signal: AbortSignal.timeout(12_000),
+                            });
+                            if (imgRes.ok) {
+                                const arrayBuffer = await imgRes.arrayBuffer();
+                                downloadedBuffer = Buffer.from(arrayBuffer);
+                            }
                         }
                     }
                 }

@@ -40,9 +40,10 @@ case "$ENV_NAME" in
     *) err "Environnement inconnu : $ENV_NAME (attendu : beta | prod)"; exit 2 ;;
 esac
 
-# Services déployés : si l'un d'eux manque, le compose entier part en échec — la
-# cause est donc TOUJOURS à chercher service par service.
-SERVICES="app worker ws"
+# Services déployés : les 4 composants du compose ne sont pas optionnels — si un
+# seul manque, `docker compose up -d` échoue entièrement. La cause est donc
+# TOUJOURS à chercher image par image.
+SERVICES="app worker ws discord-bot"
 CAUSES=()
 
 banner "🔎 Diagnostic déploiement — cible : $ENV_NAME"
@@ -127,9 +128,10 @@ for SVC in $SERVICES; do
 done
 
 if [ "$PULL_FAILED" = "0" ]; then
-    ok "Les 3 images se téléchargent : le registre n'est PAS la cause."
+    ok "Les 4 images se téléchargent : le registre n'est PAS la cause."
     dim "Cherche alors côté conteneur :"
     dim "  sudo docker logs --tail 80 sigilos-${ENV_NAME}-app-1"
+    dim "  sudo docker logs --tail 80 sigilos-${ENV_NAME}-discord-bot-1"
     dim "  sudo docker compose config | head -40   (variable d'env manquante)"
 fi
 

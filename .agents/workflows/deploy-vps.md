@@ -31,8 +31,8 @@ cd ~/SigilOS
 ```
 
 Le script fait, dans l'ordre : `git fetch` → `git pull --autostash` → `prisma migrate
-deploy` → `docker login` GHCR → `docker pull` des 3 images (`app`, `worker`, `ws`) →
-`docker compose up -d` → healthchecks.
+deploy` → `docker login` GHCR → `docker pull` des 4 images (`app`, `worker`, `ws`,
+`discord-bot`) → `docker compose up -d` → healthchecks.
 
 ## Déployer quand le VPS a des fichiers curés en local
 

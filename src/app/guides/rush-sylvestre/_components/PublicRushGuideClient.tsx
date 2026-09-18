@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/client";
 import type { RushMilestone, RushSequence, RushDungeonRef } from "@/types/rush-guide-types";
 import { getClass, DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { getDofusServerImage } from "@/lib/dofus-assets";
@@ -164,6 +165,7 @@ function guestServerLabel(serverId: number | null | undefined): string | null {
 }
 
 export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClientProps) {
+  const { t, locale } = useI18n();
   // ── Progression locale PAR PERSONNAGE ───────────────────────────────────────
   // Le visiteur peut déclarer son personnage (classe + pseudo + serveur — les trois
   // facultatifs) : chaque personnage garde SES étapes cochées et SON repère. Sans
@@ -807,10 +809,12 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-foreground">Progression Locale</span>
+                <span className="text-xs font-semibold text-foreground">
+                  {locale === "en" ? "Local Progress" : "Progression Locale"}
+                </span>
               </div>
               <p className="reg-mono text-sm text-foreground">
-                {completedCount} / {totalSequences} étapes validées ({progressPercent}%)
+                {completedCount} / {totalSequences} {locale === "en" ? "steps completed" : "étapes validées"} ({progressPercent}%)
               </p>
             </div>
           </div>
@@ -823,7 +827,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
               className="reg-btn reg-btn-secondary"
             >
               <Package className="w-4 h-4 text-warning" aria-hidden="true" />
-              <span>Ressources</span>
+              <span>{t.rushGuide.resourcesTab}</span>
             </button>
 
             {/* Le seul interrupteur de densité : son interrupteur d'origine vivait
@@ -834,10 +838,14 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
               onClick={() => setHideDone((v) => !v)}
               aria-pressed={hideDone}
               className={cn("reg-btn reg-btn-secondary", hideDone && "border-accent/40 text-accent")}
-              title="Retirer du détail ce qui est déjà validé"
+              title={locale === "en" ? "Remove validated steps from detail view" : "Retirer du détail ce qui est déjà validé"}
             >
               <CheckCheck className="w-4 h-4" aria-hidden="true" />
-              <span>{hideDone ? "Afficher tout le détail" : "Masquer les étapes faites"}</span>
+              <span>
+                {hideDone
+                  ? (locale === "en" ? "Show full detail" : "Afficher tout le détail")
+                  : (locale === "en" ? "Hide completed steps" : "Masquer les étapes faites")}
+              </span>
             </button>
 
             {/* Lancer l'overlay en jeu — une seule action mise en avant par écran */}
@@ -845,10 +853,10 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
               type="button"
               onClick={handleLaunchOverlay}
               className="reg-btn reg-btn-primary flex-1 md:flex-initial"
-              title="Affiche une mini-fenêtre flottante toujours au premier plan par-dessus Dofus"
+              title={locale === "en" ? "Displays a floating mini-window always on top over Dofus" : "Affiche une mini-fenêtre flottante toujours au premier plan par-dessus Dofus"}
             >
               <Sparkles className="w-4 h-4" aria-hidden="true" />
-              <span>Lancer l'Overlay en jeu</span>
+              <span>{locale === "en" ? "Launch in-game Overlay" : "Lancer l'Overlay en jeu"}</span>
             </button>
           </div>
         </div>
@@ -886,7 +894,7 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
               )}
               <span className="text-xs font-semibold text-foreground">{characterLabel}</span>
               <span className="text-[11px] text-muted-foreground">
-                progression enregistrée pour ce personnage
+                {locale === "en" ? "progress saved for this character" : "progression enregistrée pour ce personnage"}
               </span>
               <div className="flex items-center gap-2">
                 <button
@@ -894,96 +902,102 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
                   onClick={openCharacterForm}
                   className="rounded-[3px] border border-border px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
                 >
-                  Changer
+                  {locale === "en" ? "Change" : "Changer"}
                 </button>
                 <button
                   type="button"
                   onClick={() => applyGuestCharacter(null)}
                   className="inline-flex items-center gap-1.5 rounded-[3px] border border-border px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
-                  title="Revenir à la progression du navigateur (sans personnage)"
+                  title={locale === "en" ? "Reset to browser progress (no character)" : "Revenir à la progression du navigateur (sans personnage)"}
                 >
                   <Eraser className="h-3.5 w-3.5" aria-hidden="true" />
-                  Retirer
+                  {locale === "en" ? "Remove" : "Retirer"}
                 </button>
               </div>
             </div>
           ) : characterOpen ? (
-            <div className="space-y-3">
-              <p className="text-[11px] text-muted-foreground">
-                Personnage (facultatif) — la progression reste dans votre navigateur. Le pseudo et le
-                serveur servent à séparer plusieurs personnages sur le même navigateur.
-              </p>
-              {/* Classe : icônes du jeu, une seule sélection (re-cliquer retire). */}
-              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Classe du personnage">
-                {DOFUS_CLASSES.map((c) => {
-                  const isSelected = charDraft.classId === c.id;
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setCharDraft((d) => ({ ...d, classId: d.classId === c.id ? null : c.id }))}
-                      aria-pressed={isSelected}
-                      aria-label={c.name}
-                      title={c.name}
-                      className={cn(
-                        "h-9 w-9 shrink-0 rounded-[3px] border p-1 transition-colors cursor-pointer",
-                        isSelected ? "border-accent bg-accent/10" : "border-border hover:bg-elevated"
-                      )}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={c.icon} alt="" className="h-full w-full object-contain" loading="lazy" />
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <input
-                  type="text"
-                  value={charDraft.pseudo ?? ""}
-                  onChange={(e) => setCharDraft((d) => ({ ...d, pseudo: e.target.value }))}
-                  maxLength={24}
-                  placeholder="Pseudo en jeu (ex. MonIop)"
-                  aria-label="Pseudo en jeu"
-                  className="h-9 w-48 rounded-[3px] border border-border bg-surface px-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none"
-                />
-                <label className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <Server className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <div className="space-y-3 rounded-md border border-border bg-surface p-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Classe */}
+                <div>
+                  <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
+                    {t.rushGuide.selectClass}
+                  </label>
+                  <select
+                    value={charDraft.classId || ""}
+                    onChange={(e) => setCharDraft((d) => ({ ...d, classId: e.target.value || null }))}
+                    className="w-full h-8 px-2 rounded-[3px] bg-background border border-border text-xs text-foreground focus:outline-none focus:border-accent"
+                  >
+                    <option value="">{locale === "en" ? "-- Choose a class --" : "-- Choisir une classe --"}</option>
+                    {DOFUS_CLASSES.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Serveur */}
+                <div>
+                  <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
+                    {t.rushGuide.selectServer}
+                  </label>
                   <select
                     value={charDraft.serverId ?? ""}
                     onChange={(e) =>
                       setCharDraft((d) => ({ ...d, serverId: e.target.value ? Number(e.target.value) : null }))
                     }
-                    aria-label="Serveur de jeu"
-                    className="h-9 rounded-[3px] border border-border bg-surface px-2 text-xs text-foreground focus:border-accent focus:outline-none cursor-pointer"
+                    className="w-full h-8 px-2 rounded-[3px] bg-background border border-border text-xs text-foreground focus:outline-none focus:border-accent"
                   >
-                    <option value="">Serveur (facultatif)</option>
-                    {GUEST_SERVER_GROUPS.map((group) => (
-                      <optgroup key={group.key} label={group.label}>
-                        {(DOFUS_UNITY_SERVERS[group.key] as readonly { name: string; id: number }[]).map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
+                    <option value="">{locale === "en" ? "-- Choose a server --" : "-- Choisir un serveur --"}</option>
+                    {GUEST_SERVER_GROUPS.map((grp) => {
+                      const list = (DOFUS_UNITY_SERVERS as Record<string, readonly { name: string; id: number }[]>)[
+                        grp.key
+                      ];
+                      if (!list || list.length === 0) return null;
+                      return (
+                        <optgroup key={grp.key} label={grp.label}>
+                          {list.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      );
+                    })}
                   </select>
-                </label>
+                </div>
+
+                {/* Pseudo */}
+                <div>
+                  <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
+                    {locale === "en" ? "Character nickname" : "Pseudo du personnage"}
+                  </label>
+                  <input
+                    type="text"
+                    value={charDraft.pseudo || ""}
+                    onChange={(e) => setCharDraft((d) => ({ ...d, pseudo: e.target.value || null }))}
+                    placeholder={locale === "en" ? "e.g. Cra-Zar" : "ex. Cra-Zar"}
+                    maxLength={30}
+                    className="w-full h-8 px-2 rounded-[3px] bg-background border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent"
+                  />
+                </div>
               </div>
-              <div className="flex items-center gap-2">
+
+              <div className="flex items-center justify-end gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => applyGuestCharacter(charDraft)}
-                  className="inline-flex items-center gap-1.5 rounded-[3px] border border-success/40 px-3 py-1.5 text-[11px] font-semibold text-success transition-colors hover:bg-success/10 cursor-pointer"
+                  className="reg-btn reg-btn-primary text-xs py-1 px-3"
                 >
-                  <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                  Enregistrer
+                  {locale === "en" ? "Save" : "Enregistrer"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setCharacterOpen(false)}
                   className="rounded-[3px] border border-border px-3 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
                 >
-                  Annuler
+                  {locale === "en" ? "Cancel" : "Annuler"}
                 </button>
               </div>
             </div>
@@ -992,10 +1006,10 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
               type="button"
               onClick={openCharacterForm}
               className="inline-flex items-center gap-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
-              title="Classe + pseudo + serveur : chaque personnage garde sa propre progression"
+              title={locale === "en" ? "Class + nickname + server: each character keeps their own progress" : "Classe + pseudo + serveur : chaque personnage garde sa propre progression"}
             >
               <UserRound className="h-4 w-4 shrink-0" aria-hidden="true" />
-              Choisir mon personnage (facultatif)
+              {locale === "en" ? "Choose my character (optional)" : "Choisir mon personnage (facultatif)"}
             </button>
           )}
         </div>
@@ -1007,13 +1021,13 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Rechercher une quête, un donjon, un PNJ, des coordonnées [X, Y]…"
+            placeholder={t.rushGuide.searchPlaceholder}
             className="w-full h-11 pl-10 pr-10 rounded-md bg-surface border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent transition-colors"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              aria-label="Effacer la recherche"
+              aria-label={locale === "en" ? "Clear search" : "Effacer la recherche"}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
               <X className="w-4 h-4" aria-hidden="true" />

@@ -38,6 +38,11 @@ export interface DofensiveSpellEffect {
 export interface DofensiveSpellCombat {
     id: number;
     name: string;
+    /**
+     * Nom anglais (i18n). DofusDB le fournit dans la fusion ; la payload combat
+     * Dofensive ne le porte pas toujours — voir `docs/I18N_GUIDE.md`.
+     */
+    nameEn?: string;
     /** Icône officielle Dofensive (CDN) — distincte par sort, contrairement à DofusDB. */
     imageUrl?: string;
     apCost: number;
@@ -73,6 +78,11 @@ export interface DofensiveMergedSpell extends Omit<DofensiveSpellCombat, "zone">
     zone?: DofensiveSpellZone;
     imageUrl?: string;
     description?: string;
+    /**
+     * Nom anglais (DofusDB) — i18n : `locale === "en" ? (spell.nameEn || spell.name) : spell.name`
+     * (voir `docs/I18N_GUIDE.md`). Aligné sur `SpellData` (grilles de sorts).
+     */
+    nameEn?: string;
 }
 
 /**
@@ -82,10 +92,10 @@ export interface DofensiveMergedSpell extends Omit<DofensiveSpellCombat, "zone">
  * l'une des deux sources sont conservés. Jamais d'écrasement destructif.
  */
 export function mergeDofensiveSpells(
-    dbSpells: Array<{ id: number; name?: string; imageUrl?: string; description?: string }> = [],
+    dbSpells: Array<{ id: number; name?: string; nameEn?: string; imageUrl?: string; description?: string }> = [],
     dofensiveSpells: DofensiveSpellCombat[] = []
 ): DofensiveMergedSpell[] {
-    const dbMap = new Map<number, { name?: string; imageUrl?: string; description?: string }>();
+    const dbMap = new Map<number, { name?: string; nameEn?: string; imageUrl?: string; description?: string }>();
     for (const s of dbSpells) {
         const sid = Number(s?.id);
         if (Number.isFinite(sid) && sid > 0) dbMap.set(sid, s);
@@ -98,6 +108,7 @@ export function mergeDofensiveSpells(
         merged.push({
             ...ds,
             name: db?.name || ds.name,
+            nameEn: db?.nameEn || ds.nameEn,
             imageUrl: ds.imageUrl || db?.imageUrl, // icône Dofensive préférée (distincte par sort)
             // Description Dofensive prioritaire (contexte de combat du sort), DofusDB en fallback.
             description: ds.description || db?.description,

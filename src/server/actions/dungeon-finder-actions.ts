@@ -12,6 +12,7 @@ import { resolveDjContributionPoints } from "@/lib/points-config";
 import { createAuditLog } from "./audit-actions";
 import { sanitizeName } from "@/lib/security";
 import { getMultiDungeons } from "@/lib/dungeon-finder-utils";
+import { buildClassDispatchFields, buildClassSelectRow, type DispatchEntry } from "@/server/discord-class-dispatch";
 
 // ---------------------------------------------------------------------------
 // UTILS
@@ -140,6 +141,8 @@ export type DjPostWithDetails = {
         discordNickname: string | null;
         pseudoDofus: string | null;
         dofusPseudo: string | null;
+        /** Classe Dofus du profil : affichée à côté des pseudos (roster, cartes). */
+        classe?: string | null;
         user: { image: string | null };
     };
     participants: {
@@ -283,7 +286,12 @@ async function sendDiscordNotification(
             buttonComponents.push({ type: 2, style: 5, label: "DofusDB", emoji: { name: "🗺️" }, url: `https://dofusdb.fr/fr/database/quest/${post.questId}` });
         }
 
-        const components = [{ type: 1, components: buttonComponents }];
+        // Menu classe en PLUS des boutons : choisir une classe = s'inscrire avec
+        // cette classe (ou mettre à jour la sienne si déjà inscrit).
+        const components = [
+            { type: 1, components: buttonComponents },
+            buildClassSelectRow(`dj:class:${post.id}`, "Choisir ma classe pour ce groupe…"),
+        ];
 
         let discordMessageId: string | null = null;
         let discordChannelId: string | null = null;
@@ -514,6 +522,17 @@ async function buildMultiPostEmbeds(post: any, authorName: string): Promise<any[
     const acceptedParts = (post.participants ?? []).filter((p: any) => p.status === "ACCEPTED");
     const isMulti = entries.length > 0;
 
+    let creatorClasse: string | null = post.profile?.classe ?? null;
+    if (!creatorClasse && post.profileId) {
+        try {
+            const creatorProfile = await (db as any).userProfile.findUnique({
+                where: { id: post.profileId },
+                select: { classe: true },
+            });
+            creatorClasse = creatorProfile?.classe ?? null;
+        } catch { /* repli : créateur en « Sans classe » */ }
+    }
+
     return entries.map((entry: any, idx: number) => {
         // #203 — comptage PAR donjon (participants ayant rejoint ce donjon ; ceux sans
         // index = legacy/global, comptés dans chaque donjon pour préserver l'existant).
@@ -522,11 +541,15 @@ async function buildMultiPostEmbeds(post: any, authorName: string): Promise<any[
             : acceptedParts;
         const countForDungeon = partsForDungeon.length + 1; // +1 créateur
         const maxForDungeon = entry.maxMembers ?? post.maxMembers;
-        const participantLines = partsForDungeon.map((p: any) => {
-            const n = p.profile?.discordNickname || p.profile?.pseudoDofus || p.profile?.dofusPseudo || "Membre";
-            const djName = entries[p.dungeonIndex]?.name;
-            return `• ${n}${p.classe ? ` *(${p.classe})*` : ""}${djName ? ` — ${djName}` : ""}`;
-        });
+        const memberLabel = `👥 Membres (${countForDungeon}/${maxForDungeon})`;
+        const dispatchEntries: DispatchEntry[] = [
+            { line: `**${authorName}**`, classe: creatorClasse },
+            ...partsForDungeon.map((p: any) => {
+                const n = p.profile?.discordNickname || p.profile?.pseudoDofus || p.profile?.dofusPseudo || "Membre";
+                const djName = entries[p.dungeonIndex]?.name;
+                return { line: `• ${n}${djName ? ` — ${djName}` : ""}`, classe: p.classe ?? null } as DispatchEntry;
+            }),
+        ];
 
         const fields: any[] = [];
         fields.push({
@@ -550,11 +573,18 @@ async function buildMultiPostEmbeds(post: any, authorName: string): Promise<any[
         if (post.requiredClasses?.length) {
             fields.push({ name: "🎭 Classes recherchées", value: post.requiredClasses.map((c: string) => `\`${c}\``).join(" "), inline: true });
         }
-        fields.push({
-            name: `👥 Membres (${countForDungeon}/${maxForDungeon})`,
-            value: `**${authorName}**\n${participantLines.length > 0 ? participantLines.join("\n") : "*En attente de joueurs...*"}`,
-            inline: false,
-        });
+        if (partsForDungeon.length === 0) {
+            fields.push({
+                name: memberLabel,
+                value: `**${authorName}**\n*En attente de joueurs...*`,
+                inline: false,
+            });
+        } else {
+            fields.push(...buildClassDispatchFields(dispatchEntries, {
+                emptyField: { name: memberLabel, value: "*En attente de joueurs...*" },
+                maxGroups: 19,
+            }));
+        }
 
         return {
             title: `⚔️ MULTI-DONJON — ${entry.name}`,
@@ -622,7 +652,10 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
                 buttonComponents.push({ type: 2, style: 5, label: "DofusDB", emoji: { name: "🗺️" }, url: `https://dofusdb.fr/fr/database/quest/${post.questId}` });
             }
 
-            const components = [{ type: 1, components: buttonComponents }];
+            const components = [
+                { type: 1, components: buttonComponents },
+                buildClassSelectRow(`dj:class:${postId}`, "Choisir ma classe pour ce groupe…"),
+            ];
             patchBody = { embeds: [embed], components };
         }
 
@@ -953,26 +986,47 @@ async function buildPostEmbed(post: any, authorName: string, guildId: string, ac
         });
     }
 
-    // Live participants list — ACCEPTED uniquement dans le compteur, PENDING en file d'attente
+    // Live participants list — ACCEPTED uniquement dans le compteur, PENDING en file d'attente.
+    // Dispatch par classe : UN field inline PAR classe représentée (grille 3 colonnes).
     const acceptedParts = (post.participants ?? []).filter((p: any) => p.status === "ACCEPTED");
     const pendingParts = (post.participants ?? []).filter((p: any) => p.status === "PENDING");
     const totalCount = acceptedParts.length + 1; // +1 for creator
-    
-    const leadName = authorName;
-    const participantLines = acceptedParts.map((p: any) => {
-        const n = p.profile?.discordNickname || p.profile?.pseudoDofus || p.profile?.dofusPseudo || "Membre";
-        return `• ${n}${p.classe ? ` *(${p.classe})*` : ""}`;
-    });
 
+    const leadName = authorName;
+    let creatorClasse: string | null = post.profile?.classe ?? null;
+    if (!creatorClasse && post.profileId) {
+        try {
+            const creatorProfile = await (db as any).userProfile.findUnique({
+                where: { id: post.profileId },
+                select: { classe: true },
+            });
+            creatorClasse = creatorProfile?.classe ?? null;
+        } catch { /* repli : créateur en « Sans classe » */ }
+    }
     const memberFieldLabel = totalCount >= post.maxMembers
         ? `👥 Membres (${totalCount}/${post.maxMembers}) — COMPLET`
         : `👥 Membres (${totalCount}/${post.maxMembers})`;
 
-    fields.push({ 
-        name: memberFieldLabel, 
-        value: `**${leadName}**\n${participantLines.length > 0 ? participantLines.join("\n") : "*En attente de joueurs...*"}` ,
-        inline: false
-    });
+    if (acceptedParts.length === 0) {
+        // Rendu historique quand personne n'a rejoint (orga seul).
+        fields.push({
+            name: memberFieldLabel,
+            value: `**${leadName}**\n*En attente de joueurs...*`,
+            inline: false,
+        });
+    } else {
+        const dispatchEntries: DispatchEntry[] = [
+            { line: `**${leadName}**`, classe: creatorClasse },
+            ...acceptedParts.map((p: any) => {
+                const n = p.profile?.discordNickname || p.profile?.pseudoDofus || p.profile?.dofusPseudo || "Membre";
+                return { line: `• ${n}`, classe: p.classe ?? null } as DispatchEntry;
+            }),
+        ];
+        fields.push(...buildClassDispatchFields(dispatchEntries, {
+            emptyField: { name: memberFieldLabel, value: "*En attente de joueurs...*" },
+            maxGroups: 19,
+        }));
+    }
 
     // File d'attente — affichée uniquement si des joueurs attendent
     if (pendingParts.length > 0) {
@@ -2073,6 +2127,56 @@ export async function internalLeaveDjPost(
 }
 
 /**
+ * Met à jour la classe d'un participant EXISTANT (menu select Discord).
+ * Retourne `{ updated: false }` si le profil n'est pas inscrit : l'appelant
+ * bascule alors sur `internalJoinDjPost` (même capacité, file d'attente, notifs).
+ */
+export async function updateDjParticipantClass(
+    guildId: string,
+    postId: string,
+    profileId: string,
+    dungeonIndex: number | undefined,
+    classe: string
+): Promise<ActionResponse<{ updated: boolean }>> {
+    try {
+        const post = await (db as any).djSearchPost.findUnique({
+            where: { id: postId },
+            select: { id: true, profileId: true, status: true, dungeonsJson: true },
+        });
+        if (!post) return { success: false, error: "Post introuvable" };
+        if (post.profileId === profileId) return { success: false, error: "Tu es l'organisateur de ce groupe" };
+        if (post.status !== "OPEN" && post.status !== "FULL") return { success: false, error: "Ce groupe est fermé." };
+
+        // Même règle que l'inscription : unicité PAR donjon en multi, PAR post sinon.
+        const multiEntries: any[] = getMultiDungeons(post.dungeonsJson);
+        const joinedDungeonIndex =
+            multiEntries.length > 0 && Number.isFinite(dungeonIndex)
+                ? Math.max(0, Math.min(dungeonIndex as number, multiEntries.length - 1))
+                : undefined;
+        const existingWhere = multiEntries.length > 0 && joinedDungeonIndex != null
+            ? { postId, profileId, dungeonIndex: joinedDungeonIndex }
+            : { postId, profileId };
+        const existing = await (db as any).djSearchParticipant.findFirst({ where: existingWhere });
+        if (!existing) return { success: true, data: { updated: false } };
+
+        const cleanClasse = classe.trim().slice(0, 30);
+        await (db as any).djSearchParticipant.update({
+            where: { id: existing.id },
+            data: { classe: cleanClasse },
+        });
+
+        updateDjDiscordEmbed(guildId, postId).catch(() => { });
+        await notifyDjUpdate(guildId);
+        revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
+
+        return { success: true, data: { updated: true } };
+    } catch (error) {
+        logger.error("[updateDjParticipantClass]", error);
+        return { success: false, error: "Erreur lors du changement de classe" };
+    }
+}
+
+/**
  * Ferme ou supprime un post si son message Discord associé est supprimé.
  */
 export async function handleDiscordDjPostDelete(discordGuildId: string, messageId: string) {
@@ -2196,6 +2300,7 @@ export async function getDjPosts(
                         discordNickname: true,
                         pseudoDofus: true,
                         dofusPseudo: true,
+                        classe: true,
                         user: { select: { image: true } },
                     },
                 },

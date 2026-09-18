@@ -12,6 +12,7 @@ import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { getUserContext } from "@/server/actions/user-actions";
 import { deleteChannelMessage } from "@/server/discord";
+import { buildClassSelectRow } from "@/server/discord-class-dispatch";
 import { rateLimit } from "@/lib/ratelimit";
 import { startOfWeek, addDays } from "date-fns";
 
@@ -2043,7 +2044,8 @@ export async function sendCalendarDiscordNotification(guildId: string, eventId: 
                             { type: 2, style: 3, label: "S'inscrire", emoji: { name: "✅" }, custom_id: `calendar:join:${event.id}` },
                             { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `calendar:leave:${event.id}` }
                         ]
-                    }
+                    },
+                    buildClassSelectRow(`calendar:class:${event.id}`, "Choisir ma classe pour cet événement…"),
                 ]
             }
         );

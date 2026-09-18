@@ -40,7 +40,11 @@
 Thumbs.db
 
 # Logs
-logs/
+# ⚠️ `/logs/` est ancré à la racine : sans le `/`, la règle avalait aussi
+# `src/app/god/logs/` (un dossier de CODE) → `market-log-view.tsx` a été
+# silencieusement exclu du repo et le CI a cassé en « Cannot find module »
+# (incident du 18/09/2026). Les fichiers de log restent couverts par `*.log`.
+/logs/
 *.log
 npm-debug.log*
 yarn-debug.log*

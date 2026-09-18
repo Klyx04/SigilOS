@@ -84,6 +84,21 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: 🚫 Sources silencieusement ignorées
+        run: |
+          # Un fichier SOURCE ignoré par `.gitignore` n'existe PAS dans le repo :
+          # le CI casse alors en « Cannot find module » pendant que le poste local
+          # compile très bien (incident du 18/09/2026 : `src/app/god/logs/market-log-view.tsx`
+          # avalé par la règle `logs/`, devenue `/logs/`). Dossiers d'audit/temp
+          # volontairement ignorés = allowlist ci-dessous.
+          ALLOWED_RE='^(src/audit-cyber|src/audit-infra|src/temp)(/|$)'
+          OFFENDERS=$(git status --porcelain --ignored | sed -n 's/^!! //p' | grep '^src/' | grep -Ev "$ALLOWED_RE" || true)
+          if [ -n "$OFFENDERS" ]; then
+            echo "::error::Fichier(s) source ignoré(s) par .gitignore : $OFFENDERS"
+            exit 1
+          fi
+          echo "✅ Aucun fichier source ignoré"
+
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:

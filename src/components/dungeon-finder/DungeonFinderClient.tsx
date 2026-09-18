@@ -127,6 +127,20 @@ export function DungeonFinderClient({
         });
     }, [posts, filters]);
 
+    /**
+     * Répartition des posts par mode, dans le même périmètre que la liste affichée
+     * (posts fermés exclus tant que « Posts fermés » n'est pas coché) : le compteur
+     * des segments de filtre ne peut donc pas mentir.
+     */
+    const modeCounts = useMemo(() => {
+        const scope = posts.filter(
+            (p) => filters.showClosed || (p.status !== "CLOSED" && p.status !== "EXPIRED")
+        );
+        const counts: Record<string, number> = { "": scope.length };
+        for (const p of scope) counts[p.mode] = (counts[p.mode] ?? 0) + 1;
+        return counts;
+    }, [posts, filters.showClosed]);
+
     const myActivePosts = useMemo(
         () => posts.filter((p) => p.profileId === currentProfileId && p.status === "OPEN"),
         [posts, currentProfileId]
@@ -148,6 +162,7 @@ export function DungeonFinderClient({
                             onChange={setFilters}
                             total={activePostsCount}
                             filtered={filteredPosts.length}
+                            modeCounts={modeCounts}
                         />
                     </div>
 
@@ -226,7 +241,7 @@ export function DungeonFinderClient({
                     </div>
                 ) : (
                     <div
-                        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 min-h-[420px] content-start" data-tour="donjons-list"
+                        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 min-h-[420px] content-start" data-tour="donjons-list"
                     >
                         {filteredPosts.map((post) => (
                             <DjPostCard

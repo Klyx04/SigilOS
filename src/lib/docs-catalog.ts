@@ -330,6 +330,9 @@ La revente d'archimonstres capturés en guilde à l'hôtel des ventes est viveme
 
 <h2>2. Partage des Gains & Reflets Oniriques</h2>
 <p>Le module permet d'enregistrer les coffres obtenus à la fin des paliers pour garantir une répartition équitable des reflets oniriques, légendes et runes astrales entre tous les participants.</p>
+
+<h2>3. Composer l'équipe sans quiproquo</h2>
+<p>Chaque emplacement de la run affiche le pseudo du joueur avec l'icône de sa classe Dofus, et l'icône de copie placée juste après copie <code>/w Pseudo</code> pour ce joueur uniquement. Le menu <em>« Choisir ma classe »</em> de l'embed Discord permet de candidater directement avec une classe, ou de changer la sienne sans annuler sa candidature.</p>
         `
     },
 
@@ -512,7 +515,25 @@ C'est la valeur du marché FM. SigilOS ne peut pas lire ton inventaire : il éti
 <h2>2. Rejoindre un Groupe</h2>
 <p>Les autres membres voient l'annonce sur leur Dashboard. Un simple clic sur <em>"Je viens aider"</em> réserve le slot et avertit le créateur du post.</p>
 
-<h2>3. Récompense en Points de Contribution</h2>
+<h2>3. Filtrer le Babillard</h2>
+<ul>
+    <li><strong>Type d'activité :</strong> les segments <em>Tout</em>, <em>Donjons</em>, <em>Quêtes</em>, <em>Défi</em> et <em>Titans</em> affichent le nombre d'annonces disponibles <strong>avant</strong> le clic.</li>
+    <li><strong>Recherche :</strong> la touche <kbd>/</kbd> place le curseur dans le champ « Rechercher un donjon, boss, quête… » ; la recherche couvre le donjon, son boss et le nom de la quête.</li>
+    <li><strong>Palier de niveau :</strong> 1-100, 100-140, 140-200 ou 200+ pour ne voir que les annonces à votre portée.</li>
+    <li><strong>Filtres rapides :</strong> « Places dispo » (il reste au moins un slot), « Avec succès » (succès de donjon visé) et « Posts fermés ».</li>
+</ul>
+
+<h2>4. Pseudo, classe et chuchotement</h2>
+<p>Dans une annonce comme dans les rosters (Donjons &amp; Quêtes, Songes Infinis, Calendrier et Raids), chaque joueur inscrit apparaît avec l'<strong>icône de sa classe Dofus</strong> devant son pseudo, et une petite icône de copie juste après. Un clic copie <code>/w Pseudo</code> pour ce joueur uniquement : il ne reste plus qu'à coller la commande dans Discord.</p>
+<div class="callout callout-tip">
+<strong>💡 Astuce clé</strong>
+La copie est <em>unitaire</em> : plus de bouton qui copiait toute la liste d'un coup (on collait huit lignes dans Discord au lieu d'un seul chuchotement). Si un joueur n'a pas renseigné sa classe dans son profil, seule l'icône manque — le pseudo et la copie restent disponibles.
+</div>
+
+<h2>5. Menu de classe dans l'embed Discord</h2>
+<p>Chaque annonce publiée porte un menu <em>« Choisir ma classe »</em> sous les boutons d'inscription : choisir une classe inscrit directement le membre, ou met à jour la classe d'une inscription déjà enregistrée. L'embed regroupe alors les participants dans un champ par classe représentée, ce qui donne au créateur une lecture immédiate de la composition du groupe.</p>
+
+<h2>6. Récompense en Points de Contribution</h2>
 <p>Lorsque le combat est terminé, le créateur clôture le post en cliquant sur <em>"Objectif Réussi"</em> :</p>
 <ul>
     <li>Chaque membre ayant apporté son aide reçoit automatiquement des <strong>Points de Contribution</strong> sur son profil de guilde.</li>

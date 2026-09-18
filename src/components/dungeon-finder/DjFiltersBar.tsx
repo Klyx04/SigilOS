@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Search, X, Swords, Map, Zap, Crown, Users, Star } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Search, X, LayoutGrid, SlidersHorizontal } from "lucide-react";
+import { DofusUiIcon, type DofusUiIconName } from "@/components/shared/dofus-ui-icon";
 import { cn } from "@/lib/utils";
 
 export interface DjFiltersState {
@@ -29,6 +30,8 @@ interface DjFiltersBarProps {
     onChange: (f: DjFiltersState) => void;
     total: number;
     filtered: number;
+    /** Nombre de posts par mode (`""` = tous modes) : on ne clique plus à l'aveugle. */
+    modeCounts?: Record<string, number>;
 }
 
 const LEVEL_PRESETS = [
@@ -39,9 +42,31 @@ const LEVEL_PRESETS = [
     { label: "200+", min: 200, max: 1000 },
 ];
 
-export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBarProps) {
+/** Segments de mode — pictos Dofus (mêmes fichiers que Succès/Ladder) + compteur. */
+const MODE_SEGMENTS: Array<{ value: string; label: string; asset: DofusUiIconName | null }> = [
+    { value: "", label: "Tout", asset: null },
+    { value: "DONJON", label: "Donjons", asset: "dungeon" },
+    { value: "QUETE", label: "Quêtes", asset: "quest" },
+    { value: "DEFI", label: "Défi", asset: "challenge" },
+    { value: "TITAN", label: "Titans", asset: "titan" },
+];
+
+export function DjFiltersBar({ filters, onChange, total, filtered, modeCounts = {} }: DjFiltersBarProps) {
     const searchRef = useRef<HTMLInputElement>(null);
     const [showAdvanced, setShowAdvanced] = useState(false);
+
+    // Raccourci « / » : focus la recherche sans voler la frappe d'un champ déjà actif.
+    useEffect(() => {
+        function onKeyDown(e: KeyboardEvent) {
+            if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+            const el = document.activeElement as HTMLElement | null;
+            if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+            e.preventDefault();
+            searchRef.current?.focus();
+        }
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, []);
 
     const hasActiveAdvancedFilters =
         filters.minLevel !== 1 ||
@@ -57,84 +82,102 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
     );
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-3" data-tour="donjons-filters">
             {/* Row 1: Essential Search + Mode + Filter Toggle */}
-            <div className="flex flex-col md:flex-row gap-2">
-                {/* Search */}
-                <div className="relative flex-1 group">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-300">
-                        <Search className={cn(
-                            "w-4 h-4 transition-colors",
-                            filters.search ? "text-warning" : "text-muted-foreground group-focus-within:text-warning"
-                        )} />
-                    </div>
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+                {/* Recherche — « / » fait gagner un clic quand le champ est vide */}
+                <div className="relative group flex-1 min-w-0">
+                    <Search className={cn(
+                        "pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 transition-colors",
+                        filters.search ? "text-foreground" : "text-muted-foreground group-focus-within:text-foreground"
+                    )} />
                     <input
                         ref={searchRef}
                         type="text"
                         value={filters.search}
                         onChange={(e) => onChange({ ...filters, search: e.target.value })}
                         placeholder="Rechercher un donjon, boss, quête…"
-                        className="w-full bg-surface/80 border border-border rounded-xl pl-10 pr-8 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-warning/50 h-11"
+                        aria-label="Rechercher un donjon, un boss ou une quête"
+                        className="h-11 w-full rounded-xl border border-border bg-surface/60 pl-10 pr-10 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus:border-border-strong focus:bg-surface"
                     />
-                    {filters.search && (
-                        <button 
+                    {filters.search ? (
+                        <button
                             onClick={() => onChange({ ...filters, search: "" })}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                            title="Effacer la recherche"
+                            aria-label="Effacer la recherche"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
                         >
                             <X className="w-4 h-4" />
                         </button>
+                    ) : (
+                        <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-bold text-muted-foreground md:block">
+                            /
+                        </kbd>
                     )}
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                    {/* Mode Selector — pills segmentées (labels lisibles, wrap sur mobile) */}
-                    <div className="flex flex-wrap gap-1 bg-surface/80 border border-border rounded-xl p-1 h-11 items-center shrink-0" role="group" aria-label="Type de post">
-                        {[
-                            { value: "", label: "Tout", icon: null },
-                            { value: "DONJON", label: "Donjons", icon: Swords },
-                            { value: "QUETE", label: "Quêtes", icon: Map },
-                            { value: "DEFI", label: "Défi", icon: Zap },
-                            { value: "TITAN", label: "Titans", icon: Crown },
-                        ].map(({ value, label, icon: Icon }) => {
+                    {/* Segments de mode — état actif neutre : l'accent reste réservé aux statuts */}
+                    <div
+                        className="flex items-center gap-1 p-1 h-11 rounded-xl border border-border bg-surface/50 shrink-0 overflow-x-auto custom-scrollbar"
+                        role="group"
+                        aria-label="Type de post"
+                    >
+                        {MODE_SEGMENTS.map(({ value, label, asset }) => {
                             const isActive = filters.mode === value;
+                            const count = modeCounts[value] ?? 0;
                             return (
                                 <button
-                                    key={value}
+                                    key={value || "all"}
                                     onClick={() => onChange({ ...filters, mode: value })}
                                     aria-pressed={isActive}
                                     className={cn(
-                                        "flex items-center gap-1.5 px-3 rounded-lg text-caption font-bold whitespace-nowrap transition-all h-9",
-                                        isActive ? "bg-info text-info-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-elevated/60"
+                                        "flex items-center gap-1.5 px-3 h-9 rounded-lg border text-caption font-bold whitespace-nowrap transition-colors",
+                                        isActive
+                                            ? "bg-elevated border-border-strong text-foreground shadow-sm"
+                                            : "border-transparent text-muted-foreground hover:bg-elevated/60 hover:text-foreground"
                                     )}
                                 >
-                                    {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
+                                    {asset
+                                        ? <DofusUiIcon name={asset} size={13} />
+                                        : <LayoutGrid className="w-3.5 h-3.5 shrink-0" />}
                                     <span>{label}</span>
+                                    {count > 0 && (
+                                        <span className={cn(
+                                            "font-mono text-[10px] tabular-nums",
+                                            isActive ? "text-muted-foreground" : "text-muted-foreground/60"
+                                        )}>
+                                            {count}
+                                        </span>
+                                    )}
                                 </button>
                             );
                         })}
                     </div>
 
-                    {/* Advanced Filter Toggle — largeur fixe (le compteur ne déplace rien) */}
+                    {/* Filtres avancés — icône de réglages (l'ancienne était « membres ») */}
                     <button
                         onClick={() => setShowAdvanced(!showAdvanced)}
                         aria-expanded={showAdvanced}
-                        className={`flex items-center justify-center gap-2 px-4 rounded-xl text-caption font-black h-11 transition-all border min-w-[132px] ${showAdvanced || hasActiveAdvancedFilters
-                            ? "bg-surface border-border-strong text-foreground"
-                            : "bg-surface/50 border-border text-muted-foreground hover:text-foreground hover:bg-surface"
-                            }`}
+                        className={cn(
+                            "flex items-center justify-center gap-2 px-4 h-11 min-w-[132px] rounded-xl border text-caption font-black transition-colors",
+                            showAdvanced || hasActiveAdvancedFilters
+                                ? "bg-elevated border-border-strong text-foreground"
+                                : "bg-surface/50 border-border text-muted-foreground hover:bg-surface hover:text-foreground"
+                        )}
                     >
-                        <Users className="w-3.5 h-3.5 shrink-0" />
+                        <SlidersHorizontal className="w-3.5 h-3.5 shrink-0" />
                         Filtres
                         {hasActiveFilters && (
                             <span className="font-mono tabular-nums text-[10px] opacity-80">{filtered}/{total}</span>
                         )}
                     </button>
 
-                    {/* Reset — toujours monté (désactivé), icône X distincte du refresh données */}
+                    {/* Réinitialiser — toujours monté (désactivé) : le compteur ne déplace rien */}
                     <button
                         onClick={() => onChange({ ...DEFAULT_FILTERS })}
                         disabled={!hasActiveFilters}
-                        className="flex items-center justify-center w-11 h-11 rounded-xl text-muted-foreground border border-border bg-surface/50 transition-colors shrink-0 enabled:hover:text-danger enabled:hover:border-danger/50 enabled:hover:bg-danger/30 disabled:opacity-30 disabled:cursor-default"
+                        className="flex items-center justify-center w-11 h-11 rounded-xl border border-border bg-surface/50 text-muted-foreground shrink-0 transition-colors enabled:hover:text-danger enabled:hover:border-danger/40 enabled:hover:bg-danger/10 disabled:opacity-30 disabled:cursor-default"
                         title="Effacer les filtres"
                         aria-label="Effacer les filtres"
                     >
@@ -151,81 +194,84 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                 )}
             >
                 <div className="overflow-hidden">
-                        <div className="flex flex-wrap items-center gap-2 p-3 bg-surface/40 border border-border rounded-2xl mb-2">
-                            {/* Level presets */}
-                            <span className="text-caption font-black text-muted-foreground uppercase tracking-widest mr-2">Niveau</span>
-                            {LEVEL_PRESETS.map((preset) => {
-                                const isActive = activePreset?.label === preset.label;
-                                return (
-                                    <button
-                                        key={preset.label}
-                                        onClick={() => onChange({ ...filters, minLevel: preset.min, maxLevel: preset.max })}
-                                        className={`px-3 py-1.5 rounded-lg text-caption font-black transition-colors border ${isActive
-                                            ? "bg-info/20 text-info border-info/30"
-                                            : "bg-surface text-muted-foreground border-transparent hover:bg-surface hover:text-foreground"
-                                            }`}
-                                    >
-                                        {preset.label}
-                                    </button>
-                                );
-                            })}
+                    <div className="flex flex-wrap items-center gap-2 mb-2 p-3 rounded-2xl border border-border bg-surface/30">
+                        {/* Paliers de niveau */}
+                        <span className="mr-1 text-caption font-black text-muted-foreground uppercase tracking-widest">Niveau</span>
+                        {LEVEL_PRESETS.map((preset) => {
+                            const isActive = activePreset?.label === preset.label;
+                            return (
+                                <button
+                                    key={preset.label}
+                                    onClick={() => onChange({ ...filters, minLevel: preset.min, maxLevel: preset.max })}
+                                    aria-pressed={isActive}
+                                    className={cn(
+                                        "px-3 py-1.5 rounded-lg border text-caption font-bold transition-colors",
+                                        isActive
+                                            ? "bg-elevated border-border-strong text-foreground"
+                                            : "border-transparent text-muted-foreground hover:bg-elevated/60 hover:text-foreground"
+                                    )}
+                                >
+                                    {preset.label}
+                                </button>
+                            );
+                        })}
 
-                            <div className="w-px h-4 bg-surface mx-2" />
+                        <div className="mx-1 h-4 w-px bg-border" />
 
-                            {/* Smart toggles */}
-                            <ToggleChip
-                                icon={<Users className="w-3 h-3" />}
-                                label="Places dispo"
-                                active={filters.onlyWithSpots}
-                                onToggle={() => onChange({ ...filters, onlyWithSpots: !filters.onlyWithSpots })}
-                                colorClass="bg-success/15 text-success border-success/30"
-                            />
-                            <ToggleChip
-                                icon={<Star className="w-3 h-3" />}
-                                label="Avec succès"
-                                active={filters.onlyWithAchievement}
-                                onToggle={() => onChange({ ...filters, onlyWithAchievement: !filters.onlyWithAchievement })}
-                                colorClass="bg-warning/15 text-warning border-warning/30"
-                            />
-                            <ToggleChip
-                                icon={<X className="w-3 h-3" />}
-                                label="Posts fermés"
-                                active={filters.showClosed}
-                                onToggle={() => onChange({ ...filters, showClosed: !filters.showClosed })}
-                                colorClass="bg-muted/15 text-muted-foreground border-border/30"
-                            />
+                        {/* Filtres rapides — pictos Dofus (joueur / succès / cadenas) */}
+                        <ToggleChip
+                            asset="player"
+                            label="Places dispo"
+                            active={filters.onlyWithSpots}
+                            onToggle={() => onChange({ ...filters, onlyWithSpots: !filters.onlyWithSpots })}
+                        />
+                        <ToggleChip
+                            asset="success"
+                            label="Avec succès"
+                            active={filters.onlyWithAchievement}
+                            onToggle={() => onChange({ ...filters, onlyWithAchievement: !filters.onlyWithAchievement })}
+                        />
+                        <ToggleChip
+                            asset="closed"
+                            label="Posts fermés"
+                            active={filters.showClosed}
+                            onToggle={() => onChange({ ...filters, showClosed: !filters.showClosed })}
+                        />
 
-                            {/* Results count */}
-                            {hasActiveFilters && showAdvanced && (
-                                <span className="ml-auto text-caption text-muted-foreground font-black uppercase tracking-widest">
-                                    {filtered}/{total} RÉSULTATS
-                                </span>
-                            )}
-                        </div>
-                        </div>
+                        {/* Résultats — l'info n'apparaît que si un filtre agit réellement */}
+                        {hasActiveFilters && (
+                            <span className="ml-auto font-mono tabular-nums text-caption text-muted-foreground">
+                                {filtered}/{total} résultats
+                            </span>
+                        )}
+                    </div>
+                </div>
             </div>
         </div>
     );
 }
 
 function ToggleChip({
-    icon, label, active, onToggle, colorClass,
+    asset, label, active, onToggle,
 }: {
-    icon: React.ReactNode;
+    asset: DofusUiIconName;
     label: string;
     active: boolean;
     onToggle: () => void;
-    colorClass: string;
 }) {
     return (
         <button
+            type="button"
             onClick={onToggle}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-caption font-bold border transition-colors ${active
-                ? colorClass
-                : "bg-background text-muted-foreground border-border hover:bg-elevated hover:text-foreground"
-                }`}
+            aria-pressed={active}
+            className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-caption font-bold transition-colors",
+                active
+                    ? "border-border-strong bg-elevated text-foreground"
+                    : "border-transparent bg-surface/40 text-muted-foreground hover:bg-elevated hover:text-foreground"
+            )}
         >
-            {icon}
+            <DofusUiIcon name={asset} size={13} className={active ? undefined : "opacity-60"} />
             {label}
         </button>
     );
